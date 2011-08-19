@@ -1,165 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5C82B6B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 02:08:08 -0400 (EDT)
-Date: Fri, 19 Aug 2011 14:08:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: Per-block device
- bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
-Message-ID: <20110819060803.GA7887@localhost>
-References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
- <20110818094824.GA25752@localhost>
- <1313669702.6607.24.camel@sauron>
- <20110818131343.GA17473@localhost>
- <CAFPAmTShNRykOEbUfRan_2uAAbBoRHE0RhOh4DrbWKq7a4-Z9Q@mail.gmail.com>
- <20110819023406.GA12732@localhost>
- <CAFPAmTSzYg5n150_ykv-Vvc4QVbz14Oxn_Mm+EqxzbUL3c39tg@mail.gmail.com>
- <20110819052839.GB28266@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id 25D686B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 02:21:45 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p7J6LPtf011684
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 11:51:25 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p7J6LOLG2773130
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 11:51:24 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p7J6LN2W019790
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 16:21:24 +1000
+Message-ID: <4E4E00E3.7080306@linux.vnet.ibm.com>
+Date: Fri, 19 Aug 2011 11:51:23 +0530
+From: Raghavendra K T <raghukt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110819052839.GB28266@localhost>
+Subject: Re: [PATCH V2 1/1][cleanup] memcg: renaming of mem variable to memcg
+References: <20110812070623.28939.4733.sendpatchset@oc5400248562.ibm.com> <20110817124339.GA10245@tiehlicka.suse.cz>
+In-Reply-To: <20110817124339.GA10245@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Arend van Spriel <arend@broadcom.com>, Greg Kroah-Hartman <gregkh@suse.de>, "David S. Miller" <davem@davemloft.net>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, "John W. Linville" <linville@tuxdriver.com>, Mauro Carvalho Chehab <mchehab@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 
-Kautuk,
+On 08/17/2011 06:13 PM, Michal Hocko wrote:
+> Sorry for late reply
+>
+> On Fri 12-08-11 12:36:23, Raghavendra K T wrote:
+>>   The memcg code sometimes uses "struct mem_cgroup *mem" and sometimes uses
+>>   "struct mem_cgroup *memcg". This patch renames all mem variables to memcg in
+>>   source file.
+>>
+>> Testing : Compile tested with following configurations.
+>> 1) make defconfig ARCH=i386 + CONFIG_CGROUP_MEM_RES_CTLR=y
+>> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=y
+>>
+>> Binary size Before patch
+>> ========================
+>>     text	   data	    bss	    dec	    hex	filename
+>> 8911169	 520464	1884160	11315793	 acaa51	vmlinux
+>>
+>> Binary Size After patch
+>> =======================
+>>     text	   data	    bss	    dec	    hex	filename
+>> 8911169	 520464	1884160	11315793	 acaa51	vmlinux
+>
+> It would be much nicer to see unchanged md5sum. I am not sure how much
+> possible is this with current gcc or whether special command line
+> parameters have to be used (at least !CONFIG_DEBUG_INFO* is necessary)
+> but simple variable rename shouldn't be binary visible.
+> I guess that a similar approach was used during 32b and 64b x86
+> unification.
+>
+I agree,  I could get same MD5 sum only in N N N config case (3rd config).
+  I am not sure whether we can get same Md5 after lines have been split.
+Here is what I tried: static KBUILD_BUILD_TIMESTAMP 
+KBUILD_BUILD_VERSION, initramfs source. strip vmlinux. (could not 
+disable CONFIG_BUG).
+I referred to 32nb 64b unification also, did not get much insight from 
+there on same MD5.
 
-Here is a quick demo for bdi->dirty_background_time. Totally untested.
+>>
+>> 2) make defconfig ARCH=i386 + CONFIG_CGROUP_MEM_RES_CTLR=y
+>> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=n
+>
+> I would assume the same testing results as above
+Yes
+8908671	 519808	1884160	11312639	 ac9dff	vmlinux
+>
+>>
+>> 3) make defconfig ARCH=i386  CONFIG_CGROUP_MEM_RES_CTLR=n
+>> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=n
+>
+> ditto.
 
-Thanks,
-Fengguang
-
----
- fs/fs-writeback.c           |   16 +++++++++++-----
- include/linux/backing-dev.h |    1 +
- include/linux/writeback.h   |    1 +
- mm/backing-dev.c            |   23 +++++++++++++++++++++++
- mm/page-writeback.c         |    3 ++-
- 5 files changed, 38 insertions(+), 6 deletions(-)
-
---- linux-next.orig/fs/fs-writeback.c	2011-08-19 13:59:41.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-08-19 14:00:36.000000000 +0800
-@@ -653,14 +653,20 @@ long writeback_inodes_wb(struct bdi_writ
- 	return nr_pages - work.nr_pages;
- }
- 
--static inline bool over_bground_thresh(void)
-+bool over_bground_thresh(struct backing_dev_info *bdi)
- {
- 	unsigned long background_thresh, dirty_thresh;
- 
- 	global_dirty_limits(&background_thresh, &dirty_thresh);
- 
--	return (global_page_state(NR_FILE_DIRTY) +
--		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
-+	if (global_page_state(NR_FILE_DIRTY) +
-+	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
-+		return true;
-+
-+	background_thresh = bdi->avg_write_bandwidth *
-+					(u64)bdi->dirty_background_time / 1000;
-+
-+	return bdi_stat(bdi, BDI_RECLAIMABLE) > background_thresh;
- }
- 
- /*
-@@ -722,7 +728,7 @@ static long wb_writeback(struct bdi_writ
- 		 * For background writeout, stop when we are below the
- 		 * background dirty threshold
- 		 */
--		if (work->for_background && !over_bground_thresh())
-+		if (work->for_background && !over_bground_thresh(wb->bdi))
- 			break;
- 
- 		if (work->for_kupdate) {
-@@ -806,7 +812,7 @@ static unsigned long get_nr_dirty_pages(
- 
- static long wb_check_background_flush(struct bdi_writeback *wb)
- {
--	if (over_bground_thresh()) {
-+	if (over_bground_thresh(wb->bdi)) {
- 
- 		struct wb_writeback_work work = {
- 			.nr_pages	= LONG_MAX,
---- linux-next.orig/include/linux/backing-dev.h	2011-08-19 13:59:41.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2011-08-19 14:00:07.000000000 +0800
-@@ -91,6 +91,7 @@ struct backing_dev_info {
- 
- 	unsigned int min_ratio;
- 	unsigned int max_ratio, max_prop_frac;
-+	unsigned int dirty_background_time;
- 
- 	struct bdi_writeback wb;  /* default writeback info for this bdi */
- 	spinlock_t wb_lock;	  /* protects work_list */
---- linux-next.orig/mm/backing-dev.c	2011-08-19 13:59:41.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2011-08-19 14:03:15.000000000 +0800
-@@ -225,12 +225,33 @@ static ssize_t max_ratio_store(struct de
- }
- BDI_SHOW(max_ratio, bdi->max_ratio)
- 
-+static ssize_t dirty_background_time_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	char *end;
-+	unsigned int ms;
-+	ssize_t ret = -EINVAL;
-+
-+	ms = simple_strtoul(buf, &end, 10);
-+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
-+		bdi->dirty_background_time = ms;
-+		if (!ret)
-+			ret = count;
-+		if (over_bground_thresh(bdi))
-+			bdi_start_background_writeback(bdi);
-+	}
-+	return ret;
-+}
-+BDI_SHOW(dirty_background_time, bdi->dirty_background_time)
-+
- #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
- 
- static struct device_attribute bdi_dev_attrs[] = {
- 	__ATTR_RW(read_ahead_kb),
- 	__ATTR_RW(min_ratio),
- 	__ATTR_RW(max_ratio),
-+	__ATTR_RW(dirty_background_time),
- 	__ATTR_NULL,
- };
- 
-@@ -657,6 +678,8 @@ int bdi_init(struct backing_dev_info *bd
- 	bdi->min_ratio = 0;
- 	bdi->max_ratio = 100;
- 	bdi->max_prop_frac = PROP_FRAC_BASE;
-+	bdi->dirty_background_time = 10000;
-+
- 	spin_lock_init(&bdi->wb_lock);
- 	INIT_LIST_HEAD(&bdi->bdi_list);
- 	INIT_LIST_HEAD(&bdi->work_list);
---- linux-next.orig/mm/page-writeback.c	2011-08-19 14:00:07.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-08-19 14:00:07.000000000 +0800
-@@ -1163,7 +1163,8 @@ pause:
- 	if (laptop_mode)
- 		return;
- 
--	if (nr_reclaimable > background_thresh)
-+	if (nr_reclaimable > background_thresh ||
-+	    over_bground_thresh(bdi))
- 		bdi_start_background_writeback(bdi);
- }
- 
---- linux-next.orig/include/linux/writeback.h	2011-08-19 14:00:41.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2011-08-19 14:01:19.000000000 +0800
-@@ -132,6 +132,7 @@ extern int block_dump;
- extern int laptop_mode;
- 
- extern unsigned long determine_dirtyable_memory(void);
-+extern bool over_bground_thresh(struct backing_dev_info *bdi);
- 
- extern int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
+8878794	 517632	1880064	11276490	 ac10ca	vmlinux before and after
+>
+>>
+>> Other sanity check:
+>> Bootable configuration on x86 (T60p)  with  CONFIG_CGROUP_MEM_RES_CTLR=y
+>> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=y
+>> is tesed with basic mounting of memcgroup, creation of child and parallel fault.
+>> mkdir -p /cgroup
+>> mount -t cgroup none /cgroup -o memory
+>> mkdir /cgroup/0
+>> echo $$>  /cgroup/0/tasks
+>> time ./parallel_fault 2 100000 32
+>>
+>> real	0m0.025s
+>> user	0m0.001s
+>> sys	0m0.033s
+>
+> This looks like a random test. I wouldn't add it to the changelog.
+Agree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
