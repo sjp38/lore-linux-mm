@@ -1,78 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 61F896B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 17:39:46 -0400 (EDT)
-Date: Fri, 19 Aug 2011 22:38:10 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: running of out memory => kernel crash
-Message-ID: <20110819223810.0f02016e@lxorguk.ukuu.org.uk>
-In-Reply-To: <4E4ED366.1090104@genband.com>
-References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
-	<CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
-	<1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com>
-	<201108111938.25836.vda.linux@googlemail.com>
-	<CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
-	<CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com>
-	<CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
-	<CAF_S4t--+Ufkb2bVrt9e59R=yty5U5Cb=Kt5RbjPjraM_equog@mail.gmail.com>
-	<4E4ED366.1090104@genband.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 43C8F6B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 17:51:28 -0400 (EDT)
+Date: Fri, 19 Aug 2011 14:51:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
+ quota update.
+Message-Id: <20110819145109.dcd5dac6.akpm@linux-foundation.org>
+In-Reply-To: <4E4EB603.8090305@cray.com>
+References: <4E4EB603.8090305@cray.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Friesen <chris.friesen@genband.com>
-Cc: Bryan Donlan <bdonlan@gmail.com>, Pavel Ivanov <paivanof@gmail.com>, Denys Vlasenko <vda.linux@googlemail.com>, Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Barry <abarry@cray.com>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Gibson <david@gibson.dropbear.id.au>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Hastings <abh@cray.com>
 
-> Indeed.  From the point of view of the OS, it's running everything on 
-> the system without a problem.  It's deep into swap, but it's running.
+On Fri, 19 Aug 2011 14:14:11 -0500
+Andrew Barry <abarry@cray.com> wrote:
 
-Watchdogs can help here
+> This patch fixes a use-after-free problem in free_huge_page, with a quota update
+> happening after hugetlbfs umount. The problem results when a device driver,
+> which has mapped a hugepage, does a put_page. Put_page, calls free_huge_page,
+> which does a hugetlb_put_quota. As written, hugetlb_put_quota takes an
+> address_space struct pointer "mapping" as an argument. If the put_page occurs
+> after the hugetlbfs filesystem is unmounted, mapping points to freed memory.
 
-> If there are application requirements on grade-of-service, it's up to 
-> the application to check whether those are being met and if not to do 
-> something about it.
+OK.  This sounds screwed up.  If a device driver is currently using a
+page from a hugetlbfs file then the unmount shouldn't have succeeded in
+the first place!
 
-Or it can request such a level of service from the kernel using the
-various memory control interfaces provided but not enabled by
-distributors in default configurations.
+Or is it the case that the device driver got a reference to the page by
+other means, bypassing hugetlbfs?  And there's undesirable/incorrect
+interaction between the non-hugetlbfs operation and hugetlbfs?
 
-In particular you can tell the kernel to stop the system hitting the
-point where it runs near to out of memory + swap and begins to thrash
-horribly. For many workloads you will need a lot of pretty much excess
-swap, but disk is cheap. It's like banking, you can either pretend it's
-safe in which case you do impressions of the US banking system now and
-then and the government has to reboot it, or you can do traditional
-banking models where you have a reserve which is sufficient to cover the
-worst case of making progress. Our zero overcommit isn't specifically
-aimed at the page rate problem but is sufficiently related it usually
-does the trick.
+Or something else?
 
-http://opsmonkey.blogspot.com/2007/01/linux-memory-overcommit.html
+<starts reading the mailing list>
 
-I would btw disagree strongly that this is a 'sorry we can't help'
-situation. Back when memory was scarce and systems habitually ran at high
-memory loads 4.2 and 4.3BSD coped just fine with very high fault rates
-that make modern systems curl up and die. That was entirely down to
-having good paging and swap policies linked to scheduling behaviour so
-they always made progress. Your latency went through the roof but work
-got done which meant that if it was transient load the system would feel
-like treacle then perk up again where these days it seems the fashion of
-most OS's to just explode messily.
+OK, important missing information from the above is that the driver got
+at this page via get_user_pages() and happened to stumble across a
+hugetlbfs page.  So it's indeed an incorrect interaction between a
+non-hugetlbfs operation and hugetlbfs.
 
-In particular they did two things
-- Actively tried to swap out all the bits of entire process victims to
-  make space to do work under very high load
-- When a process was pulled in it got time to run before it as opposed
-  to someone else got dumped out
+What's different about hugetlbfs?  Why don't other filesystems hit this?
 
-That has two good effects. Firstly the system could write out the process
-data very efficiently and get it back likewise. Secondly the system ended
-up in a kick one out, do work in the space we have to breath, stop, kick
-next out, do work, and in most cases had little CPU contention so could
-make good progress in each burst, albeit with the high latency cost.
+<investigates further>
 
-Alan
+OK so the incorrect interaction happened in free_huge_page(), which is
+called via the compound page destructor (this dtor is "what's different
+about hugetlbfs").   What is incorrect about this is
+
+a) that we're doing fs operations in response to a
+   get_user_pages()/put_page() operation which has *nothing* to do with
+   filesystems!
+
+b) that we continue to try to do that fs operation against an fs
+   which was unmounted and freed three days ago. duh.
+
+
+So I hereby pronounce that
+
+a) It was wrong to manipulate hugetlbfs quotas within
+   free_huge_page().  Because free_huge_page() is a low-level
+   page-management function which shouldn't know about one of its
+   specific clients (in this case, hugetlbfs).
+
+   In fact it's wrong for there to be *any* mention of hugetlbfs
+   within hugetlb.c.
+
+b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
+   Mel, Adam, Dave, at least...
+
+c) The proper fix here is to get that hugetlbfs quota code out of
+   free_huge_page() and do it all where it belongs: within hugetlbfs
+   code.
+
+
+Regular filesystems don't need to diddle quota counts within
+page_cache_release().  Why should hugetlbfs need to?
+
+>
+> ...
+>
+> +		/*Free only if used quota is zero. */
+
+Missing a space there.
+
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -142,11 +142,16 @@ struct hugetlbfs_config {
+>  	struct hstate *hstate;
+>  };
+> 
+> +#define HPAGE_INACTIVE  0
+> +#define HPAGE_ACTIVE    1
+
+The above need documenting, please.  That documentation would perhaps
+help me understand why we need both an "active" flag *and* a refcount.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
