@@ -1,92 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FBA56B0169
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 22:06:58 -0400 (EDT)
-Date: Thu, 18 Aug 2011 22:06:37 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110819020637.GA13597@redhat.com>
-References: <20110816022006.348714319@intel.com>
- <20110816022329.190706384@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1BFCD6B0169
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 22:17:06 -0400 (EDT)
+Date: Fri, 19 Aug 2011 10:17:02 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] writeback: Per-block device
+ bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
+Message-ID: <20110819021701.GA9107@localhost>
+References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
+ <20110818094824.GA25752@localhost>
+ <1313669702.6607.24.camel@sauron>
+ <20110818123523.GB1883@localhost>
+ <CAFPAmTSot4+ohQGX7wmgYPdEVAvh7jr+e3LeUKx0m7guea+rtQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20110816022329.190706384@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAFPAmTSot4+ohQGX7wmgYPdEVAvh7jr+e3LeUKx0m7guea+rtQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Artem Bityutskiy <dedekind1@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
 
-On Tue, Aug 16, 2011 at 10:20:11AM +0800, Wu Fengguang wrote:
+On Thu, Aug 18, 2011 at 11:26:29PM +0800, Kautuk Consul wrote:
+> Please find my comments inline to the email below:
+> 
+> On Thu, Aug 18, 2011 at 6:05 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > On Thu, Aug 18, 2011 at 08:14:57PM +0800, Artem Bityutskiy wrote:
+> >> On Thu, 2011-08-18 at 17:48 +0800, Wu Fengguang wrote:
+> >> > > For example, the user might want to write-back pages in smaller
+> >> > > intervals to a block device which has a
+> >> > > faster known writeback speed.
+> >> >
+> >> > That's not a complete rational. What does the user ultimately want by
+> >> > setting a smaller interval? What would be the problems to the other
+> >> > slow devices if the user does so by simply setting a small value
+> >> > _globally_?
+> >> >
+> >> > We need strong use cases for doing such user interface changes.
+> >> > Would you detail the problem and the pains that can only (or best)
+> >> > be addressed by this patch?
+> >>
+> >> Here is a real use-case we had when developing the N900 phone. We had
+> >> internal flash and external microSD slot. Internal flash is soldered in
+> >> and cannot be removed by the user. MicroSD, in contrast, can be removed
+> >> by the user.
+> 
+> Yes, of course. I forgot this aspect also.
+> In fact I, too work on embedded platforms and I have faced this
+> problem with removable USB
+> disks. Our embedded applications don't even tell the user when it
+> would be a good time to remove
+> the USB stick.
+> Hence we run into data integrity problems for our filesystems when
+> some writebacks have not been
+> completed before removal of the USB disk.
+> Thanks for mentioning this as this adds to a use-case for this feature.
 
-[..]
-> +		if (dirty_exceeded && !bdi->dirty_exceeded)
->  			bdi->dirty_exceeded = 1;
->  
->  		bdi_update_bandwidth(bdi, dirty_thresh, background_thresh,
->  				     nr_dirty, bdi_thresh, bdi_dirty,
->  				     start_time);
->  
-> -		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
-> -		 * Unstable writes are a feature of certain networked
-> -		 * filesystems (i.e. NFS) in which data may have been
-> -		 * written to the server's write cache, but has not yet
-> -		 * been flushed to permanent storage.
-> -		 * Only move pages to writeback if this bdi is over its
-> -		 * threshold otherwise wait until the disk writes catch
-> -		 * up.
-> -		 */
-> -		trace_balance_dirty_start(bdi);
-> -		if (bdi_nr_reclaimable > task_bdi_thresh) {
-> -			pages_written += writeback_inodes_wb(&bdi->wb,
-> -							     write_chunk);
-> -			trace_balance_dirty_written(bdi, pages_written);
-> -			if (pages_written >= write_chunk)
-> -				break;		/* We've done our duty */
-> +		if (unlikely(!writeback_in_progress(bdi)))
-> +			bdi_start_background_writeback(bdi);
-> +
-> +		base_rate = bdi->dirty_ratelimit;
-> +		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
-> +					       background_thresh, nr_dirty,
-> +					       bdi_thresh, bdi_dirty);
-> +		if (unlikely(pos_ratio == 0)) {
-> +			pause = MAX_PAUSE;
-> +			goto pause;
->  		}
-> +		task_ratelimit = (u64)base_rate *
-> +					pos_ratio >> RATELIMIT_CALC_SHIFT;
+For the removable USB disks, we can do a policy that set
+dirty_background_time = 0.
 
-Hi Fenguaang,
+This will work better than hacking the dirty intervals. For one thing, it's
+impractical to set the latter to tiny values so as to avoid excessive wakeups.
 
-I am little confused here. I see that you have already taken pos_ratio
-into account in bdi_update_dirty_ratelimit() and wondering why to take
-that into account again in balance_diry_pages().
+And the intervals interface is never a guarantee. dirty_expire_interval only
+promises to _start_ writeback on the expired inodes in "best efforts" way.
+Only the dirty_ratio interface guarantees to keep the number of pages under the
+limit, hence limiting the most data that can be lost in hot removal events.
 
-We calculated the pos_rate and balanced_rate and adjusted the
-bdi->dirty_ratelimit accordingly in bdi_update_dirty_ratelimit().
+> >> For the internal flash we wanted long intervals and relaxed limits to
+> >> gain better performance.
+> >
+> > Understand -- it's backed by the battery anyway.
+> >
+> > Yeah it's a practical way. It might even optimize away some of the
+> > writes if they are truncated some time later. It also allows possible
+> > optimization of deferring the writes to user inactive periods.
+> >
+> > However the ultimate optimization could be to prioritize READs over
+> > WRITEs in the IO scheduler, so that async WRITEs have minimal impact
+> > on normal operations. It's the only option for the MicroSD case,
+> > anyway.
+> >
+> >> For MicroSD we wanted very short intervals and tough limits to make sure
+> >> that if the user suddenly removes his microSD (users do this all the
+> >> time) - we do not lose data.
+> >
+> > Pretty reasonable.
+> >
+> >> The discussed capability would be very useful in that case, AFAICS.
+> >
+> > Agreed.
+> >
+> >> IOW, this is not only about fast/slow devices and how quickly you want
+> >> to be able to sync the FS, this is also about data integrity guarantees.
+> >
+> > In fact I never think it would matter for fast/slow devices. A It's the
+> 
+> As I mentioned, if there is a comparitively faster device, you might want to set
+> smaller intervals in which your pages are synced with disk for quicker
+> memory reclamation
+> purposes. This can be used on servers that run apps that have high
+> disk accesses as
+> well as need a lot of memory. As I explained before, in that case, the
+> direct reclamation
+> procedure will cause the usermode apps to sleep while trying to free
+> up pages by flushing
+> them to disk via the filesystem's writepage().
 
-So why are we adjusting this pos_ratio() adjusted limit again with
-pos_ratio(). Doesn't it become effectively following (assuming
-one is decreasing the dirty rate limit).
+Here you want to limit the number of dirty pages for reducing the
+chances page reclaim run into them. Again, the right interface for
+doing this job is dirty_ratio. Or if you need to do it per-bdi, it
+will be some per-bdi dirty_time interface that works in parallel with
+dirty_ratio, whatever smaller value will take effect.
 
-base_rate = bdi->dirty_ratelimit
-pos_rate = base_rate * pos_ratio();
+> > dirty_ratio/dirty_bytes interfaces that ask for improvement if care
+> > about too many pages being cached.
+> >
+> 
+> The dirty_ratio/dirty_bytes interface is good as a spatial approach in
+> terms of number of pages
+> to actually write after each interval.
+> This still cannot solve the problem Artem is mentioning, because the
+> time at which removable disks
+> can be detached is indeterminable as the user can do this anytime he wants.
+> Whatever algorithm you use, you will eventually run into some
+> situation where the user detaches a
+> disk before the writeback can really happen.
+> I think it is up to the user/admin to determine how much write-back
+> interval is actually required for his/her
+> specific application.
 
-			  write_bw
-balance_rate = pos_rate * --------
-			  dirty_bw
+You seem to mis-understand how the dirty intervals sysctl values are
+carried out and have rather high expectations for them...
 
-delta = max(pos_rate, balance_rate)
-bdi->dirty_ratelimit = bdi->dirty_ratelimit - delta;
+What can be best done for removable disk, in terms of data integrity,
+is to immediate start writeout IO for any newly dirtied pages. Which
+can only be provided by the provisioned per-bdi dirty_background_time
+interface (by setting it to 0 for USB disks).
 
-task_ratelimit = bdi->dirty_ratelimit * pos_ratio().
+> > The intervals interfaces are intended for data integrity and nothing
+> > more.
+> 
+> Yes. That is correct, but do you feel that this data integrity is
+> possible in this age of removable
+> disks ?
+> That said, I would say that your patches are a very nice spatial
+> approach to a part of the solution.
+> Do you feel that combining a temporal approach along with your spatial
+> pattern analysis technique would
+> be the best way to ensure data integrity along with proper bandwidth
+> estimation for specific applications ?
 
-So we have already taken into account pos_ratio() while calculating new
-bdi->dirty_ratelimit. Do we need to take that into account again.
+There will be no spatial/temporal difference when
+dirty_background_time=0, which is exactly what we can best do to
+protect data for removable disks.
 
-Thanks
-Vivek
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
