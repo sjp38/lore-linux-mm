@@ -1,118 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A547F6B0170
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 20:00:58 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p7J00pPL014822
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 17:00:54 -0700
-Received: from qwb7 (qwb7.prod.google.com [10.241.193.71])
-	by wpaz9.hot.corp.google.com with ESMTP id p7J00l0W011989
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 17:00:50 -0700
-Received: by qwb7 with SMTP id 7so2180027qwb.40
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 17:00:50 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110818144025.8e122a67.akpm@linux-foundation.org>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818144025.8e122a67.akpm@linux-foundation.org>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 18 Aug 2011 17:00:30 -0700
-Message-ID: <CAHH2K0b_jNHfAnSpDqBMKh4NbZCu8JrEcfjb+rputWKXgv5FLA@mail.gmail.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 2974C6B0172
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 20:14:27 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C49BA3EE0C0
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:14:22 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A847A45DE52
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:14:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EE9C45DE4E
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:14:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81C5E1DB803B
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:14:22 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E70E1DB802F
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:14:22 +0900 (JST)
+Date: Fri, 19 Aug 2011 09:06:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 4/6]  memg: calculate numa weight for vmscan
+Message-Id: <20110819090659.949d134c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110818084103.GE23056@tiehlicka.suse.cz>
+References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110809191100.6c4c3285.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110817143418.GC7482@tiehlicka.suse.cz>
+	<20110818091750.79eea4f5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110818084103.GE23056@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org, Valdis.Kletnieks@vt.edu, jweiner@redhat.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On Thu, Aug 18, 2011 at 2:40 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> (cc linux-arch)
->
-> On Wed, 17 Aug 2011 23:50:53 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> Both mem_cgroup_charge_statistics() and mem_cgroup_move_account() were
->> unnecessarily disabling preemption when adjusting per-cpu counters:
->> =A0 =A0 preempt_disable()
->> =A0 =A0 __this_cpu_xxx()
->> =A0 =A0 __this_cpu_yyy()
->> =A0 =A0 preempt_enable()
->>
->> This change does not disable preemption and thus CPU switch is possible
->> within these routines. =A0This does not cause a problem because the tota=
-l
->> of all cpu counters is summed when reporting stats. =A0Now both
->> mem_cgroup_charge_statistics() and mem_cgroup_move_account() look like:
->> =A0 =A0 this_cpu_xxx()
->> =A0 =A0 this_cpu_yyy()
->>
->> ...
->>
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -664,24 +664,20 @@ static unsigned long mem_cgroup_read_events(struct=
- mem_cgroup *mem,
->> =A0static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0bool file, int nr_pages)
->> =A0{
->> - =A0 =A0 preempt_disable();
->> -
->> =A0 =A0 =A0 if (file)
->> - =A0 =A0 =A0 =A0 =A0 =A0 __this_cpu_add(mem->stat->count[MEM_CGROUP_STA=
-T_CACHE], nr_pages);
->> + =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_=
-CACHE], nr_pages);
->> =A0 =A0 =A0 else
->> - =A0 =A0 =A0 =A0 =A0 =A0 __this_cpu_add(mem->stat->count[MEM_CGROUP_STA=
-T_RSS], nr_pages);
->> + =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_=
-RSS], nr_pages);
->>
->> =A0 =A0 =A0 /* pagein of a big page is an event. So, ignore page size */
->> =A0 =A0 =A0 if (nr_pages > 0)
->> - =A0 =A0 =A0 =A0 =A0 =A0 __this_cpu_inc(mem->stat->events[MEM_CGROUP_EV=
-ENTS_PGPGIN]);
->> + =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_inc(mem->stat->events[MEM_CGROUP_EVEN=
-TS_PGPGIN]);
->> =A0 =A0 =A0 else {
->> - =A0 =A0 =A0 =A0 =A0 =A0 __this_cpu_inc(mem->stat->events[MEM_CGROUP_EV=
-ENTS_PGPGOUT]);
->> + =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_inc(mem->stat->events[MEM_CGROUP_EVEN=
-TS_PGPGOUT]);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_pages =3D -nr_pages; /* for event */
->> =A0 =A0 =A0 }
->>
->> - =A0 =A0 __this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_=
-pages);
->> -
->> - =A0 =A0 preempt_enable();
->> + =A0 =A0 this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pa=
-ges);
->> =A0}
->
-> On non-x86 architectures this_cpu_add() internally does
-> preempt_disable() and preempt_enable(). =A0So the patch is a small
-> optimisation for x86 and a larger deoptimisation for non-x86.
->
-> I think I'll apply it, as the call frequency is low (correct?) and the
-> problem will correct itself as other architectures implement their
-> atomic this_cpu_foo() operations.
+On Thu, 18 Aug 2011 10:41:03 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-mem_cgroup_charge_statistics() is a common operation, which is called
-on each memcg page charge and uncharge.
+> On Thu 18-08-11 09:17:50, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 17 Aug 2011 16:34:18 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > Sorry it took so long but I was quite busy recently.
+> > > 
+> > > On Tue 09-08-11 19:11:00, KAMEZAWA Hiroyuki wrote:
+> [...]
+> > > > Index: mmotm-Aug3/mm/memcontrol.c
+> > > > ===================================================================
+> > > > --- mmotm-Aug3.orig/mm/memcontrol.c
+> > > > +++ mmotm-Aug3/mm/memcontrol.c
+> [...]
+> > > > +
+> > > > +	/* 'scanned - rotated/scanned' means ratio of finding not active. */
+> > > > +	anon = anon * (scanned[0] - rotated[0]) / (scanned[0] + 1);
+> > > > +	file = file * (scanned[1] - rotated[1]) / (scanned[1] + 1);
+> > > 
+> > > OK, makes sense. We should not reclaim from nodes that are known to be
+> > > hard to reclaim from. We, however, have to be careful to not exclude the
+> > > node from reclaiming completely.
+> > > 
+> > > > +
+> > > > +	weight = (anon * anon_prio + file * file_prio) / 200;
+> > > 
+> > > Shouldn't we rather normalize the weight to the node size? This way we
+> > > are punishing bigger nodes, aren't we.
+> > > 
+> > 
+> > Here, the routine is for reclaiming memory in a memcg in smooth way.
+> > And not for balancing zone. It will be kswapd+memcg(softlimit) work.
+> > The size of node in this memcg is represented by file + anon.
+> 
+> I am not sure I understand what you mean by that but consider two nodes.
+> swappiness = 0
+> anon_prio = 1
+> file_prio = 200
+> A 1000 pages, 100 anon, 300 file: weight 300, node is 40% full
+> B 15000 pages 2500 anon, 3500 file: weight ~3500, node is 40% full
+> 
+> I think that both nodes should be equal.
+> 
 
-The per arch/config effects of this patch:
-* non-preemptible kernels: there's no difference before/after this patch.
-* preemptible x86: this patch helps by removing an unnecessary
-preempt_disable/enable.
-* preemptible non-x86: this patch hurts by adding implicit
-preempt_disable/enable around each operation.
+Ok, try to explain again.
 
-So I am uncomfortable this patch's unmeasured impact on archs that do
-not have atomic this_cpu_foo() operations.  Please drop the patch from
-mmotm.  Sorry for the noise.
+I'd like to keep that memcg's limit just cares amount of memory and never
+care system's zone balancing. Zone balancing is taken care of by kswapd,
+soft limit. 
+
+(Off topic)
+I think talking in % is not good.
+What memory reclaim tries is to get available memory, not reducing % of usage.
+What we care here is just amount of memory, not ratio of usage.
+
+
+
+
+> > weight = (anon * anon_prio + file * file_prio) / 200;
+> > 
+> > Just for avoiding the influence of anon never be 0 (by wrong value
+> > set to swappiness by user.)
+> 
+> OK, so you want to prevent from situation where we have swappiness 0
+> and there are no file pages so the node would have 0 weight?
+> Why do you consider 0 swappiness a wrong value?
+> 
+
+By setting anon_prio > 1, when a memcg contains only ANON, weight will be
+caluculated and numa_scan bitmask will be set correctly.
+
+
+
+> [...]
+> > > > +	nr_file = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
+> > > > +	nr_anon = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
+> > > > +
+> > > > +	/* If file cache is small w.r.t swappiness, check anon page's weight */
+> > > > +	if (nr_file * file_prio >= nr_anon * anon_prio)
+> > > > +		lru_mask |= BIT(LRU_INACTIVE_ANON);
+> > > 
+> > > Why we do not care about active anon (e.g. if inactive anon is low)?
+> > > 
+> > This condition is wrong...
+> > 
+> > 	if (nr_file * file_prio <= nr_anon * anon_prio)
+> > 		lru_mask |= BIT(LRU_INACTIVE_ANON);
+> 
+> True. Haven't noticed it before...
+> 
+> > 
+> > I was worried about LRU_ACTIVE_ANON. I considered
+> >   - We can't handle ACTIVE_ANON and INACTIVE_ANON in the same weight.
+> >     But I don't want to add more magic numbers.
+> 
+> Yes I agree, weight shouldn't involve active pages because we do not
+> want to reclaim nodes according to their active working set.
+> 
+> >   - vmscan.c:shrink_zone() scans ACTIVE_ANON whenever/only when
+> >     inactive_anon_is_low()==true. SWAP_CLUSTER_MAX per priority.
+> >     It's specially handled.
+> > 
+> > So, I thought involing the number of ACTIVE_ANON to the weight is difficult
+> > and ignored ACTIVE_ANON, here. Do you have idea ?
+> 
+> I am not sure whether nr_anon should include also active pages, though.
+> We are comparing all file to all anon pages which looks consistent, on
+> the other hand we are not including active pages into weight. This way
+> we make bigger pressure on nodes with a big anon working set.
+
+Early version includes ACTIVE_ANON to weight and I saw BAD scores ;(
+Anyway, good idea is welcomed.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
