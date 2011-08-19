@@ -1,97 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C8A6B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:48:50 -0400 (EDT)
-Date: Fri, 19 Aug 2011 09:48:36 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [patch v3 2/8] kdump: Make kimage_load_crash_segment() weak
-Message-ID: <20110819134836.GB18656@redhat.com>
-References: <20110812134849.748973593@linux.vnet.ibm.com>
- <20110812134907.166585439@linux.vnet.ibm.com>
- <20110818171541.GC15413@redhat.com>
- <1313760472.3858.26.camel@br98xy6r>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B3B56B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 09:56:10 -0400 (EDT)
+Date: Fri, 19 Aug 2011 15:55:57 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH] memcg: replace ss->id_lock with a rwlock
+Message-ID: <20110819135556.GA9662@redhat.com>
+References: <1313000433-11537-1-git-send-email-abrestic@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1313760472.3858.26.camel@br98xy6r>
+In-Reply-To: <1313000433-11537-1-git-send-email-abrestic@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Cc: ebiederm@xmission.com, mahesh@linux.vnet.ibm.com, hbabu@us.ibm.com, oomichi@mxs.nes.nec.co.jp, horms@verge.net.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Bresticker <abrestic@google.com>
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 
-On Fri, Aug 19, 2011 at 03:27:52PM +0200, Michael Holzheu wrote:
-> Hello Vivek,
+Hello Andrew,
+
+On Wed, Aug 10, 2011 at 11:20:33AM -0700, Andrew Bresticker wrote:
+> While back-porting Johannes Weiner's patch "mm: memcg-aware global reclaim"
+> for an internal effort, we noticed a significant performance regression
+> during page-reclaim heavy workloads due to high contention of the ss->id_lock.
+> This lock protects idr map, and serializes calls to idr_get_next() in
+> css_get_next() (which is used during the memcg hierarchy walk).  Since
+> idr_get_next() is just doing a look up, we need only serialize it with
+> respect to idr_remove()/idr_get_new().  By making the ss->id_lock a
+> rwlock, contention is greatly reduced and performance improves.
 > 
-> On Thu, 2011-08-18 at 13:15 -0400, Vivek Goyal wrote:
-> > On Fri, Aug 12, 2011 at 03:48:51PM +0200, Michael Holzheu wrote:
-> > > From: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-> > > 
-> > > On s390 we do not create page tables at all for the crashkernel memory.
-> > > This requires a s390 specific version for kimage_load_crash_segment().
-> > > Therefore this patch declares this function as "__weak". The s390 version is
-> > > very simple. It just copies the kexec segment to real memory without using
-> > > page tables:
-> > > 
-> > > int kimage_load_crash_segment(struct kimage *image,
-> > >                               struct kexec_segment *segment)
-> > > {
-> > >         return copy_from_user_real((void *) segment->mem, segment->buf,
-> > >                                    segment->bufsz);
-> > > }
-> > > 
-> > > There are two main advantages of not creating page tables for the
-> > > crashkernel memory:
-> > > 
-> > > a) It saves memory. We have scenarios in mind, where crashkernel
-> > >    memory can be very large and saving page table space is important.
-> > > b) We protect the crashkernel memory from being overwritten.
-> > 
-> > Michael,
-> > 
-> > Thinking more about it. Can't we provide a arch specific version of
-> > kmap() and kunmap() so that we create temporary mappings to copy
-> > the pages and then these are torn off.
-> 
-> Isn't kmap/kunmap() used for higmem? These functions are called from
-> many different functions in the Linux kernel, not only for kdump. I
-> would assume that creating and removing mappings with these functions is
-> not what a caller would expect and probably would break the Linux kernel
-> at many other places, no?
+> Tested: cat a 256m file from a ramdisk in a 128m container 50 times
+> on each core (one file + container per core) in parallel on a NUMA
+> machine.  Result is the time for the test to complete in 1 of the
+> containers.  Both kernels included Johannes' memcg-aware global
+> reclaim patches.
+> Before rwlock patch: 1710.778s
+> After rwlock patch: 152.227s
 
-[CCing linux-mm]
+The reason why there is much more hierarchy walking going on is
+because there was actually a design bug in the hierarchy reclaim.
 
-Yes it is being used for highmem pages. If arch has not defined kmap()
-then generic definition is just returning page_address(page), expecting
-that page will be mapped.
+The old code would pick one memcg and scan it at decreasing priority
+levels until SCAN_CLUSTER_MAX pages were reclaimed.  For each memcg
+scanned with priority level 12, there were SWAP_CLUSTER_MAX pages
+reclaimed.
 
-I was wondering that what will be broken if arch decides to extend this
-to create temporary mappings for pages which are not HIGHMEM but do
-not have any mapping. (Like this special case of s390).
+My last revision would bail the whole hierarchy walk once it reclaimed
+SWAP_CLUSTER_MAX.  Also, at the time, small memcgs were not
+force-scanned yet.  So 128m containers would force the priority level
+to 10 before scanning anything at all (128M / pagesize >> priority),
+and then bail after one or two scanned memcgs.  This means that for
+each SWAP_CLUSTER_MAX reclaimed pages there was a nr_of_containers * 2
+overhead of just walking the hierarchy to no avail.
 
-I guess memory management guys can give a better answer here. As a layman,
-kmap() seems to be the way to get a kernel mapping for any page frame
-and if one is not already there, then arch might create one on the fly,
-like we do for HIGHMEM pages. So the question is can be extend this
-to also cover pages which are not highmem but do not have any mappings
-on s390.
+I changed this and removed the bail condition based on the number of
+reclaimed pages.  Instead, the cycle ends when all reclaimers together
+made a full round-trip through the hierarchy.  The more cgroups, the
+more likely that there are several tasks going into reclaim
+concurrently, it should be a reasonable share of work for each one.
 
-> 
-> Perhaps we can finish this discussion after my vacation. I will change
-> my patch series that we even do not need this patch...
+The number of reclaim invocations, thus the number of hierarchy walks,
+is back to sane levels again and the id_lock contention should be less
+of an issue.
 
-So how are you planning to get rid of this patch without modifying kmap(),
-kunmap() implementation for s390?
-
-> 
-> So only two common code patches are remaining. I will send the common
-> code patches again and will ask Andrew Morton to integrate them in the
-> next merge window.The s390 patches will be integrated by Martin.
-
-I am fine with merge of other 2 common patches. Once you repost the
-series, I will ack those.
-
-Thanks
-Vivek
+Your patch still makes sense, but it's probably less urgent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
