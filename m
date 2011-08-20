@@ -1,50 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0C56B0169
-	for <linux-mm@kvack.org>; Sat, 20 Aug 2011 14:45:31 -0400 (EDT)
-Received: by eyh6 with SMTP id 6so2492756eyh.20
-        for <linux-mm@kvack.org>; Sat, 20 Aug 2011 11:45:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D184D6B0169
+	for <linux-mm@kvack.org>; Sat, 20 Aug 2011 15:33:59 -0400 (EDT)
+Date: Sat, 20 Aug 2011 20:33:52 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/7] Reduce filesystem writeback from page reclaim v3
+Message-ID: <20110820193351.GA8349@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+ <20110818165420.0a7aabb5.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110820132701.GA29322@redhat.com>
-References: <CAOn_VZYLOG9ctDomhMzyk19jVeKWWMvftvjyXRwfCyNn+4jinA@mail.gmail.com>
-	<20110820132701.GA29322@redhat.com>
-Date: Sun, 21 Aug 2011 00:15:28 +0530
-Message-ID: <CAOn_VZb5XqgvTweRY3unTLvrOE4DFMfJK5TDc3TeGk7ordPeUA@mail.gmail.com>
-Subject: Re: what protects page lru list?
-From: Rajesh Ghanekar <rajeshsg@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110818165420.0a7aabb5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Thanks Johannes. It makes sense. I was searching for any code in
-which pages is on free list and being operated with lru_lock. But as
-you said only pages on LRU lists are operated by lru_lock.
+On Thu, Aug 18, 2011 at 04:54:20PM -0700, Andrew Morton wrote:
+> On Wed, 10 Aug 2011 11:47:13 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > The new problem is that
+> > reclaim has very little control over how long before a page in a
+> > particular zone or container is cleaned which is discussed later.
+> 
+> Confused - where was this discussed?  Please tell us more about
+> this problem and how it was addressed.
+> 
 
-I am facing a panic in __rmqueue at list_del where the struct page
-is corrupted or probably the free_list is corrupted. The kernel is
-2.6.32.43.xxx from SLES11SP1. I will first see if any of the other code
-(proprietary) running is not broken.
-
-- Rajesh
-
-On Sat, Aug 20, 2011 at 6:57 PM, Johannes Weiner <jweiner@redhat.com> wrote=
-:
-> On Sat, Aug 20, 2011 at 02:11:53AM +0530, Rajesh Ghanekar wrote:
->> Hi,
->> =A0 =A0I am confused with what protects page->lru? Is it both zone->lru_=
-lock or
->> zone->lock? I can see it being protected either by lru_lock or lock.
->
-> It's not so much about page->lru but the actual list the page is
-> linked to.
->
-> The zone's lists of unallocated pages are protected by zone->lock,
-> while the LRU lists with the pages for userspace are protected by
-> zone->lru_lock.
->
+I'm currently on holiday. I am only online checking train timetables.
+I'll be back online properly on August 30th.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
