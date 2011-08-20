@@ -1,93 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 417616B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 19:56:44 -0400 (EDT)
-Date: Fri, 19 Aug 2011 16:56:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 3/3]vmscan: cleanup kswapd_try_to_sleep
-Message-Id: <20110819165636.460b884e.akpm@linux-foundation.org>
-In-Reply-To: <1311840789.15392.409.camel@sli10-conroe>
-References: <1311840789.15392.409.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 9643D6B0169
+	for <linux-mm@kvack.org>; Sat, 20 Aug 2011 00:22:49 -0400 (EDT)
+Message-ID: <4E4F367B.8060904@hitachi.com>
+Date: Sat, 20 Aug 2011 13:22:19 +0900
+From: HAYASAKA Mitsuo <mitsuo.hayasaka.hu@hitachi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] avoid null pointer access in vm_struct
+References: <20110819105133.7504.62129.stgit@ltc219.sdl.hitachi.co.jp> <20110819155238.b11d19fb.akpm@linux-foundation.org>
+In-Reply-To: <20110819155238.b11d19fb.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, mgorman@suse.de, Minchan Kim <minchan.kim@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, yrl.pp-manager.tt@hitachi.com, Namhyung Kim <namhyung@gmail.com>, David Rientjes <rientjes@google.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-On Thu, 28 Jul 2011 16:13:09 +0800
-Shaohua Li <shaohua.li@intel.com> wrote:
+Hi Paul and Andrew,
 
-> cleanup kswapd_try_to_sleep() a little bit. Sometimes kswapd doesn't
-> really sleep. In such case, don't call prepare_to_wait/finish_wait.
-> It just wastes CPU.
+(2011/08/20 3:53), Paul E. McKenney wrote:
+>> @@ -1562,6 +1561,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>>  		}
+>>  		area->pages[i] = page;
+>>  	}
+> Don't we need something here to prevent the compiler and/or the CPU
+> from reordering the assignment?  Or am I missing how this is otherwise
+> prevented?
+>
+
+(2011/08/20 7:52), Andrew Morton wrote:
+> I think this is still just a workaround to fix up the real bug, and
+> that the real bug is that the vm_struct is installed into the vmlist
+> *before* it is fully initialised.  It's just wrong to insert an object
+> into a globally-visible list and to then start populating it!  If we
+> were instead to fully initialise the vm_struct and *then* insert it
+> into vmlist, the bug is fixed.
+>
+> Also I'd agree with Paul's concern regarding cross-CPU memory ordering.
+>
+
+I deeply agreed with both of your concern and comments.
+I'd like to create the patch where the vm_struct is installed into 
+the vmlist *after* it is fully initialized.
+
+Thanks.
+
+
+(2011/08/20 7:52), Andrew Morton wrote:
+> On Fri, 19 Aug 2011 19:51:33 +0900
+> Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com> wrote:
 > 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> ---
->  mm/vmscan.c |    7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
+>> The /proc/vmallocinfo shows information about vmalloc allocations in vmlist
+>> that is a linklist of vm_struct. It, however, may access pages field of
+>> vm_struct where a page was not allocated, which results in a null pointer
+>> access and leads to a kernel panic.
+>>
+>> Why this happen:
+>> In __vmalloc_area_node(), the nr_pages field of vm_struct are set to the
+>> expected number of pages to be allocated, before the actual pages
+>> allocations. At the same time, when the /proc/vmallocinfo is read, it
+>> accesses the pages field of vm_struct according to the nr_pages field at
+>> show_numa_info(). Thus, a null pointer access happens.
+>>
+>> Patch:
+>> This patch sets nr_pages field of vm_struct AFTER the pages allocations
+>> finished in __vmalloc_area_node(). So, it can avoid accessing the pages
+>> field with unallocated page when show_numa_info() is called.
 > 
-> Index: linux/mm/vmscan.c
-> ===================================================================
-> --- linux.orig/mm/vmscan.c	2011-07-28 15:52:35.000000000 +0800
-> +++ linux/mm/vmscan.c	2011-07-28 15:55:56.000000000 +0800
-> @@ -2709,13 +2709,11 @@ static void kswapd_try_to_sleep(pg_data_
->  	if (freezing(current) || kthread_should_stop())
->  		return;
->  
-> -	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> -
->  	/* Try to sleep for a short interval */
->  	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
-> +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  		remaining = schedule_timeout(HZ/10);
->  		finish_wait(&pgdat->kswapd_wait, &wait);
-> -		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  	}
->  
->  	/*
-> @@ -2734,7 +2732,9 @@ static void kswapd_try_to_sleep(pg_data_
->  		 * them before going back to sleep.
->  		 */
->  		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
-> +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  		schedule();
-> +		finish_wait(&pgdat->kswapd_wait, &wait);
->  		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
->  	} else {
->  		if (remaining)
-> @@ -2742,7 +2742,6 @@ static void kswapd_try_to_sleep(pg_data_
->  		else
->  			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
->  	}
-> -	finish_wait(&pgdat->kswapd_wait, &wait);
->  }
-
-Well.   Here's some correct waiting code:
-
-	prepare_to_wait(...);
-	if (condition)
-		schedule();
-	finish_wait();
-
-And here's come incorrect waiting code:
-
-	if (condition) {
-				<-- if `condition' becomese false here we can
-				    sleep incorrectly and even miss a wakeup.
-		prepare_to_wait(...);
-		schedule();
-		finish_wait();
-	}
-
-Your patch converts balance_pgdat() from the correct pattern to the
-incorrect pattern.  This may be OK given the overall sloppiness of the
-vmscan synchronisation.  But I think we need to convince ourselves that
-we aren't adding rarely-occurring bugs or inefficiencies, and that this
-change won't cause us to accidentally introduce rarely-occurring bugs
-or inefficiencies as the code eveolves.
-
+> I think this is still just a workaround to fix up the real bug, and
+> that the real bug is that the vm_struct is installed into the vmlist
+> *before* it is fully initialised.  It's just wrong to insert an object
+> into a globally-visible list and to then start populating it!  If we
+> were instead to fully initialise the vm_struct and *then* insert it
+> into vmlist, the bug is fixed.
+> 
+> Also I'd agree with Paul's concern regarding cross-CPU memory ordering.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
