@@ -1,86 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F19F86B0169
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 18:25:46 -0400 (EDT)
-Date: Mon, 22 Aug 2011 15:25:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -v3] avoid null pointer access in vm_struct
-Message-Id: <20110822152505.22b58998.akpm@linux-foundation.org>
-In-Reply-To: <20110821082132.28358.72280.stgit@ltc219.sdl.hitachi.co.jp>
-References: <20110821082132.28358.72280.stgit@ltc219.sdl.hitachi.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id AC3B16B016A
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 19:23:02 -0400 (EDT)
+Date: Tue, 23 Aug 2011 09:22:57 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] vmscan: fix initial shrinker size handling
+Message-ID: <20110822232257.GT3162@dastard>
+References: <20110822101721.19462.63082.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110822101721.19462.63082.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, yrl.pp-manager.tt@hitachi.com, David Rientjes <rientjes@google.com>, Namhyung Kim <namhyung@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Sun, 21 Aug 2011 17:21:32 +0900
-Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com> wrote:
-
-> The /proc/vmallocinfo shows information about vmalloc allocations in vmlist
-> that is a linklist of vm_struct. It, however, may access pages field of
-> vm_struct where a page was not allocated. This results in a null pointer
-> access and leads to a kernel panic.
+On Mon, Aug 22, 2011 at 02:17:21PM +0300, Konstantin Khlebnikov wrote:
+> Shrinker function can returns -1, it means it cannot do anything without a risk of deadlock.
+> For example prune_super() do this if it cannot grab superblock refrence, even if nr_to_scan=0.
+> Currenly we interpret this like ULONG_MAX size shrinker, evaluate total_scan according this,
+> and next time this shrinker can get really big pressure. Let's skip such shrinkers instead.
 > 
-> Why this happen:
-> In __vmalloc_node_range() called from vmalloc(), newly allocated vm_struct
-> is added to vmlist at __get_vm_area_node() and then, some fields of
-> vm_struct such as nr_pages and pages are set at __vmalloc_area_node(). In
-> other words, it is added to vmlist before it is fully initialized. At the
-> same time, when the /proc/vmallocinfo is read, it accesses the pages field
-> of vm_struct according to the nr_pages field at show_numa_info(). Thus, a
-> null pointer access happens.
-> 
-> Patch:
-> This patch adds newly allocated vm_struct to the vmlist *after* it is fully
-> initialized. So, it can avoid accessing the pages field with unallocated
-> page when show_numa_info() is called.
+> Also make total_scan signed, otherwise check (total_scan < 0) below never works.
 
-Seems rather ugly, but I guess it's OK.  vmalloc() is "special" in that
-it fills the area with allocated pages, whereas all the
-get_vm_area()-type callers don't do that.
+I've got a patch set I am going to post out today that makes this
+irrelevant.
 
->
-> ...
->
-> @@ -1381,17 +1403,20 @@ struct vm_struct *remove_vm_area(const void *addr)
->  	va = find_vmap_area((unsigned long)addr);
->  	if (va && va->flags & VM_VM_AREA) {
->  		struct vm_struct *vm = va->private;
-> -		struct vm_struct *tmp, **p;
-> -		/*
-> -		 * remove from list and disallow access to this vm_struct
-> -		 * before unmap. (address range confliction is maintained by
-> -		 * vmap.)
-> -		 */
-> -		write_lock(&vmlist_lock);
-> -		for (p = &vmlist; (tmp = *p) != vm; p = &tmp->next)
-> -			;
-> -		*p = tmp->next;
-> -		write_unlock(&vmlist_lock);
-> +
-> +		if (!(vm->flags & VM_UNLIST)) {
-> +			struct vm_struct *tmp, **p;
-> +			/*
-> +			 * remove from list and disallow access to
-> +			 * this vm_struct before unmap. (address range
-> +			 * confliction is maintained by vmap.)
-> +			 */
-> +			write_lock(&vmlist_lock);
-> +			for (p = &vmlist; (tmp = *p) != vm; p = &tmp->next)
-> +				;
-> +			*p = tmp->next;
-> +			write_unlock(&vmlist_lock);
-> +		}
+The patch set splits the shrinker api into 2 callbacks - a "count
+objects" callback and an "scan objects" callback, getting rid of
+this messy "pass nr-to_scan == 0 to count objects" wart altogether.
 
-Is this needed?  How can remove_vm_area() actually be called with a
-VM_UNLIST area?
+Cheers,
 
-
-I think I'll let this patch cook in linux-next for a while and shall
-tag it for backporting into 3.1.x later on.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
