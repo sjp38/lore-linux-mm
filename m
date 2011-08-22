@@ -1,82 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 56D776B0169
-	for <linux-mm@kvack.org>; Sun, 21 Aug 2011 15:30:52 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p7LJUjFr012358
-	for <linux-mm@kvack.org>; Sun, 21 Aug 2011 12:30:45 -0700
-Received: from iye16 (iye16.prod.google.com [10.241.50.16])
-	by hpaq1.eem.corp.google.com with ESMTP id p7LJUVXb018487
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 21 Aug 2011 12:30:43 -0700
-Received: by iye16 with SMTP id 16so9052478iye.1
-        for <linux-mm@kvack.org>; Sun, 21 Aug 2011 12:30:43 -0700 (PDT)
-Date: Sun, 21 Aug 2011 12:29:50 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Host where KSM appears to save a negative amount of memory
-In-Reply-To: <20110821085614.GA3957@arachsys.com>
-Message-ID: <alpine.LSU.2.00.1108211155300.1252@sister.anvils>
-References: <20110821085614.GA3957@arachsys.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CD4946B0169
+	for <linux-mm@kvack.org>; Sun, 21 Aug 2011 21:06:13 -0400 (EDT)
+Subject: [patch]vmscan: clear ZONE_CONGESTED for zone with good watermark
+ -resend
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 22 Aug 2011 09:07:26 +0800
+Message-ID: <1313975246.29510.11.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Webb <chris@arachsys.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, mel <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-On Sun, 21 Aug 2011, Chris Webb wrote:
+ZONE_CONGESTED is only cleared in kswapd, but pages can be freed in any task.
+It's possible ZONE_CONGESTED isn't cleared in some cases:
+1. the zone is already balanced just entering balance_pgdat() for order-0 because
+concurrent tasks free memory. In this case, later check will skip the zone as
+it's balanced so the flag isn't cleared.
+2. high order balance fallbacks to order-0. quote from Mel:
+At the end of balance_pgdat(), kswapd uses the following logic;
 
-> We're running KSM on kernel 2.6.39.2 with hosts running a number qemu-kvm
-> virtual machines, and it has consistently been saving us a useful amount of
-> RAM.
-> 
-> To monitor the effective amount of memory saved, I've been looking at the
-> difference between /sys/kernel/mm/ksm/pages_sharing and pages_shared. On a
-> typical 32GB host, this has been coming out as at least a hundred thousand
-> or so, which is presumably half to one gigabyte worth of 4k pages.
-> 
-> However, this morning we've spotted something odd - a host where
-> pages_sharing is smaller than pages_shared, giving a negative saving by the
-> above calculation:
-> 
->   # cat /sys/kernel/mm/ksm/pages_sharing
->   1099994
->   # cat /sys/kernel/mm/ksm/pages_shared
->   1761313
-> 
-> I think this means my interpretation of these values must be wrong, as I
-> presumably can't have more pages being shared than instances of their use!
-> Can anyone shed any light on what might be going on here for me? Am I
-> misinterpreting these values, or does this look like it might be an
-> accounting bug? (If the latter, what useful debug info can I extract from
-> the system to help identify it?)
+ If reclaiming at high order {
+     for each zone {
+             if all_unreclaimable
+                     skip
+             if watermark is not met
+                     order = 0
+                     loop again
 
-Your interpretation happens to be wrong, it is expected behaviour,
-but I agree it's a little odd.
+             /* watermark is met */
+             clear congested
+     }
+ }
 
-KSM chooses to show the numbers pages_shared and pages_sharing as
-exclusive counts: pages_sharing indicates the saving being made.  So it
-would be perfectly reasonable to add those two numbers together to get
-the "total" number of pages sharing, the number you expected it to show;
-but it doesn't make sense to subtract shared from sharing.
+i.e. it clears ZONE_CONGESTED if it the zone is balanced. if not,
+it restarts balancing at order-0. However, if the higher zones are
+balanced for order-0, kswapd will miss clearing ZONE_CONGESTED
+as that only happens after a zone is shrunk.
+This can mean that wait_iff_congested() stalls unnecessarily. This patch
+makes kswapd clear ZONE_CONGESTED during its initial highmem->dma scan
+for zones that are already balanced.
 
-(I think Documentation/vm/ksm.txt does make that clear.)
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-But you'd be right to question further, how come pages_sharing is less
-than pages_shared: what is a shared page if it's not being shared with
-anything else?  (And, at the extreme, it might be that all those 1099994
-pages_sharing are actually sharing the same one of the pages_shared.)
+Index: linux/mm/vmscan.c
+===================================================================
+--- linux.orig/mm/vmscan.c	2011-08-11 09:26:37.000000000 +0800
++++ linux/mm/vmscan.c	2011-08-22 09:01:19.000000000 +0800
+@@ -2529,6 +2529,9 @@ loop_again:
+ 					high_wmark_pages(zone), 0, 0)) {
+ 				end_zone = i;
+ 				break;
++			} else {
++				/* If balanced, clear the congested flag */
++				zone_clear_flag(zone, ZONE_CONGESTED);
+ 			}
+ 		}
+ 		if (i < 0)
 
-It's a page that was shared with (at least one) others before, but all
-but one of these instances have got freed since, and we've left this
-page in the "shared tree", so that it can be more quickly matched up
-with duplicates in future when they appear, as seems quite likely.
-
-We don't actively do anything to move them out of the shared state:
-some effort was needed to get them there, and no disadvantage in leaving
-them like that; but yes, it is misleading to describe them as "shared".
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
