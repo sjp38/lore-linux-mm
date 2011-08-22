@@ -1,95 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C470F6B0169
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 17:56:58 -0400 (EDT)
-Received: by wwg9 with SMTP id 9so4891745wwg.26
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2011 14:56:56 -0700 (PDT)
-Subject: Re: [PATCH 3/4] string: introduce memchr_inv
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20110822135218.f2d9f462.akpm@linux-foundation.org>
-References: <1314030548-21082-1-git-send-email-akinobu.mita@gmail.com>
-	 <1314030548-21082-4-git-send-email-akinobu.mita@gmail.com>
-	 <20110822135218.f2d9f462.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 22 Aug 2011 23:56:51 +0200
-Message-ID: <1314050211.4791.4.camel@edumazet-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F19F86B0169
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 18:25:46 -0400 (EDT)
+Date: Mon, 22 Aug 2011 15:25:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -v3] avoid null pointer access in vm_struct
+Message-Id: <20110822152505.22b58998.akpm@linux-foundation.org>
+In-Reply-To: <20110821082132.28358.72280.stgit@ltc219.sdl.hitachi.co.jp>
+References: <20110821082132.28358.72280.stgit@ltc219.sdl.hitachi.co.jp>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joern Engel <joern@logfs.org>, logfs@logfs.org, Marcin Slusarz <marcin.slusarz@gmail.com>, linux-arch@vger.kernel.org
+To: Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, yrl.pp-manager.tt@hitachi.com, David Rientjes <rientjes@google.com>, Namhyung Kim <namhyung@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-Le lundi 22 aoA>>t 2011 A  13:52 -0700, Andrew Morton a A(C)crit :
-> On Tue, 23 Aug 2011 01:29:07 +0900
-> Akinobu Mita <akinobu.mita@gmail.com> wrote:
+On Sun, 21 Aug 2011 17:21:32 +0900
+Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com> wrote:
+
+> The /proc/vmallocinfo shows information about vmalloc allocations in vmlist
+> that is a linklist of vm_struct. It, however, may access pages field of
+> vm_struct where a page was not allocated. This results in a null pointer
+> access and leads to a kernel panic.
 > 
-> > memchr_inv() is mainly used to check whether the whole buffer is filled
-> > with just a specified byte.
-> > 
-> > The function name and prototype are stolen from logfs and the
-> > implementation is from SLUB.
-> > 
-> > ...
-> >
-> > +/**
-> > + * memchr_inv - Find a character in an area of memory.
-> > + * @s: The memory area
-> > + * @c: The byte to search for
-> > + * @n: The size of the area.
+> Why this happen:
+> In __vmalloc_node_range() called from vmalloc(), newly allocated vm_struct
+> is added to vmlist at __get_vm_area_node() and then, some fields of
+> vm_struct such as nr_pages and pages are set at __vmalloc_area_node(). In
+> other words, it is added to vmlist before it is fully initialized. At the
+> same time, when the /proc/vmallocinfo is read, it accesses the pages field
+> of vm_struct according to the nr_pages field at show_numa_info(). Thus, a
+> null pointer access happens.
 > 
-> This text seems to be stolen from memchr().  I guess it's close enough.
-> 
-> > + * returns the address of the first character other than @c, or %NULL
-> > + * if the whole buffer contains just @c.
-> > + */
-> > +void *memchr_inv(const void *start, int c, size_t bytes)
-> > +{
-> > +	u8 value = c;
-> > +	u64 value64;
-> > +	unsigned int words, prefix;
-> > +
-> > +	if (bytes <= 16)
-> > +		return check_bytes8(start, value, bytes);
-> > +
-> > +	value64 = value | value << 8 | value << 16 | value << 24;
-> > +	value64 = (value64 & 0xffffffff) | value64 << 32;
-> > +	prefix = 8 - ((unsigned long)start) % 8;
-> > +
+> Patch:
+> This patch adds newly allocated vm_struct to the vmlist *after* it is fully
+> initialized. So, it can avoid accessing the pages field with unallocated
+> page when show_numa_info() is called.
 
-<snip>
+Seems rather ugly, but I guess it's OK.  vmalloc() is "special" in that
+it fills the area with allocated pages, whereas all the
+get_vm_area()-type callers don't do that.
 
-> > +	if (prefix) {
-> > +		u8 *r = check_bytes8(start, value, prefix);
-> > +		if (r)
-> > +			return r;
-> > +		start += prefix;
-> > +		bytes -= prefix;
-> > +	}
+>
+> ...
+>
+> @@ -1381,17 +1403,20 @@ struct vm_struct *remove_vm_area(const void *addr)
+>  	va = find_vmap_area((unsigned long)addr);
+>  	if (va && va->flags & VM_VM_AREA) {
+>  		struct vm_struct *vm = va->private;
+> -		struct vm_struct *tmp, **p;
+> -		/*
+> -		 * remove from list and disallow access to this vm_struct
+> -		 * before unmap. (address range confliction is maintained by
+> -		 * vmap.)
+> -		 */
+> -		write_lock(&vmlist_lock);
+> -		for (p = &vmlist; (tmp = *p) != vm; p = &tmp->next)
+> -			;
+> -		*p = tmp->next;
+> -		write_unlock(&vmlist_lock);
+> +
+> +		if (!(vm->flags & VM_UNLIST)) {
+> +			struct vm_struct *tmp, **p;
+> +			/*
+> +			 * remove from list and disallow access to
+> +			 * this vm_struct before unmap. (address range
+> +			 * confliction is maintained by vmap.)
+> +			 */
+> +			write_lock(&vmlist_lock);
+> +			for (p = &vmlist; (tmp = *p) != vm; p = &tmp->next)
+> +				;
+> +			*p = tmp->next;
+> +			write_unlock(&vmlist_lock);
+> +		}
 
-</snip>
-
-Please note Andrew the previous code just make sure 'start' is aligned
-on 8 bytes boundary. (It is suboptimal because if 'start' was already
-aligned, we call the slow check_bytes(start, value, 8))
-
-Code should probably do
-
-prefix = (unsigned long)start % 8;
-if (prefix) {
-	prefix = 8 - prefix;
-	r = check_bytes8(start, value, prefix);
-	...
-
-
-
-> > +
-> > +	words = bytes / 8;
-> > +
-> > +	while (words) {
-> > +		if (*(u64 *)start != value64)
+Is this needed?  How can remove_vm_area() actually be called with a
+VM_UNLIST area?
 
 
+I think I'll let this patch cook in linux-next for a while and shall
+tag it for backporting into 3.1.x later on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
