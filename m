@@ -1,47 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7C5436B016A
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 19:28:56 -0400 (EDT)
-Date: Tue, 23 Aug 2011 09:28:34 +1000
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BAF76B016A
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 19:38:26 -0400 (EDT)
+Date: Mon, 22 Aug 2011 16:38:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 1/2] vmscan: fix initial shrinker size handling
-Message-ID: <20110822232834.GV3162@dastard>
+Message-Id: <20110822163821.e746ab25.akpm@linux-foundation.org>
+In-Reply-To: <20110822232257.GT3162@dastard>
 References: <20110822101721.19462.63082.stgit@zurg>
- <20110822143006.60f4b560.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110822143006.60f4b560.akpm@linux-foundation.org>
+	<20110822232257.GT3162@dastard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
 Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 22, 2011 at 02:30:06PM -0700, Andrew Morton wrote:
-> On Mon, 22 Aug 2011 14:17:21 +0300
-> Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-> 
+On Tue, 23 Aug 2011 09:22:57 +1000
+Dave Chinner <david@fromorbit.com> wrote:
+
+> On Mon, Aug 22, 2011 at 02:17:21PM +0300, Konstantin Khlebnikov wrote:
 > > Shrinker function can returns -1, it means it cannot do anything without a risk of deadlock.
 > > For example prune_super() do this if it cannot grab superblock refrence, even if nr_to_scan=0.
 > > Currenly we interpret this like ULONG_MAX size shrinker, evaluate total_scan according this,
 > > and next time this shrinker can get really big pressure. Let's skip such shrinkers instead.
-> 
-> Yes, that looks like a significant oversight.
-> 
+> > 
 > > Also make total_scan signed, otherwise check (total_scan < 0) below never works.
 > 
-> Hopefully a smaller oversight.
+> I've got a patch set I am going to post out today that makes this
+> irrelevant.
 
-Yeah, it was, but is harmless because it is caught by the next check
-of total_scanned. I've made similar "make everything signed" changes
-as well.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Well, how serious is the bug?  If it's a non-issue then we can leave
+the fix until 3.1.  If it's a non-non-issue then we'd need a minimal
+patch to fix up 3.1 and 3.0.x.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
