@@ -1,39 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1CE6B0169
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 03:52:51 -0400 (EDT)
-Date: Mon, 22 Aug 2011 08:52:46 +0100
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: Host where KSM appears to save a negative amount of memory
-Message-ID: <20110822075246.GA2021@arachsys.com>
-References: <20110821085614.GA3957@arachsys.com>
- <alpine.LSU.2.00.1108211155300.1252@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 85EC06B0169
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 06:17:30 -0400 (EDT)
+Subject: [PATCH 1/2] vmscan: fix initial shrinker size handling
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Mon, 22 Aug 2011 14:17:21 +0300
+Message-ID: <20110822101721.19462.63082.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1108211155300.1252@sister.anvils>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org
 
-Hugh Dickins <hughd@google.com> writes:
+Shrinker function can returns -1, it means it cannot do anything without a risk of deadlock.
+For example prune_super() do this if it cannot grab superblock refrence, even if nr_to_scan=0.
+Currenly we interpret this like ULONG_MAX size shrinker, evaluate total_scan according this,
+and next time this shrinker can get really big pressure. Let's skip such shrinkers instead.
 
-> KSM chooses to show the numbers pages_shared and pages_sharing as
-> exclusive counts: pages_sharing indicates the saving being made.  So it
-> would be perfectly reasonable to add those two numbers together to get
-> the "total" number of pages sharing, the number you expected it to show;
-> but it doesn't make sense to subtract shared from sharing.
+Also make total_scan signed, otherwise check (total_scan < 0) below never works.
 
-Hi. Many thanks for your helpful and detailed explanation. I've fixed our
-monitoring to correctly use just pages_sharing to measure the savings. I
-think I just assumed the meanings of pages_shared and pages_sharing from
-their names. This means that ksm has been saving even more memory than we
-thought on our hosts in the past!
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ mm/vmscan.c |    9 ++++++---
+ 1 files changed, 6 insertions(+), 3 deletions(-)
 
-Best wishes,
-
-Chris.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 29b3612..f174561 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -248,14 +248,18 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
+-		unsigned long total_scan;
+-		unsigned long max_pass;
++		long total_scan;
++		long max_pass;
+ 		int shrink_ret = 0;
+ 		long nr;
+ 		long new_nr;
+ 		long batch_size = shrinker->batch ? shrinker->batch
+ 						  : SHRINK_BATCH;
+ 
++		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
++		if (max_pass <= 0)
++			continue;
++
+ 		/*
+ 		 * copy the current shrinker scan count into a local variable
+ 		 * and zero it so that other concurrent shrinker invocations
+@@ -266,7 +270,6 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
+ 
+ 		total_scan = nr;
+-		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+ 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
