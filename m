@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3764D6B016A
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 16:59:43 -0400 (EDT)
-Received: by iyn15 with SMTP id 15so12016757iyn.34
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2011 13:59:41 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1314030548-21082-4-git-send-email-akinobu.mita@gmail.com>
-References: <1314030548-21082-1-git-send-email-akinobu.mita@gmail.com>
-	<1314030548-21082-4-git-send-email-akinobu.mita@gmail.com>
-Date: Mon, 22 Aug 2011 22:59:40 +0200
-Message-ID: <CAMuHMdVUvLAYpGDKsDUJ0DkLJEJKHCRy2Cj6miAH1YyEL6iWpw@mail.gmail.com>
-Subject: Re: [PATCH 3/4] string: introduce memchr_inv
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 846C56B0169
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 17:30:15 -0400 (EDT)
+Date: Mon, 22 Aug 2011 14:30:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] vmscan: fix initial shrinker size handling
+Message-Id: <20110822143006.60f4b560.akpm@linux-foundation.org>
+In-Reply-To: <20110822101721.19462.63082.stgit@zurg>
+References: <20110822101721.19462.63082.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joern Engel <joern@logfs.org>, logfs@logfs.org, Marcin Slusarz <marcin.slusarz@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Chinner <david@fromorbit.com>
 
-On Mon, Aug 22, 2011 at 18:29, Akinobu Mita <akinobu.mita@gmail.com> wrote:
-> +/**
-> + * memchr_inv - Find a character in an area of memory.
+On Mon, 22 Aug 2011 14:17:21 +0300
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-This description doesn't really match.
+> Shrinker function can returns -1, it means it cannot do anything without a risk of deadlock.
+> For example prune_super() do this if it cannot grab superblock refrence, even if nr_to_scan=0.
+> Currenly we interpret this like ULONG_MAX size shrinker, evaluate total_scan according this,
+> and next time this shrinker can get really big pressure. Let's skip such shrinkers instead.
 
-> + * @s: The memory area
-> + * @c: The byte to search for
-> + * @n: The size of the area.
+Yes, that looks like a significant oversight.
 
-Gr{oetje,eeting}s,
+> Also make total_scan signed, otherwise check (total_scan < 0) below never works.
 
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 Geert
+Hopefully a smaller oversight.
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
-.org
+> ---
+>  mm/vmscan.c |    9 ++++++---
+>  1 files changed, 6 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 29b3612..f174561 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -248,14 +248,18 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  
+>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+>  		unsigned long long delta;
+> -		unsigned long total_scan;
+> -		unsigned long max_pass;
+> +		long total_scan;
+> +		long max_pass;
+>  		int shrink_ret = 0;
+>  		long nr;
+>  		long new_nr;
+>  		long batch_size = shrinker->batch ? shrinker->batch
+>  						  : SHRINK_BATCH;
+>  
+> +		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+> +		if (max_pass <= 0)
+> +			continue;
+> +
+>  		/*
+>  		 * copy the current shrinker scan count into a local variable
+>  		 * and zero it so that other concurrent shrinker invocations
+> @@ -266,7 +270,6 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
+>  
+>  		total_scan = nr;
+> -		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+>  		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+>  		delta *= max_pass;
+>  		do_div(delta, lru_pages + 1);
 
-In personal conversations with technical people, I call myself a hacker. Bu=
-t
-when I'm talking to journalists I just say "programmer" or something like t=
-hat.
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0=C2=A0 -- Linus Torvalds
+Why was the shrinker call moved to before the alteration of shrinker->nr?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
