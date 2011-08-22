@@ -1,49 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ECF6A6B0169
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 13:25:02 -0400 (EDT)
-Message-ID: <4E5290D6.5050406@zytor.com>
-Date: Mon, 22 Aug 2011 10:24:38 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] x86, mm: start mmap allocation for libs from low addresses
-References: <20110812102954.GA3496@albatros> <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com> <20110816090540.GA7857@albatros> <20110822101730.GA3346@albatros>
-In-Reply-To: <20110822101730.GA3346@albatros>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F6D6B0169
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 14:39:14 -0400 (EDT)
+From: Curt Wohlgemuth <curtw@google.com>
+Subject: [PATCH 1/3] writeback: send work item to queue_io, move_expired_inodes
+Date: Mon, 22 Aug 2011 11:38:45 -0700
+Message-Id: <1314038327-22645-1-git-send-email-curtw@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel-hardening@lists.openwall.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Curt Wohlgemuth <curtw@google.com>
 
-On 08/22/2011 03:17 AM, Vasiliy Kulikov wrote:
-> Hi Ingo, Peter, Thomas,
-> 
-> On Tue, Aug 16, 2011 at 13:05 +0400, Vasiliy Kulikov wrote:
->> As the changes are not intrusive, we'd want to see this feature in the
->> upstream kernel.  If you know why the patch cannot be a part of the
->> upstream kernel - please tell me, I'll try to address the issues.
-> 
-> Any comments on the RFC?  Otherwise, may I resend it as a PATCH for
-> inclusion?
-> 
-> Thanks!
+Instead of sending ->older_than_this to queue_io() and
+move_expired_inodes(), send the entire wb_writeback_work
+structure.  There are other fields of a work item that are
+useful in these routines and in tracepoints.
 
-Conceptually:
+Signed-off-by: Curt Wohlgemuth <curtw@google.com>
+---
+ fs/fs-writeback.c                |   16 ++++++++--------
+ include/trace/events/writeback.h |    5 +++--
+ 2 files changed, 11 insertions(+), 10 deletions(-)
 
-I also have to admit to being somewhat skeptical to the concept on a
-littleendian architecture like x86.
-
-Code-wise:
-
-The code is horrific; it is full of open-coded magic numbers; it also
-puts a function called arch_get_unmapped_exec_area() in a generic file,
-which could best be described as "WTF" -- the arch_ prefix we use
-specifically to denote a per-architecture hook function.
-
-As such, your claim that the changes are not intrusive is plain false.
-
-	-hpa
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 04cf3b9..f1f5f65 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -251,7 +251,7 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
+  */
+ static int move_expired_inodes(struct list_head *delaying_queue,
+ 			       struct list_head *dispatch_queue,
+-			       unsigned long *older_than_this)
++			       struct wb_writeback_work *work)
+ {
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+@@ -262,8 +262,8 @@ static int move_expired_inodes(struct list_head *delaying_queue,
+ 
+ 	while (!list_empty(delaying_queue)) {
+ 		inode = wb_inode(delaying_queue->prev);
+-		if (older_than_this &&
+-		    inode_dirtied_after(inode, *older_than_this))
++		if (work->older_than_this &&
++		    inode_dirtied_after(inode, *work->older_than_this))
+ 			break;
+ 		if (sb && sb != inode->i_sb)
+ 			do_sb_sort = 1;
+@@ -302,13 +302,13 @@ out:
+  *                                           |
+  *                                           +--> dequeue for IO
+  */
+-static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
++static void queue_io(struct bdi_writeback *wb, struct wb_writeback_work *work)
+ {
+ 	int moved;
+ 	assert_spin_locked(&wb->list_lock);
+ 	list_splice_init(&wb->b_more_io, &wb->b_io);
+-	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
+-	trace_writeback_queue_io(wb, older_than_this, moved);
++	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, work);
++	trace_writeback_queue_io(wb, work, moved);
+ }
+ 
+ static int write_inode(struct inode *inode, struct writeback_control *wbc)
+@@ -651,7 +651,7 @@ long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages)
+ 
+ 	spin_lock(&wb->list_lock);
+ 	if (list_empty(&wb->b_io))
+-		queue_io(wb, NULL);
++		queue_io(wb, &work);
+ 	__writeback_inodes_wb(wb, &work);
+ 	spin_unlock(&wb->list_lock);
+ 
+@@ -738,7 +738,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+ 
+ 		trace_writeback_start(wb->bdi, work);
+ 		if (list_empty(&wb->b_io))
+-			queue_io(wb, work->older_than_this);
++			queue_io(wb, work);
+ 		if (work->sb)
+ 			progress = writeback_sb_inodes(work->sb, wb, work);
+ 		else
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index 6bca4cc..4565274 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -181,9 +181,9 @@ DEFINE_WBC_EVENT(wbc_writepage);
+ 
+ TRACE_EVENT(writeback_queue_io,
+ 	TP_PROTO(struct bdi_writeback *wb,
+-		 unsigned long *older_than_this,
++		 struct wb_writeback_work *work,
+ 		 int moved),
+-	TP_ARGS(wb, older_than_this, moved),
++	TP_ARGS(wb, work, moved),
+ 	TP_STRUCT__entry(
+ 		__array(char,		name, 32)
+ 		__field(unsigned long,	older)
+@@ -191,6 +191,7 @@ TRACE_EVENT(writeback_queue_io,
+ 		__field(int,		moved)
+ 	),
+ 	TP_fast_assign(
++		unsigned long *older_than_this = work->older_than_this;
+ 		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
+ 		__entry->older	= older_than_this ?  *older_than_this : 0;
+ 		__entry->age	= older_than_this ?
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
