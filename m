@@ -1,71 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CD4946B0169
-	for <linux-mm@kvack.org>; Sun, 21 Aug 2011 21:06:13 -0400 (EDT)
-Subject: [patch]vmscan: clear ZONE_CONGESTED for zone with good watermark
- -resend
-From: Shaohua Li <shaohua.li@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 22 Aug 2011 09:07:26 +0800
-Message-ID: <1313975246.29510.11.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1CE6B0169
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 03:52:51 -0400 (EDT)
+Date: Mon, 22 Aug 2011 08:52:46 +0100
+From: Chris Webb <chris@arachsys.com>
+Subject: Re: Host where KSM appears to save a negative amount of memory
+Message-ID: <20110822075246.GA2021@arachsys.com>
+References: <20110821085614.GA3957@arachsys.com>
+ <alpine.LSU.2.00.1108211155300.1252@sister.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1108211155300.1252@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, mel <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org
 
-ZONE_CONGESTED is only cleared in kswapd, but pages can be freed in any task.
-It's possible ZONE_CONGESTED isn't cleared in some cases:
-1. the zone is already balanced just entering balance_pgdat() for order-0 because
-concurrent tasks free memory. In this case, later check will skip the zone as
-it's balanced so the flag isn't cleared.
-2. high order balance fallbacks to order-0. quote from Mel:
-At the end of balance_pgdat(), kswapd uses the following logic;
+Hugh Dickins <hughd@google.com> writes:
 
- If reclaiming at high order {
-     for each zone {
-             if all_unreclaimable
-                     skip
-             if watermark is not met
-                     order = 0
-                     loop again
+> KSM chooses to show the numbers pages_shared and pages_sharing as
+> exclusive counts: pages_sharing indicates the saving being made.  So it
+> would be perfectly reasonable to add those two numbers together to get
+> the "total" number of pages sharing, the number you expected it to show;
+> but it doesn't make sense to subtract shared from sharing.
 
-             /* watermark is met */
-             clear congested
-     }
- }
+Hi. Many thanks for your helpful and detailed explanation. I've fixed our
+monitoring to correctly use just pages_sharing to measure the savings. I
+think I just assumed the meanings of pages_shared and pages_sharing from
+their names. This means that ksm has been saving even more memory than we
+thought on our hosts in the past!
 
-i.e. it clears ZONE_CONGESTED if it the zone is balanced. if not,
-it restarts balancing at order-0. However, if the higher zones are
-balanced for order-0, kswapd will miss clearing ZONE_CONGESTED
-as that only happens after a zone is shrunk.
-This can mean that wait_iff_congested() stalls unnecessarily. This patch
-makes kswapd clear ZONE_CONGESTED during its initial highmem->dma scan
-for zones that are already balanced.
+Best wishes,
 
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/vmscan.c |    3 +++
- 1 file changed, 3 insertions(+)
-
-Index: linux/mm/vmscan.c
-===================================================================
---- linux.orig/mm/vmscan.c	2011-08-11 09:26:37.000000000 +0800
-+++ linux/mm/vmscan.c	2011-08-22 09:01:19.000000000 +0800
-@@ -2529,6 +2529,9 @@ loop_again:
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
- 				break;
-+			} else {
-+				/* If balanced, clear the congested flag */
-+				zone_clear_flag(zone, ZONE_CONGESTED);
- 			}
- 		}
- 		if (i < 0)
-
+Chris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
