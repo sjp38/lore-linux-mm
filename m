@@ -1,75 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 740906B016A
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 16:08:14 -0400 (EDT)
-Message-ID: <4E52B71A.9030108@cray.com>
-Date: Mon, 22 Aug 2011 15:07:54 -0500
-From: Andrew Barry <abarry@cray.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 51F156B016A
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2011 16:14:28 -0400 (EDT)
+Received: by bkbzt4 with SMTP id zt4so5470364bkb.14
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2011 13:14:25 -0700 (PDT)
+Date: Tue, 23 Aug 2011 00:14:20 +0400
+From: Vasiliy Kulikov <segoon@openwall.com>
+Subject: Re: [RFC] x86, mm: start mmap allocation for libs from low
+ addresses
+Message-ID: <20110822201418.GA3176@albatros>
+References: <20110812102954.GA3496@albatros>
+ <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
+ <20110816090540.GA7857@albatros>
+ <20110822101730.GA3346@albatros>
+ <4E5290D6.5050406@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
- quota update.
-References: <4E4EB603.8090305@cray.com> <20110819145109.dcd5dac6.akpm@linux-foundation.org>
-In-Reply-To: <20110819145109.dcd5dac6.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E5290D6.5050406@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Gibson <david@gibson.dropbear.id.au>, Hugh Dickins <hughd@google.com>, Andrew Hastings <abh@cray.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel-hardening@lists.openwall.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/19/2011 04:51 PM, Andrew Morton wrote:
-> What's different about hugetlbfs?  Why don't other filesystems hit this?
+On Mon, Aug 22, 2011 at 10:24 -0700, H. Peter Anvin wrote:
+> Conceptually:
 > 
-> <investigates further>
-> 
-> OK so the incorrect interaction happened in free_huge_page(), which is
-> called via the compound page destructor (this dtor is "what's different
-> about hugetlbfs").   What is incorrect about this is
-> 
-> a) that we're doing fs operations in response to a
->    get_user_pages()/put_page() operation which has *nothing* to do with
->    filesystems!
-> 
-> b) that we continue to try to do that fs operation against an fs
->    which was unmounted and freed three days ago. duh.
+> I also have to admit to being somewhat skeptical to the concept on a
+> littleendian architecture like x86.
 
-Yes.
+Sorry, I was too short at my statement.  This is a quote from Solar
+Designer:
 
-> So I hereby pronounce that
-> 
-> a) It was wrong to manipulate hugetlbfs quotas within
->    free_huge_page().  Because free_huge_page() is a low-level
->    page-management function which shouldn't know about one of its
->    specific clients (in this case, hugetlbfs).
-> 
->    In fact it's wrong for there to be *any* mention of hugetlbfs
->    within hugetlb.c.
-> 
-> b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
->    Mel, Adam, Dave, at least...
-> 
-> c) The proper fix here is to get that hugetlbfs quota code out of
->    free_huge_page() and do it all where it belongs: within hugetlbfs
->    code.
-> 
-> 
-> Regular filesystems don't need to diddle quota counts within
-> page_cache_release().  Why should hugetlbfs need to?
+"Requiring NUL as the most significant byte of a 32-bit address achieves
+two things:
 
-Is there anyone, more expert in hugetlbfs code than I, who can/should/will take
-that on?
+1. The overflow length has to be inferred/guessed exactly, because only
+one NUL may be written.  Simply using a repeated pattern (with function
+address and arguments) no longer works.
+
+2. Passing function arguments in the straightforward manner no longer
+works, because copying stops after the NUL.  The attacker's best bet may
+be to find an entry point not at function boundary that sets registers
+and then proceeds with or branches to the desired library code.  The
+easiest way to set registers and branch would be a function epilogue -
+pop/pop/.../ret - but then there's the difficulty in passing the address
+to ret to (we have just one NUL and we've already used it to get to this
+code).  Similarly, even via such pop's we can't pass an argument that
+contains a NUL in it - e.g., the address of "/bin/sh" in libc (it
+contains a NUL most significant byte too) or a zero value for root's
+uid.  A possible bypass is via multiple overflows - if the overflow may
+be triggered more than once before the vulnerable function returns, then
+multiple NULs may be written, exactly one per overflow.  But this is
+hopefully relatively rare."
+
+I'll extend the patch description to explain the motivation more
+clearly.
 
 
->> +#define HPAGE_INACTIVE  0
->> +#define HPAGE_ACTIVE    1
+> Code-wise:
 > 
-> The above need documenting, please.  That documentation would perhaps
-> help me understand why we need both an "active" flag *and* a refcount.
+> The code is horrific; it is full of open-coded magic numbers;
 
-It doesn't need both. Now that you mention it, it would be simpler to put it all
-in the refcount. I'd send an updated patch, but it sounds like things will be
-going in a different direction.
+Agreed, the magic needs macro definition and comments.
 
+> it also
+> puts a function called arch_get_unmapped_exec_area() in a generic file,
+> which could best be described as "WTF" -- the arch_ prefix we use
+> specifically to denote a per-architecture hook function.
+
+Agreed.  But I'd want to leave it in mm/mmap.c as it's likely be used by
+other archs - the changes are bitness specific, not arch specific.  Is
+it OK if I do this?
+
+#ifndef HAVE_ARCH_UNMAPPED_EXEC_AREA
+void *arch_get_unmapped_exec_area(...)
+{
+    ...
+}
+#endif
+
+
+Thank you for the review!
+
+-- 
+Vasiliy Kulikov
+http://www.openwall.com - bringing security into open computing environments
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
