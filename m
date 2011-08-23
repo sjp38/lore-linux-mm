@@ -1,253 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0626B0169
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 09:54:15 -0400 (EDT)
-Date: Tue, 23 Aug 2011 09:53:55 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110823135355.GB20291@redhat.com>
-References: <20110816022006.348714319@intel.com>
- <20110816022329.190706384@intel.com>
- <20110819020637.GA13597@redhat.com>
- <20110819025406.GA13365@localhost>
- <20110819190037.GJ18656@redhat.com>
- <20110821034657.GA30747@localhost>
- <20110822172230.GB17833@redhat.com>
- <20110823010721.GB7332@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B03D96B0169
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 10:15:12 -0400 (EDT)
+Date: Tue, 23 Aug 2011 22:15:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110823141504.GA15949@localhost>
+References: <20110806094526.733282037@intel.com>
+ <1312811193.10488.33.camel@twins>
+ <20110808141128.GA22080@localhost>
+ <1312814501.10488.41.camel@twins>
+ <20110808230535.GC7176@localhost>
+ <1313154259.6576.42.camel@twins>
+ <20110812142020.GB17781@localhost>
+ <1314027488.24275.74.camel@twins>
+ <20110823034042.GC7332@localhost>
+ <1314093660.8002.24.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110823010721.GB7332@localhost>
+In-Reply-To: <1314093660.8002.24.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 23, 2011 at 09:07:21AM +0800, Wu Fengguang wrote:
+On Tue, Aug 23, 2011 at 06:01:00PM +0800, Peter Zijlstra wrote:
+> On Tue, 2011-08-23 at 11:40 +0800, Wu Fengguang wrote:
+> > - not a factor at all for updating balanced_rate (whether or not we do (2))
+> >   well, in this concept: the balanced_rate formula inherently does not
+> >   derive the balanced_rate_(i+1) from balanced_rate_i. Rather it's
+> >   based on the ratelimit executed for the past 200ms:
+> > 
+> >           balanced_rate_(i+1) = task_ratelimit_200ms * bw_ratio
+> 
+> Ok, this is where it all goes funny..
+> 
+> So if you want completely separated feedback loops I would expect
 
-[..]
-> > > > So we refined the formula for calculating a tasks's effective rate
-> > > > over a period of time to following.
-> > > > 					    write_bw
-> > > > 	task_ratelimit = task_ratelimit_0 * ------- * pos_ratio		(9)
-> > > > 					    dirty_rate
-> > > > 
-> > > 
-> > > That's not true. It should still be formula (7) when
-> > > balance_drity_pages() considers pos_ratio.
-> > 
-> > Why it is not true? If I do some math, it sounds right. Let me summarize
-> > my understanding again.
-> 
-> Ah sorry! (9) actually holds true, as made clear by your below reasoning.
-> 
-> > - In a steady state stable system, we want dirty_bw = write_bw, IOW.
-> >  
-> >   dirty_bw/write_bw = 1  		(1)
-> > 
-> >   If we can achieve above then that means we are throttling tasks at
-> >   just right rate.
-> > 
-> > Or
-> > -  dirty_bw  == write_bw
-> >    N * task_ratelimit == write_bw
-> >    task_ratelimit =  write_bw/N         (2)
-> > 
-> >   So as long as we can come up with a system where balance_dirty_pages()
-> >   calculates task_ratelimit to be write_bw/N, we should be fine.
-> 
-> Right.
-> 
-> > - But this does not take care of imbalances. So if system goes out of
-> >   balance before feedback loop kicks in and dirty rate shoots up, then
-> >   cache size will grow and number of dirty pages will shoot up. Hence
-> >   we brought in the notion of position ratio where we also vary a 
-> >   tasks's dirty ratelimit based on number of dirty pages. So our
-> >   effective formula became.
-> > 
-> >   task_ratelimit = write_bw/N * pos_ratio     (3)
-> > 
-> >   So as long as we meet (3), we should reach to stable state.
-> 
-> Right.
-> 
-> > -  But here N is unknown in advance so balance_drity_pages() can not make
-> >    use of this formula directly. But write_bw and dirty_bw from previous
-> >    200ms are known. So following can replace (3).
-> > 
-> > 				       write_bw
-> >    task_ratelimit = task_ratelimit_0 * --------- * pos_ratio      (4)
-> > 					dirty_bw	
-> > 
-> >    dirty_bw = task_ratelimit_0 * N                (5)
-> > 
-> >    Substitute (5) in (4)
-> > 
-> >    task_ratelimit = write_bw/N * pos_ratio      (6)
-> > 
-> >    (6) is same as (3) which has been derived from (4) and that means at any
-> >    given point of time (4) can be used by balance_drity_pages() to calculate
-> >    a tasks's throttling rate.
-> 
-> Right. Sorry what's in my mind was
-> 
->                                        write_bw
->     balanced_rate = task_ratelimit_0 * --------
->                                        dirty_bw        
-> 
->     task_ratelimit = balanced_rate * pos_ratio
-> 
-> which is effective the same to your combined equation (4).
-> 
-> > - Now going back to (4). Because we have a feedback loop where we
-> >   continuously update a previous number based on feedback, we can track
-> >   previous value in bdi->dirty_ratelimit.
-> > 
-> > 				       write_bw
-> >    task_ratelimit = task_ratelimit_0 * --------- * pos_ratio 
-> > 					dirty_bw	
-> > 
-> >    Or
-> > 
-> >    task_ratelimit = bdi->dirty_ratelimit * pos_ratio         (7)
-> > 
-> >    where
-> > 					    write_bw	
-> >   bdi->dirty_ratelimit = task_ratelimit_0 * ---------
-> > 					    dirty_bw
-> 
-> Right.
-> 
-> >   Because task_ratelimit_0 is initial value to begin with and we will
-> >   keep on coming with new value every 200ms, we should be able to write
-> >   above as follows.
-> > 
-> > 						      write_bw
-> >   bdi->dirty_ratelimit_n = bdi->dirty_ratelimit_n-1 * --------  (8)
-> > 						      dirty_bw
-> > 
-> >   Effectively we start with an initial value of task_ratelimit_0 and
-> >   then keep on updating it based on rate change feedback every 200ms.
-> 
-> Right.
-> 
-> >   To summarize,
-> > 
-> >   We need to achieve (3) for a balanced system. Because we don't know the
-> >   value of N in advance, we can use (4) to achieve effect of (3). So we
-> >   start with a default value of task_ratelimit_0 and update that every
-> >   200ms based on how write and dirty rate on device is changing (8). We also
-> >   further refine that rate by pos_ratio so that any variations in number
-> >   of dirty pages due to temporary imbalances in the system can be
-> >   accounted for (7).
-> > 
-> > I see that you also use (7). I think only contention point is how
-> > (8) is perceived. So can you please explain why do you think that
-> > above calculation or (9) is wrong.
-> 
-> There is no contention point and (9) is right..Sorry it's my fault.
-> We are well aligned in the above reasoning :)
+If call it feedback loops, then it's a series of independent feedback
+loops of depth 1.  Because each balanced_rate is a fresh estimation
+dependent solely on
 
-Great. Now we are on same page now at least till this point.
+- writeout bandwidth
+- N, the number of dd tasks
 
-> 
-> > I can kind of understand that you have done various adjustments to keep the
-> > task_ratelimit and bdi->dirty_ratelimit relatively stable. Just that
-> > I am not able to understand your calculations in updating bdi->dirty_ratelimit.  
-> 
-> You mean the below chunk of code? Which is effectively the same as this _one_
-> line of code
-> 
->         bdi->dirty_ratelimit = balanced_rate;
-> 
-> except for doing some tricks (conditional update and limiting step size) to
-> stabilize bdi->dirty_ratelimit:
+in the past 200ms.
 
-I am fine with bdi->dirty_ratelimit being called balanced rate. I am
-taking exception to the fact that you are also taking into accout
-pos_ratio while coming up with new balanced_rate after 200ms of feedback.
+As long as a CONSTANT ratelimit (whatever value it is) is executed in
+the past 200ms, we can get the same balanced_rate.
 
-We agreed to updating bdi->dirty_ratelimit as follows (8 above).
+        balanced_rate = CONSTANT_ratelimit * write_bw / dirty_rate
 
+The resulted balanced_rate is independent of how large the CONSTANT
+ratelimit is, because if we start with a doubled CONSTANT ratelimit,
+we'll see doubled dirty_rate and result in the same balanced_rate. 
+
+In that manner, balance_rate_(i+1) is not really depending on the
+value of balance_rate_(i): whatever balance_rate_(i) is, we are going
+to get the same balance_rate_(i+1) if not considering estimation
+errors. Note that the estimation errors mainly come from the
+fluctuations in dirty_rate.
+
+That may well be what's already in your mind, just that we disagree
+about the terms ;)
+
+> something like:
+> 
+> 	balance_rate_(i+1) = balance_rate_(i) * bw_ratio   ; every 200ms
+> 
+> The former is a complete feedback loop, expressing the new value in the
+> old value (*) with bw_ratio as feedback parameter; if we throttled too
+> much, the dirty_rate will have dropped and the bw_ratio will be <1
+> causing the balance_rate to drop increasing the dirty_rate, and vice
+> versa.
+
+In principle, the bw_ratio works that way. However since
+balance_rate_(i) is not the exact _executed_ ratelimit in
+balance_dirty_pages().
+
+> (*) which is the form I expected and why I thought your primary feedback
+> loop looked like: rate_(i+1) = rate_(i) * pos_ratio * bw_ratio
  
- 						      write_bw
-   bdi->dirty_ratelimit_n = bdi->dirty_ratelimit_n-1 * --------  (8)
- 						      dirty_bw
+Because the executed ratelimit was rate_(i) * pos_ratio.
 
-I think in your terminology it could be called.
-					   write_bw
-  new_balanced_rate = prev_balanced_rate * ----------            (9)
-					   dirty_bw
+> With the above balance_rate is an independent variable that tracks the
+> write bandwidth. Now possibly you'd want a low-pass filter on that since
+> your bw_ratio is a bit funny in the head, but that's another story.
 
-But what you seem to be doing is following.
-							write_bw
-  new_balanced_rate = prev_balanced_rate * pos_ratio * -----------  (10)
-							dirty_bw
+Yeah.
 
-Of course I have just tried to simlify your actual calculations to
-show why I am questioning the presence of pos_ratio while calculating
-the new bdi->dirty_ratelimit. I am fine with limiting the step size etc.
+> Then when you use the balance_rate to actually throttle tasks you apply
+> your secondary control steering the dirty page count, yielding:
+> 
+> 	task_rate = balance_rate * pos_ratio
 
-So (9) and (10) don't match?
+Right. Note the above formula is not a derived one, but an original
+one that later leads to pos_ratio showing up in the calculation of
+balanced_rate.
 
-Now going back to your code and show how I arrived at (10).
+> >   and task_ratelimit_200ms happen to can be estimated from
+> > 
+> >           task_ratelimit_200ms ~= balanced_rate_i * pos_ratio
+> 
+> >   We may alternatively record every task_ratelimit executed in the
+> >   past 200ms and average them all to get task_ratelimit_200ms. In this
+> >   way we take the "superfluous" pos_ratio out of sight :) 
+> 
+> Right, so I'm not at all sure that makes sense, its not immediately
+> evident that <task_ratelimit> ~= balance_rate * pos_ratio. Nor is it
+> clear to me why your primary feedback loop uses task_ratelimit_200ms at
+> all. 
 
-executed_rate = (u64)base_rate * pos_ratio >> RATELIMIT_CALC_SHIFT; (11)
-balanced_rate = div_u64((u64)executed_rate * bdi->avg_write_bandwidth,
-			dirty_rate | 1);			(12)
+task_ratelimit is used and hence defined to be (balance_rate * pos_ratio)
+by balance_dirty_pages(). So this is an original formula:
 
-Combining (11) and (12) gives us (10).
-				     write_bw
-balance_rate = base_rate * pos_ratio --------
-				     dirty_rate
+        task_ratelimit = balance_rate * pos_ratio
 
-Or
-					    write_bw
-bdi->dirty_ratelimit = base_rate * pos_ratio --------
-					     dirty_rate
+task_ratelimit_200ms is also used as an original data source in
 
-To complicate the things you also have the notion of pos_rate and reduce
-the step size based on either pos_rate or balance_rate.
+        balanced_rate = task_ratelimit_200ms * write_bw / dirty_rate
 
-pos_rate = executed_rate = base_rate * pos_ratio;
+Then we try to estimate task_ratelimit_200ms by assuming all tasks
+have been executing the same CONSTANT ratelimit in
+balance_dirty_pages(). Hence we get
 
-				     write_bw
-balance_rate = base_rate * pos_ratio --------
-				     dirty_rate
+        task_ratelimit_200ms ~= prev_balance_rate * pos_ratio
 
-bdi->dirty_rate_limit = min_change(pos_rate, balance_rate)       (13)
+> >   There is fundamentally no dependency between balanced_rate_(i+1) and
+> >   balanced_rate_i/task_ratelimit_200ms: the balanced_rate estimation
+> >   only asks for _whatever_ CONSTANT task ratelimit to be executed for
+> >   200ms, then it get the balanced rate from the dirty_rate feedback.
+> 
+> How can there not be a relation between balance_rate_(i+1) and
+> balance_rate_(i) ? 
 
-So for feedback, why are not sticking to simply (9) and limit the step
-size and not take pos_ratio into account. 
+In this manner: even though balance_rate_(i) is somehow used for
+calculating balance_rate_(i+1), the latter will evaluate to the same
+value given whatever balance_rate_(i).
 
-Even if you have to take it into account, it needs to be explained clearly
-and so many rate definitions confuse things more. Keeping name constant
-everywhere (even for local variables), helps understand the code better.
+That is, there is two dependencies, the seemingly dependency in the
+formula, and the effective dependency in the data values.
 
-Look at number of rates we have in code and it gets so confusing.
-
-balanced_rate
-base_rate
-bdi->dirty_ratelimit
-
-executed_rate
-pos_rate
-task_ratelimit
-
-dirty_rate
-write_bw
-
-Here balanced_rate, base_rate and bdi->dirty_ratelimit all seem to be
-referring to same thing and that is not obivious from the code. Looks
-like task->ratelimit and executed_rate and pos_rate are referring to same
-thing.
-
-So instead of 6 rates, we could atleast collpase the naming to 2 rates
-to keep the context clear. Just prefix/suffix more strings to highlight
-subtle difference between two rates.
-
-Thanks
-Vivek
+Thank,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
