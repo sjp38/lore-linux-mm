@@ -1,47 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E813890013D
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:22:36 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 32F533EE0B6
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:33 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1715D45DEB4
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E4845DEB3
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E34FC1DB803B
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B02941DB8037
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
-Date: Tue, 23 Aug 2011 18:15:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] oom: skip frozen tasks
-Message-Id: <20110823181505.f7dd43ba.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110823073101.6426.77745.stgit@zurg>
-References: <20110823073101.6426.77745.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 45FB990013D
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:23:35 -0400 (EDT)
+Date: Tue, 23 Aug 2011 19:23:30 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 04/13] mm: new shrinker API
+Message-ID: <20110823092330.GY3162@dastard>
+References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
+ <1314089786-20535-5-git-send-email-david@fromorbit.com>
+ <20110823091529.GC21492@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110823091529.GC21492@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
 
-On Tue, 23 Aug 2011 11:31:01 +0300
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-
-> All frozen tasks are unkillable, and if one of them has TIF_MEMDIE
-> we must kill something else to avoid deadlock. After this patch
-> select_bad_process() will skip frozen task before checking TIF_MEMDIE.
+On Tue, Aug 23, 2011 at 05:15:29AM -0400, Christoph Hellwig wrote:
+> >  /*
+> >   * A callback you can register to apply pressure to ageable caches.
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> It's much more than just a single callback these days.
+> 
+> > + * @scan_objects will be made from the current reclaim context.
+> >   */
+> >  struct shrinker {
+> >  	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+> > +	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
+> > +	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
+> 
+> Is shrink_object really such a good name for this method?
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Apart from the fact it is called "scan_objects", I'm open to more
+appropriate names. I called is "scan_objects" because of the fact we
+are asking to scan (rather than free) a specific number objects on
+the LRU, and it matches with the "sc->nr_to_scan" control field.
 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
