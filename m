@@ -1,68 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 691E96B0178
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 17:39:19 -0400 (EDT)
-Date: Tue, 23 Aug 2011 14:39:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
-Message-Id: <20110823143912.0691d442.akpm@linux-foundation.org>
-In-Reply-To: <20110804152211.ea10e3e7.rdunlap@xenotime.net>
-References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au>
-	<20110804152211.ea10e3e7.rdunlap@xenotime.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id DF03390013A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:13:47 -0400 (EDT)
+Date: Wed, 24 Aug 2011 00:13:21 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 3 of 3] thp: mremap support and TLB optimization
+Message-ID: <20110823221321.GD23870@redhat.com>
+References: <patchbomb.1312649882@localhost>
+ <10a29e95223e52e49a61.1312649885@localhost>
+ <20110823141445.35864dc8.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110823141445.35864dc8.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Amerigo Wang <amwang@redhat.com>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
+Hi Andrew,
 
-> Subject: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
-
-The patch-against-next thing always disturbs me.  It implies that the
-patch is only needed in linux-next, but often that's wrong.  So I have
-to go off and work out what kernel it really is applicable to.
-
-And that's OK, it keeps me healthy.  But two minds are better than one,
-and if the originator has already worked this out, they should state it
-explicitly, please.
-
-On Thu, 4 Aug 2011 15:22:11 -0700
-Randy Dunlap <rdunlap@xenotime.net> wrote:
-
-> From: Randy Dunlap <rdunlap@xenotime.net>
+On Tue, Aug 23, 2011 at 02:14:45PM -0700, Andrew Morton wrote:
+> > +	if ((old_addr & ~HPAGE_PMD_MASK) ||
+> > +	    (new_addr & ~HPAGE_PMD_MASK) ||
+> > +	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
 > 
-> vmstat_text is only available when PROC_FS or SYSFS is enabled.
-> This causes build errors in drivers/base/node.c when they are
-> both disabled:
-> 
-> drivers/built-in.o: In function `node_read_vmstat':
-> node.c:(.text+0x10e28f): undefined reference to `vmstat_text'
-> 
-> Rather than litter drivers/base/node.c with #ifdef/#endif around
-> the affected lines of code, add macros for optional sysdev
-> attributes so that those lines of code will be ignored, without
-> using #ifdef/#endif in the .c file(s).  I.e., the ifdeffery
-> is done only in a header file with sysdev_create_file_optional()
-> and sysdev_remove_file_optional().
-> 
-> --- linux-next-20110804.orig/include/linux/vmstat.h
-> +++ linux-next-20110804/include/linux/vmstat.h
-> @@ -258,6 +258,8 @@ static inline void refresh_zone_stat_thr
->  
->  #endif		/* CONFIG_SMP */
->  
-> +#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS)
->  extern const char * const vmstat_text[];
-> +#endif
->
+> Can (old_addr + HPAGE_PMD_SIZE) wrap past zero?
 
-The ifdef around the declaration isn't needed, really.  If we remove
-it then a build-time error becomes a link-time (or even moddep-time) error,
-which is a bit of a pain.  But it's less painful than having ifdefs
-around squillions of declarations.
+Good question. old_addr is hpage aligned so to overflow it'd need to
+be exactly at address 0-HPAGE_PMD_SIZE. Can any userland map an
+address there? I doubt and surely not x86* or sparc (currently THP is
+only enabled on x86 anyway so answer is it can't wrap past zero). But
+probably we should add a wrap check for other archs in the future
+unless we have a real guarantee from all archs to avoid the check. I
+only can guarantee about x86*.
 
+> -	if (!pmd_none(*new_pmd)) {
+> -		WARN_ON(1);
+> +	if (!WARN_ON(pmd_none(*new_pmd))) {
+
+WARN_ON(!pmd_none
+
+Thanks for the cleanups!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
