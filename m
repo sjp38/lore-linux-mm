@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5E09F6B016B
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:57:57 -0400 (EDT)
-Date: Tue, 23 Aug 2011 19:57:52 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 12/13] dcache: remove dentries from LRU before putting on
- dispose list
-Message-ID: <20110823095752.GB3162@dastard>
-References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
- <1314089786-20535-13-git-send-email-david@fromorbit.com>
- <20110823093520.GA4938@infradead.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F3706B016D
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:59:12 -0400 (EDT)
+Message-ID: <4E5379DA.8060109@openvz.org>
+Date: Tue, 23 Aug 2011 13:58:50 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110823093520.GA4938@infradead.org>
+Subject: Re: [PATCH 08/13] list: add a new LRU list type
+References: <1314089786-20535-1-git-send-email-david@fromorbit.com> <1314089786-20535-9-git-send-email-david@fromorbit.com> <20110823092056.GE21492@infradead.org> <20110823093205.GZ3162@dastard>
+In-Reply-To: <20110823093205.GZ3162@dastard>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Aug 23, 2011 at 05:35:20AM -0400, Christoph Hellwig wrote:
-> > diff --git a/fs/dcache.c b/fs/dcache.c
-> > index b931415..79bf47c 100644
-> > --- a/fs/dcache.c
-> > +++ b/fs/dcache.c
-> > @@ -269,10 +269,10 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
-> >  	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
-> >  	if (list_empty(&dentry->d_lru)) {
-> >  		list_add_tail(&dentry->d_lru, list);
-> > -		dentry->d_sb->s_nr_dentry_unused++;
-> > -		this_cpu_inc(nr_dentry_unused);
-> >  	} else {
-> >  		list_move_tail(&dentry->d_lru, list);
-> > +		dentry->d_sb->s_nr_dentry_unused--;
-> > +		this_cpu_dec(nr_dentry_unused);
-> >  	}
-> >  	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-> 
-> I suspect at this point it might be more obvious to simply remove
-> dentry_lru_move_list.  Just call dentry_lru_del to remove it from the
-> lru, and then we can add it to the local dispose list without the need
-> of any locking, similar to how it is done for inodes already.
+Dave Chinner wrote:
+> On Tue, Aug 23, 2011 at 05:20:56AM -0400, Christoph Hellwig wrote:
+>> On Tue, Aug 23, 2011 at 06:56:21PM +1000, Dave Chinner wrote:
+>>> From: Dave Chinner<dchinner@redhat.com>
+>>>
+>>> Several subsystems use the same construct for LRU lists - a list
+>>> head, a spin lock and and item count. They also use exactly the same
+>>> code for adding and removing items from the LRU. Create a generic
+>>> type for these LRU lists.
+>>>
+>>> This is the beginning of generic, node aware LRUs for shrinkers to
+>>> work with.
+>>
+>> Why list_lru vs the more natural sounding lru_list?
+>
+> because the mmzone.h claimed that namespace:
+>
+> enum lru_list {
+>          LRU_INACTIVE_ANON = LRU_BASE,
+>          LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
+>          LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
+>          LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
+>          LRU_UNEVICTABLE,
+>          NR_LRU_LISTS
+> };
+>
+> and it is widely spewed through the mm code. I didn't really feel
+> like having to clean that mess up first....
 
-Yeah, that is what is done in the next patch when converting to the
-generic LRU list code. I can probably pull this back into this patch
-and just remove dentry_lru_move_list(0 right here.
+not so widely:
 
-> 
-> >  		if (dentry->d_count) {
-> > -			dentry_lru_del(dentry);
-> >  			spin_unlock(&dentry->d_lock);
-> >  			continue;
-> >  		}
-> > @@ -789,6 +794,8 @@ relock:
-> >  			spin_unlock(&dentry->d_lock);
-> >  		} else {
-> >  			list_move_tail(&dentry->d_lru, &tmp);
-> > +			this_cpu_dec(nr_dentry_unused);
-> > +			sb->s_nr_dentry_unused--;
-> 
-> It might be more obvious to use __dentry_lru_del + an opencoded list_add
-> here.
+$ git grep -wc 'enum lru_list'
+include/linux/memcontrol.h:5
+include/linux/mm_inline.h:7
+include/linux/mmzone.h:4
+include/linux/pagevec.h:1
+include/linux/swap.h:2
+mm/memcontrol.c:10
+mm/page_alloc.c:1
+mm/swap.c:6
+mm/vmscan.c:6
 
-This goes away completely in the next patch, so I don't think it
-matters that much...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+maybe is better to rename it to enum page_lru_list
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
