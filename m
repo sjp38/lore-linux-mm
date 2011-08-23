@@ -1,88 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA3190013D
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:20:59 -0400 (EDT)
-Date: Tue, 23 Aug 2011 05:20:56 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 08/13] list: add a new LRU list type
-Message-ID: <20110823092056.GE21492@infradead.org>
-References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
- <1314089786-20535-9-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1314089786-20535-9-git-send-email-david@fromorbit.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E813890013D
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:22:36 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 32F533EE0B6
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:33 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1715D45DEB4
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E4845DEB3
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E34FC1DB803B
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B02941DB8037
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:22:32 +0900 (JST)
+Date: Tue, 23 Aug 2011 18:15:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-Id: <20110823181505.f7dd43ba.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110823073101.6426.77745.stgit@zurg>
+References: <20110823073101.6426.77745.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Aug 23, 2011 at 06:56:21PM +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Tue, 23 Aug 2011 11:31:01 +0300
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+
+> All frozen tasks are unkillable, and if one of them has TIF_MEMDIE
+> we must kill something else to avoid deadlock. After this patch
+> select_bad_process() will skip frozen task before checking TIF_MEMDIE.
 > 
-> Several subsystems use the same construct for LRU lists - a list
-> head, a spin lock and and item count. They also use exactly the same
-> code for adding and removing items from the LRU. Create a generic
-> type for these LRU lists.
-> 
-> This is the beginning of generic, node aware LRUs for shrinkers to
-> work with.
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-Why list_lru vs the more natural sounding lru_list?
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> diff --git a/lib/Makefile b/lib/Makefile
-> index d5d175c..a08212f 100644
-> --- a/lib/Makefile
-> +++ b/lib/Makefile
-> @@ -12,7 +12,8 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
->  	 idr.o int_sqrt.o extable.o prio_tree.o \
->  	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
->  	 proportions.o prio_heap.o ratelimit.o show_mem.o \
-> -	 is_single_threaded.o plist.o decompress.o find_next_bit.o
-> +	 is_single_threaded.o plist.o decompress.o find_next_bit.o \
-> +	 list_lru.o
-
-Di we finally fix the issues with lib-y objects beeing discarded despite
-modules relying on the exports?
-
-> +int
-> +list_lru_add(
-> +	struct list_lru	*lru,
-> +	struct list_head *item)
-> +{
-
-What about some kerneldoc comments for the helpers?
-
-> +		ret = isolate(item, &lru->lock, cb_arg);
-> +		switch (ret) {
-> +		case 0:	/* item removed from list */
-> +			lru->nr_items--;
-> +			removed++;
-> +			break;
-> +		case 1: /* item referenced, give another pass */
-> +			list_move_tail(item, &lru->list);
-> +			break;
-> +		case 2: /* item cannot be locked, skip */
-> +			break;
-> +		case 3: /* item not freeable, lock dropped */
-> +			goto restart;
-
-I think the isolate callback returns shoud have symbolic names, i.e.
-and enum lru_isolate or similar.
-
-> +int
-> +list_lru_init(
-> +	struct list_lru	*lru)
-> +{
-> +	spin_lock_init(&lru->lock);
-> +	INIT_LIST_HEAD(&lru->list);
-> +	lru->nr_items = 0;
-> +
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(list_lru_init);
-
-This one doesn't need a return value.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
