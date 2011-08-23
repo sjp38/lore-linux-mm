@@ -1,155 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B776B0176
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 17:14:55 -0400 (EDT)
-Date: Tue, 23 Aug 2011 14:14:45 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 691E96B0178
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 17:39:19 -0400 (EDT)
+Date: Tue, 23 Aug 2011 14:39:12 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3 of 3] thp: mremap support and TLB optimization
-Message-Id: <20110823141445.35864dc8.akpm@linux-foundation.org>
-In-Reply-To: <10a29e95223e52e49a61.1312649885@localhost>
-References: <patchbomb.1312649882@localhost>
-	<10a29e95223e52e49a61.1312649885@localhost>
+Subject: Re: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
+Message-Id: <20110823143912.0691d442.akpm@linux-foundation.org>
+In-Reply-To: <20110804152211.ea10e3e7.rdunlap@xenotime.net>
+References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au>
+	<20110804152211.ea10e3e7.rdunlap@xenotime.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Amerigo Wang <amwang@redhat.com>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Sat, 06 Aug 2011 18:58:05 +0200
-aarcange@redhat.com wrote:
 
-> From: Andrea Arcangeli <aarcange@redhat.com>
+> Subject: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
+
+The patch-against-next thing always disturbs me.  It implies that the
+patch is only needed in linux-next, but often that's wrong.  So I have
+to go off and work out what kernel it really is applicable to.
+
+And that's OK, it keeps me healthy.  But two minds are better than one,
+and if the originator has already worked this out, they should state it
+explicitly, please.
+
+On Thu, 4 Aug 2011 15:22:11 -0700
+Randy Dunlap <rdunlap@xenotime.net> wrote:
+
+> From: Randy Dunlap <rdunlap@xenotime.net>
 > 
-> This adds THP support to mremap (decreases the number of split_huge_page
-> called).
->
-> ...
-
-I have some nitpicking.
- 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1054,6 +1054,52 @@ int mincore_huge_pmd(struct vm_area_stru
->  	return ret;
->  }
+> vmstat_text is only available when PROC_FS or SYSFS is enabled.
+> This causes build errors in drivers/base/node.c when they are
+> both disabled:
+> 
+> drivers/built-in.o: In function `node_read_vmstat':
+> node.c:(.text+0x10e28f): undefined reference to `vmstat_text'
+> 
+> Rather than litter drivers/base/node.c with #ifdef/#endif around
+> the affected lines of code, add macros for optional sysdev
+> attributes so that those lines of code will be ignored, without
+> using #ifdef/#endif in the .c file(s).  I.e., the ifdeffery
+> is done only in a header file with sysdev_create_file_optional()
+> and sysdev_remove_file_optional().
+> 
+> --- linux-next-20110804.orig/include/linux/vmstat.h
+> +++ linux-next-20110804/include/linux/vmstat.h
+> @@ -258,6 +258,8 @@ static inline void refresh_zone_stat_thr
 >  
-> +int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
-> +		  unsigned long old_addr,
-> +		  unsigned long new_addr, unsigned long old_end,
-> +		  pmd_t *old_pmd, pmd_t *new_pmd)
-> +{
-> +	int ret = 0;
-> +	pmd_t pmd;
-> +
-> +	struct mm_struct *mm = vma->vm_mm;
-> +
-> +	if ((old_addr & ~HPAGE_PMD_MASK) ||
-> +	    (new_addr & ~HPAGE_PMD_MASK) ||
-> +	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
+>  #endif		/* CONFIG_SMP */
+>  
+> +#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS)
+>  extern const char * const vmstat_text[];
+> +#endif
+>
 
-Can (old_addr + HPAGE_PMD_SIZE) wrap past zero?
+The ifdef around the declaration isn't needed, really.  If we remove
+it then a build-time error becomes a link-time (or even moddep-time) error,
+which is a bit of a pain.  But it's less painful than having ifdefs
+around squillions of declarations.
 
-> +	    new_vma->vm_flags & VM_NOHUGEPAGE)
-
-This should be parenthesized, IMO, like the other sub-expressions.
-
-> +		goto out;
-> +
-> +	/*
-> +	 * The destination pmd shouldn't be established, free_pgtables()
-> +	 * should have release it.
-> +	 */
-> +	if (!pmd_none(*new_pmd)) {
-> +		WARN_ON(1);
-
-We can use the WARN_ON return value trick here.
-
-> +		VM_BUG_ON(pmd_trans_huge(*new_pmd));
-> +		goto out;
-> +	}
-> +
-> +	spin_lock(&mm->page_table_lock);
-> +	if (likely(pmd_trans_huge(*old_pmd))) {
-> +		if (pmd_trans_splitting(*old_pmd)) {
-> +			spin_unlock(&mm->page_table_lock);
-> +			wait_split_huge_page(vma->anon_vma, old_pmd);
-> +			ret = -1;
-> +		} else {
-> +			pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
-> +			VM_BUG_ON(!pmd_none(*new_pmd));
-> +			set_pmd_at(mm, new_addr, new_pmd, pmd);
-> +			spin_unlock(&mm->page_table_lock);
-> +			ret = 1;
-> +		}
-> +	} else
-> +		spin_unlock(&mm->page_table_lock);
-
-If the "if" part has braces, it's conventional to also add them to the
-"else" part.
-
-> +out:
-> +	return ret;
-> +}
-> +
-
-Result:
-
-diff -puN mm/huge_memory.c~thp-mremap-support-and-tlb-optimization-fix mm/huge_memory.c
---- a/mm/huge_memory.c~thp-mremap-support-and-tlb-optimization-fix
-+++ a/mm/huge_memory.c
-@@ -1065,15 +1065,14 @@ int move_huge_pmd(struct vm_area_struct 
- 	if ((old_addr & ~HPAGE_PMD_MASK) ||
- 	    (new_addr & ~HPAGE_PMD_MASK) ||
- 	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
--	    new_vma->vm_flags & VM_NOHUGEPAGE)
-+	    (new_vma->vm_flags & VM_NOHUGEPAGE))
- 		goto out;
- 
- 	/*
- 	 * The destination pmd shouldn't be established, free_pgtables()
- 	 * should have release it.
- 	 */
--	if (!pmd_none(*new_pmd)) {
--		WARN_ON(1);
-+	if (!WARN_ON(pmd_none(*new_pmd))) {
- 		VM_BUG_ON(pmd_trans_huge(*new_pmd));
- 		goto out;
- 	}
-@@ -1091,9 +1090,9 @@ int move_huge_pmd(struct vm_area_struct 
- 			spin_unlock(&mm->page_table_lock);
- 			ret = 1;
- 		}
--	} else
-+	} else {
- 		spin_unlock(&mm->page_table_lock);
--
-+	}
- out:
- 	return ret;
- }
---- a/mm/mremap.c~thp-mremap-support-and-tlb-optimization-fix
-+++ a/mm/mremap.c
-@@ -155,13 +155,13 @@ unsigned long move_page_tables(struct vm
- 			if (err > 0) {
- 				need_flush = true;
- 				continue;
--			} else if (!err)
-+			} else if (!err) {
- 				split_huge_page_pmd(vma->vm_mm, old_pmd);
-+			}
- 			VM_BUG_ON(pmd_trans_huge(*old_pmd));
- 		}
- 		if (pmd_none(*new_pmd) && __pte_alloc(new_vma->vm_mm, new_vma,
--						      new_pmd,
--						      new_addr))
-+						      new_pmd, new_addr))
- 			break;
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
- 		if (extent > next - new_addr)
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
