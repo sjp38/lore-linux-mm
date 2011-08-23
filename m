@@ -1,64 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3706B016D
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 05:59:12 -0400 (EDT)
-Message-ID: <4E5379DA.8060109@openvz.org>
-Date: Tue, 23 Aug 2011 13:58:50 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 08/13] list: add a new LRU list type
-References: <1314089786-20535-1-git-send-email-david@fromorbit.com> <1314089786-20535-9-git-send-email-david@fromorbit.com> <20110823092056.GE21492@infradead.org> <20110823093205.GZ3162@dastard>
-In-Reply-To: <20110823093205.GZ3162@dastard>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 16C306B016F
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 06:01:17 -0400 (EDT)
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 23 Aug 2011 12:01:00 +0200
+In-Reply-To: <20110823034042.GC7332@localhost>
+References: <20110806084447.388624428@intel.com>
+	 <20110806094526.733282037@intel.com> <1312811193.10488.33.camel@twins>
+	 <20110808141128.GA22080@localhost> <1312814501.10488.41.camel@twins>
+	 <20110808230535.GC7176@localhost> <1313154259.6576.42.camel@twins>
+	 <20110812142020.GB17781@localhost> <1314027488.24275.74.camel@twins>
+	 <20110823034042.GC7332@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1314093660.8002.24.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Dave Chinner wrote:
-> On Tue, Aug 23, 2011 at 05:20:56AM -0400, Christoph Hellwig wrote:
->> On Tue, Aug 23, 2011 at 06:56:21PM +1000, Dave Chinner wrote:
->>> From: Dave Chinner<dchinner@redhat.com>
->>>
->>> Several subsystems use the same construct for LRU lists - a list
->>> head, a spin lock and and item count. They also use exactly the same
->>> code for adding and removing items from the LRU. Create a generic
->>> type for these LRU lists.
->>>
->>> This is the beginning of generic, node aware LRUs for shrinkers to
->>> work with.
->>
->> Why list_lru vs the more natural sounding lru_list?
->
-> because the mmzone.h claimed that namespace:
->
-> enum lru_list {
->          LRU_INACTIVE_ANON = LRU_BASE,
->          LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
->          LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
->          LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
->          LRU_UNEVICTABLE,
->          NR_LRU_LISTS
-> };
->
-> and it is widely spewed through the mm code. I didn't really feel
-> like having to clean that mess up first....
+On Tue, 2011-08-23 at 11:40 +0800, Wu Fengguang wrote:
+> - not a factor at all for updating balanced_rate (whether or not we do (2=
+))
+>   well, in this concept: the balanced_rate formula inherently does not
+>   derive the balanced_rate_(i+1) from balanced_rate_i. Rather it's
+>   based on the ratelimit executed for the past 200ms:
+>=20
+>           balanced_rate_(i+1) =3D task_ratelimit_200ms * bw_ratio
 
-not so widely:
+Ok, this is where it all goes funny..
 
-$ git grep -wc 'enum lru_list'
-include/linux/memcontrol.h:5
-include/linux/mm_inline.h:7
-include/linux/mmzone.h:4
-include/linux/pagevec.h:1
-include/linux/swap.h:2
-mm/memcontrol.c:10
-mm/page_alloc.c:1
-mm/swap.c:6
-mm/vmscan.c:6
+So if you want completely separated feedback loops I would expect
+something like:
 
-maybe is better to rename it to enum page_lru_list
+	balance_rate_(i+1) =3D balance_rate_(i) * bw_ratio   ; every 200ms
+
+The former is a complete feedback loop, expressing the new value in the
+old value (*) with bw_ratio as feedback parameter; if we throttled too
+much, the dirty_rate will have dropped and the bw_ratio will be <1
+causing the balance_rate to drop increasing the dirty_rate, and vice
+versa.
+
+(*) which is the form I expected and why I thought your primary feedback
+loop looked like: rate_(i+1) =3D rate_(i) * pos_ratio * bw_ratio
+
+With the above balance_rate is an independent variable that tracks the
+write bandwidth. Now possibly you'd want a low-pass filter on that since
+your bw_ratio is a bit funny in the head, but that's another story.
+
+Then when you use the balance_rate to actually throttle tasks you apply
+your secondary control steering the dirty page count, yielding:
+
+	task_rate =3D balance_rate * pos_ratio
+
+>   and task_ratelimit_200ms happen to can be estimated from
+>=20
+>           task_ratelimit_200ms ~=3D balanced_rate_i * pos_ratio
+
+>   We may alternatively record every task_ratelimit executed in the
+>   past 200ms and average them all to get task_ratelimit_200ms. In this
+>   way we take the "superfluous" pos_ratio out of sight :)=20
+
+Right, so I'm not at all sure that makes sense, its not immediately
+evident that <task_ratelimit> ~=3D balance_rate * pos_ratio. Nor is it
+clear to me why your primary feedback loop uses task_ratelimit_200ms at
+all.=20
+
+>   There is fundamentally no dependency between balanced_rate_(i+1) and
+>   balanced_rate_i/task_ratelimit_200ms: the balanced_rate estimation
+>   only asks for _whatever_ CONSTANT task ratelimit to be executed for
+>   200ms, then it get the balanced rate from the dirty_rate feedback.
+
+How can there not be a relation between balance_rate_(i+1) and
+balance_rate_(i) ?=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
