@@ -1,25 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C576B0169
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 10:26:41 -0400 (EDT)
-Date: Tue, 23 Aug 2011 09:26:37 -0500 (CDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 485396B0169
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 10:31:26 -0400 (EDT)
+Date: Tue, 23 Aug 2011 09:31:21 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 1/2]slub: add slab with one free object to partial list
- tail
-In-Reply-To: <1314064098.29510.23.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1108230926150.21267@router.home>
-References: <1314059819.29510.18.camel@sli10-conroe> <1314064098.29510.23.camel@sli10-conroe>
+Subject: Re: [PATCH 3/4] string: introduce memchr_inv
+In-Reply-To: <CAMuHMdVUvLAYpGDKsDUJ0DkLJEJKHCRy2Cj6miAH1YyEL6iWpw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1108230931000.21267@router.home>
+References: <1314030548-21082-1-git-send-email-akinobu.mita@gmail.com> <1314030548-21082-4-git-send-email-akinobu.mita@gmail.com> <CAMuHMdVUvLAYpGDKsDUJ0DkLJEJKHCRy2Cj6miAH1YyEL6iWpw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, penberg@kernel.org, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joern Engel <joern@logfs.org>, logfs@logfs.org, Marcin Slusarz <marcin.slusarz@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Tue, 23 Aug 2011, Shaohua Li wrote:
+On Mon, 22 Aug 2011, Geert Uytterhoeven wrote:
 
-> Reported-by: Alex Shi <alex.shi@intel.com> Signed-off-by: Shaohua Li
-> <shli@kernel.org> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> On Mon, Aug 22, 2011 at 18:29, Akinobu Mita <akinobu.mita@gmail.com> wrote:
+> > +/**
+> > + * memchr_inv - Find a character in an area of memory.
+>
+> This description doesn't really match.
+
+Seconded. If you fix that then
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
