@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 558976B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 04:38:44 -0400 (EDT)
-From: Sonic Zhang <sonic.adi@gmail.com>
-Subject: [PATCH v2] mm:page.h: Calculate virt_to_page and page_to_virt via predefined macro.
-Date: Tue, 23 Aug 2011 16:29:50 +0800
-Message-ID: <1314088190-16698-1-git-send-email-sonic.adi@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CED836B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 04:56:51 -0400 (EDT)
+From: Dave Chinner <david@fromorbit.com>
+Subject: [PATCH 00/12] RFC: shrinker APi rework and generic LRU lists
+Date: Tue, 23 Aug 2011 18:56:13 +1000
+Message-Id: <1314089786-20535-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: uclinux-dist-devel@blackfin.uclinux.org, Sonic Zhang <sonic.zhang@analog.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
 
-From: Sonic Zhang <sonic.zhang@analog.com>
+This series is a current work in progress: 
 
-In NOMMU architecture, if physical memory doesn't start from 0, ARCH_PFN_OFFSET is defined
-to generate page index in mem_map array. Because virtual address is equal to physical
-address, PAGE_OFFSET is always 0. virt_to_page and page_to_virt should not index page by
-PAGE_OFFSET directly.
+	- cleans up the shrinker API, fixes a couple of warts and converts all
+	  the shrinkers to us it,
+	- makes the inode slab cache initialisation consistent across all inode
+	  caches,
+	- introduces a generic LRU list type and infrstructure
+	- converts inode cache to use lru list infrastructure
+	- convert xfs buffer cache to use lru list infrastructure
+	- converts the dentry cache LRU to per-sb
+	- fixes dcache select_parent() use-the-lru-for-disposal abuse
+	- makes the dcache consistent about removing inodes from the LRU before
+	  disposal of them
+	- converts the dentry cache to use lru list infrastructure
 
-Signed-off-by: Sonic Zhang <sonic.zhang@analog.com>
----
- include/asm-generic/page.h |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+The basic concept here is to fix the shrinker API to be somewhat
+sane and convert the main slab cache LRUs in the system to use
+generic infrastructure. Both the detry and inode caches use LRU
+implementations that are almost-but-not-quite the same. There is no
+reason for them to be different - it's only the fact that the dentry
+cache LRU has been used in for disposal purposes rather than using
+dispose lists.
 
-diff --git a/include/asm-generic/page.h b/include/asm-generic/page.h
-index 75fec18..351889d 100644
---- a/include/asm-generic/page.h
-+++ b/include/asm-generic/page.h
-@@ -79,8 +79,8 @@ extern unsigned long memory_end;
- #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
- #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
- 
--#define virt_to_page(addr)	(mem_map + (((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT))
--#define page_to_virt(page)	((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
-+#define virt_to_page(addr)	pfn_to_page(virt_to_pfn(addr))
-+#define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
- 
- #ifndef page_to_phys
- #define page_to_phys(page)      ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
--- 
-1.7.0.4
+The dentry caceh dispose list also has a problem as a result of the
+RCU-ifying of the code - the dispose list is implicitly protected by
+the LRU lock, and actaully forms a disjoint part of the LRU as
+dentries on the dispose list are still accounted to the LRU and
+require a call to dentry_lru_del() to remove from the dispose list
+and correct the LRU accounting. THis only works when there is a
+single LRU lock - if the dispose list is made upof dentries
+protected by different LRU locks, then it fails with list corruption
+pretty quickly. This is another reason for moving to the same
+strategy as the inode cache, where inodes are completely removed
+form thr LRU before being placed on the dispose list....
 
+In case it is not obvious, this is all preparatory work for making
+the LRUs and shrinkers node aware. The new generic LRU lists can be
+trivially converted to be node aware, and with the addition of node
+masks to the struct shrink_control propagated from shrink_slab() we
+can easily extend all these caches to have node aware reclaim. We
+will then have a generic node-aware LRU implementation that all
+subsystems can use to play well with memory reclaim on large NUMA
+machines...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
