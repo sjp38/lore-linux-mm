@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 17BAB6B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:57:01 -0400 (EDT)
-Message-ID: <4E534F33.5070609@openvz.org>
-Date: Tue, 23 Aug 2011 10:56:51 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D1166B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 03:04:53 -0400 (EDT)
+From: Sonic Zhang <sonic.adi@gmail.com>
+Subject: [PATCH] mm:page.h: Calculate virt_to_page and page_to_virt via predefined macro.
+Date: Tue, 23 Aug 2011 14:58:26 +0800
+Message-ID: <1314082706-11352-1-git-send-email-sonic.adi@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] vmscan: use atomic-long for shrinker batching
-References: <20110822101721.19462.63082.stgit@zurg> <20110822101727.19462.55289.stgit@zurg>
-In-Reply-To: <20110822101727.19462.55289.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: uclinux-dist-devel@blackfin.uclinux.org, Sonic Zhang <sonic.zhang@analog.com>
 
-Konstantin Khlebnikov wrote:
->   		delta = (4 * nr_pages_scanned) / shrinker->seeks;
-> @@ -329,12 +327,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->   		 * manner that handles concurrent updates. If we exhausted the
->   		 * scan, there is no need to do an update.
->   		 */
-> -		do {
-> -			nr = shrinker->nr;
-> -			new_nr = total_scan + nr;
-> -			if (total_scan<= 0)
-> -				break;
-> -		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
-> +		if (total_scan>  0)
-> +			new_nr = atomic_long_add_return(total_scan,
-> +					&shrinker->nr_in_batch);
-> +		else
-> +			new_nr = atomic_long_read(&shrinker->nr_in_batch);
->
->   		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+From: Sonic Zhang <sonic.zhang@analog.com>
 
-BTW, new_nr required only for tracing, maybe this will be better/faster,
-because atomic accuracy there isn't required at all.
+In NOMMU architecture, if physical memory doesn't start from 0, ARCH_PFN_OFFSET is defined
+to generate page index in mem_map array. Because virtual address is equal to physical
+address, PAGE_OFFSET is always 0. virt_to_page and page_to_virt should not index page by
+PAGE_OFFSET directly.
 
-	if (total_scan > 0)
-		atomic_long_add(total_scan, &shrinker->nr_in_batch);
+Signed-off-by: Sonic Zhang <sonic.zhang@analog.com>
+---
+ include/asm-generic/page.h |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-	new_nr = atomic_long_read(&shrinker->nr_in_batch);
-	trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+diff --git a/include/asm-generic/page.h b/include/asm-generic/page.h
+index 75fec18..96a1dc3 100644
+--- a/include/asm-generic/page.h
++++ b/include/asm-generic/page.h
+@@ -79,8 +79,13 @@ extern unsigned long memory_end;
+ #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
+ #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+ 
++#if 0
+ #define virt_to_page(addr)	(mem_map + (((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT))
+ #define page_to_virt(page)	((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
++#endif
++#define virt_to_page(addr)      pfn_to_page(virt_to_pfn(addr))
++#define page_to_virt(page)      pfn_to_virt(page_to_pfn(page))
++
+ 
+ #ifndef page_to_phys
+ #define page_to_phys(page)      ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
+-- 
+1.7.0.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
