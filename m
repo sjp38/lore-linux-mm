@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 912406B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:51:51 -0400 (EDT)
-Received: from localhost (localhost [127.0.0.1])
-	by uplift.swm.pp.se (Postfix) with ESMTP id 3AEC69A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 08:51:48 +0200 (CEST)
-Date: Tue, 23 Aug 2011 08:51:48 +0200 (CEST)
-From: Mikael Abrahamsson <swmike@swm.pp.se>
-Subject: copying files stops after a while in laptop mode on 2.6.38
-Message-ID: <alpine.DEB.2.00.1108230822480.4709@uplift.swm.pp.se>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 986FB6B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:53:51 -0400 (EDT)
+Message-Id: <4E5365E80200007800052AD2@nat28.tlf.novell.com>
+Date: Tue, 23 Aug 2011 07:33:44 +0100
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: RE: Subject: [PATCH V6 1/4] mm: frontswap: swap data structure
+	 changes
+References: <20110808204555.GA15850@ca-server1.us.oracle.com>
+ <4E414320020000780005057E@nat28.tlf.novell.com><4E414320020000780005057E@nat28.tlf.novell.com>
+ <ce8cba73-ec3c-42ae-849a-11db1df8ffa3@default
+ 4E4179D90200007800050676@nat28.tlf.novell.com><4E4179D90200007800050676@nat28.tlf.novell.com>
+ <cf3e6497-c77f-47eb-a35e-360ea68ade85@default>
+In-Reply-To: <cf3e6497-c77f-47eb-a35e-360ea68ade85@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: hannes@cmpxchg.org, jackdachef@gmail.com, hughd@google.com, jeremy@goop.org, npiggin@kernel.dk, linux-mm@kvack.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, riel@redhat.com, ngupta@vflare.org, linux-kernel@vger.kernel.org, matthew@wil.cx
 
+>>> On 22.08.11 at 19:08, Dan Magenheimer <dan.magenheimer@oracle.com> =
+wrote:
+> With two extra static inlines in frontswap.h (frontswap_map_get()
+> and frontswap_map_set(), I've managed to both avoid the extra swap =
+struct
+> members for frontswap_map and frontswap_pages when CONFIG_FRONTSWAP is
+> disabled AND avoid the #ifdef CONFIG_FRONTSWAP clutter in swapfile.h.
+>=20
+> I'll post a V7 soon... let me know what you think!
 
-Hi.
+Sounds promising - looking forward to seeing it.
 
-I'm running ubuntu 11.04 on my thinkpad X200 laptop with their 2.6.38 
-kernel. Whenever I copy a lot of data to my harddrive without the power 
-connected (cryptsetup:ed drive and ubuntus eCryptfs for home directory 
-(yeah I know, that's two levels of encryption))) the copy stops after 
-500-1000 megabyte. It'll just sit there, nothing more happening, my 
-firefox goes into blocking (greys out). If I then issue a "sync" command 
-in the terminal, things resume just as normal, until another 500-1000 
-megabyte has been copied. This doesn't happen if I have the power cable 
-connected.
-
-I interpret this as when the laptop is in laptop-mode, it doesn't flush 
-data to drive when memory is "full". Is this a known problem with 2.6.38 
-kernel, or might it be something ubuntu specific? I find it strange that 
-not more people are hit by this...
-
-Any thoughts?
-
--- 
-Mikael Abrahamsson    email: swmike@swm.pp.se
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
