@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1166B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 03:04:53 -0400 (EDT)
-From: Sonic Zhang <sonic.adi@gmail.com>
-Subject: [PATCH] mm:page.h: Calculate virt_to_page and page_to_virt via predefined macro.
-Date: Tue, 23 Aug 2011 14:58:26 +0800
-Message-ID: <1314082706-11352-1-git-send-email-sonic.adi@gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 86CD66B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 03:31:18 -0400 (EDT)
+Subject: [PATCH] oom: skip frozen tasks
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Tue, 23 Aug 2011 11:31:01 +0300
+Message-ID: <20110823073101.6426.77745.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: uclinux-dist-devel@blackfin.uclinux.org, Sonic Zhang <sonic.zhang@analog.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 
-From: Sonic Zhang <sonic.zhang@analog.com>
+All frozen tasks are unkillable, and if one of them has TIF_MEMDIE
+we must kill something else to avoid deadlock. After this patch
+select_bad_process() will skip frozen task before checking TIF_MEMDIE.
 
-In NOMMU architecture, if physical memory doesn't start from 0, ARCH_PFN_OFFSET is defined
-to generate page index in mem_map array. Because virtual address is equal to physical
-address, PAGE_OFFSET is always 0. virt_to_page and page_to_virt should not index page by
-PAGE_OFFSET directly.
-
-Signed-off-by: Sonic Zhang <sonic.zhang@analog.com>
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/asm-generic/page.h |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ mm/oom_kill.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/include/asm-generic/page.h b/include/asm-generic/page.h
-index 75fec18..96a1dc3 100644
---- a/include/asm-generic/page.h
-+++ b/include/asm-generic/page.h
-@@ -79,8 +79,13 @@ extern unsigned long memory_end;
- #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
- #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 626303b..931ab20 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -138,6 +138,8 @@ static bool oom_unkillable_task(struct task_struct *p,
+ 		return true;
+ 	if (p->flags & PF_KTHREAD)
+ 		return true;
++	if (p->flags & PF_FROZEN)
++		return true;
  
-+#if 0
- #define virt_to_page(addr)	(mem_map + (((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT))
- #define page_to_virt(page)	((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
-+#endif
-+#define virt_to_page(addr)      pfn_to_page(virt_to_pfn(addr))
-+#define page_to_virt(page)      pfn_to_virt(page_to_pfn(page))
-+
- 
- #ifndef page_to_phys
- #define page_to_phys(page)      ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
--- 
-1.7.0.4
-
+ 	/* When mem_cgroup_out_of_memory() and p is not member of the group */
+ 	if (mem && !task_in_mem_cgroup(p, mem))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
