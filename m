@@ -1,40 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 986FB6B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:53:51 -0400 (EDT)
-Message-Id: <4E5365E80200007800052AD2@nat28.tlf.novell.com>
-Date: Tue, 23 Aug 2011 07:33:44 +0100
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: RE: Subject: [PATCH V6 1/4] mm: frontswap: swap data structure
-	 changes
-References: <20110808204555.GA15850@ca-server1.us.oracle.com>
- <4E414320020000780005057E@nat28.tlf.novell.com><4E414320020000780005057E@nat28.tlf.novell.com>
- <ce8cba73-ec3c-42ae-849a-11db1df8ffa3@default
- 4E4179D90200007800050676@nat28.tlf.novell.com><4E4179D90200007800050676@nat28.tlf.novell.com>
- <cf3e6497-c77f-47eb-a35e-360ea68ade85@default>
-In-Reply-To: <cf3e6497-c77f-47eb-a35e-360ea68ade85@default>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 17BAB6B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:57:01 -0400 (EDT)
+Message-ID: <4E534F33.5070609@openvz.org>
+Date: Tue, 23 Aug 2011 10:56:51 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] vmscan: use atomic-long for shrinker batching
+References: <20110822101721.19462.63082.stgit@zurg> <20110822101727.19462.55289.stgit@zurg>
+In-Reply-To: <20110822101727.19462.55289.stgit@zurg>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: hannes@cmpxchg.org, jackdachef@gmail.com, hughd@google.com, jeremy@goop.org, npiggin@kernel.dk, linux-mm@kvack.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, riel@redhat.com, ngupta@vflare.org, linux-kernel@vger.kernel.org, matthew@wil.cx
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>
 
->>> On 22.08.11 at 19:08, Dan Magenheimer <dan.magenheimer@oracle.com> =
-wrote:
-> With two extra static inlines in frontswap.h (frontswap_map_get()
-> and frontswap_map_set(), I've managed to both avoid the extra swap =
-struct
-> members for frontswap_map and frontswap_pages when CONFIG_FRONTSWAP is
-> disabled AND avoid the #ifdef CONFIG_FRONTSWAP clutter in swapfile.h.
->=20
-> I'll post a V7 soon... let me know what you think!
+Konstantin Khlebnikov wrote:
+>   		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+> @@ -329,12 +327,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>   		 * manner that handles concurrent updates. If we exhausted the
+>   		 * scan, there is no need to do an update.
+>   		 */
+> -		do {
+> -			nr = shrinker->nr;
+> -			new_nr = total_scan + nr;
+> -			if (total_scan<= 0)
+> -				break;
+> -		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
+> +		if (total_scan>  0)
+> +			new_nr = atomic_long_add_return(total_scan,
+> +					&shrinker->nr_in_batch);
+> +		else
+> +			new_nr = atomic_long_read(&shrinker->nr_in_batch);
+>
+>   		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
 
-Sounds promising - looking forward to seeing it.
+BTW, new_nr required only for tracing, maybe this will be better/faster,
+because atomic accuracy there isn't required at all.
 
-Jan
+	if (total_scan > 0)
+		atomic_long_add(total_scan, &shrinker->nr_in_batch);
+
+	new_nr = atomic_long_read(&shrinker->nr_in_batch);
+	trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
