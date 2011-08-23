@@ -1,28 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A79C6B0169
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 11:25:16 -0400 (EDT)
-Date: Tue, 23 Aug 2011 10:25:12 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 2/2]slub: add a type for slab partial list position
-In-Reply-To: <1314059823.29510.19.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1108231023470.21267@router.home>
-References: <1314059823.29510.19.camel@sli10-conroe>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A73F6B0169
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 11:26:43 -0400 (EDT)
+Received: by qwd6 with SMTP id 6so207932qwd.14
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2011 08:26:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20110822134348.a57db0e1.akpm@linux-foundation.org>
+References: <1314030548-21082-1-git-send-email-akinobu.mita@gmail.com>
+	<1314030548-21082-3-git-send-email-akinobu.mita@gmail.com>
+	<20110822134348.a57db0e1.akpm@linux-foundation.org>
+Date: Wed, 24 Aug 2011 00:26:41 +0900
+Message-ID: <CAC5umygVhjAAH-o_KGp+hkHeqfGpX9J+GP8aS68H_=GSLEdNWg@mail.gmail.com>
+Subject: Re: [PATCH 2/4] debug-pagealloc: add support for highmem pages
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, penberg@kernel.org, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 23 Aug 2011, Shaohua Li wrote:
+2011/8/23 Andrew Morton <akpm@linux-foundation.org>:
 
-> Adding slab to partial list head/tail is sensentive to performance.
-> So adding a type to document it to avoid we get it wrong.
+> This seems more complicated than is needed. =A0Couldn't we just do
+>
+> static void poison_page(struct page *page)
+> {
+> =A0 =A0 =A0 =A0void *addr;
+>
+> =A0 =A0 =A0 =A0preempt_disable();
+> =A0 =A0 =A0 =A0addr =3D kmap_atomic(page);
+> =A0 =A0 =A0 =A0set_page_poison(page);
+> =A0 =A0 =A0 =A0memset(addr, PAGE_POISON, PAGE_SIZE);
+> =A0 =A0 =A0 =A0kunmap_atomic(addr);
+> =A0 =A0 =A0 =A0preempt_enable();
+> }
+>
+> ?
 
-I think that if you want to make it more descriptive then using the stats
-values (DEACTIVATE_TO_TAIL/HEAD) would avoid having to introduce an
-additional enum and it would also avoid the if statement in the stat call.
+This code looks much better.  I'll update the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
