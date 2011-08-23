@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D6E596B0175
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 04:57:02 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C0576B016B
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 04:57:21 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 11/13] dcache: use a dispose list in select_parent
-Date: Tue, 23 Aug 2011 18:56:24 +1000
-Message-Id: <1314089786-20535-12-git-send-email-david@fromorbit.com>
+Subject: [PATCH 09/13] inode: convert inode lru list to generic lru list code.
+Date: Tue, 23 Aug 2011 18:56:22 +1000
+Message-Id: <1314089786-20535-10-git-send-email-david@fromorbit.com>
 In-Reply-To: <1314089786-20535-1-git-send-email-david@fromorbit.com>
 References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,174 +15,292 @@ Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
 
 From: Dave Chinner <dchinner@redhat.com>
 
-select_parent currently abuses the dentry cache LRU to provide
-cleanup features for child dentries that need to be freed. It moves
-them to the tail of the LRU, then tells shrink_dcache_parent() to
-calls __shrink_dcache_sb to unconditionally move them to a dispose
-list (as DCACHE_REFERENCED is ignored). __shrink_dcache_sb() has to
-relock the dentries to move them off the LRU onto the dispose list,
-but otherwise does not touch the dentries that select_parent() moved
-to the tail of the LRU. It then passses the dispose list to
-shrink_dentry_list() which tries to free the dentries.
-
-IOWs, the use of __shrink_dcache_sb() is superfluous - we can build
-exactly the same list of dentries for disposal directly in
-select_parent() and call shrink_dentry_list() instead of calling
-__shrink_dcache_sb() to do that. This means that we avoid long holds
-on the lru lock walking the LRU moving dentries to the dispose list
-We also avoid the need to relock each dentry just to move it off the
-LRU, reducing the numebr of times we lock each dentry to dispose of
-them in shrink_dcache_parent() from 3 to 2 times.
-
-Further, we remove one of the two callers of __shrink_dcache_sb().
-This also means that __shrink_dcache_sb can be moved into back into
-prune_dcache_sb() and we no longer have to handle referenced
-dentries conditionally, simplifying the code.
-
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/dcache.c |   65 ++++++++++++++++++++---------------------------------------
- 1 files changed, 22 insertions(+), 43 deletions(-)
+ fs/inode.c         |  168 ++++++++++++++++++++-------------------------------
+ fs/super.c         |   11 ++--
+ include/linux/fs.h |    6 +-
+ 3 files changed, 73 insertions(+), 112 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index d19e453..b931415 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -264,15 +264,15 @@ static void dentry_lru_del(struct dentry *dentry)
- 	}
+diff --git a/fs/inode.c b/fs/inode.c
+index fee5d9a..98ca516 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -26,6 +26,7 @@
+ #include <linux/ima.h>
+ #include <linux/cred.h>
+ #include <linux/buffer_head.h> /* for inode_has_buffers */
++#include <linux/list_lru.h>
+ #include "internal.h"
+ 
+ /*
+@@ -328,24 +329,14 @@ EXPORT_SYMBOL(ihold);
+ 
+ static void inode_lru_list_add(struct inode *inode)
+ {
+-	spin_lock(&inode->i_sb->s_inode_lru_lock);
+-	if (list_empty(&inode->i_lru)) {
+-		list_add(&inode->i_lru, &inode->i_sb->s_inode_lru);
+-		inode->i_sb->s_nr_inodes_unused++;
++	if (list_lru_add(&inode->i_sb->s_inode_lru, &inode->i_lru))
+ 		this_cpu_inc(nr_unused);
+-	}
+-	spin_unlock(&inode->i_sb->s_inode_lru_lock);
  }
  
--static void dentry_lru_move_tail(struct dentry *dentry)
-+static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ static void inode_lru_list_del(struct inode *inode)
  {
- 	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 	if (list_empty(&dentry->d_lru)) {
--		list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
-+		list_add_tail(&dentry->d_lru, list);
- 		dentry->d_sb->s_nr_dentry_unused++;
- 		this_cpu_inc(nr_dentry_unused);
- 	} else {
--		list_move_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
-+		list_move_tail(&dentry->d_lru, list);
- 	}
- 	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- }
-@@ -752,14 +752,18 @@ static void shrink_dentry_list(struct list_head *list)
+-	spin_lock(&inode->i_sb->s_inode_lru_lock);
+-	if (!list_empty(&inode->i_lru)) {
+-		list_del_init(&inode->i_lru);
+-		inode->i_sb->s_nr_inodes_unused--;
+-		this_cpu_dec(nr_unused);
+-	}
+-	spin_unlock(&inode->i_sb->s_inode_lru_lock);
++	if (list_lru_del(&inode->i_sb->s_inode_lru, &inode->i_lru))
++		this_cpu_inc(nr_unused);
  }
  
  /**
-- * __shrink_dcache_sb - shrink the dentry LRU on a given superblock
-- * @sb:		superblock to shrink dentry LRU.
-- * @count:	number of entries to prune
-- * @flags:	flags to control the dentry processing
-+ * prune_dcache_sb - shrink the dcache
-+ * @sb: superblock
-+ * @nr_to_scan: number of entries to try to free
-+ *
-+ * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
-+ * done when we need more memory an called from the superblock shrinker
-+ * function.
-  *
-- * If flags contains DCACHE_REFERENCED reference dentries will not be pruned.
-+ * This function may fail to free any resources if all the dentries are in
-+ * use.
-  */
--static long __shrink_dcache_sb(struct super_block *sb, long count, int flags)
-+long prune_dcache_sb(struct super_block *sb, long nr_to_scan)
- {
- 	struct dentry *dentry;
- 	LIST_HEAD(referenced);
-@@ -779,13 +783,7 @@ relock:
- 			goto relock;
- 		}
- 
--		/*
--		 * If we are honouring the DCACHE_REFERENCED flag and the
--		 * dentry has this flag set, don't free it.  Clear the flag
--		 * and put it back on the LRU.
--		 */
--		if (flags & DCACHE_REFERENCED &&
--				dentry->d_flags & DCACHE_REFERENCED) {
-+		if (dentry->d_flags & DCACHE_REFERENCED) {
- 			dentry->d_flags &= ~DCACHE_REFERENCED;
- 			list_move(&dentry->d_lru, &referenced);
- 			spin_unlock(&dentry->d_lock);
-@@ -793,7 +791,7 @@ relock:
- 			list_move_tail(&dentry->d_lru, &tmp);
- 			spin_unlock(&dentry->d_lock);
- 			freed++;
--			if (!--count)
-+			if (!--nr_to_scan)
- 				break;
- 		}
- 		cond_resched_lock(&sb->s_dentry_lru_lock);
-@@ -807,23 +805,6 @@ relock:
+@@ -582,24 +573,8 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
+ 	return busy;
  }
  
- /**
-- * prune_dcache_sb - shrink the dcache
-- * @sb: superblock
-- * @nr_to_scan: number of entries to try to free
-- *
-- * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
-- * done when we need more memory an called from the superblock shrinker
-- * function.
-- *
-- * This function may fail to free any resources if all the dentries are in
-- * use.
-- */
--long prune_dcache_sb(struct super_block *sb, long nr_to_scan)
+-static int can_unuse(struct inode *inode)
 -{
--	return __shrink_dcache_sb(sb, nr_to_scan, DCACHE_REFERENCED);
+-	if (inode->i_state & ~I_REFERENCED)
+-		return 0;
+-	if (inode_has_buffers(inode))
+-		return 0;
+-	if (atomic_read(&inode->i_count))
+-		return 0;
+-	if (inode->i_data.nrpages)
+-		return 0;
+-	return 1;
 -}
 -
--/**
-  * shrink_dcache_sb - shrink dcache for a superblock
-  * @sb: superblock
+ /*
+- * Walk the superblock inode LRU for freeable inodes and attempt to free them.
+- * This is called from the superblock shrinker function with a number of inodes
+- * to trim from the LRU. Inodes to be freed are moved to a temporary list and
+- * then are freed outside inode_lock by dispose_list().
++ * Isolate the inode from the LRU in preparation for freeing it.
   *
-@@ -1073,7 +1054,7 @@ EXPORT_SYMBOL(have_submounts);
-  * drop the lock and return early due to latency
-  * constraints.
+  * Any inodes which are pinned purely because of attached pagecache have their
+  * pagecache removed.  If the inode has metadata buffers attached to
+@@ -613,88 +588,77 @@ static int can_unuse(struct inode *inode)
+  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
+  * with this flag set because they are the inodes that are out of order.
   */
--static long select_parent(struct dentry * parent)
-+static long select_parent(struct dentry *parent, struct list_head *dispose)
+-long prune_icache_sb(struct super_block *sb, long nr_to_scan)
++static int inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
++				void *arg)
  {
- 	struct dentry *this_parent;
- 	struct list_head *next;
-@@ -1095,12 +1076,11 @@ resume:
+-	LIST_HEAD(freeable);
+-	long nr_scanned;
+-	long freed = 0;
+-	unsigned long reap = 0;
++	struct list_head *freeable = arg;
++	struct inode	*inode = container_of(item, struct inode, i_lru);
  
- 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+-	spin_lock(&sb->s_inode_lru_lock);
+-	for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+-		struct inode *inode;
++	/*
++	 * we are inverting the lru lock/inode->i_lock here,
++	 * so use a trylock. If we fail to get the lock, just skip
++	 * it
++	 */
++	if (!spin_trylock(&inode->i_lock))
++		return 2;
  
--		/* 
--		 * move only zero ref count dentries to the end 
--		 * of the unused list for prune_dcache
-+		/*
-+		 * move only zero ref count dentries to the dispose list.
- 		 */
- 		if (!dentry->d_count) {
--			dentry_lru_move_tail(dentry);
-+			dentry_lru_move_list(dentry, dispose);
- 			found++;
- 		} else {
- 			dentry_lru_del(dentry);
-@@ -1162,14 +1142,13 @@ rename_retry:
-  *
-  * Prune the dcache to remove unused children of the parent dentry.
-  */
-- 
- void shrink_dcache_parent(struct dentry * parent)
- {
--	struct super_block *sb = parent->d_sb;
-+	LIST_HEAD(dispose);
- 	long found;
+-		if (list_empty(&sb->s_inode_lru))
+-			break;
++	/*
++	 * Referenced or dirty inodes are still in use. Give them
++	 * another pass through the LRU as we canot reclaim them now.
++	 */
++	if (atomic_read(&inode->i_count) ||
++	    (inode->i_state & ~I_REFERENCED)) {
++		list_del_init(&inode->i_lru);
++		spin_unlock(&inode->i_lock);
++		this_cpu_dec(nr_unused);
++		return 0;
++	}
  
--	while ((found = select_parent(parent)) != 0)
--		__shrink_dcache_sb(sb, found, 0);
-+	while ((found = select_parent(parent, &dispose)) != 0)
-+		shrink_dentry_list(&dispose);
+-		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_lru);
++	/* recently referenced inodes get one more pass */
++	if (inode->i_state & I_REFERENCED) {
++		inode->i_state &= ~I_REFERENCED;
++		spin_unlock(&inode->i_lock);
++		return 1;
++	}
+ 
+-		/*
+-		 * we are inverting the sb->s_inode_lru_lock/inode->i_lock here,
+-		 * so use a trylock. If we fail to get the lock, just move the
+-		 * inode to the back of the list so we don't spin on it.
+-		 */
+-		if (!spin_trylock(&inode->i_lock)) {
+-			list_move(&inode->i_lru, &sb->s_inode_lru);
+-			continue;
++	if (inode_has_buffers(inode) || inode->i_data.nrpages) {
++		__iget(inode);
++		spin_unlock(&inode->i_lock);
++		spin_unlock(lru_lock);
++		if (remove_inode_buffers(inode)) {
++			unsigned long reap;
++			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
++			if (current_is_kswapd())
++				__count_vm_events(KSWAPD_INODESTEAL, reap);
++			else
++				__count_vm_events(PGINODESTEAL, reap);
+ 		}
++		iput(inode);
++		return 3;
++	}
+ 
+-		/*
+-		 * Referenced or dirty inodes are still in use. Give them
+-		 * another pass through the LRU as we canot reclaim them now.
+-		 */
+-		if (atomic_read(&inode->i_count) ||
+-		    (inode->i_state & ~I_REFERENCED)) {
+-			list_del_init(&inode->i_lru);
+-			spin_unlock(&inode->i_lock);
+-			sb->s_nr_inodes_unused--;
+-			this_cpu_dec(nr_unused);
+-			continue;
+-		}
++	WARN_ON(inode->i_state & I_NEW);
++	inode->i_state |= I_FREEING;
++	spin_unlock(&inode->i_lock);
+ 
+-		/* recently referenced inodes get one more pass */
+-		if (inode->i_state & I_REFERENCED) {
+-			inode->i_state &= ~I_REFERENCED;
+-			list_move(&inode->i_lru, &sb->s_inode_lru);
+-			spin_unlock(&inode->i_lock);
+-			continue;
+-		}
+-		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
+-			__iget(inode);
+-			spin_unlock(&inode->i_lock);
+-			spin_unlock(&sb->s_inode_lru_lock);
+-			if (remove_inode_buffers(inode))
+-				reap += invalidate_mapping_pages(&inode->i_data,
+-								0, -1);
+-			iput(inode);
+-			spin_lock(&sb->s_inode_lru_lock);
+-
+-			if (inode != list_entry(sb->s_inode_lru.next,
+-						struct inode, i_lru))
+-				continue;	/* wrong inode or list_empty */
+-			/* avoid lock inversions with trylock */
+-			if (!spin_trylock(&inode->i_lock))
+-				continue;
+-			if (!can_unuse(inode)) {
+-				spin_unlock(&inode->i_lock);
+-				continue;
+-			}
+-		}
+-		WARN_ON(inode->i_state & I_NEW);
+-		inode->i_state |= I_FREEING;
+-		spin_unlock(&inode->i_lock);
++	list_move(&inode->i_lru, freeable);
++	this_cpu_dec(nr_unused);
++	return 0;
++}
+ 
+-		list_move(&inode->i_lru, &freeable);
+-		sb->s_nr_inodes_unused--;
+-		this_cpu_dec(nr_unused);
+-		freed++;
+-	}
+-	if (current_is_kswapd())
+-		__count_vm_events(KSWAPD_INODESTEAL, reap);
+-	else
+-		__count_vm_events(PGINODESTEAL, reap);
+-	spin_unlock(&sb->s_inode_lru_lock);
++/*
++ * Walk the superblock inode LRU for freeable inodes and attempt to free them.
++ * This is called from the superblock shrinker function with a number of inodes
++ * to trim from the LRU. Inodes to be freed are moved to a temporary list and
++ * then are freed outside inode_lock by dispose_list().
++ */
++long prune_icache_sb(struct super_block *sb, long nr_to_scan)
++{
++	LIST_HEAD(freeable);
++	long freed;
+ 
++	freed = list_lru_walk(&sb->s_inode_lru, inode_lru_isolate,
++						&freeable, nr_to_scan);
+ 	dispose_list(&freeable);
+ 	return freed;
  }
- EXPORT_SYMBOL(shrink_dcache_parent);
+diff --git a/fs/super.c b/fs/super.c
+index 074abbe..bc0e101 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -69,12 +69,12 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb);
  
+-	total_objects = sb->s_nr_dentry_unused +
+-			sb->s_nr_inodes_unused + fs_objects + 1;
++	inodes = list_lru_count(&sb->s_inode_lru);
++	total_objects = sb->s_nr_dentry_unused + inodes + fs_objects + 1;
+ 
+ 	/* proportion the scan between the caches */
+ 	dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) / total_objects;
+-	inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) / total_objects;
++	inodes = (sc->nr_to_scan * inodes) / total_objects;
+ 
+ 	/*
+ 	 * prune the dcache first as the icache is pinned by it, then
+@@ -106,7 +106,7 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
+ 		total_objects = sb->s_op->nr_cached_objects(sb);
+ 
+ 	total_objects += sb->s_nr_dentry_unused;
+-	total_objects += sb->s_nr_inodes_unused;
++	total_objects += list_lru_count(&sb->s_inode_lru);
+ 
+ 	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+ 	drop_super(sb);
+@@ -153,8 +153,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
+ 		INIT_LIST_HEAD(&s->s_inodes);
+ 		INIT_LIST_HEAD(&s->s_dentry_lru);
+ 		spin_lock_init(&s->s_dentry_lru_lock);
+-		INIT_LIST_HEAD(&s->s_inode_lru);
+-		spin_lock_init(&s->s_inode_lru_lock);
++		list_lru_init(&s->s_inode_lru);
+ 		init_rwsem(&s->s_umount);
+ 		mutex_init(&s->s_lock);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 2651059..80beb62 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -385,6 +385,7 @@ struct inodes_stat_t {
+ #include <linux/stat.h>
+ #include <linux/cache.h>
+ #include <linux/list.h>
++#include <linux/list_lru.h>
+ #include <linux/radix-tree.h>
+ #include <linux/prio_tree.h>
+ #include <linux/init.h>
+@@ -1414,10 +1415,7 @@ struct super_block {
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+ 	int			s_nr_dentry_unused; /* # of dentries on lru */
+ 
+-	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
+-	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
+-	struct list_head	s_inode_lru;		/* unused inode lru */
+-	int			s_nr_inodes_unused;	/* # of inodes on lru */
++	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
+ 
+ 	struct block_device	*s_bdev;
+ 	struct backing_dev_info *s_bdi;
 -- 
 1.7.5.4
 
