@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 16C306B016F
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 06:01:17 -0400 (EDT)
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 23 Aug 2011 12:01:00 +0200
-In-Reply-To: <20110823034042.GC7332@localhost>
-References: <20110806084447.388624428@intel.com>
-	 <20110806094526.733282037@intel.com> <1312811193.10488.33.camel@twins>
-	 <20110808141128.GA22080@localhost> <1312814501.10488.41.camel@twins>
-	 <20110808230535.GC7176@localhost> <1313154259.6576.42.camel@twins>
-	 <20110812142020.GB17781@localhost> <1314027488.24275.74.camel@twins>
-	 <20110823034042.GC7332@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1314093660.8002.24.camel@twins>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 0D0666B0169
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 09:46:37 -0400 (EDT)
+Date: Tue, 23 Aug 2011 15:46:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110823134630.GB9837@tiehlicka.suse.cz>
+References: <20110823073101.6426.77745.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110823073101.6426.77745.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 
-On Tue, 2011-08-23 at 11:40 +0800, Wu Fengguang wrote:
-> - not a factor at all for updating balanced_rate (whether or not we do (2=
-))
->   well, in this concept: the balanced_rate formula inherently does not
->   derive the balanced_rate_(i+1) from balanced_rate_i. Rather it's
->   based on the ratelimit executed for the past 200ms:
->=20
->           balanced_rate_(i+1) =3D task_ratelimit_200ms * bw_ratio
+On Tue 23-08-11 11:31:01, Konstantin Khlebnikov wrote:
+> All frozen tasks are unkillable, and if one of them has TIF_MEMDIE
+> we must kill something else to avoid deadlock.
 
-Ok, this is where it all goes funny..
+This is a livelock rather than a deadlock, isn't it? We are picking the
+same process all the time and cannot do any progress.
 
-So if you want completely separated feedback loops I would expect
-something like:
+> After this patch select_bad_process() will skip frozen task before
+> checking TIF_MEMDIE.
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-	balance_rate_(i+1) =3D balance_rate_(i) * bw_ratio   ; every 200ms
+Anyway the patch looks good to me.
 
-The former is a complete feedback loop, expressing the new value in the
-old value (*) with bw_ratio as feedback parameter; if we throttled too
-much, the dirty_rate will have dropped and the bw_ratio will be <1
-causing the balance_rate to drop increasing the dirty_rate, and vice
-versa.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-(*) which is the form I expected and why I thought your primary feedback
-loop looked like: rate_(i+1) =3D rate_(i) * pos_ratio * bw_ratio
+> ---
+>  mm/oom_kill.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 626303b..931ab20 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -138,6 +138,8 @@ static bool oom_unkillable_task(struct task_struct *p,
+>  		return true;
+>  	if (p->flags & PF_KTHREAD)
+>  		return true;
+> +	if (p->flags & PF_FROZEN)
+> +		return true;
+>  
+>  	/* When mem_cgroup_out_of_memory() and p is not member of the group */
+>  	if (mem && !task_in_mem_cgroup(p, mem))
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-With the above balance_rate is an independent variable that tracks the
-write bandwidth. Now possibly you'd want a low-pass filter on that since
-your bw_ratio is a bit funny in the head, but that's another story.
-
-Then when you use the balance_rate to actually throttle tasks you apply
-your secondary control steering the dirty page count, yielding:
-
-	task_rate =3D balance_rate * pos_ratio
-
->   and task_ratelimit_200ms happen to can be estimated from
->=20
->           task_ratelimit_200ms ~=3D balanced_rate_i * pos_ratio
-
->   We may alternatively record every task_ratelimit executed in the
->   past 200ms and average them all to get task_ratelimit_200ms. In this
->   way we take the "superfluous" pos_ratio out of sight :)=20
-
-Right, so I'm not at all sure that makes sense, its not immediately
-evident that <task_ratelimit> ~=3D balance_rate * pos_ratio. Nor is it
-clear to me why your primary feedback loop uses task_ratelimit_200ms at
-all.=20
-
->   There is fundamentally no dependency between balanced_rate_(i+1) and
->   balanced_rate_i/task_ratelimit_200ms: the balanced_rate estimation
->   only asks for _whatever_ CONSTANT task ratelimit to be executed for
->   200ms, then it get the balanced rate from the dirty_rate feedback.
-
-How can there not be a relation between balance_rate_(i+1) and
-balance_rate_(i) ?=20
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
