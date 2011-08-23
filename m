@@ -1,82 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FFFE6B016A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 00:10:37 -0400 (EDT)
-Date: Tue, 23 Aug 2011 14:10:20 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
- quota update.
-Message-ID: <20110823041020.GQ30097@yookeroo.fritz.box>
-References: <4E4EB603.8090305@cray.com>
- <20110819145109.dcd5dac6.akpm@linux-foundation.org>
- <4E52B71A.9030108@cray.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 243546B016A
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 02:41:12 -0400 (EDT)
+Received: by bkbzt4 with SMTP id zt4so5831493bkb.14
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2011 23:41:06 -0700 (PDT)
+Date: Tue, 23 Aug 2011 10:41:01 +0400
+From: Vasiliy Kulikov <segoon@openwall.com>
+Subject: Re: [RFC] x86, mm: start mmap allocation for libs from low
+ addresses
+Message-ID: <20110823064101.GA3780@albatros>
+References: <20110812102954.GA3496@albatros>
+ <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
+ <20110816090540.GA7857@albatros>
+ <20110822101730.GA3346@albatros>
+ <4E5290D6.5050406@zytor.com>
+ <20110822201418.GA3176@albatros>
+ <4E52B96B.8040404@zytor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4E52B71A.9030108@cray.com>
+In-Reply-To: <4E52B96B.8040404@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Barry <abarry@cray.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Hastings <abh@cray.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel-hardening@lists.openwall.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Aug 22, 2011 at 03:07:54PM -0500, Andrew Barry wrote:
-> On 08/19/2011 04:51 PM, Andrew Morton wrote:
-> > What's different about hugetlbfs?  Why don't other filesystems hit this?
+On Mon, Aug 22, 2011 at 13:17 -0700, H. Peter Anvin wrote:
+> On 08/22/2011 01:14 PM, Vasiliy Kulikov wrote:
 > > 
-> > <investigates further>
+> >> Code-wise:
+> >>
+> >> The code is horrific; it is full of open-coded magic numbers;
 > > 
-> > OK so the incorrect interaction happened in free_huge_page(), which is
-> > called via the compound page destructor (this dtor is "what's different
-> > about hugetlbfs").   What is incorrect about this is
+> > Agreed, the magic needs macro definition and comments.
 > > 
-> > a) that we're doing fs operations in response to a
-> >    get_user_pages()/put_page() operation which has *nothing* to do with
-> >    filesystems!
+> >> it also
+> >> puts a function called arch_get_unmapped_exec_area() in a generic file,
+> >> which could best be described as "WTF" -- the arch_ prefix we use
+> >> specifically to denote a per-architecture hook function.
 > > 
-> > b) that we continue to try to do that fs operation against an fs
-> >    which was unmounted and freed three days ago. duh.
+> > Agreed.  But I'd want to leave it in mm/mmap.c as it's likely be used by
+> > other archs - the changes are bitness specific, not arch specific.  Is
+> > it OK if I do this?
+> > 
+> > #ifndef HAVE_ARCH_UNMAPPED_EXEC_AREA
+> > void *arch_get_unmapped_exec_area(...)
+> > {
+> >     ...
+> > }
+> > #endif
+> > 
 > 
-> Yes.
-> 
-> > So I hereby pronounce that
-> > 
-> > a) It was wrong to manipulate hugetlbfs quotas within
-> >    free_huge_page().  Because free_huge_page() is a low-level
-> >    page-management function which shouldn't know about one of its
-> >    specific clients (in this case, hugetlbfs).
-> > 
-> >    In fact it's wrong for there to be *any* mention of hugetlbfs
-> >    within hugetlb.c.
-> > 
-> > b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
-> >    Mel, Adam, Dave, at least...
-> > 
-> > c) The proper fix here is to get that hugetlbfs quota code out of
-> >    free_huge_page() and do it all where it belongs: within hugetlbfs
-> >    code.
-> > 
-> > 
-> > Regular filesystems don't need to diddle quota counts within
-> > page_cache_release().  Why should hugetlbfs need to?
-> 
-> Is there anyone, more expert in hugetlbfs code than I, who can/should/will take
-> that on?
+> Only if this is really an architecture-specific function overridden in
+> specific architectures.  I'm not so sure that applies here.
 
-As far as I can tell the hugetlbfs "quota" counts that are updated
-here don't share much with the normal quota mechanisms.  The way they
-operate, they logically divide the pool of free huge pages between
-different hugetlbfs instances.  This means that you can give different
-hugepage mounts to different applications and they won't be able to
-exhaust each others resources.
+It is a more or less generic allocator.  Arch specific constants will be
+moved to arch headers, so it will be a 32-bit specific function, not
+arch specific (64 bit architectures don't need ASCII shield at all as
+mmap addresses already contain a zero byte).  It will not be overriden
+by x86 as it is "enough generic" for x86.
 
-I can't see how that can be done without updating the count somewhere
-at free_huge_page() time.
+I've defined it as arch_* looking at other allocator implementations.
+All of them are arch_* and are located in mm/mmap.c with the ability to
+override them in architecture specific files.  Probably nobody will
+override it, but I tried to make it consistent with the existing code.
+If this HAVE_ARCH_*/arch_* logic is not suitable for exec_area, I'll
+remove arch_ prefix.
+
+
+> Furthermore, I'm not even all that sure what this function *does*.
+
+This is a bottom-up allocator, which tries to reuse all holes in the
+ASCII-protected region.  It differs from arch_get_unmapped_area() in the
+priority of the first 16 Mb - arch_get_unmapped_area() tries to walk
+through all vmas in the whole VM space, arch_get_unmapped_exec_area()
+tries to reuse all memory from the first 16 Mb and only then allocating
+arbitrary addressed by fallbacking to the default allocator (top down in
+case of x86).
+
+I'll add the comment for the allocator.
+
+Thank you,
 
 -- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+Vasiliy Kulikov
+http://www.openwall.com - bringing security into open computing environments
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
