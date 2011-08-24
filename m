@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E157D6B0169
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 18:09:01 -0400 (EDT)
-Date: Wed, 24 Aug 2011 15:08:58 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 506D16B0169
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 18:11:46 -0400 (EDT)
+Date: Wed, 24 Aug 2011 15:11:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: mmotm 2011-08-24-14-08 uploaded
-Message-Id: <20110824150858.b91af1aa.rdunlap@xenotime.net>
+Message-Id: <20110824151115.9499019c.akpm@linux-foundation.org>
 In-Reply-To: <20110824150433.70e140a6.rdunlap@xenotime.net>
 References: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
 	<20110824150433.70e140a6.rdunlap@xenotime.net>
@@ -15,9 +15,10 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Wed, 24 Aug 2011 15:04:33 -0700 Randy Dunlap wrote:
+On Wed, 24 Aug 2011 15:04:33 -0700
+Randy Dunlap <rdunlap@xenotime.net> wrote:
 
 > On Wed, 24 Aug 2011 14:09:05 -0700 akpm@linux-foundation.org wrote:
 > 
@@ -31,13 +32,14 @@ On Wed, 24 Aug 2011 15:04:33 -0700 Randy Dunlap wrote:
 > Hi Andrew,
 > 
 > Am I supposed to apply this to linux-next?
+
+Nope.  The full series is based on 3.1-rc3.  It includes origin.patch
+which takes it up to current -linus.  And linux-next.patch which takes
+it up to today's linux-next.
+
 > I don't get a clean patch(1) against 3.1-rc3.
 
-My bad.  Sorry for the noise.
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+hm.  What broke?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
