@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A69D190013A
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 18:26:06 -0400 (EDT)
-Date: Wed, 24 Aug 2011 00:25:39 +0200
+	by kanga.kvack.org (Postfix) with SMTP id 5CB376B017B
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 20:09:22 -0400 (EDT)
+Date: Wed, 24 Aug 2011 02:09:14 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3 of 3] thp: mremap support and TLB optimization
-Message-ID: <20110823222539.GF23870@redhat.com>
-References: <patchbomb.1312649882@localhost>
- <10a29e95223e52e49a61.1312649885@localhost>
- <20110823141445.35864dc8.akpm@linux-foundation.org>
- <20110823221321.GD23870@redhat.com>
+Subject: Re: [PATCH] thp: tail page refcounting fix
+Message-ID: <20110824000914.GH23870@redhat.com>
+References: <1313740111-27446-1-git-send-email-walken@google.com>
+ <20110822213347.GF2507@redhat.com>
+ <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110823221321.GD23870@redhat.com>
+In-Reply-To: <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, Aug 24, 2011 at 12:13:21AM +0200, Andrea Arcangeli wrote:
-> Hi Andrew,
-> 
-> On Tue, Aug 23, 2011 at 02:14:45PM -0700, Andrew Morton wrote:
-> > > +	if ((old_addr & ~HPAGE_PMD_MASK) ||
-> > > +	    (new_addr & ~HPAGE_PMD_MASK) ||
-> > > +	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
-> > 
-> > Can (old_addr + HPAGE_PMD_SIZE) wrap past zero?
-> 
-> Good question. old_addr is hpage aligned so to overflow it'd need to
-> be exactly at address 0-HPAGE_PMD_SIZE. Can any userland map an
-> address there? I doubt and surely not x86* or sparc (currently THP is
-> only enabled on x86 anyway so answer is it can't wrap past zero). But
-> probably we should add a wrap check for other archs in the future
-> unless we have a real guarantee from all archs to avoid the check. I
-> only can guarantee about x86*.
+Hi Michel,
 
-I suggest to incorporate this into
-thp-mremap-support-and-tlb-optimization-fix.patch (it's only for the
-future but it's zero cost so it's certainly worth it...). Untested...
+On Tue, Aug 23, 2011 at 12:52:56PM -0700, Michel Lespinasse wrote:
+> Adding Paul McKenney so he won't spend too much time on RCU cookie
+> feature until there is a firmer user...
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1066,7 +1066,7 @@ int move_huge_pmd(struct vm_area_struct 
- 
- 	if ((old_addr & ~HPAGE_PMD_MASK) ||
- 	    (new_addr & ~HPAGE_PMD_MASK) ||
--	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
-+	    old_end - old_addr < HPAGE_PMD_SIZE ||
- 	    (new_vma->vm_flags & VM_NOHUGEPAGE))
- 		goto out;
- 
+Yep, he already knew because I notified him privately for the same
+reason.
+
+> Looks like this scheme will work. I'm off in Yosemite for a few days
+> with my family, but I should be able to review this more thoroughly on
+> Thursday.
+
+Take your time, and enjoy Yosemite :).
+
+> From a few-minutes look, I have a few minor concerns:
+> - When splitting THP pages, the old tail refcount will be visible as
+> the _mapcount for a short while after PageTail is cleared; not clear
+> yet to me if there are unintended side effects to that;
+
+Well it was zero before and that was also wrong it is overwritten
+later with the right value well after PageTail is cleared, so it's ok
+if previous code was ok. All ptes are set as pmd_trans_splitting so
+nothing should mess page_tail->_mapcount it as no mapping can be
+created or go away for the duration of the split and regardless any
+mapping that exists only exists for the pmd and the head page (tail
+pages are invisible to rmap until later).
+
+> - (not a concern, but an opportunity) when splitting pages, there are
+> two atomic adds to the tail _count field, while we know the initial
+> value is 0. Why not just one straight assignment ? Similarly, the
+> adjustments to page head count could be added into a local variable
+> and the page head count could be updated once after all tail pages
+> have been split off.
+
+That's an optimization I can look into agreed. I guess I just added
+one line and not even think too much at optimizing this,
+split_huge_page isn't in a fast path.
+
+> - Not sure if we could/should add assertions to make sure people call
+> the right get_page variant.
+
+Not right now or it'd flood when anybody uses O_DIRECT. If O_DIRECT
+gets fixes to stop doing this, it sounds definitely good idea.
+
+I already tried adding a printk to the got=1 path and it floods with a
+128M/sec dd bs=10M iflag=direct transfer.
+
+> The other question I have is about the use of the pagemap.h RCU
+> protocol for eventual page count stability. With your proposal, this
+> would now affect only head pages, so THP splitting is fine :) . I'm
+> not sure who else might use that protocol, but it looks like we should
+> either make all get_pages_unless_zero call sites follow it (if the
+> protocol matters to someone) or none (if the protocol turns out to be
+> obsolete).
+
+I don't see who is using synchronize_rcu to stabilize the page count
+so at first sight it seems superfluous there too. Maybe it was a "if
+anybody will ever need to stabilize the page count this can be
+used". The only calls of synchronize_rcu in mm/* are in memcg and in
+mmu notifier which is not meant to synchronize the page count but just
+to walk the mmu notifier registration list lockless from the mm
+struct.
+
+I guess we need to ask who wrote that function for clarifications on
+the page count stabilization. And if one needs really to stabilize the
+page count he will also need Paul's rcu_sequence_t feature to do it
+really efficiently (which is now on hold, so if that synchronize_rcu
+caller really exists that would likely also mean we need
+rcu_sequence_t to optimize it properly). My current feeling is if one
+needs that feature he's doing something's wrong that could be achieved
+somewhere else but I may be biased by the fact this one worked out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
