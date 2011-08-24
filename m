@@ -1,39 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6903E6B0169
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 05:33:41 -0400 (EDT)
-Date: Wed, 24 Aug 2011 17:33:36 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: slow performance on disk/network i/o full speed after
- drop_caches
-Message-ID: <20110824093336.GB5214@localhost>
-References: <4E5494D4.1050605@profihost.ag>
- <CAOJsxLEFYW0eDbXQ0Uixf-FjsxHZ_1nmnovNx1CWj=m-c-_vJw@mail.gmail.com>
- <4E54BDCF.9020504@profihost.ag>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FC476B0169
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 06:19:31 -0400 (EDT)
+Date: Wed, 24 Aug 2011 12:19:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110824101927.GB3505@tiehlicka.suse.cz>
+References: <20110823073101.6426.77745.stgit@zurg>
+ <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4E54BDCF.9020504@profihost.ag>
+In-Reply-To: <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jens Axboe <jaxboe@fusionio.com>, Linux Netdev List <netdev@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Aug 24, 2011 at 05:01:03PM +0800, Stefan Priebe - Profihost AG wrote:
+On Tue 23-08-11 13:18:14, David Rientjes wrote:
+> On Tue, 23 Aug 2011, Konstantin Khlebnikov wrote:
 > 
-> >> sync&&  echo 3>/proc/sys/vm/drop_caches&&  sleep 2&&  echo 0
-> >>> /proc/sys/vm/drop_caches
+> > All frozen tasks are unkillable, and if one of them has TIF_MEMDIE
+> > we must kill something else to avoid deadlock. After this patch
+> > select_bad_process() will skip frozen task before checking TIF_MEMDIE.
+> > 
 > 
-> Another way to get it working again is to stop some processes. Could be 
-> mysql or apache or php fcgi doesn't matter. Just free some memory. 
-> Although there are already 5GB free.
+> The caveat is that if the task in the refrigerator is not OOM_DISABLE and 
+> there are no other eligible tasks (system wide, in the cpuset, or in the 
+> memcg) to kill, then the machine will panic as a result of this when, in 
+> the past, we would simply issue the SIGKILL and keep looping in the page 
+> allocator until it is thawed.
 
-Is it a NUMA machine and _every_ node has enough free pages?
+mem_cgroup_out_of_memory doesn't panic if nothing has been selected. We
+will loop in the charge&reclaim path until somebody frees some memory.
 
-        grep . /sys/devices/system/node/node*/vmstat
+> So you may actually be trading a stall waiting for this thread to thaw for 
+> what would now be a panic, and that's not clearly better to me.
 
-Thanks,
-Fengguang
+When we are in the global OOM condition then you are right, we have a
+higher chance to panic. I still find the patch an improvement because
+encountering a frozen task and looping over it without any progress
+(even though there are other tasks that could be killed) is more
+probable than having no killable task at all.
+On non-NUMA machines there is even not a big chance that somebody would
+be able to thaw a task as the system is already on knees.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
