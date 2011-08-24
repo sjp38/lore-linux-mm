@@ -1,95 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5CB376B017B
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 20:09:22 -0400 (EDT)
-Date: Wed, 24 Aug 2011 02:09:14 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: tail page refcounting fix
-Message-ID: <20110824000914.GH23870@redhat.com>
-References: <1313740111-27446-1-git-send-email-walken@google.com>
- <20110822213347.GF2507@redhat.com>
- <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 12C626B017D
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 20:13:02 -0400 (EDT)
+Date: Wed, 24 Aug 2011 08:12:58 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110824001257.GA6349@localhost>
+References: <20110808141128.GA22080@localhost>
+ <1312814501.10488.41.camel@twins>
+ <20110808230535.GC7176@localhost>
+ <1313154259.6576.42.camel@twins>
+ <20110812142020.GB17781@localhost>
+ <1314027488.24275.74.camel@twins>
+ <20110823034042.GC7332@localhost>
+ <1314093660.8002.24.camel@twins>
+ <20110823141504.GA15949@localhost>
+ <20110823174757.GC15820@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
+In-Reply-To: <20110823174757.GC15820@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Michel,
+> You somehow directly jump to  
+> 
+> 	balanced_rate = task_ratelimit_200ms * write_bw / dirty_rate
+> 
+> without explaining why following will not work.
+> 
+> 	balanced_rate_(i+1) = balance_rate(i) * write_bw / dirty_rate
 
-On Tue, Aug 23, 2011 at 12:52:56PM -0700, Michel Lespinasse wrote:
-> Adding Paul McKenney so he won't spend too much time on RCU cookie
-> feature until there is a firmer user...
+Thanks for asking that, it's probably the root of confusions, so let
+me answer it standalone.
 
-Yep, he already knew because I notified him privately for the same
-reason.
+It's actually pretty simple to explain this equation:
 
-> Looks like this scheme will work. I'm off in Yosemite for a few days
-> with my family, but I should be able to review this more thoroughly on
-> Thursday.
+                                               write_bw
+        balanced_rate = task_ratelimit_200ms * ----------       (1)
+                                               dirty_rate
 
-Take your time, and enjoy Yosemite :).
+If there are N dd tasks, each task is throttled at task_ratelimit_200ms
+for the past 200ms, we are going to measure the overall bdi dirty rate
 
-> From a few-minutes look, I have a few minor concerns:
-> - When splitting THP pages, the old tail refcount will be visible as
-> the _mapcount for a short while after PageTail is cleared; not clear
-> yet to me if there are unintended side effects to that;
+        dirty_rate = N * task_ratelimit_200ms                   (2)
 
-Well it was zero before and that was also wrong it is overwritten
-later with the right value well after PageTail is cleared, so it's ok
-if previous code was ok. All ptes are set as pmd_trans_splitting so
-nothing should mess page_tail->_mapcount it as no mapping can be
-created or go away for the duration of the split and regardless any
-mapping that exists only exists for the pmd and the head page (tail
-pages are invisible to rmap until later).
+put (2) into (1) we get
 
-> - (not a concern, but an opportunity) when splitting pages, there are
-> two atomic adds to the tail _count field, while we know the initial
-> value is 0. Why not just one straight assignment ? Similarly, the
-> adjustments to page head count could be added into a local variable
-> and the page head count could be updated once after all tail pages
-> have been split off.
+        balanced_rate = write_bw / N                            (3)
 
-That's an optimization I can look into agreed. I guess I just added
-one line and not even think too much at optimizing this,
-split_huge_page isn't in a fast path.
+So equation (1) is the right estimation to get the desired target (3).
 
-> - Not sure if we could/should add assertions to make sure people call
-> the right get_page variant.
 
-Not right now or it'd flood when anybody uses O_DIRECT. If O_DIRECT
-gets fixes to stop doing this, it sounds definitely good idea.
+As for
 
-I already tried adding a printk to the got=1 path and it floods with a
-128M/sec dd bs=10M iflag=direct transfer.
+                                                  write_bw
+        balanced_rate_(i+1) = balanced_rate_(i) * ----------    (4)
+                                                  dirty_rate
 
-> The other question I have is about the use of the pagemap.h RCU
-> protocol for eventual page count stability. With your proposal, this
-> would now affect only head pages, so THP splitting is fine :) . I'm
-> not sure who else might use that protocol, but it looks like we should
-> either make all get_pages_unless_zero call sites follow it (if the
-> protocol matters to someone) or none (if the protocol turns out to be
-> obsolete).
+Let's compare it with the "expanded" form of (1):
 
-I don't see who is using synchronize_rcu to stabilize the page count
-so at first sight it seems superfluous there too. Maybe it was a "if
-anybody will ever need to stabilize the page count this can be
-used". The only calls of synchronize_rcu in mm/* are in memcg and in
-mmu notifier which is not meant to synchronize the page count but just
-to walk the mmu notifier registration list lockless from the mm
-struct.
+                                                              write_bw
+        balanced_rate_(i+1) = balanced_rate_(i) * pos_ratio * ----------      (5)
+                                                              dirty_rate
 
-I guess we need to ask who wrote that function for clarifications on
-the page count stabilization. And if one needs really to stabilize the
-page count he will also need Paul's rcu_sequence_t feature to do it
-really efficiently (which is now on hold, so if that synchronize_rcu
-caller really exists that would likely also mean we need
-rcu_sequence_t to optimize it properly). My current feeling is if one
-needs that feature he's doing something's wrong that could be achieved
-somewhere else but I may be biased by the fact this one worked out.
+So the difference lies in pos_ratio.
+
+Believe it or not, it's exactly the seemingly use of pos_ratio that
+makes (5) independent(*) of the position control.
+
+Why? Look at (4), assume the system is in a state
+
+- dirty rate is already balanced, ie. balanced_rate_(i) = write_bw / N
+- dirty position is not balanced, for example pos_ratio = 0.5
+
+balance_dirty_pages() will be rate limiting each tasks at half the
+balanced dirty rate, yielding a measured
+
+        dirty_rate = write_bw / 2                               (6)
+
+Put (6) into (4), we get
+
+        balanced_rate_(i+1) = balanced_rate_(i) * 2
+                            = (write_bw / N) * 2
+
+That means, any position imbalance will lead to balanced_rate
+estimation errors if we follow (4). Whereas if (1)/(5) is used, we
+always get the right balanced dirty ratelimit value whether or not
+(pos_ratio == 1.0), hence make the rate estimation independent(*) of
+dirty position control.
+
+(*) independent as in real values, not the seemingly relations in equation
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
