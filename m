@@ -1,41 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 263BD6B0169
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 23:16:09 -0400 (EDT)
-Date: Wed, 24 Aug 2011 11:16:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110824031603.GA30873@localhost>
-References: <20110816022006.348714319@intel.com>
- <20110816022328.811348370@intel.com>
- <20110816194112.GA25517@quack.suse.cz>
- <20110817132347.GA6628@localhost>
- <20110817202414.GK9959@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2FAB86B0169
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2011 23:34:55 -0400 (EDT)
+Message-ID: <4E547155.8090709@redhat.com>
+Date: Wed, 24 Aug 2011 11:34:45 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110817202414.GK9959@quack.suse.cz>
+Subject: [Patch] numa: introduce CONFIG_NUMA_SYSFS for drivers/base/node.c
+References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au>	<20110804152211.ea10e3e7.rdunlap@xenotime.net> <20110823143912.0691d442.akpm@linux-foundation.org>
+In-Reply-To: <20110823143912.0691d442.akpm@linux-foundation.org>
+Content-Type: multipart/mixed;
+ boundary="------------080905050501060202020708"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-> > > > +	x_intercept = setpoint + 2 * span;
->    ^^ BTW, why do you have 2*span here? It can result in x_intercept being
-> ~3*bdi_thresh... So maybe you should use bdi_thresh/2 in the computation of
-> span?
+This is a multi-part message in MIME format.
+--------------080905050501060202020708
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-OK, I'll follow your suggestion to use
+Hi, Andrew,
 
-        span = 8 * write_bw, for single bdi case 
-        span = bdi_thresh, for JBOD case
-        x_intercept = setpoint + span;
+Do you think my patch below is better?
 
-It does make sense to squeeze the bdi_dirty fluctuation range a bit by
-doubling span and making the control line more sharp.
+Thanks!
 
-Thanks,
-Fengguang
+------------->
+
+--------------080905050501060202020708
+Content-Type: text/plain;
+ name="numa-depends-on-sysfs.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="numa-depends-on-sysfs.diff"
+
+Introduce a new Kconfig CONFIG_NUMA_SYSFS for drivers/base/node.c
+which just provides sysfs interface, so that when we select
+CONFIG_NUMA, we don't have to enable the sysfs interface too.
+
+This by the way fixes a randconfig build error when NUMA && !SYSFS.
+
+Signed-off-by: WANG Cong <amwang@redhat.com>
+
+---
+diff --git a/drivers/base/Makefile b/drivers/base/Makefile
+index 99a375a..e382338 100644
+--- a/drivers/base/Makefile
++++ b/drivers/base/Makefile
+@@ -10,7 +10,7 @@ obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
+ obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
+ obj-$(CONFIG_ISA)	+= isa.o
+ obj-$(CONFIG_FW_LOADER)	+= firmware_class.o
+-obj-$(CONFIG_NUMA)	+= node.o
++obj-$(CONFIG_NUMA_SYSFS)	+= node.o
+ obj-$(CONFIG_MEMORY_HOTPLUG_SPARSE) += memory.o
+ obj-$(CONFIG_SMP)	+= topology.o
+ ifeq ($(CONFIG_SYSFS),y)
+diff --git a/mm/Kconfig b/mm/Kconfig
+index f2f1ca1..77345e7 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -340,6 +340,16 @@ choice
+ 	  benefit.
+ endchoice
+ 
++config NUMA_SYSFS
++	bool "Enable NUMA sysfs interface for user-space"
++	depends on NUMA
++	depends on SYSFS
++	default y
++	help
++	  This enables NUMA sysfs interface, /sys/devices/system/node/*
++	  files, for user-space tools, like numactl. If you have enabled
++	  NUMA, probably you also need this one.
++
+ #
+ # UP and nommu archs use km based percpu allocator
+ #
+
+--------------080905050501060202020708--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
