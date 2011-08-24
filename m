@@ -1,23 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B5DE86B0169
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 09:55:51 -0400 (EDT)
-Date: Wed, 24 Aug 2011 08:55:47 -0500 (CDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 325446B0169
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 10:12:27 -0400 (EDT)
+Date: Wed, 24 Aug 2011 09:12:23 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 2/2]slub: add a type for slab partial list position
-In-Reply-To: <1314147472.29510.25.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1108240855290.24118@router.home>
-References: <1314059823.29510.19.camel@sli10-conroe>  <alpine.DEB.2.00.1108231023470.21267@router.home> <1314147472.29510.25.camel@sli10-conroe>
+Subject: Re: [PATCH 02/13] dcache: convert dentry_stat.nr_unused to per-cpu
+ counters
+In-Reply-To: <1314089786-20535-3-git-send-email-david@fromorbit.com>
+Message-ID: <alpine.DEB.2.00.1108240910440.24118@router.home>
+References: <1314089786-20535-1-git-send-email-david@fromorbit.com> <1314089786-20535-3-git-send-email-david@fromorbit.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
 
-On Wed, 24 Aug 2011, Shaohua Li wrote:
+On Tue, 23 Aug 2011, Dave Chinner wrote:
 
-> Subject: slub: explicitly document position of inserting slab to partial list
+> Before we split up the dcache_lru_lock, the unused dentry counter
+> needs to be made independent of the global dcache_lru_lock. Convert
+> it to per-cpu counters to do this.
+
+I hope there is nothing depending on the counter being accurate.
+
+Otherwise
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
