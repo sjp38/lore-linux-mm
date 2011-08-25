@@ -1,44 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 366D36B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 06:22:14 -0400 (EDT)
-Message-ID: <4E562248.2090102@redhat.com>
-Date: Thu, 25 Aug 2011 18:22:00 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B4CD36B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:30:07 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p7PD5rK9022345
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:05:53 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p7PDTsFr366836
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:30:00 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p7PDTqll029402
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:29:53 -0400
+Message-ID: <4E564E4D.4030302@linux.vnet.ibm.com>
+Date: Thu, 25 Aug 2011 08:29:49 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Patch] numa: introduce CONFIG_NUMA_SYSFS for drivers/base/node.c
-References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au> <20110804152211.ea10e3e7.rdunlap@xenotime.net> <20110823143912.0691d442.akpm@linux-foundation.org> <4E547155.8090709@redhat.com> <20110824191430.8a908e70.rdunlap@xenotime.net> <4E55C221.8080100@redhat.com> <20110824205044.7ff45b6c.rdunlap@xenotime.net> <alpine.DEB.2.00.1108242202050.576@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1108242202050.576@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: Subject: [PATCH V7 2/4] mm: frontswap: core code
+References: <20110823145815.GA23190@ca-server1.us.oracle.com> <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-ao? 2011a1'08ae??25ae?JPY 13:04, David Rientjes a??e??:
-> On Wed, 24 Aug 2011, Randy Dunlap wrote:
->
->>> Below is the updated version.
->>>
->>> Thanks for testing!
+On 08/25/2011 01:05 AM, KAMEZAWA Hiroyuki wrote:
+> On Tue, 23 Aug 2011 07:58:15 -0700
+> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+> 
+>> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+>> Subject: [PATCH V7 2/4] mm: frontswap: core code
 >>
->> Yes, that works after changing #ifdef defined(...)
->> to #if defined(...)
+>> This second patch of four in this frontswap series provides the core code
+>> for frontswap that interfaces between the hooks in the swap subsystem and
+>> a frontswap backend via frontswap_ops.
 >>
->> Acked-by: Randy Dunlap<rdunlap@xenotime.net>
+>> Two new files are added: mm/frontswap.c and include/linux/frontswap.h
 >>
->
-> No, it doesn't work, CONFIG_HUGETLBFS can be enabled with CONFIG_NUMA=y
-> and CONFIG_SYSFS=n and that uses data structures from drivers/base/node.c
-> which doesn't get compiled with this patch.
+>> Credits: Frontswap_ops design derived from Jeremy Fitzhardinge
+>> design for tmem; sysfs code modelled after mm/ksm.c
+>>
+>> [v7: rebase to 3.0-rc3]
+>> [v7: JBeulich@novell.com: new static inlines resolve to no-ops if not config'd]
+>> [v7: JBeulich@novell.com: avoid redundant shifts/divides for *_bit lib calls]
+>> [v6: rebase to 3.1-rc1]
+>> [v6: lliubbo@gmail.com: fix null pointer deref if vzalloc fails]
+>> [v6: konrad.wilk@oracl.com: various checks and code clarifications/comments]
+>> [v5: no change from v4]
+>> [v4: rebase to 2.6.39]
+>> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+>> Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
+>> Acked-by: Jan Beulich <JBeulich@novell.com>
+>> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>> Cc: Jeremy Fitzhardinge <jeremy@goop.org>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Nitin Gupta <ngupta@vflare.org>
+>> Cc: Matthew Wilcox <matthew@wil.cx>
+>> Cc: Chris Mason <chris.mason@oracle.com>
+>> Cc: Rik Riel <riel@redhat.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>
+<cut>
+> 
+> 
+> I'm sorry if I miss codes but.... is an implementation of frontswap.ops included
+> in this patch set ? Or how to test the work ?
 
-So, you mean with CONFIG_NUMA=y && CONFIG_SYSFS=n && CONFIG_HUGETLBFS=y
-we still get compile error?
+The zcache driver (in drivers/staging/zcache) is the one that registers frontswap ops.
 
-Which data structures are used by hugetlbfs?
+You can test frontswap by enabling CONFIG_FRONTSWAP and CONFIG_ZCACHE, and putting 
+"zcache" in the kernel boot parameters.
 
-Thanks.
+> 
+> Thanks,
+> -Kame
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
