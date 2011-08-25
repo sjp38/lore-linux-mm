@@ -1,32 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 875A06B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:07:48 -0400 (EDT)
-Date: Thu, 25 Aug 2011 12:07:44 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-In-Reply-To: <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
-Message-ID: <alpine.DEB.2.00.1108251206440.27407@router.home>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818144025.8e122a67.akpm@linux-foundation.org> <1314284272.27911.32.camel@twins> <alpine.DEB.2.00.1108251009120.27407@router.home> <1314289208.3268.4.camel@mulgrave>
- <alpine.DEB.2.00.1108251128460.27407@router.home> <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B546B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:11:44 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default>
+Date: Thu, 25 Aug 2011 10:11:11 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure
+ changes
+References: <20110823145755.GA23174@ca-server1.us.oracle.com
+ 20110825143312.a6fe93d5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110825143312.a6fe93d5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.bottomley@HansenPartnership.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-On Thu, 25 Aug 2011, James Bottomley wrote:
+> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure c=
+hanges
 
-> >ARM seems to have these LDREX/STREX instructions for that purpose which
-> >seem to be used for generating atomic instructions without lockes. I
-> >guess
-> >other RISC architectures have similar means of doing it?
->
-> Arm isn't really risc.  Most don't.  However even with ldrex/strex you need two instructions for rmw.
+Hi Kamezawa-san --
 
-Well then what is "really risc"? RISC is an old beaten down marketing term
-AFAICT and ARM claims it too.
+Domo arigato for the review and feedback!
+
+> Hmm....could you modify mm/swapfile.c and remove 'static' in the same pat=
+ch ?
+
+I separated out this header patch because I thought it would
+make the key swap data structure changes more visible.  Are you
+saying that it is more confusing?  Or does your compiler
+have a problem after only this patch is applied? (My
+compiler is fine with it.)
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
