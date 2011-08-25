@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7466B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 12:34:10 -0400 (EDT)
-References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818144025.8e122a67.akpm@linux-foundation.org> <1314284272.27911.32.camel@twins> <alpine.DEB.2.00.1108251009120.27407@router.home> <1314289208.3268.4.camel@mulgrave> <alpine.DEB.2.00.1108251128460.27407@router.home>
-In-Reply-To: <alpine.DEB.2.00.1108251128460.27407@router.home>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 354966B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 12:48:03 -0400 (EDT)
+Date: Thu, 25 Aug 2011 18:47:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110825164758.GB22564@tiehlicka.suse.cz>
+References: <20110823073101.6426.77745.stgit@zurg>
+ <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
+ <20110824101927.GB3505@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
+ <20110825091920.GA22564@tiehlicka.suse.cz>
+ <20110825151818.GA4003@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-From: James Bottomley <James.bottomley@HansenPartnership.com>
-Date: Thu, 25 Aug 2011 09:34:06 -0700
-Message-ID: <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110825151818.GA4003@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+On Thu 25-08-11 17:18:18, Oleg Nesterov wrote:
+> On 08/25, Michal Hocko wrote:
+> >
+> > On Wed 24-08-11 12:31:26, David Rientjes wrote:
+> > >
+> > > That's obviously false since we call oom_killer_disable() in 
+> > > freeze_processes() to disable the oom killer from ever being called in the 
+> > > first place, so this is something you need to resolve with Rafael before 
+> > > you cause more machines to panic.
+> >
+> > I didn't mean suspend/resume path (that is protected by oom_killer_disabled)
+> > so the patch doesn't make any change.
+> 
+> Confused... freeze_processes() does try_to_freeze_tasks() before
+> oom_killer_disable() ?
 
+Yes you are right, I must have been blind. 
 
-Christoph Lameter <cl@linux.com> wrote:
+Now I see the point. We do not want to panic while we are suspending and
+the memory is really low just because all the userspace is already in
+the the fridge.
+Sorry for confusion.
 
->On Thu, 25 Aug 2011, James Bottomley wrote:
->
->> On Thu, 2011-08-25 at 10:11 -0500, Christoph Lameter wrote:
->> > On Thu, 25 Aug 2011, Peter Zijlstra wrote:
->> >
->> > > On Thu, 2011-08-18 at 14:40 -0700, Andrew Morton wrote:
->> > > >
->> > > > I think I'll apply it, as the call frequency is low (correct?)
->and the
->> > > > problem will correct itself as other architectures implement
->their
->> > > > atomic this_cpu_foo() operations.
->> > >
->> > > Which leads me to wonder, can anything but x86 implement that
->this_cpu_*
->> > > muck? I doubt any of the risk chips can actually do all this.
->> > > Maybe Itanic, but then that seems to be dying fast.
->> >
->> > The cpu needs to have an RMW instruction that does something to a
->> > variable relative to a register that points to the per cpu base.
->> >
->> > Thats generally possible. The problem is how expensive the RMW is
->going to
->> > be.
->>
->> Risc systems generally don't have a single instruction for this,
->that's
->> correct.  Obviously we can do it as a non atomic sequence: read
->> variable, compute relative, read, modify, write ... but there's
->> absolutely no point hand crafting that in asm since the compiler can
->> usually work it out nicely.  And, of course, to have this atomic, we
->> have to use locks, which ends up being very expensive.
->
->ARM seems to have these LDREX/STREX instructions for that purpose which
->seem to be used for generating atomic instructions without lockes. I
->guess
->other RISC architectures have similar means of doing it?
+I still do not follow the oom_killer_disable note from David, though.
 
-Arm isn't really risc.  Most don't.  However even with ldrex/strex you need two instructions for rmw.
+> 
+> Oleg.
 
-James
 -- 
-Sent from my Android phone with K-9 Mail. Please excuse my brevity and top posting.
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
