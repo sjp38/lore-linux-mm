@@ -1,97 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 361476B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 16:26:26 -0400 (EDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH] mm: Neaten warn_alloc_failed
-Date: Thu, 25 Aug 2011 13:26:19 -0700
-Message-Id: <5a0bef0143ed2b3176917fdc0ddd6a47f4c79391.1314303846.git.joe@perches.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E1E76B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 16:57:25 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p7PKvNYs005726
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:57:23 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by wpaz21.hot.corp.google.com with ESMTP id p7PKvJJo022561
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:57:21 -0700
+Received: by pzk2 with SMTP id 2so4058464pzk.6
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:57:18 -0700 (PDT)
+Date: Thu, 25 Aug 2011 13:57:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Patch] numa: introduce CONFIG_NUMA_SYSFS for
+ drivers/base/node.c
+In-Reply-To: <4E562248.2090102@redhat.com>
+Message-ID: <alpine.DEB.2.00.1108251356220.18747@chino.kir.corp.google.com>
+References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au> <20110804152211.ea10e3e7.rdunlap@xenotime.net> <20110823143912.0691d442.akpm@linux-foundation.org> <4E547155.8090709@redhat.com> <20110824191430.8a908e70.rdunlap@xenotime.net>
+ <4E55C221.8080100@redhat.com> <20110824205044.7ff45b6c.rdunlap@xenotime.net> <alpine.DEB.2.00.1108242202050.576@chino.kir.corp.google.com> <4E562248.2090102@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Add __attribute__((format (printf...) to the function
-to validate format and arguments.  Use vsprintf extension
-%pV to avoid any possible message interleaving. Coalesce
-format string.  Convert printks/pr_warning to pr_warn.
+On Thu, 25 Aug 2011, Cong Wang wrote:
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- include/linux/mm.h |    3 ++-
- mm/page_alloc.c    |   16 +++++++++++-----
- mm/vmalloc.c       |    4 ++--
- 3 files changed, 15 insertions(+), 8 deletions(-)
+> > No, it doesn't work, CONFIG_HUGETLBFS can be enabled with CONFIG_NUMA=y
+> > and CONFIG_SYSFS=n and that uses data structures from drivers/base/node.c
+> > which doesn't get compiled with this patch.
+> 
+> So, you mean with CONFIG_NUMA=y && CONFIG_SYSFS=n && CONFIG_HUGETLBFS=y
+> we still get compile error?
+> 
+> Which data structures are used by hugetlbfs?
+> 
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7438071..24b3b0f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1334,7 +1334,8 @@ extern void si_meminfo(struct sysinfo * val);
- extern void si_meminfo_node(struct sysinfo *val, int nid);
- extern int after_bootmem;
- 
--extern void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
-+extern __attribute__((format (printf, 3, 4)))
-+void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
- 
- extern void setup_per_cpu_pageset(void);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6e8ecb6..1b77872 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1753,7 +1753,6 @@ static DEFINE_RATELIMIT_STATE(nopage_rs,
- 
- void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
- {
--	va_list args;
- 	unsigned int filter = SHOW_MEM_FILTER_NODES;
- 
- 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
-@@ -1772,14 +1771,21 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
- 		filter &= ~SHOW_MEM_FILTER_NODES;
- 
- 	if (fmt) {
--		printk(KERN_WARNING);
-+		struct va_format vaf;
-+		va_list args;
-+
- 		va_start(args, fmt);
--		vprintk(fmt, args);
-+
-+		vaf.fmt = fmt;
-+		vaf.va = &args;
-+
-+		pr_warn("%pV", &vaf);
-+
- 		va_end(args);
- 	}
- 
--	pr_warning("%s: page allocation failure: order:%d, mode:0x%x\n",
--		   current->comm, order, gfp_mask);
-+	pr_warn("%s: page allocation failure: order:%d, mode:0x%x\n",
-+		current->comm, order, gfp_mask);
- 
- 	dump_stack();
- 	if (!should_suppress_show_mem())
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 7ef0903..3122acc 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1568,8 +1568,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 	return area->addr;
- 
- fail:
--	warn_alloc_failed(gfp_mask, order, "vmalloc: allocation failure, "
--			  "allocated %ld of %ld bytes\n",
-+	warn_alloc_failed(gfp_mask, order,
-+			  "vmalloc: allocation failure, allocated %ld of %ld bytes\n",
- 			  (area->nr_pages*PAGE_SIZE), area->size);
- 	vfree(area->addr);
- 	return NULL;
--- 
-1.7.6.405.gc1be0
+node_states[], which is revealed at link time if you tried to compile your 
+patch.  It's obvious that we don't want to add per-node hugetlbfs 
+attributes to sysfs directories if sysfs is disabled, so you need to 
+modify the hugetlbfs code as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
