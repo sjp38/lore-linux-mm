@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0679B6B016C
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 15:19:30 -0400 (EDT)
-Date: Thu, 25 Aug 2011 14:19:26 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-In-Reply-To: <1314299115.26922.2.camel@twins>
-Message-ID: <alpine.DEB.2.00.1108251413130.27407@router.home>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>  <20110818144025.8e122a67.akpm@linux-foundation.org>  <1314284272.27911.32.camel@twins>  <alpine.DEB.2.00.1108251009120.27407@router.home>  <1314289208.3268.4.camel@mulgrave>
- <alpine.DEB.2.00.1108251128460.27407@router.home>  <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>  <alpine.DEB.2.00.1108251206440.27407@router.home>  <1e295500-5d1f-45dd-aa5b-3d2da2cf1a62@email.android.com>  <alpine.DEB.2.00.1108251341230.27407@router.home>
- <1314299115.26922.2.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 945CD6B016C
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 15:23:29 -0400 (EDT)
+Date: Thu, 25 Aug 2011 12:23:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2011-08-24-14-08 uploaded
+Message-Id: <20110825122307.face013a.akpm@linux-foundation.org>
+In-Reply-To: <20110825135103.GA6431@tiehlicka.suse.cz>
+References: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
+	<20110825135103.GA6431@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: James Bottomley <James.bottomley@HansenPartnership.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Thu, 25 Aug 2011, Peter Zijlstra wrote:
+On Thu, 25 Aug 2011 15:51:03 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> Also, I thought this_cpu thing's were at best locally atomic. If you
-> make them full blown atomic ops then even __this_cpu ops will have to be
-> full atomic ops, otherwise:
->
->
-> CPU0			CPU(1)
->
-> this_cpu_inc(&foo);	preempt_disable();
-> 			__this_cpu_inc(&foo);
-> 			preempt_enable();
->
-> might step on each other's toes.
+> On Wed 24-08-11 14:09:05, Andrew Morton wrote:
+> > The mm-of-the-moment snapshot 2011-08-24-14-08 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> 
+> I have just downloaded your tree and cannot quilt it up.
 
-They would both have their own instance of "foo". per cpu atomicity is
-only one requirement of this_cpu_ops. The other is the ability to relocate
-accesses relative to the current per cpu area.
+Parenthetically, there's not much point in running -mm any more:
+everything which matters is copied into linux-next, so just run the
+following day's -next.
 
-Full blown atomicity is almost a superset of per cpu atomicity but its
-only usable if the full atomic instructions can also relocate accesses
-relative to some base.
+There are a few things in -mm which aren't transferrrred to -next.  Some
+akpm-specific pain reducers, a few patches which don't look like
+they'll ever get into mainline and a great shower of debugging patches
+which I accumulated over the ages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
