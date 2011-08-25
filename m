@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4F37F6B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 18:20:44 -0400 (EDT)
-Date: Thu, 25 Aug 2011 18:20:01 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110825222001.GG27162@redhat.com>
-References: <1313154259.6576.42.camel@twins>
- <20110812142020.GB17781@localhost>
- <1314027488.24275.74.camel@twins>
- <20110823034042.GC7332@localhost>
- <1314093660.8002.24.camel@twins>
- <20110823141504.GA15949@localhost>
- <20110823174757.GC15820@redhat.com>
- <20110824001257.GA6349@localhost>
- <20110824180058.GC22434@redhat.com>
- <20110825031934.GA9764@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110825031934.GA9764@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 834AC6B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 18:56:48 -0400 (EDT)
+Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 26 Aug 2011 00:56:27 +0200
+In-Reply-To: <alpine.DEB.2.00.1108251413130.27407@router.home>
+References: <1313650253-21794-1-git-send-email-gthelen@google.com>
+	  <20110818144025.8e122a67.akpm@linux-foundation.org>
+	  <1314284272.27911.32.camel@twins>
+	  <alpine.DEB.2.00.1108251009120.27407@router.home>
+	  <1314289208.3268.4.camel@mulgrave>
+	  <alpine.DEB.2.00.1108251128460.27407@router.home>
+	  <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
+	  <alpine.DEB.2.00.1108251206440.27407@router.home>
+	  <1e295500-5d1f-45dd-aa5b-3d2da2cf1a62@email.android.com>
+	  <alpine.DEB.2.00.1108251341230.27407@router.home>
+	 <1314299115.26922.2.camel@twins>
+	 <alpine.DEB.2.00.1108251413130.27407@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1314312987.26922.13.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: James Bottomley <James.bottomley@HansenPartnership.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
 
-On Thu, Aug 25, 2011 at 11:19:34AM +0800, Wu Fengguang wrote:
+On Thu, 2011-08-25 at 14:19 -0500, Christoph Lameter wrote:
+> On Thu, 25 Aug 2011, Peter Zijlstra wrote:
+>=20
+> > Also, I thought this_cpu thing's were at best locally atomic. If you
+> > make them full blown atomic ops then even __this_cpu ops will have to b=
+e
+> > full atomic ops, otherwise:
+> >
+> >
+> > CPU0			CPU(1)
+> >
+> > this_cpu_inc(&foo);	preempt_disable();
+> > 			__this_cpu_inc(&foo);
+> > 			preempt_enable();
+> >
+> > might step on each other's toes.
+>=20
+> They would both have their own instance of "foo". per cpu atomicity is
+> only one requirement of this_cpu_ops. The other is the ability to relocat=
+e
+> accesses relative to the current per cpu area.
 
-[..]
-> > So you are trying to make one feedback loop aware of second loop so that
-> > if second loop is unbalanced, first loop reacts to that as well and not
-> > just look at dirty_rate and write_bw. So refining new balanced rate by
-> > pos_ratio helps.
-> > 						      write_bw	
-> > bdi->dirty_ratelimit_(i+1) = bdi->dirty_ratelimit_i * --------- * pos_ratio
-> > 						      dirty_bw
-> > 
-> > Now if global dirty pages are imbalanced, balanced rate will still go
-> > down despite the fact that dirty_bw == write_bw. This will lead to
-> > further reduction in task dirty rate. Which in turn will lead to reduced
-> > number of dirty rate and should eventually lead to pos_ratio=1.
-> 
-> Right, that's a good alternative viewpoint to the below one.
-> 
->   						  write_bw	
->   bdi->dirty_ratelimit_(i+1) = task_ratelimit_i * ---------
->   						  dirty_bw
-> 
-> (1) the periodic rate estimation uses that to refresh the balanced rate on every 200ms
-> (2) as long as the rate estimation is correct, pos_ratio is able to drive itself to 1.0
-
-Personally I found it much easier to understand the other representation.
-Once you have come up with equation.
-
-balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw
-
-Can you please put few lines of comments to explain that why above
-alone is not sufficient and we need to take pos_ratio also in to
-account to keep number of dirty pages in check. And then go onto
-
-balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw * pos_ratio
-
-This kind of maintains the continuity of explanation and explains
-that why are we deviating from the theory we discussed so far.
-
-> 
-> > A related question though I should have asked you this long back. How does
-> > throttling based on rate helps. Why we could not just work with two
-> > pos_ratios. One is gloabl postion ratio and other is bdi position ratio.
-> > And then throttle task gradually to achieve smooth throttling behavior.
-> > IOW, what property does rate provide which is not available just by
-> > looking at per bdi dirty pages. Can't we come up with bdi setpoint and
-> > limit the way you have done for gloabl setpoint and throttle tasks
-> > accordingly?
-> 
-> Good question. If we have no idea of the balanced rate at all, but
-> still want to limit dirty pages within the range [freerun, limit],
-> all we can do is to throttle the task at eg. 1TB/s at @freerun and
-> 0 at @limit. Then you get a really sharp control line which will make
-> task_ratelimit fluctuate like mad...
-> 
-> So the balanced rate estimation is the key to get smooth task_ratelimit,
-> while pos_ratio is the ultimate guarantee for the dirty pages range.
-
-Ok, that makes sense. By keeping an estimation of rate at which bdi
-can write, our range of throttling goes down. Say 0 to 300MB/s instead
-of 0 to 1TB/sec and that can lead to a more smooth behavior.
-
-Thanks
-Vivek
+Ah, but not if the this_cpu_inc() thing ends up being more than a single
+instruction, then you have preemption/migration windows. Only when LL/SC
+can deal with SC having a different EA from the LL and supports a big
+enough offset could this possibly work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
