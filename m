@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC406B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:41:50 -0400 (EDT)
-Received: by qyk7 with SMTP id 7so1815955qyk.14
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2011 06:41:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8536B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 09:51:07 -0400 (EDT)
+Date: Thu, 25 Aug 2011 15:51:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mmotm 2011-08-24-14-08 uploaded
+Message-ID: <20110825135103.GA6431@tiehlicka.suse.cz>
+References: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
 MIME-Version: 1.0
-From: Prateek Sharma <prateek3.14@gmail.com>
-Date: Thu, 25 Aug 2011 19:11:28 +0530
-Message-ID: <CAKwxwqxxPRkTtHy4GvK8JFGV04FpJ5M39gTSwPDQAHxY=qJn8Q@mail.gmail.com>
-Subject: KSM Unstable tree questiom
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-Hello everyone .
-I've been trying to understand how KSM works (i want to make some
-modifications / implement some optimizations) .
-One thing that struck me odd was the high number of calls to
-remove_rmap_item_from_tree .
-Particularly, this instance in cmp_and_merge_page :
+Hi Andrew,
 
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * As soon as we merge this page, we want to=
- remove the
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * rmap_item of the page we have merged with=
- from the unstable
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * tree, and insert it instead as new node i=
-n the stable tree.
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (kpage) {
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0remove_rmap_item_from_tree(
-tree_rmap_item);
+On Wed 24-08-11 14:09:05, Andrew Morton wrote:
+> The mm-of-the-moment snapshot 2011-08-24-14-08 has been uploaded to
+> 
+>    http://userweb.kernel.org/~akpm/mmotm/
 
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lock_page(kpage);
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stable_node =3D stable_tree_=
-insert(kpage);
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (stable_node) {
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stable_tree_=
-append(tree_rmap_item, stable_node);
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stable_tree_=
-append(rmap_item, stable_node);
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+I have just downloaded your tree and cannot quilt it up. I am getting:
+[...]
+patching file tools/power/cpupower/debug/x86_64/centrino-decode.c
+Hunk #1 FAILED at 1.
+File tools/power/cpupower/debug/x86_64/centrino-decode.c is not empty after patch, as expected
+1 out of 1 hunk FAILED -- rejects in file tools/power/cpupower/debug/x86_64/centrino-decode.c
+patching file tools/power/cpupower/debug/x86_64/powernow-k8-decode.c
+Hunk #1 FAILED at 1.
+File tools/power/cpupower/debug/x86_64/powernow-k8-decode.c is not empty after patch, as expected
+1 out of 1 hunk FAILED -- rejects in file tools/power/cpupower/debug/x86_64/powernow-k8-decode.c
+[...]
+patching file virt/kvm/iommu.c
+Patch linux-next.patch does not apply (enforce with -f)
 
-Here, from i understand, we've found a match in the unstable tree, and
-are adding a stable node in the stable tree.
-My question is: why do we need to remove the rmap_item from unstable
-tree here? At the end of a scan we are erasing the unstable tree
-anyway. Also, all searches first consider the stable tree , and then
-the unstable tree.
-What will happen if we find a match in the unstable tree, and simply
-update tree_rmap_item to point to a stable_node ?
+Is this a patch (I am using 2.6.1) issue? The failing hunk looks as
+follows:
+--- a/tools/power/cpupower/debug/x86_64/centrino-decode.c
++++ /dev/null
+@@ -1 +0,0 @@
+-../i386/centrino-decode.c
+\ No newline at end of file
 
-Thanks for reading. I'd love to share the ideas i have for (attempting
-to) improve KSM, if anyone is=A0interested.
-
-Prateek
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
