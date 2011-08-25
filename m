@@ -1,37 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 96FF06B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 11:11:54 -0400 (EDT)
-Date: Thu, 25 Aug 2011 10:11:50 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-In-Reply-To: <1314284272.27911.32.camel@twins>
-Message-ID: <alpine.DEB.2.00.1108251009120.27407@router.home>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>  <20110818144025.8e122a67.akpm@linux-foundation.org> <1314284272.27911.32.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 285E36B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 11:18:53 -0400 (EDT)
+Date: Thu, 25 Aug 2011 08:18:48 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: mmotm 2011-08-24-14-08 uploaded
+Message-Id: <20110825081848.f6e8a62d.rdunlap@xenotime.net>
+In-Reply-To: <20110825161307.7c921e46.kamezawa.hiroyu@jp.fujitsu.com>
+References: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
+	<20110825161307.7c921e46.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Thu, 25 Aug 2011, Peter Zijlstra wrote:
+On Thu, 25 Aug 2011 16:13:07 +0900 KAMEZAWA Hiroyuki wrote:
 
-> On Thu, 2011-08-18 at 14:40 -0700, Andrew Morton wrote:
-> >
-> > I think I'll apply it, as the call frequency is low (correct?) and the
-> > problem will correct itself as other architectures implement their
-> > atomic this_cpu_foo() operations.
->
-> Which leads me to wonder, can anything but x86 implement that this_cpu_*
-> muck? I doubt any of the risk chips can actually do all this.
-> Maybe Itanic, but then that seems to be dying fast.
+> On Wed, 24 Aug 2011 14:09:05 -0700
+> akpm@linux-foundation.org wrote:
+> 
+> > The mm-of-the-moment snapshot 2011-08-24-14-08 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> > 
+> > It contains the following patches against 3.1-rc3:
+> > (patches marked "*" will be included in linux-next)
+> > 
+> 
+> just reporting.
+> 
+> A compile error from linux-next.patch.
+> 
+> drivers/built-in.o: In function `dwc3_testmode_open':
+> /home/kamezawa/Kernel/mmotm-Aug24/drivers/usb/dwc3/debugfs.c:481: undefined reference to `dwc3_send_gadget_ep_cmd'
+> /home/kamezawa/Kernel/mmotm-Aug24/drivers/usb/dwc3/debugfs.c:482: undefined reference to `dwc3_send_gadget_ep_cmd'
+> make: *** [.tmp_vmlinux1] Error 
 
-The cpu needs to have an RMW instruction that does something to a
-variable relative to a register that points to the per cpu base.
+Yes, I've sent GregKH a patch for this against linux-next.
 
-Thats generally possible. The problem is how expensive the RMW is going to
-be.
+thanks,
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
