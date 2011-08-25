@@ -1,72 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFDA6B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 17:14:27 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id p7PLENU0024797
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 14:14:23 -0700
-Received: from qyk4 (qyk4.prod.google.com [10.241.83.132])
-	by hpaq6.eem.corp.google.com with ESMTP id p7PLE8kj030234
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 14:14:22 -0700
-Received: by qyk4 with SMTP id 4so4447757qyk.13
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2011 14:14:22 -0700 (PDT)
-Date: Thu, 25 Aug 2011 14:14:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: skip frozen tasks
-In-Reply-To: <20110825164758.GB22564@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
-References: <20110823073101.6426.77745.stgit@zurg> <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com> <20110824101927.GB3505@tiehlicka.suse.cz> <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com> <20110825091920.GA22564@tiehlicka.suse.cz>
- <20110825151818.GA4003@redhat.com> <20110825164758.GB22564@tiehlicka.suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4F37F6B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 18:20:44 -0400 (EDT)
+Date: Thu, 25 Aug 2011 18:20:01 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110825222001.GG27162@redhat.com>
+References: <1313154259.6576.42.camel@twins>
+ <20110812142020.GB17781@localhost>
+ <1314027488.24275.74.camel@twins>
+ <20110823034042.GC7332@localhost>
+ <1314093660.8002.24.camel@twins>
+ <20110823141504.GA15949@localhost>
+ <20110823174757.GC15820@redhat.com>
+ <20110824001257.GA6349@localhost>
+ <20110824180058.GC22434@redhat.com>
+ <20110825031934.GA9764@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110825031934.GA9764@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 25 Aug 2011, Michal Hocko wrote:
+On Thu, Aug 25, 2011 at 11:19:34AM +0800, Wu Fengguang wrote:
 
-> > > > That's obviously false since we call oom_killer_disable() in 
-> > > > freeze_processes() to disable the oom killer from ever being called in the 
-> > > > first place, so this is something you need to resolve with Rafael before 
-> > > > you cause more machines to panic.
-> > >
-> > > I didn't mean suspend/resume path (that is protected by oom_killer_disabled)
-> > > so the patch doesn't make any change.
+[..]
+> > So you are trying to make one feedback loop aware of second loop so that
+> > if second loop is unbalanced, first loop reacts to that as well and not
+> > just look at dirty_rate and write_bw. So refining new balanced rate by
+> > pos_ratio helps.
+> > 						      write_bw	
+> > bdi->dirty_ratelimit_(i+1) = bdi->dirty_ratelimit_i * --------- * pos_ratio
+> > 						      dirty_bw
 > > 
-> > Confused... freeze_processes() does try_to_freeze_tasks() before
-> > oom_killer_disable() ?
+> > Now if global dirty pages are imbalanced, balanced rate will still go
+> > down despite the fact that dirty_bw == write_bw. This will lead to
+> > further reduction in task dirty rate. Which in turn will lead to reduced
+> > number of dirty rate and should eventually lead to pos_ratio=1.
 > 
-> Yes you are right, I must have been blind. 
+> Right, that's a good alternative viewpoint to the below one.
 > 
-> Now I see the point. We do not want to panic while we are suspending and
-> the memory is really low just because all the userspace is already in
-> the the fridge.
-> Sorry for confusion.
+>   						  write_bw	
+>   bdi->dirty_ratelimit_(i+1) = task_ratelimit_i * ---------
+>   						  dirty_bw
 > 
-> I still do not follow the oom_killer_disable note from David, though.
+> (1) the periodic rate estimation uses that to refresh the balanced rate on every 200ms
+> (2) as long as the rate estimation is correct, pos_ratio is able to drive itself to 1.0
+
+Personally I found it much easier to understand the other representation.
+Once you have come up with equation.
+
+balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw
+
+Can you please put few lines of comments to explain that why above
+alone is not sufficient and we need to take pos_ratio also in to
+account to keep number of dirty pages in check. And then go onto
+
+balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw * pos_ratio
+
+This kind of maintains the continuity of explanation and explains
+that why are we deviating from the theory we discussed so far.
+
 > 
+> > A related question though I should have asked you this long back. How does
+> > throttling based on rate helps. Why we could not just work with two
+> > pos_ratios. One is gloabl postion ratio and other is bdi position ratio.
+> > And then throttle task gradually to achieve smooth throttling behavior.
+> > IOW, what property does rate provide which is not available just by
+> > looking at per bdi dirty pages. Can't we come up with bdi setpoint and
+> > limit the way you have done for gloabl setpoint and throttle tasks
+> > accordingly?
+> 
+> Good question. If we have no idea of the balanced rate at all, but
+> still want to limit dirty pages within the range [freerun, limit],
+> all we can do is to throttle the task at eg. 1TB/s at @freerun and
+> 0 at @limit. Then you get a really sharp control line which will make
+> task_ratelimit fluctuate like mad...
+> 
+> So the balanced rate estimation is the key to get smooth task_ratelimit,
+> while pos_ratio is the ultimate guarantee for the dirty pages range.
 
-oom_killer_disable() was added to that path for a reason when all threads 
-are frozen: memory allocations still occur in the suspend path in an oom 
-condition and adding the oom_killer_disable() will cause those 
-allocations to fail rather than sending pointless SIGKILLs to frozen 
-threads.
+Ok, that makes sense. By keeping an estimation of rate at which bdi
+can write, our range of throttling goes down. Say 0 to 300MB/s instead
+of 0 to 1TB/sec and that can lead to a more smooth behavior.
 
-Now consider if the only _eligible_ threads for oom kill (because of 
-cpusets or mempolicies) are those that are frozen.  We certainly do not 
-want to panic because other cpusets are still getting work done.  We'd 
-either want to add a mem to the cpuset or thaw the processes because the 
-cpuset is oom.
-
-You can't just selectively skip certain threads when their state can be 
-temporary without risking a panic.  That's why this patch is a 
-non-starter.
-
-A much better solution would be to lower the badness score that the oom 
-killer uses for PF_FROZEN threads so that they aren't considered a 
-priority for kill unless there's nothing else left to kill.
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
