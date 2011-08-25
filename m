@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BAD646B016C
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:53:24 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2C23B6B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 14:34:43 -0400 (EDT)
+References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818144025.8e122a67.akpm@linux-foundation.org> <1314284272.27911.32.camel@twins> <alpine.DEB.2.00.1108251009120.27407@router.home> <1314289208.3268.4.camel@mulgrave> <alpine.DEB.2.00.1108251128460.27407@router.home> <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com> <alpine.DEB.2.00.1108251206440.27407@router.home>
+In-Reply-To: <alpine.DEB.2.00.1108251206440.27407@router.home>
 MIME-Version: 1.0
-Message-ID: <75ecaef7-054a-4acd-b1c5-8041ccde3501@default>
-Date: Thu, 25 Aug 2011 10:52:18 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Subject: [PATCH V7 2/4] mm: frontswap: core code
-References: <20110823145815.GA23190@ca-server1.us.oracle.com>
- <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com
- 4E564E4D.4030302@linux.vnet.ibm.com>
-In-Reply-To: <4E564E4D.4030302@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
+From: James Bottomley <James.bottomley@HansenPartnership.com>
+Date: Thu, 25 Aug 2011 11:34:34 -0700
+Message-ID: <1e295500-5d1f-45dd-aa5b-3d2da2cf1a62@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, jackdachef@gmail.com, cyclonusj@gmail.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> To: KAMEZAWA Hiroyuki
->=20
-> On 08/25/2011 01:05 AM, KAMEZAWA Hiroyuki wrote:
-> <cut>
-> >
-> >
-> > I'm sorry if I miss codes but.... is an implementation of frontswap.ops=
- included
-> > in this patch set ? Or how to test the work ?
->=20
-> The zcache driver (in drivers/staging/zcache) is the one that registers f=
-rontswap ops.
->=20
-> You can test frontswap by enabling CONFIG_FRONTSWAP and CONFIG_ZCACHE, an=
-d putting
-> "zcache" in the kernel boot parameters.
 
-Also see Xen tmem (in drivers/xen).  I am also working on a related project
-called RAMster that uses frontswap.  And someone has started code for KVM
-to work with transcendent memory (including frontswap).  But for now zcache
-is the only non-virtualization in-kernel user for frontswap.
 
-Dan
+Christoph Lameter <cl@linux.com> wrote:
 
-P.S. A recent build fix for zcache is necessary for it to work without
-manual modification to the zcache Makefile.
-See 8c70aac04e01a08b7eca204312946206d1c1baac in Linus's tree.
+>On Thu, 25 Aug 2011, James Bottomley wrote:
+>
+>> >ARM seems to have these LDREX/STREX instructions for that purpose
+>which
+>> >seem to be used for generating atomic instructions without lockes. I
+>> >guess
+>> >other RISC architectures have similar means of doing it?
+>>
+>> Arm isn't really risc.  Most don't.  However even with ldrex/strex
+>you need two instructions for rmw.
+>
+>Well then what is "really risc"? RISC is an old beaten down marketing
+>term
+>AFAICT and ARM claims it too.
+
+Reduced Instruction Set Computer.  This is why we're unlikely to have complex atomic instructions: the principle of risc is that you build them up from basic ones.
+
+James 
+-- 
+Sent from my Android phone with K-9 Mail. Please excuse my brevity and top posting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
