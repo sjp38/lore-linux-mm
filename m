@@ -1,83 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 331186B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 03:25:08 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from spt2.w1.samsung.com ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LQH00C1939UL940@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 25 Aug 2011 08:25:06 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LQH00B6J39TZG@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 25 Aug 2011 08:25:05 +0100 (BST)
-Date: Thu, 25 Aug 2011 09:22:18 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 8/8] ARM: S5PV210: example of CMA private area for FIMC
- device on Goni board
-In-reply-to: 
- <CAKnK67RcMAt6j3CEi2Z7QTN42v07LDCfa_T38F9-5b97TJ0-hA@mail.gmail.com>
-Message-id: <01d801cc62f7$b9041b40$2b0c51c0$%szyprowski@samsung.com>
-Content-language: pl
-References: <CAKnK67RcMAt6j3CEi2Z7QTN42v07LDCfa_T38F9-5b97TJ0-hA@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C2506B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 05:00:31 -0400 (EDT)
+Message-ID: <4E560F2A.1030801@profihost.ag>
+Date: Thu, 25 Aug 2011 11:00:26 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+MIME-Version: 1.0
+Subject: Re: slow performance on disk/network i/o full speed after drop_caches
+References: <4E5494D4.1050605@profihost.ag> <CAOJsxLEFYW0eDbXQ0Uixf-FjsxHZ_1nmnovNx1CWj=m-c-_vJw@mail.gmail.com> <4E54BDCF.9020504@profihost.ag> <20110824093336.GB5214@localhost>
+In-Reply-To: <20110824093336.GB5214@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Aguirre, Sergio'" <saaguirre@ti.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jens Axboe <jaxboe@fusionio.com>, Linux Netdev List <netdev@vger.kernel.org>
 
-Hello,
+Am 24.08.2011 11:33, schrieb Wu Fengguang:
+> On Wed, Aug 24, 2011 at 05:01:03PM +0800, Stefan Priebe - Profihost AG wrote:
+>>
+>>>> sync&&   echo 3>/proc/sys/vm/drop_caches&&   sleep 2&&   echo 0
+>>>>> /proc/sys/vm/drop_caches
+>>
+>> Another way to get it working again is to stop some processes. Could be
+>> mysql or apache or php fcgi doesn't matter. Just free some memory.
+>> Although there are already 5GB free.
+>
+> Is it a NUMA machine and _every_ node has enough free pages?
+>
+>          grep . /sys/devices/system/node/node*/vmstat
+>
+> Thanks,
+> Fengguang
+Hi Fengguang,
 
-On Wednesday, August 24, 2011 5:41 PM Aguirre, Sergio wrote:
+thanks for your fast reply.
 
-> On Fri, Aug 19, 2011 at 04:27:44PM +0200, Marek Szyprowski wrote:
-> > This patch is an example how device private CMA area can be activated.
-> > It creates one CMA region and assigns it to the first s5p-fimc device on
-> > Samsung Goni S5PC110 board.
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > ---
-> >  arch/arm/mach-s5pv210/mach-goni.c |    4 ++++
-> >  1 files changed, 4 insertions(+), 0 deletions(-)
-> > diff --git a/arch/arm/mach-s5pv210/mach-goni.c b/arch/arm/mach-s5pv210/mach-
-> goni.c
-> > index 14578f5..f766c45 100644
-> > --- a/arch/arm/mach-s5pv210/mach-goni.c
-> > +++ b/arch/arm/mach-s5pv210/mach-goni.c
-> > @@ -26,6 +26,7 @@
-> >  #include <linux/input.h>
-> >  #include <linux/gpio.h>
-> >  #include <linux/interrupt.h>
-> > +#include <linux/dma-contiguous.h>
-> >
-> >  #include <asm/mach/arch.h>
-> >  #include <asm/mach/map.h>
-> > @@ -857,6 +858,9 @@ static void __init goni_map_io(void)
-> >  static void __init goni_reserve(void)
-> >  {
-> >  	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
-> > +
-> > +	/* Create private 16MiB contiguous memory area for s5p-fimc.0 device */
-> > +	dma_declare_contiguous(&s5p_device_fimc0.dev, 16*SZ_1M, 0);
-> 
-> This is broken, since according to patch #0006, dma_declare_contiguous
-requires
-> a 4th param (limit) which you're not providing here.
+Here is the data you requested:
 
-You are definitely right, there should be one more parameter. This patch was
-just
-cherry-picked from older version just before posting to mailing lists. I'm
-really
-sorry for this trivial bug.
- 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+root@server1015-han:~# grep . /sys/devices/system/node/node*/vmstat
+/sys/devices/system/node/node0/vmstat:nr_written 5546561
+/sys/devices/system/node/node0/vmstat:nr_dirtied 5572497
+/sys/devices/system/node/node1/vmstat:nr_written 3936
+/sys/devices/system/node/node1/vmstat:nr_dirtied 4190
+
+modified it a little bit:
+~# while [ true ]; do ps -eo 
+user,pid,tid,class,rtprio,ni,pri,psr,pcpu,vsz,rss,pmem,stat,wchan:28,cmd 
+| grep scp | grep -v grep; sleep 1; done
+
+root     12409 12409 TS       -   0  19   0 59.8  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 64.0  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 67.7  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 70.6  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 73.5  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 76.0  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 78.2  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 80.0  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 80.9  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   2 76.7  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 75.6  42136  1724  0.0 Ds 
+pipe_read                    scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 76.0  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 75.2  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 76.6  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 77.9  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 79.0  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 72.8  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 73.0  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 73.8  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 74.3  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 73.4  42136  1724  0.0 Ss 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 71.3  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 71.9  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 72.7  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   3 73.5  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   3 74.4  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   3 75.2  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 76.0  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 76.6  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 74.8  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 73.2  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   1 73.9  42136  1724  0.0 Rs 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   0 72.4  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 72.0  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 72.5  42136  1724  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 72.9  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12409 12409 TS       -   0  19   8 73.5  42136  1724  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1  0.0  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 23.0  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 49.5  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   2 63.3  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 71.5  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 77.4  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 70.3  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 73.1  42136  1728  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12566 12566 TS       -   0  19   0 65.7  42136  1728  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 61.2  42136  1728  0.0 Ss 
+-                            scp -t /tmp/
+root     12566 12566 TS       -   0  19   1 63.7  42136  1728  0.0 Rs 
+-                            scp -t /tmp/
+root     12636 12636 TS       -   0  19   8  0.0  42136  1728  0.0 Ss 
+poll_schedule_timeout        scp -t /tmp/
 
 
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
