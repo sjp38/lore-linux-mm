@@ -1,115 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7F4616B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:18:00 -0400 (EDT)
-Date: Thu, 25 Aug 2011 10:17:56 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [patch] numa: fix NUMA compile error when sysfs and procfs are
- disabled
-Message-Id: <20110825101756.fbbcc488.rdunlap@xenotime.net>
-In-Reply-To: <alpine.DEB.2.00.1108242224180.576@chino.kir.corp.google.com>
-References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au>
-	<20110804152211.ea10e3e7.rdunlap@xenotime.net>
-	<20110823143912.0691d442.akpm@linux-foundation.org>
-	<4E547155.8090709@redhat.com>
-	<20110824191430.8a908e70.rdunlap@xenotime.net>
-	<4E55C221.8080100@redhat.com>
-	<alpine.DEB.2.00.1108242224180.576@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 121576B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:37:51 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <d0b4c414-e90f-4ae0-9b70-fd5b54d2b011@default>
+Date: Thu, 25 Aug 2011 10:37:05 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Subject: [PATCH V7 2/4] mm: frontswap: core code
+References: <20110823145815.GA23190@ca-server1.us.oracle.com
+ 20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Greg Kroah-Hartman <gregkh@suse.de>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-On Wed, 24 Aug 2011 22:55:02 -0700 (PDT) David Rientjes wrote:
+> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> Subject: Re: Subject: [PATCH V7 2/4] mm: frontswap: core code
+>=20
+> > From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > Subject: [PATCH V7 2/4] mm: frontswap: core code
+> >
+> > This second patch of four in this frontswap series provides the core co=
+de
+>=20
+> I think you should add diffstat...
 
-> On Thu, 25 Aug 2011, Cong Wang wrote:
-> 
-> > Ah, this is because I missed the part in include/linux/node.h. :)
-> > 
-> > Below is the updated version.
-> > 
-> 
-> I've never had a problem building a kernel with CONFIG_NUMA=y and 
-> CONFIG_SYSFS=n since most of drivers/base/node.c is just an abstraction 
-> that calls into sysfs functions that will be no-ops in such a 
-> configuration.
-> 
-> The error you cite in a different thread 
-> (http://marc.info/?l=linux-mm&m=131098795024186) about an undefined 
-> reference to vmstat_text is because you have CONFIG_NUMA enabled and both 
-> CONFIG_SYSFS and CONFIG_PROC_FS disabled and we only define vmstat_text 
-> for those fs configurations since that's the only way these strings were 
-> ever emitted before per-node vmstat.
-> 
-> The correct fix is to define the array for CONFIG_NUMA as well.
-> 
-> 
-> 
-> numa: fix NUMA compile error when sysfs and procfs are disabled
-> 
-> The vmstat_text array is only defined for CONFIG_SYSFS or CONFIG_PROC_FS, 
-> yet it is referenced for per-node vmstat with CONFIG_NUMA:
-> 
-> 	drivers/built-in.o: In function `node_read_vmstat':
-> 	node.c:(.text+0x1106df): undefined reference to `vmstat_text'
-> 
-> in fa25c503dfa2 (mm: per-node vmstat: show proper vmstats).
-> 
-> Define the array for CONFIG_NUMA as well.
-> 
-> Reported-by: Cong Wang <amwang@redhat.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+The diffstat is in [PATCH V7 0/4] for the whole patchset.  I didn't
+think a separate diffstat for each patch in the patchset was necessary?
 
-Sure, that also works.
-Acked-by: Randy Dunlap <rdunlap@xenotime.net>
+> and add include changes to Makefile in the same patch.
 
+The Makefile change must be in a patch after the patch that
+creates frontswap.o or the build will fail.
 
-> ---
->  include/linux/vmstat.h |    2 ++
->  mm/vmstat.c            |    4 ++--
->  2 files changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -258,6 +258,8 @@ static inline void refresh_zone_stat_thresholds(void) { }
->  
->  #endif		/* CONFIG_SMP */
->  
-> +#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS) || defined(CONFIG_NUMA)
->  extern const char * const vmstat_text[];
-> +#endif
->  
->  #endif /* _LINUX_VMSTAT_H */
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -659,7 +659,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
->  }
->  #endif
->  
-> -#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS)
-> +#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS) || defined(CONFIG_NUMA)
->  #ifdef CONFIG_ZONE_DMA
->  #define TEXT_FOR_DMA(xx) xx "_dma",
->  #else
-> @@ -788,7 +788,7 @@ const char * const vmstat_text[] = {
->  
->  #endif /* CONFIG_VM_EVENTS_COUNTERS */
->  };
-> -#endif /* CONFIG_PROC_FS || CONFIG_SYSFS */
-> +#endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
->  
->  
->  #ifdef CONFIG_PROC_FS
+> I have small questions.
+>=20
+> > +/*
+> > + * frontswap_ops is set by frontswap_register_ops to contain the point=
+ers
+> > + * to the frontswap "backend" implementation functions.
+> > + */
+> > +static struct frontswap_ops frontswap_ops;
+> > +
+>=20
+> Hmm, only one frontswap_ops can be registered to the system ?
+> Then...why it required to be registered ? This just comes from problem in
+> coding ?
 
+Yes, currently only one frontswap_ops can be registered.  However there
+are different users (zcache and Xen tmem) that will register different
+callbacks for the frontswap_ops.  A future enhancement may allow "chaining"
+(see https://lkml.org/lkml/2011/6/3/202 which describes chaining for
+cleancache).
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+> BTW, Do I have a chance to implement frontswap accounting per cgroup
+> (under memcg) ? Or Do I need to enable/disale switch for frontswap per me=
+mcg ?
+> Do you think it is worth to do ?
+
+I'm not very familiar with cgroups or memcg but I think it may be possible
+to implement transcendent memory with cgroup as the "guest" and the default
+cgroup as the "host" to allow for more memory elasticity for cgroups.
+(See http://lwn.net/Articles/454795/ for a good overview of all of
+transcendent memory.)
+
+> > +/*
+> > + * This global enablement flag reduces overhead on systems where front=
+swap_ops
+> > + * has not been registered, so is preferred to the slower alternative:=
+ a
+> > + * function call that checks a non-global.
+> > + */
+> > +int frontswap_enabled;
+> > +EXPORT_SYMBOL(frontswap_enabled);
+> > +
+> > +/* useful stats available in /sys/kernel/mm/frontswap */
+> > +static unsigned long frontswap_gets;
+> > +static unsigned long frontswap_succ_puts;
+> > +static unsigned long frontswap_failed_puts;
+> > +static unsigned long frontswap_flushes;
+> > +
+>=20
+> What lock guard these ? swap_lock ?
+
+These are informational statistics so do not need to be protected
+by a lock or an atomic-type.  If an increment is lost due to a cpu
+race, it is not a problem.
+
+> > +/*
+> > + * register operations for frontswap, returning previous thus allowing
+> > + * detection of multiple backends and possible nesting
+> > + */
+> > +struct frontswap_ops frontswap_register_ops(struct frontswap_ops *ops)
+> > +{
+> > +=09struct frontswap_ops old =3D frontswap_ops;
+> > +
+> > +=09frontswap_ops =3D *ops;
+> > +=09frontswap_enabled =3D 1;
+> > +=09return old;
+> > +}
+> > +EXPORT_SYMBOL(frontswap_register_ops);
+> > +
+>=20
+> No lock ? and there is no unregister_ops() ?
+
+Right now only one "backend" can register with frontswap.  Existing
+backends (zcache and Xen tmem) only register when enabled via a
+kernel parameter.  In the future, there will need to be better
+ways to do this, but I think this is sufficient for now.
+
+So since only one backend can register, no lock is needed and
+no unregister is needed yet.
+
+> > +/* Called when a swap device is swapon'd */
+> > +void __frontswap_init(unsigned type)
+> > +{
+> > +=09struct swap_info_struct *sis =3D swap_info[type];
+> > +
+> > +=09BUG_ON(sis =3D=3D NULL);
+> > +=09if (sis->frontswap_map =3D=3D NULL)
+> > +=09=09return;
+> > +=09if (frontswap_enabled)
+> > +=09=09(*frontswap_ops.init)(type);
+> > +}
+> > +EXPORT_SYMBOL(__frontswap_init);
+> > +
+> > +/*
+> > + * "Put" data from a page to frontswap and associate it with the page'=
+s
+> > + * swaptype and offset.  Page must be locked and in the swap cache.
+> > + * If frontswap already contains a page with matching swaptype and
+> > + * offset, the frontswap implmentation may either overwrite the data
+> > + * and return success or flush the page from frontswap and return fail=
+ure
+> > + */
+>=20
+> What lock should be held to guard global variables ? swap_lock ?
+
+Which global variables do you mean and in what routines?  I think the
+page lock is required for put/get (as documented in the comments)
+but not the swap_lock.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
