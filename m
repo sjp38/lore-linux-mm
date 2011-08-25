@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 506D16B0169
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 18:11:46 -0400 (EDT)
-Date: Wed, 24 Aug 2011 15:11:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2011-08-24-14-08 uploaded
-Message-Id: <20110824151115.9499019c.akpm@linux-foundation.org>
-In-Reply-To: <20110824150433.70e140a6.rdunlap@xenotime.net>
-References: <201108242148.p7OLm1lt009191@imap1.linux-foundation.org>
-	<20110824150433.70e140a6.rdunlap@xenotime.net>
+	by kanga.kvack.org (Postfix) with SMTP id 5D7CE6B0169
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2011 22:14:36 -0400 (EDT)
+Date: Wed, 24 Aug 2011 19:14:30 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: [Patch] numa: introduce CONFIG_NUMA_SYSFS for
+ drivers/base/node.c
+Message-Id: <20110824191430.8a908e70.rdunlap@xenotime.net>
+In-Reply-To: <4E547155.8090709@redhat.com>
+References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au>
+	<20110804152211.ea10e3e7.rdunlap@xenotime.net>
+	<20110823143912.0691d442.akpm@linux-foundation.org>
+	<4E547155.8090709@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Cong Wang <amwang@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 24 Aug 2011 15:04:33 -0700
-Randy Dunlap <rdunlap@xenotime.net> wrote:
+On Wed, 24 Aug 2011 11:34:45 +0800 Cong Wang wrote:
 
-> On Wed, 24 Aug 2011 14:09:05 -0700 akpm@linux-foundation.org wrote:
+> Hi, Andrew,
 > 
-> > The mm-of-the-moment snapshot 2011-08-24-14-08 has been uploaded to
-> > 
-> >    http://userweb.kernel.org/~akpm/mmotm/
-> > 
-> > It contains the following patches against 3.1-rc3:
-> > (patches marked "*" will be included in linux-next)
-> 
-> Hi Andrew,
-> 
-> Am I supposed to apply this to linux-next?
+> Do you think my patch below is better?
 
-Nope.  The full series is based on 3.1-rc3.  It includes origin.patch
-which takes it up to current -linus.  And linux-next.patch which takes
-it up to today's linux-next.
+Hi,
 
-> I don't get a clean patch(1) against 3.1-rc3.
+This causes build errors for me because node.o is not being built:
 
-hm.  What broke?
+arch/x86/built-in.o: In function `topology_init':
+topology.c:(.init.text+0x3668): undefined reference to `register_one_node'
+drivers/built-in.o: In function `unregister_cpu':
+(.text+0x7aecc): undefined reference to `unregister_cpu_under_node'
+drivers/built-in.o: In function `register_cpu':
+(.cpuinit.text+0xc1): undefined reference to `register_cpu_under_node'
+
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
