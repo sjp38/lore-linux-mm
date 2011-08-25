@@ -1,61 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 354966B0169
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 12:48:03 -0400 (EDT)
-Date: Thu, 25 Aug 2011 18:47:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: skip frozen tasks
-Message-ID: <20110825164758.GB22564@tiehlicka.suse.cz>
-References: <20110823073101.6426.77745.stgit@zurg>
- <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
- <20110824101927.GB3505@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
- <20110825091920.GA22564@tiehlicka.suse.cz>
- <20110825151818.GA4003@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 875A06B0169
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 13:07:48 -0400 (EDT)
+Date: Thu, 25 Aug 2011 12:07:44 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
+In-Reply-To: <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
+Message-ID: <alpine.DEB.2.00.1108251206440.27407@router.home>
+References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818144025.8e122a67.akpm@linux-foundation.org> <1314284272.27911.32.camel@twins> <alpine.DEB.2.00.1108251009120.27407@router.home> <1314289208.3268.4.camel@mulgrave>
+ <alpine.DEB.2.00.1108251128460.27407@router.home> <986ca4ed-6810-426f-b32f-5c8687e3a10b@email.android.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110825151818.GA4003@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: James Bottomley <James.bottomley@HansenPartnership.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
 
-On Thu 25-08-11 17:18:18, Oleg Nesterov wrote:
-> On 08/25, Michal Hocko wrote:
-> >
-> > On Wed 24-08-11 12:31:26, David Rientjes wrote:
-> > >
-> > > That's obviously false since we call oom_killer_disable() in 
-> > > freeze_processes() to disable the oom killer from ever being called in the 
-> > > first place, so this is something you need to resolve with Rafael before 
-> > > you cause more machines to panic.
-> >
-> > I didn't mean suspend/resume path (that is protected by oom_killer_disabled)
-> > so the patch doesn't make any change.
-> 
-> Confused... freeze_processes() does try_to_freeze_tasks() before
-> oom_killer_disable() ?
+On Thu, 25 Aug 2011, James Bottomley wrote:
 
-Yes you are right, I must have been blind. 
+> >ARM seems to have these LDREX/STREX instructions for that purpose which
+> >seem to be used for generating atomic instructions without lockes. I
+> >guess
+> >other RISC architectures have similar means of doing it?
+>
+> Arm isn't really risc.  Most don't.  However even with ldrex/strex you need two instructions for rmw.
 
-Now I see the point. We do not want to panic while we are suspending and
-the memory is really low just because all the userspace is already in
-the the fridge.
-Sorry for confusion.
-
-I still do not follow the oom_killer_disable note from David, though.
-
-> 
-> Oleg.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Well then what is "really risc"? RISC is an old beaten down marketing term
+AFAICT and ARM claims it too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
