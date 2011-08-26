@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 885616B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 10:47:20 -0400 (EDT)
-Date: Fri, 26 Aug 2011 10:46:53 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure
- changes
-Message-ID: <20110826144653.GA889@dumpdata.com>
-References: <20110823145755.GA23174@ca-server1.us.oracle.com>
- <20110825143312.a6fe93d5.kamezawa.hiroyu@jp.fujitsu.com>
- <8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default20110826090214.2f7f2cdc.kamezawa.hiroyu@jp.fujitsu.com>
- <24f09c1f-3ff8-4677-a1f7-c3494ced04c1@default>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B8BE26B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 10:53:44 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <08cd2e30-87f7-4cd1-8a79-c9799dde80a5@default>
+Date: Fri, 26 Aug 2011 07:53:19 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Subject: [PATCH V7 2/4] mm: frontswap: core code
+References: <20110823145815.GA23190@ca-server1.us.oracle.com>
+ <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+ <d0b4c414-e90f-4ae0-9b70-fd5b54d2b011@default
+ 20110826091619.1ad27e9c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110826091619.1ad27e9c.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <24f09c1f-3ff8-4677-a1f7-c3494ced04c1@default>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-On Fri, Aug 26, 2011 at 07:15:30AM -0700, Dan Magenheimer wrote:
-> > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> > Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure changes
-> > 
-> > > > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> > > > Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure changes
-> > >
-> > > Hi Kamezawa-san --
-> > >
-> > > Domo arigato for the review and feedback!
-> > >
-> > > > Hmm....could you modify mm/swapfile.c and remove 'static' in the same patch ?
-> > >
-> > > I separated out this header patch because I thought it would
-> > > make the key swap data structure changes more visible.  Are you
-> > > saying that it is more confusing?
-> > 
-> > Yes. I know you add a new header file which is not included but..
-> > 
-> > At reviewing patch, I check whether all required changes are done.
-> > In this case, you turned out the function to be externed but you
-> > leave the function definition as 'static'. This unbalance confues me.
-> > 
-> > I always read patches from 1 to END. When I found an incomplete change
-> > in patch 1, I remember it and need to find missng part from patch 2->End.
-> > This makes my review confused a little.
-> > 
-> > In another case, when a patch adds a new file, I check Makefile change.
-> > Considering dependency, the patch order should be
-> > 
-> > 	[patch 1] Documentaion/Config
-> > 	[patch 2] Makefile + add new file.
-> > 
-> > But plesse note: This is my thought. Other guys may have other idea.
-> 
-> I think that is probably a good approach.  I will try to use it
-> for future patches.  But since this frontswap patchset is already
-> on V7, I hope it is OK if I continue to organize it for V8 the same
-> as it has been, as it might be confusing to previous reviewers
-> to change the organization now.
+> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> Subject: Re: Subject: [PATCH V7 2/4] mm: frontswap: core code
+>=20
+> On Thu, 25 Aug 2011 10:37:05 -0700 (PDT)
+> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+>=20
+> > > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> > > Subject: Re: Subject: [PATCH V7 2/4] mm: frontswap: core code
+>=20
+> > > BTW, Do I have a chance to implement frontswap accounting per cgroup
+> > > (under memcg) ? Or Do I need to enable/disale switch for frontswap pe=
+r memcg ?
+> > > Do you think it is worth to do ?
+> >
+> > I'm not very familiar with cgroups or memcg but I think it may be possi=
+ble
+> > to implement transcendent memory with cgroup as the "guest" and the def=
+ault
+> > cgroup as the "host" to allow for more memory elasticity for cgroups.
+> > (See http://lwn.net/Articles/454795/ for a good overview of all of
+> > transcendent memory.)
+> >
+> Ok, I'll see it.
+>=20
+> I just wonder following case.
+>=20
+> Assume 2 memcgs.
+> =09memcg X: memory limit =3D 300M.
+> =09memcg Y: memory limit =3D 300M.
+>=20
+> This limitation is done for performance isolation.
+> When using frontswap, X and Y can cause resource confliction in frontswap=
+ and
+> performance of X and Y cannot be predictable.
 
-Nah, that is what part of the review process is - keep us on our toes.
+Oops, sorry for the extra reply, but I realize I cut/paste to
+reply to this part and neglected to reply.
+
+IMHO, it is impossible to do both dynamic resource optimization and
+performance isolation.  So if the purpose of containers is for performance
+isolation you need to partition ALL resources, including CPUs (and
+not even split threads) and I/O devices.  And even then there will
+be unpredictable use of some shared system resource (such as maybe
+a QPI link or PCI bus).  If you are not partitioning all resources,
+then RAM is just another resource that should be dynamically optimized
+which may result in performance variations.  With strict policies,
+maybe some quality-of-service guarantees can be made.
+
+But that's just my opinion...
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
