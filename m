@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 439906B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:45:07 -0400 (EDT)
-Message-ID: <4E579541.6060607@openvz.org>
-Date: Fri, 26 Aug 2011 16:44:49 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] oom: skip frozen tasks
-References: <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com> <20110824101927.GB3505@tiehlicka.suse.cz> <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com> <20110825091920.GA22564@tiehlicka.suse.cz> <20110825151818.GA4003@redhat.com> <20110825164758.GB22564@tiehlicka.suse.cz> <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com> <20110826070946.GA7280@tiehlicka.suse.cz> <20110826085610.GA9083@tiehlicka.suse.cz> <4E576F65.5060009@openvz.org> <20110826104827.GC9083@tiehlicka.suse.cz>
-In-Reply-To: <20110826104827.GC9083@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A90B6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:51:37 -0400 (EDT)
+Subject: Re: [PATCH 05/10] writeback: per task dirty rate limit
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Fri, 26 Aug 2011 14:51:09 +0200
+In-Reply-To: <20110826114619.268843347@intel.com>
+References: <20110826113813.895522398@intel.com>
+	 <20110826114619.268843347@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1314363069.11049.3.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Fri 26-08-11 14:03:17, Konstantin Khlebnikov wrote:
->> Michal Hocko wrote:
->>
->>> @@ -450,6 +459,10 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
->>>   			pr_err("Kill process %d (%s) sharing same memory\n",
->>>   				task_pid_nr(q), q->comm);
->>>   			task_unlock(q);
->>> +
->>> +			if (frozen(q))
->>> +				thaw_process(q);
->>> +
->>
->> We must thaw task strictly after sending SIGKILL.
->
-> Sounds reasonable.
->
->> But anyway I think this is a bad idea.
->
-> Why?
+On Fri, 2011-08-26 at 19:38 +0800, Wu Fengguang wrote:
+> +       preempt_disable();
+>         /*
+> -        * Check the rate limiting. Also, we do not want to throttle real=
+-time
+> -        * tasks in balance_dirty_pages(). Period.
+> +        * This prevents one CPU to accumulate too many dirtied pages wit=
+hout
+> +        * calling into balance_dirty_pages(), which can happen when ther=
+e are
+> +        * 1000+ tasks, all of them start dirtying pages at exactly the s=
+ame
+> +        * time, hence all honoured too large initial task->nr_dirtied_pa=
+use.
+>          */
+> -       preempt_disable();
+>         p =3D  &__get_cpu_var(bdp_ratelimits);
 
-Refrigerator may be used for digging in task's internal structures,
-so such digger may be very surprised if somebody suddenly thaws this task.
+	p =3D &get_cpu_var(bdp_ratelimits);
 
->
->>
->>>   			force_sig(SIGKILL, q);
->>>   		}
->>>
->
+> -       *p +=3D nr_pages_dirtied;
+> -       if (unlikely(*p >=3D ratelimit)) {
+> -               ratelimit =3D sync_writeback_pages(*p);
+> +       if (unlikely(current->nr_dirtied >=3D ratelimit))
+>                 *p =3D 0;
+> -               preempt_enable();
+> -               balance_dirty_pages(mapping, ratelimit);
+> -               return;
+> +       else {
+> +               *p +=3D nr_pages_dirtied;
+> +               if (unlikely(*p >=3D ratelimit_pages)) {
+> +                       *p =3D 0;
+> +                       ratelimit =3D 0;
+> +               }
+>         }
+>         preempt_enable();=20
+
+	put_cpu_var(bdp_ratelimits);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
