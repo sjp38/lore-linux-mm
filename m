@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 61A8F6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 13:09:39 -0400 (EDT)
-Received: by pzk6 with SMTP id 6so6860925pzk.36
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2011 10:09:37 -0700 (PDT)
-Subject: Re: [PATCH 05/13] mm: convert shrinkers to use new API
-From: Wanlong Gao <wanlong.gao@gmail.com>
-Reply-To: wanlong.gao@gmail.com
-In-Reply-To: <1314089786-20535-6-git-send-email-david@fromorbit.com>
-References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
-	 <1314089786-20535-6-git-send-email-david@fromorbit.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 27 Aug 2011 01:09:30 +0800
-Message-ID: <1314378570.1987.8.camel@Allen>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id F23ED6B016C
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 14:09:24 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p7QI9LcJ010259
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 11:09:21 -0700
+Received: from pzk32 (pzk32.prod.google.com [10.243.19.160])
+	by wpaz9.hot.corp.google.com with ESMTP id p7QI9HVq024479
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 11:09:19 -0700
+Received: by pzk32 with SMTP id 32so5159361pzk.5
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2011 11:09:16 -0700 (PDT)
+Date: Fri, 26 Aug 2011 11:09:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: skip frozen tasks
+In-Reply-To: <4E576E6F.1030909@openvz.org>
+Message-ID: <alpine.DEB.2.00.1108261106570.13943@chino.kir.corp.google.com>
+References: <20110823073101.6426.77745.stgit@zurg> <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com> <20110824101927.GB3505@tiehlicka.suse.cz> <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com> <20110825091920.GA22564@tiehlicka.suse.cz>
+ <20110825151818.GA4003@redhat.com> <20110825164758.GB22564@tiehlicka.suse.cz> <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com> <4E574CA5.4010701@openvz.org> <alpine.DEB.2.00.1108260209050.14732@chino.kir.corp.google.com>
+ <4E576E6F.1030909@openvz.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Tue, 2011-08-23 at 18:56 +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Fri, 26 Aug 2011, Konstantin Khlebnikov wrote:
+
+> Maybe just fix this "panic" logic? OOM killer should panic only on global
+> memory shortage.
 > 
-> Modify shrink_slab() to use the new .count_objects/.scan_objects API
-> and implement the callouts for all the existing shrinkers.
 
-> +static long
-> +cifs_idmap_shrinker_scan(struct shrinker *shrink, struct shrink_control *sc)
->  {
-> -	int nr_to_scan = sc->nr_to_scan;
-> -	int nr_del = 0;
-> -	int nr_rem = 0;
->  	struct rb_root *root;
-> +	long freed;
->  
->  	root = &uidtree;
->  	spin_lock(&siduidlock);
-> -	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
-> +	freed = shrink_idmap_tree(root, sc->nr_to_scan);
->  	spin_unlock(&siduidlock);
->  
->  	root = &gidtree;
->  	spin_lock(&sidgidlock);
-> -	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
-> +	freed += shrink_idmap_tree(root, sc->nr_to_scan);
->  	spin_unlock(&sidgidlock);
->  
-> -	return nr_rem;
-> +	return freed;
-> +}
-> +
-> +/*
-> + * This still abuses the nr_to_scan == 0 trick to get the common code just to
-> + * count objects. There neds to be an external count of the objects in the
+NO, it shouldn't, we actually rely quite extensively on cpusets filled 
+with OOM_DISABLE threads to panic because the job scheduler would be 
+unresponsive in such a condition and it'd much better to panic and reboot 
+than to brick the machine.  I'm not sure where you're getting all your 
+information from, but please don't pass it off as principles.
 
-			  ^^^^^?
-Hi Dave:
-Great work. a bit comments.
-Thanks
--Wanlong Gao
-
+You can set the panic logic to be whatever you want with 
+/proc/sys/vm/panic_on_oom.  See Documentation/filesystems/proc.txt for 
+more information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
