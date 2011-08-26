@@ -1,139 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 32D9E6B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 21:56:15 -0400 (EDT)
-Date: Fri, 26 Aug 2011 09:56:10 +0800
+	by kanga.kvack.org (Postfix) with ESMTP id DC9CC6B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 22:16:52 -0400 (EDT)
+Date: Fri, 26 Aug 2011 10:16:48 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110826015610.GA10320@localhost>
-References: <20110812142020.GB17781@localhost>
- <1314027488.24275.74.camel@twins>
- <20110823034042.GC7332@localhost>
- <1314093660.8002.24.camel@twins>
- <20110823141504.GA15949@localhost>
- <20110823174757.GC15820@redhat.com>
- <20110824001257.GA6349@localhost>
- <20110824180058.GC22434@redhat.com>
- <20110825031934.GA9764@localhost>
- <20110825222001.GG27162@redhat.com>
+Subject: Re: slow performance on disk/network i/o full speed after
+ drop_caches
+Message-ID: <20110826021648.GA19529@localhost>
+References: <4E5494D4.1050605@profihost.ag>
+ <CAOJsxLEFYW0eDbXQ0Uixf-FjsxHZ_1nmnovNx1CWj=m-c-_vJw@mail.gmail.com>
+ <4E54BDCF.9020504@profihost.ag>
+ <20110824093336.GB5214@localhost>
+ <4E560F2A.1030801@profihost.ag>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110825222001.GG27162@redhat.com>
+In-Reply-To: <4E560F2A.1030801@profihost.ag>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jens Axboe <jaxboe@fusionio.com>, Linux Netdev List <netdev@vger.kernel.org>
 
-On Fri, Aug 26, 2011 at 06:20:01AM +0800, Vivek Goyal wrote:
-> On Thu, Aug 25, 2011 at 11:19:34AM +0800, Wu Fengguang wrote:
-> 
-> [..]
-> > > So you are trying to make one feedback loop aware of second loop so that
-> > > if second loop is unbalanced, first loop reacts to that as well and not
-> > > just look at dirty_rate and write_bw. So refining new balanced rate by
-> > > pos_ratio helps.
-> > > 						      write_bw	
-> > > bdi->dirty_ratelimit_(i+1) = bdi->dirty_ratelimit_i * --------- * pos_ratio
-> > > 						      dirty_bw
-> > > 
-> > > Now if global dirty pages are imbalanced, balanced rate will still go
-> > > down despite the fact that dirty_bw == write_bw. This will lead to
-> > > further reduction in task dirty rate. Which in turn will lead to reduced
-> > > number of dirty rate and should eventually lead to pos_ratio=1.
-> > 
-> > Right, that's a good alternative viewpoint to the below one.
-> > 
-> >   						  write_bw	
-> >   bdi->dirty_ratelimit_(i+1) = task_ratelimit_i * ---------
-> >   						  dirty_bw
-> > 
-> > (1) the periodic rate estimation uses that to refresh the balanced rate on every 200ms
-> > (2) as long as the rate estimation is correct, pos_ratio is able to drive itself to 1.0
-> 
-> Personally I found it much easier to understand the other representation.
-> Once you have come up with equation.
-> 
-> balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw
-> 
-> Can you please put few lines of comments to explain that why above
-> alone is not sufficient and we need to take pos_ratio also in to
-> account to keep number of dirty pages in check. And then go onto
-> 
-> balance_rate_(i+1) = balance_rate(i) * write_bw/dirty_bw * pos_ratio
-> 
-> This kind of maintains the continuity of explanation and explains
-> that why are we deviating from the theory we discussed so far.
+Hi Stefan,
 
-Good point. Here is the commented code:
-
-        /*
-         * task_ratelimit reflects each dd's dirty rate for the past 200ms.
-         */
-        task_ratelimit = (u64)dirty_ratelimit *
-                                        pos_ratio >> RATELIMIT_CALC_SHIFT;
-
-        /*
-         * A linear estimation of the "balanced" throttle rate. The theory is,
-         * if there are N dd tasks, each throttled at task_ratelimit, the bdi's
-         * dirty_rate will be measured to be (N * task_ratelimit). So the below
-         * formula will yield the balanced rate limit (write_bw / N).
-         *
-         * Note that the expanded form is not a pure rate feedback:
-         *      rate_(i+1) = rate_(i) * (write_bw / dirty_rate)              (1)
-         * but also takes pos_ratio into account:
-         *      rate_(i+1) = rate_(i) * (write_bw / dirty_rate) * pos_ratio  (2)
-         *
-         * (1) is not realistic because pos_ratio also takes part in balancing
-         * the dirty rate.  Consider the state
-         *      pos_ratio = 0.5                                              (3)
-         *      rate = 2 * (write_bw / N)                                    (4)
-         * If (1) is used, it will stuck in that state! Because each dd will be
-         * throttled at
-         *      task_ratelimit = pos_ratio * rate = (write_bw / N)           (5)
-         * yielding
-         *      dirty_rate = N * task_ratelimit = write_bw                   (6)
-         * put (6) into (1) we get
-         *      rate_(i+1) = rate_(i)                                        (7)
-         *
-         * So we end up using (2) to always keep
-         *      rate_(i+1) ~= (write_bw / N)                                 (8)
-         * regardless of the value of pos_ratio. As long as (8) is satisfied,
-         * pos_ratio is able to drive itself to 1.0, which is not only where
-         * the dirty count meet the setpoint, but also where the slope of
-         * pos_ratio is most flat and hence task_ratelimit is least fluctuated.
-         */
-        balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
-                                           dirty_rate | 1);
-
-> > 
-> > > A related question though I should have asked you this long back. How does
-> > > throttling based on rate helps. Why we could not just work with two
-> > > pos_ratios. One is gloabl postion ratio and other is bdi position ratio.
-> > > And then throttle task gradually to achieve smooth throttling behavior.
-> > > IOW, what property does rate provide which is not available just by
-> > > looking at per bdi dirty pages. Can't we come up with bdi setpoint and
-> > > limit the way you have done for gloabl setpoint and throttle tasks
-> > > accordingly?
-> > 
-> > Good question. If we have no idea of the balanced rate at all, but
-> > still want to limit dirty pages within the range [freerun, limit],
-> > all we can do is to throttle the task at eg. 1TB/s at @freerun and
-> > 0 at @limit. Then you get a really sharp control line which will make
-> > task_ratelimit fluctuate like mad...
-> > 
-> > So the balanced rate estimation is the key to get smooth task_ratelimit,
-> > while pos_ratio is the ultimate guarantee for the dirty pages range.
+> Here is the data you requested:
 > 
-> Ok, that makes sense. By keeping an estimation of rate at which bdi
-> can write, our range of throttling goes down. Say 0 to 300MB/s instead
-> of 0 to 1TB/sec and that can lead to a more smooth behavior.
+> root@server1015-han:~# grep . /sys/devices/system/node/node*/vmstat
+> /sys/devices/system/node/node0/vmstat:nr_written 5546561
+> /sys/devices/system/node/node0/vmstat:nr_dirtied 5572497
+> /sys/devices/system/node/node1/vmstat:nr_written 3936
+> /sys/devices/system/node/node1/vmstat:nr_dirtied 4190
 
-Yeah exactly, and even better, we can make the slope much more flat
-around the setpoint to achieve excellent smoothness in stable state :)
+Ah you are running an older kernel that didn't show all the vmstat
+numbers. But still it's revealing that node 0 is used heavily and node
+1 is almost idle. So I won't be surprised to see most free pages lie
+in node 1.
+
+> modified it a little bit:
+> ~# while [ true ]; do ps -eo 
+> user,pid,tid,class,rtprio,ni,pri,psr,pcpu,vsz,rss,pmem,stat,wchan:28,cmd 
+> | grep scp | grep -v grep; sleep 1; done
+> 
+> root     12409 12409 TS       -   0  19   0 59.8  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+
+It's mostly doing poll() waits. There must be some dependency on
+something other to make progress. Would you post the full ps output
+for all tasks, and even better, run
+
+        echo t > /proc/sysrq-trigger
+
+To dump the kernel stacks?
 
 Thanks,
 Fengguang
+
+
+> root     12409 12409 TS       -   0  19   0 64.0  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 67.7  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 70.6  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 73.5  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 76.0  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 78.2  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 80.0  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 80.9  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   2 76.7  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 75.6  42136  1724  0.0 Ds 
+> pipe_read                    scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 76.0  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 75.2  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 76.6  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 77.9  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 79.0  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 72.8  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 73.0  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 73.8  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 74.3  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 73.4  42136  1724  0.0 Ss 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 71.3  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 71.9  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 72.7  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   3 73.5  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   3 74.4  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   3 75.2  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 76.0  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 76.6  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 74.8  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 73.2  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   1 73.9  42136  1724  0.0 Rs 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   0 72.4  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 72.0  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 72.5  42136  1724  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 72.9  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12409 12409 TS       -   0  19   8 73.5  42136  1724  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1  0.0  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 23.0  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 49.5  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   2 63.3  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 71.5  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 77.4  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 70.3  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 73.1  42136  1728  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12566 12566 TS       -   0  19   0 65.7  42136  1728  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 61.2  42136  1728  0.0 Ss 
+> -                            scp -t /tmp/
+> root     12566 12566 TS       -   0  19   1 63.7  42136  1728  0.0 Rs 
+> -                            scp -t /tmp/
+> root     12636 12636 TS       -   0  19   8  0.0  42136  1728  0.0 Ss 
+> poll_schedule_timeout        scp -t /tmp/
+> 
+> 
+> Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
