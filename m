@@ -1,64 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D78416B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 17:23:33 -0400 (EDT)
-Date: Fri, 26 Aug 2011 14:23:28 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F12AD6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 18:21:35 -0400 (EDT)
+Date: Fri, 26 Aug 2011 15:21:01 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/mempolicy.c: fix pgoff in mbind vma merge
-Message-Id: <20110826142328.ab4726cb.akpm@linux-foundation.org>
-In-Reply-To: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312212325.git.caspar@casparzhang.com>
-References: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312212325.git.caspar@casparzhang.com>
+Subject: Re: [PATCH] mm: add free_hot_cold_page_list helper
+Message-Id: <20110826152101.b1b453c0.akpm@linux-foundation.org>
+In-Reply-To: <20110729075837.12274.58405.stgit@localhost6>
+References: <20110729075837.12274.58405.stgit@localhost6>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Caspar Zhang <caspar@casparzhang.com>
-Cc: linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon,  1 Aug 2011 23:28:55 +0800
-Caspar Zhang <caspar@casparzhang.com> wrote:
+On Fri, 29 Jul 2011 11:58:37 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> commit 9d8cebd4bcd7c3878462fdfda34bbcdeb4df7ef4 didn't real fix the
-> mbind vma merge problem due to wrong pgoff value passing to vma_merge(),
-> which made vma_merge() always return NULL.
+> This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
+> It frees pages directly from list without temporary page-vector.
+> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
 > 
-> Re-tested the patched kernel with the reproducer provided in commit
-> 9d8cebd, got correct result like below:
+> bloat-o-meter:
 > 
-> addr = 0x7ffa5aaa2000
-> [snip]
-> 7ffa5aaa2000-7ffa5aaa6000 rw-p 00000000 00:00 0
-> 7fffd556f000-7fffd5584000 rw-p 00000000 00:00 0                          [stack]
+> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
+> function                                     old     new   delta
+> free_hot_cold_page_list                        -     264    +264
+> get_page_from_freelist                      2129    2132      +3
+> __pagevec_free                               243     239      -4
+> split_free_page                              380     373      -7
+> release_pages                                606     510     -96
+> free_page_list                               188       -    -188
 > 
 
-Please also describe the output before the patch is applied, and tell
-us what you believe is wrong with it?
+It saves a total of 150 bytes for me.
 
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -636,7 +636,6 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
->  	struct vm_area_struct *prev;
->  	struct vm_area_struct *vma;
->  	int err = 0;
-> -	pgoff_t pgoff;
->  	unsigned long vmstart;
->  	unsigned long vmend;
+> index cb40892..dd7b9cc 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
+>  extern void __free_pages(struct page *page, unsigned int order);
+>  extern void free_pages(unsigned long addr, unsigned int order);
+>  extern void free_hot_cold_page(struct page *page, int cold);
+> +extern void free_hot_cold_page_list(struct list_head *list, int cold);
 >  
-> @@ -649,9 +648,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
->  		vmstart = max(start, vma->vm_start);
->  		vmend   = min(end, vma->vm_end);
+>  #define __free_page(page) __free_pages((page), 0)
+>  #define free_page(addr) free_pages((addr), 0)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1dbcf88..af486e4 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1209,6 +1209,18 @@ out:
+>  	local_irq_restore(flags);
+>  }
 >  
-> -		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
->  		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
-> -				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
-> +				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
-> +				  new_pol);
->  		if (prev) {
->  			vma = prev;
->  			next = vma->vm_next;
-> -- 
-> 1.7.6
+> +void free_hot_cold_page_list(struct list_head *list, int cold)
+> +{
+> +	struct page *page, *next;
+> +
+> +	list_for_each_entry_safe(page, next, list, lru) {
+> +		trace_mm_pagevec_free(page, cold);
+> +		free_hot_cold_page(page, cold);
+> +	}
+> +
+> +	INIT_LIST_HEAD(list);
+> +}
+> +
+>  /*
+>   * split_page takes a non-compound higher-order page, and splits it into
+>   * n (1<<order) sub-pages: page[0..n]
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 3a442f1..b9138c7 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -562,11 +562,10 @@ int lru_add_drain_all(void)
+>  void release_pages(struct page **pages, int nr, int cold)
+>  {
+>  	int i;
+> -	struct pagevec pages_to_free;
+> +	LIST_HEAD(pages_to_free);
+>  	struct zone *zone = NULL;
+>  	unsigned long uninitialized_var(flags);
+>  
+> -	pagevec_init(&pages_to_free, cold);
+>  	for (i = 0; i < nr; i++) {
+>  		struct page *page = pages[i];
+>  
+> @@ -597,19 +596,12 @@ void release_pages(struct page **pages, int nr, int cold)
+>  			del_page_from_lru(zone, page);
+>  		}
+>  
+> -		if (!pagevec_add(&pages_to_free, page)) {
+> -			if (zone) {
+> -				spin_unlock_irqrestore(&zone->lru_lock, flags);
+> -				zone = NULL;
+> -			}
+> -			__pagevec_free(&pages_to_free);
+> -			pagevec_reinit(&pages_to_free);
+> -  		}
+> +		list_add_tail(&page->lru, &pages_to_free);
+
+There's a potential problem here with cache longevity.  If
+release_pages() is called with a large number of pages then the current
+code's approach of freeing pages 16-at-a-time will hopefully cause
+those pageframes to still be in CPU cache when we get to actually
+freeing them.
+
+But after this change, we free all the pages in a single operation
+right at the end, which adds risk that we'll have to reload all their
+pageframes into CPU cache again.
+
+That'll only be a problem if release_pages() _is_ called with a large
+number of pages.  And manipulating large numbers of pages represents a
+lot of work, so the additional work from one cachemiss per page will
+presumably be tiny.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
