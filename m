@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 531746B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 16:41:12 -0400 (EDT)
-Date: Fri, 26 Aug 2011 16:40:53 -0400
-From: Nick Bowler <nbowler@elliptictech.com>
-Subject: Re: [PATCH 1/2] mm: convert k{un}map_atomic(p, KM_type) to
- k{un}map_atomic(p)
-Message-ID: <20110826204053.GA3408@elliptictech.com>
-References: <1314346676.6486.25.camel@minggr.sh.intel.com>
- <1314349096.26922.21.camel@twins>
- <20110826124239.fc503491.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 24CEB6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 17:01:53 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Date: Fri, 26 Aug 2011 23:03:38 +0200
+References: <20110823073101.6426.77745.stgit@zurg> <20110826085610.GA9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110826124239.fc503491.akpm@linux-foundation.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201108262303.38923.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Lin Ming <ming.m.lin@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 2011-08-26 12:42 -0700, Andrew Morton wrote:
-> On Fri, 26 Aug 2011 10:58:16 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Fri, 2011-08-26 at 16:17 +0800, Lin Ming wrote:
-> > > 
-> > > The KM_type parameter for kmap_atomic/kunmap_atomic is not used
-> > > anymore since commit 3e4d3af(mm: stack based kmap_atomic()).
-[...]
-> > yet-another-massive patch.. (you're the third or fourth to do so) if
-> > Andrew wants to take this one I won't mind, however previously he
-> > didn't want flag day patches..
+On Friday, August 26, 2011, David Rientjes wrote:
+> On Fri, 26 Aug 2011, Michal Hocko wrote:
 > 
-> I'm OK with cleaning all these up, but I suggest that we leave the
-> back-compatibility macros in place for a while, to make sure that
-> various stragglers get converted.  Extra marks will be awarded for
-> working out how to make unconverted code generate a compile warning ;)
+> > Let's give all frozen tasks a bonus (OOM_SCORE_ADJ_MAX/2) so that we do
+> > not consider them unless really necessary and if we really pick up one
+> > then thaw its threads before we try to kill it.
+> > 
+> 
+> I don't like arbitrary heuristics like this because they polluted the old 
+> oom killer before it was rewritten and made it much more unpredictable.  
+> The only heuristic it includes right now is a bonus for root tasks so that 
+> when two processes have nearly the same amount of memory usage (within 3% 
+> of available memory), the non-root task is chosen instead.
+> 
+> This bonus is actually saying that a single frozen task can use up to 50% 
+> more of the machine's capacity in a system-wide oom condition than the 
+> task that will now be killed instead.  That seems excessive.
+> 
+> I do like the idea of automatically thawing the task though and if that's 
+> possible then I don't think we need to manipulate the badness heuristic at 
+> all.  I know that wouldn't be feasible when we've frozen _all_ threads and 
+> that's why we have oom_killer_disable(), but we'll have to check with 
+> Rafael to see if something like this could work.  Rafael?
 
-It's possible to (ab)use the C preprocessor to accomplish this sort of
-thing.  For instance, consider the following:
+That depends a good deal on when the thawing happens and what the thawed
+task can do before being killed.  For example, if the thawing happens
+while devices are suspended and the thawed task accesses a driver through
+ioctl(), for example, the purpose of freezing will be defeated.
 
-  #include <stdio.h>
-
-  int foo(int x)
-  {
-     return x;
-  }
-
-  /* Deprecated; call foo instead. */
-  static inline int __attribute__((deprecated)) foo_unconverted(int x, int unused)
-  {
-     return foo(x);
-  }
-
-  #define PASTE(a, b) a ## b
-  #define PASTE2(a, b) PASTE(a, b)
-  
-  #define NARG_(_9, _8, _7, _6, _5, _4, _3, _2, _1, n, ...) n
-  #define NARG(...) NARG_(__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, :)
-
-  #define foo1(...) foo(__VA_ARGS__)
-  #define foo2(...) foo_unconverted(__VA_ARGS__)
-  #define foo(...) PASTE2(foo, NARG(__VA_ARGS__)(__VA_ARGS__))
-
-  int main(void)
-  {
-    printf("%d\n", foo(42));
-    printf("%d\n", foo(54, 42));
-    return 0;
-  }
-
-The preprocessor will select between "foo" and "foo_unconverted"
-depending on the number of arguments passed; and gcc will emit a warning
-for the latter case:
-
-  % gcc test.c
-  test.c: In function a??maina??:
-  test.c:27: warning: a??foo_unconverteda?? is deprecated (declared at test.c:9)
-
-Cheers,
--- 
-Nick Bowler, Elliptic Technologies (http://www.elliptictech.com/)
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
