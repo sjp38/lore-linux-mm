@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 739CF6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 12:14:25 -0400 (EDT)
-Date: Fri, 26 Aug 2011 12:14:22 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: VM: add would_have_oomkilled sysctl
-Message-ID: <20110826161422.GB30573@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A8F6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 13:09:39 -0400 (EDT)
+Received: by pzk6 with SMTP id 6so6860925pzk.36
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2011 10:09:37 -0700 (PDT)
+Subject: Re: [PATCH 05/13] mm: convert shrinkers to use new API
+From: Wanlong Gao <wanlong.gao@gmail.com>
+Reply-To: wanlong.gao@gmail.com
+In-Reply-To: <1314089786-20535-6-git-send-email-david@fromorbit.com>
+References: <1314089786-20535-1-git-send-email-david@fromorbit.com>
+	 <1314089786-20535-6-git-send-email-david@fromorbit.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 27 Aug 2011 01:09:30 +0800
+Message-ID: <1314378570.1987.8.camel@Allen>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, khlebnikov@openvz.org
 
-At various times in the past, we've had reports where users have been
-convinced that the oomkiller was too heavy handed. I added this sysctl
-mostly as a knob for them to see that the kernel really doesn't do much better
-without killing something.
+On Tue, 2011-08-23 at 18:56 +1000, Dave Chinner wrote:
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> Modify shrink_slab() to use the new .count_objects/.scan_objects API
+> and implement the callouts for all the existing shrinkers.
 
-Signed-off-by: Dave Jones <davej@redhat.com>
+> +static long
+> +cifs_idmap_shrinker_scan(struct shrinker *shrink, struct shrink_control *sc)
+>  {
+> -	int nr_to_scan = sc->nr_to_scan;
+> -	int nr_del = 0;
+> -	int nr_rem = 0;
+>  	struct rb_root *root;
+> +	long freed;
+>  
+>  	root = &uidtree;
+>  	spin_lock(&siduidlock);
+> -	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
+> +	freed = shrink_idmap_tree(root, sc->nr_to_scan);
+>  	spin_unlock(&siduidlock);
+>  
+>  	root = &gidtree;
+>  	spin_lock(&sidgidlock);
+> -	shrink_idmap_tree(root, nr_to_scan, &nr_rem, &nr_del);
+> +	freed += shrink_idmap_tree(root, sc->nr_to_scan);
+>  	spin_unlock(&sidgidlock);
+>  
+> -	return nr_rem;
+> +	return freed;
+> +}
+> +
+> +/*
+> + * This still abuses the nr_to_scan == 0 trick to get the common code just to
+> + * count objects. There neds to be an external count of the objects in the
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 5e3aa83..79a27b4 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -72,5 +72,6 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
- extern int sysctl_panic_on_oom;
-+extern int sysctl_would_have_oomkilled;
- #endif /* __KERNEL__*/
- #endif /* _INCLUDE_LINUX_OOM_H */
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 5abfa15..a0fed6d 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1000,6 +1000,13 @@ static struct ctl_table vm_table[] = {
- 		.proc_handler	= proc_dointvec,
- 	},
- 	{
-+		.procname	= "would_have_oomkilled",
-+		.data		= &sysctl_would_have_oomkilled,
-+		.maxlen		= sizeof(sysctl_would_have_oomkilled),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
- 		.procname	= "overcommit_ratio",
- 		.data		= &sysctl_overcommit_ratio,
- 		.maxlen		= sizeof(sysctl_overcommit_ratio),
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7dcca55..281ac39 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -35,6 +35,7 @@
- int sysctl_panic_on_oom;
- int sysctl_oom_kill_allocating_task;
- int sysctl_oom_dump_tasks = 1;
-+int sysctl_would_have_oomkilled;
- static DEFINE_SPINLOCK(zone_scan_lock);
- 
- #ifdef CONFIG_NUMA
-@@ -477,6 +478,13 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	}
- 
- 	task_lock(p);
-+	if (sysctl_would_have_oomkilled) {
-+		printk(KERN_ERR "%s: would have killed process %d (%s), but continuing instead...\n",
-+			__func__, task_pid_nr(p), p->comm);
-+		task_unlock(p);
-+		return 0;
-+	}
-+
- 	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
- 	task_unlock(p);
--- 
-1.7.3.2
+			  ^^^^^?
+Hi Dave:
+Great work. a bit comments.
+Thanks
+-Wanlong Gao
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
