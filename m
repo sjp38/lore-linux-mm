@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A90B6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:51:37 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8D39C6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:59:29 -0400 (EDT)
+Date: Fri, 26 Aug 2011 20:59:24 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 05/10] writeback: per task dirty rate limit
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Fri, 26 Aug 2011 14:51:09 +0200
-In-Reply-To: <20110826114619.268843347@intel.com>
+Message-ID: <20110826125924.GA6014@localhost>
 References: <20110826113813.895522398@intel.com>
-	 <20110826114619.268843347@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1314363069.11049.3.camel@twins>
-Mime-Version: 1.0
+ <20110826114619.268843347@intel.com>
+ <1314363069.11049.3.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1314363069.11049.3.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 2011-08-26 at 19:38 +0800, Wu Fengguang wrote:
-> +       preempt_disable();
->         /*
-> -        * Check the rate limiting. Also, we do not want to throttle real=
--time
-> -        * tasks in balance_dirty_pages(). Period.
-> +        * This prevents one CPU to accumulate too many dirtied pages wit=
-hout
-> +        * calling into balance_dirty_pages(), which can happen when ther=
-e are
-> +        * 1000+ tasks, all of them start dirtying pages at exactly the s=
-ame
-> +        * time, hence all honoured too large initial task->nr_dirtied_pa=
-use.
->          */
-> -       preempt_disable();
->         p =3D  &__get_cpu_var(bdp_ratelimits);
+On Fri, Aug 26, 2011 at 08:51:09PM +0800, Peter Zijlstra wrote:
+> On Fri, 2011-08-26 at 19:38 +0800, Wu Fengguang wrote:
+> > +       preempt_disable();
+> >         /*
+> > -        * Check the rate limiting. Also, we do not want to throttle real-time
+> > -        * tasks in balance_dirty_pages(). Period.
+> > +        * This prevents one CPU to accumulate too many dirtied pages without
+> > +        * calling into balance_dirty_pages(), which can happen when there are
+> > +        * 1000+ tasks, all of them start dirtying pages at exactly the same
+> > +        * time, hence all honoured too large initial task->nr_dirtied_pause.
+> >          */
+> > -       preempt_disable();
+> >         p =  &__get_cpu_var(bdp_ratelimits);
+> 
+> 	p = &get_cpu_var(bdp_ratelimits);
 
-	p =3D &get_cpu_var(bdp_ratelimits);
+Ah yeah.. I actually followed your suggestion, and then find we'll
+eventually do two __get_cpu_var() calls here, one for bdp_ratelimits
+and the other for dirty_leaks in a planned patch. So let's keep the
+preempt_disable()/preempt_enable().
 
-> -       *p +=3D nr_pages_dirtied;
-> -       if (unlikely(*p >=3D ratelimit)) {
-> -               ratelimit =3D sync_writeback_pages(*p);
-> +       if (unlikely(current->nr_dirtied >=3D ratelimit))
->                 *p =3D 0;
-> -               preempt_enable();
-> -               balance_dirty_pages(mapping, ratelimit);
-> -               return;
-> +       else {
-> +               *p +=3D nr_pages_dirtied;
-> +               if (unlikely(*p >=3D ratelimit_pages)) {
-> +                       *p =3D 0;
-> +                       ratelimit =3D 0;
-> +               }
->         }
->         preempt_enable();=20
+> > -       *p += nr_pages_dirtied;
+> > -       if (unlikely(*p >= ratelimit)) {
+> > -               ratelimit = sync_writeback_pages(*p);
+> > +       if (unlikely(current->nr_dirtied >= ratelimit))
+> >                 *p = 0;
+> > -               preempt_enable();
+> > -               balance_dirty_pages(mapping, ratelimit);
+> > -               return;
+> > +       else {
+> > +               *p += nr_pages_dirtied;
+> > +               if (unlikely(*p >= ratelimit_pages)) {
+> > +                       *p = 0;
+> > +                       ratelimit = 0;
+> > +               }
+> >         }
+> >         preempt_enable(); 
+> 
+> 	put_cpu_var(bdp_ratelimits);
 
-	put_cpu_var(bdp_ratelimits);
+ditto.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
