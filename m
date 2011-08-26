@@ -1,76 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B08496B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 20:09:50 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9D02A3EE0C1
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ED9B45DE5B
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EB5945DE56
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CD301DB8057
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 095801DB8048
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
-Date: Fri, 26 Aug 2011 09:02:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure
- changes
-Message-Id: <20110826090214.2f7f2cdc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default>
-References: <20110823145755.GA23174@ca-server1.us.oracle.com
- 20110825143312.a6fe93d5.kamezawa.hiroyu@jp.fujitsu.com>
-	<8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E5A736B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 20:18:50 -0400 (EDT)
+Date: Fri, 26 Aug 2011 08:18:46 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110826001846.GA6118@localhost>
+References: <20110808230535.GC7176@localhost>
+ <1313154259.6576.42.camel@twins>
+ <20110812142020.GB17781@localhost>
+ <1314027488.24275.74.camel@twins>
+ <20110823034042.GC7332@localhost>
+ <1314093660.8002.24.camel@twins>
+ <20110823141504.GA15949@localhost>
+ <20110823174757.GC15820@redhat.com>
+ <20110824001257.GA6349@localhost>
+ <1314202378.6925.48.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1314202378.6925.48.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 25 Aug 2011 10:11:11 -0700 (PDT)
-Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
-
-> > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> > Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure changes
+On Thu, Aug 25, 2011 at 12:12:58AM +0800, Peter Zijlstra wrote:
+> On Wed, 2011-08-24 at 08:12 +0800, Wu Fengguang wrote:
+> > > You somehow directly jump to  
+> > > 
+> > > 	balanced_rate = task_ratelimit_200ms * write_bw / dirty_rate
+> > > 
+> > > without explaining why following will not work.
+> > > 
+> > > 	balanced_rate_(i+1) = balance_rate(i) * write_bw / dirty_rate
+> > 
+> > Thanks for asking that, it's probably the root of confusions, so let
+> > me answer it standalone.
+> > 
+> > It's actually pretty simple to explain this equation:
+> > 
+> >                                                write_bw
+> >         balanced_rate = task_ratelimit_200ms * ----------       (1)
+> >                                                dirty_rate
+> > 
+> > If there are N dd tasks, each task is throttled at task_ratelimit_200ms
+> > for the past 200ms, we are going to measure the overall bdi dirty rate
+> > 
+> >         dirty_rate = N * task_ratelimit_200ms                   (2)
+> > 
+> > put (2) into (1) we get
+> > 
+> >         balanced_rate = write_bw / N                            (3)
+> > 
+> > So equation (1) is the right estimation to get the desired target (3).
+> > 
+> > 
+> > As for
+> > 
+> >                                                   write_bw
+> >         balanced_rate_(i+1) = balanced_rate_(i) * ----------    (4)
+> >                                                   dirty_rate
+> > 
+> > Let's compare it with the "expanded" form of (1):
+> > 
+> >                                                               write_bw
+> >         balanced_rate_(i+1) = balanced_rate_(i) * pos_ratio * ----------      (5)
+> >                                                               dirty_rate
+> > 
+> > So the difference lies in pos_ratio.
+> > 
+> > Believe it or not, it's exactly the seemingly use of pos_ratio that
+> > makes (5) independent(*) of the position control.
+> > 
+> > Why? Look at (4), assume the system is in a state
+> > 
+> > - dirty rate is already balanced, ie. balanced_rate_(i) = write_bw / N
+> > - dirty position is not balanced, for example pos_ratio = 0.5
+> > 
+> > balance_dirty_pages() will be rate limiting each tasks at half the
+> > balanced dirty rate, yielding a measured
+> > 
+> >         dirty_rate = write_bw / 2                               (6)
+> > 
+> > Put (6) into (4), we get
+> > 
+> >         balanced_rate_(i+1) = balanced_rate_(i) * 2
+> >                             = (write_bw / N) * 2
+> > 
+> > That means, any position imbalance will lead to balanced_rate
+> > estimation errors if we follow (4). Whereas if (1)/(5) is used, we
+> > always get the right balanced dirty ratelimit value whether or not
+> > (pos_ratio == 1.0), hence make the rate estimation independent(*) of
+> > dirty position control.
+> > 
+> > (*) independent as in real values, not the seemingly relations in equation
 > 
-> Hi Kamezawa-san --
 > 
-> Domo arigato for the review and feedback!
-> 
-> > Hmm....could you modify mm/swapfile.c and remove 'static' in the same patch ?
-> 
-> I separated out this header patch because I thought it would
-> make the key swap data structure changes more visible.  Are you
-> saying that it is more confusing?
+> The assumption here is that N is a constant.. in the above case
+> pos_ratio would eventually end up at 1 and things would be good again. I
+> see your argument about oscillations, but I think you can introduce
+> similar effects by varying N.
 
-Yes. I know you add a new header file which is not included but..
-
-
-At reviewing patch, I check whether all required changes are done.
-In this case, you turned out the function to be externed but you
-leave the function definition as 'static'. This unbalance confues me.
-
-I always read patches from 1 to END. When I found an incomplete change
-in patch 1, I remember it and need to find missng part from patch 2->End. 
-This makes my review confused a little.
-
-In another case, when a patch adds a new file, I check Makefile change.
-Considering dependency, the patch order should be
-
-	[patch 1] Documentaion/Config
-	[patch 2] Makefile + add new file.
-
-But plesse note: This is my thought. Other guys may have other idea.
+Yeah, it's very possible for N to change over time, in which case
+balanced_rate will adapt to new N in similar way.
 
 Thanks,
--Kame
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
