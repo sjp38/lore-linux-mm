@@ -1,52 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DB1726B016B
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 06:52:30 -0400 (EDT)
-Date: Fri, 26 Aug 2011 18:52:26 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110826105226.GA16385@localhost>
-References: <20110823034042.GC7332@localhost>
- <1314093660.8002.24.camel@twins>
- <20110823141504.GA15949@localhost>
- <20110823174757.GC15820@redhat.com>
- <20110824001257.GA6349@localhost>
- <1314202378.6925.48.camel@twins>
- <20110826001846.GA6118@localhost>
- <1314349469.26922.24.camel@twins>
- <20110826100428.GA7996@localhost>
- <1314355342.9377.5.camel@twins>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AEEBE6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 07:01:57 -0400 (EDT)
+Date: Fri, 26 Aug 2011 13:01:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110826110150.GD9083@tiehlicka.suse.cz>
+References: <20110824101927.GB3505@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
+ <20110825091920.GA22564@tiehlicka.suse.cz>
+ <20110825151818.GA4003@redhat.com>
+ <20110825164758.GB22564@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
+ <20110826070946.GA7280@tiehlicka.suse.cz>
+ <20110826085610.GA9083@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
+ <20110826095356.GB9083@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1314355342.9377.5.camel@twins>
+In-Reply-To: <20110826095356.GB9083@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Fri, Aug 26, 2011 at 06:42:22PM +0800, Peter Zijlstra wrote:
-> On Fri, 2011-08-26 at 18:04 +0800, Wu Fengguang wrote:
-> > Sorry I'm now feeling lost...
+On Fri 26-08-11 11:53:56, Michal Hocko wrote:
+> On Fri 26-08-11 02:21:42, David Rientjes wrote:
+> > On Fri, 26 Aug 2011, Michal Hocko wrote:
+> > 
+> > > Let's give all frozen tasks a bonus (OOM_SCORE_ADJ_MAX/2) so that we do
+> > > not consider them unless really necessary and if we really pick up one
+> > > then thaw its threads before we try to kill it.
+> > > 
+> > 
+> > I don't like arbitrary heuristics like this because they polluted the old 
+> > oom killer before it was rewritten and made it much more unpredictable.  
+> > The only heuristic it includes right now is a bonus for root tasks so that 
+> > when two processes have nearly the same amount of memory usage (within 3% 
+> > of available memory), the non-root task is chosen instead.
+> > 
+> > This bonus is actually saying that a single frozen task can use up to 50% 
+> > more of the machine's capacity in a system-wide oom condition than the 
+> > task that will now be killed instead.  That seems excessive.
 > 
-> hehe welcome to my world ;-)
+> Yes, the number is probably too high. I just wanted to start up with
+> something. Maybe we can give it another root bonus. But I agree whatever
+> we use it will be just a random value...
+> 
+> > 
+> > I do like the idea of automatically thawing the task though and if that's 
+> > possible then I don't think we need to manipulate the badness heuristic at 
+> > all.  I know that wouldn't be feasible when we've frozen _all_ threads and 
+> 
+> Why it wouldn't be feasible for all threads? If you have all tasks
+> frozen (suspend going on, whole cgroup or all tasks in a cpuset/nodemask
+> are frozen) then the selection is more natural because all of them are
+> equal (with or without a bonus). The bonus tries to reduce thawing if
+> not all of them are frozen.
+> I am not saying the bonus is necessary, though. It depends on what
+> the freezer is used for (e.g. freeze a process which went wild and
+> debug what went wrong wouldn't welcome that somebody killed it or other
+> (mis)use which relies on D state).
 
-Yeah, so sorry...
+Anyway, I do agree, the two things (bonus and thaw during oom_kill)
+should be handled separately.
 
-> Seriously though, I appreciate all the effort you put in trying to
-> explain things. I feel I do understand things now, although I might not
-> completely agree with them quite yet ;-)
-
-Thank you :)
-
-> I'll go read the v9 patch-set you send out and look at some of the
-> details (such as pos_ratio being comprised of both global and bdi
-> limits, which so far has been somewhat glossed over).
-
-Hold on please! I'll immediately post a v10 with all the comment updates.
-
-Thanks,
-Fengguang
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
