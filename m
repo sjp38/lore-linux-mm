@@ -1,56 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FA976B016A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 20:06:07 -0400 (EDT)
-Date: Thu, 25 Aug 2011 17:05:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Neaten warn_alloc_failed
-Message-Id: <20110825170534.0d425c75.akpm@linux-foundation.org>
-In-Reply-To: <1314316801.19476.6.camel@Joe-Laptop>
-References: <5a0bef0143ed2b3176917fdc0ddd6a47f4c79391.1314303846.git.joe@perches.com>
-	<20110825165006.af771ef7.akpm@linux-foundation.org>
-	<1314316801.19476.6.camel@Joe-Laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B08496B016A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2011 20:09:50 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9D02A3EE0C1
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ED9B45DE5B
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EB5945DE56
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CD301DB8057
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 095801DB8048
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 09:09:46 +0900 (JST)
+Date: Fri, 26 Aug 2011 09:02:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure
+ changes
+Message-Id: <20110826090214.2f7f2cdc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default>
+References: <20110823145755.GA23174@ca-server1.us.oracle.com
+ 20110825143312.a6fe93d5.kamezawa.hiroyu@jp.fujitsu.com>
+	<8a95a804-7ba3-416e-9ba5-8da7b9cabba5@default>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-On Thu, 25 Aug 2011 17:00:01 -0700
-Joe Perches <joe@perches.com> wrote:
+On Thu, 25 Aug 2011 10:11:11 -0700 (PDT)
+Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-> On Thu, 2011-08-25 at 16:50 -0700, Andrew Morton wrote:
-> > On Thu, 25 Aug 2011 13:26:19 -0700
-> > Joe Perches <joe@perches.com> wrote:
-> > > Add __attribute__((format (printf...) to the function
-> > > to validate format and arguments.  Use vsprintf extension
-> > > %pV to avoid any possible message interleaving. Coalesce
-> > > format string.  Convert printks/pr_warning to pr_warn.
-> []
-> > > -extern void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
-> > > +extern __attribute__((format (printf, 3, 4)))
-> > > +void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > looky:
+> > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> > Subject: Re: Subject: [PATCH V7 1/4] mm: frontswap: swap data structure changes
 > 
-> Looky what?
+> Hi Kamezawa-san --
 > 
-> There are _far_ more uses of __attribute__((format...)
-> than __printf(...)
+> Domo arigato for the review and feedback!
 > 
-> I generally go with what's more commonly used,
-> especially when it's 206 to 8, and 1 of the
-> 8 is the #define itself.
+> > Hmm....could you modify mm/swapfile.c and remove 'static' in the same patch ?
 > 
-> $ grep -rP --include=*.[ch] "__attribute__.*format" * | wc -l
-> 206
-> $ grep -rP --include=*.[ch]  -w "__printf" * | wc -l
-> 8
-> 
+> I separated out this header patch because I thought it would
+> make the key swap data structure changes more visible.  Are you
+> saying that it is more confusing?
 
-So?
+Yes. I know you add a new header file which is not included but..
+
+
+At reviewing patch, I check whether all required changes are done.
+In this case, you turned out the function to be externed but you
+leave the function definition as 'static'. This unbalance confues me.
+
+I always read patches from 1 to END. When I found an incomplete change
+in patch 1, I remember it and need to find missng part from patch 2->End. 
+This makes my review confused a little.
+
+In another case, when a patch adds a new file, I check Makefile change.
+Considering dependency, the patch order should be
+
+	[patch 1] Documentaion/Config
+	[patch 2] Makefile + add new file.
+
+But plesse note: This is my thought. Other guys may have other idea.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
