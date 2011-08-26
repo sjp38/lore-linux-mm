@@ -1,39 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E28FB6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 06:42:49 -0400 (EDT)
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 26 Aug 2011 12:42:22 +0200
-In-Reply-To: <20110826100428.GA7996@localhost>
-References: <20110812142020.GB17781@localhost>
-	 <1314027488.24275.74.camel@twins> <20110823034042.GC7332@localhost>
-	 <1314093660.8002.24.camel@twins> <20110823141504.GA15949@localhost>
-	 <20110823174757.GC15820@redhat.com> <20110824001257.GA6349@localhost>
-	 <1314202378.6925.48.camel@twins> <20110826001846.GA6118@localhost>
-	 <1314349469.26922.24.camel@twins> <20110826100428.GA7996@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1314355342.9377.5.camel@twins>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 490DE6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 06:48:31 -0400 (EDT)
+Date: Fri, 26 Aug 2011 12:48:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110826104827.GC9083@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
+ <20110824101927.GB3505@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
+ <20110825091920.GA22564@tiehlicka.suse.cz>
+ <20110825151818.GA4003@redhat.com>
+ <20110825164758.GB22564@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
+ <20110826070946.GA7280@tiehlicka.suse.cz>
+ <20110826085610.GA9083@tiehlicka.suse.cz>
+ <4E576F65.5060009@openvz.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E576F65.5060009@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Fri, 2011-08-26 at 18:04 +0800, Wu Fengguang wrote:
-> Sorry I'm now feeling lost...
+On Fri 26-08-11 14:03:17, Konstantin Khlebnikov wrote:
+> Michal Hocko wrote:
+> 
+> >@@ -450,6 +459,10 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+> >  			pr_err("Kill process %d (%s) sharing same memory\n",
+> >  				task_pid_nr(q), q->comm);
+> >  			task_unlock(q);
+> >+
+> >+			if (frozen(q))
+> >+				thaw_process(q);
+> >+
+> 
+> We must thaw task strictly after sending SIGKILL.
 
-hehe welcome to my world ;-)
+Sounds reasonable.
 
-Seriously though, I appreciate all the effort you put in trying to
-explain things. I feel I do understand things now, although I might not
-completely agree with them quite yet ;-)
+> But anyway I think this is a bad idea.
 
-I'll go read the v9 patch-set you send out and look at some of the
-details (such as pos_ratio being comprised of both global and bdi
-limits, which so far has been somewhat glossed over).
+Why?
 
+> 
+> >  			force_sig(SIGKILL, q);
+> >  		}
+> >
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
