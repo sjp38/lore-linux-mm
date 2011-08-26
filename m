@@ -1,67 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8D39C6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:59:29 -0400 (EDT)
-Date: Fri, 26 Aug 2011 20:59:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 05/10] writeback: per task dirty rate limit
-Message-ID: <20110826125924.GA6014@localhost>
-References: <20110826113813.895522398@intel.com>
- <20110826114619.268843347@intel.com>
- <1314363069.11049.3.camel@twins>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 426866B016B
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 08:59:33 -0400 (EDT)
+Date: Fri, 26 Aug 2011 14:59:28 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: skip frozen tasks
+Message-ID: <20110826125928.GE9083@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
+ <20110825091920.GA22564@tiehlicka.suse.cz>
+ <20110825151818.GA4003@redhat.com>
+ <20110825164758.GB22564@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
+ <20110826070946.GA7280@tiehlicka.suse.cz>
+ <20110826085610.GA9083@tiehlicka.suse.cz>
+ <4E576F65.5060009@openvz.org>
+ <20110826104827.GC9083@tiehlicka.suse.cz>
+ <4E579541.6060607@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1314363069.11049.3.camel@twins>
+In-Reply-To: <4E579541.6060607@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Fri, Aug 26, 2011 at 08:51:09PM +0800, Peter Zijlstra wrote:
-> On Fri, 2011-08-26 at 19:38 +0800, Wu Fengguang wrote:
-> > +       preempt_disable();
-> >         /*
-> > -        * Check the rate limiting. Also, we do not want to throttle real-time
-> > -        * tasks in balance_dirty_pages(). Period.
-> > +        * This prevents one CPU to accumulate too many dirtied pages without
-> > +        * calling into balance_dirty_pages(), which can happen when there are
-> > +        * 1000+ tasks, all of them start dirtying pages at exactly the same
-> > +        * time, hence all honoured too large initial task->nr_dirtied_pause.
-> >          */
-> > -       preempt_disable();
-> >         p =  &__get_cpu_var(bdp_ratelimits);
+On Fri 26-08-11 16:44:49, Konstantin Khlebnikov wrote:
+> Michal Hocko wrote:
+> >On Fri 26-08-11 14:03:17, Konstantin Khlebnikov wrote:
+> >>Michal Hocko wrote:
+> >>
+> >>>@@ -450,6 +459,10 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+> >>>  			pr_err("Kill process %d (%s) sharing same memory\n",
+> >>>  				task_pid_nr(q), q->comm);
+> >>>  			task_unlock(q);
+> >>>+
+> >>>+			if (frozen(q))
+> >>>+				thaw_process(q);
+> >>>+
+> >>
+> >>We must thaw task strictly after sending SIGKILL.
+> >
+> >Sounds reasonable.
+> >
+> >>But anyway I think this is a bad idea.
+> >
+> >Why?
 > 
-> 	p = &get_cpu_var(bdp_ratelimits);
+> Refrigerator may be used for digging in task's internal structures,
+> so such digger may be very surprised if somebody suddenly thaws this task.
 
-Ah yeah.. I actually followed your suggestion, and then find we'll
-eventually do two __get_cpu_var() calls here, one for bdp_ratelimits
-and the other for dirty_leaks in a planned patch. So let's keep the
-preempt_disable()/preempt_enable().
+That is something similar why I mentioned that we probably want to
+give it some oom bonus. Nevertheless we have to be carefull about
+that. Someone could freeze a memory hog just to hide it from OOM which
+would have much worse consequences than if such app disappeared while
+somebody is looking at it while it is frozen.
+This has to be balanced somehow.
 
-> > -       *p += nr_pages_dirtied;
-> > -       if (unlikely(*p >= ratelimit)) {
-> > -               ratelimit = sync_writeback_pages(*p);
-> > +       if (unlikely(current->nr_dirtied >= ratelimit))
-> >                 *p = 0;
-> > -               preempt_enable();
-> > -               balance_dirty_pages(mapping, ratelimit);
-> > -               return;
-> > +       else {
-> > +               *p += nr_pages_dirtied;
-> > +               if (unlikely(*p >= ratelimit_pages)) {
-> > +                       *p = 0;
-> > +                       ratelimit = 0;
-> > +               }
-> >         }
-> >         preempt_enable(); 
 > 
-> 	put_cpu_var(bdp_ratelimits);
+> >
+> >>
+> >>>  			force_sig(SIGKILL, q);
+> >>>  		}
+> >>>
+> >
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-ditto.
-
-Thanks,
-Fengguang
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
