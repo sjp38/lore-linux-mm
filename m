@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 24CEB6B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 17:01:53 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH] oom: skip frozen tasks
-Date: Fri, 26 Aug 2011 23:03:38 +0200
-References: <20110823073101.6426.77745.stgit@zurg> <20110826085610.GA9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D78416B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 17:23:33 -0400 (EDT)
+Date: Fri, 26 Aug 2011 14:23:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/mempolicy.c: fix pgoff in mbind vma merge
+Message-Id: <20110826142328.ab4726cb.akpm@linux-foundation.org>
+In-Reply-To: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312212325.git.caspar@casparzhang.com>
+References: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312212325.git.caspar@casparzhang.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <201108262303.38923.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Caspar Zhang <caspar@casparzhang.com>
+Cc: linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Friday, August 26, 2011, David Rientjes wrote:
-> On Fri, 26 Aug 2011, Michal Hocko wrote:
-> 
-> > Let's give all frozen tasks a bonus (OOM_SCORE_ADJ_MAX/2) so that we do
-> > not consider them unless really necessary and if we really pick up one
-> > then thaw its threads before we try to kill it.
-> > 
-> 
-> I don't like arbitrary heuristics like this because they polluted the old 
-> oom killer before it was rewritten and made it much more unpredictable.  
-> The only heuristic it includes right now is a bonus for root tasks so that 
-> when two processes have nearly the same amount of memory usage (within 3% 
-> of available memory), the non-root task is chosen instead.
-> 
-> This bonus is actually saying that a single frozen task can use up to 50% 
-> more of the machine's capacity in a system-wide oom condition than the 
-> task that will now be killed instead.  That seems excessive.
-> 
-> I do like the idea of automatically thawing the task though and if that's 
-> possible then I don't think we need to manipulate the badness heuristic at 
-> all.  I know that wouldn't be feasible when we've frozen _all_ threads and 
-> that's why we have oom_killer_disable(), but we'll have to check with 
-> Rafael to see if something like this could work.  Rafael?
+On Mon,  1 Aug 2011 23:28:55 +0800
+Caspar Zhang <caspar@casparzhang.com> wrote:
 
-That depends a good deal on when the thawing happens and what the thawed
-task can do before being killed.  For example, if the thawing happens
-while devices are suspended and the thawed task accesses a driver through
-ioctl(), for example, the purpose of freezing will be defeated.
+> commit 9d8cebd4bcd7c3878462fdfda34bbcdeb4df7ef4 didn't real fix the
+> mbind vma merge problem due to wrong pgoff value passing to vma_merge(),
+> which made vma_merge() always return NULL.
+> 
+> Re-tested the patched kernel with the reproducer provided in commit
+> 9d8cebd, got correct result like below:
+> 
+> addr = 0x7ffa5aaa2000
+> [snip]
+> 7ffa5aaa2000-7ffa5aaa6000 rw-p 00000000 00:00 0
+> 7fffd556f000-7fffd5584000 rw-p 00000000 00:00 0                          [stack]
+> 
 
-Thanks,
-Rafael
+Please also describe the output before the patch is applied, and tell
+us what you believe is wrong with it?
+
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -636,7 +636,6 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+>  	struct vm_area_struct *prev;
+>  	struct vm_area_struct *vma;
+>  	int err = 0;
+> -	pgoff_t pgoff;
+>  	unsigned long vmstart;
+>  	unsigned long vmend;
+>  
+> @@ -649,9 +648,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+>  		vmstart = max(start, vma->vm_start);
+>  		vmend   = min(end, vma->vm_end);
+>  
+> -		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+>  		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
+> -				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
+> +				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+> +				  new_pol);
+>  		if (prev) {
+>  			vma = prev;
+>  			next = vma->vm_next;
+> -- 
+> 1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
