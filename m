@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E56536B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 15:28:17 -0400 (EDT)
-Date: Fri, 26 Aug 2011 21:28:10 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: tail page refcounting fix #2
-Message-ID: <20110826192810.GA6439@redhat.com>
-References: <1313740111-27446-1-git-send-email-walken@google.com>
- <20110822213347.GF2507@redhat.com>
- <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
- <20110824000914.GH23870@redhat.com>
- <20110824002717.GI23870@redhat.com>
- <20110824133459.GP23870@redhat.com>
- <20110826062436.GA5847@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110826062436.GA5847@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E385C6B016A
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 15:42:50 -0400 (EDT)
+Date: Fri, 26 Aug 2011 12:42:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: convert k{un}map_atomic(p, KM_type) to
+ k{un}map_atomic(p)
+Message-Id: <20110826124239.fc503491.akpm@linux-foundation.org>
+In-Reply-To: <1314349096.26922.21.camel@twins>
+References: <1314346676.6486.25.camel@minggr.sh.intel.com>
+	<1314349096.26922.21.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Lin Ming <ming.m.lin@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org
 
-On Thu, Aug 25, 2011 at 11:24:36PM -0700, Michel Lespinasse wrote:
-> In __get_page_tail(), you could add a VM_BUG_ON(page_mapcount(page) <= 0)
-> to reflect the fact that get_page() callers are expected to have already
-> gotten a reference on the page through a gup call.
+On Fri, 26 Aug 2011 10:58:16 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-Turns out this is going to generate false positives. For THP it should
-have been always ok, but if you allocate a compound page (that can't
-be splitted) and then map it on 4k pagetables and doing
-get_page/put_page in the map/unmap of the pte, it'll fail because the
-page fault will be the first occurrence where the tail page refcount
-is elevated. I'll check it in more detail tomorrow... So you may want
-to delete the bugcheck above before testing #3.
+> On Fri, 2011-08-26 at 16:17 +0800, Lin Ming wrote:
+> > 
+> > The KM_type parameter for kmap_atomic/kunmap_atomic is not used anymore
+> > since commit 3e4d3af(mm: stack based kmap_atomic()).
+> > 
+> > So convert k{un}map_atomic(p, KM_type) to k{un}map_atomic(p).
+> > Most conversion are done by below commands. Some are done by hand.
+> > 
+> > find . -type f | xargs sed -i 's/\(kmap_atomic(.*\),\ .*)/\1)/'
+> > find . -type f | xargs sed -i 's/\(kunmap_atomic(.*\),\ .*)/\1)/'
+> > 
+> > Build and tested on 32/64bit x86 kernel(allyesconfig) with 3G memory.
+> > 
+> > ARM, MIPS, PowerPc and Sparc are build tested only with
+> > CONFIG_HIGHMEM=y and CONFIG_HIGHMEM=n.
+> > I don't have cross-compiler for other arches. 
+> 
+> yet-another-massive patch.. (you're the third or fourth to do so) if
+> Andrew wants to take this one I won't mind, however previously he didn't
+> want flag day patches..
+
+I'm OK with cleaning all these up, but I suggest that we leave the
+back-compatibility macros in place for a while, to make sure that
+various stragglers get converted.  Extra marks will be awarded for
+working out how to make unconverted code generate a compile warning ;)
+
+Perhaps you could dust off your old patch and we'll bring it up to date?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
