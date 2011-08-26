@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C306B016A
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 04:56:17 -0400 (EDT)
-Date: Fri, 26 Aug 2011 10:56:10 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: skip frozen tasks
-Message-ID: <20110826085610.GA9083@tiehlicka.suse.cz>
-References: <20110823073101.6426.77745.stgit@zurg>
- <alpine.DEB.2.00.1108231313520.21637@chino.kir.corp.google.com>
- <20110824101927.GB3505@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
- <20110825091920.GA22564@tiehlicka.suse.cz>
- <20110825151818.GA4003@redhat.com>
- <20110825164758.GB22564@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
- <20110826070946.GA7280@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110826070946.GA7280@tiehlicka.suse.cz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 21F006B016B
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2011 04:56:34 -0400 (EDT)
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 26 Aug 2011 10:56:11 +0200
+In-Reply-To: <20110826015610.GA10320@localhost>
+References: <20110812142020.GB17781@localhost>
+	 <1314027488.24275.74.camel@twins> <20110823034042.GC7332@localhost>
+	 <1314093660.8002.24.camel@twins> <20110823141504.GA15949@localhost>
+	 <20110823174757.GC15820@redhat.com> <20110824001257.GA6349@localhost>
+	 <20110824180058.GC22434@redhat.com> <20110825031934.GA9764@localhost>
+	 <20110825222001.GG27162@redhat.com> <20110826015610.GA10320@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1314348971.26922.20.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 26-08-11 09:09:46, Michal Hocko wrote:
-> On Thu 25-08-11 14:14:20, David Rientjes wrote:
-> > On Thu, 25 Aug 2011, Michal Hocko wrote:
-> > 
-> > > > > > That's obviously false since we call oom_killer_disable() in 
-> > > > > > freeze_processes() to disable the oom killer from ever being called in the 
-> > > > > > first place, so this is something you need to resolve with Rafael before 
-> > > > > > you cause more machines to panic.
-> > > > >
-> > > > > I didn't mean suspend/resume path (that is protected by oom_killer_disabled)
-> > > > > so the patch doesn't make any change.
-> > > > 
-> > > > Confused... freeze_processes() does try_to_freeze_tasks() before
-> > > > oom_killer_disable() ?
-> > > 
-> > > Yes you are right, I must have been blind. 
-> > > 
-> > > Now I see the point. We do not want to panic while we are suspending and
-> > > the memory is really low just because all the userspace is already in
-> > > the the fridge.
-> > > Sorry for confusion.
-> > > 
-> > > I still do not follow the oom_killer_disable note from David, though.
-> > > 
-> > 
-> > oom_killer_disable() was added to that path for a reason when all threads 
-> > are frozen: memory allocations still occur in the suspend path in an oom 
-> > condition and adding the oom_killer_disable() will cause those 
-> > allocations to fail rather than sending pointless SIGKILLs to frozen 
-> > threads.
-> > 
-> > Now consider if the only _eligible_ threads for oom kill (because of 
-> > cpusets or mempolicies) are those that are frozen.  We certainly do not 
-> > want to panic because other cpusets are still getting work done.  We'd 
-> > either want to add a mem to the cpuset or thaw the processes because the 
-> > cpuset is oom.
-> 
-> Sure.
-> 
-> > 
-> > You can't just selectively skip certain threads when their state can be 
-> > temporary without risking a panic.  That's why this patch is a 
-> > non-starter.
-> > 
-> > A much better solution would be to lower the badness score that the oom 
-> > killer uses for PF_FROZEN threads so that they aren't considered a 
-> > priority for kill unless there's nothing else left to kill.
-> 
-> Yes, sounds better.
+On Fri, 2011-08-26 at 09:56 +0800, Wu Fengguang wrote:
+>         /*
+>          * A linear estimation of the "balanced" throttle rate. The theor=
+y is,
+>          * if there are N dd tasks, each throttled at task_ratelimit, the=
+ bdi's
+>          * dirty_rate will be measured to be (N * task_ratelimit). So the=
+ below
+>          * formula will yield the balanced rate limit (write_bw / N).
+>          *
+>          * Note that the expanded form is not a pure rate feedback:
+>          *      rate_(i+1) =3D rate_(i) * (write_bw / dirty_rate)        =
+      (1)
+>          * but also takes pos_ratio into account:
+>          *      rate_(i+1) =3D rate_(i) * (write_bw / dirty_rate) * pos_r=
+atio  (2)
+>          *
+>          * (1) is not realistic because pos_ratio also takes part in bala=
+ncing
+>          * the dirty rate.  Consider the state
+>          *      pos_ratio =3D 0.5                                        =
+      (3)
+>          *      rate =3D 2 * (write_bw / N)                              =
+      (4)
+>          * If (1) is used, it will stuck in that state! Because each dd w=
+ill be
+>          * throttled at
+>          *      task_ratelimit =3D pos_ratio * rate =3D (write_bw / N)   =
+        (5)
+>          * yielding
+>          *      dirty_rate =3D N * task_ratelimit =3D write_bw           =
+        (6)
+>          * put (6) into (1) we get
+>          *      rate_(i+1) =3D rate_(i)                                  =
+      (7)
+>          *
+>          * So we end up using (2) to always keep
+>          *      rate_(i+1) ~=3D (write_bw / N)                           =
+      (8)
+>          * regardless of the value of pos_ratio. As long as (8) is satisf=
+ied,
+>          * pos_ratio is able to drive itself to 1.0, which is not only wh=
+ere
+>          * the dirty count meet the setpoint, but also where the slope of
+>          * pos_ratio is most flat and hence task_ratelimit is least fluct=
+uated.
+>          */=20
 
-.. but still not sufficient. We also have to thaw the process
-as well. Just a quick hacked up patch (not tested, just for an
-illustration).
-Would something like this work?
---- 
+I'm still not buying this, it has the massive assumption N is a
+constant, without that assumption you get the same kind of thing you get
+from not adding pos_ratio to the feedback term.
+
+Also, I've yet to see what harm it does if you leave it out, all
+feedback loops should stabilize just fine.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
