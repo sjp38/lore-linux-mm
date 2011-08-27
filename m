@@ -1,129 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0545C6B016A
-	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 02:44:11 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so4146289fxg.14
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2011 23:44:08 -0700 (PDT)
-Message-ID: <4E589232.9050601@openvz.org>
-Date: Sat, 27 Aug 2011 10:44:02 +0400
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 427876B016A
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 04:32:09 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so4194390fxg.14
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2011 01:32:05 -0700 (PDT)
+Subject: [PATCH] mm: fix page-faults detection in swap-token logic
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Sat, 27 Aug 2011 12:32:01 +0300
+Message-ID: <20110827083201.21854.56111.stgit@zurg>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add free_hot_cold_page_list helper
-References: <20110729075837.12274.58405.stgit@localhost6> <20110826152101.b1b453c0.akpm@linux-foundation.org>
-In-Reply-To: <20110826152101.b1b453c0.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Fri, 29 Jul 2011 11:58:37 +0400
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
->> This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
->> It frees pages directly from list without temporary page-vector.
->> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
->>
->> bloat-o-meter:
->>
->> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
->> function                                     old     new   delta
->> free_hot_cold_page_list                        -     264    +264
->> get_page_from_freelist                      2129    2132      +3
->> __pagevec_free                               243     239      -4
->> split_free_page                              380     373      -7
->> release_pages                                606     510     -96
->> free_page_list                               188       -    -188
->>
->
-> It saves a total of 150 bytes for me.
->
->> index cb40892..dd7b9cc 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
->>   extern void __free_pages(struct page *page, unsigned int order);
->>   extern void free_pages(unsigned long addr, unsigned int order);
->>   extern void free_hot_cold_page(struct page *page, int cold);
->> +extern void free_hot_cold_page_list(struct list_head *list, int cold);
->>
->>   #define __free_page(page) __free_pages((page), 0)
->>   #define free_page(addr) free_pages((addr), 0)
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 1dbcf88..af486e4 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1209,6 +1209,18 @@ out:
->>   	local_irq_restore(flags);
->>   }
->>
->> +void free_hot_cold_page_list(struct list_head *list, int cold)
->> +{
->> +	struct page *page, *next;
->> +
->> +	list_for_each_entry_safe(page, next, list, lru) {
->> +		trace_mm_pagevec_free(page, cold);
->> +		free_hot_cold_page(page, cold);
->> +	}
->> +
->> +	INIT_LIST_HEAD(list);
->> +}
->> +
->>   /*
->>    * split_page takes a non-compound higher-order page, and splits it into
->>    * n (1<<order) sub-pages: page[0..n]
->> diff --git a/mm/swap.c b/mm/swap.c
->> index 3a442f1..b9138c7 100644
->> --- a/mm/swap.c
->> +++ b/mm/swap.c
->> @@ -562,11 +562,10 @@ int lru_add_drain_all(void)
->>   void release_pages(struct page **pages, int nr, int cold)
->>   {
->>   	int i;
->> -	struct pagevec pages_to_free;
->> +	LIST_HEAD(pages_to_free);
->>   	struct zone *zone = NULL;
->>   	unsigned long uninitialized_var(flags);
->>
->> -	pagevec_init(&pages_to_free, cold);
->>   	for (i = 0; i<  nr; i++) {
->>   		struct page *page = pages[i];
->>
->> @@ -597,19 +596,12 @@ void release_pages(struct page **pages, int nr, int cold)
->>   			del_page_from_lru(zone, page);
->>   		}
->>
->> -		if (!pagevec_add(&pages_to_free, page)) {
->> -			if (zone) {
->> -				spin_unlock_irqrestore(&zone->lru_lock, flags);
->> -				zone = NULL;
->> -			}
->> -			__pagevec_free(&pages_to_free);
->> -			pagevec_reinit(&pages_to_free);
->> -  		}
->> +		list_add_tail(&page->lru,&pages_to_free);
->
-> There's a potential problem here with cache longevity.  If
-> release_pages() is called with a large number of pages then the current
-> code's approach of freeing pages 16-at-a-time will hopefully cause
-> those pageframes to still be in CPU cache when we get to actually
-> freeing them.
->
-> But after this change, we free all the pages in a single operation
-> right at the end, which adds risk that we'll have to reload all their
-> pageframes into CPU cache again.
->
-> That'll only be a problem if release_pages() _is_ called with a large
-> number of pages.  And manipulating large numbers of pages represents a
-> lot of work, so the additional work from one cachemiss per page will
-> presumably be tiny.
->
->
+After commit v2.6.36-5896-gd065bd8 "mm: retry page fault when blocking on disk transfer"
+we usually wait in page-faults without mmap_sem held, so all swap-token logic was broken,
+because it based on using rwsem_is_locked(&mm->mmap_sem) as sign of in progress page-faults.
 
-all release_pages() callers (except fuse) call it for pages array not bigger than PAGEVEC_SIZE (=14).
-while for fuse it put likely not last page reference, so we didn't free them on this path.
+This patch adds to mm_struct atomic counter of in progress page-faults for mm with swap-token.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ include/linux/mm_types.h |    1 +
+ include/linux/swap.h     |   34 ++++++++++++++++++++++++++++++++++
+ kernel/fork.c            |    1 +
+ mm/memory.c              |   13 +++++++++++++
+ mm/rmap.c                |    3 +--
+ 5 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 774b895..1b299a3 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -312,6 +312,7 @@ struct mm_struct {
+ 	unsigned int faultstamp;
+ 	unsigned int token_priority;
+ 	unsigned int last_interval;
++	atomic_t active_swap_token;
+ 
+ 	/* How many tasks sharing this mm are OOM_DISABLE */
+ 	atomic_t oom_disable_count;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 14d6249..3f40636 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -360,6 +360,26 @@ static inline void put_swap_token(struct mm_struct *mm)
+ 		__put_swap_token(mm);
+ }
+ 
++static inline bool has_active_swap_token(struct mm_struct *mm)
++{
++	return has_swap_token(mm) && atomic_read(&mm->active_swap_token);
++}
++
++static inline bool activate_swap_token(struct mm_struct *mm)
++{
++	if (has_swap_token(mm)) {
++		atomic_inc(&mm->active_swap_token);
++		return true;
++	}
++	return false;
++}
++
++static inline void deactivate_swap_token(struct mm_struct *mm, bool swap_token)
++{
++	if (swap_token)
++		atomic_dec(&mm->active_swap_token);
++}
++
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+ extern void
+ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
+@@ -485,6 +505,20 @@ static inline int has_swap_token(struct mm_struct *mm)
+ 	return 0;
+ }
+ 
++static inline bool has_active_swap_token(struct mm_struct *mm)
++{
++	return false;
++}
++
++static inline bool activate_swap_token(struct mm_struct *mm)
++{
++	return false;
++}
++
++static inline void deactivate_swap_token(struct mm_struct *mm, bool swap_token)
++{
++}
++
+ static inline void disable_swap_token(struct mem_cgroup *memcg)
+ {
+ }
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 8e6b6f4..494b75c 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -735,6 +735,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+ 	/* Initializing for Swap token stuff */
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
++	atomic_set(&mm->active_swap_token, 0);
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	mm->pmd_huge_pte = NULL;
+diff --git a/mm/memory.c b/mm/memory.c
+index a56e3ba..6f42218 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2861,6 +2861,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct mem_cgroup *ptr;
+ 	int exclusive = 0;
+ 	int ret = 0;
++	bool swap_token;
+ 
+ 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+ 		goto out;
+@@ -2909,7 +2910,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_release;
+ 	}
+ 
++	swap_token = activate_swap_token(mm);
++
+ 	locked = lock_page_or_retry(page, mm, flags);
++
++	deactivate_swap_token(mm, swap_token);
++
+ 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 	if (!locked) {
+ 		ret |= VM_FAULT_RETRY;
+@@ -3156,6 +3162,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct vm_fault vmf;
+ 	int ret;
+ 	int page_mkwrite = 0;
++	bool swap_token;
+ 
+ 	/*
+ 	 * If we do COW later, allocate page befor taking lock_page()
+@@ -3177,6 +3184,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	} else
+ 		cow_page = NULL;
+ 
++	swap_token = activate_swap_token(mm);
++
+ 	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+@@ -3245,6 +3254,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	}
+ 
++	deactivate_swap_token(mm, swap_token);
++
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 
+ 	/*
+@@ -3316,9 +3327,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return ret;
+ 
+ unwritable_page:
++	deactivate_swap_token(mm, swap_token);
+ 	page_cache_release(page);
+ 	return ret;
+ uncharge_out:
++	deactivate_swap_token(mm, swap_token);
+ 	/* fs's fault handler get error */
+ 	if (cow_page) {
+ 		mem_cgroup_uncharge_page(cow_page);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 8005080..f54a6dd 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -715,8 +715,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 	/* Pretend the page is referenced if the task has the
+ 	   swap token and is in the middle of a page fault. */
+-	if (mm != current->mm && has_swap_token(mm) &&
+-			rwsem_is_locked(&mm->mmap_sem))
++	if (mm != current->mm && has_active_swap_token(mm))
+ 		referenced++;
+ 
+ 	(*mapcount)--;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
