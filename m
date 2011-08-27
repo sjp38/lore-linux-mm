@@ -1,189 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 427876B016A
-	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 04:32:09 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so4194390fxg.14
-        for <linux-mm@kvack.org>; Sat, 27 Aug 2011 01:32:05 -0700 (PDT)
-Subject: [PATCH] mm: fix page-faults detection in swap-token logic
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Sat, 27 Aug 2011 12:32:01 +0300
-Message-ID: <20110827083201.21854.56111.stgit@zurg>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BCC26B016A
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 05:42:10 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p7R9fxpd005142
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 02:41:59 -0700
+Received: from gxk23 (gxk23.prod.google.com [10.202.11.23])
+	by hpaq14.eem.corp.google.com with ESMTP id p7R9fuTF005327
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2011 02:41:58 -0700
+Received: by gxk23 with SMTP id 23so4186763gxk.14
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2011 02:41:56 -0700 (PDT)
+Date: Sat, 27 Aug 2011 02:41:52 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH] thp: tail page refcounting fix #3
+Message-ID: <20110827094152.GA16402@google.com>
+References: <1313740111-27446-1-git-send-email-walken@google.com>
+ <20110822213347.GF2507@redhat.com>
+ <CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
+ <20110824000914.GH23870@redhat.com>
+ <20110824002717.GI23870@redhat.com>
+ <20110824133459.GP23870@redhat.com>
+ <20110826062436.GA5847@google.com>
+ <20110826161048.GE23870@redhat.com>
+ <20110826185430.GA2854@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110826185430.GA2854@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-After commit v2.6.36-5896-gd065bd8 "mm: retry page fault when blocking on disk transfer"
-we usually wait in page-faults without mmap_sem held, so all swap-token logic was broken,
-because it based on using rwsem_is_locked(&mm->mmap_sem) as sign of in progress page-faults.
+On Fri, Aug 26, 2011 at 08:54:36PM +0200, Andrea Arcangeli wrote:
+> Subject: thp: tail page refcounting fix
+> 
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Michel while working on the working set estimation code, noticed that calling
+> get_page_unless_zero() on a random pfn_to_page(random_pfn) wasn't safe, if the
+> pfn ended up being a tail page of a transparent hugepage under splitting by
+> __split_huge_page_refcount(). He then found the problem could also
+> theoretically materialize with page_cache_get_speculative() during the
+> speculative radix tree lookups that uses get_page_unless_zero() in SMP if the
+> radix tree page is freed and reallocated and get_user_pages is called on it
+> before page_cache_get_speculative has a chance to call get_page_unless_zero().
+> 
+> So the best way to fix the problem is to keep page_tail->_count zero at all
+> times. This will guarantee that get_page_unless_zero() can never succeed on any
+> tail page. page_tail->_mapcount is guaranteed zero and is unused for all tail
+> pages of a compound page, so we can simply account the tail page references
+> there and transfer them to tail_page->_count in __split_huge_page_refcount() (in
+> addition to the head_page->_mapcount).
+> 
+> While debugging this s/_count/_mapcount/ change I also noticed get_page is
+> called by direct-io.c on pages returned by get_user_pages. That wasn't entirely
+> safe because the two atomic_inc in get_page weren't atomic. As opposed other
+> get_user_page users like secondary-MMU page fault to establish the shadow
+> pagetables would never call any superflous get_page after get_user_page
+> returns. It's safer to make get_page universally safe for tail pages and to use
+> get_page_foll() within follow_page (inside get_user_pages()). get_page_foll()
+> is safe to do the refcounting for tail pages without taking any locks because
+> it is run within PT lock protected critical sections (PT lock for pte and
+> page_table_lock for pmd_trans_huge). The standard get_page() as invoked by
+> direct-io instead will now take the compound_lock but still only for tail
+> pages. The direct-io paths are usually I/O bound and the compound_lock is per
+> THP so very finegrined, so there's no risk of scalability issues with it. A
+> simple direct-io benchmarks with all lockdep prove locking and spinlock
+> debugging infrastructure enabled shows identical performance and no overhead.
+> So it's worth it. Ideally direct-io should stop calling get_page() on pages
+> returned by get_user_pages(). The spinlock in get_page() is already optimized
+> away for no-THP builds but doing get_page() on tail pages returned by GUP is
+> generally a rare operation and usually only run in I/O paths.
+> 
+> This new refcounting on page_tail->_mapcount in addition to avoiding new RCU
+> critical sections will also allow the working set estimation code to work
+> without any further complexity associated to the tail page refcounting
+> with THP.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Michel Lespinasse <walken@google.com>
 
-This patch adds to mm_struct atomic counter of in progress page-faults for mm with swap-token.
+Looks great !
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- include/linux/mm_types.h |    1 +
- include/linux/swap.h     |   34 ++++++++++++++++++++++++++++++++++
- kernel/fork.c            |    1 +
- mm/memory.c              |   13 +++++++++++++
- mm/rmap.c                |    3 +--
- 5 files changed, 50 insertions(+), 2 deletions(-)
+I understand you may have to remove the VM_BUG_ON(page_mapcount(page) <= 0)
+that I had suggested in __get_page_tail() (sorry about that).
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 774b895..1b299a3 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -312,6 +312,7 @@ struct mm_struct {
- 	unsigned int faultstamp;
- 	unsigned int token_priority;
- 	unsigned int last_interval;
-+	atomic_t active_swap_token;
- 
- 	/* How many tasks sharing this mm are OOM_DISABLE */
- 	atomic_t oom_disable_count;
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 14d6249..3f40636 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -360,6 +360,26 @@ static inline void put_swap_token(struct mm_struct *mm)
- 		__put_swap_token(mm);
- }
- 
-+static inline bool has_active_swap_token(struct mm_struct *mm)
-+{
-+	return has_swap_token(mm) && atomic_read(&mm->active_swap_token);
-+}
-+
-+static inline bool activate_swap_token(struct mm_struct *mm)
-+{
-+	if (has_swap_token(mm)) {
-+		atomic_inc(&mm->active_swap_token);
-+		return true;
-+	}
-+	return false;
-+}
-+
-+static inline void deactivate_swap_token(struct mm_struct *mm, bool swap_token)
-+{
-+	if (swap_token)
-+		atomic_dec(&mm->active_swap_token);
-+}
-+
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- extern void
- mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
-@@ -485,6 +505,20 @@ static inline int has_swap_token(struct mm_struct *mm)
- 	return 0;
- }
- 
-+static inline bool has_active_swap_token(struct mm_struct *mm)
-+{
-+	return false;
-+}
-+
-+static inline bool activate_swap_token(struct mm_struct *mm)
-+{
-+	return false;
-+}
-+
-+static inline void deactivate_swap_token(struct mm_struct *mm, bool swap_token)
-+{
-+}
-+
- static inline void disable_swap_token(struct mem_cgroup *memcg)
- {
- }
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 8e6b6f4..494b75c 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -735,6 +735,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
- 	/* Initializing for Swap token stuff */
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
-+	atomic_set(&mm->active_swap_token, 0);
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	mm->pmd_huge_pte = NULL;
-diff --git a/mm/memory.c b/mm/memory.c
-index a56e3ba..6f42218 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2861,6 +2861,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct mem_cgroup *ptr;
- 	int exclusive = 0;
- 	int ret = 0;
-+	bool swap_token;
- 
- 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
- 		goto out;
-@@ -2909,7 +2910,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_release;
- 	}
- 
-+	swap_token = activate_swap_token(mm);
-+
- 	locked = lock_page_or_retry(page, mm, flags);
-+
-+	deactivate_swap_token(mm, swap_token);
-+
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 	if (!locked) {
- 		ret |= VM_FAULT_RETRY;
-@@ -3156,6 +3162,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct vm_fault vmf;
- 	int ret;
- 	int page_mkwrite = 0;
-+	bool swap_token;
- 
- 	/*
- 	 * If we do COW later, allocate page befor taking lock_page()
-@@ -3177,6 +3184,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	} else
- 		cow_page = NULL;
- 
-+	swap_token = activate_swap_token(mm);
-+
- 	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
- 	vmf.pgoff = pgoff;
- 	vmf.flags = flags;
-@@ -3245,6 +3254,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	}
- 
-+	deactivate_swap_token(mm, swap_token);
-+
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 
- 	/*
-@@ -3316,9 +3327,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return ret;
- 
- unwritable_page:
-+	deactivate_swap_token(mm, swap_token);
- 	page_cache_release(page);
- 	return ret;
- uncharge_out:
-+	deactivate_swap_token(mm, swap_token);
- 	/* fs's fault handler get error */
- 	if (cow_page) {
- 		mem_cgroup_uncharge_page(cow_page);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 8005080..f54a6dd 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -715,8 +715,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 
- 	/* Pretend the page is referenced if the task has the
- 	   swap token and is in the middle of a page fault. */
--	if (mm != current->mm && has_swap_token(mm) &&
--			rwsem_is_locked(&mm->mmap_sem))
-+	if (mm != current->mm && has_active_swap_token(mm))
- 		referenced++;
- 
- 	(*mapcount)--;
+My only additional suggestion is about the put_page_testzero in
+__get_page_tail(), maybe if you could just increment the tail page count
+instead of calling __get_page_tail_foll(), then you wouldn't have to
+release the extra head page count there. And it would even look kinda
+natural, head page count gets acquired before compound_lock_irqsave(),
+so we only have to acquire an extra tail page count after confirming
+this is still a tail page.
+
+Either way, the code looks OK by now.
+
+Reviewed-by: Michel Lespinasse <walken@google.com>
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
