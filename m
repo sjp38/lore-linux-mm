@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CB556900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 08:33:12 -0400 (EDT)
-Subject: Re: [PATCH 1/2] mm: convert k{un}map_atomic(p, KM_type) to
- k{un}map_atomic(p)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9CE900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 09:12:23 -0400 (EDT)
+Subject: Re: [PATCH 2/5] writeback: dirty position control
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 29 Aug 2011 14:33:05 +0200
-In-Reply-To: <20110826204053.GA3408@elliptictech.com>
-References: <1314346676.6486.25.camel@minggr.sh.intel.com>
-	 <1314349096.26922.21.camel@twins>
-	 <20110826124239.fc503491.akpm@linux-foundation.org>
-	 <20110826204053.GA3408@elliptictech.com>
+Date: Mon, 29 Aug 2011 15:12:07 +0200
+In-Reply-To: <20110824180058.GC22434@redhat.com>
+References: <1312814501.10488.41.camel@twins>
+	 <20110808230535.GC7176@localhost> <1313154259.6576.42.camel@twins>
+	 <20110812142020.GB17781@localhost> <1314027488.24275.74.camel@twins>
+	 <20110823034042.GC7332@localhost> <1314093660.8002.24.camel@twins>
+	 <20110823141504.GA15949@localhost> <20110823174757.GC15820@redhat.com>
+	 <20110824001257.GA6349@localhost> <20110824180058.GC22434@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1314621185.2816.16.camel@twins>
+Message-ID: <1314623527.2816.28.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Bowler <nbowler@elliptictech.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 2011-08-26 at 16:40 -0400, Nick Bowler wrote:
-> > Extra marks will be awarded for
-> > working out how to make unconverted code generate a compile warning ;)
+On Wed, 2011-08-24 at 14:00 -0400, Vivek Goyal wrote:
 >=20
-> It's possible to (ab)use the C preprocessor to accomplish this sort of
-> thing.  For instance, consider the following:
+> Ok, I think I am beginning to see your point. Let me just elaborate on
+> the example you gave.
 >=20
->   #include <stdio.h>
+> Assume a system is completely balanced and a task is writing at 100MB/s
+> rate.
 >=20
->   int foo(int x)
->   {
->      return x;
->   }
+> write_bw =3D dirty_rate =3D 100MB/s, pos_ratio =3D 1; N=3D1
 >=20
->   /* Deprecated; call foo instead. */
->   static inline int __attribute__((deprecated)) foo_unconverted(int x, in=
-t unused)
->   {
->      return foo(x);
->   }
+> bdi->dirty_ratelimit =3D 100MB/s
 >=20
->   #define PASTE(a, b) a ## b
->   #define PASTE2(a, b) PASTE(a, b)
->  =20
->   #define NARG_(_9, _8, _7, _6, _5, _4, _3, _2, _1, n, ...) n
->   #define NARG(...) NARG_(__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, :)
+> Now another tasks starts dirtying the page cache on same bdi. Number of=
+=20
+> dirty pages should go up pretty fast and likely position ratio feedback
+> will kick in to reduce the dirtying rate. (rate based feedback does not
+> kick in till next 200ms) and pos_ratio feedback seems to be instantaneous=
+.
+> Assume new pos_ratio is .5
 >=20
->   #define foo1(...) foo(__VA_ARGS__)
->   #define foo2(...) foo_unconverted(__VA_ARGS__)
->   #define foo(...) PASTE2(foo, NARG(__VA_ARGS__)(__VA_ARGS__))
+> So new throttle rate for both the tasks is 50MB/s.
+>=20
+> bdi->dirty_ratelimit =3D 100MB/s (a feedback has not kicked in yet)
+> task_ratelimit =3D bdi->dirty_ratelimit * pos_ratio =3D 100 *.5 =3D 50MB/=
+s
+>=20
+> Now lets say 200ms have passed and rate base feedback is reevaluated.
+>=20
+>                                                       write_bw =20
+> bdi->dirty_ratelimit_(i+1) =3D bdi->dirty_ratelimit_i * ---------
+>                                                       dirty_bw
+>=20
+> bdi->dirty_ratelimit_(i+1) =3D 100 * 100/100 =3D 100MB/s
+>=20
+> Ideally bdi->dirty_ratelimit should have now become 50MB/s as N=3D2 but=
+=20
+> that did not happen. And reason being that there are two feedback control
+> loops and pos_ratio loops reacts to imbalances much more quickly. Because
+> previous loop has already reacted to the imbalance and reduced the
+> dirtying rate of task, rate based loop does not try to adjust anything
+> and thinks everything is just fine.
+>=20
+> Things are fine in the sense that still dirty_rate =3D=3D write_bw but
+> system is not balanced in terms of number of dirty pages and pos_ratio=3D=
+.5
+>=20
+> So you are trying to make one feedback loop aware of second loop so that
+> if second loop is unbalanced, first loop reacts to that as well and not
+> just look at dirty_rate and write_bw. So refining new balanced rate by
+> pos_ratio helps.
+>                                                       write_bw =20
+> bdi->dirty_ratelimit_(i+1) =3D bdi->dirty_ratelimit_i * --------- * pos_r=
+atio
+>                                                       dirty_bw
+>=20
+> Now if global dirty pages are imbalanced, balanced rate will still go
+> down despite the fact that dirty_bw =3D=3D write_bw. This will lead to
+> further reduction in task dirty rate. Which in turn will lead to reduced
+> number of dirty rate and should eventually lead to pos_ratio=3D1.
 
-Very neat ;-)
+
+Ok so this argument makes sense, is there some formalism to describe
+such systems where such things are more evident?
 
 
 --
