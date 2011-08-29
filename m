@@ -1,109 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 081D2900139
+	by kanga.kvack.org (Postfix) with ESMTP id 0FD8790013B
 	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 23:57:07 -0400 (EDT)
-Message-Id: <20110829034932.000999180@intel.com>
-Date: Mon, 29 Aug 2011 11:29:54 +0800
+Message-Id: <20110829034932.272364561@intel.com>
+Date: Mon, 29 Aug 2011 11:29:56 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 3/7] tracing/mm: create trace_objects.c
+Subject: [RFC][PATCH 5/7] tracing/mm: accept echo-able input format for pfn range 
 References: <20110829032951.677220552@intel.com>
-Content-Disposition: inline; filename=trace-objects.patch
+Content-Disposition: inline; filename=trace-mm-pfn-range-input.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Mel Gorman <mgorman@suse.de>, Steven Rostedt <srostedt@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Code refactor: create trace_objects.c and move relevant code from trace_mm.c
+The seek+write style input for specifying pfn range is not scriptable.
+Change it to more user friendly echo-able format.
 
-CC: Steven Rostedt <srostedt@redhat.com>
+Before patch:
+
+	fd = open("/debug/tracing/object/mm/page/dump-pfn");
+	seek(fd, start);
+	write(fd, "size");
+
+After patch:
+
+	echo start +size > /debug/tracing/object/mm/page/dump-pfn
+or
+	echo start end   > /debug/tracing/object/mm/page/dump-pfn
+
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/trace/Makefile        |    1 +
- kernel/trace/trace.h         |    1 +
- kernel/trace/trace_mm.c      |   22 ----------------------
- kernel/trace/trace_objects.c |   26 ++++++++++++++++++++++++++
- 4 files changed, 28 insertions(+), 22 deletions(-)
+ kernel/trace/trace_mm.c |   39 +++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)
 
---- linux-mmotm.orig/kernel/trace/Makefile	2011-08-28 10:09:25.000000000 +0800
-+++ linux-mmotm/kernel/trace/Makefile	2011-08-28 10:09:28.000000000 +0800
-@@ -26,6 +26,7 @@ obj-$(CONFIG_RING_BUFFER) += ring_buffer
- obj-$(CONFIG_RING_BUFFER_BENCHMARK) += ring_buffer_benchmark.o
+--- mmotm.orig/kernel/trace/trace_mm.c	2010-12-26 20:05:26.000000000 +0800
++++ mmotm/kernel/trace/trace_mm.c	2010-12-26 20:20:13.000000000 +0800
+@@ -9,6 +9,7 @@
+ #include <linux/bootmem.h>
+ #include <linux/debugfs.h>
+ #include <linux/uaccess.h>
++#include <linux/ctype.h>
  
- obj-$(CONFIG_TRACING) += trace.o
-+obj-$(CONFIG_TRACING) += trace_objects.o
- obj-$(CONFIG_TRACING) += trace_output.o
- obj-$(CONFIG_TRACING) += trace_stat.o
- obj-$(CONFIG_TRACING) += trace_printk.o
---- linux-mmotm.orig/kernel/trace/trace.h	2011-08-28 10:09:25.000000000 +0800
-+++ linux-mmotm/kernel/trace/trace.h	2011-08-28 10:09:28.000000000 +0800
-@@ -318,6 +318,7 @@ struct dentry *trace_create_file(const c
- 				 const struct file_operations *fops);
+ #include "trace_output.h"
  
- struct dentry *tracing_init_dentry(void);
-+struct dentry *trace_objects_dir(void);
+@@ -24,8 +25,8 @@ void trace_mm_page_frames(unsigned long 
+ 	if (start > max_pfn - 1)
+ 		return;
  
- struct ring_buffer_event;
+-	if (end > max_pfn - 1)
+-		end = max_pfn - 1;
++	if (end > max_pfn)
++		end = max_pfn;
  
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mmotm/kernel/trace/trace_objects.c	2011-08-28 10:09:28.000000000 +0800
-@@ -0,0 +1,26 @@
-+#include <linux/debugfs.h>
-+
-+#include "trace.h"
-+#include "trace_output.h"
-+
-+struct dentry *trace_objects_dir(void)
-+{
-+	static struct dentry *d_objects;
-+	struct dentry *d_tracer;
-+
-+	if (d_objects)
-+		return d_objects;
-+
-+	d_tracer = tracing_init_dentry();
-+	if (!d_tracer)
-+		return NULL;
-+
-+	d_objects = debugfs_create_dir("objects", d_tracer);
-+	if (!d_objects)
-+		pr_warning("Could not create debugfs "
-+			   "'objects' directory\n");
-+
-+	return d_objects;
-+}
-+
-+
---- linux-mmotm.orig/kernel/trace/trace_mm.c	2011-08-28 10:09:27.000000000 +0800
-+++ linux-mmotm/kernel/trace/trace_mm.c	2011-08-28 10:09:28.000000000 +0800
-@@ -95,28 +95,6 @@ static const struct file_operations trac
- 	.write		= trace_mm_pfn_range_write,
- };
+ 	while (pfn < end) {
+ 		page = NULL;
+@@ -50,13 +51,20 @@ trace_mm_pfn_range_read(struct file *fil
+ }
  
--/* move this into trace_objects.c when that file is created */
--static struct dentry *trace_objects_dir(void)
--{
--	static struct dentry *d_objects;
--	struct dentry *d_tracer;
--
--	if (d_objects)
--		return d_objects;
--
--	d_tracer = tracing_init_dentry();
--	if (!d_tracer)
--		return NULL;
--
--	d_objects = debugfs_create_dir("objects", d_tracer);
--	if (!d_objects)
--		pr_warning("Could not create debugfs "
--			   "'objects' directory\n");
--
--	return d_objects;
--}
--
--
- static struct dentry *trace_objects_mm_dir(void)
+ 
++/*
++ * recognized formats:
++ * 		"M N"	start=M, end=N
++ * 		"M"	start=M, end=M+1
++ * 		"M +N"	start=M, end=M+N-1
++ */
+ static ssize_t
+ trace_mm_pfn_range_write(struct file *filp, const char __user *ubuf, size_t cnt,
+ 			 loff_t *ppos)
  {
- 	static struct dentry *d_mm;
+-	unsigned long val, start, end;
++	unsigned long start;
++	unsigned long end = 0;
+ 	char buf[64];
+-	int ret;
++	char *ptr;
+ 
+ 	if (cnt >= sizeof(buf))
+ 		return -EINVAL;
+@@ -72,19 +80,20 @@ trace_mm_pfn_range_write(struct file *fi
+ 
+ 	buf[cnt] = 0;
+ 
+-	ret = strict_strtol(buf, 10, &val);
+-	if (ret < 0)
+-		return ret;
+-
+-	start = *ppos;
+-	if (val < 0)
+-		end = max_pfn - 1;
+-	else
+-		end = start + val;
++	start = simple_strtoul(buf, &ptr, 0);
+ 
+-	trace_mm_page_frames(start, end, trace_mm_page_frame);
++	for (; *ptr; ptr++) {
++		if (isdigit(*ptr)) {
++			if (*(ptr - 1) == '+')
++				end = start;
++			end += simple_strtoul(ptr, NULL, 0);
++			break;
++		}
++	}
++	if (!*ptr)
++		end = start + 1;
+ 
+-	*ppos += cnt;
++	trace_mm_page_frames(start, end, trace_mm_page_frame);
+ 
+ 	return cnt;
+ }
 
 
 --
