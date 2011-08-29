@@ -1,40 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 10724900138
-	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 22:29:46 -0400 (EDT)
-Message-ID: <4E5AF989.106@redhat.com>
-Date: Mon, 29 Aug 2011 10:29:29 +0800
-From: Cong Wang <amwang@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [Patch] numa: introduce CONFIG_NUMA_SYSFS for drivers/base/node.c
-References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au> <20110804152211.ea10e3e7.rdunlap@xenotime.net> <20110823143912.0691d442.akpm@linux-foundation.org> <4E547155.8090709@redhat.com> <20110824191430.8a908e70.rdunlap@xenotime.net> <4E55C221.8080100@redhat.com> <20110824205044.7ff45b6c.rdunlap@xenotime.net> <alpine.DEB.2.00.1108242202050.576@chino.kir.corp.google.com> <4E562248.2090102@redhat.com> <alpine.DEB.2.00.1108251356220.18747@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1108251356220.18747@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4851E900138
+	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 23:01:23 -0400 (EDT)
+Subject: Re: [patch 2/2]slub: add a type for slab partial list position
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <1314147472.29510.25.camel@sli10-conroe>
+References: <1314059823.29510.19.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1108231023470.21267@router.home>
+	 <1314147472.29510.25.camel@sli10-conroe>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 29 Aug 2011 11:06:27 +0800
+Message-ID: <1314587187.4523.55.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Li, Shaohua" <shaohua.li@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>
 
-ao? 2011a1'08ae??26ae?JPY 04:57, David Rientjes a??e??:
-> On Thu, 25 Aug 2011, Cong Wang wrote:
->
->>> No, it doesn't work, CONFIG_HUGETLBFS can be enabled with CONFIG_NUMA=y
->>> and CONFIG_SYSFS=n and that uses data structures from drivers/base/node.c
->>> which doesn't get compiled with this patch.
->>
->> So, you mean with CONFIG_NUMA=y&&  CONFIG_SYSFS=n&&  CONFIG_HUGETLBFS=y
->> we still get compile error?
->>
->> Which data structures are used by hugetlbfs?
->>
->
-> node_states[], which is revealed at link time if you tried to compile your
-> patch.  It's obvious that we don't want to add per-node hugetlbfs
-> attributes to sysfs directories if sysfs is disabled, so you need to
-> modify the hugetlbfs code as well.
+On Wed, 2011-08-24 at 08:57 +0800, Li, Shaohua wrote:
+> On Tue, 2011-08-23 at 23:25 +0800, Christoph Lameter wrote:
+> > On Tue, 23 Aug 2011, Shaohua Li wrote:
+> > 
+> > > Adding slab to partial list head/tail is sensentive to performance.
+> > > So adding a type to document it to avoid we get it wrong.
+> > 
+> > I think that if you want to make it more descriptive then using the stats
+> > values (DEACTIVATE_TO_TAIL/HEAD) would avoid having to introduce an
+> > additional enum and it would also avoid the if statement in the stat call.
+> ok, that's better.
+> 
+> Subject: slub: explicitly document position of inserting slab to partial list
+> 
+> Adding slab to partial list head/tail is sensitive to performance.
+> So explicitly uses DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD to document
+> it to avoid we get it wrong.
 
-Makes sense. Thanks!
+Frankly speaking, using DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD in
+slab_alloc, slab_free make code hard to understand. Just adding some
+comments will be more clear and understandable. like the following: 
+Do you think so? 
+
+
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2377,6 +2377,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+                 */
+                if (unlikely(!prior)) {
+                        remove_full(s, page);
++                       /* only one object left in the page, so add to partial tail */
+                        add_partial(n, page, 1);
+                        stat(s, FREE_ADD_PARTIAL);
+                }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
