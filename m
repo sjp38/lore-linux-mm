@@ -1,126 +1,103 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 4/7] tracing/mm: dump more page frame information
-Date: Mon, 29 Aug 2011 11:29:55 +0800
-Message-ID: <20110829034932.135446238__43061.7163460285$1314590293$gmane$org@intel.com>
+Subject: [RFC][PATCH 3/7] tracing/mm: create trace_objects.c
+Date: Mon, 29 Aug 2011 11:29:54 +0800
+Message-ID: <20110829034932.000999180__17169.549529399$1314590293$gmane$org@intel.com>
 References: <20110829032951.677220552@intel.com>
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=mm-export-pageflag_names.patch
+Content-Disposition: inline; filename=trace-objects.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Mel Gorman <mgorman@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Steven Rostedt <srostedt@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Add 4 more fields to dump_page_frame trace event.
+Code refactor: create trace_objects.c and move relevant code from trace_mm.c
 
-1) stable page flags in addition to the raw page flags
-
-User space should only make use the stable page flags.  The raw page
-flags is stored mainly to take advantage of ftrace_print_flags_seq()
-for showing symbolic flag names.
-
-2) struct page address
-3) page->private
-4) page->mapping
-
-The above 3 fields are mainly targeted for VM debug aids.
-
+CC: Steven Rostedt <srostedt@redhat.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/page-flags.h |    1 +
- include/trace/events/mm.h  |   29 +++++++++++++++++++++++++----
- mm/page_alloc.c            |    4 ++--
- 3 files changed, 28 insertions(+), 6 deletions(-)
+ kernel/trace/Makefile        |    1 +
+ kernel/trace/trace.h         |    1 +
+ kernel/trace/trace_mm.c      |   22 ----------------------
+ kernel/trace/trace_objects.c |   26 ++++++++++++++++++++++++++
+ 4 files changed, 28 insertions(+), 22 deletions(-)
 
---- linux-mmotm.orig/mm/page_alloc.c	2011-08-28 10:09:24.000000000 +0800
-+++ linux-mmotm/mm/page_alloc.c	2011-08-28 10:09:31.000000000 +0800
-@@ -5743,7 +5743,7 @@ bool is_free_buddy_page(struct page *pag
- }
- #endif
+--- linux-mmotm.orig/kernel/trace/Makefile	2011-08-28 10:09:25.000000000 +0800
++++ linux-mmotm/kernel/trace/Makefile	2011-08-28 10:09:28.000000000 +0800
+@@ -26,6 +26,7 @@ obj-$(CONFIG_RING_BUFFER) += ring_buffer
+ obj-$(CONFIG_RING_BUFFER_BENCHMARK) += ring_buffer_benchmark.o
  
--static struct trace_print_flags pageflag_names[] = {
-+struct trace_print_flags pageflag_names[] = {
- 	{1UL << PG_locked,		"locked"	},
- 	{1UL << PG_error,		"error"		},
- 	{1UL << PG_referenced,		"referenced"	},
-@@ -5790,7 +5790,7 @@ static void dump_page_flags(unsigned lon
- 	printk(KERN_ALERT "page flags: %#lx(", flags);
+ obj-$(CONFIG_TRACING) += trace.o
++obj-$(CONFIG_TRACING) += trace_objects.o
+ obj-$(CONFIG_TRACING) += trace_output.o
+ obj-$(CONFIG_TRACING) += trace_stat.o
+ obj-$(CONFIG_TRACING) += trace_printk.o
+--- linux-mmotm.orig/kernel/trace/trace.h	2011-08-28 10:09:25.000000000 +0800
++++ linux-mmotm/kernel/trace/trace.h	2011-08-28 10:09:28.000000000 +0800
+@@ -318,6 +318,7 @@ struct dentry *trace_create_file(const c
+ 				 const struct file_operations *fops);
  
- 	/* remove zone id */
--	flags &= (1UL << NR_PAGEFLAGS) - 1;
-+	flags &= PAGE_FLAGS_MASK;
+ struct dentry *tracing_init_dentry(void);
++struct dentry *trace_objects_dir(void);
  
- 	for (i = 0; pageflag_names[i].name && flags; i++) {
+ struct ring_buffer_event;
  
---- linux-mmotm.orig/include/linux/page-flags.h	2011-08-28 10:09:24.000000000 +0800
-+++ linux-mmotm/include/linux/page-flags.h	2011-08-28 10:09:31.000000000 +0800
-@@ -462,6 +462,7 @@ static inline int PageTransCompound(stru
-  * there has been a kernel bug or struct page corruption.
-  */
- #define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
-+#define PAGE_FLAGS_MASK			((1 << NR_PAGEFLAGS) - 1)
- 
- #define PAGE_FLAGS_PRIVATE				\
- 	(1 << PG_private | 1 << PG_private_2)
---- linux-mmotm.orig/include/trace/events/mm.h	2011-08-28 10:09:27.000000000 +0800
-+++ linux-mmotm/include/trace/events/mm.h	2011-08-28 10:43:38.000000000 +0800
-@@ -2,11 +2,14 @@
- #define _TRACE_MM_H
- 
- #include <linux/tracepoint.h>
-+#include <linux/page-flags.h>
- #include <linux/mm.h>
- 
- #undef TRACE_SYSTEM
- #define TRACE_SYSTEM mm
- 
-+extern struct trace_print_flags pageflag_names[];
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-mmotm/kernel/trace/trace_objects.c	2011-08-28 10:09:28.000000000 +0800
+@@ -0,0 +1,26 @@
++#include <linux/debugfs.h>
 +
- /**
-  * dump_page_frame - called by the trace page dump trigger
-  * @pfn: page frame number
-@@ -23,23 +26,41 @@ TRACE_EVENT(dump_page_frame,
++#include "trace.h"
++#include "trace_output.h"
++
++struct dentry *trace_objects_dir(void)
++{
++	static struct dentry *d_objects;
++	struct dentry *d_tracer;
++
++	if (d_objects)
++		return d_objects;
++
++	d_tracer = tracing_init_dentry();
++	if (!d_tracer)
++		return NULL;
++
++	d_objects = debugfs_create_dir("objects", d_tracer);
++	if (!d_objects)
++		pr_warning("Could not create debugfs "
++			   "'objects' directory\n");
++
++	return d_objects;
++}
++
++
+--- linux-mmotm.orig/kernel/trace/trace_mm.c	2011-08-28 10:09:27.000000000 +0800
++++ linux-mmotm/kernel/trace/trace_mm.c	2011-08-28 10:09:28.000000000 +0800
+@@ -95,28 +95,6 @@ static const struct file_operations trac
+ 	.write		= trace_mm_pfn_range_write,
+ };
  
- 	TP_STRUCT__entry(
- 		__field(	unsigned long,	pfn		)
-+		__field(	struct page *,	page		)
-+		__field(	u64,		stable_flags	)
- 		__field(	unsigned long,	flags		)
--		__field(	unsigned long,	index		)
- 		__field(	unsigned int,	count		)
- 		__field(	unsigned int,	mapcount	)
-+		__field(	unsigned long,	private		)
-+		__field(	unsigned long,	mapping		)
-+		__field(	unsigned long,	index		)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->pfn		= pfn;
-+		__entry->page		= page;
-+		__entry->stable_flags	= stable_page_flags(page);
- 		__entry->flags		= page->flags;
- 		__entry->count		= atomic_read(&page->_count);
- 		__entry->mapcount	= page_mapcount(page);
-+		__entry->private	= page->private;
-+		__entry->mapping	= (unsigned long)page->mapping;
- 		__entry->index		= page->index;
- 	),
- 
--	TP_printk("pfn=%lu flags=%lx count=%u mapcount=%u index=%lu",
--		  __entry->pfn, __entry->flags, __entry->count,
--		  __entry->mapcount, __entry->index)
-+	TP_printk("pfn=%lu page=%p count=%u mapcount=%u "
-+		  "private=%lx mapping=%lx index=%lx flags=%s",
-+		  __entry->pfn,
-+		  __entry->page,
-+		  __entry->count,
-+		  __entry->mapcount,
-+		  __entry->private,
-+		  __entry->mapping,
-+		  __entry->index,
-+		  ftrace_print_flags_seq(p, "|",
-+					 __entry->flags & PAGE_FLAGS_MASK,
-+					 pageflag_names)
-+	)
- );
- 
- #endif /*  _TRACE_MM_H */
+-/* move this into trace_objects.c when that file is created */
+-static struct dentry *trace_objects_dir(void)
+-{
+-	static struct dentry *d_objects;
+-	struct dentry *d_tracer;
+-
+-	if (d_objects)
+-		return d_objects;
+-
+-	d_tracer = tracing_init_dentry();
+-	if (!d_tracer)
+-		return NULL;
+-
+-	d_objects = debugfs_create_dir("objects", d_tracer);
+-	if (!d_objects)
+-		pr_warning("Could not create debugfs "
+-			   "'objects' directory\n");
+-
+-	return d_objects;
+-}
+-
+-
+ static struct dentry *trace_objects_mm_dir(void)
+ {
+ 	static struct dentry *d_mm;
