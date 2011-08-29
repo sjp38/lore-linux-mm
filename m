@@ -1,134 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F66900139
+	by kanga.kvack.org (Postfix) with ESMTP id 7611C900138
 	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 23:57:06 -0400 (EDT)
-Message-Id: <20110829034931.869901369@intel.com>
-Date: Mon, 29 Aug 2011 11:29:53 +0800
+Message-Id: <20110829032951.677220552@intel.com>
+Date: Mon, 29 Aug 2011 11:29:51 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 2/7] tracing/mm: rename trigger file to dump-pfn
-References: <20110829032951.677220552@intel.com>
-Content-Disposition: inline; filename=0003-tracing-mm-rename-trigger-file-to-dump_range.patch
+Subject: [RFC][PATCH 0/7] trace memory objects
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Mel Gorman <mgorman@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
 
-From: Ingo Molnar <mingo@elte.hu>
+Andrew, Ingo,
 
-Wu Fengguang noted that /debug/tracing/objects/mm/pages/trigger was
-not very intuitively named - rename it to 'dump-pfn', which covers
-its functionality better.
+I'd like to introduce three memory object interfaces
 
-[ Impact: rename /debug/tracing file ]
+/debug/tracing/objects/mm/pages/dump-pfn
+/debug/tracing/objects/mm/pages/dump-file
+/debug/tracing/objects/mm/pages/dump-fs
 
-Reported-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/trace/events/mm.h |    4 ++--
- kernel/trace/trace_mm.c   |   26 +++++++++++++-------------
- 2 files changed, 15 insertions(+), 15 deletions(-)
+for dumping
 
---- mmotm.orig/kernel/trace/trace_mm.c	2011-03-03 19:17:48.000000000 +0800
-+++ mmotm/kernel/trace/trace_mm.c	2011-03-03 19:18:17.000000000 +0800
-@@ -15,8 +15,8 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/mm.h>
- 
--void trace_read_page_frames(unsigned long start, unsigned long end,
--			    void (*trace)(unsigned long pfn, struct page *page))
-+void trace_mm_page_frames(unsigned long start, unsigned long end,
-+			  void (*trace)(unsigned long pfn, struct page *page))
- {
- 	unsigned long pfn = start;
- 	struct page *page;
-@@ -37,22 +37,22 @@ void trace_read_page_frames(unsigned lon
- 	}
- }
- 
--static void trace_do_dump_pages(unsigned long pfn, struct page *page)
-+static void trace_mm_page_frame(unsigned long pfn, struct page *page)
- {
--	trace_dump_pages(pfn, page);
-+	trace_dump_page_frame(pfn, page);
- }
- 
- static ssize_t
--trace_mm_trigger_read(struct file *filp, char __user *ubuf, size_t cnt,
--		 loff_t *ppos)
-+trace_mm_pfn_range_read(struct file *filp, char __user *ubuf, size_t cnt,
-+			loff_t *ppos)
- {
- 	return simple_read_from_buffer(ubuf, cnt, ppos, "0\n", 2);
- }
- 
- 
- static ssize_t
--trace_mm_trigger_write(struct file *filp, const char __user *ubuf, size_t cnt,
--		       loff_t *ppos)
-+trace_mm_pfn_range_write(struct file *filp, const char __user *ubuf, size_t cnt,
-+			 loff_t *ppos)
- {
- 	unsigned long val, start, end;
- 	char buf[64];
-@@ -67,7 +67,7 @@ trace_mm_trigger_write(struct file *filp
- 	if (tracing_update_buffers() < 0)
- 		return -ENOMEM;
- 
--	if (trace_set_clr_event("mm", "dump_pages", 1))
-+	if (trace_set_clr_event("mm", "dump_page_frame", 1))
- 		return -EINVAL;
- 
- 	buf[cnt] = 0;
-@@ -82,7 +82,7 @@ trace_mm_trigger_write(struct file *filp
- 	else
- 		end = start + val;
- 
--	trace_read_page_frames(start, end, trace_do_dump_pages);
-+	trace_mm_page_frames(start, end, trace_mm_page_frame);
- 
- 	*ppos += cnt;
- 
-@@ -91,8 +91,8 @@ trace_mm_trigger_write(struct file *filp
- 
- static const struct file_operations trace_mm_fops = {
- 	.open		= tracing_open_generic,
--	.read		= trace_mm_trigger_read,
--	.write		= trace_mm_trigger_write,
-+	.read		= trace_mm_pfn_range_read,
-+	.write		= trace_mm_pfn_range_write,
- };
- 
- /* move this into trace_objects.c when that file is created */
-@@ -164,7 +164,7 @@ static __init int trace_objects_mm_init(
- 	if (!d_pages)
- 		return 0;
- 
--	trace_create_file("trigger", 0600, d_pages, NULL,
-+	trace_create_file("dump-pfn", 0600, d_pages, NULL,
- 			  &trace_mm_fops);
- 
- 	return 0;
---- mmotm.orig/include/trace/events/mm.h	2011-03-03 19:18:02.000000000 +0800
-+++ mmotm/include/trace/events/mm.h	2011-03-03 19:18:17.000000000 +0800
-@@ -8,14 +8,14 @@
- #define TRACE_SYSTEM mm
- 
- /**
-- * dump_pages - called by the trace page dump trigger
-+ * dump_page_frame - called by the trace page dump trigger
-  * @pfn: page frame number
-  * @page: pointer to the page frame
-  *
-  * This is a helper trace point into the dumping of the page frames.
-  * It will record various infromation about a page frame.
-  */
--TRACE_EVENT(dump_pages,
-+TRACE_EVENT(dump_page_frame,
- 
- 	TP_PROTO(unsigned long pfn, struct page *page),
- 
+- a range of PFNs
+- the cached inodes (icache)
+- the cached inode pages (page cache)
 
+The "dump-pfn" interface is a superset of the existing /proc/kpageflags and
+/proc/kpagecount interfaces. Example output:
+
+# echo 10000 +10 > /debug/tracing/objects/mm/pages/dump-pfn
+# cat /debug/tracing/trace
+# tracer: nop
+#
+#           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+#              | |       |          |         |
+             zsh-3128  [000]  1393.460292: dump_page_frame: pfn=10001 page=ffffea000009c400 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460296: dump_page_frame: pfn=10002 page=ffffea000009c440 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460298: dump_page_frame: pfn=10003 page=ffffea000009c480 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460299: dump_page_frame: pfn=10004 page=ffffea000009c4c0 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460300: dump_page_frame: pfn=10005 page=ffffea000009c500 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460301: dump_page_frame: pfn=10006 page=ffffea000009c540 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460301: dump_page_frame: pfn=10007 page=ffffea000009c580 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460302: dump_page_frame: pfn=10008 page=ffffea000009c5c0 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460303: dump_page_frame: pfn=10009 page=ffffea000009c600 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+             zsh-3128  [000]  1393.460304: dump_page_frame: pfn=10010 page=ffffea000009c640 count=1 mapcount=0 memcg=0 private=0 mapping=0 index=0 flags=reserved
+
+The "dump-file", "dump-fs" interfaces could be pretty useful for examining
+the page cache status. Example output:
+
+# echo > /debug/tracing/trace
+# echo / > /debug/tracing/objects/mm/pages/dump-fs
+# head -50 /debug/tracing/trace
+# tracer: nop
+#
+#           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+#              | |       |          |         |
+             zsh-3128  [000]  1482.623149: dump_inode_cache: ino=1507329 size=4096 cached=4096 dirtied_when=4294676467 age=1482 state=____ type=DIR name=/
+             zsh-3128  [000]  1482.623157: dump_page_cache: index=0 len=1 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623340: dump_inode_cache: ino=1786836 size=12288 cached=12288 dirtied_when=4294676472 age=1482 state=____ type=DIR name=/sbin
+             zsh-3128  [000]  1482.623355: dump_page_cache: index=0 len=3 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623393: dump_inode_cache: ino=1786946 size=37312 cached=40960 dirtied_when=4294676473 age=1482 state=____ type=REG name=/sbin/init
+             zsh-3128  [000]  1482.623404: dump_page_cache: index=0 len=6 flags=M__ARU_____ count=2 mapcount=1 memcg=1
+             zsh-3128  [000]  1482.623405: dump_page_cache: index=6 len=1 flags=M__A_U_____ count=2 mapcount=1 memcg=1
+             zsh-3128  [000]  1482.623406: dump_page_cache: index=7 len=1 flags=M__ARU_____ count=2 mapcount=1 memcg=1
+             zsh-3128  [000]  1482.623408: dump_page_cache: index=8 len=2 flags=_____U_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623422: dump_inode_cache: ino=1507464 size=4 cached=4096 dirtied_when=4294676477 age=1482 state=____ type=LNK name=/lib64
+             zsh-3128  [000]  1482.623427: dump_page_cache: index=0 len=1 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623441: dump_inode_cache: ino=1590173 size=12288 cached=0 dirtied_when=4294676477 age=1482 state=____ type=DIR name=/lib
+             zsh-3128  [000]  1482.623458: dump_inode_cache: ino=1590265 size=27 cached=4096 dirtied_when=4294676478 age=1482 state=____ type=LNK name=/lib/ld-linux-x86-64.so.2
+             zsh-3128  [000]  1482.623462: dump_page_cache: index=0 len=1 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623478: dump_inode_cache: ino=1663440 size=4096 cached=0 dirtied_when=4294676479 age=1482 state=____ type=DIR name=/lib/x86_64-linux-gnu
+             zsh-3128  [000]  1482.623495: dump_inode_cache: ino=3293287 size=136936 cached=139264 dirtied_when=4294676480 age=1482 state=____ type=REG name=/lib/x86_64-linux-gnu/ld-2.13.so
+             zsh-3128  [000]  1482.623499: dump_page_cache: index=0 len=1 flags=M__ARU_____ count=28 mapcount=27 memcg=1
+             zsh-3128  [000]  1482.623501: dump_page_cache: index=1 len=3 flags=M__ARU_____ count=23 mapcount=22 memcg=1
+             zsh-3128  [000]  1482.623503: dump_page_cache: index=4 len=4 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623504: dump_page_cache: index=8 len=2 flags=M__ARU_____ count=34 mapcount=33 memcg=1
+             zsh-3128  [000]  1482.623506: dump_page_cache: index=10 len=3 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623508: dump_page_cache: index=13 len=1 flags=M__ARU_____ count=34 mapcount=33 memcg=1
+             zsh-3128  [000]  1482.623509: dump_page_cache: index=14 len=1 flags=M__ARU_____ count=33 mapcount=32 memcg=1
+             zsh-3128  [000]  1482.623510: dump_page_cache: index=15 len=1 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623511: dump_page_cache: index=16 len=1 flags=M__ARU_____ count=25 mapcount=24 memcg=1
+             zsh-3128  [000]  1482.623512: dump_page_cache: index=17 len=1 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623513: dump_page_cache: index=18 len=1 flags=M__ARU_____ count=10 mapcount=9 memcg=1
+             zsh-3128  [000]  1482.623514: dump_page_cache: index=19 len=1 flags=M__ARU_____ count=34 mapcount=33 memcg=1
+             zsh-3128  [000]  1482.623515: dump_page_cache: index=20 len=1 flags=M__ARU_____ count=23 mapcount=22 memcg=1
+             zsh-3128  [000]  1482.623516: dump_page_cache: index=21 len=1 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623517: dump_page_cache: index=22 len=1 flags=M__ARU_____ count=34 mapcount=33 memcg=1
+             zsh-3128  [000]  1482.623518: dump_page_cache: index=23 len=2 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623519: dump_page_cache: index=25 len=1 flags=M__ARU_____ count=33 mapcount=32 memcg=1
+             zsh-3128  [000]  1482.623520: dump_page_cache: index=26 len=1 flags=M__ARU_____ count=10 mapcount=9 memcg=1
+             zsh-3128  [000]  1482.623522: dump_page_cache: index=27 len=1 flags=M__ARU_____ count=4 mapcount=3 memcg=1
+             zsh-3128  [000]  1482.623523: dump_page_cache: index=28 len=1 flags=M__ARU_____ count=26 mapcount=25 memcg=1
+             zsh-3128  [000]  1482.623525: dump_page_cache: index=29 len=5 flags=_____U_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623540: dump_inode_cache: ino=1525477 size=12288 cached=0 dirtied_when=4294676489 age=1482 state=____ type=DIR name=/etc
+             zsh-3128  [000]  1482.623556: dump_inode_cache: ino=1526474 size=69589 cached=69632 dirtied_when=4294676491 age=1482 state=____ type=REG name=/etc/ld.so.cache
+             zsh-3128  [000]  1482.623561: dump_page_cache: index=0 len=1 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623562: dump_page_cache: index=1 len=1 flags=_____U_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623569: dump_page_cache: index=2 len=15 flags=___ARU_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623585: dump_inode_cache: ino=1590258 size=241632 cached=241664 dirtied_when=4294676493 age=1482 state=____ type=REG name=/lib/libsepol.so.1
+             zsh-3128  [000]  1482.623591: dump_page_cache: index=0 len=5 flags=M__ARU_____ count=2 mapcount=1 memcg=1
+             zsh-3128  [000]  1482.623609: dump_page_cache: index=5 len=42 flags=_____U_____ count=1 mapcount=0 memcg=1
+             zsh-3128  [000]  1482.623610: dump_page_cache: index=47 len=1 flags=M__ARU_____ count=2 mapcount=1 memcg=1
+
+patches:
+
+dump-pfn interface
+(it looks more clean and easier for review to fold patches 1-5 into one, but
+let's keep the changelog for the initial post)
+
+	[RFC][PATCH 1/7] tracing/mm: add page frame snapshot trace
+	[RFC][PATCH 2/7] tracing/mm: rename trigger file to dump-pfn
+	[RFC][PATCH 3/7] tracing/mm: create trace_objects.c
+	[RFC][PATCH 4/7] tracing/mm: dump more page frame information
+	[RFC][PATCH 5/7] tracing/mm: accept echo-able input format for pfn range
+
+dump-file and dump-fs interfaces
+
+	[RFC][PATCH 6/7] tracing/mm: add dump-file and dump-fs interfaces
+
+add memcg support
+
+	[RFC][PATCH 7/7] tracing/mm: add memcg field
+
+diffstat:
+
+ fs/inode.c                   |    8 
+ fs/internal.h                |    5 
+ include/linux/fs.h           |    1 
+ include/linux/memcontrol.h   |    6 
+ include/linux/page-flags.h   |    1 
+ include/trace/events/mm.h    |  170 ++++++++++++++
+ kernel/trace/Makefile        |    2 
+ kernel/trace/trace.h         |    1 
+ kernel/trace/trace_mm.c      |  378 +++++++++++++++++++++++++++++++++
+ kernel/trace/trace_objects.c |   26 ++
+ mm/memcontrol.c              |   18 +
+ mm/page_alloc.c              |    4 
+ 12 files changed, 612 insertions(+), 8 deletions(-)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
