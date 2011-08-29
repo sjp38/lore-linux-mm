@@ -1,164 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E290900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 17:05:45 -0400 (EDT)
-Date: Mon, 29 Aug 2011 23:05:09 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-Message-ID: <20110829210508.GA1599@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
- <CALWz4iwChnacF061L9vWo7nEA7qaXNJrK=+jsEe9xBtvEBD9MA@mail.gmail.com>
- <20110811210914.GB31229@cmpxchg.org>
- <CALWz4iwJfyWRineMy+W02YBvS0Y=Pv1y8Rb=8i5R=vUCfrO+iQ@mail.gmail.com>
- <CALWz4iwRXBheXFND5zq3ze2PJDkeoxYHD1zOsTyzOe3XqY5apA@mail.gmail.com>
- <20110829190426.GC1434@cmpxchg.org>
- <CALWz4ix1X8=L0HzQpdGd=XVbjZuMCtYngzdG+hLMoeJJCUEjrg@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0F9900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 18:40:13 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p7TMeBDf015635
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 15:40:11 -0700
+Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
+	by wpaz21.hot.corp.google.com with ESMTP id p7TMdgG6017811
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 15:40:10 -0700
+Received: by qwc9 with SMTP id 9so4212838qwc.41
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 15:40:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4ix1X8=L0HzQpdGd=XVbjZuMCtYngzdG+hLMoeJJCUEjrg@mail.gmail.com>
+In-Reply-To: <20110827173421.GA2967@redhat.com>
+References: <1313740111-27446-1-git-send-email-walken@google.com>
+	<20110822213347.GF2507@redhat.com>
+	<CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
+	<20110824000914.GH23870@redhat.com>
+	<20110824002717.GI23870@redhat.com>
+	<20110824133459.GP23870@redhat.com>
+	<20110826062436.GA5847@google.com>
+	<20110826161048.GE23870@redhat.com>
+	<20110826185430.GA2854@redhat.com>
+	<20110827094152.GA16402@google.com>
+	<20110827173421.GA2967@redhat.com>
+Date: Mon, 29 Aug 2011 15:40:07 -0700
+Message-ID: <CANN689G4HowkFC7BG69F-PJMne5Mhs51O=KgmmJUjiXfG-o9BQ@mail.gmail.com>
+Subject: Re: [PATCH] thp: tail page refcounting fix #4
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, Aug 29, 2011 at 01:36:48PM -0700, Ying Han wrote:
-> On Mon, Aug 29, 2011 at 12:04 PM, Johannes Weiner <hannes@cmpxchg.org>wrote:
-> > On Mon, Aug 29, 2011 at 12:22:02AM -0700, Ying Han wrote:
-> > > > @@ -888,19 +888,21 @@ void mem_cgroup_del_lru_list(struct page *page,
-> > > > enum lru_list lru)
-> > > >  {
-> > > >  >------struct page_cgroup *pc;
-> > > >  >------struct mem_cgroup_per_zone *mz;
-> > > > +>------struct mem_cgroup *mem;
-> > > > .
-> > > >  >------if (mem_cgroup_disabled())
-> > > >  >------>-------return;
-> > > >  >------pc = lookup_page_cgroup(page);
-> > > > ->------/* can happen while we handle swapcache. */
-> > > > ->------if (!TestClearPageCgroupAcctLRU(pc))
-> > > > ->------>-------return;
-> > > > ->------VM_BUG_ON(!pc->mem_cgroup);
-> > > > ->------/*
-> > > > ->------ * We don't check PCG_USED bit. It's cleared when the "page" is
-> > finally
-> > > > ->------ * removed from global LRU.
-> > > > ->------ */
-> > > > ->------mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
-> > > > +
-> > > > +>------if (TestClearPageCgroupAcctLRU(pc) || PageCgroupUsed(pc)) {
-> >
-> > This PageCgroupUsed part confuses me.  A page that is being isolated
-> > shortly after being charged while on the LRU may reach here, and then
-> > it is unaccounted from pc->mem_cgroup, which it never was accounted
-> > to.
-> >
-> > Could you explain why you added it?
-> 
-> To be honest, i don't have very good reason for that. The PageCgroupUsed
-> check is put there after running some tests and some fixes seems help the
-> test, including this one.
-> 
-> The one case I can think of for page !AcctLRU | Used is in the pagevec.
-> However, we shouldn't get to the mem_cgroup_del_lru_list() for a page in
-> pagevec at the first place.
-> 
-> I now made it so that PageCgroupAcctLRU on the LRU means accounted
-> to pc->mem_cgroup,
-> 
-> this is the same logic currently.
-> 
-> > and !PageCgroupAcctLRU on the LRU means accounted to
-> > and babysitted by root_mem_cgroup.
-> 
-> this seems to be different from what it is now, especially for swapcache
-> page. So, the page here is linked to root cgroup LRU or not?
-> 
-> Anyway, the AcctLRU flags still seems confusing to me:
-> 
-> what this flag tells me is that whether or not the page is on a PRIVATE lru
-> and being accounted, i used private here to differentiate from the per zone
-> lru, where it also has PageLRU flag.  The two flags are separate since pages
-> could be on one lru not the other ( I guess ) , but this is changed after
-> having the root cgroup lru back. For example, AcctLRU is used to keep track
-> of the accounted lru pages, especially for root ( we didn't account the
-> !Used pages to root like readahead swapcache). Now we account the full size
-> of lru list of root including Used and !Used, but only mark the Used pages
-> w/ AcctLRU flag.
-> 
-> So in general, i am wondering we should be able to replace that eventually
-> with existing Used and LRU bit.  Sorry this seems to be something we like to
-> consider later, not necessarily now :)
+On Sat, Aug 27, 2011 at 10:34 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Subject: thp: tail page refcounting fix
+>
+> From: Andrea Arcangeli <aarcange@redhat.com>
+>
+> Michel while working on the working set estimation code, noticed that calling
+> get_page_unless_zero() on a random pfn_to_page(random_pfn) wasn't safe, if the
+> pfn ended up being a tail page of a transparent hugepage under splitting by
+> __split_huge_page_refcount(). He then found the problem could also
+> theoretically materialize with page_cache_get_speculative() during the
+> speculative radix tree lookups that uses get_page_unless_zero() in SMP if the
+> radix tree page is freed and reallocated and get_user_pages is called on it
+> before page_cache_get_speculative has a chance to call get_page_unless_zero().
+>
+> So the best way to fix the problem is to keep page_tail->_count zero at all
+> times. This will guarantee that get_page_unless_zero() can never succeed on any
+> tail page. page_tail->_mapcount is guaranteed zero and is unused for all tail
+> pages of a compound page, so we can simply account the tail page references
+> there and transfer them to tail_page->_count in __split_huge_page_refcount() (in
+> addition to the head_page->_mapcount).
+>
+> While debugging this s/_count/_mapcount/ change I also noticed get_page is
+> called by direct-io.c on pages returned by get_user_pages. That wasn't entirely
+> safe because the two atomic_inc in get_page weren't atomic. As opposed other
+> get_user_page users like secondary-MMU page fault to establish the shadow
+> pagetables would never call any superflous get_page after get_user_page
+> returns. It's safer to make get_page universally safe for tail pages and to use
+> get_page_foll() within follow_page (inside get_user_pages()). get_page_foll()
+> is safe to do the refcounting for tail pages without taking any locks because
+> it is run within PT lock protected critical sections (PT lock for pte and
+> page_table_lock for pmd_trans_huge). The standard get_page() as invoked by
+> direct-io instead will now take the compound_lock but still only for tail
+> pages. The direct-io paths are usually I/O bound and the compound_lock is per
+> THP so very finegrined, so there's no risk of scalability issues with it. A
+> simple direct-io benchmarks with all lockdep prove locking and spinlock
+> debugging infrastructure enabled shows identical performance and no overhead.
+> So it's worth it. Ideally direct-io should stop calling get_page() on pages
+> returned by get_user_pages(). The spinlock in get_page() is already optimized
+> away for no-THP builds but doing get_page() on tail pages returned by GUP is
+> generally a rare operation and usually only run in I/O paths.
+>
+> This new refcounting on page_tail->_mapcount in addition to avoiding new RCU
+> critical sections will also allow the working set estimation code to work
+> without any further complexity associated to the tail page refcounting
+> with THP.
+>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Michel Lespinasse <walken@google.com>
+> Reviewed-by: Michel Lespinasse <walken@google.com>
 
-I have now the following comment in mem_cgroup_lru_del_list():
+Looks great.
 
-        /*
-         * root_mem_cgroup babysits uncharged LRU pages, but
-         * PageCgroupUsed is cleared when the page is about to get
-         * freed.  PageCgroupAcctLRU remembers whether the
-         * LRU-accounting happened against pc->mem_cgroup or
-         * root_mem_cgroup.
-         */
+I think some page_mapcount call sites would be easier to read if you
+took on my tail_page_count() suggestion (so we can casually see it's a
+refcount rather than mapcount). But you don't have to do it if you
+don't think it helps. I'm happy enough with the code already :)
 
-Does that answer your question?  If not, please tell me, so I can fix
-the comment :-)
-
-> > Always.  Which also means that before_commit now ensures an LRU
-> > page is moved to root_mem_cgroup for babysitting during the
-> > charge, so that concurrent isolations/putbacks are always
-> > accounted correctly.  Is this what you had in mind?  Did I miss
-> > something?
-> 
-> In my tree, the before->commit->after protocol is folded into one function.
-> I didn't post it since I know you also have patch doing that.  So guess I
-> don't understand why we need to move the page to root while it is gonna be
-> charged to a memcg by commit_charge shortly after.
-
-It is a consequence of your fix that LRU-accounts unused pages to
-root_mem_cgroup upon lru-add, and thus deaccounts !PageCgroupAcctLRU
-from root_mem_cgroup unconditionally upon lru-del.
-
-Consider the following scenario:
-
-	1. page with multiple mappings swapped out.
-
-	2. one memcg faults the page, then unmaps it.  The page is
-	uncharged, but swap-freeing fails due to the other ptes, and
-	the page stays lru-accounted on the memcg it's no longer
-	charged to.
-
-	3. another memcg faults the page.  before_commit must
-	lru-unaccount from pc->mem_cgroup before pc->mem_cgroup is
-	overwritten.
-
-	4. the page is charged.  after_commit does the fixup.
-
-Between 3. and 4., a reclaimer can isolate the page.  The old
-lru-accounting is undone and mem_cgroup_lru_del() does this:
-
-        if (TestClearPageCgroupAcctLRU(pc)) {
-                VM_BUG_ON(!pc->mem_cgroup);
-                mem = pc->mem_cgroup;
-        } else
-                mem = root_mem_cgroup;
-       mz = page_cgroup_zoneinfo(mem, page);
-        /* huge page split is done under lru_lock. so, we have no races. */
-        MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
-
-The rule is that !PageCgroupAcctLRU means that the page is
-lru-accounted to root_mem_cgroup.  So when charging, the page has to
-be moved to root_mem_cgroup until a new memcg is responsible for it.
-
-> My understanding is that in before_commit, we uncharge the page from
-> previous memcg lru if AcctLRU was set, then in the commit_charge we update
-> the new owner of it. And in after_commit we update the memcg lru for the new
-> owner after linking the page in the lru.
-
-Exactly, just that between unaccounting from the old and accounting to
-the new, someone else may look at the page and has to find it in a
-sensible state.
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
