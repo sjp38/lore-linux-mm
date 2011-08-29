@@ -1,114 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FD8790013B
+	by kanga.kvack.org (Postfix) with ESMTP id 5A70C90013D
 	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 23:57:07 -0400 (EDT)
-Message-Id: <20110829034932.272364561@intel.com>
-Date: Mon, 29 Aug 2011 11:29:56 +0800
+Message-Id: <20110829034932.135446238@intel.com>
+Date: Mon, 29 Aug 2011 11:29:55 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 5/7] tracing/mm: accept echo-able input format for pfn range 
+Subject: [RFC][PATCH 4/7] tracing/mm: dump more page frame information
 References: <20110829032951.677220552@intel.com>
-Content-Disposition: inline; filename=trace-mm-pfn-range-input.patch
+Content-Disposition: inline; filename=mm-export-pageflag_names.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
 Cc: Mel Gorman <mgorman@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The seek+write style input for specifying pfn range is not scriptable.
-Change it to more user friendly echo-able format.
+Add 4 more fields to dump_page_frame trace event.
 
-Before patch:
+1) stable page flags in addition to the raw page flags
 
-	fd = open("/debug/tracing/object/mm/page/dump-pfn");
-	seek(fd, start);
-	write(fd, "size");
+User space should only make use the stable page flags.  The raw page
+flags is stored mainly to take advantage of ftrace_print_flags_seq()
+for showing symbolic flag names.
 
-After patch:
+2) struct page address
+3) page->private
+4) page->mapping
 
-	echo start +size > /debug/tracing/object/mm/page/dump-pfn
-or
-	echo start end   > /debug/tracing/object/mm/page/dump-pfn
+The above 3 fields are mainly targeted for VM debug aids.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/trace/trace_mm.c |   39 +++++++++++++++++++++++---------------
- 1 file changed, 24 insertions(+), 15 deletions(-)
+ include/linux/page-flags.h |    1 +
+ include/trace/events/mm.h  |   29 +++++++++++++++++++++++++----
+ mm/page_alloc.c            |    4 ++--
+ 3 files changed, 28 insertions(+), 6 deletions(-)
 
---- mmotm.orig/kernel/trace/trace_mm.c	2010-12-26 20:05:26.000000000 +0800
-+++ mmotm/kernel/trace/trace_mm.c	2010-12-26 20:20:13.000000000 +0800
-@@ -9,6 +9,7 @@
- #include <linux/bootmem.h>
- #include <linux/debugfs.h>
- #include <linux/uaccess.h>
-+#include <linux/ctype.h>
- 
- #include "trace_output.h"
- 
-@@ -24,8 +25,8 @@ void trace_mm_page_frames(unsigned long 
- 	if (start > max_pfn - 1)
- 		return;
- 
--	if (end > max_pfn - 1)
--		end = max_pfn - 1;
-+	if (end > max_pfn)
-+		end = max_pfn;
- 
- 	while (pfn < end) {
- 		page = NULL;
-@@ -50,13 +51,20 @@ trace_mm_pfn_range_read(struct file *fil
+--- linux-mmotm.orig/mm/page_alloc.c	2011-08-28 10:09:24.000000000 +0800
++++ linux-mmotm/mm/page_alloc.c	2011-08-28 10:09:31.000000000 +0800
+@@ -5743,7 +5743,7 @@ bool is_free_buddy_page(struct page *pag
  }
+ #endif
  
+-static struct trace_print_flags pageflag_names[] = {
++struct trace_print_flags pageflag_names[] = {
+ 	{1UL << PG_locked,		"locked"	},
+ 	{1UL << PG_error,		"error"		},
+ 	{1UL << PG_referenced,		"referenced"	},
+@@ -5790,7 +5790,7 @@ static void dump_page_flags(unsigned lon
+ 	printk(KERN_ALERT "page flags: %#lx(", flags);
  
-+/*
-+ * recognized formats:
-+ * 		"M N"	start=M, end=N
-+ * 		"M"	start=M, end=M+1
-+ * 		"M +N"	start=M, end=M+N-1
-+ */
- static ssize_t
- trace_mm_pfn_range_write(struct file *filp, const char __user *ubuf, size_t cnt,
- 			 loff_t *ppos)
- {
--	unsigned long val, start, end;
-+	unsigned long start;
-+	unsigned long end = 0;
- 	char buf[64];
--	int ret;
-+	char *ptr;
+ 	/* remove zone id */
+-	flags &= (1UL << NR_PAGEFLAGS) - 1;
++	flags &= PAGE_FLAGS_MASK;
  
- 	if (cnt >= sizeof(buf))
- 		return -EINVAL;
-@@ -72,19 +80,20 @@ trace_mm_pfn_range_write(struct file *fi
+ 	for (i = 0; pageflag_names[i].name && flags; i++) {
  
- 	buf[cnt] = 0;
+--- linux-mmotm.orig/include/linux/page-flags.h	2011-08-28 10:09:24.000000000 +0800
++++ linux-mmotm/include/linux/page-flags.h	2011-08-28 10:09:31.000000000 +0800
+@@ -462,6 +462,7 @@ static inline int PageTransCompound(stru
+  * there has been a kernel bug or struct page corruption.
+  */
+ #define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
++#define PAGE_FLAGS_MASK			((1 << NR_PAGEFLAGS) - 1)
  
--	ret = strict_strtol(buf, 10, &val);
--	if (ret < 0)
--		return ret;
--
--	start = *ppos;
--	if (val < 0)
--		end = max_pfn - 1;
--	else
--		end = start + val;
-+	start = simple_strtoul(buf, &ptr, 0);
+ #define PAGE_FLAGS_PRIVATE				\
+ 	(1 << PG_private | 1 << PG_private_2)
+--- linux-mmotm.orig/include/trace/events/mm.h	2011-08-28 10:09:27.000000000 +0800
++++ linux-mmotm/include/trace/events/mm.h	2011-08-28 10:43:38.000000000 +0800
+@@ -2,11 +2,14 @@
+ #define _TRACE_MM_H
  
--	trace_mm_page_frames(start, end, trace_mm_page_frame);
-+	for (; *ptr; ptr++) {
-+		if (isdigit(*ptr)) {
-+			if (*(ptr - 1) == '+')
-+				end = start;
-+			end += simple_strtoul(ptr, NULL, 0);
-+			break;
-+		}
-+	}
-+	if (!*ptr)
-+		end = start + 1;
+ #include <linux/tracepoint.h>
++#include <linux/page-flags.h>
+ #include <linux/mm.h>
  
--	*ppos += cnt;
-+	trace_mm_page_frames(start, end, trace_mm_page_frame);
+ #undef TRACE_SYSTEM
+ #define TRACE_SYSTEM mm
  
- 	return cnt;
- }
++extern struct trace_print_flags pageflag_names[];
++
+ /**
+  * dump_page_frame - called by the trace page dump trigger
+  * @pfn: page frame number
+@@ -23,23 +26,41 @@ TRACE_EVENT(dump_page_frame,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(	unsigned long,	pfn		)
++		__field(	struct page *,	page		)
++		__field(	u64,		stable_flags	)
+ 		__field(	unsigned long,	flags		)
+-		__field(	unsigned long,	index		)
+ 		__field(	unsigned int,	count		)
+ 		__field(	unsigned int,	mapcount	)
++		__field(	unsigned long,	private		)
++		__field(	unsigned long,	mapping		)
++		__field(	unsigned long,	index		)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->pfn		= pfn;
++		__entry->page		= page;
++		__entry->stable_flags	= stable_page_flags(page);
+ 		__entry->flags		= page->flags;
+ 		__entry->count		= atomic_read(&page->_count);
+ 		__entry->mapcount	= page_mapcount(page);
++		__entry->private	= page->private;
++		__entry->mapping	= (unsigned long)page->mapping;
+ 		__entry->index		= page->index;
+ 	),
+ 
+-	TP_printk("pfn=%lu flags=%lx count=%u mapcount=%u index=%lu",
+-		  __entry->pfn, __entry->flags, __entry->count,
+-		  __entry->mapcount, __entry->index)
++	TP_printk("pfn=%lu page=%p count=%u mapcount=%u "
++		  "private=%lx mapping=%lx index=%lx flags=%s",
++		  __entry->pfn,
++		  __entry->page,
++		  __entry->count,
++		  __entry->mapcount,
++		  __entry->private,
++		  __entry->mapping,
++		  __entry->index,
++		  ftrace_print_flags_seq(p, "|",
++					 __entry->flags & PAGE_FLAGS_MASK,
++					 pageflag_names)
++	)
+ );
+ 
+ #endif /*  _TRACE_MM_H */
 
 
 --
