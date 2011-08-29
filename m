@@ -1,345 +1,367 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 55FF290013B
-	for <linux-mm@kvack.org>; Sun, 28 Aug 2011 23:59:41 -0400 (EDT)
-Date: Mon, 29 Aug 2011 11:59:37 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH 0/7] trace memory objects
-Message-ID: <20110829035937.GA21495@localhost>
-References: <20110829032951.677220552@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A02B2900139
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:20:30 -0400 (EDT)
+Received: by ywm13 with SMTP id 13so5295397ywm.14
+        for <linux-mm@kvack.org>; Sun, 28 Aug 2011 21:20:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110829032951.677220552@intel.com>
+In-Reply-To: <20110827173421.GA2967@redhat.com>
+References: <1313740111-27446-1-git-send-email-walken@google.com>
+	<20110822213347.GF2507@redhat.com>
+	<CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
+	<20110824000914.GH23870@redhat.com>
+	<20110824002717.GI23870@redhat.com>
+	<20110824133459.GP23870@redhat.com>
+	<20110826062436.GA5847@google.com>
+	<20110826161048.GE23870@redhat.com>
+	<20110826185430.GA2854@redhat.com>
+	<20110827094152.GA16402@google.com>
+	<20110827173421.GA2967@redhat.com>
+Date: Mon, 29 Aug 2011 13:20:26 +0900
+Message-ID: <CAEwNFnDk0bQZKReKccuQMPEw_6EA2DxN4dm9cmjr01BVT4A7Dw@mail.gmail.com>
+Subject: Re: [PATCH] thp: tail page refcounting fix #4
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Mel Gorman <mgorman@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-> dump-pfn interface
-> (it looks more clean and easier for review to fold patches 1-5 into one, but
-> let's keep the changelog for the initial post)
-> 
-> 	[RFC][PATCH 1/7] tracing/mm: add page frame snapshot trace
-> 	[RFC][PATCH 2/7] tracing/mm: rename trigger file to dump-pfn
-> 	[RFC][PATCH 3/7] tracing/mm: create trace_objects.c
-> 	[RFC][PATCH 4/7] tracing/mm: dump more page frame information
-> 	[RFC][PATCH 5/7] tracing/mm: accept echo-able input format for pfn range
+On Sun, Aug 28, 2011 at 2:34 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
+te:
+> On Sat, Aug 27, 2011 at 02:41:52AM -0700, Michel Lespinasse wrote:
+>> I understand you may have to remove the VM_BUG_ON(page_mapcount(page) <=
+=3D 0)
+>> that I had suggested in __get_page_tail() (sorry about that).
+>
+> The function doing that is snd_pcm_mmap_data_fault and it's doing what
+> I described in prev email.
+>
+>> My only additional suggestion is about the put_page_testzero in
+>> __get_page_tail(), maybe if you could just increment the tail page count
+>> instead of calling __get_page_tail_foll(), then you wouldn't have to
+>> release the extra head page count there. And it would even look kinda
+>> natural, head page count gets acquired before compound_lock_irqsave(),
+>> so we only have to acquire an extra tail page count after confirming
+>> this is still a tail page.
+>
+> Ok, I added a param to __get_page_tail_foll, it is constant at build
+> time and because it's inline the branch should be optimized away at
+> build time without requiring a separate function. The bugchecks are
+> the same so we can share and just skip the atomic_inc on the
+> page_head in __get_page_tail_foll. Also it had to be moved into
+> internal.h as a further cleanup.
+>
+>> Either way, the code looks OK by now.
+>>
+>> Reviewed-by: Michel Lespinasse <walken@google.com>
+>
+> Thanks. Incremental diff to correct the false positive bug on for
+> drivers like alsa allocating __GFP_COMP and mapping subpages with page
+> faults.
+>
+> diff --git a/mm/swap.c b/mm/swap.c
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -166,12 +166,6 @@ int __get_page_tail(struct page *page)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0flags =3D compound=
+_lock_irqsave(page_head);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* here __split_hu=
+ge_page_refcount won't run anymore */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(PageTai=
+l(page))) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* get_page() can only be called on tail pages
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* after get_page_foll() taken a tail page
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* refcount.
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0*/
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 VM_BUG_ON(page_mapcount(page) <=3D 0);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0__get_page_tail_foll(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0got =3D 1;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0/*
+>
+> This is the optimization.
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -375,26 +375,6 @@ static inline int page_count(struct page
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return atomic_read(&compound_head(page)->_coun=
+t);
+> =C2=A0}
+>
+> -static inline void __get_page_tail_foll(struct page *page)
+> -{
+> - =C2=A0 =C2=A0 =C2=A0 /*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we're getting a tail page, the elevated=
+ page->_count is
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* required only in the head page and we will=
+ elevate the head
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page->_count and tail page->_mapcount.
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* We elevate page_tail->_mapcount for tail p=
+ages to force
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_tail->_count to be zero at all times =
+to avoid getting
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* false positives from get_page_unless_zero(=
+) with
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* speculative page access (like in
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_cache_get_speculative()) on tail page=
+s.
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->first_page->_count) <=
+=3D 0);
+> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->_count) !=3D 0);
+> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(page_mapcount(page) < 0);
+> - =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->first_page->_count);
+> - =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->_mapcount);
+> -}
+> -
+> =C2=A0extern int __get_page_tail(struct page *page);
+>
+> =C2=A0static inline void get_page(struct page *page)
+> diff --git a/mm/internal.h b/mm/internal.h
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -37,6 +37,28 @@ static inline void __put_page(struct pag
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_dec(&page->_count);
+> =C2=A0}
+>
+> +static inline void __get_page_tail_foll(struct page *page,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 bool get_pag=
+e_head)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we're getting a tail page, the elevated=
+ page->_count is
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* required only in the head page and we will=
+ elevate the head
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page->_count and tail page->_mapcount.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* We elevate page_tail->_mapcount for tail p=
+ages to force
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_tail->_count to be zero at all times =
+to avoid getting
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* false positives from get_page_unless_zero(=
+) with
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* speculative page access (like in
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_cache_get_speculative()) on tail page=
+s.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->first_page->_count) <=
+=3D 0);
+> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->_count) !=3D 0);
+> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(page_mapcount(page) < 0);
+> + =C2=A0 =C2=A0 =C2=A0 if (get_page_head)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->firs=
+t_page->_count);
+> + =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->_mapcount);
+> +}
+> +
+> =C2=A0static inline void get_page_foll(struct page *page)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(PageTail(page)))
+> @@ -45,7 +67,7 @@ static inline void get_page_foll(struct
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * __split_huge_pa=
+ge_refcount() can't run under
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * get_page_foll()=
+ because we hold the proper PT lock.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __get_page_tail_foll(p=
+age);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __get_page_tail_foll(p=
+age, true);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0else {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Getting a norma=
+l page or the head of a compound page
+> diff --git a/mm/swap.c b/mm/swap.c
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -166,16 +166,8 @@ int __get_page_tail(struct page *page)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0flags =3D compound=
+_lock_irqsave(page_head);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* here __split_hu=
+ge_page_refcount won't run anymore */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(PageTai=
+l(page))) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 __get_page_tail_foll(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 __get_page_tail_foll(page, false);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0got =3D 1;
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* We can release the refcount taken by
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* get_page_unless_zero() now that
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* __split_huge_page_refcount() is blocked on
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* the compound_lock.
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0*/
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 if (put_page_testzero(page_head))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(1);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0compound_unlock_ir=
+qrestore(page_head, flags);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(!got)=
+)
+>
+>
+> =3D=3D=3D
+> Subject: thp: tail page refcounting fix
+>
+> From: Andrea Arcangeli <aarcange@redhat.com>
+>
+> Michel while working on the working set estimation code, noticed that cal=
+ling
+> get_page_unless_zero() on a random pfn_to_page(random_pfn) wasn't safe, i=
+f the
+> pfn ended up being a tail page of a transparent hugepage under splitting =
+by
+> __split_huge_page_refcount(). He then found the problem could also
+> theoretically materialize with page_cache_get_speculative() during the
+> speculative radix tree lookups that uses get_page_unless_zero() in SMP if=
+ the
+> radix tree page is freed and reallocated and get_user_pages is called on =
+it
+> before page_cache_get_speculative has a chance to call get_page_unless_ze=
+ro().
+>
+> So the best way to fix the problem is to keep page_tail->_count zero at a=
+ll
+> times. This will guarantee that get_page_unless_zero() can never succeed =
+on any
+> tail page. page_tail->_mapcount is guaranteed zero and is unused for all =
+tail
+> pages of a compound page, so we can simply account the tail page referenc=
+es
+> there and transfer them to tail_page->_count in __split_huge_page_refcoun=
+t() (in
+> addition to the head_page->_mapcount).
+>
+> While debugging this s/_count/_mapcount/ change I also noticed get_page i=
+s
+> called by direct-io.c on pages returned by get_user_pages. That wasn't en=
+tirely
+> safe because the two atomic_inc in get_page weren't atomic. As opposed ot=
+her
+> get_user_page users like secondary-MMU page fault to establish the shadow
+> pagetables would never call any superflous get_page after get_user_page
+> returns. It's safer to make get_page universally safe for tail pages and =
+to use
+> get_page_foll() within follow_page (inside get_user_pages()). get_page_fo=
+ll()
+> is safe to do the refcounting for tail pages without taking any locks bec=
+ause
+> it is run within PT lock protected critical sections (PT lock for pte and
+> page_table_lock for pmd_trans_huge). The standard get_page() as invoked b=
+y
+> direct-io instead will now take the compound_lock but still only for tail
+> pages. The direct-io paths are usually I/O bound and the compound_lock is=
+ per
+> THP so very finegrined, so there's no risk of scalability issues with it.=
+ A
+> simple direct-io benchmarks with all lockdep prove locking and spinlock
+> debugging infrastructure enabled shows identical performance and no overh=
+ead.
+> So it's worth it. Ideally direct-io should stop calling get_page() on pag=
+es
+> returned by get_user_pages(). The spinlock in get_page() is already optim=
+ized
+> away for no-THP builds but doing get_page() on tail pages returned by GUP=
+ is
+> generally a rare operation and usually only run in I/O paths.
+>
+> This new refcounting on page_tail->_mapcount in addition to avoiding new =
+RCU
+> critical sections will also allow the working set estimation code to work
+> without any further complexity associated to the tail page refcounting
+> with THP.
+>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Michel Lespinasse <walken@google.com>
+> Reviewed-by: Michel Lespinasse <walken@google.com>
 
-For your convenience, here is the combined diff for the above 5 incremental ones.
+There is a just nitpick at below but the code looks more clear than
+old and even fixed bug I missed but Michel found.
 
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mmotm/include/trace/events/mm.h	2011-08-29 11:57:16.000000000 +0800
-@@ -0,0 +1,69 @@
-+#if !defined(_TRACE_MM_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_MM_H
-+
-+#include <linux/tracepoint.h>
-+#include <linux/page-flags.h>
-+#include <linux/mm.h>
-+
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM mm
-+
-+extern struct trace_print_flags pageflag_names[];
-+
-+/**
-+ * dump_page_frame - called by the trace page dump trigger
-+ * @pfn: page frame number
-+ * @page: pointer to the page frame
-+ *
-+ * This is a helper trace point into the dumping of the page frames.
-+ * It will record various infromation about a page frame.
-+ */
-+TRACE_EVENT(dump_page_frame,
-+
-+	TP_PROTO(unsigned long pfn, struct page *page),
-+
-+	TP_ARGS(pfn, page),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	pfn		)
-+		__field(	struct page *,	page		)
-+		__field(	u64,		stable_flags	)
-+		__field(	unsigned long,	flags		)
-+		__field(	unsigned int,	count		)
-+		__field(	unsigned int,	mapcount	)
-+		__field(	unsigned long,	private		)
-+		__field(	unsigned long,	mapping		)
-+		__field(	unsigned long,	index		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn		= pfn;
-+		__entry->page		= page;
-+		__entry->stable_flags	= stable_page_flags(page);
-+		__entry->flags		= page->flags;
-+		__entry->count		= atomic_read(&page->_count);
-+		__entry->mapcount	= page_mapcount(page);
-+		__entry->private	= page->private;
-+		__entry->mapping	= (unsigned long)page->mapping;
-+		__entry->index		= page->index;
-+	),
-+
-+	TP_printk("pfn=%lu page=%p count=%u mapcount=%u "
-+		  "private=%lx mapping=%lx index=%lx flags=%s",
-+		  __entry->pfn,
-+		  __entry->page,
-+		  __entry->count,
-+		  __entry->mapcount,
-+		  __entry->private,
-+		  __entry->mapping,
-+		  __entry->index,
-+		  ftrace_print_flags_seq(p, "|",
-+					 __entry->flags & PAGE_FLAGS_MASK,
-+					 pageflag_names)
-+	)
-+);
-+
-+#endif /*  _TRACE_MM_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
---- linux-mmotm.orig/kernel/trace/Makefile	2011-08-28 10:09:25.000000000 +0800
-+++ linux-mmotm/kernel/trace/Makefile	2011-08-28 10:09:28.000000000 +0800
-@@ -26,6 +26,7 @@ obj-$(CONFIG_RING_BUFFER) += ring_buffer
- obj-$(CONFIG_RING_BUFFER_BENCHMARK) += ring_buffer_benchmark.o
- 
- obj-$(CONFIG_TRACING) += trace.o
-+obj-$(CONFIG_TRACING) += trace_objects.o
- obj-$(CONFIG_TRACING) += trace_output.o
- obj-$(CONFIG_TRACING) += trace_stat.o
- obj-$(CONFIG_TRACING) += trace_printk.o
-@@ -53,6 +54,7 @@ endif
- obj-$(CONFIG_EVENT_TRACING) += trace_events_filter.o
- obj-$(CONFIG_KPROBE_EVENT) += trace_kprobe.o
- obj-$(CONFIG_TRACEPOINTS) += power-traces.o
-+obj-$(CONFIG_EVENT_TRACING) += trace_mm.o
- ifeq ($(CONFIG_TRACING),y)
- obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
- endif
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mmotm/kernel/trace/trace_mm.c	2011-08-29 11:57:16.000000000 +0800
-@@ -0,0 +1,150 @@
-+/*
-+ * Trace mm pages
-+ *
-+ * Copyright (C) 2009 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
-+ *
-+ * Code based on Matt Mackall's /proc/[kpagecount|kpageflags] code.
-+ */
-+#include <linux/module.h>
-+#include <linux/bootmem.h>
-+#include <linux/debugfs.h>
-+#include <linux/uaccess.h>
-+
-+#include "trace_output.h"
-+
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/mm.h>
-+
-+void trace_mm_page_frames(unsigned long start, unsigned long end,
-+			  void (*trace)(unsigned long pfn, struct page *page))
-+{
-+	unsigned long pfn = start;
-+	struct page *page;
-+
-+	if (start > max_pfn - 1)
-+		return;
-+
-+	if (end > max_pfn - 1)
-+		end = max_pfn - 1;
-+
-+	while (pfn < end) {
-+		page = NULL;
-+		if (pfn_valid(pfn))
-+			page = pfn_to_page(pfn);
-+		pfn++;
-+		if (page)
-+			trace(pfn, page);
-+	}
-+}
-+
-+static void trace_mm_page_frame(unsigned long pfn, struct page *page)
-+{
-+	trace_dump_page_frame(pfn, page);
-+}
-+
-+static ssize_t
-+trace_mm_pfn_range_read(struct file *filp, char __user *ubuf, size_t cnt,
-+			loff_t *ppos)
-+{
-+	return simple_read_from_buffer(ubuf, cnt, ppos, "0\n", 2);
-+}
-+
-+
-+static ssize_t
-+trace_mm_pfn_range_write(struct file *filp, const char __user *ubuf, size_t cnt,
-+			 loff_t *ppos)
-+{
-+	unsigned long val, start, end;
-+	char buf[64];
-+	int ret;
-+
-+	if (cnt >= sizeof(buf))
-+		return -EINVAL;
-+
-+	if (copy_from_user(&buf, ubuf, cnt))
-+		return -EFAULT;
-+
-+	if (tracing_update_buffers() < 0)
-+		return -ENOMEM;
-+
-+	if (trace_set_clr_event("mm", "dump_page_frame", 1))
-+		return -EINVAL;
-+
-+	buf[cnt] = 0;
-+
-+	ret = strict_strtol(buf, 10, &val);
-+	if (ret < 0)
-+		return ret;
-+
-+	start = *ppos;
-+	if (val < 0)
-+		end = max_pfn - 1;
-+	else
-+		end = start + val;
-+
-+	trace_mm_page_frames(start, end, trace_mm_page_frame);
-+
-+	*ppos += cnt;
-+
-+	return cnt;
-+}
-+
-+static const struct file_operations trace_mm_fops = {
-+	.open		= tracing_open_generic,
-+	.read		= trace_mm_pfn_range_read,
-+	.write		= trace_mm_pfn_range_write,
-+};
-+
-+static struct dentry *trace_objects_mm_dir(void)
-+{
-+	static struct dentry *d_mm;
-+	struct dentry *d_objects;
-+
-+	if (d_mm)
-+		return d_mm;
-+
-+	d_objects = trace_objects_dir();
-+	if (!d_objects)
-+		return NULL;
-+
-+	d_mm = debugfs_create_dir("mm", d_objects);
-+	if (!d_mm)
-+		pr_warning("Could not create 'objects/mm' directory\n");
-+
-+	return d_mm;
-+}
-+
-+static struct dentry *trace_objects_mm_pages_dir(void)
-+{
-+	static struct dentry *d_pages;
-+	struct dentry *d_mm;
-+
-+	if (d_pages)
-+		return d_pages;
-+
-+	d_mm = trace_objects_mm_dir();
-+	if (!d_mm)
-+		return NULL;
-+
-+	d_pages = debugfs_create_dir("pages", d_mm);
-+	if (!d_pages)
-+		pr_warning("Could not create debugfs "
-+			   "'objects/mm/pages' directory\n");
-+
-+	return d_pages;
-+}
-+
-+static __init int trace_objects_mm_init(void)
-+{
-+	struct dentry *d_pages;
-+
-+	d_pages = trace_objects_mm_pages_dir();
-+	if (!d_pages)
-+		return 0;
-+
-+	trace_create_file("dump-pfn", 0600, d_pages, NULL,
-+			  &trace_mm_fops);
-+
-+	return 0;
-+}
-+fs_initcall(trace_objects_mm_init);
---- linux-mmotm.orig/kernel/trace/trace.h	2011-08-28 10:09:25.000000000 +0800
-+++ linux-mmotm/kernel/trace/trace.h	2011-08-28 10:09:28.000000000 +0800
-@@ -318,6 +318,7 @@ struct dentry *trace_create_file(const c
- 				 const struct file_operations *fops);
- 
- struct dentry *tracing_init_dentry(void);
-+struct dentry *trace_objects_dir(void);
- 
- struct ring_buffer_event;
- 
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mmotm/kernel/trace/trace_objects.c	2011-08-28 10:09:28.000000000 +0800
-@@ -0,0 +1,26 @@
-+#include <linux/debugfs.h>
-+
-+#include "trace.h"
-+#include "trace_output.h"
-+
-+struct dentry *trace_objects_dir(void)
-+{
-+	static struct dentry *d_objects;
-+	struct dentry *d_tracer;
-+
-+	if (d_objects)
-+		return d_objects;
-+
-+	d_tracer = tracing_init_dentry();
-+	if (!d_tracer)
-+		return NULL;
-+
-+	d_objects = debugfs_create_dir("objects", d_tracer);
-+	if (!d_objects)
-+		pr_warning("Could not create debugfs "
-+			   "'objects' directory\n");
-+
-+	return d_objects;
-+}
-+
-+
---- linux-mmotm.orig/mm/page_alloc.c	2011-08-29 10:43:01.000000000 +0800
-+++ linux-mmotm/mm/page_alloc.c	2011-08-29 10:43:03.000000000 +0800
-@@ -5743,7 +5743,7 @@ bool is_free_buddy_page(struct page *pag
- }
- #endif
- 
--static struct trace_print_flags pageflag_names[] = {
-+struct trace_print_flags pageflag_names[] = {
- 	{1UL << PG_locked,		"locked"	},
- 	{1UL << PG_error,		"error"		},
- 	{1UL << PG_referenced,		"referenced"	},
-@@ -5790,7 +5790,7 @@ static void dump_page_flags(unsigned lon
- 	printk(KERN_ALERT "page flags: %#lx(", flags);
- 
- 	/* remove zone id */
--	flags &= (1UL << NR_PAGEFLAGS) - 1;
-+	flags &= PAGE_FLAGS_MASK;
- 
- 	for (i = 0; pageflag_names[i].name && flags; i++) {
- 
---- linux-mmotm.orig/include/linux/page-flags.h	2011-08-29 10:43:01.000000000 +0800
-+++ linux-mmotm/include/linux/page-flags.h	2011-08-29 10:43:03.000000000 +0800
-@@ -462,6 +462,7 @@ static inline int PageTransCompound(stru
-  * there has been a kernel bug or struct page corruption.
-  */
- #define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
-+#define PAGE_FLAGS_MASK			((1 << NR_PAGEFLAGS) - 1)
- 
- #define PAGE_FLAGS_PRIVATE				\
- 	(1 << PG_private | 1 << PG_private_2)
+Thanks!
+
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+
+> @@ -1156,6 +1156,7 @@ static void __split_huge_page_refcount(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long head_index =3D page->index;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone =3D page_zone(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0int zonestat;
+> + =C2=A0 =C2=A0 =C2=A0 int tail_count =3D 0;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* prevent PageLRU to go away from under us, a=
+nd freeze lru stats */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_irq(&zone->lru_lock);
+> @@ -1164,11 +1165,14 @@ static void __split_huge_page_refcount(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0for (i =3D 1; i < HPAGE_PMD_NR; i++) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page_=
+tail =3D page + i;
+>
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* tail_page->_count c=
+annot change */
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_sub(atomic_read=
+(&page_tail->_count), &page->_count);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(page_count(page=
+) <=3D 0);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_add(page_mapcou=
+nt(page) + 1, &page_tail->_count);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(atomic_read(&pa=
+ge_tail->_count) <=3D 0);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* tail_page->_mapcoun=
+t cannot change */
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(page_mapcount(p=
+age_tail) < 0);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 tail_count +=3D page_m=
+apcount(page_tail);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* check for overflow =
+*/
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(tail_count < 0)=
+;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(atomic_read(&pa=
+ge_tail->_count) !=3D 0);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_add(page_mapcou=
+nt(page) + page_mapcount(page_tail) + 1,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0&page_tail->_count);
+
+I doubt someone might try to change this with atomic_set for reducing
+LOCK_PREFIX overhead in future although it's not fast path. Of course,
+we can prevent that patch but can't prevent his wasted time. I hope
+there is a comment why we use atomic_add like the errata PPro with
+OOStore.
+
+
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
