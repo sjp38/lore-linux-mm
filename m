@@ -1,312 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B783900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 12:50:13 -0400 (EDT)
-Date: Mon, 29 Aug 2011 09:49:49 -0700
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V8 4/4] mm: frontswap: config and doc files
-Message-ID: <20110829164949.GA27238@ca-server1.us.oracle.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6056E900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 15:04:57 -0400 (EDT)
+Date: Mon, 29 Aug 2011 21:04:26 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110829190426.GC1434@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <CALWz4iwChnacF061L9vWo7nEA7qaXNJrK=+jsEe9xBtvEBD9MA@mail.gmail.com>
+ <20110811210914.GB31229@cmpxchg.org>
+ <CALWz4iwJfyWRineMy+W02YBvS0Y=Pv1y8Rb=8i5R=vUCfrO+iQ@mail.gmail.com>
+ <CALWz4iwRXBheXFND5zq3ze2PJDkeoxYHD1zOsTyzOe3XqY5apA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALWz4iwRXBheXFND5zq3ze2PJDkeoxYHD1zOsTyzOe3XqY5apA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V8 4/4] mm: frontswap: config and doc files
+On Mon, Aug 29, 2011 at 12:22:02AM -0700, Ying Han wrote:
+> On Mon, Aug 29, 2011 at 12:15 AM, Ying Han <yinghan@google.com> wrote:
+> > On Thu, Aug 11, 2011 at 2:09 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >>
+> >> On Thu, Aug 11, 2011 at 01:39:45PM -0700, Ying Han wrote:
+> >> > Please consider including the following patch for the next post. It causes
+> >> > crash on some of the tests where sc->mem_cgroup is NULL (global kswapd).
+> >> >
+> >> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> > index b72a844..12ab25d 100644
+> >> > --- a/mm/vmscan.c
+> >> > +++ b/mm/vmscan.c
+> >> > @@ -2768,7 +2768,8 @@ loop_again:
+> >> >                          * Do some background aging of the anon list, to
+> >> > give
+> >> >                          * pages a chance to be referenced before
+> >> > reclaiming.
+> >> >                          */
+> >> > -                       if (inactive_anon_is_low(zone, &sc))
+> >> > +                       if (scanning_global_lru(&sc) &&
+> >> > +                                       inactive_anon_is_low(zone, &sc))
+> >> >                                 shrink_active_list(SWAP_CLUSTER_MAX, zone,
+> >> >                                                         &sc, priority, 0);
+> >>
+> >> Thanks!  I completely overlooked this one and only noticed it after
+> >> changing the arguments to shrink_active_list().
+> >>
+> >> On memcg configurations, scanning_global_lru() will essentially never
+> >> be true again, so I moved the anon pre-aging to a separate function
+> >> that also does a hierarchy loop to preage the per-memcg anon lists.
+> >>
+> >> I hope to send out the next revision soon.
+> >
+> > Also, please consider to fold in the following patch as well. It fixes
+> > the root cgroup lru accounting and we could easily trigger OOM while
+> > doing some swapoff test w/o it.
+> >
+> > mm:fix the lru accounting for root cgroup.
+> >
+> > This patch is applied on top of:
+> > "
+> > mm: memcg-aware global reclaim
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > "
+> >
+> > This patch fixes the lru accounting for root cgroup.
+> >
+> > After the "memcg-aware global reclaim" patch, one of the changes is to have
+> > lru pages linked back to root. Under the global memory pressure, we start from
+> > the root cgroup lru and walk through the memcg hierarchy of the system. For
+> > each memcg, we reclaim pages based on the its lru size.
+> >
+> > However for root cgroup, we used not having a seperate lru and only counting
+> > the pages charged to root as part of root lru size. Without this patch, all
+> > the pages which are linked to root lru but not charged to root like swapcache
+> > readahead are not visible to page reclaim code and we are easily to get OOM.
+> >
+> > After this patch, all the pages linked under root lru are counted in the lru
+> > size, including Used and !Used.
+> >
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Ying Han <yinghan@google.com>
+> >
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 5518f54..f6c5f29 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -888,19 +888,21 @@ void mem_cgroup_del_lru_list(struct page *page,
+> > enum lru_list lru)
+> >  {
+> >  >------struct page_cgroup *pc;
+> >  >------struct mem_cgroup_per_zone *mz;
+> > +>------struct mem_cgroup *mem;
+> > .
+> >  >------if (mem_cgroup_disabled())
+> >  >------>-------return;
+> >  >------pc = lookup_page_cgroup(page);
+> > ->------/* can happen while we handle swapcache. */
+> > ->------if (!TestClearPageCgroupAcctLRU(pc))
+> > ->------>-------return;
+> > ->------VM_BUG_ON(!pc->mem_cgroup);
+> > ->------/*
+> > ->------ * We don't check PCG_USED bit. It's cleared when the "page" is finally
+> > ->------ * removed from global LRU.
+> > ->------ */
+> > ->------mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
+> > +
+> > +>------if (TestClearPageCgroupAcctLRU(pc) || PageCgroupUsed(pc)) {
 
-This fourth patch of four in the frontswap series adds configuration
-and documentation files.
+This PageCgroupUsed part confuses me.  A page that is being isolated
+shortly after being charged while on the LRU may reach here, and then
+it is unaccounted from pc->mem_cgroup, which it never was accounted
+to.
 
-[v8: rebase to 3.0-rc4]
-[v7: rebase to 3.0-rc3]
-[v6: rebase to 3.0-rc1]
-[v5: change config default to n]
-[v4: rebase to 2.6.39]
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
-Acked-by: Jan Beulich <JBeulich@novell.com>
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Matthew Wilcox <matthew@wil.cx>
-Cc: Chris Mason <chris.mason@oracle.com>
-Cc: Rik Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Could you explain why you added it?
 
---- linux/mm/Makefile	2011-07-20 14:50:42.365999021 -0600
-+++ frontswap/mm/Makefile	2011-08-29 09:52:14.308745832 -0600
-@@ -25,6 +25,7 @@ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.
- 
- obj-$(CONFIG_BOUNCE)	+= bounce.o
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
-+obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
- obj-$(CONFIG_HAS_DMA)	+= dmapool.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
- obj-$(CONFIG_NUMA) 	+= mempolicy.o
---- linux/mm/Kconfig	2011-08-08 08:19:26.303686905 -0600
-+++ frontswap/mm/Kconfig	2011-08-29 09:52:14.308745832 -0600
-@@ -370,3 +370,20 @@ config CLEANCACHE
- 	  in a negligible performance hit.
- 
- 	  If unsure, say Y to enable cleancache
-+
-+config FRONTSWAP
-+	bool "Enable frontswap to cache swap pages if tmem is present"
-+	depends on SWAP
-+	default n
-+	help
-+	  Frontswap is so named because it can be thought of as the opposite
-+	  of a "backing" store for a swap device.  The data is stored into
-+	  "transcendent memory", memory that is not directly accessible or
-+	  addressable by the kernel and is of unknown and possibly
-+	  time-varying size.  When space in transcendent memory is available,
-+	  a significant swap I/O reduction may be achieved.  When none is
-+	  available, all frontswap calls are reduced to a single pointer-
-+	  compare-against-NULL resulting in a negligible performance hit
-+	  and swap data is stored as normal on the matching swap device.
-+
-+	  If unsure, say Y to enable frontswap.
---- linux/Documentation/ABI/testing/sysfs-kernel-mm-frontswap	1969-12-31 17:00:00.000000000 -0700
-+++ frontswap/Documentation/ABI/testing/sysfs-kernel-mm-frontswap	2011-08-29 09:52:14.281745211 -0600
-@@ -0,0 +1,16 @@
-+What:		/sys/kernel/mm/frontswap/
-+Date:		August 2011
-+Contact:	Dan Magenheimer <dan.magenheimer@oracle.com>
-+Description:
-+		/sys/kernel/mm/frontswap/ contains a number of files which
-+		record a count of various frontswap operations (sum across
-+		all swap devices):
-+			succ_puts
-+			failed_puts
-+			gets
-+			flushes
-+		In addition, reading the curr_pages file shows how many
-+		pages are currently contained in frontswap and writing this
-+		file with an integer performs a "partial swapoff", reducing
-+		the number of frontswap pages to that integer if memory
-+		constraints permit.
---- linux/Documentation/vm/frontswap.txt	1969-12-31 17:00:00.000000000 -0700
-+++ frontswap/Documentation/vm/frontswap.txt	2011-08-29 09:52:14.304747064 -0600
-@@ -0,0 +1,215 @@
-+Frontswap provides a "transcendent memory" interface for swap pages.
-+In some environments, dramatic performance savings may be obtained because
-+swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
-+
-+Frontswap is so named because it can be thought of as the opposite of
-+a "backing" store for a swap device.  The storage is assumed to be
-+a synchronous concurrency-safe page-oriented "pseudo-RAM device" conforming
-+to the requirements of transcendent memory (such as Xen's "tmem", or
-+in-kernel compressed memory, aka "zcache", or future RAM-like devices);
-+this pseudo-RAM device is not directly accessible or addressable by the
-+kernel and is of unknown and possibly time-varying size.  The driver
-+links itself to frontswap by calling frontswap_register_ops to set the
-+frontswap_ops funcs appropriately and the functions it provides must
-+conform to certain policies as follows:
-+
-+An "init" prepares the device to receive frontswap pages associated
-+with the specified swap device number (aka "type").  A "put_page" will
-+copy the page to transcendent memory and associate it with the type and
-+offset associated with the page. A "get_page" will copy the page, if found,
-+from transcendent memory into kernel memory, but will NOT remove the page
-+from from transcendent memory.  A "flush_page" will remove the page from
-+transcendent memory and a "flush_area" will remove ALL pages associated
-+with the swap type (e.g., like swapoff) and notify the "device" to refuse
-+further puts with that swap type.
-+
-+Once a page is successfully put, a matching get on the page will normally
-+succeed.  So when the kernel finds itself in a situation where it needs
-+to swap out a page, it first attempts to use frontswap.  If the put returns
-+success, the data has been successfully saved to transcendent memory and
-+a disk write and, if the data is later read back, a disk read are avoided.
-+If a put returns failure, transcendent memory has rejected the data, and the
-+page can be written to swap as usual.
-+
-+Note that if a page is put and the page already exists in transcendent memory
-+(a "duplicate" put), either the put succeeds and the data is overwritten,
-+or the put fails AND the page is flushed.  This ensures stale data may
-+never be obtained from frontswap.
-+
-+Monitoring and control of frontswap is done by sysfs files in the
-+/sys/kernel/mm/frontswap directory.  The effectiveness of frontswap can
-+be measured (across all swap devices) with:
-+
-+curr_pages	- number of pages currently contained in frontswap
-+failed_puts	- how many put attempts have failed
-+gets		- how many gets were attempted (all should succeed)
-+succ_puts	- how many put attempts have succeeded
-+flushes		- how many flushes were attempted
-+
-+The number of pages currently contained in frontswap can be reduced by root by
-+writing an integer target to curr_pages, which results in a "partial swapoff",
-+thus reducing the number of frontswap pages to that target if memory
-+constraints permit.
-+
-+FAQ
-+
-+1) Where's the value?
-+
-+When a workload starts swapping, performance falls through the floor.
-+Frontswap significantly increases performance in many such workloads by
-+providing a clean, dynamic interface to read and write swap pages to
-+"transcendent memory" that is otherwise not directly addressable to the kernel.
-+This interface is ideal when data is transformed to a different form
-+and size (such as with compression) or secretly moved (as might be
-+useful for write-balancing for some RAM-like devices).  Swap pages (and
-+evicted page-cache pages) are a great use for this kind of slower-than-RAM-
-+but-much-faster-than-disk "pseudo-RAM device" and the frontswap (and
-+cleancache) interface to transcendent memory provides a nice way to read
-+and write -- and indirectly "name" -- the pages.
-+
-+In the virtual case, the whole point of virtualization is to statistically
-+multiplex physical resources acrosst the varying demands of multiple
-+virtual machines.  This is really hard to do with RAM and efforts to do
-+it well with no kernel changes have essentially failed (except in some
-+well-publicized special-case workloads).  Frontswap -- and cleancache --
-+with a fairly small impact on the kernel, provides a huge amount
-+of flexibility for more dynamic, flexible RAM multiplexing.
-+Specifically, the Xen Transcendent Memory backend allows otherwise
-+"fallow" hypervisor-owned RAM to not only be "time-shared" between multiple
-+virtual machines, but the pages can be compressed and deduplicated to
-+optimize RAM utilization.  And when guest OS's are induced to surrender
-+underutilized RAM (e.g. with "self-ballooning"), sudden unexpected
-+memory pressure may result in swapping; frontswap allows those pages
-+to be swapped to and from hypervisor RAM if overall host system memory
-+conditions allow.
-+
-+2) Sure there may be performance advantages in some situations, but
-+   what's the space/time overhead of frontswap?
-+
-+If CONFIG_FRONTSWAP is disabled, every frontswap hook compiles into
-+nothingness and the only overhead is a few extra bytes per swapon'ed
-+swap device.  If CONFIG_FRONTSWAP is enabled but no frontswap "backend"
-+registers, there is one extra global variable compared to zero for
-+every swap page read or written.  If CONFIG_FRONTSWAP is enabled
-+AND a frontswap backend registers AND the backend fails every "put"
-+request (i.e. provides no memory despite claiming it might),
-+CPU overhead is still negligible -- and since every frontswap fail
-+precedes a swap page write-to-disk, the system is highly likely
-+to be I/O bound and using a small fraction of a percent of a CPU
-+will be irrelevant anyway.
-+
-+As for space, if CONFIG_FRONTSWAP is enabled AND a frontswap backend
-+registers, one bit is allocated for every swap page for every swap
-+device that is swapon'd.  This is added to the EIGHT bits (which
-+was sixteen until about 2.6.34) that the kernel already allocates
-+for every swap page for every swap device that is swapon'd.  (Hugh
-+Dickins has observed that frontswap could probably steal one of
-+the existing eight bits, but let's worry about that minor optimization
-+later.)  For very large swap disks (which are rare) on a standard
-+4K pagesize, this is 1MB per 32GB swap.
-+
-+3) OK, how about a quick overview of what this frontswap patch does
-+   in terms that a kernel hacker can grok?
-+
-+Let's assume that a frontswap "backend" has registered during
-+kernel initialization; this registration indicates that this
-+frontswap backend has access to some "memory" that is not directly
-+accessible by the kernel.  Exactly how much memory it provides is
-+entirely dynamic and random.
-+
-+Whenever a swap-device is swapon'd frontswap_init() is called,
-+passing the swap device number (aka "type") as a parameter.
-+This notifies frontswap to expect attempts to "put" swap pages
-+associated with that number.
-+
-+Whenever the swap subsystem is readying a page to write to a swap
-+device (c.f swap_writepage()), frontswap_put_page is called.  Frontswap
-+consults with the frontswap backend and if the backend says it does NOT
-+have room, frontswap_put_page returns -1 and the kernel swaps the page
-+to the swap device as normal.  Note that the response from the frontswap
-+backend is unpredictable to the kernel; it may choose to never accept a
-+page, it could accept every ninth page, or it might accept every
-+page.  But if the backend does accept a page, the data from the page
-+has already been copied and associated with the type and offset,
-+and the backend guarantees the persistence of the data.  In this case,
-+frontswap sets a bit in the "frontswap_map" for the swap device
-+corresponding to the page offset on the swap device to which it would
-+otherwise have written the data.
-+
-+When the swap subsystem needs to swap-in a page (swap_readpage()),
-+it first calls frontswap_get_page() which checks the frontswap_map to
-+see if the page was earlier accepted by the frontswap backend.  If
-+it was, the page of data is filled from the frontswap backend and
-+the swap-in is complete.  If not, the normal swap-in code is
-+executed to obtain the page of data from the real swap device.
-+
-+So every time the frontswap backend accepts a page, a swap device read
-+and (potentially) a swap device write are replaced by a "frontswap backend
-+put" and (possibly) a "frontswap backend get", which are presumably much
-+faster.
-+
-+4) Can't frontswap be configured as a "special" swap device that is
-+   just higher priority than any real swap device (e.g. like zswap)?
-+
-+No.  Recall that acceptance of any swap page by the frontswap
-+backend is entirely unpredictable. This is critical to the definition
-+of frontswap because it grants completely dynamic discretion to the
-+backend.  But since any "put" might fail, there must always be a real
-+slot on a real swap device to swap the page.  Thus frontswap must be
-+implemented as a "shadow" to every swapon'd device with the potential
-+capability of holding every page that the swap device might have held
-+and the possibility that it might hold no pages at all.
-+On the downside, this also means that frontswap cannot contain more
-+pages than the total of swapon'd swap devices.  For example, if NO
-+swap device is configured on some installation, frontswap is useless.
-+
-+Further, frontswap is entirely synchronous whereas a real swap
-+device is, by definition, asynchronous and uses block I/O.  The
-+block I/O layer is not only unnecessary, but may perform "optimizations"
-+that are inappropriate for a RAM-oriented device including delaying
-+the write of some pages for a significant amount of time.  Synchrony is
-+required to ensure the dynamicity of the backend and to avoid thorny race
-+conditions that would unnecessarily and greatly complicate frontswap
-+and/or the block I/O subsystem.
-+
-+In a virtualized environment, the dynamicity allows the hypervisor
-+(or host OS) to do "intelligent overcommit".  For example, it can
-+choose to accept pages only until host-swapping might be imminent,
-+then force guests to do their own swapping.  In zcache, "poorly"
-+compressible pages can be rejected, where "poorly" can itself be defined
-+dynamically depending on current memory constraints.
-+
-+5) Why this weird definition about "duplicate puts"?  If a page
-+   has been previously successfully put, can't it always be
-+   successfully overwritten?
-+
-+Nearly always it can, but no, sometimes it cannot.  Consider an example
-+where data is compressed and the original 4K page has been compressed
-+to 1K.  Now an attempt is made to overwrite the page with data that
-+is non-compressible and so would take the entire 4K.  But the backend
-+has no more space.  In this case, the put must be rejected.  Whenever
-+frontswap rejects a put that would overwrite, it also must flush
-+the old data and ensure that it is no longer accessible.  Since the
-+swap subsystem then writes the new data to the read swap device,
-+this is the correct course of action to ensure coherency.
-+
-+6) What is frontswap_shrink for?
-+
-+When the (non-frontswap) swap subsystem swaps out a page to a real
-+swap device, that page is only taking up low-value pre-allocated disk
-+space.  But if frontswap has placed a page in transcendent memory, that
-+page may be taking up valuable real estate.  The frontswap_shrink
-+routine allows a process outside of the swap subsystem (such as
-+a userland service via the sysfs interface, or a kernel thread)
-+to force pages out of the memory managed by frontswap and back into
-+kernel-addressable memory.
-+
-+7) Why does the frontswap patch create the new include file swapfile.h?
-+
-+The frontswap code depends on some swap-subsystem-internal data
-+structures that have, over the years, moved back and forth between
-+static and global.  This seemed a reasonable compromise:  Define
-+them as global but declare them in a new include file that isn't
-+included by the large number of source files that include swap.h.
-+
-+Dan Magenheimer, last updated August 8, 2011
+I now made it so that PageCgroupAcctLRU on the LRU means accounted to
+pc->mem_cgroup, and !PageCgroupAcctLRU on the LRU means accounted to
+and babysitted by root_mem_cgroup.  Always.  Which also means that
+before_commit now ensures an LRU page is moved to root_mem_cgroup for
+babysitting during the charge, so that concurrent isolations/putbacks
+are always accounted correctly.  Is this what you had in mind?  Did I
+miss something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
