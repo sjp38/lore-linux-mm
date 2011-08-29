@@ -1,367 +1,488 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A02B2900139
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:20:30 -0400 (EDT)
-Received: by ywm13 with SMTP id 13so5295397ywm.14
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2011 21:20:27 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 470E0900138
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 03:08:20 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p7T78HWN018514
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:08:17 -0700
+Received: from qyk34 (qyk34.prod.google.com [10.241.83.162])
+	by wpaz13.hot.corp.google.com with ESMTP id p7T77tHT007039
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:08:16 -0700
+Received: by qyk34 with SMTP id 34so3928786qyk.5
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:08:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110827173421.GA2967@redhat.com>
-References: <1313740111-27446-1-git-send-email-walken@google.com>
-	<20110822213347.GF2507@redhat.com>
-	<CANN689HE=TKyr-0yDQgXEoothGJ0Cw0HLB2iOvCKrOXVF2DNww@mail.gmail.com>
-	<20110824000914.GH23870@redhat.com>
-	<20110824002717.GI23870@redhat.com>
-	<20110824133459.GP23870@redhat.com>
-	<20110826062436.GA5847@google.com>
-	<20110826161048.GE23870@redhat.com>
-	<20110826185430.GA2854@redhat.com>
-	<20110827094152.GA16402@google.com>
-	<20110827173421.GA2967@redhat.com>
-Date: Mon, 29 Aug 2011 13:20:26 +0900
-Message-ID: <CAEwNFnDk0bQZKReKccuQMPEw_6EA2DxN4dm9cmjr01BVT4A7Dw@mail.gmail.com>
-Subject: Re: [PATCH] thp: tail page refcounting fix #4
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20110826161936.52979754.akpm@linux-foundation.org>
+References: <1311902759-14971-1-git-send-email-abrestic@google.com>
+	<20110826161936.52979754.akpm@linux-foundation.org>
+Date: Mon, 29 Aug 2011 00:08:13 -0700
+Message-ID: <CALWz4izx_ErppadXUADRb9ooo+kXGr2uz=WBg-RKXSKcSsj3bg@mail.gmail.com>
+Subject: Re: [PATCH V5] Eliminate task stack trace duplication.
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=00163628429ef3e86304ab9f8e36
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Sun, Aug 28, 2011 at 2:34 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
-te:
-> On Sat, Aug 27, 2011 at 02:41:52AM -0700, Michel Lespinasse wrote:
->> I understand you may have to remove the VM_BUG_ON(page_mapcount(page) <=
-=3D 0)
->> that I had suggested in __get_page_tail() (sorry about that).
->
-> The function doing that is snd_pcm_mmap_data_fault and it's doing what
-> I described in prev email.
->
->> My only additional suggestion is about the put_page_testzero in
->> __get_page_tail(), maybe if you could just increment the tail page count
->> instead of calling __get_page_tail_foll(), then you wouldn't have to
->> release the extra head page count there. And it would even look kinda
->> natural, head page count gets acquired before compound_lock_irqsave(),
->> so we only have to acquire an extra tail page count after confirming
->> this is still a tail page.
->
-> Ok, I added a param to __get_page_tail_foll, it is constant at build
-> time and because it's inline the branch should be optimized away at
-> build time without requiring a separate function. The bugchecks are
-> the same so we can share and just skip the atomic_inc on the
-> page_head in __get_page_tail_foll. Also it had to be moved into
-> internal.h as a further cleanup.
->
->> Either way, the code looks OK by now.
->>
->> Reviewed-by: Michel Lespinasse <walken@google.com>
->
-> Thanks. Incremental diff to correct the false positive bug on for
-> drivers like alsa allocating __GFP_COMP and mapping subpages with page
-> faults.
->
-> diff --git a/mm/swap.c b/mm/swap.c
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -166,12 +166,6 @@ int __get_page_tail(struct page *page)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0flags =3D compound=
-_lock_irqsave(page_head);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* here __split_hu=
-ge_page_refcount won't run anymore */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(PageTai=
-l(page))) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 /*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* get_page() can only be called on tail pages
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* after get_page_foll() taken a tail page
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* refcount.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0*/
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 VM_BUG_ON(page_mapcount(page) <=3D 0);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0__get_page_tail_foll(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0got =3D 1;
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0/*
->
-> This is the optimization.
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -375,26 +375,6 @@ static inline int page_count(struct page
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return atomic_read(&compound_head(page)->_coun=
-t);
-> =C2=A0}
->
-> -static inline void __get_page_tail_foll(struct page *page)
-> -{
-> - =C2=A0 =C2=A0 =C2=A0 /*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we're getting a tail page, the elevated=
- page->_count is
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* required only in the head page and we will=
- elevate the head
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page->_count and tail page->_mapcount.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* We elevate page_tail->_mapcount for tail p=
-ages to force
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_tail->_count to be zero at all times =
-to avoid getting
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* false positives from get_page_unless_zero(=
-) with
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* speculative page access (like in
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_cache_get_speculative()) on tail page=
-s.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->first_page->_count) <=
-=3D 0);
-> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->_count) !=3D 0);
-> - =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(page_mapcount(page) < 0);
-> - =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->first_page->_count);
-> - =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->_mapcount);
-> -}
-> -
-> =C2=A0extern int __get_page_tail(struct page *page);
->
-> =C2=A0static inline void get_page(struct page *page)
-> diff --git a/mm/internal.h b/mm/internal.h
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -37,6 +37,28 @@ static inline void __put_page(struct pag
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_dec(&page->_count);
-> =C2=A0}
->
-> +static inline void __get_page_tail_foll(struct page *page,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 bool get_pag=
-e_head)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we're getting a tail page, the elevated=
- page->_count is
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* required only in the head page and we will=
- elevate the head
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page->_count and tail page->_mapcount.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* We elevate page_tail->_mapcount for tail p=
-ages to force
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_tail->_count to be zero at all times =
-to avoid getting
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* false positives from get_page_unless_zero(=
-) with
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* speculative page access (like in
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page_cache_get_speculative()) on tail page=
-s.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->first_page->_count) <=
-=3D 0);
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(atomic_read(&page->_count) !=3D 0);
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(page_mapcount(page) < 0);
-> + =C2=A0 =C2=A0 =C2=A0 if (get_page_head)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->firs=
-t_page->_count);
-> + =C2=A0 =C2=A0 =C2=A0 atomic_inc(&page->_mapcount);
-> +}
-> +
-> =C2=A0static inline void get_page_foll(struct page *page)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(PageTail(page)))
-> @@ -45,7 +67,7 @@ static inline void get_page_foll(struct
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * __split_huge_pa=
-ge_refcount() can't run under
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * get_page_foll()=
- because we hold the proper PT lock.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __get_page_tail_foll(p=
-age);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __get_page_tail_foll(p=
-age, true);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0else {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Getting a norma=
-l page or the head of a compound page
-> diff --git a/mm/swap.c b/mm/swap.c
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -166,16 +166,8 @@ int __get_page_tail(struct page *page)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0flags =3D compound=
-_lock_irqsave(page_head);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* here __split_hu=
-ge_page_refcount won't run anymore */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(PageTai=
-l(page))) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 __get_page_tail_foll(page);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 __get_page_tail_foll(page, false);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0got =3D 1;
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 /*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* We can release the refcount taken by
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* get_page_unless_zero() now that
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* __split_huge_page_refcount() is blocked on
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* the compound_lock.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0*/
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 if (put_page_testzero(page_head))
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(1);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0compound_unlock_ir=
-qrestore(page_head, flags);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(!got)=
-)
->
->
-> =3D=3D=3D
-> Subject: thp: tail page refcounting fix
->
-> From: Andrea Arcangeli <aarcange@redhat.com>
->
-> Michel while working on the working set estimation code, noticed that cal=
-ling
-> get_page_unless_zero() on a random pfn_to_page(random_pfn) wasn't safe, i=
-f the
-> pfn ended up being a tail page of a transparent hugepage under splitting =
-by
-> __split_huge_page_refcount(). He then found the problem could also
-> theoretically materialize with page_cache_get_speculative() during the
-> speculative radix tree lookups that uses get_page_unless_zero() in SMP if=
- the
-> radix tree page is freed and reallocated and get_user_pages is called on =
-it
-> before page_cache_get_speculative has a chance to call get_page_unless_ze=
-ro().
->
-> So the best way to fix the problem is to keep page_tail->_count zero at a=
-ll
-> times. This will guarantee that get_page_unless_zero() can never succeed =
-on any
-> tail page. page_tail->_mapcount is guaranteed zero and is unused for all =
-tail
-> pages of a compound page, so we can simply account the tail page referenc=
-es
-> there and transfer them to tail_page->_count in __split_huge_page_refcoun=
-t() (in
-> addition to the head_page->_mapcount).
->
-> While debugging this s/_count/_mapcount/ change I also noticed get_page i=
-s
-> called by direct-io.c on pages returned by get_user_pages. That wasn't en=
-tirely
-> safe because the two atomic_inc in get_page weren't atomic. As opposed ot=
-her
-> get_user_page users like secondary-MMU page fault to establish the shadow
-> pagetables would never call any superflous get_page after get_user_page
-> returns. It's safer to make get_page universally safe for tail pages and =
-to use
-> get_page_foll() within follow_page (inside get_user_pages()). get_page_fo=
-ll()
-> is safe to do the refcounting for tail pages without taking any locks bec=
-ause
-> it is run within PT lock protected critical sections (PT lock for pte and
-> page_table_lock for pmd_trans_huge). The standard get_page() as invoked b=
-y
-> direct-io instead will now take the compound_lock but still only for tail
-> pages. The direct-io paths are usually I/O bound and the compound_lock is=
- per
-> THP so very finegrined, so there's no risk of scalability issues with it.=
- A
-> simple direct-io benchmarks with all lockdep prove locking and spinlock
-> debugging infrastructure enabled shows identical performance and no overh=
-ead.
-> So it's worth it. Ideally direct-io should stop calling get_page() on pag=
-es
-> returned by get_user_pages(). The spinlock in get_page() is already optim=
-ized
-> away for no-THP builds but doing get_page() on tail pages returned by GUP=
- is
-> generally a rare operation and usually only run in I/O paths.
->
-> This new refcounting on page_tail->_mapcount in addition to avoiding new =
-RCU
-> critical sections will also allow the working set estimation code to work
-> without any further complexity associated to the tail page refcounting
-> with THP.
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Reported-by: Michel Lespinasse <walken@google.com>
-> Reviewed-by: Michel Lespinasse <walken@google.com>
+--00163628429ef3e86304ab9f8e36
+Content-Type: text/plain; charset=ISO-8859-1
 
-There is a just nitpick at below but the code looks more clear than
-old and even fixed bug I missed but Michel found.
+On Fri, Aug 26, 2011 at 4:19 PM, Andrew Morton <akpm@linux-foundation.org>wrote:
 
-Thanks!
-
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
-> @@ -1156,6 +1156,7 @@ static void __split_huge_page_refcount(s
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long head_index =3D page->index;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone =3D page_zone(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0int zonestat;
-> + =C2=A0 =C2=A0 =C2=A0 int tail_count =3D 0;
+> (I'm back!)
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* prevent PageLRU to go away from under us, a=
-nd freeze lru stats */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_irq(&zone->lru_lock);
-> @@ -1164,11 +1165,14 @@ static void __split_huge_page_refcount(s
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0for (i =3D 1; i < HPAGE_PMD_NR; i++) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page_=
-tail =3D page + i;
+
+Thank you Andrew for the comments.
+
+Hmm, Looks like we still need some changes for this patch to get it merged
+into -mm and I might be able to jump into it sometime next week. :)
+
+--Ying
+
 >
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* tail_page->_count c=
-annot change */
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_sub(atomic_read=
-(&page_tail->_count), &page->_count);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(page_count(page=
-) <=3D 0);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_add(page_mapcou=
-nt(page) + 1, &page_tail->_count);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(atomic_read(&pa=
-ge_tail->_count) <=3D 0);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* tail_page->_mapcoun=
-t cannot change */
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(page_mapcount(p=
-age_tail) < 0);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 tail_count +=3D page_m=
-apcount(page_tail);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* check for overflow =
-*/
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(tail_count < 0)=
-;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(atomic_read(&pa=
-ge_tail->_count) !=3D 0);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 atomic_add(page_mapcou=
-nt(page) + page_mapcount(page_tail) + 1,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0&page_tail->_count);
+> On Thu, 28 Jul 2011 18:25:59 -0700
+> Andrew Bresticker <abrestic@google.com> wrote:
+>
+> > The problem with small dmesg ring buffer like 512k is that only limited
+> number
+> > of task traces will be logged. Sometimes we lose important information
+> only
+> > because of too many duplicated stack traces. This problem occurs when
+> dumping
+> > lots of stacks in a single operation, such as sysrq-T.
+> >
+> > This patch tries to reduce the duplication of task stack trace in the
+> dump
+> > message by hashing the task stack. The hashtable is a 32k pre-allocated
+> buffer
+> > during bootup. Then we hash the task stack with stack_depth 32 for each
+> stack
+> > entry. Each time if we find the identical task trace in the task stack,
+> we dump
+> > only the pid of the task which has the task trace dumped. So it is easy
+> to back
+> > track to the full stack with the pid.
+> >
+> > [   58.469730] kworker/0:0     S 0000000000000000     0     4      2
+> 0x00000000
+> > [   58.469735]  ffff88082fcfde80 0000000000000046 ffff88082e9d8000
+> ffff88082fcfc010
+> > [   58.469739]  ffff88082fce9860 0000000000011440 ffff88082fcfdfd8
+> ffff88082fcfdfd8
+> > [   58.469743]  0000000000011440 0000000000000000 ffff88082fcee180
+> ffff88082fce9860
+> > [   58.469747] Call Trace:
+> > [   58.469751]  [<ffffffff8108525a>] worker_thread+0x24b/0x250
+> > [   58.469754]  [<ffffffff8108500f>] ? manage_workers+0x192/0x192
+> > [   58.469757]  [<ffffffff810885bd>] kthread+0x82/0x8a
+> > [   58.469760]  [<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
+> > [   58.469763]  [<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
+> > [   58.469765]  [<ffffffff8141aed0>] ? gs_change+0xb/0xb
+> > [   58.469768] kworker/u:0     S 0000000000000004     0     5      2
+> 0x00000000
+> > [   58.469773]  ffff88082fcffe80 0000000000000046 ffff880800000000
+> ffff88082fcfe010
+> > [   58.469777]  ffff88082fcea080 0000000000011440 ffff88082fcfffd8
+> ffff88082fcfffd8
+> > [   58.469781]  0000000000011440 0000000000000000 ffff88082fd4e9a0
+> ffff88082fcea080
+> > [   58.469785] Call Trace:
+> > [   58.469786] <Same stack as pid 4>
+> > [   58.470235] kworker/0:1     S 0000000000000000     0    13      2
+> 0x00000000
+> > [   58.470255]  ffff88082fd3fe80 0000000000000046 ffff880800000000
+> ffff88082fd3e010
+> > [   58.470279]  ffff88082fcee180 0000000000011440 ffff88082fd3ffd8
+> ffff88082fd3ffd8
+> > [   58.470301]  0000000000011440 0000000000000000 ffffffff8180b020
+> ffff88082fcee180
+> > [   58.470325] Call Trace:
+> > [   58.470332] <Same stack as pid 4>
+>
+> The code looks OK(ish) to me.  I'm still concerned that the implementation
+> will miss lots of de-duplications because it is hashing random crud in
+> the stack frame.
+>
+> > Note: Non-x86 architectures will need to be updated since show_stack()
+> > now takes an additional argument.
+>
+> Well, we can't break all architectures.
+>
+> I can't think of a way to make the preprocessor convert show_stack(a,
+> b) into show_stack(a, b, N) (this can be done in the other direction).
+> So all I can think of is to rename x86 show_stack() to something else and
+> do
+>
+> #define show_stack_something_else(a, b, c) show_stack(a, b)
+>
+> for other architectures.
+>
+> But on the other hand, why did the show_stack() interface get changed?
+> show_stack() dumps a single tasks's stack, so top-level callers have no
+> earthly reason to be passing the dup_stack_pid into show_stack().
+> dup_stack_pid is purely for many-task stackdumps.
+>
+> Also, the code as-is is pretty much useless for other architectures.
+> The core changes in arch/x86/kernel/stacktrace.c look pretty generic -
+> can we design and place this code so that all architectures can use it?
+>
+>
+> > The problem with small dmesg ring buffer like 512k is that only limited
+> number
+> > of task traces will be logged. Sometimes we lose important information
+> only
+> > because of too many duplicated stack traces. This problem occurs when
+> dumping
+> > lots of stacks in a single operation, such as sysrq-T.
+> >
+> > This patch tries to reduce the duplication of task stack trace in the
+> dump
+> > message by hashing the task stack. The hashtable is a 32k pre-allocated
+> buffer
+> > during bootup. Then we hash the task stack with stack_depth 32 for each
+> stack
+> > entry. Each time if we find the identical task trace in the task stack,
+> we dump
+> > only the pid of the task which has the task trace dumped. So it is easy
+> to back
+> > track to the full stack with the pid.
+> >
+> >
+> > ...
+> >
+> > +/*
+> > + * The implementation of stack trace dedup. It tries to reduce the
+> duplication
+> > + * of task stack trace in the dump by hashing the stack trace. The
+> hashtable is
+> > + * 32k pre-allocated buffer. Then we hash the task stack with
+> stack_depth
+> > + * DEDUP_MAX_STACK_DEPTH for each stack entry. Each time if an identical
+> trace
+> > + * is found in the stack, we dump only the pid of previous task. So it
+> is easy
+> > + * to back track to the full stack with the pid.
+> > + */
+> > +#define DEDUP_MAX_STACK_DEPTH 32
+> > +#define DEDUP_STACK_HASH 32768
+> > +#define DEDUP_STACK_ENTRIES (DEDUP_STACK_HASH/sizeof(struct task_stack))
+> > +#define DEDUP_HASH_MAX_ITERATIONS 10
+>
+> It wouldn't hurt to document DEDUP_HASH_MAX_ITERATIONS (at least).
+>
+> But then, why does DEDUP_HASH_MAX_ITERATIONS exist? (below)
+>
+> > +struct task_stack {
+> > +     pid_t pid;
+> > +     int len;
+> > +     unsigned long hash;
+> > +};
+> > +
+> > +static struct task_stack stack_hash_table[DEDUP_STACK_ENTRIES];
+> > +static struct task_stack cur_stack;
+> > +static __cacheline_aligned_in_smp DEFINE_SPINLOCK(stack_hash_lock);
+> > +
+> > +/*
+> > + * The stack hashtable uses linear probing to resolve collisions.
+> > + * We consider two stacks to be the same if their hash values and
+> lengths
+> > + * are equal.
+> > + */
+> > +static unsigned int stack_trace_lookup(void)
+> > +{
+> > +     int j;
+> > +     int index;
+> > +     unsigned int ret = 0;
+> > +     struct task_stack *stack;
+> > +
+> > +     index = cur_stack.hash % DEDUP_STACK_ENTRIES;
+> > +
+> > +     for (j = 0; j < DEDUP_HASH_MAX_ITERATIONS; j++) {
+> > +             stack = stack_hash_table + (index + j) %
+> DEDUP_STACK_ENTRIES;
+>
+> (this would be more efficient if DEDUP_STACK_ENTRIES was a power of 2)
+>
+> > +             if (stack->hash == 0) {
+> > +                     *stack = cur_stack;
+> > +                     ret = 0;
+> > +                     break;
+> > +             } else {
+> > +                     if (stack->hash == cur_stack.hash &&
+> > +                         stack->len == cur_stack.len) {
+> > +                             ret = stack->pid;
+> > +                             break;
+> > +                     }
+> > +             }
+> > +     }
+> > +     if (j == DEDUP_HASH_MAX_ITERATIONS)
+> > +             stack_hash_table[index] = cur_stack;
+>
+> Why stop there?  Why not just append to stack_hash_table[]?  When we
+> first decide to do a multi-task stackdump, zero the index into the
+> array.  Each time a task is processed, look to see if it is unique and
+> if so, add its task_stack to the end of the array.
+>
+> This may require adding a stacktrace_ops.start().  This could be done
+> while moving stacktrace_ops (which advertises itself as a "Generic
+> stack tracer"!) out of x86-specific code.
+>
+> > +     memset(&cur_stack, 0, sizeof(cur_stack));
+>
+> Sane, but I'm not sure it's necessary.
+>
+> > +     return ret;
+> > +}
+> > +
+> >
+> > ...
+> >
+>
+> Making this all arch-neutral is quite a bit of work, which you may not
+> feel like undertaking, ho hum.  Also, the lack of any documentation in
+> that x86 code makes it unready for prime time.
+>
 
-I doubt someone might try to change this with atomic_set for reducing
-LOCK_PREFIX overhead in future although it's not fast path. Of course,
-we can prevent that patch but can't prevent his wasted time. I hope
-there is a comment why we use atomic_add like the errata PPro with
-OOStore.
+--00163628429ef3e86304ab9f8e36
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
+<br><br><div class=3D"gmail_quote">On Fri, Aug 26, 2011 at 4:19 PM, Andrew =
+Morton <span dir=3D"ltr">&lt;<a href=3D"mailto:akpm@linux-foundation.org">a=
+kpm@linux-foundation.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmai=
+l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
+:1ex;">
+(I&#39;m back!)<br></blockquote><div><br></div><div>Thank you Andrew for th=
+e comments.=A0</div><div><br></div><div>Hmm, Looks like we still need some =
+changes for this patch to get it merged into -mm and I might be able to jum=
+p into it sometime next week. :)</div>
+<div><br></div><div>--Ying</div><blockquote class=3D"gmail_quote" style=3D"=
+margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div><div></div><div class=3D"h5"><br>
+On Thu, 28 Jul 2011 18:25:59 -0700<br>
+Andrew Bresticker &lt;<a href=3D"mailto:abrestic@google.com">abrestic@googl=
+e.com</a>&gt; wrote:<br>
+<br>
+&gt; The problem with small dmesg ring buffer like 512k is that only limite=
+d number<br>
+&gt; of task traces will be logged. Sometimes we lose important information=
+ only<br>
+&gt; because of too many duplicated stack traces. This problem occurs when =
+dumping<br>
+&gt; lots of stacks in a single operation, such as sysrq-T.<br>
+&gt;<br>
+&gt; This patch tries to reduce the duplication of task stack trace in the =
+dump<br>
+&gt; message by hashing the task stack. The hashtable is a 32k pre-allocate=
+d buffer<br>
+&gt; during bootup. Then we hash the task stack with stack_depth 32 for eac=
+h stack<br>
+&gt; entry. Each time if we find the identical task trace in the task stack=
+, we dump<br>
+&gt; only the pid of the task which has the task trace dumped. So it is eas=
+y to back<br>
+&gt; track to the full stack with the pid.<br>
+&gt;<br>
+&gt; [ =A0 58.469730] kworker/0:0 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
+=A0 4 =A0 =A0 =A02 0x00000000<br>
+&gt; [ =A0 58.469735] =A0ffff88082fcfde80 0000000000000046 ffff88082e9d8000=
+ ffff88082fcfc010<br>
+&gt; [ =A0 58.469739] =A0ffff88082fce9860 0000000000011440 ffff88082fcfdfd8=
+ ffff88082fcfdfd8<br>
+&gt; [ =A0 58.469743] =A00000000000011440 0000000000000000 ffff88082fcee180=
+ ffff88082fce9860<br>
+&gt; [ =A0 58.469747] Call Trace:<br>
+&gt; [ =A0 58.469751] =A0[&lt;ffffffff8108525a&gt;] worker_thread+0x24b/0x2=
+50<br>
+&gt; [ =A0 58.469754] =A0[&lt;ffffffff8108500f&gt;] ? manage_workers+0x192/=
+0x192<br>
+&gt; [ =A0 58.469757] =A0[&lt;ffffffff810885bd&gt;] kthread+0x82/0x8a<br>
+&gt; [ =A0 58.469760] =A0[&lt;ffffffff8141aed4&gt;] kernel_thread_helper+0x=
+4/0x10<br>
+&gt; [ =A0 58.469763] =A0[&lt;ffffffff8108853b&gt;] ? kthread_worker_fn+0x1=
+12/0x112<br>
+&gt; [ =A0 58.469765] =A0[&lt;ffffffff8141aed0&gt;] ? gs_change+0xb/0xb<br>
+&gt; [ =A0 58.469768] kworker/u:0 =A0 =A0 S 0000000000000004 =A0 =A0 0 =A0 =
+=A0 5 =A0 =A0 =A02 0x00000000<br>
+&gt; [ =A0 58.469773] =A0ffff88082fcffe80 0000000000000046 ffff880800000000=
+ ffff88082fcfe010<br>
+&gt; [ =A0 58.469777] =A0ffff88082fcea080 0000000000011440 ffff88082fcfffd8=
+ ffff88082fcfffd8<br>
+&gt; [ =A0 58.469781] =A00000000000011440 0000000000000000 ffff88082fd4e9a0=
+ ffff88082fcea080<br>
+&gt; [ =A0 58.469785] Call Trace:<br>
+&gt; [ =A0 58.469786] &lt;Same stack as pid 4&gt;<br>
+&gt; [ =A0 58.470235] kworker/0:1 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
+=A013 =A0 =A0 =A02 0x00000000<br>
+&gt; [ =A0 58.470255] =A0ffff88082fd3fe80 0000000000000046 ffff880800000000=
+ ffff88082fd3e010<br>
+&gt; [ =A0 58.470279] =A0ffff88082fcee180 0000000000011440 ffff88082fd3ffd8=
+ ffff88082fd3ffd8<br>
+&gt; [ =A0 58.470301] =A00000000000011440 0000000000000000 ffffffff8180b020=
+ ffff88082fcee180<br>
+&gt; [ =A0 58.470325] Call Trace:<br>
+&gt; [ =A0 58.470332] &lt;Same stack as pid 4&gt;<br>
+<br>
+</div></div>The code looks OK(ish) to me. =A0I&#39;m still concerned that t=
+he implementation<br>
+will miss lots of de-duplications because it is hashing random crud in<br>
+the stack frame.<br>
+<div class=3D"im"><br>
+&gt; Note: Non-x86 architectures will need to be updated since show_stack()=
+<br>
+&gt; now takes an additional argument.<br>
+<br>
+</div>Well, we can&#39;t break all architectures.<br>
+<br>
+I can&#39;t think of a way to make the preprocessor convert show_stack(a,<b=
+r>
+b) into show_stack(a, b, N) (this can be done in the other direction).<br>
+So all I can think of is to rename x86 show_stack() to something else and d=
+o<br>
+<br>
+#define show_stack_something_else(a, b, c) show_stack(a, b)<br>
+<br>
+for other architectures.<br>
+<br>
+But on the other hand, why did the show_stack() interface get changed?<br>
+show_stack() dumps a single tasks&#39;s stack, so top-level callers have no=
+<br>
+earthly reason to be passing the dup_stack_pid into show_stack().<br>
+dup_stack_pid is purely for many-task stackdumps.<br>
+<br>
+Also, the code as-is is pretty much useless for other architectures.<br>
+The core changes in arch/x86/kernel/stacktrace.c look pretty generic -<br>
+can we design and place this code so that all architectures can use it?<br>
+<div class=3D"im"><br>
+<br>
+&gt; The problem with small dmesg ring buffer like 512k is that only limite=
+d number<br>
+&gt; of task traces will be logged. Sometimes we lose important information=
+ only<br>
+&gt; because of too many duplicated stack traces. This problem occurs when =
+dumping<br>
+&gt; lots of stacks in a single operation, such as sysrq-T.<br>
+&gt;<br>
+&gt; This patch tries to reduce the duplication of task stack trace in the =
+dump<br>
+&gt; message by hashing the task stack. The hashtable is a 32k pre-allocate=
+d buffer<br>
+&gt; during bootup. Then we hash the task stack with stack_depth 32 for eac=
+h stack<br>
+&gt; entry. Each time if we find the identical task trace in the task stack=
+, we dump<br>
+&gt; only the pid of the task which has the task trace dumped. So it is eas=
+y to back<br>
+&gt; track to the full stack with the pid.<br>
+&gt;<br>
+&gt;<br>
+</div>&gt; ...<br>
+<div class=3D"im">&gt;<br>
+&gt; +/*<br>
+&gt; + * The implementation of stack trace dedup. It tries to reduce the du=
+plication<br>
+&gt; + * of task stack trace in the dump by hashing the stack trace. The ha=
+shtable is<br>
+&gt; + * 32k pre-allocated buffer. Then we hash the task stack with stack_d=
+epth<br>
+&gt; + * DEDUP_MAX_STACK_DEPTH for each stack entry. Each time if an identi=
+cal trace<br>
+&gt; + * is found in the stack, we dump only the pid of previous task. So i=
+t is easy<br>
+&gt; + * to back track to the full stack with the pid.<br>
+&gt; + */<br>
+&gt; +#define DEDUP_MAX_STACK_DEPTH 32<br>
+&gt; +#define DEDUP_STACK_HASH 32768<br>
+&gt; +#define DEDUP_STACK_ENTRIES (DEDUP_STACK_HASH/sizeof(struct task_stac=
+k))<br>
+&gt; +#define DEDUP_HASH_MAX_ITERATIONS 10<br>
+<br>
+</div>It wouldn&#39;t hurt to document DEDUP_HASH_MAX_ITERATIONS (at least)=
+.<br>
+<br>
+But then, why does DEDUP_HASH_MAX_ITERATIONS exist? (below)<br>
+<div class=3D"im"><br>
+&gt; +struct task_stack {<br>
+&gt; + =A0 =A0 pid_t pid;<br>
+&gt; + =A0 =A0 int len;<br>
+&gt; + =A0 =A0 unsigned long hash;<br>
+&gt; +};<br>
+&gt; +<br>
+&gt; +static struct task_stack stack_hash_table[DEDUP_STACK_ENTRIES];<br>
+&gt; +static struct task_stack cur_stack;<br>
+&gt; +static __cacheline_aligned_in_smp DEFINE_SPINLOCK(stack_hash_lock);<b=
+r>
+&gt; +<br>
+&gt; +/*<br>
+&gt; + * The stack hashtable uses linear probing to resolve collisions.<br>
+&gt; + * We consider two stacks to be the same if their hash values and len=
+gths<br>
+&gt; + * are equal.<br>
+&gt; + */<br>
+&gt; +static unsigned int stack_trace_lookup(void)<br>
+&gt; +{<br>
+&gt; + =A0 =A0 int j;<br>
+&gt; + =A0 =A0 int index;<br>
+&gt; + =A0 =A0 unsigned int ret =3D 0;<br>
+&gt; + =A0 =A0 struct task_stack *stack;<br>
+&gt; +<br>
+&gt; + =A0 =A0 index =3D cur_stack.hash % DEDUP_STACK_ENTRIES;<br>
+&gt; +<br>
+&gt; + =A0 =A0 for (j =3D 0; j &lt; DEDUP_HASH_MAX_ITERATIONS; j++) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 stack =3D stack_hash_table + (index + j) % D=
+EDUP_STACK_ENTRIES;<br>
+<br>
+</div>(this would be more efficient if DEDUP_STACK_ENTRIES was a power of 2=
+)<br>
+<div class=3D"im"><br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 if (stack-&gt;hash =3D=3D 0) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 *stack =3D cur_stack;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D 0;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 } else {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (stack-&gt;hash =3D=3D cu=
+r_stack.hash &amp;&amp;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 stack-&gt;len =3D=3D=
+ cur_stack.len) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D stac=
+k-&gt;pid;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+&gt; + =A0 =A0 }<br>
+&gt; + =A0 =A0 if (j =3D=3D DEDUP_HASH_MAX_ITERATIONS)<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 stack_hash_table[index] =3D cur_stack;<br>
+<br>
+</div>Why stop there? =A0Why not just append to stack_hash_table[]? =A0When=
+ we<br>
+first decide to do a multi-task stackdump, zero the index into the<br>
+array. =A0Each time a task is processed, look to see if it is unique and<br=
+>
+if so, add its task_stack to the end of the array.<br>
+<br>
+This may require adding a stacktrace_ops.start(). =A0This could be done<br>
+while moving stacktrace_ops (which advertises itself as a &quot;Generic<br>
+stack tracer&quot;!) out of x86-specific code.<br>
+<div class=3D"im"><br>
+&gt; + =A0 =A0 memset(&amp;cur_stack, 0, sizeof(cur_stack));<br>
+<br>
+</div>Sane, but I&#39;m not sure it&#39;s necessary.<br>
+<br>
+&gt; + =A0 =A0 return ret;<br>
+&gt; +}<br>
+&gt; +<br>
+&gt;<br>
+&gt; ...<br>
+&gt;<br>
+<br>
+Making this all arch-neutral is quite a bit of work, which you may not<br>
+feel like undertaking, ho hum. =A0Also, the lack of any documentation in<br=
+>
+that x86 code makes it unready for prime time.<br>
+</blockquote></div><br>
 
-
-
-
---=20
-Kind regards,
-Minchan Kim
+--00163628429ef3e86304ab9f8e36--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
