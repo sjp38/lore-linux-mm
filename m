@@ -1,118 +1,519 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 16FA6900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 12:21:23 -0400 (EDT)
-Date: Mon, 29 Aug 2011 18:21:18 +0200
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C68A900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 12:23:17 -0400 (EDT)
+Date: Mon, 29 Aug 2011 18:23:13 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/3] writeback: send work item to queue_io,
- move_expired_inodes
-Message-ID: <20110829162118.GD5672@quack.suse.cz>
+Subject: Re: [PATCH 2/3 v3] writeback: Add a 'reason' to wb_writeback_work
+Message-ID: <20110829162313.GE5672@quack.suse.cz>
 References: <1314038327-22645-1-git-send-email-curtw@google.com>
+ <1314038327-22645-2-git-send-email-curtw@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1314038327-22645-1-git-send-email-curtw@google.com>
+In-Reply-To: <1314038327-22645-2-git-send-email-curtw@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Curt Wohlgemuth <curtw@google.com>
 Cc: Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 22-08-11 11:38:45, Curt Wohlgemuth wrote:
-> Instead of sending ->older_than_this to queue_io() and
-> move_expired_inodes(), send the entire wb_writeback_work
-> structure.  There are other fields of a work item that are
-> useful in these routines and in tracepoints.
+On Mon 22-08-11 11:38:46, Curt Wohlgemuth wrote:
+> This creates a new 'reason' field in a wb_writeback_work
+> structure, which unambiguously identifies who initiates
+> writeback activity.  A 'wb_reason' enumeration has been
+> added to writeback.h, to enumerate the possible reasons.
+> 
+> The 'writeback_work_class' and tracepoint event class and
+> 'writeback_queue_io' tracepoints are updated to include the
+> symbolic 'reason' in all trace events.
+> 
+> And the 'writeback_inodes_sbXXX' family of routines has had
+> a wb_stats parameter added to them, so callers can specify
+> why writeback is being started.
   Looks good. You can add: Acked-by: Jan Kara <jack@suse.cz>
 
+							Honza
+> 
 > Signed-off-by: Curt Wohlgemuth <curtw@google.com>
 > ---
->  fs/fs-writeback.c                |   16 ++++++++--------
->  include/trace/events/writeback.h |    5 +++--
->  2 files changed, 11 insertions(+), 10 deletions(-)
 > 
+> Changes since v2:
+> 
+>    - enum wb_stats renamed enum wb_reason
+>    - All WB_STAT_xxx enum constants now named WB_REASON_xxx
+>    - All 'reason' strings in tracepoints match the WB_REASON name
+>    - The change to send 'work' to queue_io, move_expired_inodes, and
+>      trace_writeback_queue_io are in a separate commit
+> 
+> 
+>  fs/btrfs/extent-tree.c           |    3 ++-
+>  fs/buffer.c                      |    2 +-
+>  fs/ext4/inode.c                  |    2 +-
+>  fs/fs-writeback.c                |   38 +++++++++++++++++++++++++-------------
+>  fs/quota/quota.c                 |    2 +-
+>  fs/sync.c                        |    4 ++--
+>  fs/ubifs/budget.c                |    2 +-
+>  include/linux/backing-dev.h      |    3 ++-
+>  include/linux/writeback.h        |   33 +++++++++++++++++++++++++++------
+>  include/trace/events/writeback.h |   27 +++++++++++++++++++++++----
+>  mm/backing-dev.c                 |    3 ++-
+>  mm/page-writeback.c              |    6 ++++--
+>  mm/vmscan.c                      |    4 ++--
+>  13 files changed, 93 insertions(+), 36 deletions(-)
+> 
+> diff --git a/fs/btrfs/extent-tree.c b/fs/btrfs/extent-tree.c
+> index f5be06a..c9ee0e1 100644
+> --- a/fs/btrfs/extent-tree.c
+> +++ b/fs/btrfs/extent-tree.c
+> @@ -3340,7 +3340,8 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
+>  		smp_mb();
+>  		nr_pages = min_t(unsigned long, nr_pages,
+>  		       root->fs_info->delalloc_bytes >> PAGE_CACHE_SHIFT);
+> -		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages);
+> +		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages,
+> +						WB_REASON_FS_FREE_SPACE);
+>  
+>  		spin_lock(&space_info->lock);
+>  		if (reserved > space_info->bytes_reserved)
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 1a80b04..f5dcee6 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -285,7 +285,7 @@ static void free_more_memory(void)
+>  	struct zone *zone;
+>  	int nid;
+>  
+> -	wakeup_flusher_threads(1024);
+> +	wakeup_flusher_threads(1024, WB_REASON_FREE_MORE_MEM);
+>  	yield();
+>  
+>  	for_each_online_node(nid) {
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index c4da98a..f4f0f40 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -2244,7 +2244,7 @@ static int ext4_nonda_switch(struct super_block *sb)
+>  	 * start pushing delalloc when 1/2 of free blocks are dirty.
+>  	 */
+>  	if (free_blocks < 2 * dirty_blocks)
+> -		writeback_inodes_sb_if_idle(sb);
+> +		writeback_inodes_sb_if_idle(sb, WB_REASON_FS_FREE_SPACE);
+>  
+>  	return 0;
+>  }
 > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 04cf3b9..f1f5f65 100644
+> index f1f5f65..a004fcd 100644
 > --- a/fs/fs-writeback.c
 > +++ b/fs/fs-writeback.c
-> @@ -251,7 +251,7 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
->   */
->  static int move_expired_inodes(struct list_head *delaying_queue,
->  			       struct list_head *dispatch_queue,
-> -			       unsigned long *older_than_this)
-> +			       struct wb_writeback_work *work)
->  {
->  	LIST_HEAD(tmp);
->  	struct list_head *pos, *node;
-> @@ -262,8 +262,8 @@ static int move_expired_inodes(struct list_head *delaying_queue,
+> @@ -41,6 +41,7 @@ struct wb_writeback_work {
+>  	unsigned int for_kupdate:1;
+>  	unsigned int range_cyclic:1;
+>  	unsigned int for_background:1;
+> +	enum wb_reason reason;		/* why was writeback initiated? */
 >  
->  	while (!list_empty(delaying_queue)) {
->  		inode = wb_inode(delaying_queue->prev);
-> -		if (older_than_this &&
-> -		    inode_dirtied_after(inode, *older_than_this))
-> +		if (work->older_than_this &&
-> +		    inode_dirtied_after(inode, *work->older_than_this))
->  			break;
->  		if (sb && sb != inode->i_sb)
->  			do_sb_sort = 1;
-> @@ -302,13 +302,13 @@ out:
->   *                                           |
->   *                                           +--> dequeue for IO
->   */
-> -static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
-> +static void queue_io(struct bdi_writeback *wb, struct wb_writeback_work *work)
+>  	struct list_head list;		/* pending work list */
+>  	struct completion *done;	/* set if the caller waits */
+> @@ -115,7 +116,7 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
+>  
+>  static void
+>  __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+> -		      bool range_cyclic)
+> +		      bool range_cyclic, enum wb_reason reason)
 >  {
->  	int moved;
->  	assert_spin_locked(&wb->list_lock);
->  	list_splice_init(&wb->b_more_io, &wb->b_io);
-> -	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
-> -	trace_writeback_queue_io(wb, older_than_this, moved);
-> +	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, work);
-> +	trace_writeback_queue_io(wb, work, moved);
+>  	struct wb_writeback_work *work;
+>  
+> @@ -135,6 +136,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+>  	work->sync_mode	= WB_SYNC_NONE;
+>  	work->nr_pages	= nr_pages;
+>  	work->range_cyclic = range_cyclic;
+> +	work->reason = reason;
+>  
+>  	bdi_queue_work(bdi, work);
+>  }
+> @@ -150,9 +152,10 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+>   *   completion. Caller need not hold sb s_umount semaphore.
+>   *
+>   */
+> -void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages)
+> +void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+> +			enum wb_reason reason)
+>  {
+> -	__bdi_start_writeback(bdi, nr_pages, true);
+> +	__bdi_start_writeback(bdi, nr_pages, true, reason);
 >  }
 >  
->  static int write_inode(struct inode *inode, struct writeback_control *wbc)
-> @@ -651,7 +651,7 @@ long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages)
+>  /**
+> @@ -641,12 +644,14 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
+>  	return wrote;
+>  }
+>  
+> -long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages)
+> +long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
+> +				enum wb_reason reason)
+>  {
+>  	struct wb_writeback_work work = {
+>  		.nr_pages	= nr_pages,
+>  		.sync_mode	= WB_SYNC_NONE,
+>  		.range_cyclic	= 1,
+> +		.reason		= reason,
+>  	};
 >  
 >  	spin_lock(&wb->list_lock);
->  	if (list_empty(&wb->b_io))
-> -		queue_io(wb, NULL);
-> +		queue_io(wb, &work);
->  	__writeback_inodes_wb(wb, &work);
->  	spin_unlock(&wb->list_lock);
+> @@ -818,6 +823,7 @@ static long wb_check_background_flush(struct bdi_writeback *wb)
+>  			.sync_mode	= WB_SYNC_NONE,
+>  			.for_background	= 1,
+>  			.range_cyclic	= 1,
+> +			.reason		= WB_REASON_BACKGROUND,
+>  		};
 >  
-> @@ -738,7 +738,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  		return wb_writeback(wb, &work);
+> @@ -851,6 +857,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
+>  			.sync_mode	= WB_SYNC_NONE,
+>  			.for_kupdate	= 1,
+>  			.range_cyclic	= 1,
+> +			.reason		= WB_REASON_PERIODIC,
+>  		};
 >  
->  		trace_writeback_start(wb->bdi, work);
->  		if (list_empty(&wb->b_io))
-> -			queue_io(wb, work->older_than_this);
-> +			queue_io(wb, work);
->  		if (work->sb)
->  			progress = writeback_sb_inodes(work->sb, wb, work);
->  		else
+>  		return wb_writeback(wb, &work);
+> @@ -969,7 +976,7 @@ int bdi_writeback_thread(void *data)
+>   * Start writeback of `nr_pages' pages.  If `nr_pages' is zero, write back
+>   * the whole world.
+>   */
+> -void wakeup_flusher_threads(long nr_pages)
+> +void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+>  {
+>  	struct backing_dev_info *bdi;
+>  
+> @@ -982,7 +989,7 @@ void wakeup_flusher_threads(long nr_pages)
+>  	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+>  		if (!bdi_has_dirty_io(bdi))
+>  			continue;
+> -		__bdi_start_writeback(bdi, nr_pages, false);
+> +		__bdi_start_writeback(bdi, nr_pages, false, reason);
+>  	}
+>  	rcu_read_unlock();
+>  }
+> @@ -1203,7 +1210,9 @@ static void wait_sb_inodes(struct super_block *sb)
+>   * on how many (if any) will be written, and this function does not wait
+>   * for IO completion of submitted IO.
+>   */
+> -void writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr)
+> +void writeback_inodes_sb_nr(struct super_block *sb,
+> +			    unsigned long nr,
+> +			    enum wb_reason reason)
+>  {
+>  	DECLARE_COMPLETION_ONSTACK(done);
+>  	struct wb_writeback_work work = {
+> @@ -1212,6 +1221,7 @@ void writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr)
+>  		.tagged_writepages	= 1,
+>  		.done			= &done,
+>  		.nr_pages		= nr,
+> +		.reason			= reason,
+>  	};
+>  
+>  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+> @@ -1228,9 +1238,9 @@ EXPORT_SYMBOL(writeback_inodes_sb_nr);
+>   * on how many (if any) will be written, and this function does not wait
+>   * for IO completion of submitted IO.
+>   */
+> -void writeback_inodes_sb(struct super_block *sb)
+> +void writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
+>  {
+> -	return writeback_inodes_sb_nr(sb, get_nr_dirty_pages());
+> +	return writeback_inodes_sb_nr(sb, get_nr_dirty_pages(), reason);
+>  }
+>  EXPORT_SYMBOL(writeback_inodes_sb);
+>  
+> @@ -1241,11 +1251,11 @@ EXPORT_SYMBOL(writeback_inodes_sb);
+>   * Invoke writeback_inodes_sb if no writeback is currently underway.
+>   * Returns 1 if writeback was started, 0 if not.
+>   */
+> -int writeback_inodes_sb_if_idle(struct super_block *sb)
+> +int writeback_inodes_sb_if_idle(struct super_block *sb, enum wb_reason reason)
+>  {
+>  	if (!writeback_in_progress(sb->s_bdi)) {
+>  		down_read(&sb->s_umount);
+> -		writeback_inodes_sb(sb);
+> +		writeback_inodes_sb(sb, reason);
+>  		up_read(&sb->s_umount);
+>  		return 1;
+>  	} else
+> @@ -1262,11 +1272,12 @@ EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
+>   * Returns 1 if writeback was started, 0 if not.
+>   */
+>  int writeback_inodes_sb_nr_if_idle(struct super_block *sb,
+> -				   unsigned long nr)
+> +				   unsigned long nr,
+> +				   enum wb_reason reason)
+>  {
+>  	if (!writeback_in_progress(sb->s_bdi)) {
+>  		down_read(&sb->s_umount);
+> -		writeback_inodes_sb_nr(sb, nr);
+> +		writeback_inodes_sb_nr(sb, nr, reason);
+>  		up_read(&sb->s_umount);
+>  		return 1;
+>  	} else
+> @@ -1290,6 +1301,7 @@ void sync_inodes_sb(struct super_block *sb)
+>  		.nr_pages	= LONG_MAX,
+>  		.range_cyclic	= 0,
+>  		.done		= &done,
+> +		.reason		= WB_REASON_SYNC,
+>  	};
+>  
+>  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+> diff --git a/fs/quota/quota.c b/fs/quota/quota.c
+> index b34bdb2..b7a4366 100644
+> --- a/fs/quota/quota.c
+> +++ b/fs/quota/quota.c
+> @@ -286,7 +286,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
+>  		/* caller already holds s_umount */
+>  		if (sb->s_flags & MS_RDONLY)
+>  			return -EROFS;
+> -		writeback_inodes_sb(sb);
+> +		writeback_inodes_sb(sb, WB_REASON_SYNC);
+>  		return 0;
+>  	default:
+>  		return -EINVAL;
+> diff --git a/fs/sync.c b/fs/sync.c
+> index c98a747..101b8ef 100644
+> --- a/fs/sync.c
+> +++ b/fs/sync.c
+> @@ -43,7 +43,7 @@ static int __sync_filesystem(struct super_block *sb, int wait)
+>  	if (wait)
+>  		sync_inodes_sb(sb);
+>  	else
+> -		writeback_inodes_sb(sb);
+> +		writeback_inodes_sb(sb, WB_REASON_SYNC);
+>  
+>  	if (sb->s_op->sync_fs)
+>  		sb->s_op->sync_fs(sb, wait);
+> @@ -98,7 +98,7 @@ static void sync_filesystems(int wait)
+>   */
+>  SYSCALL_DEFINE0(sync)
+>  {
+> -	wakeup_flusher_threads(0);
+> +	wakeup_flusher_threads(0, WB_REASON_SYNC);
+>  	sync_filesystems(0);
+>  	sync_filesystems(1);
+>  	if (unlikely(laptop_mode))
+> diff --git a/fs/ubifs/budget.c b/fs/ubifs/budget.c
+> index 315de66..bc4f94b 100644
+> --- a/fs/ubifs/budget.c
+> +++ b/fs/ubifs/budget.c
+> @@ -63,7 +63,7 @@
+>  static void shrink_liability(struct ubifs_info *c, int nr_to_write)
+>  {
+>  	down_read(&c->vfs_sb->s_umount);
+> -	writeback_inodes_sb(c->vfs_sb);
+> +	writeback_inodes_sb(c->vfs_sb, WB_REASON_FS_FREE_SPACE);
+>  	up_read(&c->vfs_sb->s_umount);
+>  }
+>  
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 3b2f9cb..ef85559 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -107,7 +107,8 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
+>  int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
+>  void bdi_unregister(struct backing_dev_info *bdi);
+>  int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
+> -void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages);
+> +void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+> +			enum wb_reason stat);
+>  void bdi_start_background_writeback(struct backing_dev_info *bdi);
+>  int bdi_writeback_thread(void *data);
+>  int bdi_has_dirty_io(struct backing_dev_info *bdi);
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index f1bfa12e..bdda069 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -50,6 +50,24 @@ enum writeback_sync_modes {
+>  };
+>  
+>  /*
+> + * why this writeback was initiated
+> + */
+> +enum wb_reason {
+> +	/* The following are counts of pages written for a specific cause */
+> +	WB_REASON_BALANCE_DIRTY,
+> +	WB_REASON_BACKGROUND,
+> +	WB_REASON_TRY_TO_FREE_PAGES,
+> +	WB_REASON_SYNC,
+> +	WB_REASON_PERIODIC,
+> +	WB_REASON_LAPTOP_TIMER,
+> +	WB_REASON_FREE_MORE_MEM,
+> +	WB_REASON_FS_FREE_SPACE,
+> +	WB_REASON_FORKER_THREAD,
+> +
+> +	WB_REASON_MAX,
+> +};
+> +
+> +/*
+>   * A control structure which tells the writeback code what to do.  These are
+>   * always on the stack, and hence need no locking.  They are always initialised
+>   * in a manner such that unspecified fields are set to zero.
+> @@ -80,14 +98,17 @@ struct writeback_control {
+>   */	
+>  struct bdi_writeback;
+>  int inode_wait(void *);
+> -void writeback_inodes_sb(struct super_block *);
+> -void writeback_inodes_sb_nr(struct super_block *, unsigned long nr);
+> -int writeback_inodes_sb_if_idle(struct super_block *);
+> -int writeback_inodes_sb_nr_if_idle(struct super_block *, unsigned long nr);
+> +void writeback_inodes_sb(struct super_block *, enum wb_reason stat);
+> +void writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+> +							enum wb_reason stat);
+> +int writeback_inodes_sb_if_idle(struct super_block *, enum wb_reason stat);
+> +int writeback_inodes_sb_nr_if_idle(struct super_block *, unsigned long nr,
+> +							enum wb_reason stat);
+>  void sync_inodes_sb(struct super_block *);
+> -long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages);
+> +long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
+> +				enum wb_reason stat);
+>  long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+> -void wakeup_flusher_threads(long nr_pages);
+> +void wakeup_flusher_threads(long nr_pages, enum wb_reason stat);
+>  
+>  /* writeback.h requires fs.h; it, too, is not included from here. */
+>  static inline void wait_on_inode(struct inode *inode)
 > diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
-> index 6bca4cc..4565274 100644
+> index 4565274..b8583cb 100644
 > --- a/include/trace/events/writeback.h
 > +++ b/include/trace/events/writeback.h
-> @@ -181,9 +181,9 @@ DEFINE_WBC_EVENT(wbc_writepage);
+> @@ -21,6 +21,19 @@
+>  		{I_REFERENCED,		"I_REFERENCED"}		\
+>  	)
 >  
->  TRACE_EVENT(writeback_queue_io,
->  	TP_PROTO(struct bdi_writeback *wb,
-> -		 unsigned long *older_than_this,
-> +		 struct wb_writeback_work *work,
->  		 int moved),
-> -	TP_ARGS(wb, older_than_this, moved),
-> +	TP_ARGS(wb, work, moved),
->  	TP_STRUCT__entry(
->  		__array(char,		name, 32)
->  		__field(unsigned long,	older)
-> @@ -191,6 +191,7 @@ TRACE_EVENT(writeback_queue_io,
->  		__field(int,		moved)
+> +#define show_work_reason(reason)					\
+> +	__print_symbolic(reason,					\
+> +		{WB_REASON_BALANCE_DIRTY,	"balance_dirty"},	\
+> +		{WB_REASON_BACKGROUND,		"background"},		\
+> +		{WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages"},	\
+> +		{WB_REASON_SYNC,		"sync"},		\
+> +		{WB_REASON_PERIODIC,		"periodic"},		\
+> +		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
+> +		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
+> +		{WB_REASON_FS_FREE_SPACE,	"FS_free_space"},	\
+> +		{WB_REASON_FORKER_THREAD,	"forker_thread"}	\
+> +	)
+> +
+>  struct wb_writeback_work;
+>  
+>  DECLARE_EVENT_CLASS(writeback_work_class,
+> @@ -34,6 +47,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
+>  		__field(int, for_kupdate)
+>  		__field(int, range_cyclic)
+>  		__field(int, for_background)
+> +		__field(int, reason)
 >  	),
 >  	TP_fast_assign(
-> +		unsigned long *older_than_this = work->older_than_this;
->  		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
->  		__entry->older	= older_than_this ?  *older_than_this : 0;
+>  		strncpy(__entry->name, dev_name(bdi->dev), 32);
+> @@ -43,16 +57,18 @@ DECLARE_EVENT_CLASS(writeback_work_class,
+>  		__entry->for_kupdate = work->for_kupdate;
+>  		__entry->range_cyclic = work->range_cyclic;
+>  		__entry->for_background	= work->for_background;
+> +		__entry->reason = work->reason;
+>  	),
+>  	TP_printk("bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d "
+> -		  "kupdate=%d range_cyclic=%d background=%d",
+> +		  "kupdate=%d range_cyclic=%d background=%d reason=%s",
+>  		  __entry->name,
+>  		  MAJOR(__entry->sb_dev), MINOR(__entry->sb_dev),
+>  		  __entry->nr_pages,
+>  		  __entry->sync_mode,
+>  		  __entry->for_kupdate,
+>  		  __entry->range_cyclic,
+> -		  __entry->for_background
+> +		  __entry->for_background,
+> +		  show_work_reason(__entry->reason)
+>  	)
+>  );
+>  #define DEFINE_WRITEBACK_WORK_EVENT(name) \
+> @@ -189,6 +205,7 @@ TRACE_EVENT(writeback_queue_io,
+>  		__field(unsigned long,	older)
+>  		__field(long,		age)
+>  		__field(int,		moved)
+> +		__field(int,		reason)
+>  	),
+>  	TP_fast_assign(
+>  		unsigned long *older_than_this = work->older_than_this;
+> @@ -197,12 +214,14 @@ TRACE_EVENT(writeback_queue_io,
 >  		__entry->age	= older_than_this ?
+>  				  (jiffies - *older_than_this) * 1000 / HZ : -1;
+>  		__entry->moved	= moved;
+> +		__entry->reason	= work->reason;
+>  	),
+> -	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d",
+> +	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s",
+>  		__entry->name,
+>  		__entry->older,	/* older_than_this in jiffies */
+>  		__entry->age,	/* older_than_this in relative milliseconds */
+> -		__entry->moved)
+> +		__entry->moved,
+> +		show_work_reason(__entry->reason))
+>  );
+>  
+>  TRACE_EVENT(global_dirty_state,
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index d6edf8d..474bcfe 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -456,7 +456,8 @@ static int bdi_forker_thread(void *ptr)
+>  				 * the bdi from the thread. Hopefully 1024 is
+>  				 * large enough for efficient IO.
+>  				 */
+> -				writeback_inodes_wb(&bdi->wb, 1024);
+> +				writeback_inodes_wb(&bdi->wb, 1024,
+> +						    WB_REASON_FORKER_THREAD);
+>  			} else {
+>  				/*
+>  				 * The spinlock makes sure we do not lose
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index d196074..0e78252 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -738,7 +738,8 @@ static void balance_dirty_pages(struct address_space *mapping,
+>  		trace_balance_dirty_start(bdi);
+>  		if (bdi_nr_reclaimable > task_bdi_thresh) {
+>  			pages_written += writeback_inodes_wb(&bdi->wb,
+> -							     write_chunk);
+> +						write_chunk,
+> +						WB_REASON_BALANCE_DIRTY);
+>  			trace_balance_dirty_written(bdi, pages_written);
+>  			if (pages_written >= write_chunk)
+>  				break;		/* We've done our duty */
+> @@ -909,7 +910,8 @@ void laptop_mode_timer_fn(unsigned long data)
+>  	 * threshold
+>  	 */
+>  	if (bdi_has_dirty_io(&q->backing_dev_info))
+> -		bdi_start_writeback(&q->backing_dev_info, nr_pages);
+> +		bdi_start_writeback(&q->backing_dev_info, nr_pages,
+> +					WB_REASON_LAPTOP_TIMER);
+>  }
+>  
+>  /*
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7ef6912..3b6c7ac 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -495,7 +495,6 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+>  			ClearPageReclaim(page);
+>  			return PAGE_ACTIVATE;
+>  		}
+> -
+>  		/*
+>  		 * Wait on writeback if requested to. This happens when
+>  		 * direct reclaiming a large contiguous area and the
+> @@ -2198,7 +2197,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		 */
+>  		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+>  		if (total_scanned > writeback_threshold) {
+> -			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
+> +			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
+> +						WB_REASON_TRY_TO_FREE_PAGES);
+>  			sc->may_writepage = 1;
+>  		}
+>  
 > -- 
 > 1.7.3.1
 > 
