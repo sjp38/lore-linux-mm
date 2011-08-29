@@ -1,146 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B2C5C900138
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 03:28:27 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id p7T7SOun013282
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:28:24 -0700
-Received: from qyk4 (qyk4.prod.google.com [10.241.83.132])
-	by hpaq14.eem.corp.google.com with ESMTP id p7T7S8Dd028561
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:28:23 -0700
-Received: by qyk4 with SMTP id 4so1644680qyk.13
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:28:22 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F2AE2900138
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 03:48:48 -0400 (EDT)
+Received: by yib2 with SMTP id 2so3937341yib.14
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 00:48:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110720003653.GA667@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
-	<CALWz4iwDGD8xoUbzi=9Sy7C-njcYqmka_25rQL8RhkN_ArLgDw@mail.gmail.com>
-	<20110720003653.GA667@cmpxchg.org>
-Date: Mon, 29 Aug 2011 00:28:22 -0700
-Message-ID: <CALWz4iy-EXmRrwPGW=d=0iHGVvKfB1yQEQBb2QYGmPCKHZtE=g@mail.gmail.com>
-Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20110729075837.12274.58405.stgit@localhost6>
+References: <20110729075837.12274.58405.stgit@localhost6>
+Date: Mon, 29 Aug 2011 16:48:46 +0900
+Message-ID: <CAEwNFnBFNzrPoen-oM7DdB1QA5-cmUqAFABO7WxzZpiQacA7Fg@mail.gmail.com>
+Subject: Re: [PATCH] mm: add free_hot_cold_page_list helper
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, Jul 19, 2011 at 5:36 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Tue, Jul 19, 2011 at 03:47:43PM -0700, Ying Han wrote:
->> On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.org>wr=
-ote:
->>
->> > Once the per-memcg lru lists are exclusive, the unevictable page
->> > rescue scanner can no longer work on the global zone lru lists.
->> >
->> > This converts it to go through all memcgs and scan their respective
->> > unevictable lists instead.
->> >
->> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->> > ---
->> > =A0include/linux/memcontrol.h | =A0 =A02 +
->> > =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 11 +++++++++
->> > =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 53
->> > +++++++++++++++++++++++++++----------------
->> > =A03 files changed, 46 insertions(+), 20 deletions(-)
->> >
->> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> > index cb02c00..56c1def 100644
->> > --- a/include/linux/memcontrol.h
->> > +++ b/include/linux/memcontrol.h
->> > @@ -60,6 +60,8 @@ extern void mem_cgroup_cancel_charge_swapin(struct
->> > mem_cgroup *ptr);
->> >
->> > =A0extern int mem_cgroup_cache_charge(struct page *page, struct mm_str=
-uct
->> > *mm,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0gfp_t gfp_mask);
->> > +struct page *mem_cgroup_lru_to_page(struct zone *, struct mem_cgroup =
-*,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-enum lru_list);
->> >
->>
->> Did we miss a #ifdef case for this function? I got compile error by
->> disabling memcg.
+On Fri, Jul 29, 2011 at 4:58 PM, Konstantin Khlebnikov
+<khlebnikov@openvz.org> wrote:
+> This patch adds helper free_hot_cold_page_list() to free list of 0-order =
+pages.
+> It frees pages directly from list without temporary page-vector.
+> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviou=
+r.
 >
-> I assume it's because the call to it is not optimized away properly in
-> the disabled case. =A0I'll have it fixed in the next round, thanks for
-> letting me know.
+> bloat-o-meter:
 >
+> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
+> function =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 old =C2=A0 =
+=C2=A0 new =C2=A0 delta
+> free_hot_cold_page_list =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0- =C2=A0 =C2=A0 264 =C2=A0 =C2=A0+264
+> get_page_from_freelist =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A02129 =C2=A0 =C2=A02132 =C2=A0 =C2=A0 =C2=A0+3
+> __pagevec_free =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 243 =C2=A0 =C2=A0 239 =C2=
+=A0 =C2=A0 =C2=A0-4
+> split_free_page =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0380 =C2=A0 =C2=A0 373 =C2=
+=A0 =C2=A0 =C2=A0-7
+> release_pages =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0606 =C2=A0 =C2=A0 510 =
+=C2=A0 =C2=A0 -96
+> free_page_list =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 188 =C2=A0 =C2=A0 =C2=A0 -=
+ =C2=A0 =C2=A0-188
+>
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> ---
+> =C2=A0include/linux/gfp.h | =C2=A0 =C2=A01 +
+> =C2=A0mm/page_alloc.c =C2=A0 =C2=A0 | =C2=A0 12 ++++++++++++
+> =C2=A0mm/swap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 14 +++-------=
+----
+> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 20 +--------------=
+-----
+> =C2=A04 files changed, 17 insertions(+), 30 deletions(-)
+>
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index cb40892..dd7b9cc 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp=
+_t gfp_mask);
+> =C2=A0extern void __free_pages(struct page *page, unsigned int order);
+> =C2=A0extern void free_pages(unsigned long addr, unsigned int order);
+> =C2=A0extern void free_hot_cold_page(struct page *page, int cold);
+> +extern void free_hot_cold_page_list(struct list_head *list, int cold);
+>
+> =C2=A0#define __free_page(page) __free_pages((page), 0)
+> =C2=A0#define free_page(addr) free_pages((addr), 0)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1dbcf88..af486e4 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1209,6 +1209,18 @@ out:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0local_irq_restore(flags);
+> =C2=A0}
+>
+> +void free_hot_cold_page_list(struct list_head *list, int cold)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 struct page *page, *next;
+> +
+> + =C2=A0 =C2=A0 =C2=A0 list_for_each_entry_safe(page, next, list, lru) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 trace_mm_pagevec_free(=
+page, cold);
 
-Hi Johannes:
 
-This is the change for the hierarchy_walk() sent on the other patch,
-also including a fix. Please consider to fold in your patch:
+I understand you want to minimize changes without breaking current ABI
+with trace tools.
+But apparently, It's not a pagvec_free. It just hurts readability.
+As I take a look at the code, mm_pagevec_free isn't related to pagevec
+but I guess it can represent 0-order pages free because 0-order pages
+are freed only by pagevec until now.
+So, how about renaming it with mm_page_free or mm_page_free_zero_order?
+If you do, you need to do s/MM_PAGEVEC_FREE/MM_FREE_FREE/g in
+trace-pagealloc-postprocess.pl.
 
-Fix the hierarchy_walk() in the unevictable page rescue scanner
 
-the patch including changes
-1. adjust the change in hierarchy_walk() which needs to hold the reference =
-to
-the first mem_cgroup.
-2. add stop_hierarchy_walk() at the end which is missed on the original pat=
-ch.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free_hot_cold_page(pag=
+e, cold);
+> + =C2=A0 =C2=A0 =C2=A0 }
+> +
+> + =C2=A0 =C2=A0 =C2=A0 INIT_LIST_HEAD(list);
 
-Signed-off-by: Ying Han <yinghan@google.com>
+Why do we need it?
 
-Change-Id: I72fb5d351faf0f111c8c99edd90b6cfee6281d3f
----
- mm/memcontrol.c |    3 +++
- mm/vmscan.c     |    7 ++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9bcd429..426092b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1514,6 +1514,9 @@ void mem_cgroup_stop_hierarchy_walk(struct
-mem_cgroup *target,
- >------>------->------->-------    struct mem_cgroup *first,
- >------>------->------->-------    struct mem_cgroup *mem)
- {
-+>------if (!target)
-+>------>-------target =3D root_mem_cgroup;
-+
- >------if (mem && mem !=3D target)
- >------>-------css_put(&mem->css);
-=B7
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 290998e..fd9593b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -4110,9 +4110,9 @@ static struct page *lru_tailpage(struct zone
-*zone, struct mem_cgroup *mem,
- #define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size=
- */
- static void scan_zone_unevictable_pages(struct zone *zone)
- {
-->------struct mem_cgroup *first, *mem =3D NULL;
-+>------struct mem_cgroup *first, *mem;
-=B7
-->------first =3D mem =3D mem_cgroup_hierarchy_walk(NULL, mem);
-+>------first =3D mem =3D mem_cgroup_hierarchy_walk(NULL, NULL, NULL);
- >------do {
- >------>-------unsigned long nr_to_scan;
-=B7
-@@ -4139,8 +4139,9 @@ static void scan_zone_unevictable_pages(struct zone *=
-zone)
- >------>------->-------spin_unlock_irq(&zone->lru_lock);
- >------>------->-------nr_to_scan -=3D batch_size;
- >------>-------}
-->------>-------mem =3D mem_cgroup_hierarchy_walk(NULL, mem);
-+>------>-------mem =3D mem_cgroup_hierarchy_walk(NULL, first, mem);
- >------} while (mem !=3D first);
-+>------mem_cgroup_stop_hierarchy_walk(NULL, first, mem);
- }
-
---Ying
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
