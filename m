@@ -1,115 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C9EB900139
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 11:05:54 -0400 (EDT)
-Subject: bade page state while calling munmap() for kmalloc'ed UIO memory
-From: Jan Altenberg <jan@linutronix.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 29 Aug 2011 17:05:47 +0200
-Message-ID: <1314630347.2258.150.camel@bender.lan>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E19E900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 11:48:37 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <4be6abb6-7b82-4e64-9e27-cd0fe0c1e1b1@default>
+Date: Mon, 29 Aug 2011 08:47:59 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Subject: [PATCH V7 2/4] mm: frontswap: core code
+References: <20110823145815.GA23190@ca-server1.us.oracle.com>
+ <20110825150532.a4d282b1.kamezawa.hiroyu@jp.fujitsu.com>
+ <d0b4c414-e90f-4ae0-9b70-fd5b54d2b011@default
+ 20110826091619.1ad27e9c.kamezawa.hiroyu@jp.fujitsu.com
+ a2fc3885-b98d-4918-afcc-5eac083c7eb0@default>
+In-Reply-To: <a2fc3885-b98d-4918-afcc-5eac083c7eb0@default>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "Hans J. Koch" <hjk@hansjkoch.de>, b.spranger@linutronix.de
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com
 
-Hi,
+> > My concern was race in counters. Even you allow race in frontswap_succ_=
+puts++,
+> >
+> > Don't you need some lock for
+> > =09sis->frontswap_pages++
+> > =09sis->frontswap_pages--
+>=20
+> Hmmm... OK, you've convinced me.  If this counter should be one and
+> a race leaves it as zero, I think data corruption could result on
+> a swapoff or partial swapoff.  And after thinking about it, I
+> think I also need to check for locking on frontswap_set/clear
+> as I don't think these bitfield modifiers are atomic.
+>=20
+> Thanks for pointing this out.  Good catch!  I will need to
+> play with this and test it so probably will not submit V8 until
+> next week as today is a vacation day for me.
 
-I'm currently analysing a problem similar to some mmap() issue reported
-in the past: https://lkml.org/lkml/2010/7/11/140
+Silly me: Of course set_bit and clear_bit ARE atomic.  I will
+post V8 later today with the only changes being frontswap_pages
+is now a type atomic_t.
 
-So, what I'm trying to do is mapping some physically continuous memory
-(allocated by kmalloc) to userspace, using a trivial UIO driver (the
-idea is that a device can directly DMA to that buffer):
-
-[...]
-#define MEM_SIZE (4 * PAGE_SIZE)
-
-addr = kmalloc(MEM_SIZE, GFP_KERNEL)
-[...]
-info.mem[0].addr = (unsigned long) addr;
-info.mem[0].internal_addr = addr;
-info.mem[0].size = MEM_SIZE;
-info.mem[0].memtype = UIO_MEM_LOGICAL;
-[...]
-ret = uio_register_device(&pdev->dev, &info);
-
-Userspace maps that memory range and writes its contents to a file:
-
-[...]
-
-fd = open("/dev/uio0", O_RDWR);
-if (fd < 0) {
-           perror("Can't open UIO device\n");
-           exit(1);
-}
-
-mem_map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
-                  MAP_PRIVATE, fd, 0);
-
-if(mem_map == MAP_FAILED) {
-           perror("Can't map UIO memory\n");
-           ret = -ENOMEM;
-           goto out_file;
-}
-[...]
-bytes_written = write(fd_file, mem_map, MAP_SIZE)
-[...]
-
-munmap(mem_map);
-
-So, what happens is (I'm currently testing with 3.0.3 on ARM
-VersatilePB): When I do the munmap(), I run into the following error:
-
-BUG: Bad page state in process uio_test  pfn:078ed
-page:c0409154 count:0 mapcount:0 mapping:  (null) index:0x0
-page flags: 0x284(referenced|slab|arch_1)
-[<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-[<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-[<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-[<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-[<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-[<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-[<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-[<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-Disabling lock debugging due to kernel taint
-BUG: Bad page state in process uio_test  pfn:078ee
-page:c0409178 count:0 mapcount:0 mapping:  (null) index:0x0
-page flags: 0x284(referenced|slab|arch_1)
-[<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-[<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-[<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-[<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-[<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-[<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-[<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-[<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-BUG: Bad page state in process uio_test  pfn:078ef
-page:c040919c count:0 mapcount:0 mapping:  (null) index:0x0
-page flags: 0x284(referenced|slab|arch_1)
-[<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-[<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-[<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-[<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-[<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-[<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-[<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-[<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-
-This happens for every page except the first one. If I change the code
-and just touch the first page, everything's working fine. As soon as I
-touch one of the other pages, I can see the "bad page state error" for
-that page. The kernel is currently built using CONFIG_SLAB (my .config
-is based on the versatile_defconfig); if I change to CONFIG_SLUB,
-munmap() seems to be happy and I can't see the "bad page state" error.
-
-Any idea what might be wrong here? Am I missing something obvious? (I've
-prepared some brown paperbags for that case ;-))
+Thanks again for catching this, Kame!
 
 Thanks,
-	Jan
-
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
