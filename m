@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 44634900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 21:49:51 -0400 (EDT)
-Subject: Re: [patch 2/2]slub: add a type for slab partial list position
+	by kanga.kvack.org (Postfix) with SMTP id A98BB900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 21:51:56 -0400 (EDT)
+Subject: [patch 1/2]slub: add slab with one free object to partial list
+ tail - v2
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1108290904130.16005@router.home>
-References: <1314059823.29510.19.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1108231023470.21267@router.home>
-	 <1314147472.29510.25.camel@sli10-conroe> <1314587187.4523.55.camel@debian>
-	 <alpine.DEB.2.00.1108290904130.16005@router.home>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Aug 2011 09:51:55 +0800
-Message-ID: <1314669116.29510.45.camel@sli10-conroe>
+Date: Tue, 30 Aug 2011 09:54:01 +0800
+Message-ID: <1314669241.29510.47.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, linux-mm <linux-mm@kvack.org>
 
-On Mon, 2011-08-29 at 22:20 +0800, Christoph Lameter wrote:
-> On Mon, 29 Aug 2011, Alex,Shi wrote:
-> 
-> > On Wed, 2011-08-24 at 08:57 +0800, Li, Shaohua wrote:
-> > > On Tue, 2011-08-23 at 23:25 +0800, Christoph Lameter wrote:
-> > > > On Tue, 23 Aug 2011, Shaohua Li wrote:
-> > > >
-> > > > > Adding slab to partial list head/tail is sensentive to performance.
-> > > > > So adding a type to document it to avoid we get it wrong.
-> > > >
-> > > > I think that if you want to make it more descriptive then using the stats
-> > > > values (DEACTIVATE_TO_TAIL/HEAD) would avoid having to introduce an
-> > > > additional enum and it would also avoid the if statement in the stat call.
-> > > ok, that's better.
-> > >
-> > > Subject: slub: explicitly document position of inserting slab to partial list
-> > >
-> > > Adding slab to partial list head/tail is sensitive to performance.
-> > > So explicitly uses DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD to document
-> > > it to avoid we get it wrong.
-> >
-> > Frankly speaking, using DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD in
-> > slab_alloc, slab_free make code hard to understand. Just adding some
-> > comments will be more clear and understandable. like the following:
-> > Do you think so?
-> 
-> Yes, I like that more.
-fine, let me add it to the first patch
+The slab has just one free object, adding it to partial list head doesn't make
+sense. And it can cause lock contentation. For example,
+1. CPU takes the slab from partial list
+2. fetch an object
+3. switch to another slab
+4. free an object, then the slab is added to partial list again
+In this way n->list_lock will be heavily contended.
+In fact, Alex had a hackbench regression. 3.1-rc1 performance drops about 70%
+against 3.0. This patch fixes it. Thanks Alex to bisect the issue to be a slub
+regression and collect perf data. Add comments in the code as suggested by Alex.
+
+Reported-by: Alex Shi <alex.shi@intel.com>
+Signed-off-by: Shaohua Li <shli@kernel.org>
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+
+---
+ mm/slub.c |    7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2011-08-24 08:59:06.000000000 +0800
++++ linux/mm/slub.c	2011-08-30 09:45:03.000000000 +0800
+@@ -2377,7 +2377,12 @@ static void __slab_free(struct kmem_cach
+ 		 */
+ 		if (unlikely(!prior)) {
+ 			remove_full(s, page);
+-			add_partial(n, page, 0);
++			/*
++			 * The slab has just one free object, add it to the
++			 * partial list tail so it will not be used
++			 * immediately.
++			 */
++			add_partial(n, page, 1);
+ 			stat(s, FREE_ADD_PARTIAL);
+ 		}
+ 	}
 
 
 --
