@@ -1,60 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 95DE86B00EE
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:47:55 -0400 (EDT)
-Subject: Re: [PATCH V8 4/4] mm: frontswap: config and doc files
-In-Reply-To: Your message of "Mon, 29 Aug 2011 09:49:49 PDT."
-             <20110829164949.GA27238@ca-server1.us.oracle.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20110829164949.GA27238@ca-server1.us.oracle.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1314737185_2796P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 30 Aug 2011 16:46:25 -0400
-Message-ID: <19213.1314737185@turing-police.cc.vt.edu>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5985D6B016B
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 17:49:28 -0400 (EDT)
+Received: by yib2 with SMTP id 2so96047yib.14
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2011 14:49:23 -0700 (PDT)
+Date: Wed, 31 Aug 2011 00:47:03 +0300
+From: Dan Carpenter <error27@gmail.com>
+Subject: re: mm: frontswap: core code
+Message-ID: <20110830214703.GB3705@shale.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: dan.magenheimer@oracle.com
+Cc: linux-mm@kvack.org
 
---==_Exmh_1314737185_2796P
-Content-Type: text/plain; charset=us-ascii
+Hello Dan Magenheimer,
 
-On Mon, 29 Aug 2011 09:49:49 PDT, Dan Magenheimer said:
+This is a semi-automatic email to let you know that df0aade19b6a:
+"mm: frontswap: core code" leads to the following Smatch complaint.
 
-> --- linux/mm/Kconfig	2011-08-08 08:19:26.303686905 -0600
-> +++ frontswap/mm/Kconfig	2011-08-29 09:52:14.308745832 -0600
-> @@ -370,3 +370,20 @@ config CLEANCACHE
->  	  in a negligible performance hit.
->  
->  	  If unsure, say Y to enable cleancache
-> +
-> +config FRONTSWAP
-> +	bool "Enable frontswap to cache swap pages if tmem is present"
-> +	depends on SWAP
-> +	default n
+mm/frontswap.c +250 frontswap_curr_pages(7)
+	 error: we previously assumed 'si' could be null (see line 252)
 
-> +
-> +	  If unsure, say Y to enable frontswap.
+mm/frontswap.c
+   249		spin_lock(&swap_lock);
+   250		for (type = swap_list.head; type >= 0; type = si->next) {
+                                                              ^^^^^^^^
+Dereference.
 
-Am I the only guy who gets irked when the "default" doesn't match the
-"If unsure" suggestion?  :)  (and yes, I know we have guidelines for
-what the "default" should be...)
+   251			si = swap_info[type];
+   252			if (si != NULL)
+                            ^^^^^^^^^^
+Check for NULL.
 
---==_Exmh_1314737185_2796P
-Content-Type: application/pgp-signature
+   253				totalpages += atomic_read(&si->frontswap_pages);
+   254		}
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+These semi-automatic emails are in testing.  Let me know how they can
+be improved.
 
-iD8DBQFOXUwhcC3lWbTT17ARAidQAJ9dvc2aWheQ7QEVPHlD3c0vwHr6NQCgouUj
-4nKyngyvWzkSZE2jPzCvAnc=
-=Zt2l
------END PGP SIGNATURE-----
-
---==_Exmh_1314737185_2796P--
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
