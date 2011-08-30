@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A98BB900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 21:51:56 -0400 (EDT)
-Subject: [patch 1/2]slub: add slab with one free object to partial list
- tail - v2
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 91643900137
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 21:52:08 -0400 (EDT)
+Subject: [patch 2/2]slub: explicitly document position of inserting slab to
+ partial list
 From: Shaohua Li <shaohua.li@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Aug 2011 09:54:01 +0800
-Message-ID: <1314669241.29510.47.camel@sli10-conroe>
+Date: Tue, 30 Aug 2011 09:54:12 +0800
+Message-ID: <1314669252.29510.49.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,44 +15,73 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, linux-mm <linux-mm@kvack.org>
 
-The slab has just one free object, adding it to partial list head doesn't make
-sense. And it can cause lock contentation. For example,
-1. CPU takes the slab from partial list
-2. fetch an object
-3. switch to another slab
-4. free an object, then the slab is added to partial list again
-In this way n->list_lock will be heavily contended.
-In fact, Alex had a hackbench regression. 3.1-rc1 performance drops about 70%
-against 3.0. This patch fixes it. Thanks Alex to bisect the issue to be a slub
-regression and collect perf data. Add comments in the code as suggested by Alex.
+Adding slab to partial list head/tail is sensitive to performance. Using 0/1
+can easily cause typo. So explicitly uses DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD
+to document it to avoid we get it wrong.
 
-Reported-by: Alex Shi <alex.shi@intel.com>
 Signed-off-by: Shaohua Li <shli@kernel.org>
 Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 Acked-by: Christoph Lameter <cl@linux.com>
-
 ---
- mm/slub.c |    7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ mm/slub.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 Index: linux/mm/slub.c
 ===================================================================
---- linux.orig/mm/slub.c	2011-08-24 08:59:06.000000000 +0800
-+++ linux/mm/slub.c	2011-08-30 09:45:03.000000000 +0800
-@@ -2377,7 +2377,12 @@ static void __slab_free(struct kmem_cach
- 		 */
- 		if (unlikely(!prior)) {
- 			remove_full(s, page);
--			add_partial(n, page, 0);
-+			/*
-+			 * The slab has just one free object, add it to the
-+			 * partial list tail so it will not be used
-+			 * immediately.
-+			 */
-+			add_partial(n, page, 1);
+--- linux.orig/mm/slub.c	2011-08-30 09:45:03.000000000 +0800
++++ linux/mm/slub.c	2011-08-30 09:45:45.000000000 +0800
+@@ -1534,7 +1534,7 @@ static inline void add_partial(struct km
+ 				struct page *page, int tail)
+ {
+ 	n->nr_partial++;
+-	if (tail)
++	if (tail == DEACTIVATE_TO_TAIL)
+ 		list_add_tail(&page->lru, &n->partial);
+ 	else
+ 		list_add(&page->lru, &n->partial);
+@@ -1781,13 +1781,13 @@ static void deactivate_slab(struct kmem_
+ 	enum slab_modes l = M_NONE, m = M_NONE;
+ 	void *freelist;
+ 	void *nextfree;
+-	int tail = 0;
++	int tail = DEACTIVATE_TO_HEAD;
+ 	struct page new;
+ 	struct page old;
+ 
+ 	if (page->freelist) {
+ 		stat(s, DEACTIVATE_REMOTE_FREES);
+-		tail = 1;
++		tail = DEACTIVATE_TO_TAIL;
+ 	}
+ 
+ 	c->tid = next_tid(c->tid);
+@@ -1893,7 +1893,7 @@ redo:
+ 		if (m == M_PARTIAL) {
+ 
+ 			add_partial(n, page, tail);
+-			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
++			stat(s, tail);
+ 
+ 		} else if (m == M_FULL) {
+ 
+@@ -2382,7 +2382,7 @@ static void __slab_free(struct kmem_cach
+ 			 * partial list tail so it will not be used
+ 			 * immediately.
+ 			 */
+-			add_partial(n, page, 1);
++			add_partial(n, page, DEACTIVATE_TO_TAIL);
  			stat(s, FREE_ADD_PARTIAL);
  		}
  	}
+@@ -2700,7 +2700,7 @@ static void early_kmem_cache_node_alloc(
+ 	init_kmem_cache_node(n, kmem_cache_node);
+ 	inc_slabs_node(kmem_cache_node, node, page->objects);
+ 
+-	add_partial(n, page, 0);
++	add_partial(n, page, DEACTIVATE_TO_HEAD);
+ }
+ 
+ static void free_kmem_cache_nodes(struct kmem_cache *s)
 
 
 --
