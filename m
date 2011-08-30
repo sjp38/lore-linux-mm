@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 19103900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 12:00:38 -0400 (EDT)
-Date: Tue, 30 Aug 2011 17:57:33 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch 2/2] oom: fix race while temporarily setting current's
-	oom_score_adj
-Message-ID: <20110830155733.GB22754@redhat.com>
-References: <20110728154324.GA22864@redhat.com> <alpine.DEB.2.00.1107281341060.16093@chino.kir.corp.google.com> <20110729141431.GA3501@redhat.com> <20110730143426.GA6061@redhat.com> <20110730152238.GA17424@redhat.com> <4E369372.80105@jp.fujitsu.com> <20110829183743.GA15216@redhat.com> <alpine.DEB.2.00.1108291611070.32495@chino.kir.corp.google.com> <alpine.DEB.2.00.1108300040490.21066@chino.kir.corp.google.com> <alpine.DEB.2.00.1108300041330.21066@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E15A900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 12:25:36 -0400 (EDT)
+Received: by gwaa20 with SMTP id a20so6819930gwa.14
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2011 09:25:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1108300041330.21066@chino.kir.corp.google.com>
+In-Reply-To: <CAFPAmTQoVt+rg+2KHuu-Pi3t_RCx-14xFeMOamguMQMZFV==Jg@mail.gmail.com>
+References: <CAJ8eaTyeQj5_EAsCFDMmDs3faiVptuccmq3VJLjG-QnYG038=A@mail.gmail.com>
+	<CAJ8eaTw=dKUNE8h-HD7RWxXHcTEuxJH4AfcOO44RSF7QdC5arQ@mail.gmail.com>
+	<CAHKQLBH2d-DzzMfP9QOUmz6brT7BfPdwY6JfEUUYxzaTDTo=wg@mail.gmail.com>
+	<CAJ8eaTxmZm6yw1YWhdfaxwuf0mF+sOfX6RUPfcu-qiHYu+D4CA@mail.gmail.com>
+	<CAJ8eaTz_zYYwG5HqTgU4=mbPwh=4rT9L-awJ-zO5QTsmP+GjOQ@mail.gmail.com>
+	<CAFPAmTQoVt+rg+2KHuu-Pi3t_RCx-14xFeMOamguMQMZFV==Jg@mail.gmail.com>
+Date: Tue, 30 Aug 2011 11:25:33 -0500
+Message-ID: <CAHKQLBE9Vct8U3q7h1NQca7oqSOwHuxzrMgjiARkp=f22J1Lig@mail.gmail.com>
+Subject: Re: Kernel panic in 2.6.35.12 kernel
+From: Steve Chen <schen@mvista.com>
+Content-Type: multipart/alternative; boundary=20cf303ea638f7948204abbb7577
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: naveen yadav <yad.naveen@gmail.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On 08/30, David Rientjes wrote:
+--20cf303ea638f7948204abbb7577
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Tue, Aug 30, 2011 at 12:19 AM, Kautuk Consul <consul.kautuk@gmail.com>wrote:
+
+> Hi Steve,
 >
-> Using that function to both set oom_score_adj to OOM_SCORE_ADJ_MAX and
-> then reinstate the previous value is racy since it's possible that
-> userspace can set the value to something else itself before the old value
-> is reinstated.  That results in userspace setting current's oom_score_adj
-> to a different value and then the kernel immediately setting it back to
-> its previous value without notification.
+> I too have noticed this strange behaviour on my Linux ARM board.
+>
+> I also have 2.6.35.12 installed and I see a similar crash when
+> parallel OOMs are triggerred.
+>
+> I am executing multiple instances of a similar test application which
+> allocates a lot of anonymous memory.
+> OOM then starts kicking in parallel and this eventualy results in a
+> hang situation.
+>
+> Can anyone tell me what patch to apply to solve this problem ?
+>
+>
+I'm really not familiar with OOM, so I don't know the answer.
 
-Sure,
+Sorry,
 
-> To fix this, a new compare_swap_oom_score_adj() function is introduced
-> with the same semantics as the compare and swap CAS instruction, or
-> CMPXCHG on x86.  It is used to reinstate the previous value of
-> oom_score_adj if and only if the present value is the same as the old
-> value.
+Steve
 
-But this can't fix the race completely ?
+--20cf303ea638f7948204abbb7577
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> +void compare_swap_oom_score_adj(int old_val, int new_val)
-> +{
-> +	struct sighand_struct *sighand = current->sighand;
-> +
-> +	spin_lock_irq(&sighand->siglock);
-> +	if (current->signal->oom_score_adj == old_val)
-> +		current->signal->oom_score_adj = new_val;
-> +	spin_unlock_irq(&sighand->siglock);
-> +}
+<br><br><div class=3D"gmail_quote">On Tue, Aug 30, 2011 at 12:19 AM, Kautuk=
+ Consul <span dir=3D"ltr">&lt;<a href=3D"mailto:consul.kautuk@gmail.com">co=
+nsul.kautuk@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_q=
+uote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1e=
+x;">
+Hi Steve,<br>
+<br>
+I too have noticed this strange behaviour on my Linux ARM board.<br>
+<br>
+I also have 2.6.35.12 installed and I see a similar crash when<br>
+parallel OOMs are triggerred.<br>
+<br>
+I am executing multiple instances of a similar test application which<br>
+allocates a lot of anonymous memory.<br>
+OOM then starts kicking in parallel and this eventualy results in a<br>
+hang situation.<br>
+<br>
+Can anyone tell me what patch to apply to solve this problem ?<br>
+<br></blockquote></div><br>I&#39;m really not familiar with OOM, so I don&#=
+39;t know the answer.<br><br>Sorry,<br><br>Steve<br>
 
-So. This is used this way:
-
-	old_val = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
-
-	do_something();
-
-	compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX, old_val);
-
-What if userspace sets oom_score_adj = OOM_SCORE_ADJ_MAX in between?
-May be the callers should use OOM_SCORE_ADJ_MAX + 1 instead, this way
-we can't confuse old_val with the value from the userspace...
-
-
-
-
-But in fact I am writing this email because I have the question.
-Do we really need 2 helpers, and do we really need to allow to set
-the arbitrary value?
-
-I mean, perhaps we can do something like
-
-	void set_oom_victim(bool on)
-	{
-		if (on) {
-			oom_score_adj += ADJ_MAX - ADJ_MIN + 1;
-		} else if (oom_score_adj > ADJ_MAX) {
-			oom_score_adj -= ADJ_MAX - ADJ_MIN + 1;
-		}
-	}
-
-Not sure this really makes sense, just curious.
-
-Oleg.
+--20cf303ea638f7948204abbb7577--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
