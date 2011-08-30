@@ -1,106 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EBD900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 07:53:10 -0400 (EDT)
-Date: Tue, 30 Aug 2011 13:03:37 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
-Message-ID: <20110830110337.GE13061@redhat.com>
-References: <20110808124333.GA31739@redhat.com>
- <20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
- <20110829155113.GA21661@redhat.com>
- <20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830070424.GA13061@redhat.com>
- <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830084245.GC13061@redhat.com>
- <20110830175609.4977ef7a.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830101726.GD13061@redhat.com>
- <20110830193406.361d758a.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A4E10900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 09:19:21 -0400 (EDT)
+Date: Tue, 30 Aug 2011 14:19:15 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/7] Reduce filesystem writeback from page reclaim v3
+Message-ID: <20110830131915.GB24629@csn.ul.ie>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+ <20110818165420.0a7aabb5.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110830193406.361d758a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110818165420.0a7aabb5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tue, Aug 30, 2011 at 07:34:06PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 30 Aug 2011 12:17:26 +0200
-> Johannes Weiner <jweiner@redhat.com> wrote:
+On Thu, Aug 18, 2011 at 04:54:20PM -0700, Andrew Morton wrote:
+> On Wed, 10 Aug 2011 11:47:13 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
 > 
-> > On Tue, Aug 30, 2011 at 05:56:09PM +0900, KAMEZAWA Hiroyuki wrote:
+> > The new problem is that
+> > reclaim has very little control over how long before a page in a
+> > particular zone or container is cleaned which is discussed later.
 > 
-> > > > > > I don't get why this has to be done completely different from the way
-> > > > > > we usually do things, without any justification, whatsoever.
-> > > > > > 
-> > > > > > Why do you want to pass a recording structure down the reclaim stack?
-> > > > > 
-> > > > > Just for reducing number of passed variables.
-> > > > 
-> > > > It's still sitting on bottom of the reclaim stack the whole time.
-> > > > 
-> > > > With my proposal, you would only need to pass the extra root_mem
-> > > > pointer.
-> > > 
-> > > I'm sorry I miss something. Do you say to add a function like
-> > > 
-> > > mem_cgroup_record_reclaim_stat(memcg, root_mem, anon_scan, anon_free, anon_rotate,
-> > >                                file_scan, file_free, elapsed_ns)
-> > > 
-> > > ?
-> > 
-> > Exactly, though passing it a stat item index and a delta would
-> > probably be closer to our other statistics accounting, i.e.:
-> > 
-> > 	mem_cgroup_record_reclaim_stat(sc->mem_cgroup, sc->root_mem_cgroup,
-> > 				       MEM_CGROUP_SCAN_ANON, *nr_anon);
-> > 
-> > where sc->mem_cgroup is `victim' and sc->root_mem_cgroup is `root_mem'
-> > from hierarchical_reclaim.  ->root_mem_cgroup might be confusing,
-> > though.  I named it ->target_mem_cgroup in my patch set but I don't
-> > feel too strongly about that.
-> > 
-> > Even better would be to reuse enum vm_event_item and at one point
-> > merge all the accounting stuff into a single function and have one
-> > single set of events that makes sense on a global level as well as on
-> > a per-memcg level.
-> > 
-> > There is deviation and implementing similar things twice with slight
-> > variations and I don't see any justification for all that extra code
-> > that needs maintaining.  Or counters that have similar names globally
-> > and on a per-memcg level but with different meanings, like the rotated
-> > counter.  Globally, a rotated page (PGROTATED) is one that is moved
-> > back to the inactive list after writeback finishes.  Per-memcg, the
-> > rotated counter is our internal heuristics value to balance pressure
-> > between LRUs and means either rotated on the inactive list, activated,
-> > not activated but countes as activated because of VM_EXEC etc.
-> > 
-> > I am still for reverting this patch before the release until we have
-> > this all sorted out.  I feel rather strongly that these statistics are
-> > in no way ready to make them part of the ABI and export them to
-> > userspace as they are now.
+> Confused - where was this discussed?  Please tell us more about
+> this problem and how it was addressed.
 > 
-> How about fixing interface first ? 1st version of this patch was 
-> in April and no big change since then.
-> I don't want to be starved more.
 
-Back then I mentioned all my concerns and alternate suggestions.
-Different from you, I explained and provided a reason for every single
-counter I wanted to add, suggested a basic pattern for how to
-interpret them to gain insight into memcg configurations and their
-behaviour.  No reaction.  If you want to make progress, than don't
-ignore concerns and arguments.  If my arguments are crap, then tell me
-why and we can move on.
+This text really referred to V2 of the series where kswapd was not
+writing back pages. This lead to problems on NUMA as described in
+https://lkml.org/lkml/2011/7/21/242 . I should have updated the text to
+read
 
-What we have now is not ready.  It wasn't discussed properly, which
-certainly wasn't for the lack of interest in this change.  I just got
-tired of raising the same points over and over again without answer.
+"There is a potential new problem as reclaim has less control over
+how long before a page in a particularly zone or container is cleaned
+and direct reclaimers depend on kswapd or flusher threads to do
+the necessary work. However, as filesystems sometimes ignore direct
+reclaim requests already, it is not expected to be a serious issue"
 
-The amount of time a change has been around is not an argument for it
-to get merged.  On the other hand, the fact that it hasn't changed
-since April *even though* the implementation was opposed back then
-doesn't really speak for your way of getting this upstream, does it?
+> Another (and somewhat interrelated) potential problem I see with this
+> work is that it throws a big dependency onto kswapd.  If kswapd gets
+> stuck somewhere for extended periods, there's nothing there to perform
+> direct writeback. 
+
+In theory, this is true. In practice, btrfs and ext4 are already
+ignoring requests from direct reclaim and have been for some
+time. btrfs is particularly bad in that is also ignores requests
+from kswapd leading me to believe that we are eventually going to
+see stall-related bug reports on large NUMA machines with btrfs.
+
+> This has happened in the past in weird situations
+> such as kswpad getting blocked on ext3 journal commits which are
+> themselves stuck for ages behind lots of writeout which itself is stuck
+> behind lots of reads.  That's an advantage of direct reclaim: more
+> threads available.
+
+I do not know what these situations were but was it possible that it was
+due to too many direct reclaimers starving kswapd of access to the
+journal?
+
+> How forcefully has this stuff been tested with multiple disks per
+> kswapd? 
+
+As heavily as I could on the machine I had available. This was 4 disks
+for one kswapd instance. I did not spot major problems.
+
+> Where one disk is overloaded-ext3-on-usb-stick?
+> 
+
+I tested with ext4 on a USB stick, not ext3. It completed faster and the
+interactive performance felt roughly the same.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
