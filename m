@@ -1,88 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 91643900137
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 21:52:08 -0400 (EDT)
-Subject: [patch 2/2]slub: explicitly document position of inserting slab to
- partial list
-From: Shaohua Li <shaohua.li@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Aug 2011 09:54:12 +0800
-Message-ID: <1314669252.29510.49.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1754D900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 01:19:26 -0400 (EDT)
+Received: by vwm42 with SMTP id 42so6925646vwm.14
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 22:19:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAJ8eaTz_zYYwG5HqTgU4=mbPwh=4rT9L-awJ-zO5QTsmP+GjOQ@mail.gmail.com>
+References: <CAJ8eaTyeQj5_EAsCFDMmDs3faiVptuccmq3VJLjG-QnYG038=A@mail.gmail.com>
+	<CAJ8eaTw=dKUNE8h-HD7RWxXHcTEuxJH4AfcOO44RSF7QdC5arQ@mail.gmail.com>
+	<CAHKQLBH2d-DzzMfP9QOUmz6brT7BfPdwY6JfEUUYxzaTDTo=wg@mail.gmail.com>
+	<CAJ8eaTxmZm6yw1YWhdfaxwuf0mF+sOfX6RUPfcu-qiHYu+D4CA@mail.gmail.com>
+	<CAJ8eaTz_zYYwG5HqTgU4=mbPwh=4rT9L-awJ-zO5QTsmP+GjOQ@mail.gmail.com>
+Date: Tue, 30 Aug 2011 10:49:25 +0530
+Message-ID: <CAFPAmTQoVt+rg+2KHuu-Pi3t_RCx-14xFeMOamguMQMZFV==Jg@mail.gmail.com>
+Subject: Re: Kernel panic in 2.6.35.12 kernel
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, linux-mm <linux-mm@kvack.org>
+To: naveen yadav <yad.naveen@gmail.com>
+Cc: Steve Chen <schen@mvista.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-Adding slab to partial list head/tail is sensitive to performance. Using 0/1
-can easily cause typo. So explicitly uses DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD
-to document it to avoid we get it wrong.
+Hi Steve,
 
-Signed-off-by: Shaohua Li <shli@kernel.org>
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- mm/slub.c |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+I too have noticed this strange behaviour on my Linux ARM board.
 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2011-08-30 09:45:03.000000000 +0800
-+++ linux/mm/slub.c	2011-08-30 09:45:45.000000000 +0800
-@@ -1534,7 +1534,7 @@ static inline void add_partial(struct km
- 				struct page *page, int tail)
- {
- 	n->nr_partial++;
--	if (tail)
-+	if (tail == DEACTIVATE_TO_TAIL)
- 		list_add_tail(&page->lru, &n->partial);
- 	else
- 		list_add(&page->lru, &n->partial);
-@@ -1781,13 +1781,13 @@ static void deactivate_slab(struct kmem_
- 	enum slab_modes l = M_NONE, m = M_NONE;
- 	void *freelist;
- 	void *nextfree;
--	int tail = 0;
-+	int tail = DEACTIVATE_TO_HEAD;
- 	struct page new;
- 	struct page old;
- 
- 	if (page->freelist) {
- 		stat(s, DEACTIVATE_REMOTE_FREES);
--		tail = 1;
-+		tail = DEACTIVATE_TO_TAIL;
- 	}
- 
- 	c->tid = next_tid(c->tid);
-@@ -1893,7 +1893,7 @@ redo:
- 		if (m == M_PARTIAL) {
- 
- 			add_partial(n, page, tail);
--			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
-+			stat(s, tail);
- 
- 		} else if (m == M_FULL) {
- 
-@@ -2382,7 +2382,7 @@ static void __slab_free(struct kmem_cach
- 			 * partial list tail so it will not be used
- 			 * immediately.
- 			 */
--			add_partial(n, page, 1);
-+			add_partial(n, page, DEACTIVATE_TO_TAIL);
- 			stat(s, FREE_ADD_PARTIAL);
- 		}
- 	}
-@@ -2700,7 +2700,7 @@ static void early_kmem_cache_node_alloc(
- 	init_kmem_cache_node(n, kmem_cache_node);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
- 
--	add_partial(n, page, 0);
-+	add_partial(n, page, DEACTIVATE_TO_HEAD);
- }
- 
- static void free_kmem_cache_nodes(struct kmem_cache *s)
+I also have 2.6.35.12 installed and I see a similar crash when
+parallel OOMs are triggerred.
 
+I am executing multiple instances of a similar test application which
+allocates a lot of anonymous memory.
+OOM then starts kicking in parallel and this eventualy results in a
+hang situation.
+
+Can anyone tell me what patch to apply to solve this problem ?
+
+Thanks,
+Kautuk.
+
+
+On Tue, Aug 30, 2011 at 10:12 AM, naveen yadav <yad.naveen@gmail.com> wrote=
+:
+> ---------- Forwarded message ----------
+> From: naveen yadav <yad.naveen@gmail.com>
+> Date: Fri, Aug 26, 2011 at 10:38 AM
+> Subject: Re: Kernel panic in 2.6.35.12 kernel
+> To: Steve Chen <schen@mvista.com>
+> Cc: linux-arm-kernel@lists.infradead.org, linux-mm <linux-mm@kvack.org>
+>
+>
+> Hi Steve.
+>
+> Pls find attached code for stress application. The test code is very
+> simple. Just alloc memory.
+> we got this issue on embedded Target.
+> After analysis we found that most of task(stress_application) is in D
+> for uninterruptible sleep.
+> application =A0 =A0 =A0 =A0 =A0 state
+>
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0x
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0D
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0x
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0D
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0x
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0D
+> stress =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0x
+> sleep =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 D
+>
+> Thanks
+>
+>
+>
+>
+> On Thu, Aug 25, 2011 at 7:27 PM, Steve Chen <schen@mvista.com> wrote:
+>> On Thu, Aug 25, 2011 at 1:06 AM, naveen yadav <yad.naveen@gmail.com> wro=
+te:
+>>> I am paste only small crash log due to size problem.
+>>>
+>>>
+>>>
+>>>
+>>>> Hi All,
+>>>>
+>>>> We are running one malloc testprogram using below script.
+>>>>
+>>>> while true
+>>>> do
+>>>> ./stress &
+>>>> sleep 1
+>>>> done
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> After 10-15 min we observe following crash in kernel
+>>>>
+>>>>
+>>>> =A0Kernel panic - not syncing: Out of memory and no killable processes=
+...
+>>>>
+>>>> attaching log also.
+>>>>
+>>>> Thanks
+>>>>
+>>>
+>>> _______________________________________________
+>>> linux-arm-kernel mailing list
+>>> linux-arm-kernel@lists.infradead.org
+>>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>>>
+>>>
+>>
+>> Can you share the code in ./stress?
+>>
+>> Thanks,
+>>
+>> Steve
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
