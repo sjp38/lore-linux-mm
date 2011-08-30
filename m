@@ -1,123 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 65720900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 03:43:44 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p7U7havF006098
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:37 -0700
-Received: from pzk6 (pzk6.prod.google.com [10.243.19.134])
-	by wpaz33.hot.corp.google.com with ESMTP id p7U7hYch006021
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:35 -0700
-Received: by pzk6 with SMTP id 6so15261734pzk.36
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:34 -0700 (PDT)
-Date: Tue, 30 Aug 2011 00:43:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] oom: fix race while temporarily setting current's
- oom_score_adj
-In-Reply-To: <alpine.DEB.2.00.1108300040490.21066@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1108300041330.21066@chino.kir.corp.google.com>
-References: <20110727163159.GA23785@redhat.com> <20110727163610.GJ23793@redhat.com> <20110727175624.GA3950@redhat.com> <20110728154324.GA22864@redhat.com> <alpine.DEB.2.00.1107281341060.16093@chino.kir.corp.google.com> <20110729141431.GA3501@redhat.com>
- <20110730143426.GA6061@redhat.com> <20110730152238.GA17424@redhat.com> <4E369372.80105@jp.fujitsu.com> <20110829183743.GA15216@redhat.com> <alpine.DEB.2.00.1108291611070.32495@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1108300040490.21066@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 298A6900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 04:42:56 -0400 (EDT)
+Date: Tue, 30 Aug 2011 10:42:45 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
+Message-ID: <20110830084245.GC13061@redhat.com>
+References: <20110722171540.74eb9aa7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110808124333.GA31739@redhat.com>
+ <20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110829155113.GA21661@redhat.com>
+ <20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110830070424.GA13061@redhat.com>
+ <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-test_set_oom_score_adj() was introduced in 72788c385604 (oom: replace
-PF_OOM_ORIGIN with toggling oom_score_adj) to temporarily elevate
-current's oom_score_adj for ksm and swapoff without requiring an
-additional per-process flag.
+On Tue, Aug 30, 2011 at 04:20:50PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 30 Aug 2011 09:04:24 +0200
+> Johannes Weiner <jweiner@redhat.com> wrote:
+> 
+> > On Tue, Aug 30, 2011 at 10:12:33AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > @@ -1710,11 +1711,18 @@ static void mem_cgroup_record_scanstat(s
+> > >  	spin_lock(&memcg->scanstat.lock);
+> > >  	__mem_cgroup_record_scanstat(memcg->scanstat.stats[context], rec);
+> > >  	spin_unlock(&memcg->scanstat.lock);
+> > > -
+> > > -	memcg = rec->root;
+> > > -	spin_lock(&memcg->scanstat.lock);
+> > > -	__mem_cgroup_record_scanstat(memcg->scanstat.rootstats[context], rec);
+> > > -	spin_unlock(&memcg->scanstat.lock);
+> > > +	cgroup = memcg->css.cgroup;
+> > > +	do {
+> > > +		spin_lock(&memcg->scanstat.lock);
+> > > +		__mem_cgroup_record_scanstat(
+> > > +			memcg->scanstat.hierarchy_stats[context], rec);
+> > > +		spin_unlock(&memcg->scanstat.lock);
+> > > +		if (!cgroup->parent)
+> > > +			break;
+> > > +		cgroup = cgroup->parent;
+> > > +		memcg = mem_cgroup_from_cont(cgroup);
+> > > +	} while (memcg->use_hierarchy && memcg != rec->root);
+> > 
+> > Okay, so this looks correct, but it sums up all parents after each
+> > memcg scanned, which could have a performance impact.  Usually,
+> > hierarchy statistics are only summed up when a user reads them.
+> > 
+> Hmm. But sum-at-read doesn't work.
+> 
+> Assume 3 cgroups in a hierarchy.
+> 
+> 	A
+>        /
+>       B
+>      /
+>     C
+> 
+> C's scan contains 3 causes.
+> 	C's scan caused by limit of A.
+> 	C's scan caused by limit of B.
+> 	C's scan caused by limit of C.
+>
+> If we make hierarchy sum at read, we think
+> 	B's scan_stat = B's scan_stat + C's scan_stat
+> But in precice, this is
+> 
+> 	B's scan_stat = B's scan_stat caused by B +
+> 			B's scan_stat caused by A +
+> 			C's scan_stat caused by C +
+> 			C's scan_stat caused by B +
+> 			C's scan_stat caused by A.
+> 
+> In orignal version.
+> 	B's scan_stat = B's scan_stat caused by B +
+> 			C's scan_stat caused by B +
+> 
+> After this patch,
+> 	B's scan_stat = B's scan_stat caused by B +
+> 			B's scan_stat caused by A +
+> 			C's scan_stat caused by C +
+> 			C's scan_stat caused by B +
+> 			C's scan_stat caused by A.
+> 
+> Hmm...removing hierarchy part completely seems fine to me.
 
-Using that function to both set oom_score_adj to OOM_SCORE_ADJ_MAX and
-then reinstate the previous value is racy since it's possible that
-userspace can set the value to something else itself before the old value
-is reinstated.  That results in userspace setting current's oom_score_adj
-to a different value and then the kernel immediately setting it back to
-its previous value without notification.
+I see.
 
-To fix this, a new compare_swap_oom_score_adj() function is introduced
-with the same semantics as the compare and swap CAS instruction, or
-CMPXCHG on x86.  It is used to reinstate the previous value of
-oom_score_adj if and only if the present value is the same as the old
-value.
+You want to look at A and see whether its limit was responsible for
+reclaim scans in any children.  IMO, that is asking the question
+backwards.  Instead, there is a cgroup under reclaim and one wants to
+find out the cause for that.  Not the other way round.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/oom.h |    1 +
- mm/ksm.c            |    3 ++-
- mm/oom_kill.c       |   19 +++++++++++++++++++
- mm/swapfile.c       |    2 +-
- 4 files changed, 23 insertions(+), 2 deletions(-)
+In my original proposal I suggested differentiating reclaim caused by
+internal pressure (due to own limit) and reclaim caused by
+external/hierarchical pressure (due to limits from parents).
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -40,6 +40,7 @@ enum oom_constraint {
- 	CONSTRAINT_MEMCG,
- };
- 
-+extern void compare_swap_oom_score_adj(int old_val, int new_val);
- extern int test_set_oom_score_adj(int new_val);
- 
- extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1905,7 +1905,8 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
- 
- 			oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
- 			err = unmerge_and_remove_all_rmap_items();
--			test_set_oom_score_adj(oom_score_adj);
-+			compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX,
-+								oom_score_adj);
- 			if (err) {
- 				ksm_run = KSM_RUN_STOP;
- 				count = err;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -38,6 +38,25 @@ int sysctl_oom_kill_allocating_task;
- int sysctl_oom_dump_tasks = 1;
- static DEFINE_SPINLOCK(zone_scan_lock);
- 
-+/*
-+ * compare_swap_oom_score_adj() - compare and swap current's oom_score_adj
-+ * @old_val: old oom_score_adj for compare
-+ * @new_val: new oom_score_adj for swap
-+ *
-+ * Sets the oom_score_adj value for current to @new_val iff its present value is
-+ * @old_val.  Usually used to reinstate a previous value to prevent racing with
-+ * userspacing tuning the value in the interim.
-+ */
-+void compare_swap_oom_score_adj(int old_val, int new_val)
-+{
-+	struct sighand_struct *sighand = current->sighand;
-+
-+	spin_lock_irq(&sighand->siglock);
-+	if (current->signal->oom_score_adj == old_val)
-+		current->signal->oom_score_adj = new_val;
-+	spin_unlock_irq(&sighand->siglock);
-+}
-+
- /**
-  * test_set_oom_score_adj() - set current's oom_score_adj and return old value
-  * @new_val: new oom_score_adj value
-diff --git a/mm/swapfile.c b/mm/swapfile.c
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1617,7 +1617,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 
- 	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
- 	err = try_to_unuse(type);
--	test_set_oom_score_adj(oom_score_adj);
-+	compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX, oom_score_adj);
- 
- 	if (err) {
- 		/*
+If you want to find out why C is under reclaim, look at its reclaim
+statistics.  If the _limit numbers are high, C's limit is the problem.
+If the _hierarchical numbers are high, the problem is B, A, or
+physical memory, so you check B for _limit and _hierarchical as well,
+then move on to A.
+
+Implementing this would be as easy as passing not only the memcg to
+scan (victim) to the reclaim code, but also the memcg /causing/ the
+reclaim (root_mem):
+
+	root_mem == victim -> account to victim as _limit
+	root_mem != victim -> account to victim as _hierarchical
+
+This would make things much simpler and more natural, both the code
+and the way of tracking down a problem, IMO.
+
+> > I don't get why this has to be done completely different from the way
+> > we usually do things, without any justification, whatsoever.
+> > 
+> > Why do you want to pass a recording structure down the reclaim stack?
+> 
+> Just for reducing number of passed variables.
+
+It's still sitting on bottom of the reclaim stack the whole time.
+
+With my proposal, you would only need to pass the extra root_mem
+pointer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
