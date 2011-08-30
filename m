@@ -1,86 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EFDE900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 02:08:24 -0400 (EDT)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p7U68LJr025600
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 23:08:21 -0700
-Received: from qwh5 (qwh5.prod.google.com [10.241.194.197])
-	by hpaq11.eem.corp.google.com with ESMTP id p7U68HFj017207
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2011 23:08:19 -0700
-Received: by qwh5 with SMTP id 5so3612851qwh.6
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2011 23:08:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id E0F6C900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 03:04:31 -0400 (EDT)
+Date: Tue, 30 Aug 2011 09:04:24 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
+Message-ID: <20110830070424.GA13061@redhat.com>
+References: <20110722171540.74eb9aa7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110808124333.GA31739@redhat.com>
+ <20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110829155113.GA21661@redhat.com>
+ <20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110829075731.GA32114@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
-	<CALWz4iwChnacF061L9vWo7nEA7qaXNJrK=+jsEe9xBtvEBD9MA@mail.gmail.com>
-	<20110811210914.GB31229@cmpxchg.org>
-	<CALWz4iwJfyWRineMy+W02YBvS0Y=Pv1y8Rb=8i5R=vUCfrO+iQ@mail.gmail.com>
-	<CALWz4iwRXBheXFND5zq3ze2PJDkeoxYHD1zOsTyzOe3XqY5apA@mail.gmail.com>
-	<20110829075731.GA32114@cmpxchg.org>
-Date: Mon, 29 Aug 2011 23:08:16 -0700
-Message-ID: <CALWz4iw4ojn7GUJgWDV9wqGeXf-Oy0uDx0yJUhJpkuP5tffMwA@mail.gmail.com>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 29, 2011 at 12:57 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
->
-> On Mon, Aug 29, 2011 at 12:22:02AM -0700, Ying Han wrote:
-> > fix hierarchy_walk() to hold a reference to first mem_cgroup
-> >
-> > The first mem_cgroup returned from hierarchy_walk() is used to
-> > terminate a round-trip. However there is no reference hold on
-> > that which the first could be removed during the walking. The
-> > patch including the following change:
-> >
-> > 1. hold a reference on the first mem_cgroup during the walk.
-> > 2. rename the variable "root" to "target", which we found using
-> > "root" is confusing in this content with root_mem_cgroup. better
-> > naming is welcomed.
->
-> Thanks for the report.
->
-> This was actually not the only case that could lead to overlong (not
-> necessarily endless) looping.
->
-> With several scanning threads, a single thread may not encounter its
-> first cgroup again for a long time, as the other threads would visit
-> it.
+On Tue, Aug 30, 2011 at 10:12:33AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 29 Aug 2011 17:51:13 +0200
+> Johannes Weiner <jweiner@redhat.com> wrote:
+> 
+> > On Tue, Aug 09, 2011 at 08:33:45AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Mon, 8 Aug 2011 14:43:33 +0200
+> > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > 
+> > > > On Fri, Jul 22, 2011 at 05:15:40PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > +When under_hierarchy is added in the tail, the number indicates the
+> > > > > +total memcg scan of its children and itself.
+> > > > 
+> > > > In your implementation, statistics are only accounted to the memcg
+> > > > triggering the limit and the respectively scanned memcgs.
+> > > > 
+> > > > Consider the following setup:
+> > > > 
+> > > >         A
+> > > >        / \
+> > > >       B   C
+> > > >      /
+> > > >     D
+> > > > 
+> > > > If D tries to charge but hits the limit of A, then B's hierarchy
+> > > > counters do not reflect the reclaim activity resulting in D.
+> > > > 
+> > > yes, as I expected.
+> > 
+> > Andrew,
+> > 
+> > with a flawed design, the author unwilling to fix it, and two NAKs,
+> > can we please revert this before the release?
+> 
+> How about this ?
 
-Yes, that makes sense. And I think i found a issue on my patch which
-it leaks reference count on the mem (first) which I can not do "rmdir"
-after some memory pressure tests. So, please ignore the patch for now.
+> @@ -1710,11 +1711,18 @@ static void mem_cgroup_record_scanstat(s
+>  	spin_lock(&memcg->scanstat.lock);
+>  	__mem_cgroup_record_scanstat(memcg->scanstat.stats[context], rec);
+>  	spin_unlock(&memcg->scanstat.lock);
+> -
+> -	memcg = rec->root;
+> -	spin_lock(&memcg->scanstat.lock);
+> -	__mem_cgroup_record_scanstat(memcg->scanstat.rootstats[context], rec);
+> -	spin_unlock(&memcg->scanstat.lock);
+> +	cgroup = memcg->css.cgroup;
+> +	do {
+> +		spin_lock(&memcg->scanstat.lock);
+> +		__mem_cgroup_record_scanstat(
+> +			memcg->scanstat.hierarchy_stats[context], rec);
+> +		spin_unlock(&memcg->scanstat.lock);
+> +		if (!cgroup->parent)
+> +			break;
+> +		cgroup = cgroup->parent;
+> +		memcg = mem_cgroup_from_cont(cgroup);
+> +	} while (memcg->use_hierarchy && memcg != rec->root);
 
->
-> I changed this to use scan generations. =A0Restarting the scan from id 0
-> starts the next scan generation. =A0The iteration function returns NULL
-> if the generation changed since a loop was started.
->
-> This way, iterators can reliably detect whether they should call it
-> quits without any requirements for previously encountered memcgs.
+Okay, so this looks correct, but it sums up all parents after each
+memcg scanned, which could have a performance impact.  Usually,
+hierarchy statistics are only summed up when a user reads them.
 
-Ok, so if I have multiple threads hitting pressure under the same zone
-and same memcg hierarchy tree, they all contribute to the single
-iteration loop. And all the reclaimers will terminate if they together
-made a full iteration under the hierarchy?
+I don't get why this has to be done completely different from the way
+we usually do things, without any justification, whatsoever.
 
-If so, i will look at your patch and no need for the fix i posted
-early on. Meanwhile, I would be interested to look at some performance
-data since the later one should save some cpu cycles going through
-more memcgs than after the change.
-
-Thanks
-
---Ying
+Why do you want to pass a recording structure down the reclaim stack?
+Why not make it per-cpu counters that are only summed up, together
+with the hierarchy values, when someone is actually interested in
+them?  With an interface like mem_cgroup_count_vm_event(), or maybe
+even an extension of that function?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
