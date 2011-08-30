@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0506B016B
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 18:24:55 -0400 (EDT)
-Date: Wed, 31 Aug 2011 00:24:49 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/3 v3] writeback: Add writeback stats for pages written
-Message-ID: <20110830222449.GJ16202@quack.suse.cz>
-References: <1314038327-22645-1-git-send-email-curtw@google.com>
- <1314038327-22645-3-git-send-email-curtw@google.com>
- <20110829163645.GG5672@quack.suse.cz>
- <CAO81RMbyXvz214mTvjEg3NBpJ01JUw8+Goux4NoWZrZ_RCzLrA@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 89CEC6B00EE
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:13:01 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAO81RMbyXvz214mTvjEg3NBpJ01JUw8+Goux4NoWZrZ_RCzLrA@mail.gmail.com>
+Message-ID: <4599ff4c-5273-4605-9a61-d26a9a6484fe@default>
+Date: Tue, 30 Aug 2011 14:51:39 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V8 4/4] mm: frontswap: config and doc files
+References: <20110829164949.GA27238@ca-server1.us.oracle.com
+ 19213.1314737185@turing-police.cc.vt.edu>
+In-Reply-To: <19213.1314737185@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Curt Wohlgemuth <curtw@google.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Valdis.Kletnieks@vt.edu
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Tue 30-08-11 11:13:50, Curt Wohlgemuth wrote:
-> Hi Jan:
-> 
-> >> +static const char *wb_stats_labels[WB_REASON_MAX] = {
-> >> +     [WB_REASON_BALANCE_DIRTY] = "page: balance_dirty_pages",
-> >> +     [WB_REASON_BACKGROUND] = "page: background_writeout",
-> >> +     [WB_REASON_TRY_TO_FREE_PAGES] = "page: try_to_free_pages",
-> >> +     [WB_REASON_SYNC] = "page: sync",
-> >> +     [WB_REASON_PERIODIC] = "page: periodic",
-> >> +     [WB_REASON_FDATAWRITE] = "page: fdatawrite",
-> >> +     [WB_REASON_LAPTOP_TIMER] = "page: laptop_periodic",
-> >> +     [WB_REASON_FREE_MORE_MEM] = "page: free_more_memory",
-> >> +     [WB_REASON_FS_FREE_SPACE] = "page: fs_free_space",
-> >> +};
-> >  I don't think it's good to have two enum->string translation tables for
-> > reasons. That's prone to errors which is in fact proven by the fact that
-> > you ommitted FORKER_THREAD reason here.
-> 
-> Ah, thanks for catching the omitted reason.  I assume you mean the
-> table above, and
-> 
->    +#define show_work_reason(reason)
-> 
-> from the patch 2/3 (in the trace events file).  Hmm, that could be a
-> challenge, given the limitations on what you can do in trace macros.
-> I'll think on this though.
-  Ah right, with trace points it's not so simple. I guess we could have
-an array with labels as a global symbol and dereference it in tracepoints.
+> From: Valdis.Kletnieks@vt.edu [mailto:Valdis.Kletnieks@vt.edu]
+> Subject: Re: [PATCH V8 4/4] mm: frontswap: config and doc files
+>=20
+> On Mon, 29 Aug 2011 09:49:49 PDT, Dan Magenheimer said:
+>=20
+> > --- linux/mm/Kconfig=092011-08-08 08:19:26.303686905 -0600
+> > +++ frontswap/mm/Kconfig=092011-08-29 09:52:14.308745832 -0600
+> > @@ -370,3 +370,20 @@ config CLEANCACHE
+> >  =09  in a negligible performance hit.
+> >
+> >  =09  If unsure, say Y to enable cleancache
+> > +
+> > +config FRONTSWAP
+> > +=09bool "Enable frontswap to cache swap pages if tmem is present"
+> > +=09depends on SWAP
+> > +=09default n
+>=20
+> > +
+> > +=09  If unsure, say Y to enable frontswap.
+>=20
+> Am I the only guy who gets irked when the "default" doesn't match the
+> "If unsure" suggestion?  :)  (and yes, I know we have guidelines for
+> what the "default" should be...)
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Hi Valdis --
+
+Thanks for the review!
+
+Count me as irked.  The default should be "y" because the
+overhead is extremely tiny when not enabled at runtime by
+a backend (though admittedly non-zero), but I got flamed by
+Linus last time I tried that (for cleancache), so I'm not
+going to try it for frontswap! :-)  The "if unsure" is the
+best I can do for now to encourage distros to enable it.
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
