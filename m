@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9895C900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 06:41:40 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 35C083EE0B5
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:41:36 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9B6F45DE86
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:41:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C438345DE7E
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:41:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id ADE6F1DB8040
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:41:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 691171DB803E
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:41:35 +0900 (JST)
-Date: Tue, 30 Aug 2011 19:34:06 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 46BA4900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 06:46:12 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 254A33EE0C5
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:46:08 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 07F6945DE5B
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:46:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 59ACB45DE59
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:46:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C6CC1DB804E
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:46:07 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 036251DB804B
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:46:07 +0900 (JST)
+Date: Tue, 30 Aug 2011 19:38:39 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
-Message-Id: <20110830193406.361d758a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110830193839.cf0fc597.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110830101726.GD13061@redhat.com>
 References: <20110722171540.74eb9aa7.kamezawa.hiroyu@jp.fujitsu.com>
 	<20110808124333.GA31739@redhat.com>
@@ -44,64 +44,94 @@ On Tue, 30 Aug 2011 12:17:26 +0200
 Johannes Weiner <jweiner@redhat.com> wrote:
 
 > On Tue, Aug 30, 2011 at 05:56:09PM +0900, KAMEZAWA Hiroyuki wrote:
-
-> > > > > I don't get why this has to be done completely different from the way
-> > > > > we usually do things, without any justification, whatsoever.
-> > > > > 
-> > > > > Why do you want to pass a recording structure down the reclaim stack?
+> > On Tue, 30 Aug 2011 10:42:45 +0200
+> > Johannes Weiner <jweiner@redhat.com> wrote:
+ 
+> > > > Assume 3 cgroups in a hierarchy.
 > > > > 
-> > > > Just for reducing number of passed variables.
+> > > > 	A
+> > > >        /
+> > > >       B
+> > > >      /
+> > > >     C
+> > > > 
+> > > > C's scan contains 3 causes.
+> > > > 	C's scan caused by limit of A.
+> > > > 	C's scan caused by limit of B.
+> > > > 	C's scan caused by limit of C.
+> > > >
+> > > > If we make hierarchy sum at read, we think
+> > > > 	B's scan_stat = B's scan_stat + C's scan_stat
+> > > > But in precice, this is
+> > > > 
+> > > > 	B's scan_stat = B's scan_stat caused by B +
+> > > > 			B's scan_stat caused by A +
+> > > > 			C's scan_stat caused by C +
+> > > > 			C's scan_stat caused by B +
+> > > > 			C's scan_stat caused by A.
+> > > > 
+> > > > In orignal version.
+> > > > 	B's scan_stat = B's scan_stat caused by B +
+> > > > 			C's scan_stat caused by B +
+> > > > 
+> > > > After this patch,
+> > > > 	B's scan_stat = B's scan_stat caused by B +
+> > > > 			B's scan_stat caused by A +
+> > > > 			C's scan_stat caused by C +
+> > > > 			C's scan_stat caused by B +
+> > > > 			C's scan_stat caused by A.
+> > > > 
+> > > > Hmm...removing hierarchy part completely seems fine to me.
 > > > 
-> > > It's still sitting on bottom of the reclaim stack the whole time.
+> > > I see.
 > > > 
-> > > With my proposal, you would only need to pass the extra root_mem
-> > > pointer.
+> > > You want to look at A and see whether its limit was responsible for
+> > > reclaim scans in any children.  IMO, that is asking the question
+> > > backwards.  Instead, there is a cgroup under reclaim and one wants to
+> > > find out the cause for that.  Not the other way round.
+> > > 
+> > > In my original proposal I suggested differentiating reclaim caused by
+> > > internal pressure (due to own limit) and reclaim caused by
+> > > external/hierarchical pressure (due to limits from parents).
+> > > 
+> > > If you want to find out why C is under reclaim, look at its reclaim
+> > > statistics.  If the _limit numbers are high, C's limit is the problem.
+> > > If the _hierarchical numbers are high, the problem is B, A, or
+> > > physical memory, so you check B for _limit and _hierarchical as well,
+> > > then move on to A.
+> > > 
+> > > Implementing this would be as easy as passing not only the memcg to
+> > > scan (victim) to the reclaim code, but also the memcg /causing/ the
+> > > reclaim (root_mem):
+> > > 
+> > > 	root_mem == victim -> account to victim as _limit
+> > > 	root_mem != victim -> account to victim as _hierarchical
+> > > 
+> > > This would make things much simpler and more natural, both the code
+> > > and the way of tracking down a problem, IMO.
 > > 
-> > I'm sorry I miss something. Do you say to add a function like
-> > 
-> > mem_cgroup_record_reclaim_stat(memcg, root_mem, anon_scan, anon_free, anon_rotate,
-> >                                file_scan, file_free, elapsed_ns)
-> > 
-> > ?
+> > hmm. I have no strong opinion.
 > 
-> Exactly, though passing it a stat item index and a delta would
-> probably be closer to our other statistics accounting, i.e.:
+> I do :-)
 > 
-> 	mem_cgroup_record_reclaim_stat(sc->mem_cgroup, sc->root_mem_cgroup,
-> 				       MEM_CGROUP_SCAN_ANON, *nr_anon);
-> 
-> where sc->mem_cgroup is `victim' and sc->root_mem_cgroup is `root_mem'
-> from hierarchical_reclaim.  ->root_mem_cgroup might be confusing,
-> though.  I named it ->target_mem_cgroup in my patch set but I don't
-> feel too strongly about that.
-> 
-> Even better would be to reuse enum vm_event_item and at one point
-> merge all the accounting stuff into a single function and have one
-> single set of events that makes sense on a global level as well as on
-> a per-memcg level.
-> 
-> There is deviation and implementing similar things twice with slight
-> variations and I don't see any justification for all that extra code
-> that needs maintaining.  Or counters that have similar names globally
-> and on a per-memcg level but with different meanings, like the rotated
-> counter.  Globally, a rotated page (PGROTATED) is one that is moved
-> back to the inactive list after writeback finishes.  Per-memcg, the
-> rotated counter is our internal heuristics value to balance pressure
-> between LRUs and means either rotated on the inactive list, activated,
-> not activated but countes as activated because of VM_EXEC etc.
-> 
-> I am still for reverting this patch before the release until we have
-> this all sorted out.  I feel rather strongly that these statistics are
-> in no way ready to make them part of the ABI and export them to
-> userspace as they are now.
-> 
+BTW,  how to calculate C's lru scan caused by A finally ?
 
-How about fixing interface first ? 1st version of this patch was 
-in April and no big change since then.
-I don't want to be starved more.
+            A
+           /
+          B
+         /
+        C
+
+At scanning LRU of C because of A's limit, where stats are recorded ?
+
+If we record it in C, we lose where the memory pressure comes from.
+If we record it in A, we lose where scan happens.
+I'm sorry I'm a little confused.
 
 Thanks,
 -Kame
+
+
 
 
 
