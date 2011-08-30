@@ -1,196 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F1B900137
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 03:43:17 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4ACD03EE0BD
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:43:14 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2904645DE51
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:43:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 10D7C45DE4F
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:43:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 004221DB8041
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:43:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B36CE1DB8040
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 16:43:13 +0900 (JST)
-Date: Tue, 30 Aug 2011 16:35:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
-Message-Id: <20110830163545.487dc57f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110722171540.74eb9aa7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110808124333.GA31739@redhat.com>
-	<20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110829155113.GA21661@redhat.com>
-	<20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110830070424.GA13061@redhat.com>
-	<20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 339D1900137
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 03:43:38 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p7U7hW0E031864
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:33 -0700
+Received: from pzk32 (pzk32.prod.google.com [10.243.19.160])
+	by hpaq2.eem.corp.google.com with ESMTP id p7U7gLhG007626
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:30 -0700
+Received: by pzk32 with SMTP id 32so11124175pzk.5
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2011 00:43:30 -0700 (PDT)
+Date: Tue, 30 Aug 2011 00:43:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 1/2] oom: remove oom_disable_count
+In-Reply-To: <alpine.DEB.2.00.1108291611070.32495@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1108300040490.21066@chino.kir.corp.google.com>
+References: <20110727163159.GA23785@redhat.com> <20110727163610.GJ23793@redhat.com> <20110727175624.GA3950@redhat.com> <20110728154324.GA22864@redhat.com> <alpine.DEB.2.00.1107281341060.16093@chino.kir.corp.google.com> <20110729141431.GA3501@redhat.com>
+ <20110730143426.GA6061@redhat.com> <20110730152238.GA17424@redhat.com> <4E369372.80105@jp.fujitsu.com> <20110829183743.GA15216@redhat.com> <alpine.DEB.2.00.1108291611070.32495@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ying Han <yinghan@google.com>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 30 Aug 2011 16:20:50 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Hmm...removing hierarchy part completely seems fine to me.
-> 
-Another idea here.
+This removes mm->oom_disable_count entirely since it's unnecessary and
+currently buggy.  The counter was intended to be per-process but it's
+currently decremented in the exit path for each thread that exits, causing
+it to underflow.
 
-==
-Revert hierarchy support in vmscan_stat.
+The count was originally intended to prevent oom killing threads that
+share memory with threads that cannot be killed since it doesn't lead to
+future memory freeing.  The counter could be fixed to represent all
+threads sharing the same mm, but it's better to remove the count since:
 
-It turns out to be further study/use-case is required.
+ - it is possible that the OOM_DISABLE thread sharing memory with the
+   victim is waiting on that thread to exit and will actually cause
+   future memory freeing, and
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+ - there is no guarantee that a thread is disabled from oom killing just
+   because another thread sharing its mm is oom disabled.
+
+Reported-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/cgroups/memory.txt |   27 ++-------------------------
- include/linux/memcontrol.h       |    1 -
- mm/memcontrol.c                  |   25 -------------------------
- 3 files changed, 2 insertions(+), 51 deletions(-)
+ fs/exec.c                |    4 ----
+ fs/proc/base.c           |   13 -------------
+ include/linux/mm_types.h |    3 ---
+ kernel/exit.c            |    2 --
+ kernel/fork.c            |   10 +---------
+ mm/oom_kill.c            |   23 +++++------------------
+ 6 files changed, 6 insertions(+), 49 deletions(-)
 
-Index: mmotm-Aug29/Documentation/cgroups/memory.txt
-===================================================================
---- mmotm-Aug29.orig/Documentation/cgroups/memory.txt
-+++ mmotm-Aug29/Documentation/cgroups/memory.txt
-@@ -448,8 +448,8 @@ memory cgroup creation and can be reset 
- 
- This file contains following statistics.
- 
--[param]_[file_or_anon]_pages_by_[reason]_[under_heararchy]
--[param]_elapsed_ns_by_[reason]_[under_hierarchy]
-+[param]_[file_or_anon]_pages_by_[reason]
-+[param]_elapsed_ns_by_[reason]
- 
- For example,
- 
-@@ -470,9 +470,6 @@ Now, 2 reason are supported
-   system - global memory pressure + softlimit
-            (global memory pressure not under softlimit is not handled now)
- 
--When under_hierarchy is added in the tail, the number indicates the
--total memcg scan of its children and itself.
--
- elapsed_ns is a elapsed time in nanosecond. This may include sleep time
- and not indicates CPU usage. So, please take this as just showing
- latency.
-@@ -500,26 +497,6 @@ freed_pages_by_system 0
- freed_anon_pages_by_system 0
- freed_file_pages_by_system 0
- elapsed_ns_by_system 0
--scanned_pages_by_limit_under_hierarchy 9471864
--scanned_anon_pages_by_limit_under_hierarchy 6640629
--scanned_file_pages_by_limit_under_hierarchy 2831235
--rotated_pages_by_limit_under_hierarchy 4243974
--rotated_anon_pages_by_limit_under_hierarchy 3971968
--rotated_file_pages_by_limit_under_hierarchy 272006
--freed_pages_by_limit_under_hierarchy 2318492
--freed_anon_pages_by_limit_under_hierarchy 962052
--freed_file_pages_by_limit_under_hierarchy 1356440
--elapsed_ns_by_limit_under_hierarchy 351386416101
--scanned_pages_by_system_under_hierarchy 0
--scanned_anon_pages_by_system_under_hierarchy 0
--scanned_file_pages_by_system_under_hierarchy 0
--rotated_pages_by_system_under_hierarchy 0
--rotated_anon_pages_by_system_under_hierarchy 0
--rotated_file_pages_by_system_under_hierarchy 0
--freed_pages_by_system_under_hierarchy 0
--freed_anon_pages_by_system_under_hierarchy 0
--freed_file_pages_by_system_under_hierarchy 0
--elapsed_ns_by_system_under_hierarchy 0
- 
- 5.3 swappiness
- 
-Index: mmotm-Aug29/mm/memcontrol.c
-===================================================================
---- mmotm-Aug29.orig/mm/memcontrol.c
-+++ mmotm-Aug29/mm/memcontrol.c
-@@ -229,7 +229,6 @@ enum {
- struct scanstat {
- 	spinlock_t	lock;
- 	unsigned long	stats[NR_SCAN_CONTEXT][NR_SCANSTATS];
--	unsigned long	rootstats[NR_SCAN_CONTEXT][NR_SCANSTATS];
- };
- 
- const char *scanstat_string[NR_SCANSTATS] = {
-@@ -246,7 +245,6 @@ const char *scanstat_string[NR_SCANSTATS
- };
- #define SCANSTAT_WORD_LIMIT	"_by_limit"
- #define SCANSTAT_WORD_SYSTEM	"_by_system"
--#define SCANSTAT_WORD_HIERARCHY	"_under_hierarchy"
- 
- 
- /*
-@@ -1710,11 +1708,6 @@ static void mem_cgroup_record_scanstat(s
- 	spin_lock(&memcg->scanstat.lock);
- 	__mem_cgroup_record_scanstat(memcg->scanstat.stats[context], rec);
- 	spin_unlock(&memcg->scanstat.lock);
--
--	memcg = rec->root;
--	spin_lock(&memcg->scanstat.lock);
--	__mem_cgroup_record_scanstat(memcg->scanstat.rootstats[context], rec);
--	spin_unlock(&memcg->scanstat.lock);
- }
- 
- /*
-@@ -1758,8 +1751,6 @@ static int mem_cgroup_hierarchical_recla
- 	else
- 		rec.context = SCAN_BY_LIMIT;
- 
--	rec.root = root_memcg;
--
- 	while (1) {
- 		victim = mem_cgroup_select_victim(root_memcg);
- 		if (victim == root_memcg) {
-@@ -4728,20 +4719,6 @@ static int mem_cgroup_vmscan_stat_read(s
- 		cb->fill(cb, string, memcg->scanstat.stats[SCAN_BY_SYSTEM][i]);
+diff --git a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -841,10 +841,6 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
+-	if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+-		atomic_dec(&old_mm->oom_disable_count);
+-		atomic_inc(&tsk->mm->oom_disable_count);
+-	}
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1107,13 +1107,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+ 		goto err_sighand;
  	}
  
--	for (i = 0; i < NR_SCANSTATS; i++) {
--		strcpy(string, scanstat_string[i]);
--		strcat(string, SCANSTAT_WORD_LIMIT);
--		strcat(string, SCANSTAT_WORD_HIERARCHY);
--		cb->fill(cb,
--			string, memcg->scanstat.rootstats[SCAN_BY_LIMIT][i]);
+-	if (oom_adjust != task->signal->oom_adj) {
+-		if (oom_adjust == OOM_DISABLE)
+-			atomic_inc(&task->mm->oom_disable_count);
+-		if (task->signal->oom_adj == OOM_DISABLE)
+-			atomic_dec(&task->mm->oom_disable_count);
 -	}
--	for (i = 0; i < NR_SCANSTATS; i++) {
--		strcpy(string, scanstat_string[i]);
--		strcat(string, SCANSTAT_WORD_SYSTEM);
--		strcat(string, SCANSTAT_WORD_HIERARCHY);
--		cb->fill(cb,
--			string, memcg->scanstat.rootstats[SCAN_BY_SYSTEM][i]);
+-
+ 	/*
+ 	 * Warn that /proc/pid/oom_adj is deprecated, see
+ 	 * Documentation/feature-removal-schedule.txt.
+@@ -1215,12 +1208,6 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 		goto err_sighand;
+ 	}
+ 
+-	if (oom_score_adj != task->signal->oom_score_adj) {
+-		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
+-			atomic_inc(&task->mm->oom_disable_count);
+-		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-			atomic_dec(&task->mm->oom_disable_count);
 -	}
- 	return 0;
- }
+ 	task->signal->oom_score_adj = oom_score_adj;
+ 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
+ 		task->signal->oom_score_adj_min = oom_score_adj;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -313,9 +313,6 @@ struct mm_struct {
+ 	unsigned int token_priority;
+ 	unsigned int last_interval;
  
-@@ -4752,8 +4729,6 @@ static int mem_cgroup_reset_vmscan_stat(
+-	/* How many tasks sharing this mm are OOM_DISABLE */
+-	atomic_t oom_disable_count;
+-
+ 	unsigned long flags; /* Must use atomic bitops to access the bits */
  
- 	spin_lock(&memcg->scanstat.lock);
- 	memset(&memcg->scanstat.stats, 0, sizeof(memcg->scanstat.stats));
--	memset(&memcg->scanstat.rootstats,
--		0, sizeof(memcg->scanstat.rootstats));
- 	spin_unlock(&memcg->scanstat.lock);
- 	return 0;
- }
-Index: mmotm-Aug29/include/linux/memcontrol.h
-===================================================================
---- mmotm-Aug29.orig/include/linux/memcontrol.h
-+++ mmotm-Aug29/include/linux/memcontrol.h
-@@ -42,7 +42,6 @@ extern unsigned long mem_cgroup_isolate_
+ 	struct core_state *core_state; /* coredumping support */
+diff --git a/kernel/exit.c b/kernel/exit.c
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -681,8 +681,6 @@ static void exit_mm(struct task_struct * tsk)
+ 	enter_lazy_tlb(mm, current);
+ 	/* We don't want this task to be frozen prematurely */
+ 	clear_freeze_flag(tsk);
+-	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-		atomic_dec(&mm->oom_disable_count);
+ 	task_unlock(tsk);
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -501,7 +501,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ 	mm->cached_hole_size = ~0UL;
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+-	atomic_set(&mm->oom_disable_count, 0);
  
- struct memcg_scanrecord {
- 	struct mem_cgroup *mem; /* scanend memory cgroup */
--	struct mem_cgroup *root; /* scan target hierarchy root */
- 	int context;		/* scanning context (see memcontrol.c) */
- 	unsigned long nr_scanned[2]; /* the number of scanned pages */
- 	unsigned long nr_rotated[2]; /* the number of rotated pages */
-
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
+@@ -816,8 +815,6 @@ good_mm:
+ 	/* Initializing for Swap token stuff */
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+-	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-		atomic_inc(&mm->oom_disable_count);
+ 
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+@@ -1391,13 +1388,8 @@ bad_fork_cleanup_io:
+ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+-	if (p->mm) {
+-		task_lock(p);
+-		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-			atomic_dec(&p->mm->oom_disable_count);
+-		task_unlock(p);
++	if (p->mm)
+ 		mmput(p->mm);
+-	}
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+ 		free_signal_struct(p->signal);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -53,13 +53,7 @@ int test_set_oom_score_adj(int new_val)
+ 
+ 	spin_lock_irq(&sighand->siglock);
+ 	old_val = current->signal->oom_score_adj;
+-	if (new_val != old_val) {
+-		if (new_val == OOM_SCORE_ADJ_MIN)
+-			atomic_inc(&current->mm->oom_disable_count);
+-		else if (old_val == OOM_SCORE_ADJ_MIN)
+-			atomic_dec(&current->mm->oom_disable_count);
+-		current->signal->oom_score_adj = new_val;
+-	}
++	current->signal->oom_score_adj = new_val;
+ 	spin_unlock_irq(&sighand->siglock);
+ 
+ 	return old_val;
+@@ -172,16 +166,6 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 		return 0;
+ 
+ 	/*
+-	 * Shortcut check for a thread sharing p->mm that is OOM_SCORE_ADJ_MIN
+-	 * so the entire heuristic doesn't need to be executed for something
+-	 * that cannot be killed.
+-	 */
+-	if (atomic_read(&p->mm->oom_disable_count)) {
+-		task_unlock(p);
+-		return 0;
+-	}
+-
+-	/*
+ 	 * The memory controller may have a limit of 0 bytes, so avoid a divide
+ 	 * by zero, if necessary.
+ 	 */
+@@ -447,6 +431,9 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 	for_each_process(q)
+ 		if (q->mm == mm && !same_thread_group(q, p) &&
+ 		    !(q->flags & PF_KTHREAD)) {
++			if (q->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++				continue;
++
+ 			task_lock(q);	/* Protect ->comm from prctl() */
+ 			pr_err("Kill process %d (%s) sharing same memory\n",
+ 				task_pid_nr(q), q->comm);
+@@ -723,7 +710,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	read_lock(&tasklist_lock);
+ 	if (sysctl_oom_kill_allocating_task &&
+ 	    !oom_unkillable_task(current, NULL, nodemask) &&
+-	    current->mm && !atomic_read(&current->mm->oom_disable_count)) {
++	    current->mm) {
+ 		/*
+ 		 * oom_kill_process() needs tasklist_lock held.  If it returns
+ 		 * non-zero, current could not be killed so we must fallback to
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
