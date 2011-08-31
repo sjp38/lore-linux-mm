@@ -1,116 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 449F56B00EE
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 20:24:38 -0400 (EDT)
-Subject: Re: [Bugme-new] [Bug 40262] New: PROBLEM: I/O storm from hell on
- kernel 3.0.0 when touch swap (swapfile or partition)
-From: Steffen Michalke <StMichalke@web.de>
-Date: Wed, 31 Aug 2011 02:24:20 +0200
-In-Reply-To: <20110829090124.7d773ced.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-40262-10286@https.bugzilla.kernel.org/>
-	 <20110826163247.6ed99365.akpm@linux-foundation.org>
-	 <4E5A22DF.1080100@openvz.org>
-	 <20110829090124.7d773ced.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B9E696B00EE
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 21:10:03 -0400 (EDT)
+Message-ID: <4E5D89E3.6020008@redhat.com>
+Date: Tue, 30 Aug 2011 21:09:55 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] compaction: compact unevictable page
+References: <cover.1321112552.git.minchan.kim@gmail.com> <8ef02605a7a76b176167d90a285033afa8513326.1321112552.git.minchan.kim@gmail.com>
+In-Reply-To: <8ef02605a7a76b176167d90a285033afa8513326.1321112552.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-ID: <1314750273.3844.9.camel@michalke-online.eu>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "g0re@null.net" <g0re@null.net>, Mel Gorman <mel@csn.ul.ie>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
 
-Am Montag, den 29.08.2011, 09:01 +0900 schrieb KAMEZAWA Hiroyuki: 
-> On Sun, 28 Aug 2011 15:13:35 +0400
-> Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-> 
-> > Andrew Morton wrote:
-> >  >
-> >  > (switched to email.  Please respond via emailed reply-to-all, not via the
-> >  > bugzilla web interface).
-> >  >
-> >  > On Thu, 28 Jul 2011 12:41:03 GMT
-> >  > bugzilla-daemon@bugzilla.kernel.org wrote:
-> >  >
-> >  >> https://bugzilla.kernel.org/show_bug.cgi?id=40262
-> >  >
-> >  > Two people are reporting this - there are some additional details in
-> >  > bugzilla.
-> >  >
-> >  > We seem to be going around in circles here.
-> >  >
-> >  > I'll ask Rafael and Maciej to track this as a regression :(
-> >  >
-> > 
-> > >>
-> > >> issue occurs in new kernel 3.0.
-> > >> does not occurs in 2.6.39.3/2.6.38.8
-> > >>
-> > 
-> > I guess this can be caused by commit v2.6.39-6846-g246e87a "memcg: fix vmscan count in small memcgs"
-> > (it also tweaked kswapd besides of memcg reclaimer)
-> > it was fixed in v3.0-5361-g4508378 "memcg: fix get_scan_count() for small targets"
-> > 
-> > commit 4508378b9523e22a2a0175d8bf64d932fb10a67d
-> > Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Date:   Tue Jul 26 16:08:24 2011 -0700
-> > 
-> >      memcg: fix vmscan count in small memcgs
-> > 
-> >      Commit 246e87a93934 ("memcg: fix get_scan_count() for small targets")
-> >      fixes the memcg/kswapd behavior against small targets and prevent vmscan
-> >      priority too high.
-> > 
-> >      But the implementation is too naive and adds another problem to small
-> >      memcg.  It always force scan to 32 pages of file/anon and doesn't handle
-> >      swappiness and other rotate_info.  It makes vmscan to scan anon LRU
-> >      regardless of swappiness and make reclaim bad.  This patch fixes it by
-> >      adjusting scanning count with regard to swappiness at el.
-> > 
-> >      At a test "cat 1G file under 300M limit." (swappiness=20)
-> >       before patch
-> >              scanned_pages_by_limit 360919
-> >              scanned_anon_pages_by_limit 180469
-> >              scanned_file_pages_by_limit 180450
-> >              rotated_pages_by_limit 31
-> >              rotated_anon_pages_by_limit 25
-> >              rotated_file_pages_by_limit 6
-> >              freed_pages_by_limit 180458
-> >              freed_anon_pages_by_limit 19
-> >              freed_file_pages_by_limit 180439
-> >              elapsed_ns_by_limit 429758872
-> >       after patch
-> >              scanned_pages_by_limit 180674
-> >              scanned_anon_pages_by_limit 24
-> >              scanned_file_pages_by_limit 180650
-> >              rotated_pages_by_limit 35
-> >              rotated_anon_pages_by_limit 24
-> >              rotated_file_pages_by_limit 11
-> >              freed_pages_by_limit 180634
-> >              freed_anon_pages_by_limit 0
-> >              freed_file_pages_by_limit 180634
-> >              elapsed_ns_by_limit 367119089
-> >              scanned_pages_by_system 0
-> > 
-> >      the numbers of scanning anon are decreased(as expected), and elapsed time
-> >      reduced. By this patch, small memcgs will work better.
-> >      (*) Because the amount of file-cache is much bigger than anon,
-> >          recalaim_stat's rotate-scan counter make scanning files more.
-> > 
-> 
-> Ah, yes. this patch may be able to fix the probelm...could you try ? 
-> 
-> Thanks,
-> -Kame
+On 11/12/2011 11:37 AM, Minchan Kim wrote:
+> Now compaction doesn't handle mlocked page as it uses __isolate_lru_page
+> which doesn't consider unevicatable page. It has been used by just lumpy so
+> it was pointless that it isolates unevictable page. But the situation is
+> changed. Compaction could handle unevictable page and it can help getting
+> big contiguos pages in fragment memory by many pinned page with mlock.
+>
+> I tested this patch with following scenario.
+>
+> 1. A : allocate 80% anon pages in system
+> 2. B : allocate 20% mlocked page in system
+> /* Maybe, mlocked pages are located in low pfn address */
+> 3. kill A /* high pfn address are free */
+> 4. echo 1>  /proc/sys/vm/compact_memory
+>
+> old:
+>
+> compact_blocks_moved 251
+> compact_pages_moved 44
+>
+> new:
+>
+> compact_blocks_moved 258
+> compact_pages_moved 412
+>
+> CC: Mel Gorman<mgorman@suse.de>
+> CC: Johannes Weiner<jweiner@redhat.com>
+> CC: Rik van Riel<riel@redhat.com>
+> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
 
-I have applied your memcg-fix-vmscan-count-in-small-memcgs patch to the
-new kernel v3.0.4. It works wonderfully, thank you a lot! I have tested
-reading and copying large files and found that these operations do not
-strain the memory of other applications anymore.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Thank you,
-Steffen
 
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
