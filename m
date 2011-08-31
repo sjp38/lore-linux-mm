@@ -1,38 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B116F6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 13:30:38 -0400 (EDT)
-Date: Wed, 31 Aug 2011 19:30:31 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
-Message-ID: <20110831173031.GA21571@redhat.com>
-References: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C877E6B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 13:32:32 -0400 (EDT)
+From: Viktor Rosendahl <viktor.rosendahl@nokia.com>
+Subject: [PATCH] Enable OOM when moving processes between cgroups?
+Date: Wed, 31 Aug 2011 20:32:21 +0300
+Message-Id: <1314811941-14587-1-git-send-email-viktor.rosendahl@nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
 
-On Tue, Nov 15, 2011 at 12:37:23AM +0900, Minchan Kim wrote:
-> [1] made avoid unnecessary reclaim stall when second shrink_page_list(ie, synchronous
-> shrink_page_list) try to reclaim page_list which has not-dirty pages.
-> But it seems rather awkawrd on unevictable page.
-> The unevictable page in shrink_page_list would be moved into unevictable lru from page_list.
-> So it would be not on page_list when shrink_page_list returns.
-> Nevertheless it skips reclaim stall.
->
-> This patch fixes it so that it can do reclaim stall in case of mixing mlocked pages
-> and writeback pages on page_list.
-> 
-> [1] 7d3579e,vmscan: narrow the scenarios in whcih lumpy reclaim uses synchrounous reclaim
+Hello,
 
-Lumpy isolates physically contiguous in the hope to free a bunch of
-pages that can be merged to a bigger page.  If an unevictable page is
-encountered, the chance of that is gone.  Why invest the allocation
-latency when we know it won't pay off anymore?
+I wonder if there is a specific reason why the  OOM killer hasn't been enabled
+in the mem_cgroup_do_precharge() function in mm/memcontrol.c ?
+
+In my testing (2.6.32 kernel with some backported cgroups patches), it improves
+the case when there isn't room for the task in the target cgroup.
+
+Signed-off-by: Viktor Rosendahl <viktor.rosendahl@nokia.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ebd1e86..9a38b80 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5176,7 +5176,7 @@ one_by_one:
+ 			batch_count = PRECHARGE_COUNT_AT_ONCE;
+ 			cond_resched();
+ 		}
+-		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, 1, &mem, false);
++		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, 1, &mem, true);
+ 		if (ret || !mem)
+ 			/* mem_cgroup_clear_mc() will do uncharge later */
+ 			return -ENOMEM;
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
