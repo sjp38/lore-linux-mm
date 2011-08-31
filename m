@@ -1,66 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E3FC06B00EE
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 21:44:31 -0400 (EDT)
-Subject: [PATCH] mm: vmalloc - Report more vmalloc failures
-From: Joe Perches <joe@perches.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2326B00EE
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 22:27:37 -0400 (EDT)
+Subject: Re: [patch 2/2]slub: explicitly document position of inserting
+ slab to partial list
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1108300848040.19226@router.home>
+References: <1314669252.29510.49.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1108300848040.19226@router.home>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Aug 2011 18:44:28 -0700
-Message-ID: <1314755068.27632.12.camel@Joe-Laptop>
+Date: Wed, 31 Aug 2011 10:29:48 +0800
+Message-ID: <1314757788.29510.59.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "penberg@kernel.org" <penberg@kernel.org>, "Shi, Alex" <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, linux-mm <linux-mm@kvack.org>
 
-Some vmalloc failure paths do not report OOM conditions.
-
-Add warn_alloc_failed, which also does a dump_stack,
-to those failure paths.
-
-This allows more site specific vmalloc failure
-logging message printks to be removed.
-
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/vmalloc.c |   11 ++++++++---
- 1 files changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 3122acc..5108e0b 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1600,13 +1600,12 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 
- 	size = PAGE_ALIGN(size);
- 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
--		return NULL;
-+		goto fail;
- 
- 	area = __get_vm_area_node(size, align, VM_ALLOC, start, end, node,
- 				  gfp_mask, caller);
--
- 	if (!area)
--		return NULL;
-+		goto fail;
- 
- 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
- 
-@@ -1618,6 +1617,12 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	kmemleak_alloc(addr, real_size, 3, gfp_mask);
- 
- 	return addr;
-+
-+fail:
-+	warn_alloc_failed(gfp_mask, 0,
-+			  "vmalloc: allocation failure: %lu bytes\n",
-+			  real_size);
-+	return NULL;
- }
- 
- /**
-
+On Tue, 2011-08-30 at 21:48 +0800, Christoph Lameter wrote:
+> On Tue, 30 Aug 2011, Shaohua Li wrote:
+> 
+> > Adding slab to partial list head/tail is sensitive to performance. Using 0/1
+> > can easily cause typo. So explicitly uses DEACTIVATE_TO_TAIL/DEACTIVATE_TO_HEAD
+> > to document it to avoid we get it wrong.
+> 
+> I dont think we want this patch anymore.
+I do think using 0/1 isn't good. A more meaningful name is better to
+avoid typo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
