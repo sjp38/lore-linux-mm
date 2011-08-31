@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DDB016B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 07:37:14 -0400 (EDT)
-Date: Wed, 31 Aug 2011 13:37:10 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B0B7B6B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:31:00 -0400 (EDT)
+Date: Wed, 31 Aug 2011 14:30:51 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH 3/3] compaction accouting fix
-Message-ID: <20110831113710.GC17512@redhat.com>
-References: <cover.1321112552.git.minchan.kim@gmail.com>
- <282a4531f23c5e35cfddf089f93559130b4bb660.1321112552.git.minchan.kim@gmail.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual
+ size
+Message-ID: <20110831123051.GA18081@redhat.com>
+References: <20110831090850.GA27345@redhat.com>
+ <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <282a4531f23c5e35cfddf089f93559130b4bb660.1321112552.git.minchan.kim@gmail.com>
+In-Reply-To: <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Nov 13, 2011 at 01:37:43AM +0900, Minchan Kim wrote:
-> I saw the following accouting of compaction during test of the series.
+On Wed, Aug 31, 2011 at 07:13:34PM +0900, Minchan Kim wrote:
+> On Wed, Aug 31, 2011 at 6:08 PM, Johannes Weiner <jweiner@redhat.com> wrote:
+> > Reclaim decides to skip scanning an active list when the corresponding
+> > inactive list is above a certain size in comparison to leave the
+> > assumed working set alone while there are still enough reclaim
+> > candidates around.
+> >
+> > The memcg implementation of comparing those lists instead reports
+> > whether the whole memcg is low on the requested type of inactive
+> > pages, considering all nodes and zones.
+> >
+> > This can lead to an oversized active list not being scanned because of
+> > the state of the other lists in the memcg, as well as an active list
+> > being scanned while its corresponding inactive list has enough pages.
+> >
+> > Not only is this wrong, it's also a scalability hazard, because the
+> > global memory state over all nodes and zones has to be gathered for
+> > each memcg and zone scanned.
+> >
+> > Make these calculations purely based on the size of the two LRU lists
+> > that are actually affected by the outcome of the decision.
+> >
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > Cc: Balbir Singh <bsingharora@gmail.com>
 > 
-> compact_blocks_moved 251
-> compact_pages_moved 44
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+
+Thank you.
+
+> I can't understand why memcg is designed for considering all nodes and zones.
+> Is it a mistake or on purpose?
+> Maybe Kame or Balbir can answer it.
 > 
-> It's very awkward to me although it's possbile because it means we try to compact 251 blocks
-> but it just migrated 44 pages. As further investigation, I found isolate_migratepages doesn't
-> isolate any pages but it returns ISOLATE_SUCCESS and then, it just increases compact_blocks_moved
-> but doesn't increased compact_pages_moved.
+> Anyway, this change does make sense to me.
 > 
-> This patch makes accouting of compaction works only in case of success of isolation.
-> 
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: Johannes Weiner <jweiner@redhat.com>
-> CC: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Nitpick: Please remove inactive_ratio in Documentation/cgroups/memory.txt.
+> I think it would be better to separate it into another patch.
 
-Acked-by: Johannes Weiner <jweiner@redhat.com>
+Good catch.
 
-It's a teensy-bit awkward that isolate_migratepages() can return
-success without actually isolating any new pages, just because there
-are still some pages left from a previous run (cc->nr_migratepages is
-maintained across isolation calls).
+---
+Subject: [patch] memcg: skip scanning active lists based on individual fix
 
-Maybe isolate_migratepages() should just return an error if compaction
-should really be aborted and 0 otherwise, and have compact_zone()
-always check for cc->nr_migratepages itself?
+Also ditch the documentation note for the removed stats value.
 
-	if (isolate_migratepages(zone, cc) < 0) {
-		ret = COMPACT_PARTIAL;
-		goto out;
-	}
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+---
 
-	if (!cc->nr_migratepages)
-		continue;
-
-	...
-
-Just a nit-pick, though.  If you don't agree, just leave it as is.
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 06eb6d9..cc0ebc5 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -418,7 +418,6 @@ total_unevictable	- sum of all children's "unevictable"
+ 
+ # The following additional stats are dependent on CONFIG_DEBUG_VM.
+ 
+-inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
+ recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
+ recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
+ recent_scanned_anon	- VM internal parameter. (see mm/vmscan.c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
