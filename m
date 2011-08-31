@@ -1,111 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 700646B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:21:14 -0400 (EDT)
-Date: Wed, 31 Aug 2011 10:33:32 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
-Message-ID: <20110831083332.GA27125@redhat.com>
-References: <20110830070424.GA13061@redhat.com>
- <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830084245.GC13061@redhat.com>
- <20110830175609.4977ef7a.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830101726.GD13061@redhat.com>
- <20110830193839.cf0fc597.kamezawa.hiroyu@jp.fujitsu.com>
- <20110830113221.GF13061@redhat.com>
- <20110831082924.f9b20959.kamezawa.hiroyu@jp.fujitsu.com>
- <20110831062354.GA355@redhat.com>
- <20110831153025.895997bf.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 57BB96B016A
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:53:33 -0400 (EDT)
+Date: Wed, 31 Aug 2011 10:53:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 6/7] mm: vmscan: Throttle reclaim if encountering too
+ many dirty pages under writeback
+Message-ID: <20110831095326.GD14369@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+ <1312973240-32576-7-git-send-email-mgorman@suse.de>
+ <20110818165428.4f01a1b9.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110831153025.895997bf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110818165428.4f01a1b9.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, Aug 31, 2011 at 03:30:25PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 31 Aug 2011 08:23:54 +0200
-> Johannes Weiner <jweiner@redhat.com> wrote:
+On Thu, Aug 18, 2011 at 04:54:28PM -0700, Andrew Morton wrote:
+> On Wed, 10 Aug 2011 11:47:19 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
 > 
-> > On Wed, Aug 31, 2011 at 08:29:24AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Tue, 30 Aug 2011 13:32:21 +0200
-> > > Johannes Weiner <jweiner@redhat.com> wrote:
-> > > 
-> > > > On Tue, Aug 30, 2011 at 07:38:39PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > On Tue, 30 Aug 2011 12:17:26 +0200
-> > > > > Johannes Weiner <jweiner@redhat.com> wrote:
-> > > > > 
-> > > > > > On Tue, Aug 30, 2011 at 05:56:09PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > > > On Tue, 30 Aug 2011 10:42:45 +0200
-> > > > > > > Johannes Weiner <jweiner@redhat.com> wrote:
-> >
-> > > I'm confused. 
-> > > 
-> > > If vmscan is scanning in C's LRU,
-> > > 	(memcg == root) : C_scan_internal ++
-> > > 	(memcg != root) : C_scan_external ++
-> > 
-> > Yes.
-> > 
-> > > Why A_scan_external exists ? It's 0 ?
-> > > 
-> > > I think we can never get numbers.
-> > 
-> > Kswapd/direct reclaim should probably be accounted as A_external,
-> > since A has no limit, so reclaim pressure can not be internal.
-> > 
+> > The percentage that must be in writeback depends on the priority. At
+> > default priority, all of them must be dirty. At DEF_PRIORITY-1, 50%
+> > of them must be, DEF_PRIORITY-2, 25% etc. i.e. as pressure increases
+> > the greater the likelihood the process will get throttled to allow
+> > the flusher threads to make some progress.
 > 
-> hmm, ok. All memory pressure from memcg/system other than the memcg itsef
-> is all external.
->
-> > On the other hand, one could see the amount of physical memory in the
-> > machine as A's limit and account global reclaim as A_internal.
-> > 
-> > I think the former may be more natural.
-> > 
-> > That aside, all memcgs should have the same statistics, obviously.
-> > Scripts can easily deal with counters being zero.  If items differ
-> > between cgroups, that would suck a lot.
-> 
-> So, when I improve direct-reclaim path, I need to see score in scan_internal.
+> It'd be nice if the code comment were to capture this piece of implicit
+> arithmetic.
 
-Direct reclaim because of the limit or because of global pressure?  I
-am going to assume because of the limit because global reclaim is not
-yet accounted to memcgs even though their pages are scanned.  Please
-correct me if I'm wrong.
+How about this?
 
-        A
-       /
-      B
-     /
-    C
+==== CUT HERE ====
+mm: vmscan: Throttle reclaim if encountering too many dirty pages under writeback -fix1
 
-If A hits the limit and does direct reclaim in A, B, and C, then the
-scans in A get accounted as internal while the scans in B and C get
-accounted as external.
+This patch expands on a comment on how we throttle from reclaim context.
+It should be merged with
+mm-vmscan-throttle-reclaim-if-encountering-too-many-dirty-pages-under-writeback.patch
 
-> How do you think about background-reclaim-per-memcg ?
-> Should be counted into scan_internal ?
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c |   26 +++++++++++++++++++++-----
+ 1 files changed, 21 insertions(+), 5 deletions(-)
 
-Background reclaim is still triggered by the limit, just that the
-condition is 'close to limit' instead of 'reached limit'.
-
-So when per-memcg background reclaim goes off because A is close to
-its limit, then it will scan A (internal) and B + C (external).
-
-It's always the same code:
-
-	record_reclaim_stat(culprit, victim, item, delta)
-
-In direct limit reclaim, the culprit is the one hitting its limit.  In
-background reclaim, the culprit is the one getting close to its limit.
-
-And then again the accounting is
-
-	culprit == victim -> victim_internal++ (own fault)
-	culprit != victim -> victim_external++ (parent's fault)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 33882a3..5ff3e26 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1491,11 +1491,27 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
+ 
+ 	/*
+-	 * If we have encountered a high number of dirty pages under writeback
+-	 * then we are reaching the end of the LRU too quickly and global
+-	 * limits are not enough to throttle processes due to the page
+-	 * distribution throughout zones. Scale the number of dirty pages that
+-	 * must be under writeback before being throttled to priority.
++	 * If reclaim is isolating dirty pages under writeback, it implies
++	 * that the long-lived page allocation rate is exceeding the page
++	 * laundering rate. Either the global limits are not being effective
++	 * at throttling processes due to the page distribution throughout
++	 * zones or there is heavy usage of a slow backing device. The
++	 * only option is to throttle from reclaim context which is not ideal
++	 * as there is no guarantee the dirtying process is throttled in the
++	 * same way balance_dirty_pages() manages.
++	 *
++	 * This scales the number of dirty pages that must be under writeback
++	 * before throttling depending on priority. It is a simple backoff
++	 * function that has the most effect in the range DEF_PRIORITY to
++	 * DEF_PRIORITY-2 which is the priority reclaim is considered to be
++	 * in trouble and reclaim is considered to be in trouble.
++	 *
++	 * DEF_PRIORITY   100% isolated pages must be PageWriteback to throttle
++	 * DEF_PRIORITY-1  50% must be PageWriteback
++	 * DEF_PRIORITY-2  25% must be PageWriteback, kswapd in trouble
++	 * ...
++	 * DEF_PRIORITY-6 For SWAP_CLUSTER_MAX isolated pages, throttle if any
++	 *                     isolated page is PageWriteback
+ 	 */
+ 	if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
+ 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
