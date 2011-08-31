@@ -1,194 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B97AC6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:08:58 -0400 (EDT)
-Date: Wed, 31 Aug 2011 11:08:50 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 700646B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:21:14 -0400 (EDT)
+Date: Wed, 31 Aug 2011 10:33:32 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch] memcg: skip scanning active lists based on individual size
-Message-ID: <20110831090850.GA27345@redhat.com>
+Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
+Message-ID: <20110831083332.GA27125@redhat.com>
+References: <20110830070424.GA13061@redhat.com>
+ <20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110830084245.GC13061@redhat.com>
+ <20110830175609.4977ef7a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110830101726.GD13061@redhat.com>
+ <20110830193839.cf0fc597.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110830113221.GF13061@redhat.com>
+ <20110831082924.f9b20959.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110831062354.GA355@redhat.com>
+ <20110831153025.895997bf.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20110831153025.895997bf.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Reclaim decides to skip scanning an active list when the corresponding
-inactive list is above a certain size in comparison to leave the
-assumed working set alone while there are still enough reclaim
-candidates around.
+On Wed, Aug 31, 2011 at 03:30:25PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 31 Aug 2011 08:23:54 +0200
+> Johannes Weiner <jweiner@redhat.com> wrote:
+> 
+> > On Wed, Aug 31, 2011 at 08:29:24AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Tue, 30 Aug 2011 13:32:21 +0200
+> > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > 
+> > > > On Tue, Aug 30, 2011 at 07:38:39PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > On Tue, 30 Aug 2011 12:17:26 +0200
+> > > > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > > > 
+> > > > > > On Tue, Aug 30, 2011 at 05:56:09PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > > > On Tue, 30 Aug 2011 10:42:45 +0200
+> > > > > > > Johannes Weiner <jweiner@redhat.com> wrote:
+> >
+> > > I'm confused. 
+> > > 
+> > > If vmscan is scanning in C's LRU,
+> > > 	(memcg == root) : C_scan_internal ++
+> > > 	(memcg != root) : C_scan_external ++
+> > 
+> > Yes.
+> > 
+> > > Why A_scan_external exists ? It's 0 ?
+> > > 
+> > > I think we can never get numbers.
+> > 
+> > Kswapd/direct reclaim should probably be accounted as A_external,
+> > since A has no limit, so reclaim pressure can not be internal.
+> > 
+> 
+> hmm, ok. All memory pressure from memcg/system other than the memcg itsef
+> is all external.
+>
+> > On the other hand, one could see the amount of physical memory in the
+> > machine as A's limit and account global reclaim as A_internal.
+> > 
+> > I think the former may be more natural.
+> > 
+> > That aside, all memcgs should have the same statistics, obviously.
+> > Scripts can easily deal with counters being zero.  If items differ
+> > between cgroups, that would suck a lot.
+> 
+> So, when I improve direct-reclaim path, I need to see score in scan_internal.
 
-The memcg implementation of comparing those lists instead reports
-whether the whole memcg is low on the requested type of inactive
-pages, considering all nodes and zones.
+Direct reclaim because of the limit or because of global pressure?  I
+am going to assume because of the limit because global reclaim is not
+yet accounted to memcgs even though their pages are scanned.  Please
+correct me if I'm wrong.
 
-This can lead to an oversized active list not being scanned because of
-the state of the other lists in the memcg, as well as an active list
-being scanned while its corresponding inactive list has enough pages.
+        A
+       /
+      B
+     /
+    C
 
-Not only is this wrong, it's also a scalability hazard, because the
-global memory state over all nodes and zones has to be gathered for
-each memcg and zone scanned.
+If A hits the limit and does direct reclaim in A, B, and C, then the
+scans in A get accounted as internal while the scans in B and C get
+accounted as external.
 
-Make these calculations purely based on the size of the two LRU lists
-that are actually affected by the outcome of the decision.
+> How do you think about background-reclaim-per-memcg ?
+> Should be counted into scan_internal ?
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Balbir Singh <bsingharora@gmail.com>
----
- include/linux/memcontrol.h |   10 +++++---
- mm/memcontrol.c            |   51 ++++++++++++++-----------------------------
- mm/vmscan.c                |    4 +-
- 3 files changed, 25 insertions(+), 40 deletions(-)
+Background reclaim is still triggered by the limit, just that the
+condition is 'close to limit' instead of 'reached limit'.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 343bd76..cbb45ce 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -105,8 +105,10 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- /*
-  * For memory reclaim.
-  */
--int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
--int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-+int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg,
-+				    struct zone *zone);
-+int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg,
-+				    struct zone *zone);
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
- 					int nid, int zid, unsigned int lrumask);
-@@ -292,13 +294,13 @@ static inline bool mem_cgroup_disabled(void)
- }
- 
- static inline int
--mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
-+mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
- {
- 	return 1;
- }
- 
- static inline int
--mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
-+mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
- {
- 	return 1;
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3508777..d63dfb2 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1101,15 +1101,19 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
- 	return ret;
- }
- 
--static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
-+int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
- {
--	unsigned long active;
-+	unsigned long inactive_ratio;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
- 	unsigned long inactive;
-+	unsigned long active;
- 	unsigned long gb;
--	unsigned long inactive_ratio;
- 
--	inactive = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_INACTIVE_ANON));
--	active = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_ACTIVE_ANON));
-+	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-+						BIT(LRU_INACTIVE_ANON));
-+	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-+					      BIT(LRU_ACTIVE_ANON));
- 
- 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
- 	if (gb)
-@@ -1117,39 +1121,20 @@ static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_
- 	else
- 		inactive_ratio = 1;
- 
--	if (present_pages) {
--		present_pages[0] = inactive;
--		present_pages[1] = active;
--	}
--
--	return inactive_ratio;
-+	return inactive * inactive_ratio < active;
- }
- 
--int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
--{
--	unsigned long active;
--	unsigned long inactive;
--	unsigned long present_pages[2];
--	unsigned long inactive_ratio;
--
--	inactive_ratio = calc_inactive_ratio(memcg, present_pages);
--
--	inactive = present_pages[0];
--	active = present_pages[1];
--
--	if (inactive * inactive_ratio < active)
--		return 1;
--
--	return 0;
--}
--
--int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
-+int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
- {
- 	unsigned long active;
- 	unsigned long inactive;
-+	int zid = zone_idx(zone);
-+	int nid = zone_to_nid(zone);
- 
--	inactive = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_INACTIVE_FILE));
--	active = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_ACTIVE_FILE));
-+	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-+						BIT(LRU_INACTIVE_FILE));
-+	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-+					      BIT(LRU_ACTIVE_FILE));
- 
- 	return (active > inactive);
- }
-@@ -4188,8 +4173,6 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 	}
- 
- #ifdef CONFIG_DEBUG_VM
--	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
--
- 	{
- 		int nid, zid;
- 		struct mem_cgroup_per_zone *mz;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6588746..a023778 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1699,7 +1699,7 @@ static int inactive_anon_is_low(struct zone *zone, struct scan_control *sc)
- 	if (scanning_global_lru(sc))
- 		low = inactive_anon_is_low_global(zone);
- 	else
--		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup);
-+		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup, zone);
- 	return low;
- }
- #else
-@@ -1742,7 +1742,7 @@ static int inactive_file_is_low(struct zone *zone, struct scan_control *sc)
- 	if (scanning_global_lru(sc))
- 		low = inactive_file_is_low_global(zone);
- 	else
--		low = mem_cgroup_inactive_file_is_low(sc->mem_cgroup);
-+		low = mem_cgroup_inactive_file_is_low(sc->mem_cgroup, zone);
- 	return low;
- }
- 
--- 
-1.7.6
+So when per-memcg background reclaim goes off because A is close to
+its limit, then it will scan A (internal) and B + C (external).
+
+It's always the same code:
+
+	record_reclaim_stat(culprit, victim, item, delta)
+
+In direct limit reclaim, the culprit is the one hitting its limit.  In
+background reclaim, the culprit is the one getting close to its limit.
+
+And then again the accounting is
+
+	culprit == victim -> victim_internal++ (own fault)
+	culprit != victim -> victim_external++ (parent's fault)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
