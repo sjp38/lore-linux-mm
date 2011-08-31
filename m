@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B9E696B00EE
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 21:10:03 -0400 (EDT)
-Message-ID: <4E5D89E3.6020008@redhat.com>
-Date: Tue, 30 Aug 2011 21:09:55 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] compaction: compact unevictable page
-References: <cover.1321112552.git.minchan.kim@gmail.com> <8ef02605a7a76b176167d90a285033afa8513326.1321112552.git.minchan.kim@gmail.com>
-In-Reply-To: <8ef02605a7a76b176167d90a285033afa8513326.1321112552.git.minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E3FC06B00EE
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 21:44:31 -0400 (EDT)
+Subject: [PATCH] mm: vmalloc - Report more vmalloc failures
+From: Joe Perches <joe@perches.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 30 Aug 2011 18:44:28 -0700
+Message-ID: <1314755068.27632.12.camel@Joe-Laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 11/12/2011 11:37 AM, Minchan Kim wrote:
-> Now compaction doesn't handle mlocked page as it uses __isolate_lru_page
-> which doesn't consider unevicatable page. It has been used by just lumpy so
-> it was pointless that it isolates unevictable page. But the situation is
-> changed. Compaction could handle unevictable page and it can help getting
-> big contiguos pages in fragment memory by many pinned page with mlock.
->
-> I tested this patch with following scenario.
->
-> 1. A : allocate 80% anon pages in system
-> 2. B : allocate 20% mlocked page in system
-> /* Maybe, mlocked pages are located in low pfn address */
-> 3. kill A /* high pfn address are free */
-> 4. echo 1>  /proc/sys/vm/compact_memory
->
-> old:
->
-> compact_blocks_moved 251
-> compact_pages_moved 44
->
-> new:
->
-> compact_blocks_moved 258
-> compact_pages_moved 412
->
-> CC: Mel Gorman<mgorman@suse.de>
-> CC: Johannes Weiner<jweiner@redhat.com>
-> CC: Rik van Riel<riel@redhat.com>
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
+Some vmalloc failure paths do not report OOM conditions.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Add warn_alloc_failed, which also does a dump_stack,
+to those failure paths.
 
+This allows more site specific vmalloc failure
+logging message printks to be removed.
 
--- 
-All rights reversed
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ mm/vmalloc.c |   11 ++++++++---
+ 1 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 3122acc..5108e0b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1600,13 +1600,12 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 
+ 	size = PAGE_ALIGN(size);
+ 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
+-		return NULL;
++		goto fail;
+ 
+ 	area = __get_vm_area_node(size, align, VM_ALLOC, start, end, node,
+ 				  gfp_mask, caller);
+-
+ 	if (!area)
+-		return NULL;
++		goto fail;
+ 
+ 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+ 
+@@ -1618,6 +1617,12 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 	kmemleak_alloc(addr, real_size, 3, gfp_mask);
+ 
+ 	return addr;
++
++fail:
++	warn_alloc_failed(gfp_mask, 0,
++			  "vmalloc: allocation failure: %lu bytes\n",
++			  real_size);
++	return NULL;
+ }
+ 
+ /**
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
