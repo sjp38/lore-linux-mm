@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C11DB6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 13:54:28 -0400 (EDT)
-Date: Wed, 31 Aug 2011 19:54:22 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH] Enable OOM when moving processes between cgroups?
-Message-ID: <20110831175422.GB21571@redhat.com>
-References: <1314811941-14587-1-git-send-email-viktor.rosendahl@nokia.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CECFE6B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 14:27:40 -0400 (EDT)
+Message-ID: <4E5E7D16.4070805@redhat.com>
+Date: Wed, 31 Aug 2011 14:27:34 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1314811941-14587-1-git-send-email-viktor.rosendahl@nokia.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual
+ size
+References: <20110831090850.GA27345@redhat.com>
+In-Reply-To: <20110831090850.GA27345@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viktor Rosendahl <viktor.rosendahl@nokia.com>
-Cc: linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 31, 2011 at 08:32:21PM +0300, Viktor Rosendahl wrote:
-> Hello,
-> 
-> I wonder if there is a specific reason why the  OOM killer hasn't been enabled
-> in the mem_cgroup_do_precharge() function in mm/memcontrol.c ?
-> 
-> In my testing (2.6.32 kernel with some backported cgroups patches), it improves
-> the case when there isn't room for the task in the target cgroup.
+On 08/31/2011 05:08 AM, Johannes Weiner wrote:
+> Reclaim decides to skip scanning an active list when the corresponding
+> inactive list is above a certain size in comparison to leave the
+> assumed working set alone while there are still enough reclaim
+> candidates around.
+>
+> The memcg implementation of comparing those lists instead reports
+> whether the whole memcg is low on the requested type of inactive
+> pages, considering all nodes and zones.
+>
+> This can lead to an oversized active list not being scanned because of
+> the state of the other lists in the memcg, as well as an active list
+> being scanned while its corresponding inactive list has enough pages.
+>
+> Not only is this wrong, it's also a scalability hazard, because the
+> global memory state over all nodes and zones has to be gathered for
+> each memcg and zone scanned.
+>
+> Make these calculations purely based on the size of the two LRU lists
+> that are actually affected by the outcome of the decision.
+>
+> Signed-off-by: Johannes Weiner<jweiner@redhat.com>
+> Cc: Rik van Riel<riel@redhat.com>
+> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Daisuke Nishimura<nishimura@mxp.nes.nec.co.jp>
+> Cc: Balbir Singh<bsingharora@gmail.com>
 
-Tasks are moved directly on behalf of a request from userspace.  We
-would much prefer denying that single request than invoking the
-oom-killer on the whole group.
-
-Quite a lot changed in the trycharge-reclaim-retry path since 2009.
-Nowadays, charging is retried as long as reclaim is making any
-progress at all, so I don't see that it would give up moving a task
-too lightly, even without the extra OOM looping.
-
-Is there any chance you could retry with a more recent kernel?
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
