@@ -1,150 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 457BD6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:58:39 -0400 (EDT)
-Date: Wed, 31 Aug 2011 11:58:25 +0200
-From: "Hans J. Koch" <hjk@hansjkoch.de>
-Subject: Re: bade page state while calling munmap() for kmalloc'ed UIO memory
-Message-ID: <20110831095825.GC4769@local>
-References: <1314630347.2258.150.camel@bender.lan>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A1BB6B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 06:13:36 -0400 (EDT)
+Received: by yib2 with SMTP id 2so488691yib.14
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2011 03:13:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1314630347.2258.150.camel@bender.lan>
+In-Reply-To: <20110831090850.GA27345@redhat.com>
+References: <20110831090850.GA27345@redhat.com>
+Date: Wed, 31 Aug 2011 19:13:34 +0900
+Message-ID: <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual size
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Altenberg <jan@linutronix.de>
-Cc: linux-mm@kvack.org, "Hans J. Koch" <hjk@hansjkoch.de>, b.spranger@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 29, 2011 at 05:05:47PM +0200, Jan Altenberg wrote:
+On Wed, Aug 31, 2011 at 6:08 PM, Johannes Weiner <jweiner@redhat.com> wrote:
+> Reclaim decides to skip scanning an active list when the corresponding
+> inactive list is above a certain size in comparison to leave the
+> assumed working set alone while there are still enough reclaim
+> candidates around.
+>
+> The memcg implementation of comparing those lists instead reports
+> whether the whole memcg is low on the requested type of inactive
+> pages, considering all nodes and zones.
+>
+> This can lead to an oversized active list not being scanned because of
+> the state of the other lists in the memcg, as well as an active list
+> being scanned while its corresponding inactive list has enough pages.
+>
+> Not only is this wrong, it's also a scalability hazard, because the
+> global memory state over all nodes and zones has to be gathered for
+> each memcg and zone scanned.
+>
+> Make these calculations purely based on the size of the two LRU lists
+> that are actually affected by the outcome of the decision.
+>
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Cc: Balbir Singh <bsingharora@gmail.com>
 
-[Since we got no reply on linux-mm, I added lkml and Andrew to Cc: (mm doesn't
-seem to have a maintainer...)]
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-> Hi,
-> 
-> I'm currently analysing a problem similar to some mmap() issue reported
-> in the past: https://lkml.org/lkml/2010/7/11/140
+I can't understand why memcg is designed for considering all nodes and zones.
+Is it a mistake or on purpose?
+Maybe Kame or Balbir can answer it.
 
-The arch there was microblaze, and you are working on arm. That means
-the problem appears on at least to archs.
+Anyway, this change does make sense to me.
 
-> 
-> So, what I'm trying to do is mapping some physically continuous memory
-> (allocated by kmalloc) to userspace, using a trivial UIO driver (the
-> idea is that a device can directly DMA to that buffer):
-> 
-> [...]
-> #define MEM_SIZE (4 * PAGE_SIZE)
-> 
-> addr = kmalloc(MEM_SIZE, GFP_KERNEL)
-> [...]
-> info.mem[0].addr = (unsigned long) addr;
-> info.mem[0].internal_addr = addr;
-> info.mem[0].size = MEM_SIZE;
-> info.mem[0].memtype = UIO_MEM_LOGICAL;
-> [...]
-> ret = uio_register_device(&pdev->dev, &info);
-> 
-> Userspace maps that memory range and writes its contents to a file:
-> 
-> [...]
-> 
-> fd = open("/dev/uio0", O_RDWR);
-> if (fd < 0) {
->            perror("Can't open UIO device\n");
->            exit(1);
-> }
-> 
-> mem_map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
->                   MAP_PRIVATE, fd, 0);
-> 
-> if(mem_map == MAP_FAILED) {
->            perror("Can't map UIO memory\n");
->            ret = -ENOMEM;
->            goto out_file;
-> }
-> [...]
-> bytes_written = write(fd_file, mem_map, MAP_SIZE)
-> [...]
-> 
-> munmap(mem_map);
+Nitpick: Please remove inactive_ratio in Documentation/cgroups/memory.txt.
+I think it would be better to separate it into another patch.
 
->From my point of view (I've got Jan's full test case code), this
-is a completely correct UIO use case.
-
-> 
-> So, what happens is (I'm currently testing with 3.0.3 on ARM
-> VersatilePB): When I do the munmap(), I run into the following error:
-> 
-> BUG: Bad page state in process uio_test  pfn:078ed
-> page:c0409154 count:0 mapcount:0 mapping:  (null) index:0x0
-> page flags: 0x284(referenced|slab|arch_1)
-> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-> Disabling lock debugging due to kernel taint
-> BUG: Bad page state in process uio_test  pfn:078ee
-> page:c0409178 count:0 mapcount:0 mapping:  (null) index:0x0
-> page flags: 0x284(referenced|slab|arch_1)
-> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-> BUG: Bad page state in process uio_test  pfn:078ef
-> page:c040919c count:0 mapcount:0 mapping:  (null) index:0x0
-> page flags: 0x284(referenced|slab|arch_1)
-> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
-> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
-> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
-> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
-> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
-> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
-> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
-> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
-
-Quite strange that memory that could be mapped with mmap() cannot be
-unmapped with munmap().
-
-> 
-> This happens for every page except the first one.
-
-...which is the next strange thing.
-
-> If I change the code
-> and just touch the first page, everything's working fine. As soon as I
-> touch one of the other pages, I can see the "bad page state error" for
-> that page.
-
-The pages are mapped when you access them through the UIO core page fault
-handler.
-
-> The kernel is currently built using CONFIG_SLAB (my .config
-> is based on the versatile_defconfig); if I change to CONFIG_SLUB,
-> munmap() seems to be happy and I can't see the "bad page state" error.
-
-That is more than strange, that points to some things going really wrong.
-
-> 
-> Any idea what might be wrong here? Am I missing something obvious? (I've
-> prepared some brown paperbags for that case ;-))
-> 
-> Thanks,
-> 	Jan
-> 
-
-Thanks, Jan, for reporting this!
-
-Hans
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
