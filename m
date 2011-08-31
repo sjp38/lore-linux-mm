@@ -1,87 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B0B7B6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:31:00 -0400 (EDT)
-Date: Wed, 31 Aug 2011 14:30:51 +0200
+	by kanga.kvack.org (Postfix) with SMTP id 635776B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 10:38:12 -0400 (EDT)
+Date: Wed, 31 Aug 2011 16:37:38 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch] memcg: skip scanning active lists based on individual
- size
-Message-ID: <20110831123051.GA18081@redhat.com>
-References: <20110831090850.GA27345@redhat.com>
- <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
+Subject: [patch] mm: writeback: document bdi_min_ratio
+Message-ID: <20110831143738.GB19122@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
 
-On Wed, Aug 31, 2011 at 07:13:34PM +0900, Minchan Kim wrote:
-> On Wed, Aug 31, 2011 at 6:08 PM, Johannes Weiner <jweiner@redhat.com> wrote:
-> > Reclaim decides to skip scanning an active list when the corresponding
-> > inactive list is above a certain size in comparison to leave the
-> > assumed working set alone while there are still enough reclaim
-> > candidates around.
-> >
-> > The memcg implementation of comparing those lists instead reports
-> > whether the whole memcg is low on the requested type of inactive
-> > pages, considering all nodes and zones.
-> >
-> > This can lead to an oversized active list not being scanned because of
-> > the state of the other lists in the memcg, as well as an active list
-> > being scanned while its corresponding inactive list has enough pages.
-> >
-> > Not only is this wrong, it's also a scalability hazard, because the
-> > global memory state over all nodes and zones has to be gathered for
-> > each memcg and zone scanned.
-> >
-> > Make these calculations purely based on the size of the two LRU lists
-> > that are actually affected by the outcome of the decision.
-> >
-> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Cc: Balbir Singh <bsingharora@gmail.com>
-> 
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
-Thank you.
-
-> I can't understand why memcg is designed for considering all nodes and zones.
-> Is it a mistake or on purpose?
-> Maybe Kame or Balbir can answer it.
-> 
-> Anyway, this change does make sense to me.
-> 
-> Nitpick: Please remove inactive_ratio in Documentation/cgroups/memory.txt.
-> I think it would be better to separate it into another patch.
-
-Good catch.
-
----
-Subject: [patch] memcg: skip scanning active lists based on individual fix
-
-Also ditch the documentation note for the removed stats value.
+Looks like someone got distracted after adding the comment characters.
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
 ---
+ mm/page-writeback.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 06eb6d9..cc0ebc5 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -418,7 +418,6 @@ total_unevictable	- sum of all children's "unevictable"
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0e309cd..793e987 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -305,7 +305,9 @@ static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
+ }
  
- # The following additional stats are dependent on CONFIG_DEBUG_VM.
+ /*
+- *
++ * bdi_min_ratio keeps the sum of the minimum dirty shares of all
++ * registered backing devices, which, for obvious reasons, can not
++ * exceed 100%.
+  */
+ static unsigned int bdi_min_ratio;
  
--inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
- recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
- recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
- recent_scanned_anon	- VM internal parameter. (see mm/vmscan.c)
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
