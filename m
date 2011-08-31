@@ -1,88 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 57BB96B016A
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:53:33 -0400 (EDT)
-Date: Wed, 31 Aug 2011 10:53:26 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/7] mm: vmscan: Throttle reclaim if encountering too
- many dirty pages under writeback
-Message-ID: <20110831095326.GD14369@suse.de>
-References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
- <1312973240-32576-7-git-send-email-mgorman@suse.de>
- <20110818165428.4f01a1b9.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 457BD6B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 05:58:39 -0400 (EDT)
+Date: Wed, 31 Aug 2011 11:58:25 +0200
+From: "Hans J. Koch" <hjk@hansjkoch.de>
+Subject: Re: bade page state while calling munmap() for kmalloc'ed UIO memory
+Message-ID: <20110831095825.GC4769@local>
+References: <1314630347.2258.150.camel@bender.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110818165428.4f01a1b9.akpm@linux-foundation.org>
+In-Reply-To: <1314630347.2258.150.camel@bender.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Jan Altenberg <jan@linutronix.de>
+Cc: linux-mm@kvack.org, "Hans J. Koch" <hjk@hansjkoch.de>, b.spranger@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 18, 2011 at 04:54:28PM -0700, Andrew Morton wrote:
-> On Wed, 10 Aug 2011 11:47:19 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
+On Mon, Aug 29, 2011 at 05:05:47PM +0200, Jan Altenberg wrote:
+
+[Since we got no reply on linux-mm, I added lkml and Andrew to Cc: (mm doesn't
+seem to have a maintainer...)]
+
+> Hi,
 > 
-> > The percentage that must be in writeback depends on the priority. At
-> > default priority, all of them must be dirty. At DEF_PRIORITY-1, 50%
-> > of them must be, DEF_PRIORITY-2, 25% etc. i.e. as pressure increases
-> > the greater the likelihood the process will get throttled to allow
-> > the flusher threads to make some progress.
+> I'm currently analysing a problem similar to some mmap() issue reported
+> in the past: https://lkml.org/lkml/2010/7/11/140
+
+The arch there was microblaze, and you are working on arm. That means
+the problem appears on at least to archs.
+
 > 
-> It'd be nice if the code comment were to capture this piece of implicit
-> arithmetic.
+> So, what I'm trying to do is mapping some physically continuous memory
+> (allocated by kmalloc) to userspace, using a trivial UIO driver (the
+> idea is that a device can directly DMA to that buffer):
+> 
+> [...]
+> #define MEM_SIZE (4 * PAGE_SIZE)
+> 
+> addr = kmalloc(MEM_SIZE, GFP_KERNEL)
+> [...]
+> info.mem[0].addr = (unsigned long) addr;
+> info.mem[0].internal_addr = addr;
+> info.mem[0].size = MEM_SIZE;
+> info.mem[0].memtype = UIO_MEM_LOGICAL;
+> [...]
+> ret = uio_register_device(&pdev->dev, &info);
+> 
+> Userspace maps that memory range and writes its contents to a file:
+> 
+> [...]
+> 
+> fd = open("/dev/uio0", O_RDWR);
+> if (fd < 0) {
+>            perror("Can't open UIO device\n");
+>            exit(1);
+> }
+> 
+> mem_map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
+>                   MAP_PRIVATE, fd, 0);
+> 
+> if(mem_map == MAP_FAILED) {
+>            perror("Can't map UIO memory\n");
+>            ret = -ENOMEM;
+>            goto out_file;
+> }
+> [...]
+> bytes_written = write(fd_file, mem_map, MAP_SIZE)
+> [...]
+> 
+> munmap(mem_map);
 
-How about this?
+>From my point of view (I've got Jan's full test case code), this
+is a completely correct UIO use case.
 
-==== CUT HERE ====
-mm: vmscan: Throttle reclaim if encountering too many dirty pages under writeback -fix1
+> 
+> So, what happens is (I'm currently testing with 3.0.3 on ARM
+> VersatilePB): When I do the munmap(), I run into the following error:
+> 
+> BUG: Bad page state in process uio_test  pfn:078ed
+> page:c0409154 count:0 mapcount:0 mapping:  (null) index:0x0
+> page flags: 0x284(referenced|slab|arch_1)
+> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
+> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
+> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
+> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
+> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
+> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
+> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
+> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
+> Disabling lock debugging due to kernel taint
+> BUG: Bad page state in process uio_test  pfn:078ee
+> page:c0409178 count:0 mapcount:0 mapping:  (null) index:0x0
+> page flags: 0x284(referenced|slab|arch_1)
+> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
+> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
+> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
+> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
+> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
+> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
+> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
+> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
+> BUG: Bad page state in process uio_test  pfn:078ef
+> page:c040919c count:0 mapcount:0 mapping:  (null) index:0x0
+> page flags: 0x284(referenced|slab|arch_1)
+> [<c0033e50>] (unwind_backtrace+0x0/0xe4) from [<c0079938>] (bad_page+0xcc/0xf8)
+> [<c0079938>] (bad_page+0xcc/0xf8) from [<c007a5f0>] (free_pages_prepare+0x6c/0xcc)
+> [<c007a5f0>] (free_pages_prepare+0x6c/0xcc) from [<c007a778>] (free_hot_cold_page+0x20/0x18c)
+> [<c007a778>] (free_hot_cold_page+0x20/0x18c) from [<c008ccb4>] (unmap_vmas+0x338/0x564)
+> [<c008ccb4>] (unmap_vmas+0x338/0x564) from [<c008f0f4>] (unmap_region+0xa4/0x1e0)
+> [<c008f0f4>] (unmap_region+0xa4/0x1e0) from [<c0090428>] (do_munmap+0x20c/0x274)
+> [<c0090428>] (do_munmap+0x20c/0x274) from [<c00904cc>] (sys_munmap+0x3c/0x50)
+> [<c00904cc>] (sys_munmap+0x3c/0x50) from [<c002e680>] (ret_fast_syscall+0x0/0x2c)
 
-This patch expands on a comment on how we throttle from reclaim context.
-It should be merged with
-mm-vmscan-throttle-reclaim-if-encountering-too-many-dirty-pages-under-writeback.patch
+Quite strange that memory that could be mapped with mmap() cannot be
+unmapped with munmap().
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |   26 +++++++++++++++++++++-----
- 1 files changed, 21 insertions(+), 5 deletions(-)
+> 
+> This happens for every page except the first one.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 33882a3..5ff3e26 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1491,11 +1491,27 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
- 
- 	/*
--	 * If we have encountered a high number of dirty pages under writeback
--	 * then we are reaching the end of the LRU too quickly and global
--	 * limits are not enough to throttle processes due to the page
--	 * distribution throughout zones. Scale the number of dirty pages that
--	 * must be under writeback before being throttled to priority.
-+	 * If reclaim is isolating dirty pages under writeback, it implies
-+	 * that the long-lived page allocation rate is exceeding the page
-+	 * laundering rate. Either the global limits are not being effective
-+	 * at throttling processes due to the page distribution throughout
-+	 * zones or there is heavy usage of a slow backing device. The
-+	 * only option is to throttle from reclaim context which is not ideal
-+	 * as there is no guarantee the dirtying process is throttled in the
-+	 * same way balance_dirty_pages() manages.
-+	 *
-+	 * This scales the number of dirty pages that must be under writeback
-+	 * before throttling depending on priority. It is a simple backoff
-+	 * function that has the most effect in the range DEF_PRIORITY to
-+	 * DEF_PRIORITY-2 which is the priority reclaim is considered to be
-+	 * in trouble and reclaim is considered to be in trouble.
-+	 *
-+	 * DEF_PRIORITY   100% isolated pages must be PageWriteback to throttle
-+	 * DEF_PRIORITY-1  50% must be PageWriteback
-+	 * DEF_PRIORITY-2  25% must be PageWriteback, kswapd in trouble
-+	 * ...
-+	 * DEF_PRIORITY-6 For SWAP_CLUSTER_MAX isolated pages, throttle if any
-+	 *                     isolated page is PageWriteback
- 	 */
- 	if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
- 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+...which is the next strange thing.
+
+> If I change the code
+> and just touch the first page, everything's working fine. As soon as I
+> touch one of the other pages, I can see the "bad page state error" for
+> that page.
+
+The pages are mapped when you access them through the UIO core page fault
+handler.
+
+> The kernel is currently built using CONFIG_SLAB (my .config
+> is based on the versatile_defconfig); if I change to CONFIG_SLUB,
+> munmap() seems to be happy and I can't see the "bad page state" error.
+
+That is more than strange, that points to some things going really wrong.
+
+> 
+> Any idea what might be wrong here? Am I missing something obvious? (I've
+> prepared some brown paperbags for that case ;-))
+> 
+> Thanks,
+> 	Jan
+> 
+
+Thanks, Jan, for reporting this!
+
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
