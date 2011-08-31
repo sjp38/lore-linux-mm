@@ -1,90 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB2E6B00EE
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 19:52:45 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 116343EE0AE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:52:42 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E454445DEAD
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:52:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC83045DE9E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:52:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B93A51DB8037
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:52:41 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 82BBB1DB8038
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:52:41 +0900 (JST)
-Date: Wed, 31 Aug 2011 08:38:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] Revert "memcg: add memory.vmscan_stat"
-Message-Id: <20110831083843.25d744bc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110830110337.GE13061@redhat.com>
-References: <20110808124333.GA31739@redhat.com>
-	<20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110829155113.GA21661@redhat.com>
-	<20110830101233.ae416284.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110830070424.GA13061@redhat.com>
-	<20110830162050.f6c13c0c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110830084245.GC13061@redhat.com>
-	<20110830175609.4977ef7a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110830101726.GD13061@redhat.com>
-	<20110830193406.361d758a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110830110337.GE13061@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 449F56B00EE
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2011 20:24:38 -0400 (EDT)
+Subject: Re: [Bugme-new] [Bug 40262] New: PROBLEM: I/O storm from hell on
+ kernel 3.0.0 when touch swap (swapfile or partition)
+From: Steffen Michalke <StMichalke@web.de>
+Date: Wed, 31 Aug 2011 02:24:20 +0200
+In-Reply-To: <20110829090124.7d773ced.kamezawa.hiroyu@jp.fujitsu.com>
+References: <bug-40262-10286@https.bugzilla.kernel.org/>
+	 <20110826163247.6ed99365.akpm@linux-foundation.org>
+	 <4E5A22DF.1080100@openvz.org>
+	 <20110829090124.7d773ced.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Message-ID: <1314750273.3844.9.camel@michalke-online.eu>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Andrew Brestic <abrestic@google.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "g0re@null.net" <g0re@null.net>, Mel Gorman <mel@csn.ul.ie>
 
-On Tue, 30 Aug 2011 13:03:37 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
-
-> On Tue, Aug 30, 2011 at 07:34:06PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 30 Aug 2011 12:17:26 +0200
-> > Johannes Weiner <jweiner@redhat.com> wrote:
-
-> > How about fixing interface first ? 1st version of this patch was 
-> > in April and no big change since then.
-> > I don't want to be starved more.
+Am Montag, den 29.08.2011, 09:01 +0900 schrieb KAMEZAWA Hiroyuki: 
+> On Sun, 28 Aug 2011 15:13:35 +0400
+> Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 > 
-> Back then I mentioned all my concerns and alternate suggestions.
-> Different from you, I explained and provided a reason for every single
-> counter I wanted to add, suggested a basic pattern for how to
-> interpret them to gain insight into memcg configurations and their
-> behaviour.  No reaction.  If you want to make progress, than don't
-> ignore concerns and arguments.  If my arguments are crap, then tell me
-> why and we can move on.
+> > Andrew Morton wrote:
+> >  >
+> >  > (switched to email.  Please respond via emailed reply-to-all, not via the
+> >  > bugzilla web interface).
+> >  >
+> >  > On Thu, 28 Jul 2011 12:41:03 GMT
+> >  > bugzilla-daemon@bugzilla.kernel.org wrote:
+> >  >
+> >  >> https://bugzilla.kernel.org/show_bug.cgi?id=40262
+> >  >
+> >  > Two people are reporting this - there are some additional details in
+> >  > bugzilla.
+> >  >
+> >  > We seem to be going around in circles here.
+> >  >
+> >  > I'll ask Rafael and Maciej to track this as a regression :(
+> >  >
+> > 
+> > >>
+> > >> issue occurs in new kernel 3.0.
+> > >> does not occurs in 2.6.39.3/2.6.38.8
+> > >>
+> > 
+> > I guess this can be caused by commit v2.6.39-6846-g246e87a "memcg: fix vmscan count in small memcgs"
+> > (it also tweaked kswapd besides of memcg reclaimer)
+> > it was fixed in v3.0-5361-g4508378 "memcg: fix get_scan_count() for small targets"
+> > 
+> > commit 4508378b9523e22a2a0175d8bf64d932fb10a67d
+> > Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Date:   Tue Jul 26 16:08:24 2011 -0700
+> > 
+> >      memcg: fix vmscan count in small memcgs
+> > 
+> >      Commit 246e87a93934 ("memcg: fix get_scan_count() for small targets")
+> >      fixes the memcg/kswapd behavior against small targets and prevent vmscan
+> >      priority too high.
+> > 
+> >      But the implementation is too naive and adds another problem to small
+> >      memcg.  It always force scan to 32 pages of file/anon and doesn't handle
+> >      swappiness and other rotate_info.  It makes vmscan to scan anon LRU
+> >      regardless of swappiness and make reclaim bad.  This patch fixes it by
+> >      adjusting scanning count with regard to swappiness at el.
+> > 
+> >      At a test "cat 1G file under 300M limit." (swappiness=20)
+> >       before patch
+> >              scanned_pages_by_limit 360919
+> >              scanned_anon_pages_by_limit 180469
+> >              scanned_file_pages_by_limit 180450
+> >              rotated_pages_by_limit 31
+> >              rotated_anon_pages_by_limit 25
+> >              rotated_file_pages_by_limit 6
+> >              freed_pages_by_limit 180458
+> >              freed_anon_pages_by_limit 19
+> >              freed_file_pages_by_limit 180439
+> >              elapsed_ns_by_limit 429758872
+> >       after patch
+> >              scanned_pages_by_limit 180674
+> >              scanned_anon_pages_by_limit 24
+> >              scanned_file_pages_by_limit 180650
+> >              rotated_pages_by_limit 35
+> >              rotated_anon_pages_by_limit 24
+> >              rotated_file_pages_by_limit 11
+> >              freed_pages_by_limit 180634
+> >              freed_anon_pages_by_limit 0
+> >              freed_file_pages_by_limit 180634
+> >              elapsed_ns_by_limit 367119089
+> >              scanned_pages_by_system 0
+> > 
+> >      the numbers of scanning anon are decreased(as expected), and elapsed time
+> >      reduced. By this patch, small memcgs will work better.
+> >      (*) Because the amount of file-cache is much bigger than anon,
+> >          recalaim_stat's rotate-scan counter make scanning files more.
+> > 
 > 
-
-I think having percpu couneter has no performance benefit, just lose
-extra memory by percpu allocation.
-Anyway, you can change internal implemenatation when it's necessary.
-
-But Ok, I agree using the same style as zone counters is better.
-
-> What we have now is not ready.  It wasn't discussed properly, which
-> certainly wasn't for the lack of interest in this change.  I just got
-> tired of raising the same points over and over again without answer.
+> Ah, yes. this patch may be able to fix the probelm...could you try ? 
 > 
-> The amount of time a change has been around is not an argument for it
-> to get merged.  On the other hand, the fact that it hasn't changed
-> since April *even though* the implementation was opposed back then
-> doesn't really speak for your way of getting this upstream, does it?
+> Thanks,
+> -Kame
 
-The fact is that you should revert the patch when it's merged to mmotm.
+I have applied your memcg-fix-vmscan-count-in-small-memcgs patch to the
+new kernel v3.0.4. It works wonderfully, thank you a lot! I have tested
+reading and copying large files and found that these operations do not
+strain the memory of other applications anymore.
 
-Please revert patch. And merge your own.
-Anyway I don't have much interests in hierarchy.
-
-Bye,
--Kame
-
-
+Thank you,
+Steffen
 
 
 --
