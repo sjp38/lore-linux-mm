@@ -1,105 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 216126B016A
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 01:28:55 -0400 (EDT)
-Date: Thu, 1 Sep 2011 15:28:39 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
- quota update.
-Message-ID: <20110901052839.GK11906@yookeroo.fritz.box>
-References: <4E4EB603.8090305@cray.com>
- <20110819145109.dcd5dac6.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E246B016A
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 01:42:04 -0400 (EDT)
+Message-ID: <4E5F1B25.8040800@profihost.ag>
+Date: Thu, 01 Sep 2011 07:41:57 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110819145109.dcd5dac6.akpm@linux-foundation.org>
+Subject: Re: slow performance on disk/network i/o full speed after drop_caches
+References: <20110824093336.GB5214@localhost> <4E560F2A.1030801@profihost.ag> <20110826021648.GA19529@localhost> <4E570AEB.1040703@profihost.ag> <20110826030313.GA24058@localhost> <D299D0AE-2F3C-42E2-9723-A3D7C0108C40@profihost.ag> <20110826032601.GA26282@localhost> <CAC8teKXqZktBK7+GbLgHn-2k+zjjf8uieRM_q_V7JK7ePAk9Lg@mail.gmail.com> <4E573A99.4060309@profihost.ag> <4E5DDE86.3040202@profihost.ag> <20110901041458.GA30123@localhost>
+In-Reply-To: <20110901041458.GA30123@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrew Barry <abarry@cray.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Hastings <abh@cray.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Zhu Yanhai <zhu.yanhai@gmail.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jens Axboe <jaxboe@fusionio.com>, Linux Netdev List <netdev@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Fri, Aug 19, 2011 at 02:51:09PM -0700, Andrew Morton wrote:
-> On Fri, 19 Aug 2011 14:14:11 -0500
-> Andrew Barry <abarry@cray.com> wrote:
-> 
-> > This patch fixes a use-after-free problem in free_huge_page, with a quota update
-> > happening after hugetlbfs umount. The problem results when a device driver,
-> > which has mapped a hugepage, does a put_page. Put_page, calls free_huge_page,
-> > which does a hugetlb_put_quota. As written, hugetlb_put_quota takes an
-> > address_space struct pointer "mapping" as an argument. If the put_page occurs
-> > after the hugetlbfs filesystem is unmounted, mapping points to freed memory.
-> 
-> OK.  This sounds screwed up.  If a device driver is currently using a
-> page from a hugetlbfs file then the unmount shouldn't have succeeded in
-> the first place!
-> 
-> Or is it the case that the device driver got a reference to the page by
-> other means, bypassing hugetlbfs?  And there's undesirable/incorrect
-> interaction between the non-hugetlbfs operation and hugetlbfs?
-> 
-> Or something else?
-> 
-> <starts reading the mailing list>
-> 
-> OK, important missing information from the above is that the driver got
-> at this page via get_user_pages() and happened to stumble across a
-> hugetlbfs page.  So it's indeed an incorrect interaction between a
-> non-hugetlbfs operation and hugetlbfs.
-> 
-> What's different about hugetlbfs?  Why don't other filesystems hit this?
-> 
-> <investigates further>
-> 
-> OK so the incorrect interaction happened in free_huge_page(), which is
-> called via the compound page destructor (this dtor is "what's different
-> about hugetlbfs").   What is incorrect about this is
-> 
-> a) that we're doing fs operations in response to a
->    get_user_pages()/put_page() operation which has *nothing* to do with
->    filesystems!
-> 
-> b) that we continue to try to do that fs operation against an fs
->    which was unmounted and freed three days ago. duh.
-> 
-> 
-> So I hereby pronounce that
-> 
-> a) It was wrong to manipulate hugetlbfs quotas within
->    free_huge_page().  Because free_huge_page() is a low-level
->    page-management function which shouldn't know about one of its
->    specific clients (in this case, hugetlbfs).
-> 
->    In fact it's wrong for there to be *any* mention of hugetlbfs
->    within hugetlb.c.
-> 
-> b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
->    Mel, Adam, Dave, at least...
-> 
-> c) The proper fix here is to get that hugetlbfs quota code out of
->    free_huge_page() and do it all where it belongs: within hugetlbfs
->    code.
-> 
-> Regular filesystems don't need to diddle quota counts within
-> page_cache_release().  Why should hugetlbfs need to?
+Thanks!
 
-Regular filesystems can assume there's a few spare pages that can
-buffer quota transitions.  Hugepages on the other hand are scarce, and
-it's common practice to want to actively use every single one of the
-system.
-
-I really can't see how to avoid poking the counts from
-free_huge_page(), whether or not it's directly or via some sort of
-callback.
-
-Andrew (Morton) or Hugh, if you can suggest a more correct way to fix
-this, I'm all ears, but at present we have a real bug and Andrew
-Barry's patch is the best fix we have.
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+Am 01.09.2011 06:14, schrieb Wu Fengguang:
+> Hi Stefan,
+>
+> On Wed, Aug 31, 2011 at 03:11:02PM +0800, Stefan Priebe - Profihost AG wrote:
+>> Hi Fengguang,
+>> Hi Yanhai,
+>>
+>>> you're abssolutely corect zone_reclaim_mode is on - but why?
+>>> There must be some linux software which switches it on.
+>>>
+>>> ~# grep 'zone_reclaim_mode' /etc/sysctl.* -r -i
+>>> ~#
+>>>
+>>> also
+>>> ~# grep 'zone_reclaim_mode' /etc/sysctl.* -r -i
+>>> ~#
+>>>
+>>> tells us nothing.
+>>>
+>>> I've then read this:
+>>>
+>>> "zone_reclaim_mode is set during bootup to 1 if it is determined that
+>>> pages from remote zones will cause a measurable performance reduction.
+>>> The page allocator will then reclaim easily reusable pages (those page
+>>> cache pages that are currently not used) before allocating off node pages."
+>>>
+>>> Why does the kernel do that here in our case on these machines.
+>>
+>> Can nobody help why the kernel in this case set it to 1?
+>
+> It's determined by RECLAIM_DISTANCE.
+>
+> build_zonelists():
+>
+>                  /*
+>                   * If another node is sufficiently far away then it is better
+>                   * to reclaim pages in a zone before going off node.
+>                   */
+>                  if (distance>  RECLAIM_DISTANCE)
+>                          zone_reclaim_mode = 1;
+>
+> Since Linux v3.0 RECLAIM_DISTANCE is increased from 20 to 30 by this commit.
+> It may well help your case, too.
+>
+> commit 32e45ff43eaf5c17f5a82c9ad358d515622c2562
+> Author: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Date:   Wed Jun 15 15:08:20 2011 -0700
+>
+>      mm: increase RECLAIM_DISTANCE to 30
+>
+>      Recently, Robert Mueller reported (http://lkml.org/lkml/2010/9/12/236)
+>      that zone_reclaim_mode doesn't work properly on his new NUMA server (Dual
+>      Xeon E5520 + Intel S5520UR MB).  He is using Cyrus IMAPd and it's built on
+>      a very traditional single-process model.
+>
+>        * a master process which reads config files and manages the other
+>          process
+>        * multiple imapd processes, one per connection
+>        * multiple pop3d processes, one per connection
+>        * multiple lmtpd processes, one per connection
+>        * periodical "cleanup" processes.
+>
+>      There are thousands of independent processes.  The problem is, recent
+>      Intel motherboard turn on zone_reclaim_mode by default and traditional
+>      prefork model software don't work well on it.  Unfortunatelly, such models
+>      are still typical even in the 21st century.  We can't ignore them.
+>
+>      This patch raises the zone_reclaim_mode threshold to 30.  30 doesn't have
+>      any specific meaning.  but 20 means that one-hop QPI/Hypertransport and
+>      such relatively cheap 2-4 socket machine are often used for traditional
+>      servers as above.  The intention is that these machines don't use
+>      zone_reclaim_mode.
+>
+>      Note: ia64 and Power have arch specific RECLAIM_DISTANCE definitions.
+>      This patch doesn't change such high-end NUMA machine behavior.
+>
+>      Dave Hansen said:
+>
+>      : I know specifically of pieces of x86 hardware that set the information
+>      : in the BIOS to '21' *specifically* so they'll get the zone_reclaim_mode
+>      : behavior which that implies.
+>      :
+>      : They've done performance testing and run very large and scary benchmarks
+>      : to make sure that they _want_ this turned on.  What this means for them
+>      : is that they'll probably be de-optimized, at least on newer versions of
+>      : the kernel.
+>      :
+>      : If you want to do this for particular systems, maybe _that_'s what we
+>      : should do.  Have a list of specific configurations that need the
+>      : defaults overridden either because they're buggy, or they have an
+>      : unusual hardware configuration not really reflected in the distance
+>      : table.
+>
+>      And later said:
+>
+>      : The original change in the hardware tables was for the benefit of a
+>      : benchmark.  Said benchmark isn't going to get run on mainline until the
+>      : next batch of enterprise distros drops, at which point the hardware where
+>      : this was done will be irrelevant for the benchmark.  I'm sure any new
+>      : hardware will just set this distance to another yet arbitrary value to
+>      : make the kernel do what it wants.  :)
+>      :
+>      : Also, when the hardware got _set_ to this initially, I complained.  So, I
+>      : guess I'm getting my way now, with this patch.  I'm cool with it.
+>
+> diff --git a/include/linux/topology.h b/include/linux/topology.h
+> index b91a40e..fc839bf 100644
+> --- a/include/linux/topology.h
+> +++ b/include/linux/topology.h
+> @@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
+>    * (in whatever arch specific measurement units returned by node_distance())
+>    * then switch on zone reclaim on boot.
+>    */
+> -#define RECLAIM_DISTANCE 20
+> +#define RECLAIM_DISTANCE 30
+>   #endif
+>   #ifndef PENALTY_FOR_NODE_WITH_CPUS
+>   #define PENALTY_FOR_NODE_WITH_CPUS     (1)
+>
+> Thanks,
+> Fengguang
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
