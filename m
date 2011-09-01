@@ -1,99 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 611C56B00EE
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 13:06:56 -0400 (EDT)
-Date: Thu, 1 Sep 2011 10:06:50 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [PATCH -mm] add extra free kbytes tunable
-Message-Id: <20110901100650.6d884589.rdunlap@xenotime.net>
-In-Reply-To: <20110901105208.3849a8ff@annuminas.surriel.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0E56B00EE
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 14:55:14 -0400 (EDT)
+Date: Thu, 1 Sep 2011 20:55:02 +0200
+From: "Hans J. Koch" <hjk@hansjkoch.de>
+Subject: Re: bade page state while calling munmap() for kmalloc'ed UIO memory
+Message-ID: <20110901185502.GB8408@local>
+References: <1314630347.2258.150.camel@bender.lan>
+ <20110831095825.GC4769@local>
+ <20110831161307.d605848b.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110831161307.d605848b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, akpm@linux-foundation.org, hughd@google.com, hannes@cmpxchg.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Hans J. Koch" <hjk@hansjkoch.de>, Jan Altenberg <jan@linutronix.de>, linux-mm@kvack.org, b.spranger@linutronix.de, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 1 Sep 2011 10:52:08 -0400 Rik van Riel wrote:
-
-> Add a userspace visible knob to tell the VM to keep an extra amount
-> of memory free, by increasing the gap between each zone's min and
-> low watermarks.
+On Wed, Aug 31, 2011 at 04:13:07PM -0700, Andrew Morton wrote:
+> On Wed, 31 Aug 2011 11:58:25 +0200
+> "Hans J. Koch" <hjk@hansjkoch.de> wrote:
 > 
-> This is useful for realtime applications that call system
-> calls and have a bound on the number of allocations that happen
-> in any short time period.  In this application, extra_free_kbytes
-> would be left at an amount equal to or larger than than the
-> maximum number of allocations that happen in any burst.
+> > On Mon, Aug 29, 2011 at 05:05:47PM +0200, Jan Altenberg wrote:
+> > 
+> > [Since we got no reply on linux-mm, I added lkml and Andrew to Cc: (mm doesn't
+> > seem to have a maintainer...)]
+> > 
+> > > Hi,
+> > > 
+> > > I'm currently analysing a problem similar to some mmap() issue reported
+> > > in the past: https://lkml.org/lkml/2010/7/11/140
+> > 
+> > The arch there was microblaze, and you are working on arm. That means
+> > the problem appears on at least to archs.
+> > 
+> > > 
+> > > So, what I'm trying to do is mapping some physically continuous memory
+> > > (allocated by kmalloc) to userspace, using a trivial UIO driver (the
+> > > idea is that a device can directly DMA to that buffer):
+> > > 
+> > > [...]
+> > > #define MEM_SIZE (4 * PAGE_SIZE)
+> > > 
+> > > addr = kmalloc(MEM_SIZE, GFP_KERNEL)
+> > > [...]
+> > > info.mem[0].addr = (unsigned long) addr;
+> > > info.mem[0].internal_addr = addr;
+> > > info.mem[0].size = MEM_SIZE;
+> > > info.mem[0].memtype = UIO_MEM_LOGICAL;
+> > > [...]
+> > > ret = uio_register_device(&pdev->dev, &info);
+> > > 
+> > > Userspace maps that memory range and writes its contents to a file:
+> > > 
+> > > [...]
+> > > 
+> > > fd = open("/dev/uio0", O_RDWR);
+> > > if (fd < 0) {
+> > >            perror("Can't open UIO device\n");
+> > >            exit(1);
+> > > }
+> > > 
+> > > mem_map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
+> > >                   MAP_PRIVATE, fd, 0);
+> > > 
+> > > if(mem_map == MAP_FAILED) {
+> > >            perror("Can't map UIO memory\n");
+> > >            ret = -ENOMEM;
+> > >            goto out_file;
+> > > }
+> > > [...]
+> > > bytes_written = write(fd_file, mem_map, MAP_SIZE)
+> > > [...]
+> > > 
+> > > munmap(mem_map);
+> > 
+> > >From my point of view (I've got Jan's full test case code), this
+> > is a completely correct UIO use case.
+> > 
+> > > 
+> > > So, what happens is (I'm currently testing with 3.0.3 on ARM
+> > > VersatilePB): When I do the munmap(), I run into the following error:
+> > > 
+> > > BUG: Bad page state in process uio_test  pfn:078ed
+> > > page:c0409154 count:0 mapcount:0 mapping:  (null) index:0x0
+> > > page flags: 0x284(referenced|slab|arch_1)
 > 
-> It may also be useful to reduce the memory use of virtual
-> machines (temporarily?), in a way that does not cause memory
-> fragmentation like ballooning does.
+> PG_slab is set.  The kernel is complaining because a page which was
+> allocated via kmalloc/kmem_cache_alloc was directly passed to the page
+> allocator for freeing.  It should have been passed to kfree().
 > 
-> Signed-off-by: Rik van Riel<riel@redhat.com>
+> Presumably the uio driver expects that its memory was allocated via
+> alloc_pages(), not via kmalloc().
 
-Hi Rik,
+Thanks for that hint. I'll check and will update UIO documentation
+accordingly if necessary.
 
-Please add to Documentation/syctl/vm.txt ..
+BUT the following problems are still threatening my mental health:
 
-Thanks.
+If userspace gets a valid and working pointer from mmap(), it is
+entitled to expect munmap() to work on that pointer, too, isn't it?
+Shouldn't mmap() fail in such a case?
 
+The kernel's behavior should be the same, no matter which SLAB or
+SLUB is chosen.
 
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 11d65b5..01a9acd 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -96,6 +96,7 @@ extern char core_pattern[];
->  extern unsigned int core_pipe_limit;
->  extern int pid_max;
->  extern int min_free_kbytes;
-> +extern int extra_free_kbytes;
->  extern int pid_max_min, pid_max_max;
->  extern int sysctl_drop_caches;
->  extern int percpu_pagelist_fraction;
-> @@ -1189,6 +1190,14 @@ static struct ctl_table vm_table[] = {
->  		.extra1		= &zero,
->  	},
->  	{
-> +		.procname	= "extra_free_kbytes",
-> +		.data		= &extra_free_kbytes,
-> +		.maxlen		= sizeof(extra_free_kbytes),
-> +		.mode		= 0644,
-> +		.proc_handler	= min_free_kbytes_sysctl_handler,
-> +		.extra1		= &zero,
-> +	},
-> +	{
->  		.procname	= "percpu_pagelist_fraction",
->  		.data		= &percpu_pagelist_fraction,
->  		.maxlen		= sizeof(percpu_pagelist_fraction),
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6e8ecb6..47d185c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -175,8 +175,20 @@ static char * const zone_names[MAX_NR_ZONES] = {
->  	 "Movable",
->  };
->  
-> +/*
-> + * Try to keep at least this much lowmem free.  Do not allow normal
-> + * allocations below this point, only high priority ones. Automatically
-> + * tuned according to the amount of memory in the system.
-> + */
->  int min_free_kbytes = 1024;
->  
-> +/*
-> + * Extra memory for the system to try freeing. Used to temporarily
-> + * free memory, to make space for new workloads. Anyone can allocate
-> + * down to the min watermarks controlled by min_free_kbytes above.
-> + */
-> +int extra_free_kbytes = 0;
+Or am I following wrong philosophies?
 
+Thanks,
+Hans
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
