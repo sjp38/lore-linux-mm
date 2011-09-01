@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6A56B016A
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 17:18:31 -0400 (EDT)
-Date: Thu, 1 Sep 2011 14:17:54 -0700
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 506106B016A
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 17:33:40 -0400 (EDT)
+Date: Thu, 1 Sep 2011 14:33:33 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Revert] Re: [PATCH] mm: sync vmalloc address space page tables
- in alloc_vm_area()
-Message-Id: <20110901141754.76cef93b.akpm@linux-foundation.org>
-In-Reply-To: <4E5FED1A.1000300@goop.org>
-References: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com>
-	<20110901161134.GA8979@dumpdata.com>
-	<4E5FED1A.1000300@goop.org>
+Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
+ del_timer
+Message-Id: <20110901143333.51baf4ae.akpm@linux-foundation.org>
+In-Reply-To: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
+References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, David Vrabel <david.vrabel@citrix.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "namhyung@gmail.com" <namhyung@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 01 Sep 2011 13:37:46 -0700
-Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+On Thu,  1 Sep 2011 21:27:02 +0530
+Kautuk Consul <consul.kautuk@gmail.com> wrote:
 
-> On 09/01/2011 09:11 AM, Konrad Rzeszutek Wilk wrote:
-> > On Thu, Sep 01, 2011 at 12:51:03PM +0100, David Vrabel wrote:
-> >> From: David Vrabel <david.vrabel@citrix.com>
-> > Andrew,
-> >
-> > I was wondering if you would be Ok with this patch for 3.1.
-> >
-> > It is a revert (I can prepare a proper revert if you would like
-> > that instead of this patch).
-
-David's patch looks better than a straight reversion.
-
-Problem is, I can't find David's original email anywhere.  Someone's
-been playing games with To: headers?
-
-> > The users of this particular function (alloc_vm_area) are just
-> > Xen. There are no others.
+> This is important for SMP scenario, to check whether the timer
+> callback is executing on another CPU when we are deleting the
+> timer.
 > 
-> I'd prefer to put explicit vmalloc_sync_all()s in the callsites where
-> necessary,
 
-What would that patch look like?  Bear in mind that we'll need something
-suitable for 3.1 and for a 3.0 backport.
+I don't see why?
 
-> and ultimately try to work out ways of avoiding it altogether
-> (like have some hypercall wrapper which touches the arg memory to make
-> sure its mapped?).
+> index d6edf8d..754b35a 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -385,7 +385,7 @@ static int bdi_forker_thread(void *ptr)
+>  		 * dirty data on the default backing_dev_info
+>  		 */
+>  		if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list)) {
+> -			del_timer(&me->wakeup_timer);
+> +			del_timer_sync(&me->wakeup_timer);
+>  			wb_do_writeback(me, 0);
+>  		}
+
+It isn't a use-after-free fix: bdi_unregister() safely shoots down any
+running timer.
+
+Please completely explain what you believe the problem is here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
