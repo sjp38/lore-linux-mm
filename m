@@ -1,84 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 73E2F6B016C
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 12:11:53 -0400 (EDT)
-Date: Thu, 1 Sep 2011 12:11:34 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: [Revert] Re: [PATCH] mm: sync vmalloc address space page tables in
- alloc_vm_area()
-Message-ID: <20110901161134.GA8979@dumpdata.com>
-References: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 611C56B00EE
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 13:06:56 -0400 (EDT)
+Date: Thu, 1 Sep 2011 10:06:50 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: [PATCH -mm] add extra free kbytes tunable
+Message-Id: <20110901100650.6d884589.rdunlap@xenotime.net>
+In-Reply-To: <20110901105208.3849a8ff@annuminas.surriel.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, namhyung@gmail.com, rientjes@google.com, linux-mm@kvack.org
-Cc: xen-devel@lists.xensource.com, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>, paulmck@linux.vnet.ibm.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, akpm@linux-foundation.org, hughd@google.com, hannes@cmpxchg.org
 
-On Thu, Sep 01, 2011 at 12:51:03PM +0100, David Vrabel wrote:
-> From: David Vrabel <david.vrabel@citrix.com>
+On Thu, 1 Sep 2011 10:52:08 -0400 Rik van Riel wrote:
 
-Andrew,
+> Add a userspace visible knob to tell the VM to keep an extra amount
+> of memory free, by increasing the gap between each zone's min and
+> low watermarks.
+> 
+> This is useful for realtime applications that call system
+> calls and have a bound on the number of allocations that happen
+> in any short time period.  In this application, extra_free_kbytes
+> would be left at an amount equal to or larger than than the
+> maximum number of allocations that happen in any burst.
+> 
+> It may also be useful to reduce the memory use of virtual
+> machines (temporarily?), in a way that does not cause memory
+> fragmentation like ballooning does.
+> 
+> Signed-off-by: Rik van Riel<riel@redhat.com>
 
-I was wondering if you would be Ok with this patch for 3.1.
+Hi Rik,
 
-It is a revert (I can prepare a proper revert if you would like
-that instead of this patch).
+Please add to Documentation/syctl/vm.txt ..
 
-The users of this particular function (alloc_vm_area) are just
-Xen. There are no others.
+Thanks.
 
-> 
-> Xen backend drivers (e.g., blkback and netback) would sometimes fail
-> to map grant pages into the vmalloc address space allocated with
-> alloc_vm_area().  The GNTTABOP_map_grant_ref would fail because Xen
-> could not find the page (in the L2 table) containing the PTEs it
-> needed to update.
-> 
-> (XEN) mm.c:3846:d0 Could not find L1 PTE for address fbb42000
-> 
-> netback and blkback were making the hypercall from a kernel thread
-> where task->active_mm != &init_mm and alloc_vm_area() was only
-> updating the page tables for init_mm.  The usual method of deferring
-> the update to the page tables of other processes (i.e., after taking a
-> fault) doesn't work as a fault cannot occur during the hypercall.
-> 
-> This would work on some systems depending on what else was using
-> vmalloc.
-> 
-> Fix this by reverting ef691947d8a3d479e67652312783aedcf629320a
-> (vmalloc: remove vmalloc_sync_all() from alloc_vm_area()) and add a
-> comment to explain why it's needed.
-> 
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-> Cc: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-> ---
->  mm/vmalloc.c |    8 ++++++++
->  1 files changed, 8 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 7ef0903..5016f19 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2140,6 +2140,14 @@ struct vm_struct *alloc_vm_area(size_t size)
->  		return NULL;
->  	}
+
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 11d65b5..01a9acd 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -96,6 +96,7 @@ extern char core_pattern[];
+>  extern unsigned int core_pipe_limit;
+>  extern int pid_max;
+>  extern int min_free_kbytes;
+> +extern int extra_free_kbytes;
+>  extern int pid_max_min, pid_max_max;
+>  extern int sysctl_drop_caches;
+>  extern int percpu_pagelist_fraction;
+> @@ -1189,6 +1190,14 @@ static struct ctl_table vm_table[] = {
+>  		.extra1		= &zero,
+>  	},
+>  	{
+> +		.procname	= "extra_free_kbytes",
+> +		.data		= &extra_free_kbytes,
+> +		.maxlen		= sizeof(extra_free_kbytes),
+> +		.mode		= 0644,
+> +		.proc_handler	= min_free_kbytes_sysctl_handler,
+> +		.extra1		= &zero,
+> +	},
+> +	{
+>  		.procname	= "percpu_pagelist_fraction",
+>  		.data		= &percpu_pagelist_fraction,
+>  		.maxlen		= sizeof(percpu_pagelist_fraction),
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6e8ecb6..47d185c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -175,8 +175,20 @@ static char * const zone_names[MAX_NR_ZONES] = {
+>  	 "Movable",
+>  };
 >  
-> +	/*
-> +	 * If the allocated address space is passed to a hypercall
-> +	 * before being used then we cannot rely on a page fault to
-> +	 * trigger an update of the page tables.  So sync all the page
-> +	 * tables here.
-> +	 */
-> +	vmalloc_sync_all();
-> +
->  	return area;
->  }
->  EXPORT_SYMBOL_GPL(alloc_vm_area);
-> -- 
-> 1.7.2.5
+> +/*
+> + * Try to keep at least this much lowmem free.  Do not allow normal
+> + * allocations below this point, only high priority ones. Automatically
+> + * tuned according to the amount of memory in the system.
+> + */
+>  int min_free_kbytes = 1024;
+>  
+> +/*
+> + * Extra memory for the system to try freeing. Used to temporarily
+> + * free memory, to make space for new workloads. Anyone can allocate
+> + * down to the min watermarks controlled by min_free_kbytes above.
+> + */
+> +int extra_free_kbytes = 0;
+
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
