@@ -1,83 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4768C6B016A
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 01:09:57 -0400 (EDT)
-Received: by iagv1 with SMTP id v1so3624980iag.14
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2011 22:09:55 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3776B016A
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 01:17:04 -0400 (EDT)
+Received: by vxj3 with SMTP id 3so2552072vxj.14
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2011 22:17:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110901142027.GI14369@suse.de>
-References: <cover.1321112552.git.minchan.kim@gmail.com>
-	<282a4531f23c5e35cfddf089f93559130b4bb660.1321112552.git.minchan.kim@gmail.com>
-	<20110901142027.GI14369@suse.de>
-Date: Fri, 2 Sep 2011 14:09:55 +0900
-Message-ID: <CAEwNFnCSgPj+KuZr0h9-0=mr29QDYnFDzvtwV5Vc1VBVtThqWA@mail.gmail.com>
-Subject: Re: [PATCH 3/3] compaction accouting fix
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20110901143333.51baf4ae.akpm@linux-foundation.org>
+References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
+	<20110901143333.51baf4ae.akpm@linux-foundation.org>
+Date: Fri, 2 Sep 2011 10:47:03 +0530
+Message-ID: <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of del_timer
+From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 1, 2011 at 11:20 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Sun, Nov 13, 2011 at 01:37:43AM +0900, Minchan Kim wrote:
->> I saw the following accouting of compaction during test of the series.
->
-> s/accouting/accounting/ both here and in the subject. A nicer name the
-> patch would have been
->
-> "mm: compaction: Only update compact_blocks_moved if compaction was successful"
+Hi,
 
-Thanks, I will fix it at next version. :)
-
+On Fri, Sep 2, 2011 at 3:03 AM, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+> On Thu, =A01 Sep 2011 21:27:02 +0530
+> Kautuk Consul <consul.kautuk@gmail.com> wrote:
 >
->>
->> compact_blocks_moved 251
->> compact_pages_moved 44
->>
->> It's very awkward to me although it's possbile because it means we try to compact 251 blocks
->> but it just migrated 44 pages. As further investigation, I found isolate_migratepages doesn't
->> isolate any pages but it returns ISOLATE_SUCCESS and then, it just increases compact_blocks_moved
->> but doesn't increased compact_pages_moved.
->>
->> This patch makes accouting of compaction works only in case of success of isolation.
+>> This is important for SMP scenario, to check whether the timer
+>> callback is executing on another CPU when we are deleting the
+>> timer.
 >>
 >
-> compact_blocks_moved exists to indicate the rate compaction is
-> scanning pageblocks. If compact_blocks_moved and compact_pages_moved
-> are increasing at a similar rate for example, it could imply that
-> compaction is doing a lot of scanning but is not necessarily useful
-> work. It's not necessarily reflected by compact_fail because that
-> counter is only updated for pages that were isolated from the LRU.
-
-You seem to say "compact_pagemigrate_failed" not "compact_fail".
-
+> I don't see why?
 >
-> I now recognise of course that "compact_blocks_moved" was an *awful*
-> choice of name for this stat.
-
-I hope changing stat names as follows unless it's too late(ie, it
-doesn't break ABI with any tools)
-
-compact_blocks_moved -> compact_blocks
-compact_pages_moved -> compact_pgmigrated_success
-compact_pagemigrate_failed -> compact_pgmigrated_fail
-compact_stall -> compact_alloc_stall
-compact_fail -> compact_alloc_fail
-compact_success -> compact_alloc_success
-
-
+>> index d6edf8d..754b35a 100644
+>> --- a/mm/backing-dev.c
+>> +++ b/mm/backing-dev.c
+>> @@ -385,7 +385,7 @@ static int bdi_forker_thread(void *ptr)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* dirty data on the default backing_dev_i=
+nfo
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (wb_has_dirty_io(me) || !list_empty(&me->=
+bdi->work_list)) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_timer(&me->wakeup_timer);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_timer_sync(&me->wakeup_tim=
+er);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 wb_do_writeback(me, 0);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
 >
-> --
-> Mel Gorman
-> SUSE Labs
+> It isn't a use-after-free fix: bdi_unregister() safely shoots down any
+> running timer.
 >
 
+In the situation that we do a del_timer at the same time that the
+wakeup_timer_fn is
+executing on another CPU, there is one tiny possible problem:
+1)  The wakeup_timer_fn will call wake_up_process on the bdi-default thread=
+.
+      This will set the bdi-default thread's state to TASK_RUNNING.
+2)  However, the code in bdi_writeback_thread() sets the state of the
+bdi-default process
+    to TASK_INTERRUPTIBLE as it intends to sleep later.
 
+If 2) happens before 1), then the bdi_forker_thread will not sleep
+inside schedule as is the
+intention of the bdi_forker_thread() code.
 
--- 
-Kind regards,
-Minchan Kim
+This protection is not achieved even by acquiring spinlocks before
+setting the task->state
+as the spinlock used in wakeup_timer_fn is &bdi->wb_lock whereas the code i=
+n
+bdi_forker_thread acquires &bdi_lock which is a different spin_lock.
+
+Am I correct in concluding this ?
+
+> Please completely explain what you believe the problem is here.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
