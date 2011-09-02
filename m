@@ -1,120 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6DE6B0172
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:31:09 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH v2] mm: Make logic in bdi_forker_thread() straight
-Date: Fri,  2 Sep 2011 13:31:04 +0200
-Message-Id: <1314963064-22109-1-git-send-email-jack@suse.cz>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id F050A6B0174
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:35:05 -0400 (EDT)
+Message-ID: <4E60BF60.7090003@nokia.com>
+Date: Fri, 02 Sep 2011 14:34:56 +0300
+From: Viktor Rosendahl <viktor.rosendahl@nokia.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Enable OOM when moving processes between cgroups?
+References: <1314811941-14587-1-git-send-email-viktor.rosendahl@nokia.com> <20110831175422.GB21571@redhat.com>
+In-Reply-To: <20110831175422.GB21571@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <jaxboe@fusionio.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, consul.kautuk@gmail.com
+To: ext Johannes Weiner <jweiner@redhat.com>
+Cc: linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
 
-The logic in bdi_forker_thread() is unnecessarily convoluted by setting task
-state there and back or calling schedule_timeout() in TASK_RUNNING state. Also
-clearing of BDI_pending bit is placed at the and of global loop and cases of a
-switch which mustn't reach it must call 'continue' instead of 'break' which is
-non-intuitive and thus asking for trouble. So make the logic more obvious.
+On 08/31/2011 08:54 PM, ext Johannes Weiner wrote:
+> On Wed, Aug 31, 2011 at 08:32:21PM +0300, Viktor Rosendahl wrote:
+>>
+>> In my testing (2.6.32 kernel with some backported cgroups patches), it improves
+>> the case when there isn't room for the task in the target cgroup.
+>
+> Tasks are moved directly on behalf of a request from userspace.  We
+> would much prefer denying that single request than invoking the
+> oom-killer on the whole group.
+>
 
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Wu Fengguang <fengguang.wu@intel.com>
-CC: consul.kautuk@gmail.com
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/backing-dev.c |   37 ++++++++++++++++++++-----------------
- 1 files changed, 20 insertions(+), 17 deletions(-)
+I can agree that in general this is a better policy, because in the 
+general case it's not known if the userspace entity that requested the 
+move prefers to cancel the move or kill something in the target group.
 
- This should be the right cleanup. Jens?
+In my specific system it's known that we always want to kill something 
+in the group, so probably this need to be a local patch.
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index d6edf8d..bdf7d6b 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -359,6 +359,17 @@ static unsigned long bdi_longest_inactive(void)
- 	return max(5UL * 60 * HZ, interval);
- }
- 
-+/*
-+ * Clear pending bit and wakeup anybody waiting for flusher thread startup
-+ * or teardown.
-+ */
-+static void bdi_clear_pending(struct backing_dev_info *bdi)
-+{
-+	clear_bit(BDI_pending, &bdi->state);
-+	smp_mb__after_clear_bit();
-+	wake_up_bit(&bdi->state, BDI_pending);
-+}
-+
- static int bdi_forker_thread(void *ptr)
- {
- 	struct bdi_writeback *me = ptr;
-@@ -390,8 +401,6 @@ static int bdi_forker_thread(void *ptr)
- 		}
- 
- 		spin_lock_bh(&bdi_lock);
--		set_current_state(TASK_INTERRUPTIBLE);
--
- 		list_for_each_entry(bdi, &bdi_list, bdi_list) {
- 			bool have_dirty_io;
- 
-@@ -441,13 +450,8 @@ static int bdi_forker_thread(void *ptr)
- 		}
- 		spin_unlock_bh(&bdi_lock);
- 
--		/* Keep working if default bdi still has things to do */
--		if (!list_empty(&me->bdi->work_list))
--			__set_current_state(TASK_RUNNING);
--
- 		switch (action) {
- 		case FORK_THREAD:
--			__set_current_state(TASK_RUNNING);
- 			task = kthread_create(bdi_writeback_thread, &bdi->wb,
- 					      "flush-%s", dev_name(bdi->dev));
- 			if (IS_ERR(task)) {
-@@ -469,14 +473,21 @@ static int bdi_forker_thread(void *ptr)
- 				spin_unlock_bh(&bdi->wb_lock);
- 				wake_up_process(task);
- 			}
-+			bdi_clear_pending(bdi);
- 			break;
- 
- 		case KILL_THREAD:
--			__set_current_state(TASK_RUNNING);
- 			kthread_stop(task);
-+			bdi_clear_pending(bdi);
- 			break;
- 
- 		case NO_ACTION:
-+			/* Keep working if default bdi still has things to do */
-+			if (!list_empty(&me->bdi->work_list)) {
-+				try_to_freeze();
-+				break;
-+			}
-+			set_current_state(TASK_INTERRUPTIBLE);
- 			if (!wb_has_dirty_io(me) || !dirty_writeback_interval)
- 				/*
- 				 * There are no dirty data. The only thing we
-@@ -489,16 +500,8 @@ static int bdi_forker_thread(void *ptr)
- 			else
- 				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
- 			try_to_freeze();
--			/* Back to the main loop */
--			continue;
-+			break;
- 		}
--
--		/*
--		 * Clear pending bit and wakeup anybody waiting to tear us down.
--		 */
--		clear_bit(BDI_pending, &bdi->state);
--		smp_mb__after_clear_bit();
--		wake_up_bit(&bdi->state, BDI_pending);
- 	}
- 
- 	return 0;
--- 
-1.7.1
+Are there any known performance or reliability problems if OOM is 
+enabled in that code patch?
+
+> Quite a lot changed in the trycharge-reclaim-retry path since 2009.
+> Nowadays, charging is retried as long as reclaim is making any
+> progress at all, so I don't see that it would give up moving a task
+> too lightly, even without the extra OOM looping.
+>
+
+The problem isn't really that the task moving is given up too easily; it 
+seems more like it is trying too hard. The system is becoming very slow 
+and unresponsive when moving the task. Our system is meant to be fairly 
+interactive and responsive, that's why we would like to enable the OOM 
+killer.
+
+> Is there any chance you could retry with a more recent kernel?
+
+Probably not with our production environment because it's an ARM based 
+embedded system. If I tried to update the kernel, I would most likely 
+end up with a ton of broken drivers.
+
+Making some synthetic test case on a PC would of course be possible but 
+I am not sure if it would tell that much.
+
+best regards,
+
+Viktor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
