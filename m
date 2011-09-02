@@ -1,83 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2788F6B016C
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:21:39 -0400 (EDT)
-Date: Fri, 2 Sep 2011 13:21:33 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 725F56B016D
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:26:18 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
- del_timer
-Message-ID: <20110902112133.GD12182@quack.suse.cz>
-References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
- <20110901143333.51baf4ae.akpm@linux-foundation.org>
- <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
+Subject: [PATCH] mm: Make logic in bdi_forker_thread() straight
+Date: Fri,  2 Sep 2011 13:26:08 +0200
+Message-Id: <1314962768-21922-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jens Axboe <jaxboe@fusionio.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, consul.kautuk@gmail.com
 
-  Hello,
+The logic in bdi_forker_thread() is unnecessarily convoluted by setting task
+state there and back or calling schedule_timeout() in TASK_RUNNING state. Also
+clearing of BDI_pending bit is placed at the and of global loop and cases of a
+switch which mustn't reach it must call 'continue' instead of 'break' which is
+non-intuitive and thus asking for trouble. So make the logic more obvious.
 
-On Fri 02-09-11 10:47:03, kautuk.c @samsung.com wrote:
-> On Fri, Sep 2, 2011 at 3:03 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Thu,  1 Sep 2011 21:27:02 +0530
-> > Kautuk Consul <consul.kautuk@gmail.com> wrote:
-> >
-> >> This is important for SMP scenario, to check whether the timer
-> >> callback is executing on another CPU when we are deleting the
-> >> timer.
-> >>
-> >
-> > I don't see why?
-> >
-> >> index d6edf8d..754b35a 100644
-> >> --- a/mm/backing-dev.c
-> >> +++ b/mm/backing-dev.c
-> >> @@ -385,7 +385,7 @@ static int bdi_forker_thread(void *ptr)
-> >>                * dirty data on the default backing_dev_info
-> >>                */
-> >>               if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list)) {
-> >> -                     del_timer(&me->wakeup_timer);
-> >> +                     del_timer_sync(&me->wakeup_timer);
-> >>                       wb_do_writeback(me, 0);
-> >>               }
-> >
-> > It isn't a use-after-free fix: bdi_unregister() safely shoots down any
-> > running timer.
-> >
-> 
-> In the situation that we do a del_timer at the same time that the
-> wakeup_timer_fn is
-> executing on another CPU, there is one tiny possible problem:
-> 1)  The wakeup_timer_fn will call wake_up_process on the bdi-default thread.
->       This will set the bdi-default thread's state to TASK_RUNNING.
-> 2)  However, the code in bdi_writeback_thread() sets the state of the
-> bdi-default process
->     to TASK_INTERRUPTIBLE as it intends to sleep later.
-> 
-> If 2) happens before 1), then the bdi_forker_thread will not sleep
-> inside schedule as is the intention of the bdi_forker_thread() code.
-  OK, I agree the code in bdi_forker_thread() might use some straightening
-up wrt. task state handling but is what you decribe really an issue? Sure
-the task won't go to sleep but the whole effect is that it will just loop
-once more to find out there's nothing to do and then go to sleep - not a
-bug deal... Or am I missing something?
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Wu Fengguang <fengguang.wu@intel.com>
+CC: consul.kautuk@gmail.com
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ mm/backing-dev.c |   37 ++++++++++++++++++++-----------------
+ 1 files changed, 20 insertions(+), 17 deletions(-)
 
-> This protection is not achieved even by acquiring spinlocks before
-> setting the task->state
-> as the spinlock used in wakeup_timer_fn is &bdi->wb_lock whereas the code in
-> bdi_forker_thread acquires &bdi_lock which is a different spin_lock.
-> 
-> Am I correct in concluding this ?
+ Jens, would you merge this patch?
 
-								Honza
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index d6edf8d..fc441d7 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -359,6 +359,17 @@ static unsigned long bdi_longest_inactive(void)
+ 	return max(5UL * 60 * HZ, interval);
+ }
+ 
++/*
++ * Clear pending bit and wakeup anybody waiting for flusher thread startup
++ * or teardown.
++ */
++static void bdi_clear_pending(struct backing_dev *bdi)
++{
++	clear_bit(BDI_pending, &bdi->state);
++	smp_mb__after_clear_bit();
++	wake_up_bit(&bdi->state, BDI_pending);
++}
++
+ static int bdi_forker_thread(void *ptr)
+ {
+ 	struct bdi_writeback *me = ptr;
+@@ -390,8 +401,6 @@ static int bdi_forker_thread(void *ptr)
+ 		}
+ 
+ 		spin_lock_bh(&bdi_lock);
+-		set_current_state(TASK_INTERRUPTIBLE);
+-
+ 		list_for_each_entry(bdi, &bdi_list, bdi_list) {
+ 			bool have_dirty_io;
+ 
+@@ -441,13 +450,8 @@ static int bdi_forker_thread(void *ptr)
+ 		}
+ 		spin_unlock_bh(&bdi_lock);
+ 
+-		/* Keep working if default bdi still has things to do */
+-		if (!list_empty(&me->bdi->work_list))
+-			__set_current_state(TASK_RUNNING);
+-
+ 		switch (action) {
+ 		case FORK_THREAD:
+-			__set_current_state(TASK_RUNNING);
+ 			task = kthread_create(bdi_writeback_thread, &bdi->wb,
+ 					      "flush-%s", dev_name(bdi->dev));
+ 			if (IS_ERR(task)) {
+@@ -469,14 +473,21 @@ static int bdi_forker_thread(void *ptr)
+ 				spin_unlock_bh(&bdi->wb_lock);
+ 				wake_up_process(task);
+ 			}
++			bdi_clear_pending(bdi);
+ 			break;
+ 
+ 		case KILL_THREAD:
+-			__set_current_state(TASK_RUNNING);
+ 			kthread_stop(task);
++			bdi_clear_pending(bdi);
+ 			break;
+ 
+ 		case NO_ACTION:
++			/* Keep working if default bdi still has things to do */
++			if (!list_empty(&me->bdi->work_list)) {
++				try_to_freeze();
++				break;
++			}
++			set_current_state(TASK_INTERRUPTIBLE);
+ 			if (!wb_has_dirty_io(me) || !dirty_writeback_interval)
+ 				/*
+ 				 * There are no dirty data. The only thing we
+@@ -489,16 +500,8 @@ static int bdi_forker_thread(void *ptr)
+ 			else
+ 				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
+ 			try_to_freeze();
+-			/* Back to the main loop */
+-			continue;
++			break;
+ 		}
+-
+-		/*
+-		 * Clear pending bit and wakeup anybody waiting to tear us down.
+-		 */
+-		clear_bit(BDI_pending, &bdi->state);
+-		smp_mb__after_clear_bit();
+-		wake_up_bit(&bdi->state, BDI_pending);
+ 	}
+ 
+ 	return 0;
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
