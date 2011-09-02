@@ -1,94 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D3036900152
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8AF0E900150
 	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:47:47 -0400 (EDT)
-Message-Id: <20110902204745.539298711@linux.com>
-Date: Fri, 02 Sep 2011 15:47:08 -0500
+Message-Id: <20110902204744.967258513@linux.com>
+Date: Fri, 02 Sep 2011 15:47:07 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slub rfc1 11/12] slub: Remove kmem_cache_cpu dependency from acquire slab
+Subject: [slub rfc1 10/12] slub: Enable use of get_partial with interrupts enabled
 References: <20110902204657.105194589@linux.com>
-Content-Disposition: inline; filename=remove_kmem_cache_cpu_dependency_from_acquire_slab
+Content-Disposition: inline; filename=irq_enabled_acquire_slab
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, linux-mm@kvack.org
 
-Instead of putting the freepointer into the kmem_cache_cpu structure put it
-into the page struct reusing the lru.next field.
-
-Also convert the manual warning into a WARN_ON.
+Need to disable interrupts when taking the node list lock.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |   41 +++++++++++++++--------------------------
- 1 file changed, 15 insertions(+), 26 deletions(-)
+ mm/slub.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-09-02 10:12:25.981176437 -0500
-+++ linux-2.6/mm/slub.c	2011-09-02 10:12:30.881176403 -0500
-@@ -1569,37 +1569,25 @@ static inline int acquire_slab(struct km
- 	 * The old freelist is the list of objects for the
- 	 * per cpu allocation list.
- 	 */
--	do {
--		freelist = page->freelist;
--		counters = page->counters;
--		new.counters = counters;
--		new.inuse = page->objects;
-+	freelist = page->freelist;
-+	counters = page->counters;
-+	new.counters = counters;
-+	new.inuse = page->objects;
+--- linux-2.6.orig/mm/slub.c	2011-09-02 10:12:03.601176577 -0500
++++ linux-2.6/mm/slub.c	2011-09-02 10:12:25.981176437 -0500
+@@ -1609,6 +1609,7 @@ static struct page *get_partial_node(str
+ 					struct kmem_cache_node *n)
+ {
+ 	struct page *page;
++	unsigned long flags;
  
--		VM_BUG_ON(new.frozen);
--		new.frozen = 1;
-+	VM_BUG_ON(new.frozen);
-+	new.frozen = 1;
+ 	/*
+ 	 * Racy check. If we mistakenly see no partial slabs then we
+@@ -1619,13 +1620,13 @@ static struct page *get_partial_node(str
+ 	if (!n || !n->nr_partial)
+ 		return NULL;
  
--	} while (!__cmpxchg_double_slab(s, page,
-+	if (!__cmpxchg_double_slab(s, page,
- 			freelist, counters,
- 			NULL, new.counters,
--			"lock and freeze"));
--
--	remove_partial(n, page);
-+			"acquire_slab"))
- 
--	if (freelist) {
--		/* Populate the per cpu freelist */
--		this_cpu_write(s->cpu_slab->freelist, freelist);
--		this_cpu_write(s->cpu_slab->page, page);
--		return 1;
--	} else {
--		/*
--		 * Slab page came from the wrong list. No object to allocate
--		 * from. Put it onto the correct list and continue partial
--		 * scan.
--		 */
--		printk(KERN_ERR "SLUB: %s : Page without available objects on"
--			" partial list\n", s->name);
- 		return 0;
--	}
-+
-+	remove_partial(n, page);
-+	WARN_ON(!freelist);
-+	page->lru.next = freelist;
-+	return 1;
+-	spin_lock(&n->list_lock);
++	spin_lock_irqsave(&n->list_lock, flags);
+ 	list_for_each_entry(page, &n->partial, lru)
+ 		if (acquire_slab(s, n, page))
+ 			goto out;
+ 	page = NULL;
+ out:
+-	spin_unlock(&n->list_lock);
++	spin_unlock_irqrestore(&n->list_lock, flags);
+ 	return page;
  }
  
- /*
-@@ -2133,7 +2121,8 @@ new_slab:
- 	page = get_partial(s, gfpflags, node);
- 	if (page) {
- 		stat(s, ALLOC_FROM_PARTIAL);
--		freelist = c->freelist;
-+		freelist = page->lru.next;
-+		c->page  = page;
- 		if (kmem_cache_debug(s))
- 			goto debug;
- 		goto load_freelist;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
