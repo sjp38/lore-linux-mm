@@ -1,76 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DC366B0195
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 12:31:31 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 2 Sep 2011 12:31:14 -0400
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CAFB42677@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-	<20110901100650.6d884589.rdunlap@xenotime.net>
-	<20110901152650.7a63cb8b@annuminas.surriel.com>
- <20110901145819.4031ef7c.akpm@linux-foundation.org>
-In-Reply-To: <20110901145819.4031ef7c.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DBBC6B0198
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:42:31 -0400 (EDT)
+Received: from imap1.linux-foundation.org (imap1.linux-foundation.org [140.211.169.55])
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p82KgTFa029532
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Fri, 2 Sep 2011 13:42:29 -0700
+Received: from akpm.mtv.corp.google.com (localhost [127.0.0.1])
+	by imap1.linux-foundation.org (8.13.5.20060308/8.13.5/Debian-3ubuntu1.1) with SMTP id p82KgSq3007484
+	for <linux-mm@kvack.org>; Fri, 2 Sep 2011 13:42:29 -0700
+Date: Fri, 2 Sep 2011 13:42:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Fw: [Bug 41822] New: the swap is used too often and its content
+ doesn't get reloaded automatically
+Message-Id: <20110902134228.9592011a.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
 
-On 09/01/2011 05:58 PM, Andrew Morton wrote:
-> On Thu, 1 Sep 2011 15:26:50 -0400
-> Rik van Riel <riel@redhat.com> wrote:
->=20
->> Add a userspace visible knob
->=20
-> argh.  Fear and hostility at new knobs which need to be maintained for=20
-> ever, even if the underlying implementation changes.
->=20
-> Unfortunately, this one makes sense.
->=20
->> to tell the VM to keep an extra amount of memory free, by increasing=20
->> the gap between each zone's min and low watermarks.
->>
->> This is useful for realtime applications that call system calls and=20
->> have a bound on the number of allocations that happen in any short=20
->> time period.  In this application, extra_free_kbytes would be left at=20
->> an amount equal to or larger than the maximum number of=20
->> allocations that happen in any burst.
->=20
-> _is_ it useful?  Proof?
->=20
-> Who is requesting this?  Have they tested it?  Results?
 
-This is interesting for me.
+Customer feedback!
 
-Some of our customers have realtime applications and they are concerned=20
-the fact that Linux uses free memory as pagecache. It means that
-when their application allocate memory, Linux kernel tries to reclaim
-memory at first and then allocate it. This may make memory allocation
-latency bigger.
+Begin forwarded message:
 
-In many cases this is not a big issue because Linux has kswapd for
-background reclaim and it is fast enough not to enter direct reclaim
-path if there are a lot of clean cache. But under some situations -
-e.g. Application allocates a lot of memory which is larger than delta
-between watermark_low and watermark_min in a short time and kswapd
-can't reclaim fast enough due to dirty page reclaim, direct reclaim
-is executed and causes big latency.
+Date: Fri, 2 Sep 2011 20:30:52 GMT
+From: bugzilla-daemon@bugzilla.kernel.org
+To: akpm@linux-foundation.org
+Subject: [Bug 41822] New: the swap is used too often and its content doesn't get reloaded automatically
 
-We can avoid the issue above by using preallocation and mlock.
-But it can't cover kmalloc used in systemcall. So I'd like to use
-this patch with mlock to avoid memory allocation latency issue as
-low as possible. It may not be a perfect solution but it is important
-for customers in enterprise area to configure the amount of free
-memory at their own risk.
 
-Anyway, now I'm testing this patch and will report a test result later.
+https://bugzilla.kernel.org/show_bug.cgi?id=41822
 
-Thanks,
-Satoru
+           Summary: the swap is used too often and its content doesn't get
+                    reloaded automatically
+           Product: Memory Management
+           Version: 2.5
+          Platform: All
+        OS/Version: Linux
+              Tree: Mainline
+            Status: NEW
+          Severity: normal
+          Priority: P1
+         Component: Other
+        AssignedTo: akpm@linux-foundation.org
+        ReportedBy: unggnu@googlemail.com
+        Regression: No
+
+
+I have 4 GB of Ram and used to disable the Swap since some time on my systems
+but one of my hosts is also used as a build client which sometimes results in
+memory bottlenecks. That's why I have activated a Swap of 5 GB.
+
+The reason why I used to disable the Swap is because even though that there is
+enough memory parts of it get swapped which results in sluggish applications.
+Imho this is wrong.
+And even on other systems with normal Desktop usage and 4GB Ram things get
+swapped.
+
+The swap should only be used if not enough memory is available or might be in
+the nearby future.
+If there is enough memory available later on the Swap content should be loaded
+into memory again even without being needed right now.
+
+But this doesn't happen so the applications get sluggish over time although
+less than 2 GB memory is actual used.
+
+To prevent this issue I run `swapoff -a && swapon -a` every morning since at
+least ~500 MB is swapped after a night of building while only ~1.2 GB of actual
+memory is used.
+
+Of course there is the memory Cache but since the Swap is most of the time
+pretty slow it is kind of counterproductive to swap memory (which is actually
+needed by applications) for caching files which might not be needed again.
+
+So please change the behavior or make it configurable to only use the Swap if
+not enough memory is left and to reload the content again if there is enough
+memory available afterwards.
+And please don't swap memory content to have more available for caching or
+whatever reason it is used on systems with enough available memory. The file
+cache should always have lower priority then the application memory.
+
+I am using Kernel 2.6.38 but this issue happens since a long time.
+
+--- Comment #1 from unggnu@googlemail.com  2011-09-02 20:30:49 ---
+For example the output of free this morning:
+Fri Sep  2 09:20:27 CEST 2011
+             total       used       free     shared    buffers     cached
+Mem:       3980388    2047368    1933020          0     180372    1286792
+-/+ buffers/cache:     580204    3400184
+Swap:      5758972     749744    5009228
+
+-- 
+Configure bugmail: https://bugzilla.kernel.org/userprefs.cgi?tab=email
+------- You are receiving this mail because: -------
+You are the assignee for the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
