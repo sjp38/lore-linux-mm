@@ -1,101 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EB61C900147
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:47:43 -0400 (EDT)
-Message-Id: <20110902204740.866685343@linux.com>
-Date: Fri, 02 Sep 2011 15:47:00 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3CF9B900146
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:47:44 -0400 (EDT)
+Message-Id: <20110902204741.441221474@linux.com>
+Date: Fri, 02 Sep 2011 15:47:01 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slub rfc1 03/12] slub: Get rid of the node field
+Subject: [slub rfc1 04/12] slub: Separate out kmem_cache_cpu processing from deactivate_slab
 References: <20110902204657.105194589@linux.com>
-Content-Disposition: inline; filename=get_rid_of_cnode
+Content-Disposition: inline; filename=separate_deactivate_slab
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, linux-mm@kvack.org
 
-The node field is always page_to_nid(c->page). So its rather easy to
-replace. Note that there will be additional overhead in various hot paths.
+Processing on fields of kmem_cache needs to be separate since we will be
+handling that with cmpxchg_double later.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/slub_def.h |    1 -
- mm/slub.c                |   12 +++++-------
- 2 files changed, 5 insertions(+), 8 deletions(-)
+ mm/slub.c |   24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-09-01 07:27:22.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-09-02 08:20:19.021219504 -0500
-@@ -1588,7 +1588,6 @@ static inline int acquire_slab(struct km
- 		/* Populate the per cpu freelist */
- 		this_cpu_write(s->cpu_slab->freelist, freelist);
- 		this_cpu_write(s->cpu_slab->page, page);
--		this_cpu_write(s->cpu_slab->node, page_to_nid(page));
- 		return 1;
- 	} else {
- 		/*
-@@ -1958,7 +1957,7 @@ static void flush_all(struct kmem_cache
- static inline int node_match(struct kmem_cache_cpu *c, int node)
+--- linux-2.6.orig/mm/slub.c	2011-09-02 08:20:19.021219504 -0500
++++ linux-2.6/mm/slub.c	2011-09-02 08:20:25.911219458 -0500
+@@ -1771,14 +1771,12 @@ void init_kmem_cache_cpus(struct kmem_ca
+ /*
+  * Remove the cpu slab
+  */
+-static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
++static void deactivate_slab(struct kmem_cache *s, struct page *page, void *freelist)
  {
- #ifdef CONFIG_NUMA
--	if (node != NUMA_NO_NODE && c->node != node)
-+	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
- 		return 0;
- #endif
- 	return 1;
-@@ -2142,7 +2141,6 @@ new_slab:
- 		page->inuse = page->objects;
+ 	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
+-	struct page *page = c->page;
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+ 	int lock = 0;
+ 	enum slab_modes l = M_NONE, m = M_NONE;
+-	void *freelist;
+ 	void *nextfree;
+ 	int tail = 0;
+ 	struct page new;
+@@ -1789,11 +1787,6 @@ static void deactivate_slab(struct kmem_
+ 		tail = 1;
+ 	}
  
- 		stat(s, ALLOC_SLAB);
--		c->node = page_to_nid(page);
- 		c->page = page;
+-	c->tid = next_tid(c->tid);
+-	c->page = NULL;
+-	freelist = c->freelist;
+-	c->freelist = NULL;
+-
+ 	/*
+ 	 * Stage one: Free all available per cpu objects back
+ 	 * to the page freelist while it is still frozen. Leave the
+@@ -1922,7 +1915,11 @@ redo:
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+ {
+ 	stat(s, CPUSLAB_FLUSH);
+-	deactivate_slab(s, c);
++	deactivate_slab(s, c->page, c->freelist);
++
++	c->tid = next_tid(c->tid);
++	c->page = NULL;
++	c->freelist = NULL;
+ }
  
- 		if (kmem_cache_debug(s))
-@@ -2160,7 +2158,6 @@ debug:
+ /*
+@@ -2069,7 +2066,9 @@ static void *__slab_alloc(struct kmem_ca
  
- 	c->freelist = get_freepointer(s, object);
- 	deactivate_slab(s, c);
--	c->node = NUMA_NO_NODE;
+ 	if (unlikely(!node_match(c, node))) {
+ 		stat(s, ALLOC_NODE_MISMATCH);
+-		deactivate_slab(s, c);
++		deactivate_slab(s, c->page, c->freelist);
++		c->page = NULL;
++		c->freelist = NULL;
+ 		goto new_slab;
+ 	}
+ 
+@@ -2156,8 +2155,9 @@ debug:
+ 	if (!object || !alloc_debug_processing(s, page, object, addr))
+ 		goto new_slab;
+ 
+-	c->freelist = get_freepointer(s, object);
+-	deactivate_slab(s, c);
++	deactivate_slab(s, c->page, get_freepointer(s, object));
++	c->page = NULL;
++	c->freelist = NULL;
  	local_irq_restore(flags);
  	return object;
  }
-@@ -4316,9 +4313,10 @@ static ssize_t show_slab_objects(struct
- 		for_each_possible_cpu(cpu) {
- 			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 
--			if (!c || c->node < 0)
-+			if (!c || !c->freelist)
- 				continue;
- 
-+			node = page_to_nid(c->page);
- 			if (c->page) {
- 					if (flags & SO_TOTAL)
- 						x = c->page->objects;
-@@ -4328,9 +4326,9 @@ static ssize_t show_slab_objects(struct
- 					x = 1;
- 
- 				total += x;
--				nodes[c->node] += x;
-+				nodes[node] += x;
- 			}
--			per_cpu[c->node]++;
-+			per_cpu[node]++;
- 		}
- 	}
- 
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2011-09-01 07:26:53.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2011-09-02 08:18:46.071220101 -0500
-@@ -42,7 +42,6 @@ struct kmem_cache_cpu {
- 	void **freelist;	/* Pointer to next available object */
- 	unsigned long tid;	/* Globally unique transaction id */
- 	struct page *page;	/* The slab from which we are allocating */
--	int node;		/* The node of the page (or -1 for debug) */
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
- #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
