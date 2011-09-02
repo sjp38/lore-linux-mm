@@ -1,130 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C80916B0194
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 12:26:12 -0400 (EDT)
-Date: Fri, 2 Sep 2011 12:26:02 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm] fixes & cleanups for "add extra free kbytes tunable"
-Message-ID: <20110902122602.6f7c1238@annuminas.surriel.com>
-In-Reply-To: <20110901150901.48d92bc2.akpm@linux-foundation.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DC366B0195
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 12:31:31 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Fri, 2 Sep 2011 12:31:14 -0400
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CAFB42677@USINDEVS02.corp.hds.com>
 References: <20110901105208.3849a8ff@annuminas.surriel.com>
 	<20110901100650.6d884589.rdunlap@xenotime.net>
 	<20110901152650.7a63cb8b@annuminas.surriel.com>
-	<20110901150901.48d92bc2.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20110901145819.4031ef7c.akpm@linux-foundation.org>
+In-Reply-To: <20110901145819.4031ef7c.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, hughd@google.com, hannes@cmpxchg.org
+To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-All the fixes suggested by Andrew Morton.   Not much of a changelog
-since the patch should probably be folded into
-mm-add-extra-free-kbytes-tunable.patch
+On 09/01/2011 05:58 PM, Andrew Morton wrote:
+> On Thu, 1 Sep 2011 15:26:50 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+>=20
+>> Add a userspace visible knob
+>=20
+> argh.  Fear and hostility at new knobs which need to be maintained for=20
+> ever, even if the underlying implementation changes.
+>=20
+> Unfortunately, this one makes sense.
+>=20
+>> to tell the VM to keep an extra amount of memory free, by increasing=20
+>> the gap between each zone's min and low watermarks.
+>>
+>> This is useful for realtime applications that call system calls and=20
+>> have a bound on the number of allocations that happen in any short=20
+>> time period.  In this application, extra_free_kbytes would be left at=20
+>> an amount equal to or larger than the maximum number of=20
+>> allocations that happen in any burst.
+>=20
+> _is_ it useful?  Proof?
+>=20
+> Who is requesting this?  Have they tested it?  Results?
 
-Thank you for pointing these out, Andrew.
+This is interesting for me.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/mmzone.h |    2 +-
- include/linux/swap.h   |    2 ++
- kernel/sysctl.c        |    6 ++----
- mm/page_alloc.c        |   13 +++++++------
- 4 files changed, 12 insertions(+), 11 deletions(-)
+Some of our customers have realtime applications and they are concerned=20
+the fact that Linux uses free memory as pagecache. It means that
+when their application allocate memory, Linux kernel tries to reclaim
+memory at first and then allocate it. This may make memory allocation
+latency bigger.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index be1ac8d..7013bab 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -772,7 +772,7 @@ static inline int is_dma(struct zone *zone)
- 
- /* These two functions are used to setup the per zone pages min values */
- struct ctl_table;
--int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
-+int free_kbytes_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
- extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
- int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 14d6249..0679ed5 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -207,6 +207,8 @@ struct swap_list_t {
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
-+extern int min_free_kbytes;
-+extern int extra_free_kbytes;
- extern unsigned int nr_free_buffer_pages(void);
- extern unsigned int nr_free_pagecache_pages(void);
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 01a9acd..a3a015c 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -95,8 +95,6 @@ extern int suid_dumpable;
- extern char core_pattern[];
- extern unsigned int core_pipe_limit;
- extern int pid_max;
--extern int min_free_kbytes;
--extern int extra_free_kbytes;
- extern int pid_max_min, pid_max_max;
- extern int sysctl_drop_caches;
- extern int percpu_pagelist_fraction;
-@@ -1186,7 +1184,7 @@ static struct ctl_table vm_table[] = {
- 		.data		= &min_free_kbytes,
- 		.maxlen		= sizeof(min_free_kbytes),
- 		.mode		= 0644,
--		.proc_handler	= min_free_kbytes_sysctl_handler,
-+		.proc_handler	= free_kbytes_sysctl_handler,
- 		.extra1		= &zero,
- 	},
- 	{
-@@ -1194,7 +1192,7 @@ static struct ctl_table vm_table[] = {
- 		.data		= &extra_free_kbytes,
- 		.maxlen		= sizeof(extra_free_kbytes),
- 		.mode		= 0644,
--		.proc_handler	= min_free_kbytes_sysctl_handler,
-+		.proc_handler	= free_kbytes_sysctl_handler,
- 		.extra1		= &zero,
- 	},
- 	{
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 47d185c..14fc9e9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -183,11 +183,12 @@ static char * const zone_names[MAX_NR_ZONES] = {
- int min_free_kbytes = 1024;
- 
- /*
-- * Extra memory for the system to try freeing. Used to temporarily
-- * free memory, to make space for new workloads. Anyone can allocate
-- * down to the min watermarks controlled by min_free_kbytes above.
-+ * Extra memory for the system to try freeing between the min and
-+ * low watermarks.  Useful for workloads that require low latency
-+ * memory allocations in bursts larger than the normal gap between
-+ * low and min.
-  */
--int extra_free_kbytes = 0;
-+int extra_free_kbytes;
- 
- static unsigned long __meminitdata nr_kernel_pages;
- static unsigned long __meminitdata nr_all_pages;
-@@ -5280,11 +5281,11 @@ int __meminit init_per_zone_wmark_min(void)
- module_init(init_per_zone_wmark_min)
- 
- /*
-- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
-+ * free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
-  *	that we can call two helper functions whenever min_free_kbytes
-  *	or extra_free_kbytes changes.
-  */
--int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
-+int free_kbytes_sysctl_handler(ctl_table *table, int write, 
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
- 	proc_dointvec(table, write, buffer, length, ppos);
+In many cases this is not a big issue because Linux has kswapd for
+background reclaim and it is fast enough not to enter direct reclaim
+path if there are a lot of clean cache. But under some situations -
+e.g. Application allocates a lot of memory which is larger than delta
+between watermark_low and watermark_min in a short time and kswapd
+can't reclaim fast enough due to dirty page reclaim, direct reclaim
+is executed and causes big latency.
+
+We can avoid the issue above by using preallocation and mlock.
+But it can't cover kmalloc used in systemcall. So I'd like to use
+this patch with mlock to avoid memory allocation latency issue as
+low as possible. It may not be a perfect solution but it is important
+for customers in enterprise area to configure the amount of free
+memory at their own risk.
+
+Anyway, now I'm testing this patch and will report a test result later.
+
+Thanks,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
