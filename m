@@ -1,29 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E9E66B016A
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 21:17:22 -0400 (EDT)
-Date: Fri, 2 Sep 2011 03:17:16 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] thp: tail page refcounting fix #5
-Message-ID: <20110902011716.GE7761@one.firstfloor.org>
-References: <20110826062436.GA5847@google.com> <20110826161048.GE23870@redhat.com> <20110826185430.GA2854@redhat.com> <20110827094152.GA16402@google.com> <20110827173421.GA2967@redhat.com> <CAEwNFnDk0bQZKReKccuQMPEw_6EA2DxN4dm9cmjr01BVT4A7Dw@mail.gmail.com> <20110901152417.GF10779@redhat.com> <20110901162808.80a2117c.akpm@linux-foundation.org> <20110901234527.GD7761@one.firstfloor.org> <20110902002013.GJ10779@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110902002013.GJ10779@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E09CC6B016A
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 22:19:52 -0400 (EDT)
+Received: by iagv1 with SMTP id v1so3438717iag.14
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2011 19:19:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110831173031.GA21571@redhat.com>
+References: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
+	<20110831173031.GA21571@redhat.com>
+Date: Fri, 2 Sep 2011 11:19:49 +0900
+Message-ID: <CAEwNFnDcNqLvo=oyXXkxgFxs8wNc+WTLwot0qeru1VfQKmUYDQ@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> Calling get_page/put_pages more times than necessary is never ideal, I
-> imagine the biggest cost is the atomic_inc on the head page that
+On Thu, Sep 1, 2011 at 2:30 AM, Johannes Weiner <jweiner@redhat.com> wrote:
+> On Tue, Nov 15, 2011 at 12:37:23AM +0900, Minchan Kim wrote:
+>> [1] made avoid unnecessary reclaim stall when second shrink_page_list(ie=
+, synchronous
+>> shrink_page_list) try to reclaim page_list which has not-dirty pages.
+>> But it seems rather awkawrd on unevictable page.
+>> The unevictable page in shrink_page_list would be moved into unevictable=
+ lru from page_list.
+>> So it would be not on page_list when shrink_page_list returns.
+>> Nevertheless it skips reclaim stall.
+>>
+>> This patch fixes it so that it can do reclaim stall in case of mixing ml=
+ocked pages
+>> and writeback pages on page_list.
+>>
+>> [1] 7d3579e,vmscan: narrow the scenarios in whcih lumpy reclaim uses syn=
+chrounous reclaim
+>
+> Lumpy isolates physically contiguous in the hope to free a bunch of
+> pages that can be merged to a bigger page. =C2=A0If an unevictable page i=
+s
+> encountered, the chance of that is gone. =C2=A0Why invest the allocation
+> latency when we know it won't pay off anymore?
+>
 
-I've actually seen it in profile logs, but I hadn't realized it was redundant.
+Good point!
 
-Have to see if it brings a benefit to hot users.
+Except some cases, when we require higher orer page, we used zone
+defensive algorithm by zone_watermark_ok. So the number of fewer
+higher order pages would be factor of failure of allocation. If it was
+problem, we could rescue the situation by only reclaim part of the
+block in the hope to free fewer higher order pages.
 
--Andi
+I thought the lumpy was designed to consider the case.(I might be wrong).
+Why I thought is that when we isolate the pages for lumpy and found
+the page isn't able to isolate, we don't rollback the isolated pages
+in the lumpy phsyical block. It's very pointless to get a higher order
+pages.
+
+If we consider that, we have to fix other reset_reclaim_mode cases as
+well as mlocked pages.
+Or
+fix isolataion logic for the lumpy? (When we find the page isn't able
+to isolate, rollback the pages in the lumpy block to the LRU)
+Or
+Nothing and wait to remove lumpy completely.
+
+What do you think about it?
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
