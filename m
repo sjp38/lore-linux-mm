@@ -1,223 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AB2B6B0193
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 12:02:57 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so2383376fxg.14
-        for <linux-mm@kvack.org>; Fri, 02 Sep 2011 09:02:53 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110902154249.GG12182@quack.suse.cz>
-References: <1314963064-22109-1-git-send-email-jack@suse.cz>
-	<CAFPAmTTQeHAd9o9y_SfRbQefovo6ukASHodopMtFLCZ4zL07RQ@mail.gmail.com>
-	<CAFPAmTRFMHbZO86sUM+xA=HMCSixjzNt13-bz-KXv-ChRWXpCA@mail.gmail.com>
-	<20110902154249.GG12182@quack.suse.cz>
-Date: Fri, 2 Sep 2011 21:32:53 +0530
-Message-ID: <CAFPAmTS_NrruU0EU0jWQ4ZemrSgJv+PQRv-MbOwMNTfm9CeHTQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Make logic in bdi_forker_thread() straight
-From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C80916B0194
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 12:26:12 -0400 (EDT)
+Date: Fri, 2 Sep 2011 12:26:02 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm] fixes & cleanups for "add extra free kbytes tunable"
+Message-ID: <20110902122602.6f7c1238@annuminas.surriel.com>
+In-Reply-To: <20110901150901.48d92bc2.akpm@linux-foundation.org>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+	<20110901100650.6d884589.rdunlap@xenotime.net>
+	<20110901152650.7a63cb8b@annuminas.surriel.com>
+	<20110901150901.48d92bc2.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Jens Axboe <jaxboe@fusionio.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, hughd@google.com, hannes@cmpxchg.org
 
-On Fri, Sep 2, 2011 at 9:12 PM, Jan Kara <jack@suse.cz> wrote:
-> On Fri 02-09-11 18:03:19, kautuk.c @samsung.com wrote:
->> Sorry, I was wrong in this email. Please ignore.
->>
->> This problem will still happen as the CPU executing the
->> wakeup_timer_fn can still
->> get the lock and do a wake_up_process which can set the task state to
->> TASK_RUNNING.
-> =A0Hmm, but actually the code is more subtle than I originally thought an=
-d
-> my cleanup patch is just plain wrong. The code really relies on setting
-> TASK_INTERRUPTIBLE so early because otherwise we could miss e.g. wakeups
-> from wakeup_timer_fn() when flusher thread should be teared down.
->
-> =A0Also the above implies that the case you worry about - when we set
-> TASK_INTERRUPTIBLE but wakeup_timer_fn() wakes the process is generally
-> what we desire. In some cases it can lead to unnecessary wakeups (when th=
-e
-> loop in bdi_forker_thread() already notices there is some work and perfor=
-ms
-> it) but in other cases it is necessary so that we don't go to sleep when
-> there is some work queued. So in the end I think the code is OK, it is ju=
-st
-> missing some explanatory comments.
+All the fixes suggested by Andrew Morton.   Not much of a changelog
+since the patch should probably be folded into
+mm-add-extra-free-kbytes-tunable.patch
 
-Ok.
-In the case the timer happens first, then lost wakeup scenario is avoided
-because the code anyways checks the bdi list to set the task state.
-In the case the timer happens later, then the worst possible condition
-is that the loop
-will loop around and some work will be found in the bdi list and this
-will then be processed.
+Thank you for pointing these out, Andrew.
 
-Thanks for the help. :)
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/mmzone.h |    2 +-
+ include/linux/swap.h   |    2 ++
+ kernel/sysctl.c        |    6 ++----
+ mm/page_alloc.c        |   13 +++++++------
+ 4 files changed, 12 insertions(+), 11 deletions(-)
 
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Honza
->
->> On Fri, Sep 2, 2011 at 5:41 PM, kautuk.c @samsung.com
->> <consul.kautuk@gmail.com> wrote:
->> > Sorry to butt in before Jens' review but i have one small comment:
->> >
->> > On Fri, Sep 2, 2011 at 5:01 PM, Jan Kara <jack@suse.cz> wrote:
->> >> The logic in bdi_forker_thread() is unnecessarily convoluted by setti=
-ng task
->> >> state there and back or calling schedule_timeout() in TASK_RUNNING st=
-ate. Also
->> >> clearing of BDI_pending bit is placed at the and of global loop and c=
-ases of a
->> >> switch which mustn't reach it must call 'continue' instead of 'break'=
- which is
->> >> non-intuitive and thus asking for trouble. So make the logic more obv=
-ious.
->> >>
->> >> CC: Andrew Morton <akpm@linux-foundation.org>
->> >> CC: Wu Fengguang <fengguang.wu@intel.com>
->> >> CC: consul.kautuk@gmail.com
->> >> Signed-off-by: Jan Kara <jack@suse.cz>
->> >> ---
->> >> =A0mm/backing-dev.c | =A0 37 ++++++++++++++++++++-----------------
->> >> =A01 files changed, 20 insertions(+), 17 deletions(-)
->> >>
->> >> =A0This should be the right cleanup. Jens?
->> >>
->> >> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
->> >> index d6edf8d..bdf7d6b 100644
->> >> --- a/mm/backing-dev.c
->> >> +++ b/mm/backing-dev.c
->> >> @@ -359,6 +359,17 @@ static unsigned long bdi_longest_inactive(void)
->> >> =A0 =A0 =A0 =A0return max(5UL * 60 * HZ, interval);
->> >> =A0}
->> >>
->> >> +/*
->> >> + * Clear pending bit and wakeup anybody waiting for flusher thread s=
-tartup
->> >> + * or teardown.
->> >> + */
->> >> +static void bdi_clear_pending(struct backing_dev_info *bdi)
->> >> +{
->> >> + =A0 =A0 =A0 clear_bit(BDI_pending, &bdi->state);
->> >> + =A0 =A0 =A0 smp_mb__after_clear_bit();
->> >> + =A0 =A0 =A0 wake_up_bit(&bdi->state, BDI_pending);
->> >> +}
->> >> +
->> >> =A0static int bdi_forker_thread(void *ptr)
->> >> =A0{
->> >> =A0 =A0 =A0 =A0struct bdi_writeback *me =3D ptr;
->> >> @@ -390,8 +401,6 @@ static int bdi_forker_thread(void *ptr)
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> >>
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock_bh(&bdi_lock);
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_current_state(TASK_INTERRUPTIBLE);
->> >> -
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_for_each_entry(bdi, &bdi_list, bd=
-i_list) {
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bool have_dirty_io;
->> >>
->> >> @@ -441,13 +450,8 @@ static int bdi_forker_thread(void *ptr)
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock_bh(&bdi_lock);
->> >>
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Keep working if default bdi still ha=
-s things to do */
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!list_empty(&me->bdi->work_list))
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __set_current_state(TAS=
-K_RUNNING);
->> >> -
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0switch (action) {
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0case FORK_THREAD:
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __set_current_state(TAS=
-K_RUNNING);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0task =3D kthread_creat=
-e(bdi_writeback_thread, &bdi->wb,
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0"flush-%s", dev_name(bdi->dev));
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (IS_ERR(task)) {
->> >> @@ -469,14 +473,21 @@ static int bdi_forker_thread(void *ptr)
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_u=
-nlock_bh(&bdi->wb_lock);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0wake_u=
-p_process(task);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_clear_pending(bdi);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
->> >>
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0case KILL_THREAD:
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __set_current_state(TAS=
-K_RUNNING);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kthread_stop(task);
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_clear_pending(bdi);
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
->> >>
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0case NO_ACTION:
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Keep working if defa=
-ult bdi still has things to do */
->> >
->> > Can we acquire and release the spinlocks as below:
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock_bh(&m=
-e->bdi->wb_lock) ;
->> >
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!list_empty(&me->bd=
-i->work_list)) {
->> >
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock_bh(=
-&me->bdi->wb_lock) ;
->> >
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 try_to_=
-freeze();
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_current_state(TASK_=
-INTERRUPTIBLE);
->> >
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock_bh(=
-&me->bdi->wb_lock) ;
->> >
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!wb_has_dirty_io(m=
-e) || !dirty_writeback_interval)
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * The=
-re are no dirty data. The only thing we
->> >> @@ -489,16 +500,8 @@ static int bdi_forker_thread(void *ptr)
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0else
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0schedu=
-le_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0try_to_freeze();
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Back to the main loo=
-p */
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> >> -
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Clear pending bit and wakeup anybo=
-dy waiting to tear us down.
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 clear_bit(BDI_pending, &bdi->state);
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 smp_mb__after_clear_bit();
->> >> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 wake_up_bit(&bdi->state, BDI_pending);
->> >> =A0 =A0 =A0 =A0}
->> >>
->> >> =A0 =A0 =A0 =A0return 0;
->> >> --
->> >> 1.7.1
->> >>
->> >>
->> >
->> > That should take care of the problem I initially mentioned due to the
->> > wakeup_timer_fn executing
->> > in parallel on another CPU as the task state will now be protected by
->> > the wb_lock spinlock.
->> >
-> --
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
->
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index be1ac8d..7013bab 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -772,7 +772,7 @@ static inline int is_dma(struct zone *zone)
+ 
+ /* These two functions are used to setup the per zone pages min values */
+ struct ctl_table;
+-int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
++int free_kbytes_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
+ extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 14d6249..0679ed5 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -207,6 +207,8 @@ struct swap_list_t {
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
++extern int min_free_kbytes;
++extern int extra_free_kbytes;
+ extern unsigned int nr_free_buffer_pages(void);
+ extern unsigned int nr_free_pagecache_pages(void);
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 01a9acd..a3a015c 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -95,8 +95,6 @@ extern int suid_dumpable;
+ extern char core_pattern[];
+ extern unsigned int core_pipe_limit;
+ extern int pid_max;
+-extern int min_free_kbytes;
+-extern int extra_free_kbytes;
+ extern int pid_max_min, pid_max_max;
+ extern int sysctl_drop_caches;
+ extern int percpu_pagelist_fraction;
+@@ -1186,7 +1184,7 @@ static struct ctl_table vm_table[] = {
+ 		.data		= &min_free_kbytes,
+ 		.maxlen		= sizeof(min_free_kbytes),
+ 		.mode		= 0644,
+-		.proc_handler	= min_free_kbytes_sysctl_handler,
++		.proc_handler	= free_kbytes_sysctl_handler,
+ 		.extra1		= &zero,
+ 	},
+ 	{
+@@ -1194,7 +1192,7 @@ static struct ctl_table vm_table[] = {
+ 		.data		= &extra_free_kbytes,
+ 		.maxlen		= sizeof(extra_free_kbytes),
+ 		.mode		= 0644,
+-		.proc_handler	= min_free_kbytes_sysctl_handler,
++		.proc_handler	= free_kbytes_sysctl_handler,
+ 		.extra1		= &zero,
+ 	},
+ 	{
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 47d185c..14fc9e9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -183,11 +183,12 @@ static char * const zone_names[MAX_NR_ZONES] = {
+ int min_free_kbytes = 1024;
+ 
+ /*
+- * Extra memory for the system to try freeing. Used to temporarily
+- * free memory, to make space for new workloads. Anyone can allocate
+- * down to the min watermarks controlled by min_free_kbytes above.
++ * Extra memory for the system to try freeing between the min and
++ * low watermarks.  Useful for workloads that require low latency
++ * memory allocations in bursts larger than the normal gap between
++ * low and min.
+  */
+-int extra_free_kbytes = 0;
++int extra_free_kbytes;
+ 
+ static unsigned long __meminitdata nr_kernel_pages;
+ static unsigned long __meminitdata nr_all_pages;
+@@ -5280,11 +5281,11 @@ int __meminit init_per_zone_wmark_min(void)
+ module_init(init_per_zone_wmark_min)
+ 
+ /*
+- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
++ * free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
+  *	that we can call two helper functions whenever min_free_kbytes
+  *	or extra_free_kbytes changes.
+  */
+-int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
++int free_kbytes_sysctl_handler(ctl_table *table, int write, 
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
