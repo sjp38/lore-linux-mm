@@ -1,133 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 816FE6B016A
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:19:41 -0400 (EDT)
-From: Christian Casteyde <casteyde.christian@free.fr>
-Subject: Re: [Bug 42202] New: Caught 64-bit read from uninitialized memory in kmem_cache_alloc
-Date: Fri, 2 Sep 2011 13:19:50 +0200
-References: <bug-42202-27@https.bugzilla.kernel.org/> <20110901125045.aba23d9f.akpm@linux-foundation.org>
-In-Reply-To: <20110901125045.aba23d9f.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2788F6B016C
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 07:21:39 -0400 (EDT)
+Date: Fri, 2 Sep 2011 13:21:33 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
+ del_timer
+Message-ID: <20110902112133.GD12182@quack.suse.cz>
+References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
+ <20110901143333.51baf4ae.akpm@linux-foundation.org>
+ <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201109021319.51382.casteyde.christian@free.fr>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Vegard Nossum <vegardno@ifi.uio.no>
+To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I indeed use SLUB allocator.=20
-I didn't managed to get the same call stack (no page fault) after rebooting=
-,=20
-but I'm wondering if it's a dup of=20
-https://bugzilla.kernel.org/show_bug.cgi?id=3D36512
+  Hello,
 
-In this case this may not be a regression.
-CC
+On Fri 02-09-11 10:47:03, kautuk.c @samsung.com wrote:
+> On Fri, Sep 2, 2011 at 3:03 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Thu,  1 Sep 2011 21:27:02 +0530
+> > Kautuk Consul <consul.kautuk@gmail.com> wrote:
+> >
+> >> This is important for SMP scenario, to check whether the timer
+> >> callback is executing on another CPU when we are deleting the
+> >> timer.
+> >>
+> >
+> > I don't see why?
+> >
+> >> index d6edf8d..754b35a 100644
+> >> --- a/mm/backing-dev.c
+> >> +++ b/mm/backing-dev.c
+> >> @@ -385,7 +385,7 @@ static int bdi_forker_thread(void *ptr)
+> >>                * dirty data on the default backing_dev_info
+> >>                */
+> >>               if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list)) {
+> >> -                     del_timer(&me->wakeup_timer);
+> >> +                     del_timer_sync(&me->wakeup_timer);
+> >>                       wb_do_writeback(me, 0);
+> >>               }
+> >
+> > It isn't a use-after-free fix: bdi_unregister() safely shoots down any
+> > running timer.
+> >
+> 
+> In the situation that we do a del_timer at the same time that the
+> wakeup_timer_fn is
+> executing on another CPU, there is one tiny possible problem:
+> 1)  The wakeup_timer_fn will call wake_up_process on the bdi-default thread.
+>       This will set the bdi-default thread's state to TASK_RUNNING.
+> 2)  However, the code in bdi_writeback_thread() sets the state of the
+> bdi-default process
+>     to TASK_INTERRUPTIBLE as it intends to sleep later.
+> 
+> If 2) happens before 1), then the bdi_forker_thread will not sleep
+> inside schedule as is the intention of the bdi_forker_thread() code.
+  OK, I agree the code in bdi_forker_thread() might use some straightening
+up wrt. task state handling but is what you decribe really an issue? Sure
+the task won't go to sleep but the whole effect is that it will just loop
+once more to find out there's nothing to do and then go to sleep - not a
+bug deal... Or am I missing something?
 
-Le jeudi 1 septembre 2011 21:50:45, Andrew Morton a =E9crit :
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
->=20
-> On Thu, 1 Sep 2011 17:15:00 GMT
->=20
-> bugzilla-daemon@bugzilla.kernel.org wrote:
-> > https://bugzilla.kernel.org/show_bug.cgi?id=3D42202
-> >=20
-> >            Summary: Caught 64-bit read from uninitialized memory in
-> >           =20
-> >                     kmem_cache_alloc
->=20
-> I'm really struggling with this one.
->=20
-> >            Product: Memory Management
-> >            Version: 2.5
-> >    =20
-> >     Kernel Version: 3.1-rc4
-> >    =20
-> >           Platform: All
-> >        =20
-> >         OS/Version: Linux
-> >        =20
-> >               Tree: Mainline
-> >            =20
-> >             Status: NEW
-> >          =20
-> >           Severity: normal
-> >           Priority: P1
-> >         =20
-> >          Component: Page Allocator
-> >        =20
-> >         AssignedTo: akpm@linux-foundation.org
-> >         ReportedBy: casteyde.christian@free.fr
-> >         Regression: Yes
-> >=20
-> > Acer Aspire 7750G
-> > Core i7 in 64bits mode
-> > Slackware64 13.37
-> > kmemcheck configured
-> >=20
-> > Since 3.1-rc4, I have the following warning at boot:
-> >=20
-> > udev[1745]: renamed network interface eth0 to eth1
-> > udev[1699]: renamed network interface wlan0-eth0 to eth0
-> > WARNING: kmemcheck: Caught 64-bit read from uninitialized memory
-> > (ffff8801c11865d0)
-> > 000110000000adde000220000000addee06d18c10188ffff403d27c20188ffff
-> >=20
-> >  f f f f f f f f f f f f f f f f u u u u u u u u u u u u u u u u
-> > =20
-> >                                  ^
-> >=20
-> > Pid: 1700, comm: udevd Tainted: G        W   3.1.0-rc4 #13 Acer Aspire
-> > 7750G/JE70_HR
-> > RIP: 0010:[<ffffffff8111aea6>]  [<ffffffff8111aea6>]
-> > kmem_cache_alloc+0x66/0x120
-> > RSP: 0018:ffff8801c2103b38  EFLAGS: 00010246
-> > RAX: 0000000000000000 RBX: ffff8801c23f6d10 RCX: 0000000000062720
-> > RDX: 0000000000062718 RSI: 00000000001d43a0 RDI: 00000000000000d0
-> > RBP: ffff8801c2103b68 R08: ffff8801c2109300 R09: 0000000000000001
-> > R10: ffff8801c2109300 R11: 0000000000000000 R12: ffff8801c11865d0
-> > R13: ffff8801c7414400 R14: 00000000000000d0 R15: ffffffff8110519f
-> > FS:  00007fec4c108720(0000) GS:ffff8801c7800000(0000)
-> > knlGS:0000000000000000 CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > CR2: ffff8801c604a0b0 CR3: 00000001c20f9000 CR4: 00000000000406f0
-> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> > DR3: 0000000000000000 DR6: 00000000ffff4ff0 DR7: 0000000000000400
-> >=20
-> >  [<ffffffff8110519f>] anon_vma_prepare+0x5f/0x190
-> >  [<ffffffff810fb0b6>] handle_pte_fault+0x576/0x790
-> >  [<ffffffff810fc5ff>] handle_mm_fault+0x11f/0x1c0
-> >  [<ffffffff810575d2>] do_page_fault+0x142/0x490
-> >  [<ffffffff817db57f>] page_fault+0x1f/0x30
-> >  [<ffffffff811858a0>] sysfs_read_file+0xf0/0x1a0
-> >  [<ffffffff8112166a>] vfs_read+0xaa/0x160
-> >  [<ffffffff81121768>] sys_read+0x48/0x90
-> >  [<ffffffff817dbabb>] system_call_fastpath+0x16/0x1b
-> >  [<ffffffffffffffff>] 0xffffffffffffffff
-> >=20
-> > Adding 2097148k swap on /dev/sda1.  Priority:-1 extents:1 across:209714=
-8k
-> > EXT4-fs (sda2): re-mounted. Opts: (null)
-> >=20
-> > I do not know if it occurs with previous rc of 3.1, but I don't have it
-> > with 3.0.
->=20
-> It seems to be saying that the read occurred within kmem_cache_alloc().
->=20
-> Or is the stack trace off-by-one, and the read is occurring in
-> anon_vma_prepare()?
->=20
-> Could you please take a look at the very nice
-> Documentation/kmemcheck.txt and use the info in there to work out the
-> exact file and line where the read is occurring?  The "addr2line"
-> operation.
->=20
-> I'm having trojuble working out if your kernel is using slab or slub.
-> This happens to me quite often.  Pekka, perhaps we should add this info
-> to the "Pid: 1700, comm: udevd Tainted: G W 3.1.0-rc4 #13 Acer Aspire"
-> line.  Or remove a few of our sl*b implementations...
+> This protection is not achieved even by acquiring spinlocks before
+> setting the task->state
+> as the spinlock used in wakeup_timer_fn is &bdi->wb_lock whereas the code in
+> bdi_forker_thread acquires &bdi_lock which is a different spin_lock.
+> 
+> Am I correct in concluding this ?
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
