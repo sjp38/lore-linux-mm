@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id E09CC6B016A
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 22:19:52 -0400 (EDT)
-Received: by iagv1 with SMTP id v1so3438717iag.14
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2011 19:19:49 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1A4546B016A
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2011 23:29:48 -0400 (EDT)
+Received: by iagv1 with SMTP id v1so3513111iag.14
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2011 20:29:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110831173031.GA21571@redhat.com>
-References: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
-	<20110831173031.GA21571@redhat.com>
-Date: Fri, 2 Sep 2011 11:19:49 +0900
-Message-ID: <CAEwNFnDcNqLvo=oyXXkxgFxs8wNc+WTLwot0qeru1VfQKmUYDQ@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
+In-Reply-To: <20110901130542.GG14369@suse.de>
+References: <cover.1321112552.git.minchan.kim@gmail.com>
+	<e139175e938d94c0c977edd05ae07cbad7a72cc5.1321112552.git.minchan.kim@gmail.com>
+	<20110901130542.GG14369@suse.de>
+Date: Fri, 2 Sep 2011 12:29:45 +0900
+Message-ID: <CAEwNFnAq99Bj0kZq6aa2mOc9RoTT=T69s4BaA7i_5yieaFLPEA@mail.gmail.com>
+Subject: Re: [PATCH 1/3] Correct isolate_mode_t bitwise type
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, Sep 1, 2011 at 2:30 AM, Johannes Weiner <jweiner@redhat.com> wrote:
-> On Tue, Nov 15, 2011 at 12:37:23AM +0900, Minchan Kim wrote:
->> [1] made avoid unnecessary reclaim stall when second shrink_page_list(ie=
-, synchronous
->> shrink_page_list) try to reclaim page_list which has not-dirty pages.
->> But it seems rather awkawrd on unevictable page.
->> The unevictable page in shrink_page_list would be moved into unevictable=
- lru from page_list.
->> So it would be not on page_list when shrink_page_list returns.
->> Nevertheless it skips reclaim stall.
+On Thu, Sep 1, 2011 at 10:05 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Sun, Nov 13, 2011 at 01:37:41AM +0900, Minchan Kim wrote:
+>> [c1e8b0ae8, mm-change-isolate-mode-from-define-to-bitwise-type]
+>> made a mistake on the bitwise type.
 >>
->> This patch fixes it so that it can do reclaim stall in case of mixing ml=
-ocked pages
->> and writeback pages on page_list.
->>
->> [1] 7d3579e,vmscan: narrow the scenarios in whcih lumpy reclaim uses syn=
-chrounous reclaim
 >
-> Lumpy isolates physically contiguous in the hope to free a bunch of
-> pages that can be merged to a bigger page. =C2=A0If an unevictable page i=
-s
-> encountered, the chance of that is gone. =C2=A0Why invest the allocation
-> latency when we know it won't pay off anymore?
+> Minor nit, commit c1e8b0ae8 does not exist anywhere. I suspect you
+> are looking at a git tree generated from the mmotm quilt series. It
+> would be easier if you had said "This patch should be merged with
+> mm-change-isolate-mode-from-define-to-bitwise-type.patch in mmotm".
+
+Right you are. I did it by habit without realizing just quilt series. :(
+For preventing such bad thing, I always use [git commit id, patch
+name] together these day. Fortunately, it seems to be effective. But
+unfortunately, I couldn't prevent your wasted time which spend until
+notice that.
+
+I will be careful in the future.
+
 >
+> Otherwise, looks ok.
 
-Good point!
-
-Except some cases, when we require higher orer page, we used zone
-defensive algorithm by zone_watermark_ok. So the number of fewer
-higher order pages would be factor of failure of allocation. If it was
-problem, we could rescue the situation by only reclaim part of the
-block in the hope to free fewer higher order pages.
-
-I thought the lumpy was designed to consider the case.(I might be wrong).
-Why I thought is that when we isolate the pages for lumpy and found
-the page isn't able to isolate, we don't rollback the isolated pages
-in the lumpy phsyical block. It's very pointless to get a higher order
-pages.
-
-If we consider that, we have to fix other reset_reclaim_mode cases as
-well as mlocked pages.
-Or
-fix isolataion logic for the lumpy? (When we find the page isn't able
-to isolate, rollback the pages in the lumpy block to the LRU)
-Or
-Nothing and wait to remove lumpy completely.
-
-What do you think about it?
-
---=20
+Thanks, Mel.
+-- 
 Kind regards,
 Minchan Kim
 
