@@ -1,102 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DBBC6B0198
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:42:31 -0400 (EDT)
-Received: from imap1.linux-foundation.org (imap1.linux-foundation.org [140.211.169.55])
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p82KgTFa029532
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 2 Sep 2011 13:42:29 -0700
-Received: from akpm.mtv.corp.google.com (localhost [127.0.0.1])
-	by imap1.linux-foundation.org (8.13.5.20060308/8.13.5/Debian-3ubuntu1.1) with SMTP id p82KgSq3007484
-	for <linux-mm@kvack.org>; Fri, 2 Sep 2011 13:42:29 -0700
-Date: Fri, 2 Sep 2011 13:42:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Fw: [Bug 41822] New: the swap is used too often and its content
- doesn't get reloaded automatically
-Message-Id: <20110902134228.9592011a.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id F0E5E900145
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 16:47:41 -0400 (EDT)
+Message-Id: <20110902204657.105194589@linux.com>
+Date: Fri, 02 Sep 2011 15:46:57 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [slub rfc1 00/12] slub: RFC lockless allocation paths V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, linux-mm@kvack.org
 
+Draft of a patchset to make the allocation paths lockless as well.
 
-Customer feedback!
+I have done just a hackbench test on this to make sure that it works.
+Various additional overhead is added to the fastpaths so this may
+require additional work before it becomes mergeable.
 
-Begin forwarded message:
+The first two patches are cleanup patches that have been posted a couple of
+times. Those can be merged.
 
-Date: Fri, 2 Sep 2011 20:30:52 GMT
-From: bugzilla-daemon@bugzilla.kernel.org
-To: akpm@linux-foundation.org
-Subject: [Bug 41822] New: the swap is used too often and its content doesn't get reloaded automatically
+The basic principle is to use double word atomic allocations to check
+lists of objects in and out of the per cpu structures and the
+per page structures.
 
-
-https://bugzilla.kernel.org/show_bug.cgi?id=41822
-
-           Summary: the swap is used too often and its content doesn't get
-                    reloaded automatically
-           Product: Memory Management
-           Version: 2.5
-          Platform: All
-        OS/Version: Linux
-              Tree: Mainline
-            Status: NEW
-          Severity: normal
-          Priority: P1
-         Component: Other
-        AssignedTo: akpm@linux-foundation.org
-        ReportedBy: unggnu@googlemail.com
-        Regression: No
-
-
-I have 4 GB of Ram and used to disable the Swap since some time on my systems
-but one of my hosts is also used as a build client which sometimes results in
-memory bottlenecks. That's why I have activated a Swap of 5 GB.
-
-The reason why I used to disable the Swap is because even though that there is
-enough memory parts of it get swapped which results in sluggish applications.
-Imho this is wrong.
-And even on other systems with normal Desktop usage and 4GB Ram things get
-swapped.
-
-The swap should only be used if not enough memory is available or might be in
-the nearby future.
-If there is enough memory available later on the Swap content should be loaded
-into memory again even without being needed right now.
-
-But this doesn't happen so the applications get sluggish over time although
-less than 2 GB memory is actual used.
-
-To prevent this issue I run `swapoff -a && swapon -a` every morning since at
-least ~500 MB is swapped after a night of building while only ~1.2 GB of actual
-memory is used.
-
-Of course there is the memory Cache but since the Swap is most of the time
-pretty slow it is kind of counterproductive to swap memory (which is actually
-needed by applications) for caching files which might not be needed again.
-
-So please change the behavior or make it configurable to only use the Swap if
-not enough memory is left and to reload the content again if there is enough
-memory available afterwards.
-And please don't swap memory content to have more available for caching or
-whatever reason it is used on systems with enough available memory. The file
-cache should always have lower priority then the application memory.
-
-I am using Kernel 2.6.38 but this issue happens since a long time.
-
---- Comment #1 from unggnu@googlemail.com  2011-09-02 20:30:49 ---
-For example the output of free this morning:
-Fri Sep  2 09:20:27 CEST 2011
-             total       used       free     shared    buffers     cached
-Mem:       3980388    2047368    1933020          0     180372    1286792
--/+ buffers/cache:     580204    3400184
-Swap:      5758972     749744    5009228
-
--- 
-Configure bugmail: https://bugzilla.kernel.org/userprefs.cgi?tab=email
-------- You are receiving this mail because: -------
-You are the assignee for the bug.
+Since we can only handle two words atomically we need to reduce the
+state being kept for per cpu queues. Thus the page and the node field
+in kmem_cache_cpu have to be dropped. Both of those values can be
+determined from an object pointer after all but the calculation of
+those values impacts the performance of the allocator. Not sure what
+the impact is. Could be offset by the removal of the overhead for
+interrupt disabling/enabling and the code savings because the per
+cpu state for queueing is much less.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
