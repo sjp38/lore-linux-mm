@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A5FBA6B01A9
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2011 19:04:23 -0400 (EDT)
-Message-ID: <4E6160F3.8030708@goop.org>
-Date: Fri, 02 Sep 2011 16:04:19 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EBC900146
+	for <linux-mm@kvack.org>; Sat,  3 Sep 2011 02:47:52 -0400 (EDT)
+Received: from localhost (localhost [127.0.0.1])
+	by uplift.swm.pp.se (Postfix) with ESMTP id 862419A
+	for <linux-mm@kvack.org>; Sat,  3 Sep 2011 08:47:48 +0200 (CEST)
+Date: Sat, 3 Sep 2011 08:47:48 +0200 (CEST)
+From: Mikael Abrahamsson <swmike@swm.pp.se>
+Subject: Re: copying files stops after a while in laptop mode on 2.6.38
+In-Reply-To: <alpine.DEB.2.00.1108230822480.4709@uplift.swm.pp.se>
+Message-ID: <alpine.DEB.2.00.1109030822110.13538@uplift.swm.pp.se>
+References: <alpine.DEB.2.00.1108230822480.4709@uplift.swm.pp.se>
 MIME-Version: 1.0
-Subject: Re: [Revert] Re: [PATCH] mm: sync vmalloc address space page tables
- in alloc_vm_area()
-References: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com> <20110901161134.GA8979@dumpdata.com> <4E5FED1A.1000300@goop.org> <20110901141754.76cef93b.akpm@linux-foundation.org> <4E60C067.4010600@citrix.com> <20110902153204.59a928c1.akpm@linux-foundation.org>
-In-Reply-To: <20110902153204.59a928c1.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "namhyung@gmail.com" <namhyung@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
 
-On 09/02/2011 03:32 PM, Andrew Morton wrote:
-> On Fri, 2 Sep 2011 12:39:19 +0100
-> David Vrabel <david.vrabel@citrix.com> wrote:
+On Tue, 23 Aug 2011, Mikael Abrahamsson wrote:
+
+> I'm running ubuntu 11.04 on my thinkpad X200 laptop with their 2.6.38 kernel. 
+> Whenever I copy a lot of data to my harddrive without the power connected 
+> (cryptsetup:ed drive and ubuntus eCryptfs for home directory (yeah I know, 
+> that's two levels of encryption))) the copy stops after 500-1000 megabyte. 
+> It'll just sit there, nothing more happening, my firefox goes into blocking 
+> (greys out). If I then issue a "sync" command in the terminal, things resume 
+> just as normal, until another 500-1000 megabyte has been copied. This doesn't 
+> happen if I have the power cable connected.
 >
->> Xen backend drivers (e.g., blkback and netback) would sometimes fail
->> to map grant pages into the vmalloc address space allocated with
->> alloc_vm_area().  The GNTTABOP_map_grant_ref would fail because Xen
->> could not find the page (in the L2 table) containing the PTEs it
->> needed to update.
->>
->> (XEN) mm.c:3846:d0 Could not find L1 PTE for address fbb42000
->>
->> netback and blkback were making the hypercall from a kernel thread
->> where task->active_mm != &init_mm and alloc_vm_area() was only
->> updating the page tables for init_mm.  The usual method of deferring
->> the update to the page tables of other processes (i.e., after taking a
->> fault) doesn't work as a fault cannot occur during the hypercall.
->>
->> This would work on some systems depending on what else was using
->> vmalloc.
->>
->> Fix this by reverting ef691947d8a3d479e67652312783aedcf629320a
->> (vmalloc: remove vmalloc_sync_all() from alloc_vm_area()) and add a
->> comment to explain why it's needed.
-> oookay, I queued this for 3.1 and tagged it for a 3.0.x backport.  I
-> *think* that's the outcome of this discussion, for the short-term?
+> I interpret this as when the laptop is in laptop-mode, it doesn't flush data 
+> to drive when memory is "full". Is this a known problem with 2.6.38 kernel, 
+> or might it be something ubuntu specific? I find it strange that not more 
+> people are hit by this...
 
+When doing backups to an external USB drive with dmcrypt->lwm->xfs I saw 
+the same problem just now. I have to keep a "watch -n 60 sync" running to 
+keep the copy (and the computer) working properly.
 
-Sure, that will get things going for now.
+$ uname -a
+Linux laptop 2.6.38-11-generic-pae #49-Ubuntu SMP Mon Aug 29 21:07:33 UTC 2011 i686 i686 i386 GNU/Linux
 
-Thanks,
-    J
+~$ ps -eo 
+user,pid,tid,class,rtprio,ni,pri,psr,pcpu,vsz,rss,pmem,stat,wchan:28,cmd | grep firefox
+swmike    3541  3541 TS       -   0  19   1 11.1 664868 238764  5.9 Sl  futex_wait_queue_me          /usr/lib/firefox-6.0.1/firefox-bin
+swmike    3733  3733 TS       -   0  19   0  0.1 106320 17920  0.4 Sl   poll_schedule_timeout        /usr/lib/firefox-6.0.1/plugin-container /usr/lib/flashplugin-installer/libflashplayer.so -greomni /usr/lib/firefox-6.0.1/omni.jar 3541 true plugin
+
+$ ps -eo 
+user,pid,tid,class,rtprio,ni,pri,psr,pcpu,vsz,rss,pmem,stat,wchan:28,cmd | grep ddrescue
+root      3380  3380 TS       -   0  19   0  0.0   5492  1136  0.0 S+   poll_schedule_timeout        sudo ddrescue /dev/sdd /t/win7stationar.110903.img
+root      3381  3381 TS       -   0  19   0  4.6   3104   760  0.0 D+   sync_page                    ddrescue /dev/sdd /t/win7stationar.110903.img
+
+$ free
+              total       used       free     shared    buffers     cached
+Mem:       4012036    3996012      16024          0     660936    2657452
+-/+ buffers/cache:     677624    3334412
+Swap:            0          0          0
+
+The copy is still running (I think ddrescue does more than dd, with dd it 
+would be blocked as well). Firefox is blocked (and has been for a few 
+minutes).
+
+I then issue "sync", flushing commences, and firefox comes back:
+
+~$ ps -eo 
+user,pid,tid,class,rtprio,ni,pri,psr,pcpu,vsz,rss,pmem,stat,wchan:28,cmd | grep firefox
+swmike    3541  3541 TS       -   0  19   0 10.7 673316 239816  5.9 Sl  poll_schedule_timeout        /usr/lib/firefox-6.0.1/firefox-bin
+swmike    3733  3733 TS       -   0  19   0  0.1 106320 17900  0.4 Sl   poll_schedule_timeout        /usr/lib/firefox-6.0.1/plugin-container /usr/lib/flashplugin-installer/libflashplayer.so -greomni /usr/lib/firefox-6.0.1/omni.jar 3541 true plugin
+
+I wait 30-60 seconds, firefox goes into blocking again, same remedy, same 
+behaviour.
+
+Any other diagnosis I can do to help narrow down what's going on?
+
+-- 
+Mikael Abrahamsson    email: swmike@swm.pp.se
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
