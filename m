@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 465FC900146
-	for <linux-mm@kvack.org>; Sun,  4 Sep 2011 03:21:21 -0400 (EDT)
-Received: by iagv1 with SMTP id v1so6851255iag.14
-        for <linux-mm@kvack.org>; Sun, 04 Sep 2011 00:21:19 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E43CF6B0208
+	for <linux-mm@kvack.org>; Sun,  4 Sep 2011 14:49:49 -0400 (EDT)
+Received: by bkbzt4 with SMTP id zt4so4955095bkb.14
+        for <linux-mm@kvack.org>; Sun, 04 Sep 2011 11:49:46 -0700 (PDT)
+Message-ID: <4E63C846.10606@gmail.com>
+Date: Sun, 04 Sep 2011 20:49:42 +0200
+From: Anders <aeriksson2@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1315098933-29464-1-git-send-email-kirill@shutemov.name>
-References: <1315098933-29464-1-git-send-email-kirill@shutemov.name>
-From: Paul Menage <paul@paulmenage.org>
-Date: Sun, 4 Sep 2011 00:20:59 -0700
-Message-ID: <CALdu-PA09QKbL97dZHs1TZv-n=xDUyQvOXatSKOAHExKjfHS+Q@mail.gmail.com>
-Subject: Re: [PATCH] memcg: drain all stocks for the cgroup before read usage
+Subject: 3.0.3 oops. memory related?
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Sat, Sep 3, 2011 at 6:15 PM, Kirill A. Shutemov <kirill@shutemov.name> w=
-rote:
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
->
-> Currently, mem_cgroup_usage() for non-root cgroup returns usage
-> including stocks.
->
-> Let's drain all socks before read resource counter value. It makes
-> memory{,.memcg}.usage_in_bytes and memory.stat consistent.
+I've got kdump setup to collect oopes. I found this in the log. Not sure
+what it's related to.
 
-Isn't that quite an expensive operation, and bear in mind that
-resource control trackers may be reading this file very frequently,
-maybe every second or so.
+-Anders
 
-How about having a trigger file that can be written to force the drain
-for cases where the consistency is really desired? Or a separate
-usage_in_bytes_consistent file that does the drain.
 
-Paul
+<0>[47900.532505] Oops: 0000 [#1] PREEMPT SMP
+<4>[47900.532618] CPU 1
+<4>[47900.532668] Modules linked in: saa7134_alsa tda1004x saa7134_dvb
+videobuf_dvb dvb_core ir_kbd_i2c tda827x snd_hda_codec_realtek tda8290
+tuner saa7134 videobuf_dma_sg snd_hda_intel videobuf_core v4l2_common
+videodev snd_hda_codec ir_lirc_codec lirc_dev sg ir_sony_decoder
+ir_jvc_decoder v4l2_compat_ioctl32 tveeprom ir_rc6_decoder rc_imon_mce
+ir_rc5_decoder atiixp rtc_cmos ir_nec_decoder imon rc_core parport_pc
+parport i2c_piix4 pcspkr snd_hwdep asus_atk0110
+<4>[47900.533010]
+<4>[47900.533010] Pid: 23858, comm: mencoder Not tainted 3.0.3-dirty #37
+System manufacturer System Product Name/M2A-VM HDMI
+<4>[47900.533010] RIP: 0010:[<ffffffff81097d18>]  [<ffffffff81097d18>]
+handle_pte_fault+0x24/0x70a
+<4>[47900.533010] RSP: 0000:ffff880024c27db8  EFLAGS: 00010296
+<4>[47900.533010] RAX: 0000000000000cf0 RBX: ffff88006c3b2a68 RCX:
+ffffc5217e257cf0
+<4>[47900.533010] RDX: 000000000059effe RSI: ffff88006c3b2a68 RDI:
+ffff88006d6d2ac0
+<4>[47900.533010] RBP: ffffc5217e257cf0 R08: ffff880024d3b010 R09:
+0000000000000028
+<4>[47900.533010] R10: ffffffff81049bb3 R11: ffff880077c10a80 R12:
+ffff88006d6d2ac0
+<4>[47900.533010] R13: ffff880025ee4050 R14: ffff88006c3b2a68 R15:
+000000000059effe
+<4>[47900.533010] FS:  00007fe0ee868700(0000) GS:ffff880077c80000(0000)
+knlGS:0000000000000000
+<4>[47900.533010] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+<4>[47900.533010] CR2: ffffc5217e257cf0 CR3: 000000006eb49000 CR4:
+00000000000006e0
+<4>[47900.533010] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
+0000000000000000
+<4>[47900.533010] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
+0000000000000400
+<4>[47900.533010] Process mencoder (pid: 23858, threadinfo
+ffff880024c26000, task ffff880025ee4050)
+<0>[47900.533010] Stack:
+<4>[47900.533010]  0000000000004000 0000000000000000 0000000000000000
+0000000000004000
+<4>[47900.533010]  0000000000000028 0000000000000000 ffff880024d3b010
+ffffffff810ab79f
+<4>[47900.533010]  0000000000000000 000000000059effe 000000000059effe
+ffffffff810987e5
+<0>[47900.533010] Call Trace:
+<4>[47900.533010]  [<ffffffff810ab79f>] ?
+mem_cgroup_count_vm_event+0x15/0x67
+<4>[47900.533010]  [<ffffffff810987e5>] ? handle_mm_fault+0x3b/0x1e8
+<4>[47900.533010]  [<ffffffff81049bb3>] ? sched_clock_local+0x13/0x76
+<4>[47900.533010]  [<ffffffff8101bdb0>] ? do_page_fault+0x31a/0x33f
+<4>[47900.533010]  [<ffffffff81022b80>] ? check_preempt_curr+0x36/0x62
+<4>[47900.533010]  [<ffffffff8104bb23>] ? ktime_get_ts+0x65/0xa6
+<4>[47900.533010]  [<ffffffff810bfd2c>] ?
+poll_select_copy_remaining+0xce/0xed
+<4>[47900.533010]  [<ffffffff814c4b4f>] ? page_fault+0x1f/0x30
+<0>[47900.533010] Code: 41 5d 41 5e 41 5f c3 41 57 49 89 d7 41 56 41 55
+41 54 49 89 fc 55 48 89 cd 53 48 89 f3 48 83 ec 68 4c 89 44 24 30 44 89
+4c 24 20 <4c> 8b 31 44 89 f0 25 ff 0f 00 00 a9 01 01 00 00 0f 85 22 06 00
+<1>[47900.533010] RIP  [<ffffffff81097d18>] handle_pte_fault+0x24/0x70a
+<4>[47900.533010]  RSP <ffff880024c27db8>
+<0>[47900.533010] CR2: ffffc5217e257cf0
 
->
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> ---
-> =A0mm/memcontrol.c | =A0 =A01 +
-> =A01 files changed, 1 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ebd1e86..e091022 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3943,6 +3943,7 @@ static inline u64 mem_cgroup_usage(struct mem_cgrou=
-p *mem, bool swap)
-> =A0 =A0 =A0 =A0u64 val;
->
-> =A0 =A0 =A0 =A0if (!mem_cgroup_is_root(mem)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_stock_sync(mem);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!swap)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return res_counter_read_u6=
-4(&mem->res, RES_USAGE);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0else
-> --
-> 1.7.5.4
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
