@@ -1,84 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8A2FC6B018B
-	for <linux-mm@kvack.org>; Sat,  3 Sep 2011 22:13:28 -0400 (EDT)
-Message-Id: <20110904020916.588150387@intel.com>
-Date: Sun, 04 Sep 2011 09:53:20 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 19623900155
+	for <linux-mm@kvack.org>; Sat,  3 Sep 2011 22:13:29 -0400 (EDT)
+Message-Id: <20110904020916.070059502@intel.com>
+Date: Sun, 04 Sep 2011 09:53:16 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 15/18] writeback: charge leaked page dirties to active tasks
+Subject: [PATCH 11/18] block: add bdi flag to indicate risk of io queue underrun
 References: <20110904015305.367445271@intel.com>
-Content-Disposition: inline; filename=writeback-save-leaks-at-exit.patch
+Content-Disposition: inline; filename=blk-queue-underrun.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>, Li Shaohua <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-It's a years long problem that a large number of short-lived dirtiers
-(eg. gcc instances in a fast kernel build) may starve long-run dirtiers
-(eg. dd) as well as pushing the dirty pages to the global hard limit.
+Hurry it up when there are less than 3 async requests in the block io queue:
 
-The solution is to charge the pages dirtied by the exited gcc to the
-other random gcc/dd instances. It sounds not perfect, however should
-behave good enough in practice.
+1) don't dirty throttle the current dirtier
 
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+2) wakeup the flusher for background writeout (XXX: the flusher may then
+   abort not being aware of the underrun)
+
+When doing 1-dd write test with dirty_bytes=1MB, it increased the XFS
+writeout throughput from 5MB/s to 55MB/s and increased disk utilization
+from ~3% to ~85%.  ext4 achieves almost the same. However btrfs is not
+good: it only does 1MB/s normally, with sudden rushes to 10-60MB/s.
+
+CC: Tejun Heo <tj@kernel.org>
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Li Shaohua <shaohua.li@intel.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/writeback.h |    2 ++
- kernel/exit.c             |    2 ++
- mm/page-writeback.c       |   12 ++++++++++++
- 3 files changed, 16 insertions(+)
+ block/blk-core.c            |    7 +++++++
+ include/linux/backing-dev.h |   18 ++++++++++++++++++
+ include/linux/blkdev.h      |   12 ++++++++++++
+ mm/page-writeback.c         |    3 +++
+ 4 files changed, 40 insertions(+)
 
---- linux-next.orig/include/linux/writeback.h	2011-08-29 19:14:22.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2011-08-29 19:14:32.000000000 +0800
-@@ -7,6 +7,8 @@
- #include <linux/sched.h>
- #include <linux/fs.h>
+--- linux-next.orig/block/blk-core.c	2011-08-31 10:27:11.000000000 +0800
++++ linux-next/block/blk-core.c	2011-08-31 14:41:38.000000000 +0800
+@@ -637,6 +637,10 @@ static void __freed_request(struct reque
+ {
+ 	struct request_list *rl = &q->rq;
  
-+DECLARE_PER_CPU(int, dirty_leaks);
++	if (rl->count[sync] <= q->in_flight[sync] &&
++	    rl->count[!sync] == 0)
++		blk_set_queue_underrun(q, sync);
 +
- /*
-  * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
-  *
---- linux-next.orig/mm/page-writeback.c	2011-08-29 19:14:22.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-08-29 19:14:32.000000000 +0800
-@@ -1237,6 +1237,7 @@ void set_page_dirty_balance(struct page 
+ 	if (rl->count[sync] < queue_congestion_off_threshold(q))
+ 		blk_clear_queue_congested(q, sync);
+ 
+@@ -738,6 +742,9 @@ static struct request *get_request(struc
+ 	if (rl->count[is_sync] >= (3 * q->nr_requests / 2))
+ 		goto out;
+ 
++	if (rl->count[is_sync] >= q->in_flight[is_sync] + BLK_UNDERRUN_REQUESTS)
++		blk_clear_queue_underrun(q, is_sync);
++
+ 	rl->count[is_sync]++;
+ 	rl->starved[is_sync] = 0;
+ 
+--- linux-next.orig/include/linux/blkdev.h	2011-08-31 10:27:11.000000000 +0800
++++ linux-next/include/linux/blkdev.h	2011-08-31 10:49:43.000000000 +0800
+@@ -699,6 +699,18 @@ static inline void blk_set_queue_congest
+ 	set_bdi_congested(&q->backing_dev_info, sync);
  }
  
- static DEFINE_PER_CPU(int, bdp_ratelimits);
-+DEFINE_PER_CPU(int, dirty_leaks) = 0;
++#define BLK_UNDERRUN_REQUESTS	3
++
++static inline void blk_clear_queue_underrun(struct request_queue *q, int sync)
++{
++	clear_bdi_underrun(&q->backing_dev_info, sync);
++}
++
++static inline void blk_set_queue_underrun(struct request_queue *q, int sync)
++{
++	set_bdi_underrun(&q->backing_dev_info, sync);
++}
++
+ extern void blk_start_queue(struct request_queue *q);
+ extern void blk_stop_queue(struct request_queue *q);
+ extern void blk_sync_queue(struct request_queue *q);
+--- linux-next.orig/include/linux/backing-dev.h	2011-08-31 10:27:11.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2011-08-31 10:49:43.000000000 +0800
+@@ -32,6 +32,7 @@ enum bdi_state {
+ 	BDI_sync_congested,	/* The sync queue is getting full */
+ 	BDI_registered,		/* bdi_register() was done */
+ 	BDI_writeback_running,	/* Writeback is in progress */
++	BDI_async_underrun,	/* The async queue is getting underrun */
+ 	BDI_unused,		/* Available bits start here */
+ };
  
- /**
-  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
-@@ -1285,6 +1286,17 @@ void balance_dirty_pages_ratelimited_nr(
- 			ratelimit = 0;
- 		}
- 	}
-+	/*
-+	 * Pick up the dirtied pages by the exited tasks. This avoids lots of
-+	 * short-lived tasks (eg. gcc invocations in a kernel build) escaping
-+	 * the dirty throttling and livelock other long-run dirtiers.
-+	 */
-+	p = &__get_cpu_var(dirty_leaks);
-+	if (*p > 0 && current->nr_dirtied < ratelimit) {
-+		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
-+		*p -= nr_pages_dirtied;
-+		current->nr_dirtied += nr_pages_dirtied;
-+	}
- 	preempt_enable();
+@@ -301,6 +302,23 @@ void set_bdi_congested(struct backing_de
+ long congestion_wait(int sync, long timeout);
+ long wait_iff_congested(struct zone *zone, int sync, long timeout);
  
- 	if (unlikely(current->nr_dirtied >= ratelimit))
---- linux-next.orig/kernel/exit.c	2011-08-26 16:19:27.000000000 +0800
-+++ linux-next/kernel/exit.c	2011-08-29 19:14:22.000000000 +0800
-@@ -1044,6 +1044,8 @@ NORET_TYPE void do_exit(long code)
- 	validate_creds_for_do_exit(tsk);
++static inline void clear_bdi_underrun(struct backing_dev_info *bdi, int sync)
++{
++	if (sync == BLK_RW_ASYNC)
++		clear_bit(BDI_async_underrun, &bdi->state);
++}
++
++static inline void set_bdi_underrun(struct backing_dev_info *bdi, int sync)
++{
++	if (sync == BLK_RW_ASYNC)
++		set_bit(BDI_async_underrun, &bdi->state);
++}
++
++static inline int bdi_async_underrun(struct backing_dev_info *bdi)
++{
++	return bdi->state & (1 << BDI_async_underrun);
++}
++
+ static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
+ {
+ 	return !(bdi->capabilities & BDI_CAP_NO_WRITEBACK);
+--- linux-next.orig/mm/page-writeback.c	2011-08-31 10:49:43.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-08-31 14:40:58.000000000 +0800
+@@ -1067,6 +1067,9 @@ static void balance_dirty_pages(struct a
+ 				     nr_dirty, bdi_thresh, bdi_dirty,
+ 				     start_time);
  
- 	preempt_disable();
-+	if (tsk->nr_dirtied)
-+		__this_cpu_add(dirty_leaks, tsk->nr_dirtied);
- 	exit_rcu();
- 	/* causes final put_task_struct in finish_task_switch(). */
- 	tsk->state = TASK_DEAD;
++		if (unlikely(!dirty_exceeded && bdi_async_underrun(bdi)))
++			break;
++
+ 		dirty_ratelimit = bdi->dirty_ratelimit;
+ 		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
+ 					       background_thresh, nr_dirty,
 
 
 --
