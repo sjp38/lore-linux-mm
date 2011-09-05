@@ -1,104 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AA98B6B00EE
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 11:06:09 -0400 (EDT)
-Subject: Re: [PATCH 02/18] writeback: dirty position control
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 05 Sep 2011 17:05:57 +0200
-In-Reply-To: <20110904020914.848566742@intel.com>
-References: <20110904015305.367445271@intel.com>
-	 <20110904020914.848566742@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315235157.3191.6.camel@twins>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C3FF76B00EE
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 12:05:43 -0400 (EDT)
+Date: Mon, 5 Sep 2011 18:05:34 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
+ del_timer
+Message-ID: <20110905160534.GB17354@quack.suse.cz>
+References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
+ <20110901143333.51baf4ae.akpm@linux-foundation.org>
+ <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
+ <20110902112133.GD12182@quack.suse.cz>
+ <CAFPAmTSh-WWJjtuNjZsdEcaK-zSf8CvBmrRGFTmd_HZQNAKUCw@mail.gmail.com>
+ <CAFPAmTTJQddd-vHjCpvyfsHhursRXBwNzF4zoVHL3=ggztE8Qg@mail.gmail.com>
+ <20110902151450.GF12182@quack.suse.cz>
+ <CAFPAmTQxBK32zutyiX9DJLS2F+z6jxsV71xOwa0sivxSY5MD1Q@mail.gmail.com>
+ <20110905103925.GC5466@quack.suse.cz>
+ <CAFPAmTR5f_GW_oha07Bf0_LNXhigZri_w2N_XTEqM+X+-Ae-Rw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAFPAmTR5f_GW_oha07Bf0_LNXhigZri_w2N_XTEqM+X+-Ae-Rw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> @@ -591,6 +790,7 @@ static void global_update_bandwidth(unsi
-> =20
->  void __bdi_update_bandwidth(struct backing_dev_info *bdi,
->                             unsigned long thresh,
-> +                           unsigned long bg_thresh,
->                             unsigned long dirty,
->                             unsigned long bdi_thresh,
->                             unsigned long bdi_dirty,
-> @@ -627,6 +827,7 @@ snapshot:
-> =20
->  static void bdi_update_bandwidth(struct backing_dev_info *bdi,
->                                  unsigned long thresh,
-> +                                unsigned long bg_thresh,
->                                  unsigned long dirty,
->                                  unsigned long bdi_thresh,
->                                  unsigned long bdi_dirty,
-> @@ -635,8 +836,8 @@ static void bdi_update_bandwidth(struct=20
->         if (time_is_after_eq_jiffies(bdi->bw_time_stamp + BANDWIDTH_INTER=
-VAL))
->                 return;
->         spin_lock(&bdi->wb.list_lock);
-> -       __bdi_update_bandwidth(bdi, thresh, dirty, bdi_thresh, bdi_dirty,
-> -                              start_time);
-> +       __bdi_update_bandwidth(bdi, thresh, bg_thresh, dirty,
-> +                              bdi_thresh, bdi_dirty, start_time);
->         spin_unlock(&bdi->wb.list_lock);
->  }
-> =20
-> @@ -677,7 +878,8 @@ static void balance_dirty_pages(struct a
->                  * catch-up. This avoids (excessively) small writeouts
->                  * when the bdi limits are ramping up.
->                  */
-> -               if (nr_dirty <=3D (background_thresh + dirty_thresh) / 2)
-> +               if (nr_dirty <=3D dirty_freerun_ceiling(dirty_thresh,
-> +                                                     background_thresh))
->                         break;
-> =20
->                 bdi_thresh =3D bdi_dirty_limit(bdi, dirty_thresh);
-> @@ -721,8 +923,9 @@ static void balance_dirty_pages(struct a
->                 if (!bdi->dirty_exceeded)
->                         bdi->dirty_exceeded =3D 1;
-> =20
-> -               bdi_update_bandwidth(bdi, dirty_thresh, nr_dirty,
-> -                                    bdi_thresh, bdi_dirty, start_time);
-> +               bdi_update_bandwidth(bdi, dirty_thresh, background_thresh=
-,
-> +                                    nr_dirty, bdi_thresh, bdi_dirty,
-> +                                    start_time);
-> =20
->                 /* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
->                  * Unstable writes are a feature of certain networked
-> --- linux-next.orig/fs/fs-writeback.c   2011-08-26 15:57:18.000000000 +08=
-00
-> +++ linux-next/fs/fs-writeback.c        2011-08-26 15:57:20.000000000 +08=
-00
-> @@ -675,7 +675,7 @@ static inline bool over_bground_thresh(v
->  static void wb_update_bandwidth(struct bdi_writeback *wb,
->                                 unsigned long start_time)
->  {
-> -       __bdi_update_bandwidth(wb->bdi, 0, 0, 0, 0, start_time);
-> +       __bdi_update_bandwidth(wb->bdi, 0, 0, 0, 0, 0, start_time);
->  }
-> =20
->  /*
-> --- linux-next.orig/include/linux/writeback.h   2011-08-26 15:57:18.00000=
-0000 +0800
-> +++ linux-next/include/linux/writeback.h        2011-08-26 15:57:20.00000=
-0000 +0800
-> @@ -141,6 +141,7 @@ unsigned long bdi_dirty_limit(struct bac
-> =20
->  void __bdi_update_bandwidth(struct backing_dev_info *bdi,
->                             unsigned long thresh,
-> +                           unsigned long bg_thresh,
->                             unsigned long dirty,
->                             unsigned long bdi_thresh,
->                             unsigned long bdi_dirty,
+  Hi,
 
+On Mon 05-09-11 20:06:04, kautuk.c @samsung.com wrote:
+> >  OK, I don't care much whether we have there del_timer() or
+> > del_timer_sync(). Let me just say that the race you are afraid of is
+> > probably not going to happen in practice so I'm not sure it's valid to be
+> > afraid of CPU cycles being burned needlessly. The timer is armed when an
+> > dirty inode is first attached to default bdi's dirty list. Then the default
+> > bdi flusher thread would have to be woken up so that following happens:
+> >        CPU1                            CPU2
+> >  timer fires -> wakeup_timer_fn()
+> >                                        bdi_forker_thread()
+> >                                          del_timer(&me->wakeup_timer);
+> >                                          wb_do_writeback(me, 0);
+> >                                          ...
+> >                                          set_current_state(TASK_INTERRUPTIBLE);
+> >  wake_up_process(default_backing_dev_info.wb.task);
+> >
+> >  Especially wb_do_writeback() is going to take a long time so just that
+> > single thing makes the race unlikely. Given del_timer_sync() is slightly
+> > more costly than del_timer() even for unarmed timer, it is questionable
+> > whether (chance race happens * CPU spent in extra loop) > (extra CPU spent
+> > in del_timer_sync() * frequency that code is executed in
+> > bdi_forker_thread())...
+> >
+> 
+> Ok, so this means that we can compare the following 2 paths of code:
+> i)   One extra iteration of the bdi_forker_thread loop, versus
+> ii)  The amount of time it takes for the del_timer_sync to wait till the
+> timer_fn on the other CPU finishes executing + schedule resulting in a
+> guaranteed sleep.
+  No, ii) is going to be as rare. But instead you should compare i) against:
+iii) The amount of time it takes del_timer_sync() to check whether the
+timer_fn is running on a different CPU (which is work del_timer() doesn't
+do).
 
-All this function signature muck doesn't seem immediately relevant to
-the introduction of bdi_position_ratio() since the new function isn't
-actually used.
+  We are going to spend time in iii) each and every time
+if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list))
+  evaluates to true.
+
+  Now frequency of i) and iii) happening is hard to evaluate so it's not
+clear what's going to be better. Certainly I don't think such evaluation is
+worth my time...
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
