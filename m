@@ -1,79 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5449E6B00EE
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 14:22:02 -0400 (EDT)
-Received: by wwj26 with SMTP id 26so157794wwj.2
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2011 11:21:59 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0FAF36B00EE
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 14:25:23 -0400 (EDT)
+Date: Mon, 5 Sep 2011 20:25:14 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual
+ size
+Message-ID: <20110905182514.GA20793@redhat.com>
+References: <20110831090850.GA27345@redhat.com>
+ <CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
+ <20110901090931.c0721216.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110901061540.GA22561@redhat.com>
+ <20110901153148.70452287.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
-References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com> <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
-From: Ohad Ben-Cohen <ohad@wizery.com>
-Date: Mon, 5 Sep 2011 21:21:39 +0300
-Message-ID: <CADMYwHyeP-1Rd1GxJx-z7XjrThK_H_bPB-_FZMb-_Y1VGeA4Dg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] ARM: Samsung: update/rewrite Samsung SYSMMU (IOMMU) driver
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110901153148.70452287.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Marek,
+On Thu, Sep 01, 2011 at 03:31:48PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 1 Sep 2011 08:15:40 +0200
+> Johannes Weiner <jweiner@redhat.com> wrote:
+> 
+> > On Thu, Sep 01, 2011 at 09:09:31AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Wed, 31 Aug 2011 19:13:34 +0900
+> > > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > > 
+> > > > On Wed, Aug 31, 2011 at 6:08 PM, Johannes Weiner <jweiner@redhat.com> wrote:
+> > > > > Reclaim decides to skip scanning an active list when the corresponding
+> > > > > inactive list is above a certain size in comparison to leave the
+> > > > > assumed working set alone while there are still enough reclaim
+> > > > > candidates around.
+> > > > >
+> > > > > The memcg implementation of comparing those lists instead reports
+> > > > > whether the whole memcg is low on the requested type of inactive
+> > > > > pages, considering all nodes and zones.
+> > > > >
+> > > > > This can lead to an oversized active list not being scanned because of
+> > > > > the state of the other lists in the memcg, as well as an active list
+> > > > > being scanned while its corresponding inactive list has enough pages.
+> > > > >
+> > > > > Not only is this wrong, it's also a scalability hazard, because the
+> > > > > global memory state over all nodes and zones has to be gathered for
+> > > > > each memcg and zone scanned.
+> > > > >
+> > > > > Make these calculations purely based on the size of the two LRU lists
+> > > > > that are actually affected by the outcome of the decision.
+> > > > >
+> > > > > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > > > > Cc: Rik van Riel <riel@redhat.com>
+> > > > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > > > > Cc: Balbir Singh <bsingharora@gmail.com>
+> > > > 
+> > > > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > > > 
+> > > > I can't understand why memcg is designed for considering all nodes and zones.
+> > > > Is it a mistake or on purpose?
+> > > 
+> > > It's purpose. memcg just takes care of the amount of pages.
+> > 
+> > This mechanism isn't about memcg at all, it's an aging decision at a
+> > much lower level.  Can you tell me how the old implementation is
+> > supposed to work?
+> > 
+> Old implemenation was supporsed to make vmscan to see only memcg and
+> ignore zones. memcg doesn't take care of any zones. Then, it uses
+> global numbers rather than zones.
+> 
+> Assume a system with 2 nodes and the whole memcg's inactive/active ratio
+> is unbalaned. 
+> 
+>    Node      0     1
+>    Active   800M   30M
+>    Inactive 100M   200M
+> 
+> If we judge 'unbalance' based on zones, Node1's Active will not rotate
+> even if it's not accessed for a while.
+> If we judge unbalance based on total stat, Both of Node0 and Node 1
+> will be rotated.
 
-On Fri, Sep 2, 2011 at 4:56 PM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-...
-> =A0arch/arm/plat-s5p/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|=
- =A0 21 +-
-> =A0arch/arm/plat-s5p/include/plat/sysmmu.h =A0 =A0 =A0 =A0| =A0119 ++--
-> =A0arch/arm/plat-s5p/sysmmu.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =
-=A0855 ++++++++++++++++++------
+But why should we deactivate on Node 1?  We have good reasons not to
+on the global level, why should memcgs silently behave differently?
 
-Please move the driver to drivers/iommu/, where all other IOMMU API users s=
-it.
+I mostly don't understand it on a semantic level.  vmscan needs to
+know whether a certain inactive LRU list has enough reclaim candidates
+to skip scanning its corresponding active list.  The global state is
+not useful to find out if a single inactive list has enough pages.
 
-...
-> diff --git a/arch/arm/plat-s5p/Kconfig b/arch/arm/plat-s5p/Kconfig
-...
-> +config IOMMU_API
-> + =A0 =A0 =A0 bool
+> Hmm, old one doesn't work as I expexted ?
+> 
+> But okay, as time goes, I think Node1's inactive will decreased
+> and then, rotate will happen even with zone based ones.
 
-You don't need this anymore: this is already part of drivers/iommu/Kconfig.
+Yes, that's how the mechanism is intended to work: with a constant
+influx of used-once pages, we don't want to touch the active list.
+But when the workload changes and inactive pages get either activated
+or all reclaimed, the ratio changes and eventually we fall back to
+deactivating pages again.
 
-> +static int s5p_sysmmu_unmap(struct iommu_domain *domain, unsigned long i=
-ova,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int gfp_order)
-> =A0{
-...
-> + =A0 =A0 =A0 if (SZ_1M =3D=3D len) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!page_1m(flpt_va))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bug_unmapping_prohibited(io=
-va, len);
-..
-> + =A0 =A0 =A0 } else if (SZ_16M =3D=3D len) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int i;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* first loop to verify it actually is 16M =
-mapping */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D 0; i < 16; ++i)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!page_16m(flpt_va + 4 *=
- i))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bug_unmappi=
-ng_prohibited(iova, len);
+That's reclaim behaviour that has been around for a while and it
+shouldn't make a difference if your workload is running in
+root_mem_cgroup or another memcg.
 
-Actually these are not bugs; iommu drivers need to unmap the page they
-find in iova, and return the page size that was actually unmapped: you
-may well receive a page size that is different from the page that maps
-iova.
+> > > But, hmm, this change may be good for softlimit and your work.
+> > 
+> > Yes, I noticed those paths showing up in a profile with my patches.
+> > Lots of memcgs on a multi-node machine will trigger it too.  But it's
+> > secondary, my primary reasoning was: this does not make sense at all.
+> 
+> your word sounds always too strong to me ;) please be soft.
 
-...
-> +
-> + =A0 =A0 =A0 return 0;
+Sorry, I'll try to be less harsh.  Please don't take it personally :)
 
-On success, need to return the size (in page order) of the page that
-was unmapped.
+What I meant was that the computational overhead was not the primary
+reason for this patch.  Although a reduction there is very welcome,
+it's that deciding to skip the list based on the list size seems more
+correct than deciding based on the overall state of the memcg, which
+can only by accident show the same proportion of inactive/active.
 
-Regards,
-Ohad.
+It's a correctness fix for existing code, not an optimization or
+preparation for future changes.
+
+> > > I'll ack when you add performance numbers in changelog.
+> > 
+> > It's not exactly a performance optimization but I'll happily run some
+> > workloads.  Do you have suggestions what to test for?  I.e. where
+> > would you expect regressions?
+> > 
+> Some comparison about amount of swap-out before/after change will be good.
+> 
+> Hm. If I do...
+>   - set up x86-64 NUMA box. (fake numa is ok.)
+>   - create memcg with 500M limit.
+>   - running kernel make with make -j 6(or more)
+> 
+> see time of make and amount of swap-out.
+
+4G ram, 500M swap on SSD, numa=fake=16, 10 runs of make -j11 in 500M
+memcg, standard deviation in parens:
+
+		seconds		pswpin			pswpout
+vanilla:	175.359(0.106)	6906.900(1779.135)	8913.200(1917.369)
+patched:	176.144(0.243)	8581.500(1833.432)	10872.400(2124.104)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
