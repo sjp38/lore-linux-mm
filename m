@@ -1,80 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C3FF76B00EE
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 12:05:43 -0400 (EDT)
-Date: Mon, 5 Sep 2011 18:05:34 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
- del_timer
-Message-ID: <20110905160534.GB17354@quack.suse.cz>
-References: <1314892622-18267-1-git-send-email-consul.kautuk@gmail.com>
- <20110901143333.51baf4ae.akpm@linux-foundation.org>
- <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
- <20110902112133.GD12182@quack.suse.cz>
- <CAFPAmTSh-WWJjtuNjZsdEcaK-zSf8CvBmrRGFTmd_HZQNAKUCw@mail.gmail.com>
- <CAFPAmTTJQddd-vHjCpvyfsHhursRXBwNzF4zoVHL3=ggztE8Qg@mail.gmail.com>
- <20110902151450.GF12182@quack.suse.cz>
- <CAFPAmTQxBK32zutyiX9DJLS2F+z6jxsV71xOwa0sivxSY5MD1Q@mail.gmail.com>
- <20110905103925.GC5466@quack.suse.cz>
- <CAFPAmTR5f_GW_oha07Bf0_LNXhigZri_w2N_XTEqM+X+-Ae-Rw@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5449E6B00EE
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2011 14:22:02 -0400 (EDT)
+Received: by wwj26 with SMTP id 26so157794wwj.2
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2011 11:21:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFPAmTR5f_GW_oha07Bf0_LNXhigZri_w2N_XTEqM+X+-Ae-Rw@mail.gmail.com>
+In-Reply-To: <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com> <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
+From: Ohad Ben-Cohen <ohad@wizery.com>
+Date: Mon, 5 Sep 2011 21:21:39 +0300
+Message-ID: <CADMYwHyeP-1Rd1GxJx-z7XjrThK_H_bPB-_FZMb-_Y1VGeA4Dg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] ARM: Samsung: update/rewrite Samsung SYSMMU (IOMMU) driver
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-  Hi,
+Hi Marek,
 
-On Mon 05-09-11 20:06:04, kautuk.c @samsung.com wrote:
-> >  OK, I don't care much whether we have there del_timer() or
-> > del_timer_sync(). Let me just say that the race you are afraid of is
-> > probably not going to happen in practice so I'm not sure it's valid to be
-> > afraid of CPU cycles being burned needlessly. The timer is armed when an
-> > dirty inode is first attached to default bdi's dirty list. Then the default
-> > bdi flusher thread would have to be woken up so that following happens:
-> >        CPU1                            CPU2
-> >  timer fires -> wakeup_timer_fn()
-> >                                        bdi_forker_thread()
-> >                                          del_timer(&me->wakeup_timer);
-> >                                          wb_do_writeback(me, 0);
-> >                                          ...
-> >                                          set_current_state(TASK_INTERRUPTIBLE);
-> >  wake_up_process(default_backing_dev_info.wb.task);
-> >
-> >  Especially wb_do_writeback() is going to take a long time so just that
-> > single thing makes the race unlikely. Given del_timer_sync() is slightly
-> > more costly than del_timer() even for unarmed timer, it is questionable
-> > whether (chance race happens * CPU spent in extra loop) > (extra CPU spent
-> > in del_timer_sync() * frequency that code is executed in
-> > bdi_forker_thread())...
-> >
-> 
-> Ok, so this means that we can compare the following 2 paths of code:
-> i)   One extra iteration of the bdi_forker_thread loop, versus
-> ii)  The amount of time it takes for the del_timer_sync to wait till the
-> timer_fn on the other CPU finishes executing + schedule resulting in a
-> guaranteed sleep.
-  No, ii) is going to be as rare. But instead you should compare i) against:
-iii) The amount of time it takes del_timer_sync() to check whether the
-timer_fn is running on a different CPU (which is work del_timer() doesn't
-do).
+On Fri, Sep 2, 2011 at 4:56 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+...
+> =A0arch/arm/plat-s5p/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|=
+ =A0 21 +-
+> =A0arch/arm/plat-s5p/include/plat/sysmmu.h =A0 =A0 =A0 =A0| =A0119 ++--
+> =A0arch/arm/plat-s5p/sysmmu.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =
+=A0855 ++++++++++++++++++------
 
-  We are going to spend time in iii) each and every time
-if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list))
-  evaluates to true.
+Please move the driver to drivers/iommu/, where all other IOMMU API users s=
+it.
 
-  Now frequency of i) and iii) happening is hard to evaluate so it's not
-clear what's going to be better. Certainly I don't think such evaluation is
-worth my time...
+...
+> diff --git a/arch/arm/plat-s5p/Kconfig b/arch/arm/plat-s5p/Kconfig
+...
+> +config IOMMU_API
+> + =A0 =A0 =A0 bool
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+You don't need this anymore: this is already part of drivers/iommu/Kconfig.
+
+> +static int s5p_sysmmu_unmap(struct iommu_domain *domain, unsigned long i=
+ova,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int gfp_order)
+> =A0{
+...
+> + =A0 =A0 =A0 if (SZ_1M =3D=3D len) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!page_1m(flpt_va))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bug_unmapping_prohibited(io=
+va, len);
+..
+> + =A0 =A0 =A0 } else if (SZ_16M =3D=3D len) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int i;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* first loop to verify it actually is 16M =
+mapping */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D 0; i < 16; ++i)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!page_16m(flpt_va + 4 *=
+ i))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bug_unmappi=
+ng_prohibited(iova, len);
+
+Actually these are not bugs; iommu drivers need to unmap the page they
+find in iova, and return the page size that was actually unmapped: you
+may well receive a page size that is different from the page that maps
+iova.
+
+...
+> +
+> + =A0 =A0 =A0 return 0;
+
+On success, need to return the size (in page order) of the page that
+was unmapped.
+
+Regards,
+Ohad.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
