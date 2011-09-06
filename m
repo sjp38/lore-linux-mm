@@ -1,77 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B1EC6B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 11:39:09 -0400 (EDT)
-Date: Tue, 6 Sep 2011 16:39:03 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
-Message-ID: <20110906153903.GU14369@suse.de>
-References: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
- <20110831173031.GA21571@redhat.com>
- <CAEwNFnDcNqLvo=oyXXkxgFxs8wNc+WTLwot0qeru1VfQKmUYDQ@mail.gmail.com>
- <20110905083321.GA15935@redhat.com>
- <20110906151140.GA1589@barrios-fedora.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110906151140.GA1589@barrios-fedora.local>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9D36B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 11:47:29 -0400 (EDT)
+Subject: Re: [PATCH 05/18] writeback: per task dirty rate limit
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 06 Sep 2011 17:47:10 +0200
+In-Reply-To: <20110904020915.240747479@intel.com>
+References: <20110904015305.367445271@intel.com>
+	 <20110904020915.240747479@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1315324030.14232.14.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 07, 2011 at 12:11:40AM +0900, Minchan Kim wrote:
-> > > <SNIP>
-> > > If we consider that, we have to fix other reset_reclaim_mode cases as
-> > > well as mlocked pages.
-> > > Or
-> > > fix isolataion logic for the lumpy? (When we find the page isn't able
-> > > to isolate, rollback the pages in the lumpy block to the LRU)
-> > > Or
-> > > Nothing and wait to remove lumpy completely.
-> > > 
-> > > What do you think about it?
-> > 
-> > The rollback may be overkill and we already abort clustering the
-> > isolation when one of the pages fails.
-> 
-> I think abort isn't enough
-> Because we know the chace to make a bigger page is gone when we isolate page.
-> But we still try to reclaim pages to make bigger space in a vain.
-> It causes unnecessary unmap operation by try_to_unmap which is costly operation
-> , evict some working set pages and make reclaim latency long.
-> 
-> As a matter of fact, I though as follows patch to solve this problem(Totally, untested)
-> 
+On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
+>  /*
+> + * After a task dirtied this many pages, balance_dirty_pages_ratelimited=
+_nr()
+> + * will look to see if it needs to start dirty throttling.
+> + *
+> + * If dirty_poll_interval is too low, big NUMA machines will call the ex=
+pensive
+> + * global_page_state() too often. So scale it near-sqrt to the safety ma=
+rgin
+> + * (the number of pages we may dirty without exceeding the dirty limits)=
+.
+> + */
+> +static unsigned long dirty_poll_interval(unsigned long dirty,
+> +                                        unsigned long thresh)
+> +{
+> +       if (thresh > dirty)
+> +               return 1UL << (ilog2(thresh - dirty) >> 1);
+> +
+> +       return 1;
+> +}
 
-I confess I haven't read this patch carefully or given it much
-thought. I agree with you in principal that it would be preferred if
-lumpy reclaim disrupted the LRU lists as little as possible but I'm
-wary about making lumpy reclaim more complex when it is preferred that
-compaction is used and we expect lumpy reclaim to go away eventually.
-
-> > <SNIP{>
-> > 
-> > I would go with the last option.  Lumpy reclaim is on its way out and
-> > already disabled for a rather common configuration, so I would defer
-> > non-obvious fixes like these until actual bug reports show up.
-> 
-> It's hard to report above problem as it might not make big difference on normal worklaod.
-
-I doubt it makes a noticable difference as lumpy reclaim disrupts
-the system quite heavily.
-
-> But I agree last option, too. Then, when does we suppose to remove lumpy?
-> Mel, Could you have a any plan?
-> 
-
-I think it should be removed after all the major distributions release
-with a kernel with compaction enabled. At that point,  we'll know
-that lumpy reclaim is not being depended upon.
-
--- 
-Mel Gorman
-SUSE Labs
+Where does that sqrt come from?=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
