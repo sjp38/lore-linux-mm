@@ -1,87 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AF296B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 08:40:34 -0400 (EDT)
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 06 Sep 2011 14:40:19 +0200
-References: <1313154259.6576.42.camel@twins>
-	 <20110812142020.GB17781@localhost> <1314027488.24275.74.camel@twins>
-	 <20110823034042.GC7332@localhost> <1314093660.8002.24.camel@twins>
-	 <20110823141504.GA15949@localhost> <20110823174757.GC15820@redhat.com>
-	 <20110824001257.GA6349@localhost> <20110824180058.GC22434@redhat.com>
-	 <1314623527.2816.28.camel@twins> <20110829133729.GA27871@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C37B6B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 10:10:00 -0400 (EDT)
+Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
+ area
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 06 Sep 2011 16:09:39 +0200
+In-Reply-To: <20110904020915.942753370@intel.com>
+References: <20110904015305.367445271@intel.com>
+	 <20110904020915.942753370@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315312819.12533.5.camel@twins>
+Message-ID: <1315318179.14232.3.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 2011-09-02 at 14:16 +0200, Peter Zijlstra wrote:
-> On Mon, 2011-08-29 at 21:37 +0800, Wu Fengguang wrote:
-> > >=20
-> > > Ok so this argument makes sense, is there some formalism to describe
-> > > such systems where such things are more evident?
-> >=20
-> > I find the most easy and clean way to describe it is,
-> >=20
-> > (1) the below formula
-> >                                                           write_bw =20
-> >     bdi->dirty_ratelimit_(i+1) =3D bdi->dirty_ratelimit_i * --------- *=
- pos_ratio
-> >                                                           dirty_bw
-> > is able to yield
-> >=20
-> >     dirty_ratelimit_(i) ~=3D (write_bw / N)
-> >=20
-> > as long as
-> >=20
-> > - write_bw, dirty_bw and pos_ratio are not changing rapidly
-> > - dirty pages are not around @freerun or @limit
-> >=20
-> > Otherwise there will be larger estimation errors.
-> >=20
-> > (2) based on (1), we get
-> >=20
-> >     task_ratelimit ~=3D (write_bw / N) * pos_ratio
-> >=20
-> > So the pos_ratio feedback is able to drive dirty count to the
-> > setpoint, where pos_ratio =3D 1.
-> >=20
-> > That interpretation based on _real values_ can neatly decouple the two
-> > feedback loops :) It makes full utilization of the fact "the
-> > dirty_ratelimit _value_ is independent on pos_ratio except for
-> > possible impacts on estimation errors".=20
+On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
+> plain text document attachment (bdi-reserve-area)
+> Keep a minimal pool of dirty pages for each bdi, so that the disk IO
+> queues won't underrun.
 >=20
-> OK, so the 'problem' I have with this is that the whole control thing
-> really doesn't care about N. All it does is measure:
+> It's particularly useful for JBOD and small memory system.
 >=20
->  - dirty rate
->  - writeback rate
+> Note that this is not enough when memory is really tight (in comparison
+> to write bandwidth). It may result in (pos_ratio > 1) at the setpoint
+> and push the dirty pages high. This is more or less intended because the
+> bdi is in the danger of IO queue underflow. However the global dirty
+> pages, when pushed close to limit, will eventually conteract our desire
+> to push up the low bdi_dirty.
 >=20
-> observe:
+> In low memory JBOD tests we do see disks under-utilized from time to
+> time. The additional fix may be to add a BDI_async_underrun flag to
+> indicate that the block write queue is running low and it's time to
+> quickly fill the queue by unthrottling the tasks regardless of the
+> global limit.
 >=20
->  - dirty count; with the independent input of its setpoint
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |   26 ++++++++++++++++++++++++++
+>  1 file changed, 26 insertions(+)
 >=20
-> control:
->=20
->  - ratelimit
->=20
-> so I was looking for a way to describe the interaction between the two
-> feedback loops without involving the exact details of what they're
-> controlling, but that might just end up being an oxymoron.
+> --- linux-next.orig/mm/page-writeback.c	2011-08-26 20:12:19.000000000 +08=
+00
+> +++ linux-next/mm/page-writeback.c	2011-08-26 20:13:21.000000000 +0800
+> @@ -487,6 +487,16 @@ unsigned long bdi_dirty_limit(struct bac
+>   *   0 +------------.------------------.----------------------*---------=
+---->
+>   *           freerun^          setpoint^                 limit^   dirty =
+pages
+>   *
+> + * (o) bdi reserve area
+> + *
+> + * The bdi reserve area tries to keep a reasonable number of dirty pages=
+ for
+> + * preventing block queue underrun.
+> + *
+> + * reserve area, scale up rate as dirty pages drop low
+> + * |<----------------------------------------------->|
+> + * |-------------------------------------------------------*-------|----=
+------
+> + * 0                                           bdi setpoint^       ^bdi_=
+thresh
 
 
-Hmm, so per Vivek's argument the system without pos_ratio in the
-feedback term isn't convergent. Therefore we should be able to argue
-from convergent/stability grounds that this term is indeed needed.
+So why not call the thing bdi freerun ?
 
-Does the stability proof of a control system need the model of what its
-controlling? I guess I ought to go get a book on this or so.
+>   * (o) bdi control lines
+>   *
+>   * The control lines for the global/bdi setpoints both stretch up to @li=
+mit.
+> @@ -634,6 +644,22 @@ static unsigned long bdi_position_ratio(
+>  	pos_ratio *=3D x_intercept - bdi_dirty;
+>  	do_div(pos_ratio, x_intercept - bdi_setpoint + 1);
+> =20
+> +	/*
+> +	 * bdi reserve area, safeguard against dirty pool underrun and disk idl=
+e
+> +	 *
+> +	 * It may push the desired control point of global dirty pages higher
+> +	 * than setpoint. It's not necessary in single-bdi case because a
+> +	 * minimal pool of @freerun dirty pages will already be guaranteed.
+> +	 */
+> +	x_intercept =3D min(write_bw, freerun);
+> +	if (bdi_dirty < x_intercept) {
 
+So the point of the freerun point is that we never throttle before it,
+so basically all the below shouldn't be needed at all, right?=20
+
+> +		if (bdi_dirty > x_intercept / 8) {
+> +			pos_ratio *=3D x_intercept;
+> +			do_div(pos_ratio, bdi_dirty);
+> +		} else
+> +			pos_ratio *=3D 8;
+> +	}
+> +
+>  	return pos_ratio;
+>  }
+
+
+So why not add:
+
+	if (likely(dirty < freerun))
+		return 2;
+
+at the start of this function and leave it at that?
 
 
 --
