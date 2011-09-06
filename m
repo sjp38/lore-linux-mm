@@ -1,113 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C37B6B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 10:10:00 -0400 (EDT)
-Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
- area
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2D46B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 10:23:27 -0400 (EDT)
+Subject: Re: [PATCH 11/18] block: add bdi flag to indicate risk of io queue
+ underrun
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 06 Sep 2011 16:09:39 +0200
-In-Reply-To: <20110904020915.942753370@intel.com>
+Date: Tue, 06 Sep 2011 16:22:48 +0200
+In-Reply-To: <20110904020916.070059502@intel.com>
 References: <20110904015305.367445271@intel.com>
-	 <20110904020915.942753370@intel.com>
+	 <20110904020916.070059502@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315318179.14232.3.camel@twins>
+Message-ID: <1315318968.14232.6.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-fsdevel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>, Li Shaohua <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> plain text document attachment (bdi-reserve-area)
-> Keep a minimal pool of dirty pages for each bdi, so that the disk IO
-> queues won't underrun.
->=20
-> It's particularly useful for JBOD and small memory system.
->=20
-> Note that this is not enough when memory is really tight (in comparison
-> to write bandwidth). It may result in (pos_ratio > 1) at the setpoint
-> and push the dirty pages high. This is more or less intended because the
-> bdi is in the danger of IO queue underflow. However the global dirty
-> pages, when pushed close to limit, will eventually conteract our desire
-> to push up the low bdi_dirty.
->=20
-> In low memory JBOD tests we do see disks under-utilized from time to
-> time. The additional fix may be to add a BDI_async_underrun flag to
-> indicate that the block write queue is running low and it's time to
-> quickly fill the queue by unthrottling the tasks regardless of the
-> global limit.
->=20
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/page-writeback.c |   26 ++++++++++++++++++++++++++
->  1 file changed, 26 insertions(+)
->=20
-> --- linux-next.orig/mm/page-writeback.c	2011-08-26 20:12:19.000000000 +08=
+> +++ linux-next/mm/page-writeback.c      2011-08-31 14:40:58.000000000 +08=
 00
-> +++ linux-next/mm/page-writeback.c	2011-08-26 20:13:21.000000000 +0800
-> @@ -487,6 +487,16 @@ unsigned long bdi_dirty_limit(struct bac
->   *   0 +------------.------------------.----------------------*---------=
----->
->   *           freerun^          setpoint^                 limit^   dirty =
-pages
->   *
-> + * (o) bdi reserve area
-> + *
-> + * The bdi reserve area tries to keep a reasonable number of dirty pages=
- for
-> + * preventing block queue underrun.
-> + *
-> + * reserve area, scale up rate as dirty pages drop low
-> + * |<----------------------------------------------->|
-> + * |-------------------------------------------------------*-------|----=
-------
-> + * 0                                           bdi setpoint^       ^bdi_=
-thresh
-
-
-So why not call the thing bdi freerun ?
-
->   * (o) bdi control lines
->   *
->   * The control lines for the global/bdi setpoints both stretch up to @li=
-mit.
-> @@ -634,6 +644,22 @@ static unsigned long bdi_position_ratio(
->  	pos_ratio *=3D x_intercept - bdi_dirty;
->  	do_div(pos_ratio, x_intercept - bdi_setpoint + 1);
+> @@ -1067,6 +1067,9 @@ static void balance_dirty_pages(struct a
+>                                      nr_dirty, bdi_thresh, bdi_dirty,
+>                                      start_time);
 > =20
-> +	/*
-> +	 * bdi reserve area, safeguard against dirty pool underrun and disk idl=
-e
-> +	 *
-> +	 * It may push the desired control point of global dirty pages higher
-> +	 * than setpoint. It's not necessary in single-bdi case because a
-> +	 * minimal pool of @freerun dirty pages will already be guaranteed.
-> +	 */
-> +	x_intercept =3D min(write_bw, freerun);
-> +	if (bdi_dirty < x_intercept) {
-
-So the point of the freerun point is that we never throttle before it,
-so basically all the below shouldn't be needed at all, right?=20
-
-> +		if (bdi_dirty > x_intercept / 8) {
-> +			pos_ratio *=3D x_intercept;
-> +			do_div(pos_ratio, bdi_dirty);
-> +		} else
-> +			pos_ratio *=3D 8;
-> +	}
+> +               if (unlikely(!dirty_exceeded && bdi_async_underrun(bdi)))
+> +                       break;
 > +
->  	return pos_ratio;
->  }
+>                 dirty_ratelimit =3D bdi->dirty_ratelimit;
+>                 pos_ratio =3D bdi_position_ratio(bdi, dirty_thresh,
+>                                                background_thresh, nr_dirt=
+y,
+
+So dirty_exceeded looks like:
 
 
-So why not add:
+1109                 dirty_exceeded =3D (bdi_dirty > bdi_thresh) ||
+1110                                   (nr_dirty > dirty_thresh);
 
-	if (likely(dirty < freerun))
-		return 2;
+Would it make sense to write it as:
 
-at the start of this function and leave it at that?
+	if (nr_dirty > dirty_thresh ||=20
+	    (nr_dirty > freerun && bdi_dirty > bdi_thresh))
+		dirty_exceeded =3D 1;
 
+So that we don't actually throttle bdi thingies when we're still in the
+freerun area?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
