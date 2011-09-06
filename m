@@ -1,86 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 656866B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 06:11:56 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4AEBA3EE0BD
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:11:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3127B45DE81
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:11:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 194DA45DE7F
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:11:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BC0E1DB803C
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:11:53 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C66461DB802C
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:11:52 +0900 (JST)
-Date: Tue, 6 Sep 2011 19:04:24 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-Message-Id: <20110906190424.ad5cc647.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110906095852.GA25053@redhat.com>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>
-	<20110906095852.GA25053@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D26606B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 06:28:02 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so5640923fxg.14
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2011 03:28:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+	<1314971786-15140-3-git-send-email-m.szyprowski@samsung.com>
+Date: Tue, 6 Sep 2011 19:27:59 +0900
+Message-ID: <CAHQjnONHr-Ao_KLjdRKgVQQUKtOmmoyqFwdkSZCDsE6hx1q-Ug@mail.gmail.com>
+Subject: Re: [PATCH 2/2] ARM: Samsung: update/rewrite Samsung SYSMMU (IOMMU) driver
+From: KyongHo Cho <pullip.cho@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, Linux Samsung SOC <linux-samsung-soc@vger.kernel.org>
 
-On Tue, 6 Sep 2011 11:58:52 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
+Hi.
 
-> On Wed, Aug 17, 2011 at 11:50:53PM -0700, Greg Thelen wrote:
-> > Both mem_cgroup_charge_statistics() and mem_cgroup_move_account() were
-> > unnecessarily disabling preemption when adjusting per-cpu counters:
-> >     preempt_disable()
-> >     __this_cpu_xxx()
-> >     __this_cpu_yyy()
-> >     preempt_enable()
-> > 
-> > This change does not disable preemption and thus CPU switch is possible
-> > within these routines.  This does not cause a problem because the total
-> > of all cpu counters is summed when reporting stats.  Now both
-> > mem_cgroup_charge_statistics() and mem_cgroup_move_account() look like:
-> >     this_cpu_xxx()
-> >     this_cpu_yyy()
-> > 
-> > Reported-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Greg Thelen <gthelen@google.com>
-> 
-> I just noticed that both cases have preemption disabled anyway because
-> of the page_cgroup bit spinlock.
-> 
-> So removing the preempt_disable() is fine but we can even keep the
-> non-atomic __this_cpu operations.
-> 
-> Something like this instead?
-> 
-> ---
-> From: Johannes Weiner <jweiner@redhat.com>
-> Subject: mm: memcg: remove needless recursive preemption disabling
-> 
-> Callsites of mem_cgroup_charge_statistics() hold the page_cgroup bit
-> spinlock, which implies disabled preemption.
-> 
-> The same goes for the explicit preemption disabling to account mapped
-> file pages in mem_cgroup_move_account().
-> 
-> The explicit disabling of preemption in both cases is redundant.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+On Fri, Sep 2, 2011 at 10:56 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+> + *
+> + * iova must be aligned on a 4kB, 64kB, 1MB and 16MB boundaries, respect=
+ively.
+> + */
 
-Could you add comments as
-"This operation is called under bit spin lock !" ?
+Actually, iova is just needed to be aligned by 4KiB because it is
+minimum requirement.
+I think IOMMU driver is capable of mapping a group of page frames that
+is aligned
+by 1MiB with an iova that is aligned by 4KB
+if the iova is large enough to map the given page frames.
 
-Nice catch.
+> +static int s5p_sysmmu_map(struct iommu_domain *domain, unsigned long iov=
+a,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 phys_addr_t paddr, int =
+gfp_order, int prot)
+> +{
+> + =A0 =A0 =A0 struct s5p_sysmmu_domain *s5p_domain =3D domain->priv;
+> + =A0 =A0 =A0 int flpt_idx =3D flpt_index(iova);
+> + =A0 =A0 =A0 size_t len =3D 0x1000UL << gfp_order;
+> + =A0 =A0 =A0 void *flpt_va, *slpt_va;
+> +
+> + =A0 =A0 =A0 if (len !=3D SZ_16M && len !=3D SZ_1M && len !=3D SZ_64K &&=
+ len !=3D SZ_4K) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysmmu_debug(3, "bad order: %d\n", gfp_orde=
+r);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
+> + =A0 =A0 =A0 }
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
+Likewise, I think this driver need to support mapping 128KiB aligned,
+128KiB physical memory, for example.
+
+Otherwise, it is somewhat restrictive than we expect.
+
+Thank you.
+
+Cho KyongHo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
