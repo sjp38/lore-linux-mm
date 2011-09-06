@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 35C096B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 08:36:12 -0400 (EDT)
-Received: by wyi11 with SMTP id 11so5799598wyi.14
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2011 05:36:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAHQjnONHr-Ao_KLjdRKgVQQUKtOmmoyqFwdkSZCDsE6hx1q-Ug@mail.gmail.com>
-References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
- <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com> <CAHQjnONHr-Ao_KLjdRKgVQQUKtOmmoyqFwdkSZCDsE6hx1q-Ug@mail.gmail.com>
-From: Ohad Ben-Cohen <ohad@wizery.com>
-Date: Tue, 6 Sep 2011 15:35:48 +0300
-Message-ID: <CADMYwHzTe7WcqjCOSdgnbFsHm6gtV7Bf1154WHXiTnffGSAYRA@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 2/2] ARM: Samsung: update/rewrite Samsung
- SYSMMU (IOMMU) driver
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF296B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 08:40:34 -0400 (EDT)
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 06 Sep 2011 14:40:19 +0200
+References: <1313154259.6576.42.camel@twins>
+	 <20110812142020.GB17781@localhost> <1314027488.24275.74.camel@twins>
+	 <20110823034042.GC7332@localhost> <1314093660.8002.24.camel@twins>
+	 <20110823141504.GA15949@localhost> <20110823174757.GC15820@redhat.com>
+	 <20110824001257.GA6349@localhost> <20110824180058.GC22434@redhat.com>
+	 <1314623527.2816.28.camel@twins> <20110829133729.GA27871@localhost>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
+Message-ID: <1315312819.12533.5.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KyongHo Cho <pullip.cho@samsung.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arch@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Linux Samsung SOC <linux-samsung-soc@vger.kernel.org>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Chunsang Jeong <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Sep 6, 2011 at 1:27 PM, KyongHo Cho <pullip.cho@samsung.com> wrote:
-> On Fri, Sep 2, 2011 at 10:56 PM, Marek Szyprowski
->> +static int s5p_sysmmu_map(struct iommu_domain *domain, unsigned long io=
-va,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 phys_addr_t paddr, int=
- gfp_order, int prot)
->> +{
->> + =A0 =A0 =A0 struct s5p_sysmmu_domain *s5p_domain =3D domain->priv;
->> + =A0 =A0 =A0 int flpt_idx =3D flpt_index(iova);
->> + =A0 =A0 =A0 size_t len =3D 0x1000UL << gfp_order;
->> + =A0 =A0 =A0 void *flpt_va, *slpt_va;
->> +
->> + =A0 =A0 =A0 if (len !=3D SZ_16M && len !=3D SZ_1M && len !=3D SZ_64K &=
-& len !=3D SZ_4K) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysmmu_debug(3, "bad order: %d\n", gfp_ord=
-er);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
->> + =A0 =A0 =A0 }
->
-> Likewise, I think this driver need to support mapping 128KiB aligned,
-> 128KiB physical memory, for example.
->
-> Otherwise, it is somewhat restrictive than we expect.
+On Fri, 2011-09-02 at 14:16 +0200, Peter Zijlstra wrote:
+> On Mon, 2011-08-29 at 21:37 +0800, Wu Fengguang wrote:
+> > >=20
+> > > Ok so this argument makes sense, is there some formalism to describe
+> > > such systems where such things are more evident?
+> >=20
+> > I find the most easy and clean way to describe it is,
+> >=20
+> > (1) the below formula
+> >                                                           write_bw =20
+> >     bdi->dirty_ratelimit_(i+1) =3D bdi->dirty_ratelimit_i * --------- *=
+ pos_ratio
+> >                                                           dirty_bw
+> > is able to yield
+> >=20
+> >     dirty_ratelimit_(i) ~=3D (write_bw / N)
+> >=20
+> > as long as
+> >=20
+> > - write_bw, dirty_bw and pos_ratio are not changing rapidly
+> > - dirty pages are not around @freerun or @limit
+> >=20
+> > Otherwise there will be larger estimation errors.
+> >=20
+> > (2) based on (1), we get
+> >=20
+> >     task_ratelimit ~=3D (write_bw / N) * pos_ratio
+> >=20
+> > So the pos_ratio feedback is able to drive dirty count to the
+> > setpoint, where pos_ratio =3D 1.
+> >=20
+> > That interpretation based on _real values_ can neatly decouple the two
+> > feedback loops :) It makes full utilization of the fact "the
+> > dirty_ratelimit _value_ is independent on pos_ratio except for
+> > possible impacts on estimation errors".=20
+>=20
+> OK, so the 'problem' I have with this is that the whole control thing
+> really doesn't care about N. All it does is measure:
+>=20
+>  - dirty rate
+>  - writeback rate
+>=20
+> observe:
+>=20
+>  - dirty count; with the independent input of its setpoint
+>=20
+> control:
+>=20
+>  - ratelimit
+>=20
+> so I was looking for a way to describe the interaction between the two
+> feedback loops without involving the exact details of what they're
+> controlling, but that might just end up being an oxymoron.
 
-That's actually OK, because the IOMMU core will split physically
-contiguous memory regions to pages on behalf of its drivers (drivers
-will just have to advertise the page sizes their hardware supports);
-this way you don't duplicate the logic in every IOMMU driver.
 
-Take a look:
+Hmm, so per Vivek's argument the system without pos_ratio in the
+feedback term isn't convergent. Therefore we should be able to argue
+from convergent/stability grounds that this term is indeed needed.
 
-http://www.spinics.net/lists/linux-omap/msg56660.html
+Does the stability proof of a control system need the model of what its
+controlling? I guess I ought to go get a book on this or so.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
