@@ -1,32 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D266B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 08:14:12 -0400 (EDT)
-Subject: Re: [PATCH 06/18] writeback: IO-less balance_dirty_pages()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 06 Sep 2011 14:13:53 +0200
-In-Reply-To: <20110904020915.383842632@intel.com>
-References: <20110904015305.367445271@intel.com>
-	 <20110904020915.383842632@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C096B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 08:36:12 -0400 (EDT)
+Received: by wyi11 with SMTP id 11so5799598wyi.14
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2011 05:36:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAHQjnONHr-Ao_KLjdRKgVQQUKtOmmoyqFwdkSZCDsE6hx1q-Ug@mail.gmail.com>
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971786-15140-3-git-send-email-m.szyprowski@samsung.com> <CAHQjnONHr-Ao_KLjdRKgVQQUKtOmmoyqFwdkSZCDsE6hx1q-Ug@mail.gmail.com>
+From: Ohad Ben-Cohen <ohad@wizery.com>
+Date: Tue, 6 Sep 2011 15:35:48 +0300
+Message-ID: <CADMYwHzTe7WcqjCOSdgnbFsHm6gtV7Bf1154WHXiTnffGSAYRA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 2/2] ARM: Samsung: update/rewrite Samsung
+ SYSMMU (IOMMU) driver
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315311233.12533.3.camel@twins>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KyongHo Cho <pullip.cho@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arch@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Linux Samsung SOC <linux-samsung-soc@vger.kernel.org>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Chunsang Jeong <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
 
-On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> -static inline void task_dirties_fraction(struct task_struct *tsk,
-> -               long *numerator, long *denominator)
-> -{
-> -       prop_fraction_single(&vm_dirties, &tsk->dirties,
-> -                               numerator, denominator);
-> -}=20
+On Tue, Sep 6, 2011 at 1:27 PM, KyongHo Cho <pullip.cho@samsung.com> wrote:
+> On Fri, Sep 2, 2011 at 10:56 PM, Marek Szyprowski
+>> +static int s5p_sysmmu_map(struct iommu_domain *domain, unsigned long io=
+va,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 phys_addr_t paddr, int=
+ gfp_order, int prot)
+>> +{
+>> + =A0 =A0 =A0 struct s5p_sysmmu_domain *s5p_domain =3D domain->priv;
+>> + =A0 =A0 =A0 int flpt_idx =3D flpt_index(iova);
+>> + =A0 =A0 =A0 size_t len =3D 0x1000UL << gfp_order;
+>> + =A0 =A0 =A0 void *flpt_va, *slpt_va;
+>> +
+>> + =A0 =A0 =A0 if (len !=3D SZ_16M && len !=3D SZ_1M && len !=3D SZ_64K &=
+& len !=3D SZ_4K) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysmmu_debug(3, "bad order: %d\n", gfp_ord=
+er);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
+>> + =A0 =A0 =A0 }
+>
+> Likewise, I think this driver need to support mapping 128KiB aligned,
+> 128KiB physical memory, for example.
+>
+> Otherwise, it is somewhat restrictive than we expect.
 
-it looks like this patch removes all users of tsk->dirties, but doesn't
-in fact remove the data member from task_struct.
+That's actually OK, because the IOMMU core will split physically
+contiguous memory regions to pages on behalf of its drivers (drivers
+will just have to advertise the page sizes their hardware supports);
+this way you don't duplicate the logic in every IOMMU driver.
+
+Take a look:
+
+http://www.spinics.net/lists/linux-omap/msg56660.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
