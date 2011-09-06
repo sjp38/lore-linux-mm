@@ -1,128 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 311C06B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 06:53:21 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 94CFE6B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 06:59:44 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6E9A63EE0BC
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:53:17 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 975243EE0C0
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:59:40 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 531DB45DEBF
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:53:17 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 818E845DEAD
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:59:40 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D7CA45DEBC
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:53:17 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AB1A45DE7E
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:59:40 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CD1A1DB8041
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:53:17 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D252E1DB803B
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:53:16 +0900 (JST)
-Date: Tue, 6 Sep 2011 19:45:45 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D1521DB803B
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:59:40 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 22BCC1DB8037
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 19:59:40 +0900 (JST)
+Date: Tue, 6 Sep 2011 19:52:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-Message-Id: <20110906194545.0533ff1f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110906104915.GC25053@redhat.com>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>
-	<20110906095852.GA25053@redhat.com>
-	<20110906190424.ad5cc647.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110906104915.GC25053@redhat.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual
+ size
+Message-Id: <20110906195211.d2a2c082.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110906104347.GB25053@redhat.com>
+References: <20110831090850.GA27345@redhat.com>
+	<CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
+	<20110901090931.c0721216.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110901061540.GA22561@redhat.com>
+	<20110901153148.70452287.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110905182514.GA20793@redhat.com>
+	<20110906183358.0a305900.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110906104347.GB25053@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 6 Sep 2011 12:49:15 +0200
+On Tue, 6 Sep 2011 12:43:47 +0200
 Johannes Weiner <jweiner@redhat.com> wrote:
 
-> On Tue, Sep 06, 2011 at 07:04:24PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 6 Sep 2011 11:58:52 +0200
+> On Tue, Sep 06, 2011 at 06:33:58PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Mon, 5 Sep 2011 20:25:14 +0200
 > > Johannes Weiner <jweiner@redhat.com> wrote:
 > > 
-> > > On Wed, Aug 17, 2011 at 11:50:53PM -0700, Greg Thelen wrote:
-> > > > Both mem_cgroup_charge_statistics() and mem_cgroup_move_account() were
-> > > > unnecessarily disabling preemption when adjusting per-cpu counters:
-> > > >     preempt_disable()
-> > > >     __this_cpu_xxx()
-> > > >     __this_cpu_yyy()
-> > > >     preempt_enable()
+> > > On Thu, Sep 01, 2011 at 03:31:48PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > On Thu, 1 Sep 2011 08:15:40 +0200
+> > > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > > Old implemenation was supporsed to make vmscan to see only memcg and
+> > > > ignore zones. memcg doesn't take care of any zones. Then, it uses
+> > > > global numbers rather than zones.
 > > > > 
-> > > > This change does not disable preemption and thus CPU switch is possible
-> > > > within these routines.  This does not cause a problem because the total
-> > > > of all cpu counters is summed when reporting stats.  Now both
-> > > > mem_cgroup_charge_statistics() and mem_cgroup_move_account() look like:
-> > > >     this_cpu_xxx()
-> > > >     this_cpu_yyy()
+> > > > Assume a system with 2 nodes and the whole memcg's inactive/active ratio
+> > > > is unbalaned. 
 > > > > 
-> > > > Reported-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Signed-off-by: Greg Thelen <gthelen@google.com>
+> > > >    Node      0     1
+> > > >    Active   800M   30M
+> > > >    Inactive 100M   200M
+> > > > 
+> > > > If we judge 'unbalance' based on zones, Node1's Active will not rotate
+> > > > even if it's not accessed for a while.
+> > > > If we judge unbalance based on total stat, Both of Node0 and Node 1
+> > > > will be rotated.
 > > > 
-> > > I just noticed that both cases have preemption disabled anyway because
-> > > of the page_cgroup bit spinlock.
-> > > 
-> > > So removing the preempt_disable() is fine but we can even keep the
-> > > non-atomic __this_cpu operations.
-> > > 
-> > > Something like this instead?
-> > > 
-> > > ---
-> > > From: Johannes Weiner <jweiner@redhat.com>
-> > > Subject: mm: memcg: remove needless recursive preemption disabling
-> > > 
-> > > Callsites of mem_cgroup_charge_statistics() hold the page_cgroup bit
-> > > spinlock, which implies disabled preemption.
-> > > 
-> > > The same goes for the explicit preemption disabling to account mapped
-> > > file pages in mem_cgroup_move_account().
-> > > 
-> > > The explicit disabling of preemption in both cases is redundant.
-> > > 
-> > > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > > But why should we deactivate on Node 1?  We have good reasons not to
+> > > on the global level, why should memcgs silently behave differently?
 > > 
-> > Could you add comments as
-> > "This operation is called under bit spin lock !" ?
+> > One reason was I thought that memcg should behave as to have one LRU list,
+> > which is not devided by zones and wanted to ignore zones as much
+> > as possible. Second reason was that I don't want to increase swap-out
+> > caused by memcg limit.
 > 
-> I left it as is in the file-mapped case, because if you read the
-> __this_cpu ops and go looking for who disables preemption, you see the
-> lock_page_cgroup() immediately a few lines above.
+> You can think of it like this: if every active list is only balanced
+> when its inactive counterpart is too small, then the memcg-wide
+> proportion of inactive vs. active pages is as desired, too.  So even
+> after my change, the 'one big LRU' has the right inactive/active ratio.
 > 
-> But I agree that the charge_statistics() is much less obvious, so I
-> added a line there.
+> On the other hand, the old way could allow for the memcg-level to have
+> the right proportion and still thrash one workload that is bound to
+> another node even though its inactive > active, but is overshadowed by
+> inactive < active workloads on other nodes.
 > 
-> Is that okay?
+ok.
+
+> > > I mostly don't understand it on a semantic level.  vmscan needs to
+> > > know whether a certain inactive LRU list has enough reclaim candidates
+> > > to skip scanning its corresponding active list.  The global state is
+> > > not useful to find out if a single inactive list has enough pages.
+> > 
+> > Ok, I agree to this. I should add other logic to do what I want.
+> > In my series,
+> >   - passing nodemask
+> >   - avoid overscan
+> >   - calculating node weight
+> > These will allow me to see what I want.
+> 
+> What /do/ you want? :) I just don't see your concern.  I mean, yes, no
+> increased swapout, but in what concrete scenario could you suspect
+> swapping to increase because of this change?
 > 
 
-seems nice.
+Ah, sorry. Maybe I was merged other concerns and this talk. This change
+itseld doesn't related to my scenario.
+
+Please forget. I'm a bit tired in these days...
+
+
+
+> > > > > > I'll ack when you add performance numbers in changelog.
+> > > > > 
+> > > > > It's not exactly a performance optimization but I'll happily run some
+> > > > > workloads.  Do you have suggestions what to test for?  I.e. where
+> > > > > would you expect regressions?
+> > > > > 
+> > > > Some comparison about amount of swap-out before/after change will be good.
+> > > > 
+> > > > Hm. If I do...
+> > > >   - set up x86-64 NUMA box. (fake numa is ok.)
+> > > >   - create memcg with 500M limit.
+> > > >   - running kernel make with make -j 6(or more)
+> > > > 
+> > > > see time of make and amount of swap-out.
+> > > 
+> > > 4G ram, 500M swap on SSD, numa=fake=16, 10 runs of make -j11 in 500M
+> > > memcg, standard deviation in parens:
+> > > 
+> > > 		seconds		pswpin			pswpout
+> > > vanilla:	175.359(0.106)	6906.900(1779.135)	8913.200(1917.369)
+> > > patched:	176.144(0.243)	8581.500(1833.432)	10872.400(2124.104)
+> > 
+> > Hmm. swapin/out seems increased. But hmm...stddev is large.
+> > Is this expected ? reason ?
+> 
+> It's kind of expected because there is only a small number of parallel
+> jobs that have bursty memory usage, so the slightest timing variations
+> can make the difference between an episode of heavy thrashing and the
+> tasks having their bursts at different times and getting along fine.
+> 
+> So we are basically looking at test results that are clustered around
+> not one, but several different mean values.  The arithmetic mean is
+> not really meaningful for these samples.
+> 
+ok.
+
+> > Anyway, I don't want to disturb you more. Thanks.
+> 
+> I am happy to test if my changes introduce regressions, I don't want
+> that, obviously.  But do you have a theory behind your concern that
+> swapping could increase?  Just saying, this test request seemed a bit
+> random because I don't see where my change would affect this
+> particular workload.
+> 
+> 
+
+the patch is on mm queue and this may be too late, but..
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 Thanks,
 -Kame
-
-> > Nice catch.
-> > 
-> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
-> 
-> Thanks!
-> 
-> ---
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> ---
->  mm/memcontrol.c |    1 +
->  1 file changed, 1 insertion(+)
-> 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -615,6 +615,7 @@ static unsigned long mem_cgroup_read_eve
->  	return val;
->  }
->  
-> +/* Must be called with preemption disabled */
->  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
->  					 bool file, int nr_pages)
->  {
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
