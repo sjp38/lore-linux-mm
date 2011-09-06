@@ -1,105 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DF3706B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 05:14:10 -0400 (EDT)
-Date: Tue, 6 Sep 2011 11:14:01 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/1] mm/backing-dev.c: Call del_timer_sync instead of
- del_timer
-Message-ID: <20110906091401.GA23747@quack.suse.cz>
-References: <CAFPAmTQbdhNgFNoP0RyS0E9Gm4djA-W_4JWwpWZ7U=XnTKR+cg@mail.gmail.com>
- <20110902112133.GD12182@quack.suse.cz>
- <CAFPAmTSh-WWJjtuNjZsdEcaK-zSf8CvBmrRGFTmd_HZQNAKUCw@mail.gmail.com>
- <CAFPAmTTJQddd-vHjCpvyfsHhursRXBwNzF4zoVHL3=ggztE8Qg@mail.gmail.com>
- <20110902151450.GF12182@quack.suse.cz>
- <CAFPAmTQxBK32zutyiX9DJLS2F+z6jxsV71xOwa0sivxSY5MD1Q@mail.gmail.com>
- <20110905103925.GC5466@quack.suse.cz>
- <CAFPAmTR5f_GW_oha07Bf0_LNXhigZri_w2N_XTEqM+X+-Ae-Rw@mail.gmail.com>
- <20110905160534.GB17354@quack.suse.cz>
- <CAFPAmTRdHaQFhbGCQAUhDEPXfaz95KnaX_pZ6xgK98BXL4nn1A@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFPAmTRdHaQFhbGCQAUhDEPXfaz95KnaX_pZ6xgK98BXL4nn1A@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5108A6B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 05:41:40 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 421223EE081
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 18:41:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 219F845DF4E
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 18:41:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 093E445DF49
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 18:41:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ECE1B1DB8042
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 18:41:34 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A91131DB8037
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 18:41:34 +0900 (JST)
+Date: Tue, 6 Sep 2011 18:33:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] memcg: skip scanning active lists based on individual
+ size
+Message-Id: <20110906183358.0a305900.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110905182514.GA20793@redhat.com>
+References: <20110831090850.GA27345@redhat.com>
+	<CAEwNFnBSg71QoLZbOqZbXK3fGEGneituU3PmiYTAw1VM3KcwcQ@mail.gmail.com>
+	<20110901090931.c0721216.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110901061540.GA22561@redhat.com>
+	<20110901153148.70452287.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110905182514.GA20793@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 06-09-11 09:41:42, kautuk.c @samsung.com wrote:
-> > On Mon 05-09-11 20:06:04, kautuk.c @samsung.com wrote:
-> >> >  OK, I don't care much whether we have there del_timer() or
-> >> > del_timer_sync(). Let me just say that the race you are afraid of is
-> >> > probably not going to happen in practice so I'm not sure it's valid to be
-> >> > afraid of CPU cycles being burned needlessly. The timer is armed when an
-> >> > dirty inode is first attached to default bdi's dirty list. Then the default
-> >> > bdi flusher thread would have to be woken up so that following happens:
-> >> >        CPU1                            CPU2
-> >> >  timer fires -> wakeup_timer_fn()
-> >> >                                        bdi_forker_thread()
-> >> >                                          del_timer(&me->wakeup_timer);
-> >> >                                          wb_do_writeback(me, 0);
-> >> >                                          ...
-> >> >                                          set_current_state(TASK_INTERRUPTIBLE);
-> >> >  wake_up_process(default_backing_dev_info.wb.task);
-> >> >
-> >> >  Especially wb_do_writeback() is going to take a long time so just that
-> >> > single thing makes the race unlikely. Given del_timer_sync() is slightly
-> >> > more costly than del_timer() even for unarmed timer, it is questionable
-> >> > whether (chance race happens * CPU spent in extra loop) > (extra CPU spent
-> >> > in del_timer_sync() * frequency that code is executed in
-> >> > bdi_forker_thread())...
-> >> >
-> >>
-> >> Ok, so this means that we can compare the following 2 paths of code:
-> >> i)   One extra iteration of the bdi_forker_thread loop, versus
-> >> ii)  The amount of time it takes for the del_timer_sync to wait till the
-> >> timer_fn on the other CPU finishes executing + schedule resulting in a
-> >> guaranteed sleep.
-> >  No, ii) is going to be as rare. But instead you should compare i) against:
-> > iii) The amount of time it takes del_timer_sync() to check whether the
-> > timer_fn is running on a different CPU (which is work del_timer() doesn't
-> > do).
+On Mon, 5 Sep 2011 20:25:14 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
+
+> On Thu, Sep 01, 2011 at 03:31:48PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 1 Sep 2011 08:15:40 +0200
+> > Johannes Weiner <jweiner@redhat.com> wrote:
+> > Old implemenation was supporsed to make vmscan to see only memcg and
+> > ignore zones. memcg doesn't take care of any zones. Then, it uses
+> > global numbers rather than zones.
+> > 
+> > Assume a system with 2 nodes and the whole memcg's inactive/active ratio
+> > is unbalaned. 
+> > 
+> >    Node      0     1
+> >    Active   800M   30M
+> >    Inactive 100M   200M
+> > 
+> > If we judge 'unbalance' based on zones, Node1's Active will not rotate
+> > even if it's not accessed for a while.
+> > If we judge unbalance based on total stat, Both of Node0 and Node 1
+> > will be rotated.
 > 
-> The amount of time it takes del_timer_sync to check the timer_fn should be
-> negligible.
-> In fact, try_to_del_timer_sync differs from del_timer_sync in only
-> that it performs
-> an additional check:
-> if (base->running_timer == timer)
->     goto out;
-  Yes, but the probability the race happens is also negligible. So you are
-comparing two negligible things... 
-
-> >  We are going to spend time in iii) each and every time
-> > if (wb_has_dirty_io(me) || !list_empty(&me->bdi->work_list))
-> >  evaluates to true.
+> But why should we deactivate on Node 1?  We have good reasons not to
+> on the global level, why should memcgs silently behave differently?
 > 
-> The amount of time spent on this every time will not matter much, as the
-> task will still be preemptible. However, if you notice that in most of
-> the bdi_forker_thread loop, we disable preemption due to taking a
-> spinlock so an additional loop there might be more costly.
-  So either you speak about CPU cost in amount of cycles spent - and there
-I still don't buy that it's clear del_timer_sync() is better than
-del_timer() - or you speak about latency which is a different thing. From
-latency POV that additional loop might be worse. But still I don't think
-it's clear enough to change it without any measurement...
 
-> >  Now frequency of i) and iii) happening is hard to evaluate so it's not
-> > clear what's going to be better. Certainly I don't think such evaluation is
-> > worth my time...
-> >
+One reason was I thought that memcg should behave as to have one LRU list,
+which is not devided by zones and wanted to ignore zones as much
+as possible. Second reason was that I don't want to increase swap-out
+caused by memcg limit.
+
+
+> I mostly don't understand it on a semantic level.  vmscan needs to
+> know whether a certain inactive LRU list has enough reclaim candidates
+> to skip scanning its corresponding active list.  The global state is
+> not useful to find out if a single inactive list has enough pages.
 > 
-> Ok. Anyways, thanks for explaining all this to me.
-> I really appreciate your time. :)
-  You are welcome. You made me refresh my memory about some parts of kernel
-which is also valuable so thanks goes also to you :)
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Ok, I agree to this. I should add other logic to do what I want.
+In my series,
+  - passing nodemask
+  - avoid overscan
+  - calculating node weight
+These will allow me to see what I want.
+
+> > Hmm, old one doesn't work as I expexted ?
+> > 
+> > But okay, as time goes, I think Node1's inactive will decreased
+> > and then, rotate will happen even with zone based ones.
+> 
+> Yes, that's how the mechanism is intended to work: with a constant
+> influx of used-once pages, we don't want to touch the active list.
+> But when the workload changes and inactive pages get either activated
+> or all reclaimed, the ratio changes and eventually we fall back to
+> deactivating pages again.
+> 
+> That's reclaim behaviour that has been around for a while and it
+> shouldn't make a difference if your workload is running in
+> root_mem_cgroup or another memcg.
+> 
+
+ok.
+
+
+> > > > But, hmm, this change may be good for softlimit and your work.
+> > > 
+> > > Yes, I noticed those paths showing up in a profile with my patches.
+> > > Lots of memcgs on a multi-node machine will trigger it too.  But it's
+> > > secondary, my primary reasoning was: this does not make sense at all.
+> > 
+> > your word sounds always too strong to me ;) please be soft.
+> 
+> Sorry, I'll try to be less harsh.  Please don't take it personally :)
+> 
+> What I meant was that the computational overhead was not the primary
+> reason for this patch.  Although a reduction there is very welcome,
+> it's that deciding to skip the list based on the list size seems more
+> correct than deciding based on the overall state of the memcg, which
+> can only by accident show the same proportion of inactive/active.
+> 
+> It's a correctness fix for existing code, not an optimization or
+> preparation for future changes.
+> 
+ok.
+
+
+> > > > I'll ack when you add performance numbers in changelog.
+> > > 
+> > > It's not exactly a performance optimization but I'll happily run some
+> > > workloads.  Do you have suggestions what to test for?  I.e. where
+> > > would you expect regressions?
+> > > 
+> > Some comparison about amount of swap-out before/after change will be good.
+> > 
+> > Hm. If I do...
+> >   - set up x86-64 NUMA box. (fake numa is ok.)
+> >   - create memcg with 500M limit.
+> >   - running kernel make with make -j 6(or more)
+> > 
+> > see time of make and amount of swap-out.
+> 
+> 4G ram, 500M swap on SSD, numa=fake=16, 10 runs of make -j11 in 500M
+> memcg, standard deviation in parens:
+> 
+> 		seconds		pswpin			pswpout
+> vanilla:	175.359(0.106)	6906.900(1779.135)	8913.200(1917.369)
+> patched:	176.144(0.243)	8581.500(1833.432)	10872.400(2124.104)
+> 
+
+Hmm. swapin/out seems increased. But hmm...stddev is large.
+Is this expected ? reason ?
+
+Anyway, I don't want to disturb you more. Thanks.
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
