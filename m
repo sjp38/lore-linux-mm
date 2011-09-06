@@ -1,91 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A636B00EE
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 11:51:35 -0400 (EDT)
-Subject: Re: [PATCH 14/18] writeback: control dirty pause time
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 06 Sep 2011 17:51:25 +0200
-In-Reply-To: <20110904020916.460538138@intel.com>
-References: <20110904015305.367445271@intel.com>
-	 <20110904020916.460538138@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315324285.14232.16.camel@twins>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 338D46B00EE
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 11:52:07 -0400 (EDT)
+Received: by gyf1 with SMTP id 1so3079996gyf.14
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2011 08:52:04 -0700 (PDT)
+Date: Wed, 7 Sep 2011 00:51:41 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
+Message-ID: <20110906155141.GB1589@barrios-fedora.local>
+References: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
+ <20110831173031.GA21571@redhat.com>
+ <CAEwNFnDcNqLvo=oyXXkxgFxs8wNc+WTLwot0qeru1VfQKmUYDQ@mail.gmail.com>
+ <20110905083321.GA15935@redhat.com>
+ <20110906151140.GA1589@barrios-fedora.local>
+ <20110906153903.GU14369@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110906153903.GU14369@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> plain text document attachment (max-pause-adaption)
-> The dirty pause time shall ultimately be controlled by adjusting
-> nr_dirtied_pause, since there is relationship
->=20
-> 	pause =3D pages_dirtied / task_ratelimit
->=20
-> Assuming
->=20
-> 	pages_dirtied ~=3D nr_dirtied_pause
-> 	task_ratelimit ~=3D dirty_ratelimit
->=20
-> We get
->=20
-> 	nr_dirtied_pause ~=3D dirty_ratelimit * desired_pause
->=20
-> Here dirty_ratelimit is preferred over task_ratelimit because it's
-> more stable.
->=20
-> It's also important to limit possible large transitional errors:
->=20
-> - bw is changing quickly
-> - pages_dirtied << nr_dirtied_pause on entering dirty exceeded area
-> - pages_dirtied >> nr_dirtied_pause on btrfs (to be improved by a
->   separate fix, but still expect non-trivial errors)
->=20
-> So we end up using the above formula inside clamp_val().
->=20
-> The best test case for this code is to run 100 "dd bs=3D4M" tasks on
-> btrfs and check its pause time distribution.
+On Tue, Sep 06, 2011 at 04:39:03PM +0100, Mel Gorman wrote:
+> On Wed, Sep 07, 2011 at 12:11:40AM +0900, Minchan Kim wrote:
+> > > > <SNIP>
+> > > > If we consider that, we have to fix other reset_reclaim_mode cases as
+> > > > well as mlocked pages.
+> > > > Or
+> > > > fix isolataion logic for the lumpy? (When we find the page isn't able
+> > > > to isolate, rollback the pages in the lumpy block to the LRU)
+> > > > Or
+> > > > Nothing and wait to remove lumpy completely.
+> > > > 
+> > > > What do you think about it?
+> > > 
+> > > The rollback may be overkill and we already abort clustering the
+> > > isolation when one of the pages fails.
+> > 
+> > I think abort isn't enough
+> > Because we know the chace to make a bigger page is gone when we isolate page.
+> > But we still try to reclaim pages to make bigger space in a vain.
+> > It causes unnecessary unmap operation by try_to_unmap which is costly operation
+> > , evict some working set pages and make reclaim latency long.
+> > 
+> > As a matter of fact, I though as follows patch to solve this problem(Totally, untested)
+> > 
+> 
+> I confess I haven't read this patch carefully or given it much
+> thought. I agree with you in principal that it would be preferred if
+> lumpy reclaim disrupted the LRU lists as little as possible but I'm
+> wary about making lumpy reclaim more complex when it is preferred that
+> compaction is used and we expect lumpy reclaim to go away eventually.
 
+Agreed.
+But I think the concept of the patch could be applied to compaction for high order pages.
+If we know some block has a pinned page when we do compaction for high order pages,
+migration of the pages isolated in the block is pointless.
 
+> 
+> > > <SNIP{>
+> > > 
+> > > I would go with the last option.  Lumpy reclaim is on its way out and
+> > > already disabled for a rather common configuration, so I would defer
+> > > non-obvious fixes like these until actual bug reports show up.
+> > 
+> > It's hard to report above problem as it might not make big difference on normal worklaod.
+> 
+> I doubt it makes a noticable difference as lumpy reclaim disrupts
+> the system quite heavily.
 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/page-writeback.c |   15 ++++++++++++++-
->  1 file changed, 14 insertions(+), 1 deletion(-)
->=20
-> --- linux-next.orig/mm/page-writeback.c	2011-08-29 19:08:43.000000000 +08=
-00
-> +++ linux-next/mm/page-writeback.c	2011-08-29 19:08:44.000000000 +0800
-> @@ -1193,7 +1193,20 @@ pause:
->  	if (!dirty_exceeded && bdi->dirty_exceeded)
->  		bdi->dirty_exceeded =3D 0;
-> =20
-> -	current->nr_dirtied_pause =3D dirty_poll_interval(nr_dirty, dirty_thres=
-h);
-> +	if (pause =3D=3D 0)
-> +		current->nr_dirtied_pause =3D
-> +				dirty_poll_interval(nr_dirty, dirty_thresh);
-> +	else if (period <=3D max_pause / 4 &&
-> +		 pages_dirtied >=3D current->nr_dirtied_pause)
-> +		current->nr_dirtied_pause =3D clamp_val(
-> +					dirty_ratelimit * (max_pause / 2) / HZ,
-> +					pages_dirtied + pages_dirtied / 8,
-> +					pages_dirtied * 4);
-> +	else if (pause >=3D max_pause)
-> +		current->nr_dirtied_pause =3D 1 | clamp_val(
-> +					dirty_ratelimit * (max_pause * 3/8)/HZ,
-> +					pages_dirtied / 4,
-> +					pages_dirtied * 7/8);
-> =20
+Yes. I don't know such workload but I think it apparently could make relcaim latency
+long with be not able to make bigger page.
 
-I very much prefer { } over multi line stmts, even if not strictly
-needed.
+> 
+> > But I agree last option, too. Then, when does we suppose to remove lumpy?
+> > Mel, Could you have a any plan?
+> > 
+> 
+> I think it should be removed after all the major distributions release
+> with a kernel with compaction enabled. At that point,  we'll know
+> that lumpy reclaim is not being depended upon.
 
-I'm also not quite sure why pause=3D=3D0 is a special case, also, do the tw=
-o
-other line segments connect on the transition point?
+It does make sense.
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
