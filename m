@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D3C36B0171
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:25:26 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 29C9C6B016B
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:25:33 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 8/9] Display current tcp memory allocation in kmem cgroup
-Date: Wed,  7 Sep 2011 01:23:18 -0300
-Message-Id: <1315369399-3073-9-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 9/9] Add documentation about kmem_cgroup
+Date: Wed,  7 Sep 2011 01:23:19 -0300
+Message-Id: <1315369399-3073-10-git-send-email-glommer@parallels.com>
 In-Reply-To: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 References: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, Glauber Costa <glommer@parallels.com>, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
-
-This patch introduces kmem.tcp_current_memory file, living in the
-kmem_cgroup filesystem. It is a simple read-only file that displays the
-amount of kernel memory currently consumed by the cgroup.
+Cc: linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, Glauber Costa <glommer@parallels.com>, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Randy Dunlap <rdunlap@xenotime.net>
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: David S. Miller <davem@davemloft.net>
 CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Eric W. Biederman <ebiederm@xmission.com>
+CC: Randy Dunlap <rdunlap@xenotime.net>
 ---
- net/ipv4/tcp.c |   17 +++++++++++++++++
- 1 files changed, 17 insertions(+), 0 deletions(-)
+ Documentation/cgroups/kmem_cgroups.txt |   27 +++++++++++++++++++++++++++
+ 1 files changed, 27 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/cgroups/kmem_cgroups.txt
 
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index e1918fa..ff5c0e0 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -365,12 +365,29 @@ static u64 tcp_read_maxmem(struct cgroup *cgrp, struct cftype *cft)
- 	return ret;
- }
- 
-+static u64 tcp_read_curmem(struct cgroup *cgrp, struct cftype *cft)
-+{
-+	struct kmem_cgroup *sg = kcg_from_cgroup(cgrp);
-+	u64 ret;
+diff --git a/Documentation/cgroups/kmem_cgroups.txt b/Documentation/cgroups/kmem_cgroups.txt
+new file mode 100644
+index 0000000..930e069
+--- /dev/null
++++ b/Documentation/cgroups/kmem_cgroups.txt
+@@ -0,0 +1,27 @@
++Kernel Memory Cgroup
++====================
 +
-+	if (!cgroup_lock_live_group(cgrp))
-+		return -ENODEV;
-+	ret = atomic_long_read(&sg->tcp_memory_allocated);
++This document briefly describes the kernel memory cgroup, or "kmem cgroup".
++Unlike user memory, kernel memory cannot be swapped. This effectively means
++that rogue processes can start operations that pin kernel objects permanently
++into memory, exhausting resources of all other processes in the system.
 +
-+	cgroup_unlock();
-+	return ret;
-+}
++kmem_cgroup main goal is to control the amount of memory a group of processes
++can pin at any given point in time. Other uses of this infrastructure are
++expected to come up with time. Right now, the only resource effectively limited
++are tcp send and receive buffers.
 +
- static struct cftype tcp_files[] = {
- 	{
- 		.name = "tcp_maxmem",
- 		.write_u64 = tcp_write_maxmem,
- 		.read_u64 = tcp_read_maxmem,
- 	},
-+	{
-+		.name = "tcp_current_memory",
-+		.read_u64 = tcp_read_curmem,
-+	},
- };
- 
- int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
++TCP network buffers
++===================
++
++TCP network buffers, both on the send and receive sides, can be controlled
++by the kmem cgroup. Once a socket is created, it is attached to the cgroup of
++the controller process, where it stays until the end of its lifetime.
++
++Files
++=====
++	kmem.tcp_maxmem: control the maximum amount in bytes that can be used by
++	tcp sockets inside the cgroup. 
++
++	kmem.tcp_current_memory: current amount in bytes used by all sockets in
++	this cgroup
 -- 
 1.7.6
 
