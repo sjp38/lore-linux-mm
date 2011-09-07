@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D026B016D
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:24:55 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 63B616B016C
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:24:58 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 3/9] socket: initial cgroup code.
-Date: Wed,  7 Sep 2011 01:23:13 -0300
-Message-Id: <1315369399-3073-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 2/9] Kernel Memory cgroup
+Date: Wed,  7 Sep 2011 01:23:12 -0300
+Message-Id: <1315369399-3073-3-git-send-email-glommer@parallels.com>
 In-Reply-To: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 References: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,9 +13,13 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, Glauber Costa <glommer@parallels.com>, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-We aim to control the amount of kernel memory pinned at any
-time by tcp sockets. To lay the foundations for this work,
-this patch adds a pointer to the kmem_cgroup to the socket
+This patch introduces the kernel memory cgroup. Its purpose
+is to track and control/limit allocation of kernel objects.
+Kernel objects are very different in nature than user memory,
+because they can't be swapped out, so can't be overcommited.
+
+The first incarnation is very simple. The current patch doesn't
+add any objects to be tracked, but rather, just the cgroup
 structure.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
@@ -23,100 +27,182 @@ CC: David S. Miller <davem@davemloft.net>
 CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Eric W. Biederman <ebiederm@xmission.com>
 ---
- include/linux/kmem_cgroup.h |   29 +++++++++++++++++++++++++++++
- include/net/sock.h          |    2 ++
- net/core/sock.c             |    5 ++---
- 3 files changed, 33 insertions(+), 3 deletions(-)
+ include/linux/cgroup_subsys.h |    4 +++
+ include/linux/kmem_cgroup.h   |   53 +++++++++++++++++++++++++++++++++++++++++
+ init/Kconfig                  |   11 ++++++++
+ mm/Makefile                   |    1 +
+ mm/kmem_cgroup.c              |   53 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 122 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/kmem_cgroup.h
+ create mode 100644 mm/kmem_cgroup.c
 
-diff --git a/include/linux/kmem_cgroup.h b/include/linux/kmem_cgroup.h
-index 0e4a74b..77076d8 100644
---- a/include/linux/kmem_cgroup.h
-+++ b/include/linux/kmem_cgroup.h
-@@ -49,5 +49,34 @@ static inline struct kmem_cgroup *kcg_from_task(struct task_struct *tsk)
- 	return NULL;
- }
- #endif /* CONFIG_CGROUP_KMEM */
-+
-+#ifdef CONFIG_INET
-+#include <net/sock.h>
-+static inline void sock_update_kmem_cgrp(struct sock *sk)
-+{
-+#ifdef CONFIG_CGROUP_KMEM
-+	sk->sk_cgrp = kcg_from_task(current);
-+
-+	/*
-+	 * We don't need to protect against anything task-related, because
-+	 * we are basically stuck with the sock pointer that won't change,
-+	 * even if the task that originated the socket changes cgroups.
-+	 *
-+	 * What we do have to guarantee, is that the chain leading us to
-+	 * the top level won't change under our noses. Incrementing the
-+	 * reference count via cgroup_exclude_rmdir guarantees that.
-+	 */
-+	cgroup_exclude_rmdir(&sk->sk_cgrp->css);
-+#endif
-+}
-+
-+static inline void sock_release_kmem_cgrp(struct sock *sk)
-+{
-+#ifdef CONFIG_CGROUP_KMEM
-+	cgroup_release_and_wakeup_rmdir(&sk->sk_cgrp->css);
-+#endif
-+}
-+
-+#endif /* CONFIG_INET */
- #endif /* _LINUX_KMEM_CGROUP_H */
- 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 8e4062f..709382f 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -228,6 +228,7 @@ struct sock_common {
-   *	@sk_security: used by security modules
-   *	@sk_mark: generic packet mark
-   *	@sk_classid: this socket's cgroup classid
-+  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup 
-   *	@sk_write_pending: a write to stream socket waits to start
-   *	@sk_state_change: callback to indicate change in the state of the sock
-   *	@sk_data_ready: callback to indicate there is data to be processed
-@@ -339,6 +340,7 @@ struct sock {
+diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
+index ac663c1..363b8e8 100644
+--- a/include/linux/cgroup_subsys.h
++++ b/include/linux/cgroup_subsys.h
+@@ -35,6 +35,10 @@ SUBSYS(cpuacct)
+ SUBSYS(mem_cgroup)
  #endif
- 	__u32			sk_mark;
- 	u32			sk_classid;
-+	struct kmem_cgroup	*sk_cgrp;
- 	void			(*sk_state_change)(struct sock *sk);
- 	void			(*sk_data_ready)(struct sock *sk, int bytes);
- 	void			(*sk_write_space)(struct sock *sk);
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 3449df8..7109864 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -1139,6 +1139,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
- 		atomic_set(&sk->sk_wmem_alloc, 1);
  
- 		sock_update_classid(sk);
-+		sock_update_kmem_cgrp(sk);
- 	}
++#ifdef CONFIG_CGROUP_KMEM
++SUBSYS(kmem)
++#endif
++
+ /* */
  
- 	return sk;
-@@ -1170,6 +1171,7 @@ static void __sk_free(struct sock *sk)
- 		put_cred(sk->sk_peer_cred);
- 	put_pid(sk->sk_peer_pid);
- 	put_net(sock_net(sk));
-+	sock_release_kmem_cgrp(sk);
- 	sk_prot_free(sk->sk_prot_creator, sk);
- }
+ #ifdef CONFIG_CGROUP_DEVICE
+diff --git a/include/linux/kmem_cgroup.h b/include/linux/kmem_cgroup.h
+new file mode 100644
+index 0000000..0e4a74b
+--- /dev/null
++++ b/include/linux/kmem_cgroup.h
+@@ -0,0 +1,53 @@
++/* kmem_cgroup.h - Kernel Memory Controller
++ *
++ * Copyright Parallels Inc., 2011
++ * Author: Glauber Costa <glommer@parallels.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef _LINUX_KMEM_CGROUP_H
++#define _LINUX_KMEM_CGROUP_H
++#include <linux/cgroup.h>
++#include <linux/atomic.h>
++#include <linux/percpu_counter.h>
++
++struct kmem_cgroup {
++	struct cgroup_subsys_state css;
++	struct kmem_cgroup *parent;
++};
++
++
++#ifdef CONFIG_CGROUP_KMEM
++static inline struct kmem_cgroup *kcg_from_cgroup(struct cgroup *cgrp)
++{
++	return container_of(cgroup_subsys_state(cgrp, kmem_subsys_id),
++		struct kmem_cgroup, css);
++}
++
++static inline struct kmem_cgroup *kcg_from_task(struct task_struct *tsk)
++{
++	return container_of(task_subsys_state(tsk, kmem_subsys_id),
++		struct kmem_cgroup, css);
++}
++#else
++static inline struct kmem_cgroup *kcg_from_cgroup(struct cgroup *cgrp)
++{
++	return NULL;
++}
++
++static inline struct kmem_cgroup *kcg_from_task(struct task_struct *tsk)
++{
++	return NULL;
++}
++#endif /* CONFIG_CGROUP_KMEM */
++#endif /* _LINUX_KMEM_CGROUP_H */
++
+diff --git a/init/Kconfig b/init/Kconfig
+index d627783..5955ac2 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -690,6 +690,17 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+ 	  select this option (if, for some reason, they need to disable it
+ 	  then swapaccount=0 does the trick).
  
-@@ -2252,9 +2254,6 @@ void sk_common_release(struct sock *sk)
- }
- EXPORT_SYMBOL(sk_common_release);
- 
--static DEFINE_RWLOCK(proto_list_lock);
--static LIST_HEAD(proto_list);
--
- #ifdef CONFIG_PROC_FS
- #define PROTO_INUSE_NR	64	/* should be enough for the first time */
- struct prot_inuse {
++config CGROUP_KMEM
++	bool "Kernel Memory Resource Controller for Control Groups"
++	depends on CGROUPS
++	help
++	  The Kernel Memory cgroup can limit the amount of memory used by
++	  certain kernel objects in the system. Those are fundamentally
++	  different from the entities handled by the Memory Controller,
++	  which are page-based, and can be swapped. Users of the kmem
++	  cgroup can use it to guarantee that no group of processes will
++	  ever exhaust kernel resources alone.
++
+ config CGROUP_PERF
+ 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
+ 	depends on PERF_EVENTS && CGROUPS
+diff --git a/mm/Makefile b/mm/Makefile
+index 836e416..1b1aa24 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -45,6 +45,7 @@ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
+ obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
+ obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
++obj-$(CONFIG_CGROUP_KMEM) += kmem_cgroup.o
+ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+diff --git a/mm/kmem_cgroup.c b/mm/kmem_cgroup.c
+new file mode 100644
+index 0000000..7950e69
+--- /dev/null
++++ b/mm/kmem_cgroup.c
+@@ -0,0 +1,53 @@
++/* kmem_cgroup.c - Kernel Memory Controller
++ *
++ * Copyright Parallels Inc, 2011
++ * Author: Glauber Costa <glommer@parallels.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <linux/cgroup.h>
++#include <linux/slab.h>
++#include <linux/kmem_cgroup.h>
++
++static int kmem_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
++{
++	return 0;
++}
++
++static void
++kmem_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
++{
++	struct kmem_cgroup *cg = kcg_from_cgroup(cgrp);
++	kfree(cg);
++}
++
++static struct cgroup_subsys_state *kmem_create(
++	struct cgroup_subsys *ss, struct cgroup *cgrp)
++{
++	struct kmem_cgroup *sk = kzalloc(sizeof(*sk), GFP_KERNEL);
++
++	if (!sk)
++		return ERR_PTR(-ENOMEM);
++
++	if (cgrp->parent)
++		sk->parent = kcg_from_cgroup(cgrp->parent);
++
++	return &sk->css;
++}
++
++struct cgroup_subsys kmem_subsys = {
++	.name = "kmem",
++	.create = kmem_create,
++	.destroy = kmem_destroy,
++	.populate = kmem_populate,
++	.subsys_id = kmem_subsys_id,
++};
 -- 
 1.7.6
 
