@@ -1,51 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 05B4B6B016A
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 20:22:25 -0400 (EDT)
-Date: Wed, 7 Sep 2011 02:22:22 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 17/18] writeback: fix dirtied pages accounting on
- redirty
-Message-ID: <20110907002222.GF31945@quack.suse.cz>
-References: <20110904015305.367445271@intel.com>
- <20110904020916.841463184@intel.com>
- <1315325936.14232.22.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315325936.14232.22.camel@twins>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id F2DF06B016A
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 20:57:37 -0400 (EDT)
+Subject: [PATCH] slub Discard slab page only when node partials > minimum
+ setting
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1109061914440.18646@router.home>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 07 Sep 2011 09:03:19 +0800
+Message-ID: <1315357399.31737.49.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 
-On Tue 06-09-11 18:18:56, Peter Zijlstra wrote:
-> On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> > De-account the accumulative dirty counters on page redirty.
-> > 
-> > Page redirties (very common in ext4) will introduce mismatch between
-> > counters (a) and (b)
-> > 
-> > a) NR_DIRTIED, BDI_DIRTIED, tsk->nr_dirtied
-> > b) NR_WRITTEN, BDI_WRITTEN
-> > 
-> > This will introduce systematic errors in balanced_rate and result in
-> > dirty page position errors (ie. the dirty pages are no longer balanced
-> > around the global/bdi setpoints).
-> > 
-> 
-> So wtf is ext4 doing? Shouldn't a page stay dirty until its written out?
-> 
-> That is, should we really frob around this behaviour or fix ext4 because
-> its on crack?
-  Fengguang, could you please verify your findings with recent kernel? I
-believe ext4 got fixed in this regard some time ago already (and yes, old
-delalloc writeback code in ext4 was terrible).
+Unfreeze_partials may try to discard slab page, the discarding condition
+should be 'when node partials number > minimum partial number setting',
+not '<' in current code.
 
-								Honza
+This patch base on penberg's tree's 'slub/partial' head. 
+
+git://git.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git 
+
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+
+---
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index b351480..66a5b29 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1954,7 +1954,7 @@ static void unfreeze_partials(struct kmem_cache *s)
+ 
+ 			new.frozen = 0;
+ 
+-			if (!new.inuse && (!n || n->nr_partial < s->min_partial))
++			if (!new.inuse && (!n || n->nr_partial > s->min_partial))
+ 				m = M_FREE;
+ 			else {
+ 				struct kmem_cache_node *n2 = get_node(s,
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.0
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
