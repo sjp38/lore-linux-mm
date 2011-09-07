@@ -1,112 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CF186B016C
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 03:32:12 -0400 (EDT)
-Message-ID: <4E671E1F.4040804@cn.fujitsu.com>
-Date: Wed, 07 Sep 2011 15:32:47 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 06A616B016E
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 05:32:54 -0400 (EDT)
+Date: Wed, 7 Sep 2011 17:06:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 15/18] writeback: charge leaked page dirties to active
+ tasks
+Message-ID: <20110907090615.GA13841@localhost>
+References: <20110904015305.367445271@intel.com>
+ <20110904020916.588150387@intel.com>
+ <1315325796.14232.20.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 6/9] per-cgroup tcp buffers control
-References: <1315369399-3073-1-git-send-email-glommer@parallels.com> <1315369399-3073-7-git-send-email-glommer@parallels.com>
-In-Reply-To: <1315369399-3073-7-git-send-email-glommer@parallels.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1315325796.14232.20.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, xemul@parallels.com, netdev@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, containers@lists.osdl.org, "David S. Miller" <davem@davemloft.net>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> +#ifdef CONFIG_INET
-> +#include <net/sock.h>
-> +static inline void sock_update_kmem_cgrp(struct sock *sk)
-> +{
-> +#ifdef CONFIG_CGROUP_KMEM
-> +	sk->sk_cgrp = kcg_from_task(current);
-> +
-> +	/*
-> +	 * We don't need to protect against anything task-related, because
-> +	 * we are basically stuck with the sock pointer that won't change,
-> +	 * even if the task that originated the socket changes cgroups.
-> +	 *
-> +	 * What we do have to guarantee, is that the chain leading us to
-> +	 * the top level won't change under our noses. Incrementing the
-> +	 * reference count via cgroup_exclude_rmdir guarantees that.
-> +	 */
-> +	cgroup_exclude_rmdir(&sk->sk_cgrp->css);
-> +#endif
+On Wed, Sep 07, 2011 at 12:16:36AM +0800, Peter Zijlstra wrote:
+> On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
+> > The solution is to charge the pages dirtied by the exited gcc to the
+> > other random gcc/dd instances.
+> 
+> random dirtying task, seeing it lacks a !strcmp(t->comm, "gcc") || !
+> strcmp(t->comm, "dd") clause.
 
-must be protected by rcu_read_lock.
+OK.
 
-> +}
-> +
-> +static inline void sock_release_kmem_cgrp(struct sock *sk)
-> +{
-> +#ifdef CONFIG_CGROUP_KMEM
-> +	cgroup_release_and_wakeup_rmdir(&sk->sk_cgrp->css);
-> +#endif
-> +}
+> >  It sounds not perfect, however should
+> > behave good enough in practice. 
+> 
+> Seeing as that throttled tasks aren't actually running so those that are
+> running are more likely to pick it up and get throttled, therefore
+> promoting an equal spread.. ?
 
-Ugly. Just use the way you define kcg_from_task().
+Exactly. Let me write that into changelog :)
 
-> +
-> +#endif /* CONFIG_INET */
->  #endif /* _LINUX_KMEM_CGROUP_H */
->  
-> diff --git a/include/net/sock.h b/include/net/sock.h
-> index 8e4062f..709382f 100644
-> --- a/include/net/sock.h
-> +++ b/include/net/sock.h
-> @@ -228,6 +228,7 @@ struct sock_common {
->    *	@sk_security: used by security modules
->    *	@sk_mark: generic packet mark
->    *	@sk_classid: this socket's cgroup classid
-> +  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup 
->    *	@sk_write_pending: a write to stream socket waits to start
->    *	@sk_state_change: callback to indicate change in the state of the sock
->    *	@sk_data_ready: callback to indicate there is data to be processed
-> @@ -339,6 +340,7 @@ struct sock {
->  #endif
->  	__u32			sk_mark;
->  	u32			sk_classid;
-> +	struct kmem_cgroup	*sk_cgrp;
->  	void			(*sk_state_change)(struct sock *sk);
->  	void			(*sk_data_ready)(struct sock *sk, int bytes);
->  	void			(*sk_write_space)(struct sock *sk);
-> diff --git a/net/core/sock.c b/net/core/sock.c
-> index 3449df8..7109864 100644
-> --- a/net/core/sock.c
-> +++ b/net/core/sock.c
-> @@ -1139,6 +1139,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
->  		atomic_set(&sk->sk_wmem_alloc, 1);
->  
->  		sock_update_classid(sk);
-> +		sock_update_kmem_cgrp(sk);
->  	}
->  
->  	return sk;
-> @@ -1170,6 +1171,7 @@ static void __sk_free(struct sock *sk)
->  		put_cred(sk->sk_peer_cred);
->  	put_pid(sk->sk_peer_pid);
->  	put_net(sock_net(sk));
-> +	sock_release_kmem_cgrp(sk);
->  	sk_prot_free(sk->sk_prot_creator, sk);
->  }
->  
-> @@ -2252,9 +2254,6 @@ void sk_common_release(struct sock *sk)
->  }
->  EXPORT_SYMBOL(sk_common_release);
->  
-> -static DEFINE_RWLOCK(proto_list_lock);
-> -static LIST_HEAD(proto_list);
-> -
-
-compile error.
-
-you should do compile test after each single patch.
-
->  #ifdef CONFIG_PROC_FS
->  #define PROTO_INUSE_NR	64	/* should be enough for the first time */
->  struct prot_inuse {
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
