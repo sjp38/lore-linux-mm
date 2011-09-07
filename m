@@ -1,134 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 458A06B016A
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 08:31:14 -0400 (EDT)
-Date: Wed, 7 Sep 2011 20:31:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
- area
-Message-ID: <20110907123108.GB6862@localhost>
-References: <20110904015305.367445271@intel.com>
- <20110904020915.942753370@intel.com>
- <1315318179.14232.3.camel@twins>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D79856B016A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 09:04:10 -0400 (EDT)
+Message-ID: <4E676B7C.4030904@parallels.com>
+Date: Wed, 7 Sep 2011 10:02:52 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315318179.14232.3.camel@twins>
+Subject: Re: [PATCH v2 6/9] per-cgroup tcp buffers control
+References: <1315369399-3073-1-git-send-email-glommer@parallels.com> <1315369399-3073-7-git-send-email-glommer@parallels.com> <4E671E1F.4040804@cn.fujitsu.com>
+In-Reply-To: <4E671E1F.4040804@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, xemul@parallels.com, netdev@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, containers@lists.osdl.org, "David S. Miller" <davem@davemloft.net>
 
-On Tue, Sep 06, 2011 at 10:09:39PM +0800, Peter Zijlstra wrote:
-> On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
-> > plain text document attachment (bdi-reserve-area)
-> > Keep a minimal pool of dirty pages for each bdi, so that the disk IO
-> > queues won't underrun.
-> > 
-> > It's particularly useful for JBOD and small memory system.
-> > 
-> > Note that this is not enough when memory is really tight (in comparison
-> > to write bandwidth). It may result in (pos_ratio > 1) at the setpoint
-> > and push the dirty pages high. This is more or less intended because the
-> > bdi is in the danger of IO queue underflow. However the global dirty
-> > pages, when pushed close to limit, will eventually conteract our desire
-> > to push up the low bdi_dirty.
-> > 
-> > In low memory JBOD tests we do see disks under-utilized from time to
-> > time. The additional fix may be to add a BDI_async_underrun flag to
-> > indicate that the block write queue is running low and it's time to
-> > quickly fill the queue by unthrottling the tasks regardless of the
-> > global limit.
-> > 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  mm/page-writeback.c |   26 ++++++++++++++++++++++++++
-> >  1 file changed, 26 insertions(+)
-> > 
-> > --- linux-next.orig/mm/page-writeback.c	2011-08-26 20:12:19.000000000 +0800
-> > +++ linux-next/mm/page-writeback.c	2011-08-26 20:13:21.000000000 +0800
-> > @@ -487,6 +487,16 @@ unsigned long bdi_dirty_limit(struct bac
-> >   *   0 +------------.------------------.----------------------*------------->
-> >   *           freerun^          setpoint^                 limit^   dirty pages
-> >   *
-> > + * (o) bdi reserve area
-> > + *
-> > + * The bdi reserve area tries to keep a reasonable number of dirty pages for
-> > + * preventing block queue underrun.
-> > + *
-> > + * reserve area, scale up rate as dirty pages drop low
-> > + * |<----------------------------------------------->|
-> > + * |-------------------------------------------------------*-------|----------
-> > + * 0                                           bdi setpoint^       ^bdi_thresh
-> 
-> 
-> So why not call the thing bdi freerun ?
+On 09/07/2011 04:32 AM, Li Zefan wrote:
+>> +#ifdef CONFIG_INET
+>> +#include<net/sock.h>
+>> +static inline void sock_update_kmem_cgrp(struct sock *sk)
+>> +{
+>> +#ifdef CONFIG_CGROUP_KMEM
+>> +	sk->sk_cgrp = kcg_from_task(current);
+>> +
+>> +	/*
+>> +	 * We don't need to protect against anything task-related, because
+>> +	 * we are basically stuck with the sock pointer that won't change,
+>> +	 * even if the task that originated the socket changes cgroups.
+>> +	 *
+>> +	 * What we do have to guarantee, is that the chain leading us to
+>> +	 * the top level won't change under our noses. Incrementing the
+>> +	 * reference count via cgroup_exclude_rmdir guarantees that.
+>> +	 */
+>> +	cgroup_exclude_rmdir(&sk->sk_cgrp->css);
+>> +#endif
+>
+> must be protected by rcu_read_lock.
 
-Yeah I remember tried the "bdi freerun" concept in some earlier
-version. The main problem is, comparing to the global freerun, it
-risks exceeding the dirty limit. So if we are to do any bdi freerun
-area, it must be kept as small as possible.
+Ok.
 
-Or we can do conditional bdi freerun area as long as under global
-dirty limit. Something like
+>> +}
+>> +
+>> +static inline void sock_release_kmem_cgrp(struct sock *sk)
+>> +{
+>> +#ifdef CONFIG_CGROUP_KMEM
+>> +	cgroup_release_and_wakeup_rmdir(&sk->sk_cgrp->css);
+>> +#endif
+>> +}
+>
+> Ugly. Just use the way you define kcg_from_task().
+Disagree.
+This releases the pointer from the socket, not the task.
+Actually, one of the assumptions I am making here, is that the cgroup
+of the socket won't change, even if the task do change cgroups. Getting
+the pointer from the task, breaks this. Without this, the code would
+be much more complicated, since we'd have to unbill the memory accounted
+every time we migrate tasks, and bill again to the new cgroup.
 
-        bdi_freerun = min(limit - nr_dirty, write_bw + 4MBps) / 8
 
-I'll do some experiments and check how well it performs in JBOD setups.
-
-It's not likely to obsolete the bdi underrun flag, because the latter
-helps a lot the 1-disk dirty_bytes=1MB case, where the bdi freerun
-should be a NOP as there is already the global freerun.
-
-> >   * (o) bdi control lines
-> >   *
-> >   * The control lines for the global/bdi setpoints both stretch up to @limit.
-> > @@ -634,6 +644,22 @@ static unsigned long bdi_position_ratio(
-> >  	pos_ratio *= x_intercept - bdi_dirty;
-> >  	do_div(pos_ratio, x_intercept - bdi_setpoint + 1);
-> >  
-> > +	/*
-> > +	 * bdi reserve area, safeguard against dirty pool underrun and disk idle
-> > +	 *
-> > +	 * It may push the desired control point of global dirty pages higher
-> > +	 * than setpoint. It's not necessary in single-bdi case because a
-> > +	 * minimal pool of @freerun dirty pages will already be guaranteed.
-> > +	 */
-> > +	x_intercept = min(write_bw, freerun);
-> > +	if (bdi_dirty < x_intercept) {
-> 
-> So the point of the freerun point is that we never throttle before it,
-> so basically all the below shouldn't be needed at all, right? 
-
-Yes!
-
-> > +		if (bdi_dirty > x_intercept / 8) {
-> > +			pos_ratio *= x_intercept;
-> > +			do_div(pos_ratio, bdi_dirty);
-> > +		} else
-> > +			pos_ratio *= 8;
-> > +	}
-> > +
-> >  	return pos_ratio;
-> >  }
-> 
-> 
-> So why not add:
-> 
-> 	if (likely(dirty < freerun))
-> 		return 2;
-> 
-> at the start of this function and leave it at that?
-
-Because we already has
-
-        if (nr_dirty < freerun)
-                break;
-
-in the main balance_dirty_pages() loop ;)
-
-Thanks,
-Fengguang
+>
+>> +
+>> +#endif /* CONFIG_INET */
+>>   #endif /* _LINUX_KMEM_CGROUP_H */
+>>
+>> diff --git a/include/net/sock.h b/include/net/sock.h
+>> index 8e4062f..709382f 100644
+>> --- a/include/net/sock.h
+>> +++ b/include/net/sock.h
+>> @@ -228,6 +228,7 @@ struct sock_common {
+>>     *	@sk_security: used by security modules
+>>     *	@sk_mark: generic packet mark
+>>     *	@sk_classid: this socket's cgroup classid
+>> +  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup
+>>     *	@sk_write_pending: a write to stream socket waits to start
+>>     *	@sk_state_change: callback to indicate change in the state of the sock
+>>     *	@sk_data_ready: callback to indicate there is data to be processed
+>> @@ -339,6 +340,7 @@ struct sock {
+>>   #endif
+>>   	__u32			sk_mark;
+>>   	u32			sk_classid;
+>> +	struct kmem_cgroup	*sk_cgrp;
+>>   	void			(*sk_state_change)(struct sock *sk);
+>>   	void			(*sk_data_ready)(struct sock *sk, int bytes);
+>>   	void			(*sk_write_space)(struct sock *sk);
+>> diff --git a/net/core/sock.c b/net/core/sock.c
+>> index 3449df8..7109864 100644
+>> --- a/net/core/sock.c
+>> +++ b/net/core/sock.c
+>> @@ -1139,6 +1139,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
+>>   		atomic_set(&sk->sk_wmem_alloc, 1);
+>>
+>>   		sock_update_classid(sk);
+>> +		sock_update_kmem_cgrp(sk);
+>>   	}
+>>
+>>   	return sk;
+>> @@ -1170,6 +1171,7 @@ static void __sk_free(struct sock *sk)
+>>   		put_cred(sk->sk_peer_cred);
+>>   	put_pid(sk->sk_peer_pid);
+>>   	put_net(sock_net(sk));
+>> +	sock_release_kmem_cgrp(sk);
+>>   	sk_prot_free(sk->sk_prot_creator, sk);
+>>   }
+>>
+>> @@ -2252,9 +2254,6 @@ void sk_common_release(struct sock *sk)
+>>   }
+>>   EXPORT_SYMBOL(sk_common_release);
+>>
+>> -static DEFINE_RWLOCK(proto_list_lock);
+>> -static LIST_HEAD(proto_list);
+>> -
+>
+> compile error.
+>
+> you should do compile test after each single patch.
+Oops, thanks for spotting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
