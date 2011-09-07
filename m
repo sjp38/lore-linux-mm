@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CEB16B016A
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 22:38:56 -0400 (EDT)
-Received: by wwg9 with SMTP id 9so5859621wwg.26
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2011 19:38:53 -0700 (PDT)
-Subject: Re: [PATCH] per-cgroup tcp buffer limitation
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <CAHH2K0YJA7vZZ3QNAf63TZOnWhsRUwfuZYfntBL4muZ0G_Vt2w@mail.gmail.com>
-References: <1315276556-10970-1-git-send-email-glommer@parallels.com>
-	 <CAHH2K0aJxjinSu0Ek6jzsZ5dBmm5mEU-typuwYWYWEudF2F3Qg@mail.gmail.com>
-	 <4E664766.40200@parallels.com>
-	 <CAHH2K0YJA7vZZ3QNAf63TZOnWhsRUwfuZYfntBL4muZ0G_Vt2w@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6BEBF6B016A
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 22:39:44 -0400 (EDT)
+Subject: [PATCH 2/2] slub: continue to seek slab in node partial if met a
+ null page
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <1315362396.31737.151.camel@debian>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+	 <1315357399.31737.49.camel@debian>  <1315362396.31737.151.camel@debian>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 07 Sep 2011 04:38:40 +0200
-Message-ID: <1315363120.3400.54.camel@edumazet-laptop>
+Date: Wed, 07 Sep 2011 10:45:26 +0800
+Message-ID: <1315363526.31737.164.camel@debian>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 
-Le mardi 06 septembre 2011 A  15:12 -0700, Greg Thelen a A(C)crit :
+In the per cpu partial slub, we may add a full page into node partial
+list. like the following scenario:
 
-> >>> +#define sk_sockets_allocated(sk)                               \
-> >>> +({                                                             \
-> >>> +       struct percpu_counter *__p;                             \
-> >>> +       __p = (sk)->sk_prot->sockets_allocated(sk->sk_cgrp);    \
-> >>> +       __p;                                                    \
-> >>> +})
-> 
-> Could this be simplified as (same applies to following few macros):
-> 
-> static inline struct percpu_counter *sk_sockets_allocated(struct sock *sk)
-> {
->         return sk->sk_prot->sockets_allocated(sk->sk_cgrp);
-> }
-> 
+	cpu1     		        	cpu2 
+    in unfreeze_partials	           in __slab_alloc
+	...
+   add_partial(n, page, 1);
+					alloced from cpu partial, and 
+					set frozen = 1.
+   second cmpxchg_double_slab()
+   set frozen = 0
 
-Please Greg, dont copy/paste huge sequence of code if you dont have
-anymore comments.
+If it happen, we'd better to skip the full page and to seek next slab in
+node partial instead of jump to other nodes.
 
-Right before sending your mail, remove all parts that we already got in
-previous mails.
+This patch base on 'slub/partial' head of penberg's tree, and following
+code optimize of get_partial_node() patch. 
 
-Thanks
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 8f68757..6fca71c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1616,7 +1616,7 @@ static void *get_partial_node(struct kmem_cache *s,
+ 		int available;
+ 
+ 		if (!t)
+-			break;
++			continue;
+ 
+ 		if (!object) {
+ 			c->page = page;
+-- 
+1.7.0
+
 
 
 --
