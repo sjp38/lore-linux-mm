@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4166B016C
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 23:00:49 -0400 (EDT)
-Subject: Re: [rfc ] slub: unfreeze full page if it's in node partial
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 995AD6B016C
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 23:09:06 -0400 (EDT)
+Subject: Re: [PATCH] slub: correct comments error for per cpu partial
 From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <1315364172.31737.174.camel@debian>
+In-Reply-To: <alpine.DEB.2.00.1109061914440.18646@router.home>
 References: <1315188460.31737.5.camel@debian>
 	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-	 <1315357399.31737.49.camel@debian>  <1315362396.31737.151.camel@debian>
-	 <1315364172.31737.174.camel@debian>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 07 Sep 2011 11:06:31 +0800
-Message-ID: <1315364791.31737.179.camel@debian>
+Date: Wed, 07 Sep 2011 11:14:48 +0800
+Message-ID: <1315365288.31737.188.camel@debian>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: "penberg@kernel.org" <penberg@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
 
-Forget to point, It also base on per cpu partial patches. 
+On Wed, 2011-09-07 at 08:14 +0800, Christoph Lameter wrote:
+> On Mon, 5 Sep 2011, Alex,Shi wrote:
+> 
+> > I found 2 comments error base your per cpu partial patches. Could you
+> > like to review for the correction of them?
+> 
+> Great. Thank you.
+Thanks for review. I try to add a little bit formal commit info, but
+seems hard to say more. :) how about the following?  
 
-On Wed, 2011-09-07 at 10:56 +0800, Alex,Shi wrote:
-> In the per cpu partial slub, we may add a full page into node partial
-> list. like the following scenario:
-> 
->         cpu1                                    cpu2 
->     in unfreeze_partials                   in __slab_alloc
->         ...
->    add_partial(n, page, 1);
->                                         alloced from cpu partial, and 
->                                         set frozen = 1.
->    second cmpxchg_double_slab()
->    set frozen = 0
-> 
-> 
-> At that time, maybe we'd better to unfreeze it in acquire_slab(). That
-> let it in 'full list' mode, frozen=0 and freelist = NULL, same as we did
-> in __slab_alloc()
-> 
-> 
-> Signed-off-by: Alex Shi <alex.shi@intel.com>
-> ---
->  mm/slub.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 6fca71c..7846951 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1579,7 +1579,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
->  			new.inuse = page->objects;
->  
->  		VM_BUG_ON(new.frozen);
-> -		new.frozen = 1;
-> +		new.frozen = freelist != NULL;
->  
->  	} while (!__cmpxchg_double_slab(s, page,
->  			freelist, counters,
+=========
+
+Correct 2 comments errors for per cpu partial patches. 
+
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+Reviewed-by: Christoph Lameter <cl@linux.com>
+---
+ include/linux/slub_def.h |    2 +-
+ mm/slub.c                |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 4890ef7..a32bcfd 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -82,7 +82,7 @@ struct kmem_cache {
+ 	int size;		/* The size of an object including meta data */
+ 	int objsize;		/* The size of an object without meta data */
+ 	int offset;		/* Free pointer offset. */
+-	int cpu_partial;	/* Number of per cpu partial pages to keep around */
++	int cpu_partial;	/* Number of per cpu partial objects to keep around */
+ 	struct kmem_cache_order_objects oo;
+ 
+ 	/* Allocation and freeing of slabs */
+diff --git a/mm/slub.c b/mm/slub.c
+index 0e286ac..ebb3865 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3086,7 +3086,7 @@ static int kmem_cache_open(struct kmem_cache *s,
+ 	 *
+ 	 * A) The number of objects from per cpu partial slabs dumped to the
+ 	 *    per node list when we reach the limit.
+-	 * B) The number of objects in partial partial slabs to extract from the
++	 * B) The number of objects in cpu partial slabs to extract from the
+ 	 *    per node list when we run out of per cpu objects. We only fetch 50%
+ 	 *    to keep some capacity around for frees.
+ 	 */
+-- 
+1.7.0
+
+
 
 
 --
