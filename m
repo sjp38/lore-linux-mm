@@ -1,74 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 995AD6B016C
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2011 23:09:06 -0400 (EDT)
-Subject: Re: [PATCH] slub: correct comments error for per cpu partial
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1109061914440.18646@router.home>
-References: <1315188460.31737.5.camel@debian>
-	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 07 Sep 2011 11:14:48 +0800
-Message-ID: <1315365288.31737.188.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 683406B016A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:24:09 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v2 0/9] per-cgroup tcp buffers limitation
+Date: Wed,  7 Sep 2011 01:23:10 -0300
+Message-Id: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "penberg@kernel.org" <penberg@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, Glauber Costa <glommer@parallels.com>
 
-On Wed, 2011-09-07 at 08:14 +0800, Christoph Lameter wrote:
-> On Mon, 5 Sep 2011, Alex,Shi wrote:
-> 
-> > I found 2 comments error base your per cpu partial patches. Could you
-> > like to review for the correction of them?
-> 
-> Great. Thank you.
-Thanks for review. I try to add a little bit formal commit info, but
-seems hard to say more. :) how about the following?  
+This patch introduces per-cgroup tcp buffers limitation. This allows
+sysadmins to specify a maximum amount of kernel memory that
+tcp connections can use at any point in time. TCP is the main interest
+in this work, but extending it to other protocols would be easy.
 
-=========
+For this to work, I am introducing kmem_cgroup, a cgroup targetted
+at tracking and controlling objects in kernel memory. Since they
+are usually not found in page granularity, and are fundamentally
+different from userspace memory (not swappable, can't overcommit),
+I am proposing those objects live in its own cgroup rather than
+in the memory controller.
 
-Correct 2 comments errors for per cpu partial patches. 
+It piggybacks in the memory control mechanism already present in
+/proc/sys/net/ipv4/tcp_mem. There is a soft limit, and a hard limit,
+that will suppress allocation when reached. For each cgroup, however,
+the file kmem.tcp_maxmem will be used to cap those values.
 
-Signed-off-by: Alex Shi <alex.shi@intel.com>
-Reviewed-by: Christoph Lameter <cl@linux.com>
----
- include/linux/slub_def.h |    2 +-
- mm/slub.c                |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+The usage I have in mind here is containers. Each container will
+define its own values for soft and hard limits, but none of them will
+be possibly bigger than the value the box' sysadmin specified from
+the outside.
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 4890ef7..a32bcfd 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -82,7 +82,7 @@ struct kmem_cache {
- 	int size;		/* The size of an object including meta data */
- 	int objsize;		/* The size of an object without meta data */
- 	int offset;		/* Free pointer offset. */
--	int cpu_partial;	/* Number of per cpu partial pages to keep around */
-+	int cpu_partial;	/* Number of per cpu partial objects to keep around */
- 	struct kmem_cache_order_objects oo;
- 
- 	/* Allocation and freeing of slabs */
-diff --git a/mm/slub.c b/mm/slub.c
-index 0e286ac..ebb3865 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3086,7 +3086,7 @@ static int kmem_cache_open(struct kmem_cache *s,
- 	 *
- 	 * A) The number of objects from per cpu partial slabs dumped to the
- 	 *    per node list when we reach the limit.
--	 * B) The number of objects in partial partial slabs to extract from the
-+	 * B) The number of objects in cpu partial slabs to extract from the
- 	 *    per node list when we run out of per cpu objects. We only fetch 50%
- 	 *    to keep some capacity around for frees.
- 	 */
+To test for any performance impacts of this patch, I used netperf's
+TCP_RR benchmark on localhost, so we can have both recv and snd in action.
+
+Command line used was ./src/netperf -t TCP_RR -H localhost, and the
+results:
+
+Without the patch
+=================
+
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00    26996.35
+16384  87380
+
+With the patch
+===============
+
+Local /Remote
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00    27291.86
+16384  87380
+
+The difference is within a one-percent range.
+
+Nesting cgroups doesn't seem to be the dominating factor as well,
+with nestings up to 10 levels not showing a significant performance
+difference.
+
+Glauber Costa (9):
+  per-netns ipv4 sysctl_tcp_mem
+  Kernel Memory cgroup
+  socket: initial cgroup code.
+  function wrappers for upcoming socket
+  foundations of per-cgroup memory pressure controlling.
+  per-cgroup tcp buffers control
+  tcp buffer limitation: per-cgroup limit
+  Display current tcp memory allocation in kmem cgroup
+  Add documentation about kmem_cgroup
+
+ Documentation/cgroups/kmem_cgroups.txt |   27 +++++
+ crypto/af_alg.c                        |    7 +-
+ include/linux/cgroup_subsys.h          |    4 +
+ include/linux/kmem_cgroup.h            |  194 ++++++++++++++++++++++++++++++++
+ include/net/netns/ipv4.h               |    1 +
+ include/net/sock.h                     |   37 +++++-
+ include/net/tcp.h                      |   13 ++-
+ include/net/udp.h                      |    3 +-
+ include/trace/events/sock.h            |   10 +-
+ init/Kconfig                           |   11 ++
+ mm/Makefile                            |    1 +
+ mm/kmem_cgroup.c                       |   61 ++++++++++
+ net/core/sock.c                        |   88 ++++++++++-----
+ net/decnet/af_decnet.c                 |   21 +++-
+ net/ipv4/proc.c                        |    7 +-
+ net/ipv4/sysctl_net_ipv4.c             |   59 +++++++++-
+ net/ipv4/tcp.c                         |  181 ++++++++++++++++++++++++++----
+ net/ipv4/tcp_input.c                   |   12 +-
+ net/ipv4/tcp_ipv4.c                    |   15 ++-
+ net/ipv4/tcp_output.c                  |    2 +-
+ net/ipv4/tcp_timer.c                   |    2 +-
+ net/ipv4/udp.c                         |   20 +++-
+ net/ipv6/tcp_ipv6.c                    |   10 +-
+ net/ipv6/udp.c                         |    4 +-
+ net/sctp/socket.c                      |   35 +++++--
+ 25 files changed, 710 insertions(+), 115 deletions(-)
+ create mode 100644 Documentation/cgroups/kmem_cgroups.txt
+ create mode 100644 include/linux/kmem_cgroup.h
+ create mode 100644 mm/kmem_cgroup.c
+
 -- 
-1.7.0
-
-
-
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
