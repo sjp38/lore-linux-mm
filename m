@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A411A6B016A
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:24:52 -0400 (EDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D026B016D
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 00:24:55 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 1/9] per-netns ipv4 sysctl_tcp_mem
-Date: Wed,  7 Sep 2011 01:23:11 -0300
-Message-Id: <1315369399-3073-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 3/9] socket: initial cgroup code.
+Date: Wed,  7 Sep 2011 01:23:13 -0300
+Message-Id: <1315369399-3073-4-git-send-email-glommer@parallels.com>
 In-Reply-To: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 References: <1315369399-3073-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,186 +13,110 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, Glauber Costa <glommer@parallels.com>, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-This patch allows each namespace to independently set up
-its levels for tcp memory pressure thresholds. This patch
-alone does not buy much: we need to make this values
-per group of process somehow. This is achieved in the
-patches that follows in this patchset.
+We aim to control the amount of kernel memory pinned at any
+time by tcp sockets. To lay the foundations for this work,
+this patch adds a pointer to the kmem_cgroup to the socket
+structure.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: David S. Miller <davem@davemloft.net>
 CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Eric W. Biederman <ebiederm@xmission.com>
 ---
- include/net/netns/ipv4.h   |    1 +
- include/net/tcp.h          |    1 -
- net/ipv4/sysctl_net_ipv4.c |   51 +++++++++++++++++++++++++++++++++++++------
- net/ipv4/tcp.c             |   13 +++-------
- 4 files changed, 49 insertions(+), 17 deletions(-)
+ include/linux/kmem_cgroup.h |   29 +++++++++++++++++++++++++++++
+ include/net/sock.h          |    2 ++
+ net/core/sock.c             |    5 ++---
+ 3 files changed, 33 insertions(+), 3 deletions(-)
 
-diff --git a/include/net/netns/ipv4.h b/include/net/netns/ipv4.h
-index d786b4f..bbd023a 100644
---- a/include/net/netns/ipv4.h
-+++ b/include/net/netns/ipv4.h
-@@ -55,6 +55,7 @@ struct netns_ipv4 {
- 	int current_rt_cache_rebuild_count;
- 
- 	unsigned int sysctl_ping_group_range[2];
-+	long sysctl_tcp_mem[3];
- 
- 	atomic_t rt_genid;
- 	atomic_t dev_addr_genid;
-diff --git a/include/net/tcp.h b/include/net/tcp.h
-index 149a415..6bfdd9b 100644
---- a/include/net/tcp.h
-+++ b/include/net/tcp.h
-@@ -230,7 +230,6 @@ extern int sysctl_tcp_fack;
- extern int sysctl_tcp_reordering;
- extern int sysctl_tcp_ecn;
- extern int sysctl_tcp_dsack;
--extern long sysctl_tcp_mem[3];
- extern int sysctl_tcp_wmem[3];
- extern int sysctl_tcp_rmem[3];
- extern int sysctl_tcp_app_win;
-diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
-index 69fd720..0d74b9d 100644
---- a/net/ipv4/sysctl_net_ipv4.c
-+++ b/net/ipv4/sysctl_net_ipv4.c
-@@ -14,6 +14,7 @@
- #include <linux/init.h>
- #include <linux/slab.h>
- #include <linux/nsproxy.h>
-+#include <linux/swap.h>
- #include <net/snmp.h>
- #include <net/icmp.h>
- #include <net/ip.h>
-@@ -174,6 +175,36 @@ static int proc_allowed_congestion_control(ctl_table *ctl,
- 	return ret;
+diff --git a/include/linux/kmem_cgroup.h b/include/linux/kmem_cgroup.h
+index 0e4a74b..77076d8 100644
+--- a/include/linux/kmem_cgroup.h
++++ b/include/linux/kmem_cgroup.h
+@@ -49,5 +49,34 @@ static inline struct kmem_cgroup *kcg_from_task(struct task_struct *tsk)
+ 	return NULL;
  }
- 
-+static int ipv4_tcp_mem(ctl_table *ctl, int write,
-+			   void __user *buffer, size_t *lenp,
-+			   loff_t *ppos)
+ #endif /* CONFIG_CGROUP_KMEM */
++
++#ifdef CONFIG_INET
++#include <net/sock.h>
++static inline void sock_update_kmem_cgrp(struct sock *sk)
 +{
-+	int ret;
-+	unsigned long vec[3];
-+	struct net *net = current->nsproxy->net_ns;
-+	int i;
++#ifdef CONFIG_CGROUP_KMEM
++	sk->sk_cgrp = kcg_from_task(current);
 +
-+	ctl_table tmp = {
-+		.data = &vec,
-+		.maxlen = sizeof(vec),
-+		.mode = ctl->mode,
-+	};
-+
-+	if (!write) {
-+		ctl->data = &net->ipv4.sysctl_tcp_mem;
-+		return proc_doulongvec_minmax(ctl, write, buffer, lenp, ppos);
-+	}
-+
-+	ret = proc_doulongvec_minmax(&tmp, write, buffer, lenp, ppos);
-+	if (ret)
-+		return ret;
-+
-+	for (i = 0; i < 3; i++)
-+		net->ipv4.sysctl_tcp_mem[i] = vec[i];
-+
-+	return 0;
++	/*
++	 * We don't need to protect against anything task-related, because
++	 * we are basically stuck with the sock pointer that won't change,
++	 * even if the task that originated the socket changes cgroups.
++	 *
++	 * What we do have to guarantee, is that the chain leading us to
++	 * the top level won't change under our noses. Incrementing the
++	 * reference count via cgroup_exclude_rmdir guarantees that.
++	 */
++	cgroup_exclude_rmdir(&sk->sk_cgrp->css);
++#endif
 +}
 +
- static struct ctl_table ipv4_table[] = {
- 	{
- 		.procname	= "tcp_timestamps",
-@@ -433,13 +464,6 @@ static struct ctl_table ipv4_table[] = {
- 		.proc_handler	= proc_dointvec
- 	},
- 	{
--		.procname	= "tcp_mem",
--		.data		= &sysctl_tcp_mem,
--		.maxlen		= sizeof(sysctl_tcp_mem),
--		.mode		= 0644,
--		.proc_handler	= proc_doulongvec_minmax
--	},
--	{
- 		.procname	= "tcp_wmem",
- 		.data		= &sysctl_tcp_wmem,
- 		.maxlen		= sizeof(sysctl_tcp_wmem),
-@@ -721,6 +745,12 @@ static struct ctl_table ipv4_net_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= ipv4_ping_group_range,
- 	},
-+	{
-+		.procname	= "tcp_mem",
-+		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_mem),
-+		.mode		= 0644,
-+		.proc_handler	= ipv4_tcp_mem,
-+	},
- 	{ }
- };
- 
-@@ -734,6 +764,7 @@ EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
- static __net_init int ipv4_sysctl_init_net(struct net *net)
- {
- 	struct ctl_table *table;
-+	unsigned long limit;
- 
- 	table = ipv4_net_table;
- 	if (!net_eq(net, &init_net)) {
-@@ -769,6 +800,12 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
- 
- 	net->ipv4.sysctl_rt_cache_rebuild_count = 4;
- 
-+	limit = nr_free_buffer_pages() / 8;
-+	limit = max(limit, 128UL);
-+	net->ipv4.sysctl_tcp_mem[0] = limit / 4 * 3;
-+	net->ipv4.sysctl_tcp_mem[1] = limit;
-+	net->ipv4.sysctl_tcp_mem[2] = net->ipv4.sysctl_tcp_mem[0] * 2;
++static inline void sock_release_kmem_cgrp(struct sock *sk)
++{
++#ifdef CONFIG_CGROUP_KMEM
++	cgroup_release_and_wakeup_rmdir(&sk->sk_cgrp->css);
++#endif
++}
 +
- 	net->ipv4.ipv4_hdr = register_net_sysctl_table(net,
- 			net_ipv4_ctl_path, table);
- 	if (net->ipv4.ipv4_hdr == NULL)
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 46febca..f06df24 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -266,6 +266,7 @@
- #include <linux/crypto.h>
- #include <linux/time.h>
- #include <linux/slab.h>
-+#include <linux/nsproxy.h>
++#endif /* CONFIG_INET */
+ #endif /* _LINUX_KMEM_CGROUP_H */
  
- #include <net/icmp.h>
- #include <net/tcp.h>
-@@ -282,11 +283,9 @@ int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
- struct percpu_counter tcp_orphan_count;
- EXPORT_SYMBOL_GPL(tcp_orphan_count);
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 8e4062f..709382f 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -228,6 +228,7 @@ struct sock_common {
+   *	@sk_security: used by security modules
+   *	@sk_mark: generic packet mark
+   *	@sk_classid: this socket's cgroup classid
++  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup 
+   *	@sk_write_pending: a write to stream socket waits to start
+   *	@sk_state_change: callback to indicate change in the state of the sock
+   *	@sk_data_ready: callback to indicate there is data to be processed
+@@ -339,6 +340,7 @@ struct sock {
+ #endif
+ 	__u32			sk_mark;
+ 	u32			sk_classid;
++	struct kmem_cgroup	*sk_cgrp;
+ 	void			(*sk_state_change)(struct sock *sk);
+ 	void			(*sk_data_ready)(struct sock *sk, int bytes);
+ 	void			(*sk_write_space)(struct sock *sk);
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 3449df8..7109864 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -1139,6 +1139,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
+ 		atomic_set(&sk->sk_wmem_alloc, 1);
  
--long sysctl_tcp_mem[3] __read_mostly;
- int sysctl_tcp_wmem[3] __read_mostly;
- int sysctl_tcp_rmem[3] __read_mostly;
+ 		sock_update_classid(sk);
++		sock_update_kmem_cgrp(sk);
+ 	}
  
--EXPORT_SYMBOL(sysctl_tcp_mem);
- EXPORT_SYMBOL(sysctl_tcp_rmem);
- EXPORT_SYMBOL(sysctl_tcp_wmem);
+ 	return sk;
+@@ -1170,6 +1171,7 @@ static void __sk_free(struct sock *sk)
+ 		put_cred(sk->sk_peer_cred);
+ 	put_pid(sk->sk_peer_pid);
+ 	put_net(sock_net(sk));
++	sock_release_kmem_cgrp(sk);
+ 	sk_prot_free(sk->sk_prot_creator, sk);
+ }
  
-@@ -3277,14 +3276,10 @@ void __init tcp_init(void)
- 	sysctl_tcp_max_orphans = cnt / 2;
- 	sysctl_max_syn_backlog = max(128, cnt / 256);
+@@ -2252,9 +2254,6 @@ void sk_common_release(struct sock *sk)
+ }
+ EXPORT_SYMBOL(sk_common_release);
  
--	limit = nr_free_buffer_pages() / 8;
--	limit = max(limit, 128UL);
--	sysctl_tcp_mem[0] = limit / 4 * 3;
--	sysctl_tcp_mem[1] = limit;
--	sysctl_tcp_mem[2] = sysctl_tcp_mem[0] * 2;
+-static DEFINE_RWLOCK(proto_list_lock);
+-static LIST_HEAD(proto_list);
 -
- 	/* Set per-socket limits to no more than 1/128 the pressure threshold */
--	limit = ((unsigned long)sysctl_tcp_mem[1]) << (PAGE_SHIFT - 7);
-+	limit = (unsigned long)init_net.ipv4.sysctl_tcp_mem[1];
-+	limit <<= (PAGE_SHIFT - 7);
-+
- 	max_share = min(4UL*1024*1024, limit);
- 
- 	sysctl_tcp_wmem[0] = SK_MEM_QUANTUM;
+ #ifdef CONFIG_PROC_FS
+ #define PROTO_INUSE_NR	64	/* should be enough for the first time */
+ struct prot_inuse {
 -- 
 1.7.6
 
