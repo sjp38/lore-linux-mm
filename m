@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC4D6B016A
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 07:26:11 -0400 (EDT)
-Subject: Re: [PATCH 17/18] writeback: fix dirtied pages accounting on redirty
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 57FAB6B016A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 07:30:49 -0400 (EDT)
+Subject: Re: [PATCH 05/18] writeback: per task dirty rate limit
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 07 Sep 2011 10:19:47 +0200
-In-Reply-To: <20110907065635.GA12619@lst.de>
+Date: Wed, 07 Sep 2011 09:27:50 +0200
+In-Reply-To: <20110906232738.GC31945@quack.suse.cz>
 References: <20110904015305.367445271@intel.com>
-	 <20110904020916.841463184@intel.com> <1315325936.14232.22.camel@twins>
-	 <20110907002222.GF31945@quack.suse.cz> <20110907065635.GA12619@lst.de>
+	 <20110904020915.240747479@intel.com> <1315324030.14232.14.camel@twins>
+	 <20110906232738.GC31945@quack.suse.cz>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315383587.11101.18.camel@twins>
+Message-ID: <1315380470.11101.1.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2011-09-07 at 08:56 +0200, Christoph Hellwig wrote:
-> On Wed, Sep 07, 2011 at 02:22:22AM +0200, Jan Kara wrote:
-> > > So wtf is ext4 doing? Shouldn't a page stay dirty until its written o=
-ut?
-> > >=20
-> > > That is, should we really frob around this behaviour or fix ext4 beca=
-use
-> > > its on crack?
-> >   Fengguang, could you please verify your findings with recent kernel? =
-I
-> > believe ext4 got fixed in this regard some time ago already (and yes, o=
-ld
-> > delalloc writeback code in ext4 was terrible).
->=20
-> The pattern we do in writeback is:
->=20
-> in pageout / write_cache_pages:
-> 	lock_page();
-> 	clear_page_dirty_for_io();
->=20
-> in ->writepage:
-> 	set_page_writeback();
-> 	unlock_page();
-> 	end_page_writeback();
->=20
-> So whenever ->writepage decides it doesn't want to write things back
-> we have to redirty pages.  We have this happen quite a bit in every
-> filesystem, but ext4 hits it a lot more than usual because it refuses
-> to write out delalloc pages from plain ->writepage and only allows
-> ->writepages to do it.
+On Wed, 2011-09-07 at 01:27 +0200, Jan Kara wrote:
+> On Tue 06-09-11 17:47:10, Peter Zijlstra wrote:
+> > On Sun, 2011-09-04 at 09:53 +0800, Wu Fengguang wrote:
+> > >  /*
+> > > + * After a task dirtied this many pages, balance_dirty_pages_ratelim=
+ited_nr()
+> > > + * will look to see if it needs to start dirty throttling.
+> > > + *
+> > > + * If dirty_poll_interval is too low, big NUMA machines will call th=
+e expensive
+> > > + * global_page_state() too often. So scale it near-sqrt to the safet=
+y margin
+> > > + * (the number of pages we may dirty without exceeding the dirty lim=
+its).
+> > > + */
+> > > +static unsigned long dirty_poll_interval(unsigned long dirty,
+> > > +                                        unsigned long thresh)
+> > > +{
+> > > +       if (thresh > dirty)
+> > > +               return 1UL << (ilog2(thresh - dirty) >> 1);
+> > > +
+> > > +       return 1;
+> > > +}
+> >=20
+> > Where does that sqrt come from?=20
+>   He does 2^{log_2(x)/2} which, if done in real numbers arithmetics, woul=
+d
+> result in x^{1/2}. Given the integer arithmetics, it might be twice as
+> small but still it's some approximation...
 
-Ah, right, so it is a fairly common thing and not something easily fixed
-in filesystems.
-
-Ok so I guess the patch is good. Thanks!
+Right, and I guess with a cpu that can do the fls its slightly faster
+than our int_sqrt().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
