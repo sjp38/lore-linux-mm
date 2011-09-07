@@ -1,121 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D79856B016A
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 09:04:10 -0400 (EDT)
-Message-ID: <4E676B7C.4030904@parallels.com>
-Date: Wed, 7 Sep 2011 10:02:52 -0300
-From: Glauber Costa <glommer@parallels.com>
+	by kanga.kvack.org (Postfix) with SMTP id 31F866B016A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 09:32:39 -0400 (EDT)
+Date: Wed, 7 Sep 2011 21:32:11 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/18] IO-less dirty throttling v11
+Message-ID: <20110907133211.GA28442@localhost>
+References: <20110904015305.367445271@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 6/9] per-cgroup tcp buffers control
-References: <1315369399-3073-1-git-send-email-glommer@parallels.com> <1315369399-3073-7-git-send-email-glommer@parallels.com> <4E671E1F.4040804@cn.fujitsu.com>
-In-Reply-To: <4E671E1F.4040804@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110904015305.367445271@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, xemul@parallels.com, netdev@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, containers@lists.osdl.org, "David S. Miller" <davem@davemloft.net>
+To: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Trond Myklebust <Trond.Myklebust@netapp.com>
 
-On 09/07/2011 04:32 AM, Li Zefan wrote:
->> +#ifdef CONFIG_INET
->> +#include<net/sock.h>
->> +static inline void sock_update_kmem_cgrp(struct sock *sk)
->> +{
->> +#ifdef CONFIG_CGROUP_KMEM
->> +	sk->sk_cgrp = kcg_from_task(current);
->> +
->> +	/*
->> +	 * We don't need to protect against anything task-related, because
->> +	 * we are basically stuck with the sock pointer that won't change,
->> +	 * even if the task that originated the socket changes cgroups.
->> +	 *
->> +	 * What we do have to guarantee, is that the chain leading us to
->> +	 * the top level won't change under our noses. Incrementing the
->> +	 * reference count via cgroup_exclude_rmdir guarantees that.
->> +	 */
->> +	cgroup_exclude_rmdir(&sk->sk_cgrp->css);
->> +#endif
->
-> must be protected by rcu_read_lock.
+> Finally, the complete IO-less balance_dirty_pages(). NFS is observed to perform
+> better or worse depending on the memory size. Otherwise the added patches can
+> address all known regressions.
 
-Ok.
+I find that the NFS performance regressions on large memory system can
+be fixed by this patch. It tries to make the progress more smooth by
+reasonably reducing the commit size.
 
->> +}
->> +
->> +static inline void sock_release_kmem_cgrp(struct sock *sk)
->> +{
->> +#ifdef CONFIG_CGROUP_KMEM
->> +	cgroup_release_and_wakeup_rmdir(&sk->sk_cgrp->css);
->> +#endif
->> +}
->
-> Ugly. Just use the way you define kcg_from_task().
-Disagree.
-This releases the pointer from the socket, not the task.
-Actually, one of the assumptions I am making here, is that the cgroup
-of the socket won't change, even if the task do change cgroups. Getting
-the pointer from the task, breaks this. Without this, the code would
-be much more complicated, since we'd have to unbill the memory accounted
-every time we migrate tasks, and bill again to the new cgroup.
+Thanks,
+Fengguang
+---
+Subject: nfs: limit the commit size to reduce fluctuations
+Date: Thu Dec 16 13:22:43 CST 2010
 
+Limit the commit size to half the dirty control scope, so that the
+arrival of one commit will not knock the overall dirty pages off the
+scope.
 
->
->> +
->> +#endif /* CONFIG_INET */
->>   #endif /* _LINUX_KMEM_CGROUP_H */
->>
->> diff --git a/include/net/sock.h b/include/net/sock.h
->> index 8e4062f..709382f 100644
->> --- a/include/net/sock.h
->> +++ b/include/net/sock.h
->> @@ -228,6 +228,7 @@ struct sock_common {
->>     *	@sk_security: used by security modules
->>     *	@sk_mark: generic packet mark
->>     *	@sk_classid: this socket's cgroup classid
->> +  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup
->>     *	@sk_write_pending: a write to stream socket waits to start
->>     *	@sk_state_change: callback to indicate change in the state of the sock
->>     *	@sk_data_ready: callback to indicate there is data to be processed
->> @@ -339,6 +340,7 @@ struct sock {
->>   #endif
->>   	__u32			sk_mark;
->>   	u32			sk_classid;
->> +	struct kmem_cgroup	*sk_cgrp;
->>   	void			(*sk_state_change)(struct sock *sk);
->>   	void			(*sk_data_ready)(struct sock *sk, int bytes);
->>   	void			(*sk_write_space)(struct sock *sk);
->> diff --git a/net/core/sock.c b/net/core/sock.c
->> index 3449df8..7109864 100644
->> --- a/net/core/sock.c
->> +++ b/net/core/sock.c
->> @@ -1139,6 +1139,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
->>   		atomic_set(&sk->sk_wmem_alloc, 1);
->>
->>   		sock_update_classid(sk);
->> +		sock_update_kmem_cgrp(sk);
->>   	}
->>
->>   	return sk;
->> @@ -1170,6 +1171,7 @@ static void __sk_free(struct sock *sk)
->>   		put_cred(sk->sk_peer_cred);
->>   	put_pid(sk->sk_peer_pid);
->>   	put_net(sock_net(sk));
->> +	sock_release_kmem_cgrp(sk);
->>   	sk_prot_free(sk->sk_prot_creator, sk);
->>   }
->>
->> @@ -2252,9 +2254,6 @@ void sk_common_release(struct sock *sk)
->>   }
->>   EXPORT_SYMBOL(sk_common_release);
->>
->> -static DEFINE_RWLOCK(proto_list_lock);
->> -static LIST_HEAD(proto_list);
->> -
->
-> compile error.
->
-> you should do compile test after each single patch.
-Oops, thanks for spotting.
+Also limit the commit size to one second worth of data. This will
+obviously help make the pipeline run more smoothly.
+
+Also change "<=" to "<": if an inode has only one dirty page in the end,
+it should be committed. I wonder why the "<=" didn't cause a bug...
+
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/nfs/write.c |    8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+After patch, there are still drop offs from the control scope,
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/NFS/nfs-1dd-1M-8p-2945M-20%25-2.6.38-rc6-dt6+-2011-02-22-21-09/balance_dirty_pages-pages.png
+
+due to bursty arrival of commits:
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/NFS/nfs-1dd-1M-8p-2945M-20%25-2.6.38-rc6-dt6+-2011-02-22-21-09/nfs-commit.png
+
+--- linux-next.orig/fs/nfs/write.c	2011-09-07 21:29:15.000000000 +0800
++++ linux-next/fs/nfs/write.c	2011-09-07 21:29:32.000000000 +0800
+@@ -1543,10 +1543,14 @@ static int nfs_commit_unstable_pages(str
+ 	int ret = 0;
+ 
+ 	if (wbc->sync_mode == WB_SYNC_NONE) {
++		unsigned long bw = MIN_WRITEBACK_PAGES +
++			NFS_SERVER(inode)->backing_dev_info.avg_write_bandwidth;
++
+ 		/* Don't commit yet if this is a non-blocking flush and there
+-		 * are a lot of outstanding writes for this mapping.
++		 * are a lot of outstanding writes for this mapping, until
++		 * collected enough pages to commit.
+ 		 */
+-		if (nfsi->ncommit <= (nfsi->npages >> 1))
++		if (nfsi->ncommit < min(nfsi->npages / DIRTY_SCOPE, bw))
+ 			goto out_mark_dirty;
+ 
+ 		/* don't wait for the COMMIT response */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
