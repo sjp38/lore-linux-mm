@@ -1,69 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2F82B6B0182
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 01:36:01 -0400 (EDT)
-Date: Thu, 8 Sep 2011 08:35:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 3/9] socket: initial cgroup code.
-Message-ID: <20110908053558.GA9464@shutemov.name>
-References: <1315369399-3073-1-git-send-email-glommer@parallels.com>
- <1315369399-3073-4-git-send-email-glommer@parallels.com>
- <20110907221710.GA7845@shutemov.name>
- <4E684A6B.6030205@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4E684A6B.6030205@parallels.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C83886B017D
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 03:40:44 -0400 (EDT)
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: [patch] mm: memcg: close race between charge and putback
+Date: Thu,  8 Sep 2011 09:40:22 +0200
+Message-Id: <1315467622-9520-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, xemul@parallels.com, netdev@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, containers@lists.osdl.org, "David S. Miller" <davem@davemloft.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 08, 2011 at 01:54:03AM -0300, Glauber Costa wrote:
-> On 09/07/2011 07:17 PM, Kirill A. Shutemov wrote:
-> > On Wed, Sep 07, 2011 at 01:23:13AM -0300, Glauber Costa wrote:
-> >> We aim to control the amount of kernel memory pinned at any
-> >> time by tcp sockets. To lay the foundations for this work,
-> >> this patch adds a pointer to the kmem_cgroup to the socket
-> >> structure.
-> >>
-> >> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >> CC: David S. Miller<davem@davemloft.net>
-> >> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
-> >> CC: Eric W. Biederman<ebiederm@xmission.com>
-> >> ---
-> >>   include/linux/kmem_cgroup.h |   29 +++++++++++++++++++++++++++++
-> >>   include/net/sock.h          |    2 ++
-> >>   net/core/sock.c             |    5 ++---
-> >>   3 files changed, 33 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/include/linux/kmem_cgroup.h b/include/linux/kmem_cgroup.h
-> >> index 0e4a74b..77076d8 100644
-> >> --- a/include/linux/kmem_cgroup.h
-> >> +++ b/include/linux/kmem_cgroup.h
-> >> @@ -49,5 +49,34 @@ static inline struct kmem_cgroup *kcg_from_task(struct task_struct *tsk)
-> >>   	return NULL;
-> >>   }
-> >>   #endif /* CONFIG_CGROUP_KMEM */
-> >> +
-> >> +#ifdef CONFIG_INET
-> >
-> > Will it break something if you define the helpers even if CONFIG_INET
-> > is not defined?
-> > It will be much cleaner. You can reuse ifdef CONFIG_CGROUP_KMEM in this
-> > case.
-> 
-> The helpers inside CONFIG_INET are needed for the network code, 
-> regardless of kmem cgroup is defined or not, not the other way around.
-> 
-> So I could remove CONFIG_INET, but I can't possibly move it inside
-> CONFIG_CGROUP_KMEM. So this buy us nothing.
+There is a potential race between a thread charging a page and another
+thread putting it back to the LRU list:
 
-You can define empty under CONFIG_CGROUP_KMEM's #else, can't you?
-Like with kcg_from_cgroup()/kcg_from_task().
+charge:                         putback:
+SetPageCgroupUsed               SetPageLRU
+PageLRU && add to memcg LRU     PageCgroupUsed && add to memcg LRU
 
+The order of setting one flag and checking the other is crucial,
+otherwise the charge may observe !PageLRU while the putback observes
+!PageCgroupUsed and the page is not linked to the memcg LRU at all.
+
+Global memory pressure may fix this by trying to isolate and putback
+the page for reclaim, where that putback would link it to the memcg
+LRU again.  Without that, the memory cgroup is undeletable due to a
+charge whose physical page can not be found and moved out.
+
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+---
+ mm/memcontrol.c |   21 ++++++++++++++++++++-
+ 1 files changed, 20 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d63dfb2..17708e1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -990,6 +990,16 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+ 		return;
+ 	pc = lookup_page_cgroup(page);
+ 	VM_BUG_ON(PageCgroupAcctLRU(pc));
++	/*
++	 * putback:				charge:
++	 * SetPageLRU				SetPageCgroupUsed
++	 * smp_mb				smp_mb
++	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
++	 *
++	 * Ensure that one of the two sides adds the page to the memcg
++	 * LRU during a race.
++	 */
++	smp_mb();
+ 	if (!PageCgroupUsed(pc))
+ 		return;
+ 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
+@@ -1041,7 +1051,16 @@ static void mem_cgroup_lru_add_after_commit(struct page *page)
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+-
++	/*
++	 * putback:				charge:
++	 * SetPageLRU				SetPageCgroupUsed
++	 * smp_mb				smp_mb
++	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
++	 *
++	 * Ensure that one of the two sides adds the page to the memcg
++	 * LRU during a race.
++	 */
++	smp_mb();
+ 	/* taking care of that the page is added to LRU while we commit it */
+ 	if (likely(!PageLRU(page)))
+ 		return;
 -- 
- Kirill A. Shutemov
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
