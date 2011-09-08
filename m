@@ -1,166 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2A5900138
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 17:58:16 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p88Lrjv7001914
-	for <linux-mm@kvack.org>; Thu, 8 Sep 2011 14:53:45 -0700
-Received: from qwm42 (qwm42.prod.google.com [10.241.196.42])
-	by wpaz37.hot.corp.google.com with ESMTP id p88Lrg1f009634
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 8 Sep 2011 14:53:44 -0700
-Received: by qwm42 with SMTP id 42so1529784qwm.16
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2011 14:53:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4E68484A.4000201@parallels.com>
-References: <1315276556-10970-1-git-send-email-glommer@parallels.com>
- <CAHH2K0aJxjinSu0Ek6jzsZ5dBmm5mEU-typuwYWYWEudF2F3Qg@mail.gmail.com>
- <4E664766.40200@parallels.com> <CAHH2K0YJA7vZZ3QNAf63TZOnWhsRUwfuZYfntBL4muZ0G_Vt2w@mail.gmail.com>
- <4E66A0A9.3060403@parallels.com> <CAHH2K0aq4s1_H-yY0kA3LhM00CCNNbJZyvyBoDD6rHC+qo_gNg@mail.gmail.com>
- <4E68484A.4000201@parallels.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 8 Sep 2011 14:53:22 -0700
-Message-ID: <CAHH2K0YcXMUfd1Zr=f5a4=X9cPPp8NZiuichFXaOo=kVp5rRJA@mail.gmail.com>
-Subject: Re: [PATCH] per-cgroup tcp buffer limitation
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 82058900138
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 19:52:08 -0400 (EDT)
+Date: Thu, 8 Sep 2011 16:51:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V8 2/4] mm: frontswap: core code
+Message-Id: <20110908165147.ff46f5bf.akpm@linux-foundation.org>
+In-Reply-To: <896345e2-ded0-404a-8e64-490584ec2b4e@default>
+References: <20110829164908.GA27200@ca-server1.us.oracle.com
+ 20110907162510.3547d67a.akpm@linux-foundation.org>
+	<896345e2-ded0-404a-8e64-490584ec2b4e@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Suleiman Souhlal <suleiman@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Wed, Sep 7, 2011 at 9:44 PM, Glauber Costa <glommer@parallels.com> wrote=
-:
+On Thu, 8 Sep 2011 08:00:36 -0700 (PDT)
+Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-Thanks for your ideas and patience.
+> > From: Andrew Morton [mailto:akpm@linux-foundation.org]
+> > Subject: Re: [PATCH V8 2/4] mm: frontswap: core code
+> 
+> Thanks very much for taking the time for this feedback!
+> 
+> Please correct me if I am presumptuous or misreading
+> SubmittingPatches, but after making the changes below,
+> I am thinking this constitutes a "Reviewed-by"?
 
-> Well, it is a way to see this. The other way to see this, is that you're
-> proposing to move to the kernel, something that really belongs in userspa=
-ce.
-> That's because:
->
-> With the information you provided me, I have no reason to believe that th=
-e
-> kernel has more condition to do this work. Do the kernel have access to a=
-ny
-> information that userspace do not, and can't be exported? If not, userspa=
-ce
-> is traditionally where this sort of stuff has been done.
+Not really.  More like Briefly-browsed-by:.
 
-I think direct reclaim is a pain if user space is required to participate i=
-n
-memory balancing decisions.  One thing a single memory limit solution has i=
-s the
-ability to reclaim user memory to satisfy growing kernel memory needs (and =
-vise
-versa).  If a container must fit within 100M, then a single limit solution
-would set the limit to 100M and never change it.  In a split limit solution=
- a
-user daemon (e.g. uswapd) would need to monitor the usage and the amount of
-active memory vs inactive user memory and unreferenced kernel memory to
-determine where to apply pressure.  With some more knobs such a uswapd coul=
-d
-attempt to keep ahead of demand.  But eventually direct reclaim would
-be needed to satisfy rapid growth spikes.  Example: If the 100M container
-starts with limits of 20M kmem and 80M user memory but later its kernel
-memory needs grow to 70M.  With separate user and kernel memory
-limits the kernel memory allocation could fail despite there being
-reclaimable user pages available.  The job should have a way to
-transition to memory limits to 70M+ kernel and 30M- of user.
+> > > From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > > Subject: [PATCH V8 2/4] mm: frontswap: core code
+> > >
+> > > This second patch of four in this frontswap series provides the core code
+> > > for frontswap that interfaces between the hooks in the swap subsystem and
+> > > +
+> > > +struct frontswap_ops {
+> > > +	void (*init)(unsigned);
+> > > +	int (*put_page)(unsigned, pgoff_t, struct page *);
+> > > +	int (*get_page)(unsigned, pgoff_t, struct page *);
+> > > +	void (*flush_page)(unsigned, pgoff_t);
+> > > +	void (*flush_area)(unsigned);
+> > > +};
+> > 
+> > Please don't use the term "flush".  In both the pagecache code and the
+> > pte code it is interchangably used to refer to both writeback and
+> > invalidation.  The way to avoid this ambiguity and confusion is to use
+> > the terms "writeback" and "invalidate" instead.
+> > 
+> > Here, you're referring to invalidation.
+> 
+> While the different name is OK, changing this consistently would now
+> require simultaneous patches in cleancache, zcache, and xen (not
+> to mention lots of docs inside and outside the kernel).  I suspect
+> it would be cleaner to do this later across all affected code
+> with a single commit.  Hope that's OK.
 
-I suppose a GFP_WAIT slab kernel page allocation could wakeup user space to
-perform user-assisted direct reclaim.  User space would then lower the user
-limit thereby causing the kernel to direct reclaim user pages, then
-the user daemon would raise the kernel limit allowing the slab allocation t=
-o
-succeed.  My hunch is that this would be prone to deadlocks (what prevents
-uswapd from needing more even more kmem?)  I'll defer to more
-experienced minds to know if user assisted direct memory reclaim has
-other pitfalls.  It scares me.
+Well, if you can make that happen...
 
-Fundamentally I have no problem putting an upper bound on a cgroup's resour=
-ce
-usage.  This serves to contain the damage a job can do to the system and ot=
-her
-jobs.  My concern is about limiting the kernel's ability to trade one type =
-of
-memory for another by using different cgroups for different types of memory=
-.
+> (Personally, I find "invalidate" to be inaccurate because common
+> usage of the term doesn't imply that the space used in the cache
+> is recovered, i.e. garbage collection, which is the case here.
+> To me, "flush" implies invalidate PLUS recover space.)
 
-If kmem expands to include reclaimable kernel memory (e.g. dentry) then I
-presume the kernel would have no way to exchange unused user pages for dent=
-ry
-pages even if the user memory in the container is well below its limit.  Th=
-is is
-motivation for the above user assisted direct reclaim.
+invalidate is close enough.  Consider block/blk-flush.c, sigh.
 
-Do you feel the need to segregate user and kernel memory into different cgr=
-oups
-with independent limits?  Or is this this just a way to create a new clean
-cgroup with a simple purpose?
+> 
+> > > +/*
+> > > + * Useful stats available in /sys/kernel/mm/frontswap.  These are for
+> > > + * information only so are not protected against increment/decrement races.
+> > > + */
+> > > +static unsigned long frontswap_gets;
+> > > +static unsigned long frontswap_succ_puts;
+> > > +static unsigned long frontswap_failed_puts;
+> > > +static unsigned long frontswap_flushes;
+> > 
+> > If they're in /sys/kernel/mm then they rather become permanent parts of
+> > the exported kernel interface.  We're stuck with them.  Plus they're
+> > inaccurate and updating them might be inefficient, so we don't want to
+> > be stuck with them.
+> > 
+> > I suggest moving these to debugfs from where we can remove them if we
+> > feel like doing so.
+> 
+> The style (and code) for this was mimicked from ksm and hugepages, which
+> expose the stats the same way... as does cleancache now.  slub is also
+> similar.  I'm OK with using a different approach (e.g. debugfs), but
+> think it would be inconsistent and confusing to expose these stats
+> differently than cleancache (or ksm and hugepages).  I'd support
+> and help with a massive cleanup commit across all of mm later though.
+> Hope that's OK for now.
 
-In some resource sharing shops customers purchase a certain amount of memor=
-y,
-cpu, network, etc.  Such customers don't define how the memory is used and =
-the
-user/kernel mixture may change over time.  Can a user space reclaim daemon =
-stay
-ahead of the workloads needs?
+These are boring internal counters for a few developers.  They're so
+uninteresting to end users that the developer didn't even bother to
+document them ;)
 
-> Using userspace CPU is no different from using kernel cpu in this particu=
-lar
-> case. It is all overhead, regardless where it comes from. Moreover, you e=
-nd
-> up setting up a policy, instead of a mechanism. What should be this
-> proportion? =A0Do we reclaim everything with the same frequency? Should w=
-e be
-> more tolerant with a specific container?
+They should be in debugfs.  Probably some/all of the existing
+cleancache/ksm/hugepage stats should be in debugfs too.  This a mistake
+we often make.  Please let's be extremely miserly with the kernel API.
 
-I assume that this implies that a generic kmem cgroup usage is inferior to
-separate limits for each kernel memory type to allow user space the flexibi=
-lity
-to choose between kernel types (udp vs tcp vs ext4 vs page_tables vs ...)? =
- Do
-you foresee a way to provide a limit on the total amount of kmem usage by a=
-ll
-such types?  If a container wants to dedicate 4M for all network protocol
-buffers (tcp, udp, etc.) would that require a user space daemon to balance
-memory limits b/w the protocols?
-
-> Also, If you want to allow any flexibility in this scheme, like: "Should
-> this network container be able to stress the network more, pinning more
-> memory, but not other subsystems?", you end up having to touch all
-> individual files anyway - probably with a userspace daemon.
->
-> Also, as you noticed yourself, kernel memory is fundamentally different f=
-rom
-> userspace memory. You can't just set reclaim limits, since you have no
-> guarantees it will work. User memory is not a scarce resource.
-> Kernel memory is.
-
-I agree that kernel memory is somewhat different.  In some (I argue most)
-situations containers want the ability to exchange job kmem and job umem.
-Either split or combined accounting protects the system and isolates other
-containers from kmem allocations of a bad job.  To me it seems natural to
-indicate that job X gets Y MB of memory.  I have more trouble dividing the
-Y MB of memory into dedicated slices for different types of memory.
-
->> While there are people (like me) who want a combined memory usage
->> limit there are also people (like you) who want separate user and
->> kernel limiting.
->
-> Combined excludes separate. Separate does not exclude combined.
-
-I agree.  I have no problem with separate accounting and separate
-user-accessible pressure knobs to allow for complex policies.  My concern i=
-s
-about limiting the kernel's ability to reclaim one type of memory to
-fulfill the needs of another memory type (e.g. I think reclaiming clean fil=
-e
-pages should be possible to make room for user slab needs).  I think
-memcg aware slab accounting does a good job of limiting a job's
-memory allocations.
-Would such slab accounting meet your needs?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
