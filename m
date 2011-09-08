@@ -1,107 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 82058900138
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 19:52:08 -0400 (EDT)
-Date: Thu, 8 Sep 2011 16:51:47 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F3F900138
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 19:52:28 -0400 (EDT)
+Date: Thu, 8 Sep 2011 16:52:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V8 2/4] mm: frontswap: core code
-Message-Id: <20110908165147.ff46f5bf.akpm@linux-foundation.org>
-In-Reply-To: <896345e2-ded0-404a-8e64-490584ec2b4e@default>
-References: <20110829164908.GA27200@ca-server1.us.oracle.com
- 20110907162510.3547d67a.akpm@linux-foundation.org>
-	<896345e2-ded0-404a-8e64-490584ec2b4e@default>
+Subject: Re: [PATCH v4] mm: add replace_page_cache_page() function
+Message-Id: <20110908165222.18875260.akpm@linux-foundation.org>
+In-Reply-To: <20110118152844.88cfdc2c.akpm@linux-foundation.org>
+References: <E1Pf9Zj-0002td-Ct@pomaz-ex.szeredi.hu>
+	<20110118152844.88cfdc2c.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Miklos Szeredi <miklos@szeredi.hu>, minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 8 Sep 2011 08:00:36 -0700 (PDT)
-Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+On Tue, 18 Jan 2011 15:28:44 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> > From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > Subject: Re: [PATCH V8 2/4] mm: frontswap: core code
+> On Tue, 18 Jan 2011 12:18:11 +0100
+> Miklos Szeredi <miklos@szeredi.hu> wrote:
 > 
-> Thanks very much for taking the time for this feedback!
+> > +int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+> > +{
+> > +	int error;
+> > +	struct mem_cgroup *memcg = NULL;
 > 
-> Please correct me if I am presumptuous or misreading
-> SubmittingPatches, but after making the changes below,
-> I am thinking this constitutes a "Reviewed-by"?
-
-Not really.  More like Briefly-browsed-by:.
-
-> > > From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > > Subject: [PATCH V8 2/4] mm: frontswap: core code
-> > >
-> > > This second patch of four in this frontswap series provides the core code
-> > > for frontswap that interfaces between the hooks in the swap subsystem and
-> > > +
-> > > +struct frontswap_ops {
-> > > +	void (*init)(unsigned);
-> > > +	int (*put_page)(unsigned, pgoff_t, struct page *);
-> > > +	int (*get_page)(unsigned, pgoff_t, struct page *);
-> > > +	void (*flush_page)(unsigned, pgoff_t);
-> > > +	void (*flush_area)(unsigned);
-> > > +};
-> > 
-> > Please don't use the term "flush".  In both the pagecache code and the
-> > pte code it is interchangably used to refer to both writeback and
-> > invalidation.  The way to avoid this ambiguity and confusion is to use
-> > the terms "writeback" and "invalidate" instead.
-> > 
-> > Here, you're referring to invalidation.
+> I'm suspecting that the unneeded initialisation was added to suppress a
+> warning?
 > 
-> While the different name is OK, changing this consistently would now
-> require simultaneous patches in cleancache, zcache, and xen (not
-> to mention lots of docs inside and outside the kernel).  I suspect
-> it would be cleaner to do this later across all affected code
-> with a single commit.  Hope that's OK.
-
-Well, if you can make that happen...
-
-> (Personally, I find "invalidate" to be inaccurate because common
-> usage of the term doesn't imply that the space used in the cache
-> is recovered, i.e. garbage collection, which is the case here.
-> To me, "flush" implies invalidate PLUS recover space.)
-
-invalidate is close enough.  Consider block/blk-flush.c, sigh.
-
+> I removed it, and didn't get a warning.  I expected to.
 > 
-> > > +/*
-> > > + * Useful stats available in /sys/kernel/mm/frontswap.  These are for
-> > > + * information only so are not protected against increment/decrement races.
-> > > + */
-> > > +static unsigned long frontswap_gets;
-> > > +static unsigned long frontswap_succ_puts;
-> > > +static unsigned long frontswap_failed_puts;
-> > > +static unsigned long frontswap_flushes;
-> > 
-> > If they're in /sys/kernel/mm then they rather become permanent parts of
-> > the exported kernel interface.  We're stuck with them.  Plus they're
-> > inaccurate and updating them might be inefficient, so we don't want to
-> > be stuck with them.
-> > 
-> > I suggest moving these to debugfs from where we can remove them if we
-> > feel like doing so.
+> Really, uninitialized_var() is better.  It avoids adding extra code
+> and, unlike "= 0" it is self-documenting.
 > 
-> The style (and code) for this was mimicked from ksm and hugepages, which
-> expose the stats the same way... as does cleancache now.  slub is also
-> similar.  I'm OK with using a different approach (e.g. debugfs), but
-> think it would be inconsistent and confusing to expose these stats
-> differently than cleancache (or ksm and hugepages).  I'd support
-> and help with a massive cleanup commit across all of mm later though.
-> Hope that's OK for now.
+> > +	VM_BUG_ON(!PageLocked(old));
+> > +	VM_BUG_ON(!PageLocked(new));
+> > +	VM_BUG_ON(new->mapping);
+> > +
+> > +	/*
+> > +	 * This is not page migration, but prepare_migration and
+> > +	 * end_migration does enough work for charge replacement.
+> > +	 *
+> > +	 * In the longer term we probably want a specialized function
+> > +	 * for moving the charge from old to new in a more efficient
+> > +	 * manner.
+> > +	 */
+> > +	error = mem_cgroup_prepare_migration(old, new, &memcg, gfp_mask);
+> > +	if (error)
+> > +		return error;
+> > +
+> > +	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> > +	if (!error) {
+> > +		struct address_space *mapping = old->mapping;
+> > +		pgoff_t offset = old->index;
+> > +
+> > +		page_cache_get(new);
+> > +		new->mapping = mapping;
+> > +		new->index = offset;
+> > +
+> > +		spin_lock_irq(&mapping->tree_lock);
+> > +		__remove_from_page_cache(old);
+> > +		error = radix_tree_insert(&mapping->page_tree, offset, new);
+> > +		BUG_ON(error);
+> > +		mapping->nrpages++;
+> > +		__inc_zone_page_state(new, NR_FILE_PAGES);
+> > +		if (PageSwapBacked(new))
+> > +			__inc_zone_page_state(new, NR_SHMEM);
+> > +		spin_unlock_irq(&mapping->tree_lock);
+> > +		radix_tree_preload_end();
+> > +		page_cache_release(old);
+> > +		mem_cgroup_end_migration(memcg, old, new, true);
+> 
+> This is all pretty ugly and inefficient.
+> 
+> We call __remove_from_page_cache() which does a radix-tree lookup and
+> then fiddles a bunch of accounting things.
+> 
+> Then we immediately do the same radix-tree lookup and then undo the
+> accounting changes which we just did.  And we do it in an open-coded
+> fashion, thus giving the kernel yet another code site where various
+> operations need to be kept in sync.
+> 
+> Would it not be better to do a single radix_tree_lookup_slot(),
+> overwrite the pointer therein and just leave all the ancilliary
+> accounting unaltered?
+> 
 
-These are boring internal counters for a few developers.  They're so
-uninteresting to end users that the developer didn't even bother to
-document them ;)
-
-They should be in debugfs.  Probably some/all of the existing
-cleancache/ksm/hugepage stats should be in debugfs too.  This a mistake
-we often make.  Please let's be extremely miserly with the kernel API.
-
+Poke?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
