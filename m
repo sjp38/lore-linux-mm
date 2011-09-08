@@ -1,35 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 05C126B0179
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 20:49:18 -0400 (EDT)
-Date: Thu, 8 Sep 2011 03:49:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] memcg: drain all stocks for the cgroup before read usage
-Message-ID: <20110908004906.GA8499@shutemov.name>
-References: <1315098933-29464-1-git-send-email-kirill@shutemov.name>
- <20110905085913.8f84278e.kamezawa.hiroyu@jp.fujitsu.com>
- <20110905101607.cd946a46.nishimura@mxp.nes.nec.co.jp>
- <20110907213340.GA7690@shutemov.name>
- <20110908091914.6daeab1e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110908091914.6daeab1e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7B50B6B017A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 21:31:37 -0400 (EDT)
+Subject: RE: [PATCH] slub Discard slab page only when node partials >
+ minimum setting
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <1315442639.31737.224.camel@debian>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+	 <1315357399.31737.49.camel@debian>
+	 <alpine.DEB.2.00.1109062022100.20474@router.home>
+	 <4E671E5C.7010405@cs.helsinki.fi>
+	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	 <alpine.DEB.2.00.1109071003240.9406@router.home>
+	 <1315442639.31737.224.camel@debian>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 08 Sep 2011 09:34:34 +0800
+Message-ID: <1315445674.29510.74.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Shi, Alex" <alex.shi@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Sep 08, 2011 at 09:19:14AM +0900, KAMEZAWA Hiroyuki wrote:
-> > Should we have field 'ram' (or 'memory') for rss+cache in memory.stat?
+On Thu, 2011-09-08 at 08:43 +0800, Shi, Alex wrote:
+> On Wed, 2011-09-07 at 23:05 +0800, Christoph Lameter wrote:
+> > On Wed, 7 Sep 2011, Shi, Alex wrote:
+> > 
+> > > Oh, seems the deactivate_slab() corrected at linus' tree already, but
+> > > the unfreeze_partials() just copied from the old version
+> > > deactivate_slab().
+> > 
+> > Ok then the patch is ok.
+> > 
+> > Do you also have performance measurements? I am a bit hesitant to merge
+> > the per cpu partials patchset if there are regressions in the low
+> > concurrency tests as seem to be indicated by intels latest tests.
 > > 
 > 
-> Why do you think so ?
-
-It may be useful for scripting purpose. Just an idea.
-
--- 
- Kirill A. Shutemov
+> My LKP testing system most focus on server platforms. I tested your per
+> cpu partial set on hackbench and netperf loopback benchmark. hackbench
+> improve much.
+> 
+> Maybe some IO testing is low concurrency for SLUB, maybe a few jobs
+> kbuild? or low swap press testing.  I may try them for your patchset in
+> the near days. 
+> 
+> BTW, some testing results for your PCP SLUB:
+> 
+> for hackbench process testing: 
+> on WSM-EP, inc ~60%, NHM-EP inc ~25%
+> on NHM-EX, inc ~200%, core2-EP, inc ~250%. 
+> on Tigerton-EX, inc 1900%, :) 
+> 
+> for hackbench thread testing: 
+> on WSM-EP, no clear inc, NHM-EP no clear inc
+> on NHM-EX, inc 10%, core2-EP, inc ~20%. 
+> on Tigertion-EX, inc 100%, 
+> 
+> for  netperf loopback testing, no clear performance change. 
+did you add my patch to add page to partial list tail in the test?
+Without it the per-cpu partial list can have more significant impact to
+reduce lock contention, so the result isn't precise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
