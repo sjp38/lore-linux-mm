@@ -1,85 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 93324900138
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 22:18:33 -0400 (EDT)
-Subject: RE: [PATCH] slub Discard slab page only when node partials >
- minimum setting
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <1315445674.29510.74.camel@sli10-conroe>
-References: <1315188460.31737.5.camel@debian>
-	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-	 <1315357399.31737.49.camel@debian>
-	 <alpine.DEB.2.00.1109062022100.20474@router.home>
-	 <4E671E5C.7010405@cs.helsinki.fi>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1109071003240.9406@router.home>
-	 <1315442639.31737.224.camel@debian>
-	 <1315445674.29510.74.camel@sli10-conroe>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 08 Sep 2011 10:24:16 +0800
-Message-ID: <1315448656.31737.252.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 30A82900138
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 22:53:17 -0400 (EDT)
+Date: Thu, 8 Sep 2011 10:53:12 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 02/18] writeback: dirty position control
+Message-ID: <20110908025312.GA23199@localhost>
+References: <20110904015305.367445271@intel.com>
+ <20110904020914.848566742@intel.com>
+ <20110906182034.GA30513@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110906182034.GA30513@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Shaohua" <shaohua.li@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2011-09-08 at 09:34 +0800, Li, Shaohua wrote:
-> On Thu, 2011-09-08 at 08:43 +0800, Shi, Alex wrote:
-> > On Wed, 2011-09-07 at 23:05 +0800, Christoph Lameter wrote:
-> > > On Wed, 7 Sep 2011, Shi, Alex wrote:
-> > > 
-> > > > Oh, seems the deactivate_slab() corrected at linus' tree already, but
-> > > > the unfreeze_partials() just copied from the old version
-> > > > deactivate_slab().
-> > > 
-> > > Ok then the patch is ok.
-> > > 
-> > > Do you also have performance measurements? I am a bit hesitant to merge
-> > > the per cpu partials patchset if there are regressions in the low
-> > > concurrency tests as seem to be indicated by intels latest tests.
-> > > 
-> > 
-> > My LKP testing system most focus on server platforms. I tested your per
-> > cpu partial set on hackbench and netperf loopback benchmark. hackbench
-> > improve much.
-> > 
-> > Maybe some IO testing is low concurrency for SLUB, maybe a few jobs
-> > kbuild? or low swap press testing.  I may try them for your patchset in
-> > the near days. 
-> > 
-> > BTW, some testing results for your PCP SLUB:
-> > 
-> > for hackbench process testing: 
-> > on WSM-EP, inc ~60%, NHM-EP inc ~25%
-> > on NHM-EX, inc ~200%, core2-EP, inc ~250%. 
-> > on Tigerton-EX, inc 1900%, :) 
-> > 
-> > for hackbench thread testing: 
-> > on WSM-EP, no clear inc, NHM-EP no clear inc
-> > on NHM-EX, inc 10%, core2-EP, inc ~20%. 
-> > on Tigertion-EX, inc 100%, 
-> > 
-> > for  netperf loopback testing, no clear performance change. 
-> did you add my patch to add page to partial list tail in the test?
-> Without it the per-cpu partial list can have more significant impact to
-> reduce lock contention, so the result isn't precise.
+On Wed, Sep 07, 2011 at 02:20:34AM +0800, Vivek Goyal wrote:
+> On Sun, Sep 04, 2011 at 09:53:07AM +0800, Wu Fengguang wrote:
 > 
+> [..]
+> > - in memory tight systems, (1) becomes strong enough to squeeze dirty
+> >   pages inside the control scope
+> > 
+> > - in large memory systems where the "gravity" of (1) for pulling the
+> >   dirty pages to setpoint is too weak, (2) can back (1) up and drive
+> >   dirty pages to bdi_setpoint ~= setpoint reasonably fast.
+> > 
+> > Unfortunately in JBOD setups, the fluctuation range of bdi threshold
+> > is related to memory size due to the interferences between disks.  In
+> > this case, the bdi slope will be weighted sum of write_bw and bdi_thresh.
+> 
+> Can you please elaborate a little more that what changes in JBOD setup.
+> 
+> > 
+> > Given equations
+> > 
+> >         span = x_intercept - bdi_setpoint
+> >         k = df/dx = - 1 / span
+> > 
+> > and the extremum values
+> > 
+> >         span = bdi_thresh
+> >         dx = bdi_thresh
+> > 
+> > we get
+> > 
+> >         df = - dx / span = - 1.0
+> > 
+> > That means, when bdi_dirty deviates bdi_thresh up, pos_ratio and hence
+> > task ratelimit will fluctuate by -100%.
+> 
+> I am not sure I understand above calculation. I understood the part that
+> for single bdi case, you want 12.5% varation of bdi_setpoint over a
+> range of write_bw [SP-write_bw/2, SP+write_bw/2]. This requirement will
+> lead to.
+> 
+> k = -1/8*write_bw
+> 
+> OR span = 8*write_bw, hence
+> k= -1/span
 
-No, the penberg tree did include your patch on slub/partial head.
-Actually PCP won't take that path, so, there is no need for your patch.
-I daft a patch to remove some unused code in __slab_free, that related
-this, and will send it out later.
+That's right.
 
-But, You reminder me that the compare kernel 3.1-rc2 has a bug. so,
-compare to 3.0 kernel, on hackbench process testing, the PCP patchset
-just have 5~9% performance on our 4 CPU socket, EX machine, while has
-about 2~4% drop on 2 socket EP machines.  :) 
+> Now I missed the part that what is different in case of JBOD setup and
+> how do you come up with values for that setup so that slope of bdi
+> setpoint is sharper.
+> 
+> IIUC, in case of single bdi case you want to use k=-1/(8*write_bw) and in
+> case of JBOD you want to use k=-1/(bdi_thresh)?
 
+Yeah.
 
+> That means for single bdi case you want to trust bdi, write_bw but in
+> case of JBOD you stop trusting that and just switch to bdi_thresh. Not
+> sure what does it mean.
 
+The main differences are,
 
+1) in JBOD setup, bdi_thresh is fluctuating; in single bdi case,
+   bdi_thresh is pretty stable. The fluctuating bdi_thresh means
+   even if bdi_dirty is stable, dx=(bdi_dirty-bdi_setpoint) will be
+   fluctuating a lot. And the dx range is no long bounded by the
+   bdi write bandwidth, but proportional to bdi_thresh.
+
+2) for single bdi case, bdi_dirty=nr_dirty is controlled by both
+   the memory based global control line and the bandwidth based bdi
+   control line. However for JBOD, we want to keep bdi_dirty reasonably
+   close to bdi_setpoint, however the global control line is not going
+   to help us directly. The bdi_thresh based slope can better serve
+   this purpose than the write bandwidth.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
