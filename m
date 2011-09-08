@@ -1,88 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 959D16B019E
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 13:46:28 -0400 (EDT)
-Message-ID: <4E68FF70.1010709@xenotime.net>
-Date: Thu, 08 Sep 2011 10:46:24 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 9/9] Add documentation about kmem_cgroup
-References: <1315369399-3073-1-git-send-email-glommer@parallels.com> <1315369399-3073-10-git-send-email-glommer@parallels.com>
-In-Reply-To: <1315369399-3073-10-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F8B86B01A0
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 14:08:35 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p88HirXN006490
+	for <linux-mm@kvack.org>; Thu, 8 Sep 2011 13:44:53 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p88I6010155582
+	for <linux-mm@kvack.org>; Thu, 8 Sep 2011 14:06:00 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p88C5WmS019864
+	for <linux-mm@kvack.org>; Thu, 8 Sep 2011 06:05:33 -0600
+Subject: Re: [PATCH 2/8] mm: alloc_contig_freed_pages() added
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1313764064-9747-3-git-send-email-m.szyprowski@samsung.com>
+References: <1313764064-9747-1-git-send-email-m.szyprowski@samsung.com>
+	 <1313764064-9747-3-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 08 Sep 2011 11:05:52 -0700
+Message-ID: <1315505152.3114.9.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On 09/06/11 21:23, Glauber Costa wrote:
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: David S. Miller <davem@davemloft.net>
-> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Eric W. Biederman <ebiederm@xmission.com>
-> CC: Randy Dunlap <rdunlap@xenotime.net>
-> ---
->  Documentation/cgroups/kmem_cgroups.txt |   27 +++++++++++++++++++++++++++
->  1 files changed, 27 insertions(+), 0 deletions(-)
->  create mode 100644 Documentation/cgroups/kmem_cgroups.txt
-> 
-> diff --git a/Documentation/cgroups/kmem_cgroups.txt b/Documentation/cgroups/kmem_cgroups.txt
-> new file mode 100644
-> index 0000000..930e069
-> --- /dev/null
-> +++ b/Documentation/cgroups/kmem_cgroups.txt
-> @@ -0,0 +1,27 @@
-> +Kernel Memory Cgroup
-> +====================
+On Fri, 2011-08-19 at 16:27 +0200, Marek Szyprowski wrote:
+> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
+> +				       gfp_t flag)
+> +{
+> +	unsigned long pfn = start, count;
+> +	struct page *page;
+> +	struct zone *zone;
+> +	int order;
 > +
-> +This document briefly describes the kernel memory cgroup, or "kmem cgroup".
-> +Unlike user memory, kernel memory cannot be swapped. This effectively means
-> +that rogue processes can start operations that pin kernel objects permanently
-> +into memory, exhausting resources of all other processes in the system.
+> +	VM_BUG_ON(!pfn_valid(start));
+> +	zone = page_zone(pfn_to_page(start));
+
+This implies that start->end are entirely contained in a single zone.
+What enforces that?  If some higher layer enforces that, I think we
+probably need at least a VM_BUG_ON() in here and a comment about who
+enforces it.
+
+> +	spin_lock_irq(&zone->lock);
 > +
-> +kmem_cgroup main goal is to control the amount of memory a group of processes
+> +	page = pfn_to_page(pfn);
+> +	for (;;) {
+> +		VM_BUG_ON(page_count(page) || !PageBuddy(page));
+> +		list_del(&page->lru);
+> +		order = page_order(page);
+> +		zone->free_area[order].nr_free--;
+> +		rmv_page_order(page);
+> +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> +		pfn  += 1 << order;
+> +		if (pfn >= end)
+> +			break;
+> +		VM_BUG_ON(!pfn_valid(pfn));
+> +		page += 1 << order;
+> +	}
 
-   kmem_cgroup's main goal
+This 'struct page *'++ stuff is OK, but only for small, aligned areas.
+For at least some of the sparsemem modes (non-VMEMMAP), you could walk
+off of the end of the section_mem_map[] when you cross a MAX_ORDER
+boundary.  I'd feel a little bit more comfortable if pfn_to_page() was
+being done each time, or only occasionally when you cross a section
+boundary.
 
-> +can pin at any given point in time. Other uses of this infrastructure are
-> +expected to come up with time. Right now, the only resource effectively limited
+This may not apply to what ARM is doing today, but it shouldn't be too
+difficult to fix up, or to document what's going on.
 
-                                                      resources
-
-> +are tcp send and receive buffers.
-
-or:
-                                             the only resource effectively limited
-  is TCP network buffers.
-
+> +	spin_unlock_irq(&zone->lock);
 > +
-> +TCP network buffers
-> +===================
+> +	/* After this, pages in the range can be freed one be one */
+> +	page = pfn_to_page(start);
+> +	for (count = pfn - start; count; --count, ++page)
+> +		prep_new_page(page, 0, flag);
 > +
-> +TCP network buffers, both on the send and receive sides, can be controlled
-> +by the kmem cgroup. Once a socket is created, it is attached to the cgroup of
-> +the controller process, where it stays until the end of its lifetime.
+> +	return pfn;
+> +}
 > +
-> +Files
-> +=====
-> +	kmem.tcp_maxmem: control the maximum amount in bytes that can be used by
+> +void free_contig_pages(struct page *page, int nr_pages)
+> +{
+> +	for (; nr_pages; --nr_pages, ++page)
+> +		__free_page(page);
+> +}
 
-	                 controls the maximum amount of memory in bytes ...
+The same thing about 'struct page' pointer math goes here.
 
-
-> +	tcp sockets inside the cgroup. 
-> +
-> +	kmem.tcp_current_memory: current amount in bytes used by all sockets in
-
-	                         current amount of memory in bytes ...
-
-> +	this cgroup
-
-
--- 
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
