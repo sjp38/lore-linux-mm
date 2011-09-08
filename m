@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA006B0174
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 20:27:17 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 799703EE0AE
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 09:27:13 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C0B645DEB5
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 09:27:13 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F39A545DEB2
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 09:27:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E53F81DB8038
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 09:27:12 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD6881DB8037
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 09:27:12 +0900 (JST)
-Date: Thu, 8 Sep 2011 09:26:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Is there any way to stop reclamation of file cache pages ?
-Message-Id: <20110908092633.2fcc01d7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CAFPAmTTaq2Lz=eGgfG2-5U0M9aS_aZLNAANAVPZj6TEo9EdjGg@mail.gmail.com>
-References: <CAFPAmTTaq2Lz=eGgfG2-5U0M9aS_aZLNAANAVPZj6TEo9EdjGg@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3F6336B0176
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2011 20:38:16 -0400 (EDT)
+Subject: RE: [PATCH] slub Discard slab page only when node partials >
+ minimum setting
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1109071003240.9406@router.home>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+	 <1315357399.31737.49.camel@debian>
+	 <alpine.DEB.2.00.1109062022100.20474@router.home>
+	 <4E671E5C.7010405@cs.helsinki.fi>
+	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	 <alpine.DEB.2.00.1109071003240.9406@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 08 Sep 2011 08:43:59 +0800
+Message-ID: <1315442639.31737.224.camel@debian>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-fsdev@vger.rutgers.edu, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 5 Sep 2011 14:44:43 +0530
-"kautuk.c @samsung.com" <consul.kautuk@gmail.com> wrote:
-
-> Hi,
+On Wed, 2011-09-07 at 23:05 +0800, Christoph Lameter wrote:
+> On Wed, 7 Sep 2011, Shi, Alex wrote:
 > 
-> I am aware that mlocked pages can be stopped from being reclaimed
-> through the PFRA.
+> > Oh, seems the deactivate_slab() corrected at linus' tree already, but
+> > the unfreeze_partials() just copied from the old version
+> > deactivate_slab().
 > 
-> However, is there any method to stop reclamation of the page-cache
-> pages pertaining to
-> a single file's inode without mlocking ?
+> Ok then the patch is ok.
 > 
-> If I want to only use the open, read and write system calls and I want
-> to set specific file cache
-> pages to "non-reclaimable", how can I do so ?
+> Do you also have performance measurements? I am a bit hesitant to merge
+> the per cpu partials patchset if there are regressions in the low
+> concurrency tests as seem to be indicated by intels latest tests.
 > 
 
-For this kind of question, you should explain why you can't use mlock.
+My LKP testing system most focus on server platforms. I tested your per
+cpu partial set on hackbench and netperf loopback benchmark. hackbench
+improve much.
 
-> Will the POSIX_FADV_WILLNEED option to the fadvise() system call solve
-> this problem ?
-> 
+Maybe some IO testing is low concurrency for SLUB, maybe a few jobs
+kbuild? or low swap press testing.  I may try them for your patchset in
+the near days. 
 
-I think no.
+BTW, some testing results for your PCP SLUB:
 
-Thanks,
--Kame
+for hackbench process testing: 
+on WSM-EP, inc ~60%, NHM-EP inc ~25%
+on NHM-EX, inc ~200%, core2-EP, inc ~250%. 
+on Tigerton-EX, inc 1900%, :) 
+
+for hackbench thread testing: 
+on WSM-EP, no clear inc, NHM-EP no clear inc
+on NHM-EX, inc 10%, core2-EP, inc ~20%. 
+on Tigertion-EX, inc 100%, 
+
+for  netperf loopback testing, no clear performance change. 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
