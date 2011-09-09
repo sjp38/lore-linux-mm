@@ -1,40 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A096B0270
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:36:18 -0400 (EDT)
-Date: Fri, 9 Sep 2011 09:36:12 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 03/10] mm: Add support for a filesystem to control swap
- files
-Message-ID: <20110909133611.GB8155@infradead.org>
-References: <1315566054-17209-1-git-send-email-mgorman@suse.de>
- <1315566054-17209-4-git-send-email-mgorman@suse.de>
- <20110909130007.GA11810@infradead.org>
- <20110909131550.GV14369@suse.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E63EB6B0272
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:07:10 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <d3d83a5a-ffee-40a3-98be-08694f731b75@default>
+Date: Fri, 9 Sep 2011 08:06:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V8 3/4] mm: frontswap: add swap hooks and extend
+ try_to_unuse
+References: <20110829164929.GA27216@ca-server1.us.oracle.com>
+ <20110907162703.7f8116b9.akpm@linux-foundation.org>
+ <52b5aee3-f424-42ae-830f-d1cf64fa49ef@default
+ 20110909111445.4821d326.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110909111445.4821d326.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110909131550.GV14369@suse.de>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Fri, Sep 09, 2011 at 02:15:50PM +0100, Mel Gorman wrote:
-> 
-> I confess I haven't investigated this direction at
-> all yet.  Is it correct that your previous objection was
-> http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-10/msg00455.html
-> and the direct-IO patchset you were thinking of was
-> http://copilotco.com/mail-archives/linux-kernel.2009/msg87176.html ?
+> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> Subject: Re: [PATCH V8 3/4] mm: frontswap: add swap hooks and extend try_=
+to_unuse
+>=20
+> On Thu, 8 Sep 2011 08:50:11 -0700 (PDT)
+> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+>=20
+> > > From: Andrew Morton [mailto:akpm@linux-foundation.org]
+> > > Sent: Wednesday, September 07, 2011 5:27 PM
+> > > To: Dan Magenheimer
+> > > Subject: Re: [PATCH V8 3/4] mm: frontswap: add swap hooks and extend =
+try_to_unuse
+> > >
+> > > On Mon, 29 Aug 2011 09:49:29 -0700
+> > > Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+> > >
+> > > > -static int try_to_unuse(unsigned int type)
+> > > > +int try_to_unuse(unsigned int type, bool frontswap,
+> > >
+> > > Are patches 2 and 3 in the wrong order?
+> >
+> > No, they've applied in that order and built after each patch
+> > properly for well over a year.  At a minimum, frontswap.h must
+> > be created before patch 3of4, though I suppose the introduction
+> > of frontswap.c could be after patch 3of4... Note that frontswap.c
+> > (which calls try_to_unuse()) is non-functional (and isn't even built)
+> > until after patch 4of4 is applied.
+> >
+> > There is enough interdependency between the four parts
+> > that perhaps it should all be a single commit.  I split
+> > it up for reviewer's convenience but apparently different
+> > reviewers use different review processes than I anticipated. :-}
+> >
+>=20
+> IIRC, I said 'please move this change of line to patch 1'.
+>=20
+> Thanks,
+> -Kame
 
-Yes.
+Sorry.  To be honest, my patch scripts don't handle this
+very well.  I'll try to get it moved in the next rev.
 
-> If so, are you suggesting that instead of swap_readpage and
-> swap_writepage I look into what is required for swap to use ->readpage
-> method and ->direct_IO aops?
-
-The equivalent of ->direct_IO should be used for both reads and writes.
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
