@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CEBA6B0254
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 07:01:05 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 024FD6B0259
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 07:01:07 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/10] mm: swap: Implement generic handlers for swap-related address ops
-Date: Fri,  9 Sep 2011 12:00:48 +0100
-Message-Id: <1315566054-17209-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/10] nfs: teach the NFS client how to treat PG_swapcache pages
+Date: Fri,  9 Sep 2011 12:00:50 +0100
+Message-Id: <1315566054-17209-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1315566054-17209-1-git-send-email-mgorman@suse.de>
 References: <1315566054-17209-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,455 +13,315 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-With the introduction of swap_activate, swap_writepage and
-swap_readpage, there is a number of SWP_FILE checks that call a_ops and
-fallback to generic handlers. This patch clarifies things by creating
-generic versions of these functions and passing in all the information
-required to implement a generic handler so the same information is
-available to filesystems.  This removes the need for SWP_FILE and
-cleans up the flow slightly.  There are no functional changes.
+Replace all relevant occurences of page->index and page->mapping in
+the NFS client with the new page_file_index() and page_file_mapping()
+functions.
 
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/fs.h   |    7 ++-
- include/linux/swap.h |    6 ++-
- mm/page_io.c         |  184 +++++++++++++++++++++++++++++++++++++++-----------
- mm/swapfile.c        |  102 +++-------------------------
- 4 files changed, 162 insertions(+), 137 deletions(-)
+ fs/nfs/file.c     |    6 +++---
+ fs/nfs/internal.h |    7 ++++---
+ fs/nfs/pagelist.c |    6 +++---
+ fs/nfs/read.c     |    6 +++---
+ fs/nfs/write.c    |   46 +++++++++++++++++++++++++---------------------
+ 5 files changed, 38 insertions(+), 33 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 387b767..dd93bb1 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -581,6 +581,8 @@ typedef struct {
- typedef int (*read_actor_t)(read_descriptor_t *, struct page *,
- 		unsigned long, unsigned long);
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index 28b8c3f..38c7cf4 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -484,7 +484,7 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
+ 	if (offset != 0)
+ 		return;
+ 	/* Cancel any unstarted writes on this page */
+-	nfs_wb_page_cancel(page->mapping->host, page);
++	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
  
-+struct swap_info_struct;
-+
- struct address_space_operations {
- 	int (*writepage)(struct page *page, struct writeback_control *wbc);
- 	int (*readpage)(struct file *, struct page *);
-@@ -619,8 +621,9 @@ struct address_space_operations {
- 	int (*error_remove_page)(struct address_space *, struct page *);
- 
- 	/* swapfile support */
--	int (*swap_activate)(struct file *file);
--	int (*swap_deactivate)(struct file *file);
-+	int (*swap_activate)(struct swap_info_struct *sis, struct file *file,
-+				sector_t *span);
-+	void (*swap_deactivate)(struct file *file);
- 	int (*swap_writepage)(struct file *file, struct page *page,
- 			struct writeback_control *wbc);
- 	int (*swap_readpage)(struct file *file, struct page *page);
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index a044198..195ae15 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -148,7 +148,6 @@ enum {
- 	SWP_SOLIDSTATE	= (1 << 4),	/* blkdev seeks are cheap */
- 	SWP_CONTINUED	= (1 << 5),	/* swap_map has count continuation */
- 	SWP_BLKDEV	= (1 << 6),	/* its a block device */
--	SWP_FILE	= (1 << 7),	/* set after swap_activate success */
- 					/* add others here before... */
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
-@@ -307,6 +306,11 @@ extern int swap_writepage(struct page *page, struct writeback_control *wbc);
- extern int swap_set_page_dirty(struct page *page);
- extern void end_swap_bio_read(struct bio *bio, int err);
- 
-+int add_swap_extent(struct swap_info_struct *, unsigned long start_pfn,
-+		unsigned long nr_pages, sector_t);
-+int generic_swapfile_activate(struct swap_info_struct *, struct file *,
-+		sector_t *);
-+
- /* linux/mm/swap_state.c */
- extern struct address_space swapper_space;
- #define total_swapcache_pages  swapper_space.nrpages
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 5ed5710..6ea49d3 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -86,87 +86,189 @@ void end_swap_bio_read(struct bio *bio, int err)
- 	bio_put(bio);
+ 	nfs_fscache_invalidate_page(page, page->mapping->host);
  }
- 
-+int generic_swap_writepage(struct page *page, struct writeback_control *wbc)
-+{
-+	struct bio *bio;
-+	int rw = WRITE;
-+
-+	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
-+	if (bio == NULL) {
-+		set_page_dirty(page);
-+		unlock_page(page);
-+		return -ENOMEM;
-+	}
-+	if (wbc->sync_mode == WB_SYNC_ALL)
-+		rw |= REQ_SYNC;
-+	count_vm_event(PSWPOUT);
-+	set_page_writeback(page);
-+	unlock_page(page);
-+	submit_bio(rw, bio);
-+
-+	return 0;
-+}
-+
-+int generic_swap_readpage(struct page *page)
-+{
-+	struct bio *bio;
-+	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
-+	if (bio == NULL) {
-+		unlock_page(page);
-+		return -ENOMEM;
-+	}
-+	count_vm_event(PSWPIN);
-+	submit_bio(READ, bio);
-+
-+	return 0;
-+}
-+
-+int generic_swapfile_activate(struct swap_info_struct *sis,
-+				struct file *swap_file,
-+				sector_t *span)
-+{
-+	struct address_space *mapping = swap_file->f_mapping;
-+	struct inode *inode = mapping->host;
-+	unsigned blocks_per_page;
-+	unsigned long page_no;
-+	unsigned blkbits;
-+	sector_t probe_block;
-+	sector_t last_block;
-+	sector_t lowest_block = -1;
-+	sector_t highest_block = 0;
-+	int nr_extents = 0;
-+	int ret;
-+
-+	blkbits = inode->i_blkbits;
-+	blocks_per_page = PAGE_SIZE >> blkbits;
-+
-+	/*
-+	 * Map all the blocks into the extent list.  This code doesn't try
-+	 * to be very smart.
-+	 */
-+	probe_block = 0;
-+	page_no = 0;
-+	last_block = i_size_read(inode) >> blkbits;
-+	while ((probe_block + blocks_per_page) <= last_block &&
-+			page_no < sis->max) {
-+		unsigned block_in_page;
-+		sector_t first_block;
-+
-+		first_block = bmap(inode, probe_block);
-+		if (first_block == 0)
-+			goto bad_bmap;
-+
-+		/*
-+		 * It must be PAGE_SIZE aligned on-disk
-+		 */
-+		if (first_block & (blocks_per_page - 1)) {
-+			probe_block++;
-+			goto reprobe;
-+		}
-+
-+		for (block_in_page = 1; block_in_page < blocks_per_page;
-+					block_in_page++) {
-+			sector_t block;
-+
-+			block = bmap(inode, probe_block + block_in_page);
-+			if (block == 0)
-+				goto bad_bmap;
-+			if (block != first_block + block_in_page) {
-+				/* Discontiguity */
-+				probe_block++;
-+				goto reprobe;
-+			}
-+		}
-+
-+		first_block >>= (PAGE_SHIFT - blkbits);
-+		if (page_no) {	/* exclude the header page */
-+			if (first_block < lowest_block)
-+				lowest_block = first_block;
-+			if (first_block > highest_block)
-+				highest_block = first_block;
-+		}
-+
-+		/*
-+		 * We found a PAGE_SIZE-length, PAGE_SIZE-aligned run of blocks
-+		 */
-+		ret = add_swap_extent(sis, page_no, 1, first_block);
-+		if (ret < 0)
-+			goto out;
-+		nr_extents += ret;
-+		page_no++;
-+		probe_block += blocks_per_page;
-+reprobe:
-+		continue;
-+	}
-+	ret = nr_extents;
-+	*span = 1 + highest_block - lowest_block;
-+	if (page_no == 0)
-+		page_no = 1;	/* force Empty message */
-+	sis->max = page_no;
-+	sis->pages = page_no - 1;
-+	sis->highest_bit = page_no - 1;
-+out:
-+	return ret;
-+bad_bmap:
-+	printk(KERN_ERR "swapon: swapfile has holes\n");
-+	ret = -EINVAL;
-+	goto out;
-+}
- /*
-  * We may have stale swap cache pages in memory: notice
-  * them here and get rid of the unnecessary final write.
+@@ -526,7 +526,7 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
   */
- int swap_writepage(struct page *page, struct writeback_control *wbc)
+ static int nfs_launder_page(struct page *page)
  {
--	struct bio *bio;
--	int ret = 0, rw = WRITE;
-+	int ret = 0;
- 	struct swap_info_struct *sis = page_swap_info(page);
-+	struct file *swap_file;
-+	struct address_space *mapping;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_inode *nfsi = NFS_I(inode);
  
- 	if (try_to_free_swap(page)) {
- 		unlock_page(page);
--		goto out;
-+		return ret;
- 	}
+ 	dfprintk(PAGECACHE, "NFS: launder_page(%ld, %llu)\n",
+@@ -575,7 +575,7 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	nfs_fscache_wait_on_page_write(NFS_I(dentry->d_inode), page);
  
--	if (sis->flags & SWP_FILE) {
--		struct file *swap_file = sis->swap_file;
--		struct address_space *mapping = swap_file->f_mapping;
--
-+	swap_file = sis->swap_file;
-+	mapping = swap_file->f_mapping;
-+	if (mapping->a_ops->swap_writepage) {
- 		ret = mapping->a_ops->swap_writepage(swap_file, page, wbc);
- 		if (!ret)
- 			count_vm_event(PSWPOUT);
- 		return ret;
- 	}
+ 	lock_page(page);
+-	mapping = page->mapping;
++	mapping = page_file_mapping(page);
+ 	if (mapping != dentry->d_inode->i_mapping)
+ 		goto out_unlock;
  
--	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
--	if (bio == NULL) {
--		set_page_dirty(page);
--		unlock_page(page);
--		ret = -ENOMEM;
--		goto out;
--	}
--	if (wbc->sync_mode == WB_SYNC_ALL)
--		rw |= REQ_SYNC;
--	count_vm_event(PSWPOUT);
--	set_page_writeback(page);
--	unlock_page(page);
--	submit_bio(rw, bio);
--out:
--	return ret;
-+	return generic_swap_writepage(page, wbc);
- }
- 
- int swap_readpage(struct page *page)
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index ab12913..1085e02 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -425,13 +425,14 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
+ static inline
+ unsigned int nfs_page_length(struct page *page)
  {
--	struct bio *bio;
- 	int ret = 0;
- 	struct swap_info_struct *sis = page_swap_info(page);
-+	struct file *swap_file;
-+	struct address_space *mapping;
+-	loff_t i_size = i_size_read(page->mapping->host);
++	loff_t i_size = i_size_read(page_file_mapping(page)->host);
  
- 	VM_BUG_ON(!PageLocked(page));
- 	VM_BUG_ON(PageUptodate(page));
- 
--	if (sis->flags & SWP_FILE) {
--		struct file *swap_file = sis->swap_file;
--		struct address_space *mapping = swap_file->f_mapping;
--
-+	swap_file = sis->swap_file;
-+	mapping = swap_file->f_mapping;
-+	if (mapping->a_ops->swap_readpage) {
- 		ret = mapping->a_ops->swap_readpage(swap_file, page);
- 		if (!ret)
- 			count_vm_event(PSWPIN);
- 		return ret;
+ 	if (i_size > 0) {
++		pgoff_t page_index = page_file_index(page);
+ 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-		if (page->index < end_index)
++		if (page_index < end_index)
+ 			return PAGE_CACHE_SIZE;
+-		if (page->index == end_index)
++		if (page_index == end_index)
+ 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
  	}
- 
--	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
--	if (bio == NULL) {
--		unlock_page(page);
--		ret = -ENOMEM;
--		goto out;
--	}
--	count_vm_event(PSWPIN);
--	submit_bio(READ, bio);
--out:
--	return ret;
-+	return generic_swap_readpage(page);
- }
- 
- int swap_set_page_dirty(struct page *page)
- {
- 	struct swap_info_struct *sis = page_swap_info(page);
-+	struct address_space *mapping = sis->swap_file->f_mapping;
- 
--	if (sis->flags & SWP_FILE) {
--		struct address_space *mapping = sis->swap_file->f_mapping;
-+	if (mapping->a_ops->set_page_dirty)
- 		return mapping->a_ops->set_page_dirty(page);
--	} else {
-+	else
- 		return __set_page_dirty_nobuffers(page);
--	}
- }
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index f181884..c49cb33 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1335,6 +1335,9 @@ sector_t map_swap_page(struct page *page, struct block_device **bdev)
-  */
- static void destroy_swap_extents(struct swap_info_struct *sis)
- {
-+	struct file *swap_file = sis->swap_file;
-+	struct address_space *mapping = swap_file->f_mapping;
-+
- 	while (!list_empty(&sis->first_swap_extent.list)) {
- 		struct swap_extent *se;
- 
-@@ -1344,13 +1347,8 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
- 		kfree(se);
- 	}
- 
--	if (sis->flags & SWP_FILE) {
--		struct file *swap_file = sis->swap_file;
--		struct address_space *mapping = swap_file->f_mapping;
--
--		sis->flags &= ~SWP_FILE;
-+	if (mapping->a_ops->swap_deactivate)
- 		mapping->a_ops->swap_deactivate(swap_file);
--	}
- }
- 
- /*
-@@ -1359,7 +1357,7 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
+ 	return 0;
+diff --git a/fs/nfs/pagelist.c b/fs/nfs/pagelist.c
+index b60970c..1fcc294 100644
+--- a/fs/nfs/pagelist.c
++++ b/fs/nfs/pagelist.c
+@@ -75,11 +75,11 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
+ 	 * update_nfs_request below if the region is not locked. */
+ 	req->wb_page    = page;
+ 	atomic_set(&req->wb_complete, 0);
+-	req->wb_index	= page->index;
++	req->wb_index	= page_file_index(page);
+ 	page_cache_get(page);
+ 	BUG_ON(PagePrivate(page));
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(page->mapping->host != inode);
++	BUG_ON(page_file_mapping(page)->host != inode);
+ 	req->wb_offset  = offset;
+ 	req->wb_pgbase	= offset;
+ 	req->wb_bytes   = count;
+@@ -429,7 +429,7 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
+  * nfs_scan_list - Scan a list for matching requests
+  * @nfsi: NFS inode
+  * @dst: Destination list
+- * @idx_start: lower bound of page->index to scan
++ * @idx_start: lower bound of page_file_index(page) to scan
+  * @npages: idx_start + npages sets the upper bound to scan.
+  * @tag: tag to scan for
   *
-  * This function rather assumes that it is called in ascending page order.
-  */
--static int
-+int
- add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
- 		unsigned long nr_pages, sector_t start_block)
+diff --git a/fs/nfs/read.c b/fs/nfs/read.c
+index 2171c04..3352782 100644
+--- a/fs/nfs/read.c
++++ b/fs/nfs/read.c
+@@ -568,11 +568,11 @@ static const struct rpc_call_ops nfs_read_full_ops = {
+ int nfs_readpage(struct file *file, struct page *page)
  {
-@@ -1435,106 +1433,24 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
- 	struct file *swap_file = sis->swap_file;
- 	struct address_space *mapping = swap_file->f_mapping;
- 	struct inode *inode = mapping->host;
--	unsigned blocks_per_page;
--	unsigned long page_no;
--	unsigned blkbits;
--	sector_t probe_block;
--	sector_t last_block;
--	sector_t lowest_block = -1;
--	sector_t highest_block = 0;
--	int nr_extents = 0;
+ 	struct nfs_open_context *ctx;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	int		error;
+ 
+ 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
+-		page, PAGE_CACHE_SIZE, page->index);
++		page, PAGE_CACHE_SIZE, page_file_index(page));
+ 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
+ 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+ 
+@@ -626,7 +626,7 @@ static int
+ readpage_async_filler(void *data, struct page *page)
+ {
+ 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *new;
+ 	unsigned int len;
+ 	int error;
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index b39b37f..ffd95d1 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -125,7 +125,7 @@ static struct nfs_page *nfs_page_find_request_locked(struct page *page)
+ 
+ static struct nfs_page *nfs_page_find_request(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req = NULL;
+ 
+ 	spin_lock(&inode->i_lock);
+@@ -137,16 +137,16 @@ static struct nfs_page *nfs_page_find_request(struct page *page)
+ /* Adjust the file length if we're writing beyond the end */
+ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	loff_t end, i_size;
+ 	pgoff_t end_index;
+ 
+ 	spin_lock(&inode->i_lock);
+ 	i_size = i_size_read(inode);
+ 	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-	if (i_size > 0 && page->index < end_index)
++	if (i_size > 0 && page_file_index(page) < end_index)
+ 		goto out;
+-	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
++	end = page_file_offset(page) + ((loff_t)offset+count);
+ 	if (i_size >= end)
+ 		goto out;
+ 	i_size_write(inode, end);
+@@ -159,7 +159,7 @@ out:
+ static void nfs_set_pageerror(struct page *page)
+ {
+ 	SetPageError(page);
+-	nfs_zap_mapping(page->mapping->host, page->mapping);
++	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
+ }
+ 
+ /* We can set the PG_uptodate flag if we see that a write request
+@@ -200,7 +200,7 @@ static int nfs_set_page_writeback(struct page *page)
+ 	int ret = test_set_page_writeback(page);
+ 
+ 	if (!ret) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		page_cache_get(page);
+@@ -215,7 +215,7 @@ static int nfs_set_page_writeback(struct page *page)
+ 
+ static void nfs_end_page_writeback(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 	end_page_writeback(page);
+@@ -226,7 +226,7 @@ static void nfs_end_page_writeback(struct page *page)
+ 
+ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblock)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req;
  	int ret;
  
- 	if (S_ISBLK(inode->i_mode)) {
- 		ret = add_swap_extent(sis, 0, sis->max, 0);
- 		*span = sis->pages;
--		goto out;
-+		return ret;
- 	}
+@@ -287,13 +287,13 @@ out:
  
- 	if (mapping->a_ops->swap_activate) {
--		ret = mapping->a_ops->swap_activate(swap_file);
-+		ret = mapping->a_ops->swap_activate(sis, swap_file, span);
- 		if (!ret) {
--			sis->flags |= SWP_FILE;
- 			ret = add_swap_extent(sis, 0, sis->max, 0);
- 			*span = sis->pages;
- 		}
--		goto out;
-+		return ret;
- 	}
+ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	int ret;
  
--	blkbits = inode->i_blkbits;
--	blocks_per_page = PAGE_SIZE >> blkbits;
--
--	/*
--	 * Map all the blocks into the extent list.  This code doesn't try
--	 * to be very smart.
--	 */
--	probe_block = 0;
--	page_no = 0;
--	last_block = i_size_read(inode) >> blkbits;
--	while ((probe_block + blocks_per_page) <= last_block &&
--			page_no < sis->max) {
--		unsigned block_in_page;
--		sector_t first_block;
--
--		first_block = bmap(inode, probe_block);
--		if (first_block == 0)
--			goto bad_bmap;
--
--		/*
--		 * It must be PAGE_SIZE aligned on-disk
--		 */
--		if (first_block & (blocks_per_page - 1)) {
--			probe_block++;
--			goto reprobe;
--		}
--
--		for (block_in_page = 1; block_in_page < blocks_per_page;
--					block_in_page++) {
--			sector_t block;
--
--			block = bmap(inode, probe_block + block_in_page);
--			if (block == 0)
--				goto bad_bmap;
--			if (block != first_block + block_in_page) {
--				/* Discontiguity */
--				probe_block++;
--				goto reprobe;
--			}
--		}
--
--		first_block >>= (PAGE_SHIFT - blkbits);
--		if (page_no) {	/* exclude the header page */
--			if (first_block < lowest_block)
--				lowest_block = first_block;
--			if (first_block > highest_block)
--				highest_block = first_block;
--		}
--
--		/*
--		 * We found a PAGE_SIZE-length, PAGE_SIZE-aligned run of blocks
--		 */
--		ret = add_swap_extent(sis, page_no, 1, first_block);
--		if (ret < 0)
--			goto out;
--		nr_extents += ret;
--		page_no++;
--		probe_block += blocks_per_page;
--reprobe:
--		continue;
--	}
--	ret = nr_extents;
--	*span = 1 + highest_block - lowest_block;
--	if (page_no == 0)
--		page_no = 1;	/* force Empty message */
--	sis->max = page_no;
--	sis->pages = page_no - 1;
--	sis->highest_bit = page_no - 1;
--out:
--	return ret;
--bad_bmap:
--	printk(KERN_ERR "swapon: swapfile has holes\n");
--	ret = -EINVAL;
--	goto out;
-+	return generic_swapfile_activate(sis, swap_file, span);
+ 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+ 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
+ 
+-	nfs_pageio_cond_complete(pgio, page->index);
++	nfs_pageio_cond_complete(pgio, page_file_index(page));
+ 	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
+ 	if (ret == -EAGAIN) {
+ 		redirty_page_for_writepage(wbc, page);
+@@ -310,7 +310,8 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
+ 	struct nfs_pageio_descriptor pgio;
+ 	int err;
+ 
+-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
++	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host,
++			wb_priority(wbc));
+ 	err = nfs_do_writepage(page, wbc, &pgio);
+ 	nfs_pageio_complete(&pgio);
+ 	if (err < 0)
+@@ -428,7 +429,8 @@ static void
+ nfs_mark_request_dirty(struct nfs_page *req)
+ {
+ 	__set_page_dirty_nobuffers(req->wb_page);
+-	__mark_inode_dirty(req->wb_page->mapping->host, I_DIRTY_DATASYNC);
++	__mark_inode_dirty(page_file_mapping(req->wb_page)->host,
++							I_DIRTY_DATASYNC);
  }
  
- static void enable_swap_info(struct swap_info_struct *p, int prio,
+ #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+@@ -450,7 +452,8 @@ nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
+ 	spin_unlock(&inode->i_lock);
+ 	pnfs_mark_request_commit(req, lseg);
+ 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
++	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
++			BDI_RECLAIMABLE);
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+ }
+ 
+@@ -461,7 +464,8 @@ nfs_clear_request_commit(struct nfs_page *req)
+ 
+ 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
+ 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
++		dec_bdi_stat(page_file_mapping(page)->backing_dev_info,
++				BDI_RECLAIMABLE);
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -527,7 +531,7 @@ nfs_need_commit(struct nfs_inode *nfsi)
+  * nfs_scan_commit - Scan an inode for commit requests
+  * @inode: NFS inode to scan
+  * @dst: destination list
+- * @idx_start: lower bound of page->index to scan.
++ * @idx_start: lower bound of page_file_index(page) to scan.
+  * @npages: idx_start + npages sets the upper bound to scan.
+  *
+  * Moves requests from the inode's 'commit' request list.
+@@ -653,7 +657,7 @@ out_err:
+ static struct nfs_page * nfs_setup_write_request(struct nfs_open_context* ctx,
+ 		struct page *page, unsigned int offset, unsigned int bytes)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page	*req;
+ 	int error;
+ 
+@@ -711,7 +715,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
+ 		nfs_release_request(req);
+ 		if (!do_flush)
+ 			return 0;
+-		status = nfs_wb_page(page->mapping->host, page);
++		status = nfs_wb_page(page_file_mapping(page)->host, page);
+ 	} while (status == 0);
+ 	return status;
+ }
+@@ -737,7 +741,7 @@ int nfs_updatepage(struct file *file, struct page *page,
+ 		unsigned int offset, unsigned int count)
+ {
+ 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+-	struct inode	*inode = page->mapping->host;
++	struct inode	*inode = page_file_mapping(page)->host;
+ 	int		status = 0;
+ 
+ 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
+@@ -745,7 +749,7 @@ int nfs_updatepage(struct file *file, struct page *page,
+ 	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
+ 		file->f_path.dentry->d_parent->d_name.name,
+ 		file->f_path.dentry->d_name.name, count,
+-		(long long)(page_offset(page) + offset));
++		(long long)(page_file_offset(page) + offset));
+ 
+ 	/* If we're not using byte range locks, and we know the page
+ 	 * is up to date, it may be more efficient to extend the write
+@@ -1104,7 +1108,7 @@ static void nfs_writeback_release_partial(void *calldata)
+ 	}
+ 
+ 	if (nfs_write_need_commit(data)) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 
+ 		spin_lock(&inode->i_lock);
+ 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
+@@ -1409,7 +1413,7 @@ void nfs_retry_commit(struct list_head *page_list,
+ 		nfs_list_remove_request(req);
+ 		nfs_mark_request_commit(req, lseg);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
++		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+ 			     BDI_RECLAIMABLE);
+ 		nfs_clear_page_tag_locked(req);
+ 	}
 -- 
 1.7.3.4
 
