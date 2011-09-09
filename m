@@ -1,35 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A7A6B016E
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 16:47:23 -0400 (EDT)
-Date: Fri, 9 Sep 2011 13:34:47 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-Message-ID: <20110909203447.GB19127@kroah.com>
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DF936B018B
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 19:03:26 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Fri, 9 Sep 2011 19:01:13 -0400
+Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CAFE00218@USINDEVS02.corp.hds.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: gregkh@suse.de, devel@driverdev.osuosl.org, dan.magenheimer@oracle.com, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com, ngupta@vflare.org
+To: Randy Dunlap <rdunlap@xenotime.net>, "riel@redhat.com" <riel@redhat.com>
+Cc: Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Wed, Sep 07, 2011 at 09:09:04AM -0500, Seth Jennings wrote:
-> Changelog:
-> v2: fix bug in find_remove_block()
->     fix whitespace warning at EOF
-> 
-> This patchset introduces a new memory allocator for persistent
-> pages for zcache.  The current allocator is xvmalloc.  xvmalloc
-> has two notable limitations:
-> * High (up to 50%) external fragmentation on allocation sets > PAGE_SIZE/2
-> * No compaction support which reduces page reclaimation
+On 09/01/2011 03:26 PM, Rik van Riel wrote:
 
-I need some acks from other zcache developers before I can accept this.
+> @@ -5123,6 +5135,7 @@ static void setup_per_zone_lowmem_reserve(void)
+>  void setup_per_zone_wmarks(void)
+>  {
+>  	unsigned long pages_min =3D min_free_kbytes >> (PAGE_SHIFT - 10);
+> +	unsigned long pages_low =3D extra_free_kbytes >> (PAGE_SHIFT - 10);
 
-{hint...}
+I think pages_extra is better name for this variable because pages_low is
+calculated like following.
+
+pages_low =3D pages_min + "pages_extra" + (pages_min >> 2)
+
+>  	unsigned long lowmem_pages =3D 0;
+>  	struct zone *zone;
+>  	unsigned long flags;
+> @@ -5134,11 +5147,14 @@ void setup_per_zone_wmarks(void)
+>  	}
+> =20
+>  	for_each_zone(zone) {
+> -		u64 tmp;
+> +		u64 min, low;
+
+Same as above.
+
+Thanks,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
