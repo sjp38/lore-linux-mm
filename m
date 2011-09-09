@@ -1,62 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1B54C900138
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 05:06:15 -0400 (EDT)
-Subject: [PATCH 2/2] slub: reduce a variable in __slab_free()
-From: "Alex,Shi" <alex.shi@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 09 Sep 2011 17:12:01 +0800
-Message-ID: <1315559521.31737.799.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F35900138
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 05:18:23 -0400 (EDT)
+References: <4E69A496.9040707@profihost.ag>
+In-Reply-To: <4E69A496.9040707@profihost.ag>
+Mime-Version: 1.0 (iPhone Mail 8H7)
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
+Message-Id: <0A5D57A3-50CB-4AE2-90DE-EF6C9D8F0C55@profihost.ag>
+From: Stefan Priebe <s.priebe@profihost.ag>
+Subject: Re: system freezing with 3.0.4
+Date: Fri, 9 Sep 2011 11:18:15 +0200
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "cl@linux.com" <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "efault@gmx.de" <efault@gmx.de>
 
-After the compxchg, the new.inuse are fixed in __slab_free as a local
-variable, so we don't need a extra variable for it.
+Hi,
 
-This patch is also base on 'slub/partial' head of penberg's tree. 
+here a better sysrq w trigger output.
 
-Signed-off-by: Alex Shi <alex.shi@intel.com>
----
- mm/slub.c |    4 +---
- 1 files changed, 1 insertions(+), 3 deletions(-)
+http://pastebin.com/JWjrbrh4
 
-diff --git a/mm/slub.c b/mm/slub.c
-index bca8eee..c1f803f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2452,7 +2452,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 	void *prior;
- 	void **object = (void *)x;
- 	int was_frozen;
--	int inuse;
- 	struct page new;
- 	unsigned long counters;
- 	struct kmem_cache_node *n = NULL;
-@@ -2495,7 +2494,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 
- 			}
- 		}
--		inuse = new.inuse;
- 
- 	} while (!cmpxchg_double_slab(s, page,
- 		prior, counters,
-@@ -2526,7 +2524,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 	 */
- 	if (was_frozen)
- 		stat(s, FREE_FROZEN);
--	else if (unlikely(!inuse && n->nr_partial > s->min_partial))
-+	else if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
-                         goto slab_empty;
- 
- 	spin_unlock_irqrestore(&n->list_lock, flags);
--- 
-1.7.0
-
-
+> Hi list,
+>=20
+> here's an updated post of my one yesterday.
+>=20
+> We've updated some systems from 2.6.32 to 3.0.4 vanilla kernel. Since then=
+ we're expecting freezes every now and then. All in memory apps are still wo=
+rking but nothing which reads or writes from or to disk (at least it seems l=
+ike that).
+>=20
+> If you're already conncted via ssh and running top suddenly idle is 99-100=
+% and loads goes up to 500. I then cannot write to disk anymore. I've seen t=
+his for now on 2-5 of 20 servers i've updated. I can't believe they are all d=
+amaged. Also every night there comes another one where the same happens. Als=
+o running them on 2.6.32 again works fine.
+>=20
+> Luckily i was able to trigger a sysrq on one machine fast enough:
+> echo t >/proc/sysrq-trigger
+>=20
+> sysrq output is attached
+>=20
+> I hope somebody can help.
+>=20
+> Please CC me i'm not on list.
+>=20
+> Stefan
+>=20
+> <sysrqtrigger.txt>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
