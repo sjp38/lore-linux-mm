@@ -1,109 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 030236B01AB
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 22:15:43 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7AC633EE0CB
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:15:38 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E36845DE58
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:15:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 06CFF45DE64
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:15:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 161CD1DB805B
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:15:37 +0900 (JST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE43900138
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 22:48:04 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B7C713EE0C0
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:48:00 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A1BE45DE81
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:48:00 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 81ABB45DE6A
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:48:00 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 71EC01DB803E
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:48:00 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CD0731DB8032
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:15:36 +0900 (JST)
-Date: Fri, 9 Sep 2011 11:14:45 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A0921DB802C
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 11:48:00 +0900 (JST)
+Date: Fri, 9 Sep 2011 11:47:20 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V8 3/4] mm: frontswap: add swap hooks and extend
- try_to_unuse
-Message-Id: <20110909111445.4821d326.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <52b5aee3-f424-42ae-830f-d1cf64fa49ef@default>
-References: <20110829164929.GA27216@ca-server1.us.oracle.com
- 20110907162703.7f8116b9.akpm@linux-foundation.org>
-	<52b5aee3-f424-42ae-830f-d1cf64fa49ef@default>
+Subject: Re: [PATCH v2 1/9] per-netns ipv4 sysctl_tcp_mem
+Message-Id: <20110909114720.f050c520.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1315369399-3073-2-git-send-email-glommer@parallels.com>
+References: <1315369399-3073-1-git-send-email-glommer@parallels.com>
+	<1315369399-3073-2-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Thu, 8 Sep 2011 08:50:11 -0700 (PDT)
-Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+On Wed,  7 Sep 2011 01:23:11 -0300
+Glauber Costa <glommer@parallels.com> wrote:
 
-> > From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > Sent: Wednesday, September 07, 2011 5:27 PM
-> > To: Dan Magenheimer
-> > Subject: Re: [PATCH V8 3/4] mm: frontswap: add swap hooks and extend try_to_unuse
-> > 
-> > On Mon, 29 Aug 2011 09:49:29 -0700
-> > Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
-> > 
-> > > -static int try_to_unuse(unsigned int type)
-> > > +int try_to_unuse(unsigned int type, bool frontswap,
-> > 
-> > Are patches 2 and 3 in the wrong order?
+> This patch allows each namespace to independently set up
+> its levels for tcp memory pressure thresholds. This patch
+> alone does not buy much: we need to make this values
+> per group of process somehow. This is achieved in the
+> patches that follows in this patchset.
 > 
-> No, they've applied in that order and built after each patch
-> properly for well over a year.  At a minimum, frontswap.h must
-> be created before patch 3of4, though I suppose the introduction
-> of frontswap.c could be after patch 3of4... Note that frontswap.c
-> (which calls try_to_unuse()) is non-functional (and isn't even built)
-> until after patch 4of4 is applied.
-> 
-> There is enough interdependency between the four parts
-> that perhaps it should all be a single commit.  I split
-> it up for reviewer's convenience but apparently different
-> reviewers use different review processes than I anticipated. :-}
-> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: David S. Miller <davem@davemloft.net>
+> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Eric W. Biederman <ebiederm@xmission.com>
 
-IIRC, I said 'please move this change of line to patch 1'.
+
+Hmm, it may be better to post this patch as independent one.
+
+I'm not familiar with this area...but try review ;)
+
+> ---
+>  include/net/netns/ipv4.h   |    1 +
+>  include/net/tcp.h          |    1 -
+>  net/ipv4/sysctl_net_ipv4.c |   51 +++++++++++++++++++++++++++++++++++++------
+>  net/ipv4/tcp.c             |   13 +++-------
+>  4 files changed, 49 insertions(+), 17 deletions(-)
+> 
+> diff --git a/include/net/netns/ipv4.h b/include/net/netns/ipv4.h
+> index d786b4f..bbd023a 100644
+> --- a/include/net/netns/ipv4.h
+> +++ b/include/net/netns/ipv4.h
+> @@ -55,6 +55,7 @@ struct netns_ipv4 {
+>  	int current_rt_cache_rebuild_count;
+>  
+>  	unsigned int sysctl_ping_group_range[2];
+> +	long sysctl_tcp_mem[3];
+>  
+>  	atomic_t rt_genid;
+>  	atomic_t dev_addr_genid;
+
+Hmm, in original placement, sysctl_tcp_mem[] was on __read_mostly
+area. Doesn't this placement cause many cache invalidations ?
+
+
+
+> diff --git a/include/net/tcp.h b/include/net/tcp.h
+> index 149a415..6bfdd9b 100644
+> --- a/include/net/tcp.h
+> +++ b/include/net/tcp.h
+> @@ -230,7 +230,6 @@ extern int sysctl_tcp_fack;
+>  extern int sysctl_tcp_reordering;
+>  extern int sysctl_tcp_ecn;
+>  extern int sysctl_tcp_dsack;
+> -extern long sysctl_tcp_mem[3];
+>  extern int sysctl_tcp_wmem[3];
+>  extern int sysctl_tcp_rmem[3];
+>  extern int sysctl_tcp_app_win;
+> diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
+> index 69fd720..0d74b9d 100644
+> --- a/net/ipv4/sysctl_net_ipv4.c
+> +++ b/net/ipv4/sysctl_net_ipv4.c
+> @@ -14,6 +14,7 @@
+>  #include <linux/init.h>
+>  #include <linux/slab.h>
+>  #include <linux/nsproxy.h>
+> +#include <linux/swap.h>
+>  #include <net/snmp.h>
+>  #include <net/icmp.h>
+>  #include <net/ip.h>
+> @@ -174,6 +175,36 @@ static int proc_allowed_congestion_control(ctl_table *ctl,
+>  	return ret;
+>  }
+>  
+> +static int ipv4_tcp_mem(ctl_table *ctl, int write,
+> +			   void __user *buffer, size_t *lenp,
+> +			   loff_t *ppos)
+> +{
+> +	int ret;
+> +	unsigned long vec[3];
+> +	struct net *net = current->nsproxy->net_ns;
+> +	int i;
+> +
+> +	ctl_table tmp = {
+> +		.data = &vec,
+> +		.maxlen = sizeof(vec),
+> +		.mode = ctl->mode,
+> +	};
+> +
+> +	if (!write) {
+> +		ctl->data = &net->ipv4.sysctl_tcp_mem;
+> +		return proc_doulongvec_minmax(ctl, write, buffer, lenp, ppos);
+> +	}
+> +
+> +	ret = proc_doulongvec_minmax(&tmp, write, buffer, lenp, ppos);
+> +	if (ret)
+> +		return ret;
+> +
+> +	for (i = 0; i < 3; i++)
+> +		net->ipv4.sysctl_tcp_mem[i] = vec[i];
+> +
+> +	return 0;
+> +}
+> +
+>  static struct ctl_table ipv4_table[] = {
+>  	{
+>  		.procname	= "tcp_timestamps",
+> @@ -433,13 +464,6 @@ static struct ctl_table ipv4_table[] = {
+>  		.proc_handler	= proc_dointvec
+>  	},
+>  	{
+> -		.procname	= "tcp_mem",
+> -		.data		= &sysctl_tcp_mem,
+> -		.maxlen		= sizeof(sysctl_tcp_mem),
+> -		.mode		= 0644,
+> -		.proc_handler	= proc_doulongvec_minmax
+> -	},
+> -	{
+>  		.procname	= "tcp_wmem",
+>  		.data		= &sysctl_tcp_wmem,
+>  		.maxlen		= sizeof(sysctl_tcp_wmem),
+> @@ -721,6 +745,12 @@ static struct ctl_table ipv4_net_table[] = {
+>  		.mode		= 0644,
+>  		.proc_handler	= ipv4_ping_group_range,
+>  	},
+> +	{
+> +		.procname	= "tcp_mem",
+> +		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_mem),
+> +		.mode		= 0644,
+> +		.proc_handler	= ipv4_tcp_mem,
+> +	},
+>  	{ }
+>  };
+>  
+
+
+
+
+> @@ -734,6 +764,7 @@ EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
+>  static __net_init int ipv4_sysctl_init_net(struct net *net)
+>  {
+>  	struct ctl_table *table;
+> +	unsigned long limit;
+>  
+>  	table = ipv4_net_table;
+>  	if (!net_eq(net, &init_net)) {
+> @@ -769,6 +800,12 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
+>  
+>  	net->ipv4.sysctl_rt_cache_rebuild_count = 4;
+>  
+> +	limit = nr_free_buffer_pages() / 8;
+> +	limit = max(limit, 128UL);
+> +	net->ipv4.sysctl_tcp_mem[0] = limit / 4 * 3;
+> +	net->ipv4.sysctl_tcp_mem[1] = limit;
+> +	net->ipv4.sysctl_tcp_mem[2] = net->ipv4.sysctl_tcp_mem[0] * 2;
+> +
+>  	net->ipv4.ipv4_hdr = register_net_sysctl_table(net,
+>  			net_ipv4_ctl_path, table);
+>  	if (net->ipv4.ipv4_hdr == NULL)
+> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+> index 46febca..f06df24 100644
+> --- a/net/ipv4/tcp.c
+> +++ b/net/ipv4/tcp.c
+> @@ -266,6 +266,7 @@
+>  #include <linux/crypto.h>
+>  #include <linux/time.h>
+>  #include <linux/slab.h>
+> +#include <linux/nsproxy.h>
+>  
+>  #include <net/icmp.h>
+>  #include <net/tcp.h>
+> @@ -282,11 +283,9 @@ int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
+>  struct percpu_counter tcp_orphan_count;
+>  EXPORT_SYMBOL_GPL(tcp_orphan_count);
+>  
+> -long sysctl_tcp_mem[3] __read_mostly;
+>  int sysctl_tcp_wmem[3] __read_mostly;
+>  int sysctl_tcp_rmem[3] __read_mostly;
+>  
+> -EXPORT_SYMBOL(sysctl_tcp_mem);
+>  EXPORT_SYMBOL(sysctl_tcp_rmem);
+>  EXPORT_SYMBOL(sysctl_tcp_wmem);
+>  
+> @@ -3277,14 +3276,10 @@ void __init tcp_init(void)
+>  	sysctl_tcp_max_orphans = cnt / 2;
+>  	sysctl_max_syn_backlog = max(128, cnt / 256);
+>  
+> -	limit = nr_free_buffer_pages() / 8;
+> -	limit = max(limit, 128UL);
+> -	sysctl_tcp_mem[0] = limit / 4 * 3;
+> -	sysctl_tcp_mem[1] = limit;
+> -	sysctl_tcp_mem[2] = sysctl_tcp_mem[0] * 2;
+> -
+>  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
+> -	limit = ((unsigned long)sysctl_tcp_mem[1]) << (PAGE_SHIFT - 7);
+> +	limit = (unsigned long)init_net.ipv4.sysctl_tcp_mem[1];
+> +	limit <<= (PAGE_SHIFT - 7);
+> +
+
+I'm not sure but...why defined as 'long'  ?
+
+
+
+BTW, when I grep,
+
+tcp_input.c:        atomic_long_read(&tcp_memory_allocated) < sysctl_tcp_mem[0])
+tcp_input.c:    if (atomic_long_read(&tcp_memory_allocated) >= sysctl_tcp_mem[0])
+
+Don't you need to change this ?
+
+
 
 Thanks,
 -Kame
 
-This was my 1st reply.
 
-> > From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > Subject: [PATCH V7 1/4] mm: frontswap: swap data structure changes
-> > 
-> > This first patch of four in the frontswap series makes available core
-> > swap data structures (swap_lock, swap_list and swap_info) that are
-> > needed by frontswap.c but we don't need to expose them to the dozens
-> > of files that include swap.h so we create a new swapfile.h just to
-> > extern-ify these.
-> > 
-> > Also add frontswap-related elements to swap_info_struct.  Frontswap_map
-> > points to vzalloc'ed one-bit-per-swap-page metadata that indicates
-> > whether the swap page is in frontswap or in the device and frontswap_pages
-> > counts how many pages are in frontswap.
-> > 
-> > [v7: rebase to 3.0-rc3]
-> > [v7: JBeulich@novell.com: add new swap struct elements only if config'd]
-> > [v6: rebase to 3.0-rc1]
-> > [v5: no change from v4]
-> > [v4: rebase to 2.6.39]
-> > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
-> > Acked-by: Jan Beulich <JBeulich@novell.com>
-> > Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > Cc: Jeremy Fitzhardinge <jeremy@goop.org>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Nitin Gupta <ngupta@vflare.org>
-> > Cc: Matthew Wilcox <matthew@wil.cx>
-> > Cc: Chris Mason <chris.mason@oracle.com>
-> > Cc: Rik Riel <riel@redhat.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> 
-> Hmm....could you modify mm/swapfile.c and remove 'static' in the same patch ?
-> 
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
