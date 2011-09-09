@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD3D06B0208
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 06:57:39 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9C2900155
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 06:57:41 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/14] mm: Micro-optimise slab to avoid a function call
-Date: Fri,  9 Sep 2011 11:57:22 +0100
-Message-Id: <1315565845-16857-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/14] mm: Throttle direct reclaimers if PF_MEMALLOC reserves are low and swap is backed by network storage
+Date: Fri,  9 Sep 2011 11:57:24 +0100
+Message-Id: <1315565845-16857-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1315565845-16857-1-git-send-email-mgorman@suse.de>
 References: <1315565845-16857-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,76 +13,123 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Getting and putting objects in SLAB currently requires a function call
-but the bulk of the work is related to PFMEMALLOC reserves which are
-only consumed when network-backed storage is critical. Use an inline
-function to determine if the function call is required.
+If swap is backed by network storage such as NBD, there is a risk
+that a large number of reclaimers can hang the system by consuming
+all PF_MEMALLOC reserves. To avoid these hangs, the administrator
+must tune min_free_kbytes in advance. This patch will throttle direct
+reclaimers if half the PF_MEMALLOC reserves are in use as the system
+is at risk of hanging.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/slab.c |   28 ++++++++++++++++++++++++++--
- 1 files changed, 26 insertions(+), 2 deletions(-)
+ include/linux/mmzone.h |    1 +
+ mm/page_alloc.c        |    1 +
+ mm/vmscan.c            |   54 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+), 0 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 25f69ec..31276f9 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -117,6 +117,8 @@
- #include	<linux/memory.h>
- #include	<linux/prefetch.h>
- 
-+#include	<net/sock.h>
-+
- #include	<asm/cacheflush.h>
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
-@@ -985,7 +987,7 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
- 	ac->pfmemalloc = false;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index be1ac8d..d502217 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -639,6 +639,7 @@ typedef struct pglist_data {
+ 					     range, including holes */
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
++	wait_queue_head_t pfmemalloc_wait;
+ 	struct task_struct *kswapd;
+ 	int kswapd_max_order;
+ 	enum zone_type classzone_idx;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 17c8f93..d0685b9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4302,6 +4302,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	pgdat_resize_init(pgdat);
+ 	pgdat->nr_zones = 0;
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
++	init_waitqueue_head(&pgdat->pfmemalloc_wait);
+ 	pgdat->kswapd_max_order = 0;
+ 	pgdat_page_cgroup_init(pgdat);
+ 	
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b7719ec..ddf2be0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2236,6 +2236,45 @@ out:
+ 	return 0;
  }
  
--static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 						gfp_t flags, bool force_refill)
- {
- 	int i;
-@@ -1032,7 +1034,20 @@ static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 	return objp;
- }
- 
--static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static inline void *ac_get_obj(struct kmem_cache *cachep,
-+			struct array_cache *ac, gfp_t flags, bool force_refill)
++static bool pfmemalloc_watermark_ok(pg_data_t *pgdat, int high_zoneidx)
 +{
-+	void *objp;
++	struct zone *zone;
++	unsigned long pfmemalloc_reserve = 0;
++	unsigned long free_pages = 0;
++	int i;
 +
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_get_obj(cachep, ac, flags, force_refill);
-+	else
-+		objp = ac->entry[--ac->avail];
++	for (i = 0; i <= high_zoneidx; i++) {
++		zone = &pgdat->node_zones[i];
++		pfmemalloc_reserve += min_wmark_pages(zone);
++		free_pages += zone_page_state(zone, NR_FREE_PAGES);
++	}
 +
-+	return objp;
++	return (free_pages > pfmemalloc_reserve / 2) ? true : false;
 +}
 +
-+static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 								void *objp)
- {
- 	struct slab *slabp;
-@@ -1045,6 +1060,15 @@ static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 			set_obj_pfmemalloc(&objp);
- 	}
- 
-+	return objp;
++/*
++ * Throttle direct reclaimers if backing storage is backed by the network
++ * and the PFMEMALLOC reserve for the preferred node is getting dangerously
++ * depleted. kswapd will continue to make progress and wake the processes
++ * when the low watermark is reached
++ */
++static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
++					nodemask_t *nodemask)
++{
++	struct zone *zone;
++	int high_zoneidx = gfp_zone(gfp_mask);
++	DEFINE_WAIT(wait);
++
++	/* Check if the pfmemalloc reserves are ok */
++	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
++	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
++		return;
++
++	/* Throttle */
++	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
++		pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx));
 +}
 +
-+static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+								void *objp)
-+{
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_put_obj(cachep, ac, objp);
-+
- 	ac->entry[ac->avail++] = objp;
- }
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 				gfp_t gfp_mask, nodemask_t *nodemask)
+ {
+@@ -2254,6 +2293,15 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.gfp_mask = sc.gfp_mask,
+ 	};
  
++	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
++
++	/*
++	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
++	 * that the page allocator does not consider triggering OOM
++	 */
++	if (fatal_signal_pending(current))
++		return 1;
++
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+ 				sc.may_writepage,
+ 				gfp_mask);
+@@ -2641,6 +2689,12 @@ loop_again:
+ 			}
+ 
+ 		}
++
++		/* Wake throttled direct reclaimers if low watermark is met */
++		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
++				pfmemalloc_watermark_ok(pgdat, MAX_NR_ZONES - 1))
++			wake_up_interruptible(&pgdat->pfmemalloc_wait);
++
+ 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+ 			break;		/* kswapd: all done */
+ 		/*
 -- 
 1.7.3.4
 
