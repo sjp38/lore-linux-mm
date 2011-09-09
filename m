@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 35677900138
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 08:02:27 -0400 (EDT)
-Message-ID: <4E6A001C.2040600@parallels.com>
-Date: Fri, 9 Sep 2011 09:01:32 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BC26A6B01A7
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:00:17 -0400 (EDT)
+Date: Fri, 9 Sep 2011 09:00:08 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 03/10] mm: Add support for a filesystem to control swap
+ files
+Message-ID: <20110909130007.GA11810@infradead.org>
+References: <1315566054-17209-1-git-send-email-mgorman@suse.de>
+ <1315566054-17209-4-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 6/9] per-cgroup tcp buffers control
-References: <1315369399-3073-1-git-send-email-glommer@parallels.com> <1315369399-3073-7-git-send-email-glommer@parallels.com> <20110909121206.e1d628d1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110909121206.e1d628d1.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1315566054-17209-4-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 09/09/2011 12:12 AM, KAMEZAWA Hiroyuki wrote:
-> On Wed,  7 Sep 2011 01:23:16 -0300
-> Glauber Costa<glommer@parallels.com>  wrote:
->
->> With all the infrastructure in place, this patch implements
->> per-cgroup control for tcp memory pressure handling.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: David S. Miller<davem@davemloft.net>
->> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Eric W. Biederman<ebiederm@xmission.com>
->
-> Hmm, then, kmem_cgroup.c is just a caller of plugins implemented
-> by other components ?
+On Fri, Sep 09, 2011 at 12:00:47PM +0100, Mel Gorman wrote:
+> Currently swapfiles are managed entirely by the core VM by using
+> ->bmap to allocate space and write to the blocks directly. This
+> patch adds address_space_operations methods that allow a filesystem
+> to optionally control the swapfile.
+> 
+>   int swap_activate(struct file *);
+>   int swap_deactivate(struct file *);
+>   int swap_writepage(struct file *, struct page *, struct writeback_control *);
+>   int swap_readpage(struct file *, struct page *);
 
-Kame,
+Just as the last two dozen times this came up:
 
-Refer to my discussion with Greg. How would you feel about it being 
-accounted to a single "kernel memory" limit in memcg?
+NAK
 
-Thanks!
+The right fix is to add a filesystem method to support direct-I/O on
+arbitrary kernel pages, instead of letting the wap abstraction leak into
+the filesystem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
