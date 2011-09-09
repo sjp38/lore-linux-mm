@@ -1,102 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 24EAB900138
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 20:18:10 -0400 (EDT)
-Message-ID: <4E695B3D.7060804@hp.com>
-Date: Thu, 08 Sep 2011 17:18:05 -0700
-From: Rick Jones <rick.jones2@hp.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] per-cgroup tcp buffer limitation
-References: <1315276556-10970-1-git-send-email-glommer@parallels.com>
-In-Reply-To: <1315276556-10970-1-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 176A1900138
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2011 20:29:40 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 380783EE0BD
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:29:36 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B08645DE56
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:29:36 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EC14145DE53
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:29:35 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DEEE91DB8050
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:29:35 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B48B1DB8032
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2011 09:29:35 +0900 (JST)
+Date: Fri, 9 Sep 2011 09:28:53 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm: memcg: close race between charge and putback
+Message-Id: <20110909092853.7aac8544.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110908095349.GC1316@redhat.com>
+References: <1315467622-9520-1-git-send-email-jweiner@redhat.com>
+	<20110908173042.4a6f8ac0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110908085404.GA1316@redhat.com>
+	<20110908181901.1d488d73.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110908093316.GB1316@redhat.com>
+	<20110908184221.feb2dab6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110908095349.GC1316@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/05/2011 07:35 PM, Glauber Costa wrote:
-> To test for any performance impacts of this patch, I used netperf's
-> TCP_RR benchmark on localhost, so we can have both recv and snd in action.
->
-> Command line used was ./src/netperf -t TCP_RR -H localhost, and the
-> results:
->
-> Without the patch
-> =================
->
-> Socket Size   Request  Resp.   Elapsed  Trans.
-> Send   Recv   Size     Size    Time     Rate
-> bytes  Bytes  bytes    bytes   secs.    per sec
->
-> 16384  87380  1        1       10.00    26996.35
-> 16384  87380
->
-> With the patch
-> ===============
->
-> Local /Remote
-> Socket Size   Request  Resp.   Elapsed  Trans.
-> Send   Recv   Size     Size    Time     Rate
-> bytes  Bytes  bytes    bytes   secs.    per sec
->
-> 16384  87380  1        1       10.00    27291.86
-> 16384  87380
+On Thu, 8 Sep 2011 11:53:49 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-Comment about netperf TCP_RR - it can often have > 1% variability, so it 
-would be a Good Idea (tm) to either run it multiple times in a row, or 
-rely on the confidence intervals functionality.  Here, for example, is 
-an invoking of netperf using confidence intervals and the recently 
-added, related output selectors.  The options request that netperf be 
-99% confident that the width of the confidence interval is 1%, and it 
-should run at least 3 but no more than 30 (those are both the high and 
-low limits respectively) iterations of the test.
+> On Thu, Sep 08, 2011 at 06:42:21PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 8 Sep 2011 11:33:16 +0200
+> > Johannes Weiner <jweiner@redhat.com> wrote:
+> > 
+> > > On Thu, Sep 08, 2011 at 06:19:01PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > On Thu, 8 Sep 2011 10:54:04 +0200
+> > > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > > 
+> > > > > On Thu, Sep 08, 2011 at 05:30:42PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > > On Thu,  8 Sep 2011 09:40:22 +0200
+> > > > > > Johannes Weiner <jweiner@redhat.com> wrote:
+> > > > > > 
+> > > > > > > There is a potential race between a thread charging a page and another
+> > > > > > > thread putting it back to the LRU list:
+> > > > > > > 
+> > > > > > > charge:                         putback:
+> > > > > > > SetPageCgroupUsed               SetPageLRU
+> > > > > > > PageLRU && add to memcg LRU     PageCgroupUsed && add to memcg LRU
+> > > > > > > 
+> > > > > > 
+> > > > > > I assumed that all pages are charged before added to LRU.
+> > > > > > (i.e. event happens in charge->lru_lock->putback order.)
+> > > > > > 
+> > > > > > But hmm, this assumption may be bad for maintainance.
+> > > > > > Do you find a code which adds pages to LRU before charge ?
+> > > > > > 
+> > > > > > Hmm, if there are codes which recharge the page to other memcg,
+> > > > > > it will cause bug and my assumption may be harmful.
+> > > > > 
+> > > > > Swap slots are read optimistically into swapcache and put to the LRU,
+> > > > > then charged upon fault.  
+> > > > 
+> > > > Yes, then swap charge removes page from LRU before charge.
+> > > > IIUC, it needed to do so because page->mem_cgroup may be replaced.
+> > > 
+> > > But only from the memcg LRU.  It's still on the global per-zone LRU,
+> > > so reclaim could isolate/putback it during the charge.  And then
+> > > 
+> > > > > > > charge:                         putback:
+> > > > > > > SetPageCgroupUsed               SetPageLRU
+> > > > > > > PageLRU && add to memcg LRU     PageCgroupUsed && add to memcg LRU
+> > > 
+> > > applies.
+> > 
+> > Hmm, in this case, I thought memcg puts back the page to its LRU by itself
+> > under lru_loc after charge and the race was hidden.
+> 
+> But it locklessly checks PageLRU and bails if it's cleared and that is
 
+I think PageLRU check is done under zone->lru_lock. 
 
-raj@tardy:~/netperf2_trunk$ src/netperf -t TCP_RR -i 30,3 -I 99,1 -- -k 
-throughput,confidence_level,confidence_interval,confidence_iteration,throughput_confid
-MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET 
-to localhost.localdomain (127.0.0.1) port 0 AF_INET : +/-0.500% @ 99% 
-conf.  : histogram : first burst 0
-THROUGHPUT=55555.94
-CONFIDENCE_LEVEL=99
-CONFIDENCE_INTERVAL=1.000000
-CONFIDENCE_ITERATION=26
-THROUGHPUT_CONFID=0.984
+> the problem: it's not guaranteed that PageLRU is observed on the
+> charging CPU when the putback side bailed because of PageCgroupUsed.
+> 
+zone->lru_lock is no help ?
 
-it took 26 iterations for netperf to be 99% confident the interval width 
-was < 1% .  Here is a "several times in a row" for the sake of completeness:
-
-raj@tardy:~/netperf2_trunk$ HDR="-P 1";for i in `seq 1 10`; do netperf 
--t TCP_RR $HDR -B "iteration $i" -- -o result_brand,throughput; HDR="-P 
-0"; done
-MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET 
-to localhost.localdomain (127.0.0.1) port 0 AF_INET : first burst 0
-Result Tag,Throughput
-"iteration 1",55768.37
-"iteration 2",55949.97
-"iteration 3",55653.36
-"iteration 4",55994.65
-"iteration 5",54712.42
-"iteration 6",55285.27
-"iteration 7",55638.65
-"iteration 8",55135.56
-"iteration 9",56275.87
-"iteration 10",55607.66
-
-That way one can have greater confidence that one isn't accidentally 
-comparing the trough of one configuration with the peak of another.
-
-happy benchmarking,
-
-rick jones
-
-PS - while it may not really matter for loopback testing, where 
-presumably 99 times out of 10 a single core will run at saturation, when 
-running TCP_RR over a "real" network, including CPU utilization to get 
-the differences in service demand is another Good Idea (tm) - 
-particularly in the face of interrupt coalescing.
+> My barrier puts this in order and makes sure one of the two succeeds.
+> 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
