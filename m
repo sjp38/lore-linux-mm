@@ -1,114 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 83BF8900155
-	for <linux-mm@kvack.org>; Sat, 10 Sep 2011 12:42:03 -0400 (EDT)
-Received: by bkbzs2 with SMTP id zs2so493855bkb.14
-        for <linux-mm@kvack.org>; Sat, 10 Sep 2011 09:42:00 -0700 (PDT)
-Date: Sat, 10 Sep 2011 20:41:34 +0400
-From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: [RFC PATCH 2/2] mm: restrict access to /proc/slabinfo
-Message-ID: <20110910164134.GA2442@albatros>
-References: <20110910164001.GA2342@albatros>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110910164001.GA2342@albatros>
+	by kanga.kvack.org (Postfix) with ESMTP id 00589900155
+	for <linux-mm@kvack.org>; Sat, 10 Sep 2011 13:27:03 -0400 (EDT)
+Subject: Re: 3.0.3 oops. memory related?
+From: Steven Rostedt <srostedt@redhat.com>
+In-Reply-To: <20110907091339.91160fb5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <4E63C846.10606@gmail.com>
+	 <20110905094956.186d3830.kamezawa.hiroyu@jp.fujitsu.com>
+	 <4E665D51.7050809@gmail.com>
+	 <20110907083818.827b0fa1.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20110907091339.91160fb5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 10 Sep 2011 13:26:56 -0400
+Message-ID: <1315675617.3537.49.camel@frodo>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Anders <aeriksson2@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>
 
-Historically /proc/slabinfo has 0444 permissions and is accessible to
-the world.  slabinfo contains rather private information related both to
-the kernel and userspace tasks.  Depending on the situation, it might
-reveal either private information per se or information useful to make
-another targeted attack.  Some examples of what can be learned by
-reading/watching for /proc/slabinfo entries:
+Note, it's best to email me at my other email rostedt@goodmis.org. As I
+do not check this email much while traveling.
 
-1) dentry (and different *inode*) number might reveal other processes fs
-activity.  The number of dentry "active objects" doesn't strictly show
-file count opened/touched by a process, however, there is a good
-correlation between them.  The patch "proc: force dcache drop on
-unauthorized access" relies on the privacy of dentry count.
+On Wed, 2011-09-07 at 09:13 +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 7 Sep 2011 08:38:18 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Tue, 06 Sep 2011 19:50:09 +0200
+> > Anders <aeriksson2@gmail.com> wrote:
+> > 
+> > > On 09/05/11 02:49, KAMEZAWA Hiroyuki wrote:
+> > > > On Sun, 04 Sep 2011 20:49:42 +0200
+> > > > Anders <aeriksson2@gmail.com> wrote:
+> > > >
+> > > > > I've got kdump setup to collect oopes. I found this in the log. Not sure
+> > > > > what it's related to.
+> > > > > 
+> > > >
+> > > > > <4>[47900.533010]  [<ffffffff810ab79f>] ?
+> > > > > mem_cgroup_count_vm_event+0x15/0x67
+> > > > > <4>[47900.533010]  [<ffffffff810987e5>] ? handle_mm_fault+0x3b/0x1e8
+> > > > > <4>[47900.533010]  [<ffffffff81049bb3>] ? sched_clock_local+0x13/0x76
+> > > > > <4>[47900.533010]  [<ffffffff8101bdb0>] ? do_page_fault+0x31a/0x33f
+> > > > > <4>[47900.533010]  [<ffffffff81022b80>] ? check_preempt_curr+0x36/0x62
+> > > > > <4>[47900.533010]  [<ffffffff8104bb23>] ? ktime_get_ts+0x65/0xa6
+> > > > > <4>[47900.533010]  [<ffffffff810bfd2c>] ?
+> > > > > poll_select_copy_remaining+0xce/0xed
+> > > > > <4>[47900.533010]  [<ffffffff814c4b4f>] ? page_fault+0x1f/0x30
+> > > >
+> > > > I'll check memcg but...not sure what parts in above log are garbage.
+> > > > At quick glance, mem_cgroup_count_vm_event() does enough NULL check
+> > > > but faulted address was..
+> > > >
+> > > > > <0>[47900.533010] CR2: ffffc5217e257cf0
+> > > >
+> > > > This seems not NULL referencing.
+> > > >
+> > > > #define VMALLOC_START    _AC(0xffffc90000000000, UL)
+> > > > #define VMALLOC_END      _AC(0xffffe8ffffffffff, UL)
+> > > >
+> > > > This is not vmalloc area...hmm. could you show your disassemble of
+> > > > mem_cgroup_count_vm_event() ? and .config ?
+> > > >
+> > > How do I disassembe it?
+> > > 
+> > 
+> > # make mm/memcontrol.o
+> > # objdump -d memcontrol.o > file
+> > 
+> > please cut out mem_cgroup_count_vm_event() from dumpped file.
+> > 
+> 
+> Sorry, I made mistake ..the log says
+> 
+> <1>[47900.533010] RIP  [<ffffffff81097d18>] handle_pte_fault+0x24/0x70a
+> <4>[47900.533010]  RSP <ffff880024c27db8>
+> <0>[47900.533010] CR2: ffffc5217e257cf0
+> 
+> <4>[47900.533010] RSP: 0000:ffff880024c27db8  EFLAGS: 00010296
+> <4>[47900.533010] RAX: 0000000000000cf0 RBX: ffff88006c3b2a68 RCX:
+> ffffc5217e257cf0
+> <4>[47900.533010] RDX: 000000000059effe RSI: ffff88006c3b2a68 RDI:
+> ffff88006d6d2ac0
+> <4>[47900.533010] RBP: ffffc5217e257cf0 R08: ffff880024d3b010 R09:
+> 0000000000000028
+> Hm. CR2==RBP...then accessing RBP caused the fault. But it seems this
+> RBP was accessed in this function before reaching EIP.
+> 
 
-2) different inode entries might reveal the same information as (1), but
-these are more fine granted counters.  If a filesystem is mounted in a
-private mount point (or even a private namespace) and fs type differs from
-other mounted fs types, fs activity in this mount point/namespace is
-revealed.  If there is a single ecryptfs mount point, the whole fs
-activity of a single user is revealed.  Number of files in ecryptfs
-mount point is a private information per se.
+Since I don't have the full context. What was the IP address of the
+actually fault. Too much is removed and out of context for me to really
+understand what happened.
 
-3) fuse_* reveals number of files / fs activity of a user in a user
-private mount point.  It is approx. the same severity as ecryptfs
-infoleak in (2).
+> your .config says
+> CONFIG_HAVE_FUNCTION_TRACER=y
+> CONFIG_HAVE_FUNCTION_GRAPH_TRACER=y
+> CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST=y
+> CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST=y
+> CONFIG_HAVE_DYNAMIC_FTRACE=y
+> CONFIG_HAVE_FTRACE_MCOUNT_RECORD=y
+> CONFIG_HAVE_SYSCALL_TRACEPOINTS=y
+> CONFIG_HAVE_C_RECORDMCOUNT=y
 
-4) sysfs_dir_cache similar to (2) reveals devices' addition/removal,
-which can be otherwise hidden by "chmod 0700 /sys/".  With 0444 slabinfo
-the precise number of sysfs files is known to the world.
+Ignore all the "_HAVE_" configs. It is set if the architecture supports
+the features, not if the features are actually enabled. But looking at
+your objdump, at least CONFIG_FUNCTION_TRACER is. Is dynamic tracing
+enabled?
 
-5) buffer_head might reveal some kernel activity.  With other
-information leaks an attacker might identify what specific kernel
-routines generate buffer_head activity.
+> 
+> In my binary,
+> 
+> ffffffff8113b820 <handle_pte_fault>:
+> ffffffff8113b820:       55                      push   %rbp
+> ffffffff8113b821:       48 89 e5                mov    %rsp,%rbp
+> ffffffff8113b824:       48 81 ec c0 00 00 00    sub    $0xc0,%rsp
+> ffffffff8113b82b:       48 89 5d d8             mov    %rbx,-0x28(%rbp)
+> ffffffff8113b82f:       4c 89 65 e0             mov    %r12,-0x20(%rbp)
+> ffffffff8113b833:       4c 89 6d e8             mov    %r13,-0x18(%rbp)
+> ffffffff8113b837:       4c 89 75 f0             mov    %r14,-0x10(%rbp)
+> ffffffff8113b83b:       4c 89 7d f8             mov    %r15,-0x8(%rbp)
+> ffffffff8113b83f:       e8 fc d4 47 00          callq  ffffffff815b8d40 <mcount>
+> ffffffff8113b844:       4c 89 45 b8             mov    %r8,-0x48(%rbp)
+> ffffffff8113b848:       4c 8b 29                mov    (%rcx),%r13
+> 
+> handle_pte_fault + 0x24 is just after mcount. And caused fault by accessing 
+> %rbp...returning from a funciton ?
 
-6) *kmalloc* infoleaks are very situational.  Attacker should watch for
-the specific kmalloc size entry and filter the noise related to the unrelated
-kernel activity.  If an attacker has relatively silent victim system, he
-might get rather precise counters.
-
-Additional information sources might significantly increase the slabinfo
-infoleak benefits.  E.g. if an attacker knows that the processes
-activity on the system is very low (only core daemons like syslog and
-cron), he may run setxid binaries / trigger local daemon activity /
-trigger network services activity / await sporadic cron jobs activity
-/ etc. and get rather precise counters for fs and network activity of
-these privileged tasks, which is unknown otherwise.
+I'm confused? Is the handle_pte_fault what crashed? Or is it the call
+path to the page fault handler to handle the crash.
 
 
-Also hiding slabinfo is a one step to complicate exploitation of kernel
-heap overflows (and possibly, other bugs).  The related discussion:
+> Hmm...problem with tracing ? I'm sorry if I misunderstand something.
+> Anyway, CCing ftrace guys for getting information.
 
-http://thread.gmane.org/gmane.linux.kernel/1108378
+The mcount above should be converted to a nop at boot up. Can you please
+send me your .config file and the dmesg too.
 
+Thanks!
 
-World readable slabinfo simplifies kernel developers' job of debugging
-kernel bugs (e.g. memleaks), but I believe it does more harm than
-benefits.  For most users 0444 slabinfo is an unreasonable attack vector.
+-- Steve
 
-Signed-off-by: Vasiliy Kulikov <segoon@openwall.com>
----
- mm/slab.c |    3 ++-
- mm/slub.c |    2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
---
-diff --git a/mm/slab.c b/mm/slab.c
-index 6d90a09..560ffd0 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4584,7 +4584,8 @@ static const struct file_operations proc_slabstats_operations = {
- 
- static int __init slab_proc_init(void)
- {
--	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
-+	proc_create("slabinfo", S_IWUSR | S_IRUSR, NULL,
-+		    &proc_slabinfo_operations);
- #ifdef CONFIG_DEBUG_SLAB_LEAK
- 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
- #endif
-diff --git a/mm/slub.c b/mm/slub.c
-index 9f662d7..f440fc7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5257,7 +5257,7 @@ static const struct file_operations proc_slabinfo_operations = {
- 
- static int __init slab_proc_init(void)
- {
--	proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
-+	proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
- 	return 0;
- }
- module_init(slab_proc_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
