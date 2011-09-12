@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BA16B0249
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 05:56:32 -0400 (EDT)
-Subject: Re: [PATCH 03/10] mm: Add support for a filesystem to control swap
- files
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A7F6B024A
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 06:20:14 -0400 (EDT)
+Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
+ area
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 12 Sep 2011 11:56:09 +0200
-In-Reply-To: <20110912093058.GA3207@suse.de>
-References: <1315566054-17209-1-git-send-email-mgorman@suse.de>
-	 <1315566054-17209-4-git-send-email-mgorman@suse.de>
-	 <20110909130007.GA11810@infradead.org> <20110909131550.GV14369@suse.de>
-	 <20110909133611.GB8155@infradead.org> <1315818285.26517.18.camel@twins>
-	 <20110912093058.GA3207@suse.de>
+Date: Mon, 12 Sep 2011 12:19:38 +0200
+In-Reply-To: <20110907123108.GB6862@localhost>
+References: <20110904015305.367445271@intel.com>
+	 <20110904020915.942753370@intel.com> <1315318179.14232.3.camel@twins>
+	 <20110907123108.GB6862@localhost>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1315821369.26517.21.camel@twins>
+Message-ID: <1315822779.26517.23.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 2011-09-12 at 10:34 +0100, Mel Gorman wrote:
-> On Mon, Sep 12, 2011 at 11:04:45AM +0200, Peter Zijlstra wrote:
-> > On Fri, 2011-09-09 at 09:36 -0400, Christoph Hellwig wrote:
-> > > The equivalent of ->direct_IO should be used for both reads and write=
-s.
+On Wed, 2011-09-07 at 20:31 +0800, Wu Fengguang wrote:
+> > > +   x_intercept =3D min(write_bw, freerun);
+> > > +   if (bdi_dirty < x_intercept) {
 > >=20
-> > So the difference between DIO and swapIO is that swapIO needs the block
-> > map pinned in memory.. So at the very least you'll need those
-> > swap_{activate,deactivate} aops. The read/write-page thingies could
-> > indeed be shared with DIO.
-> >=20
+> > So the point of the freerun point is that we never throttle before it,
+> > so basically all the below shouldn't be needed at all, right?=20
 >=20
-> I'm travelling at the moment so it'll be later in the week when I investi=
-gate
-> properly but I agree swap_[de|a]ctivate are still necessary. NFS does not
-> need to pin a block map but it's still necessary for calling xs_set_memal=
-loc.
+> Yes!
+>=20
+> > > +           if (bdi_dirty > x_intercept / 8) {
+> > > +                   pos_ratio *=3D x_intercept;
+> > > +                   do_div(pos_ratio, bdi_dirty);
+> > > +           } else
+> > > +                   pos_ratio *=3D 8;
+> > > +   }
+> > > +
+> > >     return pos_ratio;
+> > >  }
 
-Right.. but I think the hope was that we could replace the current swap
-bmap hackery with this and simplify the normal swap bits. But yeah,
-networked filesystems don't really bother with block maps on the client
-side ;-)
+Does that mean we can remove this whole block?
+
+> >=20
+> > So why not add:
+> >=20
+> >       if (likely(dirty < freerun))
+> >               return 2;
+> >=20
+> > at the start of this function and leave it at that?
+>=20
+> Because we already has
+>=20
+>         if (nr_dirty < freerun)
+>                 break;
+>=20
+> in the main balance_dirty_pages() loop ;)
+
+Bah! I keep missing that ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
