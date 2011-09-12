@@ -1,38 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A010D900137
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 11:07:17 -0400 (EDT)
-Received: by bkbzs2 with SMTP id zs2so2157522bkb.14
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2011 08:06:44 -0700 (PDT)
-Date: Mon, 12 Sep 2011 19:06:30 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm: restrict access to /proc/slabinfo
-Message-ID: <20110912150630.GE25367@sun>
-References: <20110910164001.GA2342@albatros>
- <20110910164134.GA2442@albatros>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 407FA900137
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 11:24:40 -0400 (EDT)
+Date: Mon, 12 Sep 2011 10:24:36 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] slub: remove obsolete code path in __slab_free()
+ for per cpu partial
+In-Reply-To: <1315559166.31737.793.camel@debian>
+Message-ID: <alpine.DEB.2.00.1109121024070.15509@router.home>
+References: <1315558961.31737.790.camel@debian> <1315559166.31737.793.camel@debian>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110910164134.GA2442@albatros>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
 
-On Sat, Sep 10, 2011 at 08:41:34PM +0400, Vasiliy Kulikov wrote:
-> Historically /proc/slabinfo has 0444 permissions and is accessible to
-> the world.  slabinfo contains rather private information related both to
-> the kernel and userspace tasks.  Depending on the situation, it might
-> reveal either private information per se or information useful to make
-> another targeted attack.  Some examples of what can be learned by
-> reading/watching for /proc/slabinfo entries:
-> 
-...
+On Fri, 9 Sep 2011, Alex,Shi wrote:
 
-Since this file is controversy point, probably its permissions might be
-configurable via setup option?
+> On Fri, 2011-09-09 at 17:02 +0800, Alex,Shi wrote:
+> > If there are still some objects left in slab, the slab page will be put
+> > to per cpu partial list. So remove the obsolete code path.
 
-	Cyrill
+Did you run this with debugging on? I think the code is needed then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
