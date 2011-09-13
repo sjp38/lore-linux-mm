@@ -1,81 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DA63C900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 04:23:47 -0400 (EDT)
-Subject: RE: [PATCH] slub Discard slab page only when node partials >
- minimum setting
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <1315557944.31737.782.camel@debian>
-References: <1315188460.31737.5.camel@debian>
-	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-	 <1315357399.31737.49.camel@debian>
-	 <alpine.DEB.2.00.1109062022100.20474@router.home>
-	 <4E671E5C.7010405@cs.helsinki.fi>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1109071003240.9406@router.home>
-	 <1315442639.31737.224.camel@debian>
-	 <alpine.DEB.2.00.1109081336320.14787@router.home>
-	 <1315557944.31737.782.camel@debian>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 13 Sep 2011 16:29:43 +0800
-Message-ID: <1315902583.31737.848.camel@debian>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 738BE900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 06:06:58 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 09DB63EE0AE
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:06:55 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E543B45DE86
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:06:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C382745DE81
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:06:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B0A7B1DB8038
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:06:54 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F2FC1DB803A
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:06:54 +0900 (JST)
+Date: Tue, 13 Sep 2011 19:06:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 01/11] mm: memcg: consolidate hierarchy iteration
+ primitives
+Message-Id: <20110913190608.b0658961.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1315825048-3437-2-git-send-email-jweiner@redhat.com>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+	<1315825048-3437-2-git-send-email-jweiner@redhat.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon, 12 Sep 2011 12:57:18 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-> > Hmmm... The sizes of the per cpu partial objects could be varied a bit to
-> > see if more would make an impact.
+> Memory control groups are currently bolted onto the side of
+> traditional memory management in places where better integration would
+> be preferrable.  To reclaim memory, for example, memory control groups
+> maintain their own LRU list and reclaim strategy aside from the global
+> per-zone LRU list reclaim.  But an extra list head for each existing
+> page frame is expensive and maintaining it requires additional code.
 > 
+> This patchset disables the global per-zone LRU lists on memory cgroup
+> configurations and converts all its users to operate on the per-memory
+> cgroup lists instead.  As LRU pages are then exclusively on one list,
+> this saves two list pointers for each page frame in the system:
 > 
-> I find almost in one time my kbuilding. 
-> size 384, was alloced in fastpath about 2900k times
-> size 176, was alloced in fastpath about 1900k times
-> size 192, was alloced in fastpath about 500k times
-> anon_vma, was alloced in fastpath about 560k times 
-> size 72, was alloced in fastpath about 600k times 
-> size 512, 256, 128, was alloced in fastpath about more than 100k for
-> each of them.
+> page_cgroup array size with 4G physical memory
 > 
-> I may give you objects size involved in my netperf testing later. 
-> and which test case do you prefer to? If I have, I may collection data
-> on them. 
+>   vanilla: [    0.000000] allocated 31457280 bytes of page_cgroup
+>   patched: [    0.000000] allocated 15728640 bytes of page_cgroup
+> 
+> At the same time, system performance for various workloads is
+> unaffected:
+> 
+> 100G sparse file cat, 4G physical memory, 10 runs, to test for code
+> bloat in the traditional LRU handling and kswapd & direct reclaim
+> paths, without/with the memory controller configured in
+> 
+>   vanilla: 71.603(0.207) seconds
+>   patched: 71.640(0.156) seconds
+> 
+>   vanilla: 79.558(0.288) seconds
+>   patched: 77.233(0.147) seconds
+> 
+> 100G sparse file cat in 1G memory cgroup, 10 runs, to test for code
+> bloat in the traditional memory cgroup LRU handling and reclaim path
+> 
+>   vanilla: 96.844(0.281) seconds
+>   patched: 94.454(0.311) seconds
+> 
+> 4 unlimited memcgs running kbuild -j32 each, 4G physical memory, 500M
+> swap on SSD, 10 runs, to test for regressions in kswapd & direct
+> reclaim using per-memcg LRU lists with multiple memcgs and multiple
+> allocators within each memcg
+> 
+>   vanilla: 717.722(1.440) seconds [ 69720.100(11600.835) majfaults ]
+>   patched: 714.106(2.313) seconds [ 71109.300(14886.186) majfaults ]
+> 
+> 16 unlimited memcgs running kbuild, 1900M hierarchical limit, 500M
+> swap on SSD, 10 runs, to test for regressions in hierarchical memcg
+> setups
+> 
+>   vanilla: 2742.058(1.992) seconds [ 26479.600(1736.737) majfaults ]
+>   patched: 2743.267(1.214) seconds [ 27240.700(1076.063) majfaults ]
+> 
+> This patch:
+> 
+> There are currently two different implementations of iterating over a
+> memory cgroup hierarchy tree.
+> 
+> Consolidate them into one worker function and base the convenience
+> looping-macros on top of it.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
-I write a short script to collect different size object usage of
-alloc_fastpath.  The output is following, first column is the object
-name and second is the alloc_fastpath called times.
+Seems nice.
 
-:t-0000448 62693419
-:t-0000384 1037746
-:at-0000104 191787
-:t-0000176 2051053
-anon_vma 953578
-:t-0000048 2108191
-:t-0008192 17858636
-:t-0004096 2307039
-:t-0002048 21601441
-:t-0001024 98409238
-:t-0000512 14896189
-:t-0000256 96731409
-:t-0000128 221045
-:t-0000064 149505
-:t-0000032 638431
-:t-0000192 263488
------
-
-Above output shows size 448/8192/2048/512/256 are used much. 
-
-So at least both kbuild(with 4 jobs) and netperf loopback (one server on
-CPU socket 1, and one client on CPU socket 2) testing have no clear
-performance change on our machine
-NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP. 
-
-
-
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
