@@ -1,263 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C8F8900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 11:58:48 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8DFiKcP031259
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 11:44:20 -0400
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8DFwehU127156
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 11:58:44 -0400
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8DG4TAx015070
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 10:04:30 -0600
-Message-ID: <4E6F7DA7.9000706@linux.vnet.ibm.com>
-Date: Tue, 13 Sep 2011 10:58:31 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 97D79900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 12:05:45 -0400 (EDT)
+Received: by vws14 with SMTP id 14so1182985vws.9
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2011 09:05:38 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com> <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org> <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
-In-Reply-To: <4E6EB802.4070109@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1315902583.31737.848.camel@debian>
+References: <1315188460.31737.5.camel@debian>
+	<alpine.DEB.2.00.1109061914440.18646@router.home>
+	<1315357399.31737.49.camel@debian>
+	<alpine.DEB.2.00.1109062022100.20474@router.home>
+	<4E671E5C.7010405@cs.helsinki.fi>
+	<6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	<alpine.DEB.2.00.1109071003240.9406@router.home>
+	<1315442639.31737.224.camel@debian>
+	<alpine.DEB.2.00.1109081336320.14787@router.home>
+	<1315557944.31737.782.camel@debian>
+	<1315902583.31737.848.camel@debian>
+Date: Tue, 13 Sep 2011 10:04:13 -0500
+Message-ID: <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
+Subject: Re: [PATCH] slub Discard slab page only when node partials > minimum setting
+From: Christoph Lameter <christoph@lameter.com>
+Content-Type: multipart/alternative; boundary=90e6ba4fc724ec008004acd3f4f2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, dan.magenheimer@oracle.com, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 09/12/2011 08:55 PM, Nitin Gupta wrote:
-> Hi Seth,
-> 
-> I revised some of the original plans for xcfmalloc and below are some
-> details.  I had few nits regarding the current implementation but I'm
-> avoiding them here since we may have to change the design itself
-> significantly.
-> 
-> On 09/12/2011 10:35 AM, Seth Jennings wrote:
-> 
->> On 09/09/2011 09:41 PM, Nitin Gupta wrote:
->>> On 09/09/2011 04:34 PM, Greg KH wrote:
->>>
->>>> On Wed, Sep 07, 2011 at 09:09:04AM -0500, Seth Jennings wrote:
->>>>> Changelog:
->>>>> v2: fix bug in find_remove_block()
->>>>>     fix whitespace warning at EOF
->>>>>
->>>>> This patchset introduces a new memory allocator for persistent
->>>>> pages for zcache.  The current allocator is xvmalloc.  xvmalloc
->>>>> has two notable limitations:
->>>>> * High (up to 50%) external fragmentation on allocation sets > PAGE_SIZE/2
->>>>> * No compaction support which reduces page reclaimation
->>>>
->>>> I need some acks from other zcache developers before I can accept this.
->>>>
->>>
->>> First, thanks for this new allocator; xvmalloc badly needed a replacement :)
->>>
->>
->> Hey Nitin, I hope your internship went well :)  It's good to hear from you.
->>
-> 
-> 
-> Yes, it went well and now I can spend more time on this project :)
-> 
-> 
->>> I went through xcfmalloc in detail and would be posting detailed
->>> comments tomorrow.  In general, it seems to be quite similar to the
->>> "chunk based" allocator used in initial implementation of "compcache" --
->>> please see section 2.3.1 in this paper:
->>> http://www.linuxsymposium.org/archives/OLS/Reprints-2007/briglia-Reprint.pdf
->>>
->>
->> Ah, indeed they look similar.  I didn't know that this approach
->> had already been done before in the history of this project.
->>
->>> I'm really looking forward to a slab based allocator as I mentioned in
->>> the initial mail:
->>> http://permalink.gmane.org/gmane.linux.kernel.mm/65467
->>>
->>> With the current design xcfmalloc suffers from issues similar to the
->>> allocator described in the paper:
->>>  - High metadata overhead
->>>  - Difficult implementation of compaction
->>>  - Need for extra memcpy()s  etc.
->>>
->>> With slab based approach, we can almost eliminate any metadata overhead,
->>> remove any free chunk merging logic, simplify compaction and so on.
->>>
->>
->> Just to align my understanding with yours, when I hear slab-based,
->> I'm thinking each page in the compressed memory pool will contain
->> 1 or more blocks that are all the same size.  Is this what you mean?
->>
-> 
-> 
-> Yes, exactly.  The memory pool will consist of "superblocks" (typically
-> 16K or 64K).
+--90e6ba4fc724ec008004acd3f4f2
+Content-Type: text/plain; charset=ISO-8859-1
 
-A fixed superblock size would be an issue.  If you have a fixed superblock
-size of 64k on a system that has 64k hardware pages, then we'll find 
-ourselves in the same fragmentation mess as xvmalloc.  It needs to be 
-relative to the hardware page size; say 4*PAGE_SIZE or 8*PAGE_SIZE.
+Sorry to be that late with a response but my email setup is screwed up.
 
-> Each of these superblocks will contain objects of only one
-> particular size (which is its size class).  This is the general
-> structure of all slab allocators. In particular, I'm planning to use
-> many of the ideas discussed in this paper:
-> http://www.cs.umass.edu/~emery/hoard/asplos2000.pdf
-> 
-> One major point to consider would be that these superblocks cannot be
-> physically contiguous in our case, so we will have to do some map/unmap
-> trickery.
+I was more thinking about the number of slab pages in the partial caches
+rather than the size of the objects itself being an issue. I believe that
+was /sys/kernel/slab/*/cpu_partial.
 
-I assume you mean vm_map_ram() by "trickery".
+That setting could be tuned further before merging. An increase there causes
+additional memory to be caught in the partial list. But it reduces the node
+lock pressure further.
 
-In my own experiments, I can tell you that vm_map_ram() is VERY expensive
-wrt kmap_atomic().  I made a version of xvmalloc (affectionately called
-"chunky xvmalloc") where I modified grow_pool() to allocate 4 0-order pages,
-if it could, and group them into a "chunk" (what you are calling a
-"superblock").  The first page in the chunk had a chunk header that contained
-the array of page pointers that vm_map_ram() expects.  A block was 
-identified by a page pointer to the first page in the chunk, and an offset
-within the mapped area of the chunk.
+On Tue, Sep 13, 2011 at 3:29 AM, Alex,Shi <alex.shi@intel.com> wrote:
 
-It... was... slow...
+>
+> > > Hmmm... The sizes of the per cpu partial objects could be varied a bit
+> to
+> > > see if more would make an impact.
+> >
+> >
+> > I find almost in one time my kbuilding.
+> > size 384, was alloced in fastpath about 2900k times
+> > size 176, was alloced in fastpath about 1900k times
+> > size 192, was alloced in fastpath about 500k times
+> > anon_vma, was alloced in fastpath about 560k times
+> > size 72, was alloced in fastpath about 600k times
+> > size 512, 256, 128, was alloced in fastpath about more than 100k for
+> > each of them.
+> >
+> > I may give you objects size involved in my netperf testing later.
+> > and which test case do you prefer to? If I have, I may collection data
+> > on them.
+>
+> I write a short script to collect different size object usage of
+> alloc_fastpath.  The output is following, first column is the object
+> name and second is the alloc_fastpath called times.
+>
+> :t-0000448 62693419
+> :t-0000384 1037746
+> :at-0000104 191787
+> :t-0000176 2051053
+> anon_vma 953578
+> :t-0000048 2108191
+> :t-0008192 17858636
+> :t-0004096 2307039
+> :t-0002048 21601441
+> :t-0001024 98409238
+> :t-0000512 14896189
+> :t-0000256 96731409
+> :t-0000128 221045
+> :t-0000064 149505
+> :t-0000032 638431
+> :t-0000192 263488
+> -----
+>
+> Above output shows size 448/8192/2048/512/256 are used much.
+>
+> So at least both kbuild(with 4 jobs) and netperf loopback (one server on
+> CPU socket 1, and one client on CPU socket 2) testing have no clear
+> performance change on our machine
+> NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP.
+>
+>
+>
+>
+>
+>
 
-Additionally, vm_map_ram() failed a lot because it actually allocates
-memory of its own for the vmap_area.  In my tests, many pages slipped
-through zcache because of this failure.
+--90e6ba4fc724ec008004acd3f4f2
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Even worse, it uses GFP_KERNEL when alloc'ing the vmap_area which 
-isn't safe under spinlock.
+Sorry to be that late with a response but my email setup is screwed up.<br>=
+<br>I was more thinking about the number of slab pages in the partial cache=
+s rather than the size of the objects itself being an issue. I believe that=
+ was /sys/kernel/slab/*/cpu_partial.<br>
+<br>That setting could be tuned further before merging. An increase there c=
+auses additional memory to be caught in the partial list. But it reduces th=
+e node lock pressure further.<br><br><div class=3D"gmail_quote">On Tue, Sep=
+ 13, 2011 at 3:29 AM, Alex,Shi <span dir=3D"ltr">&lt;<a href=3D"mailto:alex=
+.shi@intel.com">alex.shi@intel.com</a>&gt;</span> wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; borde=
+r-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;"><br>
+&gt; &gt; Hmmm... The sizes of the per cpu partial objects could be varied =
+a bit to<br>
+&gt; &gt; see if more would make an impact.<br>
+&gt;<br>
+&gt;<br>
+&gt; I find almost in one time my kbuilding.<br>
+&gt; size 384, was alloced in fastpath about 2900k times<br>
+&gt; size 176, was alloced in fastpath about 1900k times<br>
+&gt; size 192, was alloced in fastpath about 500k times<br>
+&gt; anon_vma, was alloced in fastpath about 560k times<br>
+&gt; size 72, was alloced in fastpath about 600k times<br>
+&gt; size 512, 256, 128, was alloced in fastpath about more than 100k for<b=
+r>
+&gt; each of them.<br>
+&gt;<br>
+&gt; I may give you objects size involved in my netperf testing later.<br>
+&gt; and which test case do you prefer to? If I have, I may collection data=
+<br>
+&gt; on them.<br>
+<br>
+I write a short script to collect different size object usage of<br>
+alloc_fastpath. =A0The output is following, first column is the object<br>
+name and second is the alloc_fastpath called times.<br>
+<br>
+:t-0000448 62693419<br>
+:t-0000384 1037746<br>
+:at-0000104 191787<br>
+:t-0000176 2051053<br>
+anon_vma 953578<br>
+:t-0000048 2108191<br>
+:t-0008192 17858636<br>
+:t-0004096 2307039<br>
+:t-0002048 21601441<br>
+:t-0001024 98409238<br>
+:t-0000512 14896189<br>
+:t-0000256 96731409<br>
+:t-0000128 221045<br>
+:t-0000064 149505<br>
+:t-0000032 638431<br>
+:t-0000192 263488<br>
+-----<br>
+<br>
+Above output shows size 448/8192/2048/512/256 are used much.<br>
+<br>
+So at least both kbuild(with 4 jobs) and netperf loopback (one server on<br=
+>
+CPU socket 1, and one client on CPU socket 2) testing have no clear<br>
+performance change on our machine<br>
+NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</blockquote></div><br>
 
-It seems that the use of vm_map_ram() is a linchpin in this design.
-
-> The basic idea is to link together individual pages
-> (typically 4k) using underlying struct_page->lru to form superblocks and
-> map/unmap objects on demand.
-> 
->> If so, I'm not sure how changing to a slab-based system would eliminate
->> metadata overhead or do away with memcpy()s.
->>
-> 
-> 
-> With slab based approach, the allocator itself need not store any
-> metadata with allocated objects.  However, considering zcache and zram
-> use-cases, the caller will still have to request additional space for
-> per-object header: actual object size and back-reference (which
-> inode/page-idx this object belongs to) needed for compaction.
-> 
-
-So the metadata still exists.  It's just zcache's metadata vs the
-allocator's metadata.
-
-> For free-list management, the underlying struct page and the free object
-> space itself can be used. Some field in the struct page can point to the
-> first free object in a page and free slab objects themselves will
-> contain links to next/previous free objects in the page.
-> 
->> The memcpy()s are a side effect of having an allocation spread over
->> blocks in different pages.  I'm not seeing a way around this.
->>
-> 
-> 
-> For slab objects than span 2 pages, we can use vm_map_ram() to
-> temporarily map pages involved and read/write to objects directly. For
-> objects lying entirely within a page, we can use much faster
-> kmap_atomic() for access.
-> 
-> 
-
-See previous comment about vm_map_ram().  There is also an issue
-here with a slab object being unreadable do to vm_map_ram() failing.
-
->> It also follows that the blocks that make up an allocation must be in
->> a list of some kind, leading to some amount of metadata overhead.
->>
-> 
-> 
-> Used objects need not be placed in any list.  For free objects we can use
-> underlying struct page and free object space itself to manage free list,
-> as described above.
-> 
-
-I assume this means that allocations consist of only one slab object as
-opposed to multiple objects in slabs with different class sizes.
-
-In other words, if you have a 3k allocation and your slab
-class sizes are 1k, 2k, and 4k, the allocation would have to
-be in a single 4k object (with 25% fragmentation), not spanning
-a 1k and 2k object, correct?
-
-This is something that I'm inferring from your description, but is key
-to the design.  Please confirm that I'm understanding correctly.
-
->> If you want to do compaction, it follows that you can't give the user
->> a direct pointer to the data, since the location of that data may change.
->> In this case, an indirection layer is required (i.e. xcf_blkdesc and
->> xcf_read()/xcf_write()).
->>
-> 
-> 
-> Yes, we can't give a direct pointer anyways since pages used by the
-> allocator are not permanently mapped (to save precious VA spave on
-> 32-bit).  Still, we can save on much of metadata overhead and extra
-> memcpy() as described above.
-> 
-> 
-
-This isn't clear to me.  What would be returned by the malloc() call
-in this design?  In other words, how does the caller access the
-allocation?  You just said we can't give a direct access to the data
-via a page pointer and an offset. What else is there to return other
-than a pointer to metadata?
-
->> The only part of the metadata that could be done away with in a slab-
->> based approach, as far as I can see, is the prevoffset field in xcf_blkhdr,
->> since the size of the previous block in the page (or the previous object
->> in the slab) can be inferred from the size of the current block/object.
->>
->> I do agree that we don't have to worry about free block merging in a
->> slab-based system.
->>
->> I didn't implement compaction so a slab-based system could very well
->> make it easier.  I guess it depends on how one ends up doing it.
->>
-> 
-> 
-> I expect compaction to be much easier with slab like design since
-> finding target for relocating objects is so simple. You don't have to
-> deal with all those little unusable holes created throughout the heap
-> when mix-all-object-sizes-together approach is used.
-> 
-> 
-> For compaction, I plan to have a scheme where the user (zcache/zram)
-> would "cooperate" with the process.  Here is a rough outline for
-> relocating an object:
->  - For any size class, when emptiness threshold (=total space allocated
-> / actual used) exceeds some threshold, the allocator will copy objects
-> from least used slab superblocks to the most used ones.
->  - It will then issue a callback, registered by the user during pool
-> creation, informing about the new object location,
->  - Due to various cases, this callback may return failure in which case
-> the relocation is considered failed and we will disk newly created copy.
->  - If callback succeeds, it means that the user successfully updated its
-> object reference and we can now mark the original copy as free.
-> 
-> 
-> We can also batch this process (copy all objects in victim superblock at
-> once to other superblocks and issue a single callback) for better
-> efficiency.
-> 
-> 
-> Please let me know if you have any comments. I plan to start with its
-> implementation sometime this week.
-> 
-> Thanks,
-> Nitin
-
---
-Seth
+--90e6ba4fc724ec008004acd3f4f2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
