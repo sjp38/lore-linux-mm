@@ -1,55 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A14900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 06:51:22 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7836A3EE0C0
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:51:19 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F89545DEB4
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:51:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4740545DE7E
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:51:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 378A81DB803F
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:51:19 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0257A1DB803C
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:51:19 +0900 (JST)
-Date: Tue, 13 Sep 2011 19:50:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 11/11] mm: memcg: remove unused node/section info from
- pc->flags
-Message-Id: <20110913195031.5fa2a3c4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1315825048-3437-12-git-send-email-jweiner@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 29EFB900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 07:32:16 -0400 (EDT)
+Date: Tue, 13 Sep 2011 13:03:01 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 04/11] mm: memcg: per-priority per-zone hierarchy scan
+ generations
+Message-ID: <20110913110301.GB18886@redhat.com>
 References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
-	<1315825048-3437-12-git-send-email-jweiner@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <1315825048-3437-5-git-send-email-jweiner@redhat.com>
+ <20110913192759.ff0da031.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110913192759.ff0da031.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 12 Sep 2011 12:57:28 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
-
-> To find the page corresponding to a certain page_cgroup, the pc->flags
-> encoded the node or section ID with the base array to compare the pc
-> pointer to.
+On Tue, Sep 13, 2011 at 07:27:59PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 12 Sep 2011 12:57:21 +0200
+> Johannes Weiner <jweiner@redhat.com> wrote:
 > 
-> Now that the per-memory cgroup LRU lists link page descriptors
-> directly, there is no longer any code that knows the page_cgroup but
-> not the page.
+> > Memory cgroup limit reclaim currently picks one memory cgroup out of
+> > the target hierarchy, remembers it as the last scanned child, and
+> > reclaims all zones in it with decreasing priority levels.
+> > 
+> > The new hierarchy reclaim code will pick memory cgroups from the same
+> > hierarchy concurrently from different zones and priority levels, it
+> > becomes necessary that hierarchy roots not only remember the last
+> > scanned child, but do so for each zone and priority level.
+> > 
+> > Furthermore, detecting full hierarchy round-trips reliably will become
+> > crucial, so instead of counting on one iterator site seeing a certain
+> > memory cgroup twice, use a generation counter that is increased every
+> > time the child with the highest ID has been visited.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 > 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> I cannot image how this works. could you illustrate more with easy example ?
 
-Ah, ok. remove init code and use zalloc()
+Previously, we did
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+	mem = mem_cgroup_iter(root)
+	  for each priority level:
+	    for each zone in zonelist:
 
+and this would reclaim memcg-1-zone-1, memcg-1-zone-2, memcg-1-zone-3
+etc.
+
+The new code does
+
+	for each priority level
+	  for each zone in zonelist
+            mem = mem_cgroup_iter(root)
+
+but with a single last_scanned_child per memcg, this would scan
+memcg-1-zone-1, memcg-2-zone-2, memcg-3-zone-3 etc, which does not
+make much sense.
+
+Now imagine two reclaimers.  With the old code, the first reclaimer
+would pick memcg-1 and scan all its zones, the second reclaimer would
+pick memcg-2 and reclaim all its zones.  Without this patch, the first
+reclaimer would pick memcg-1 and scan zone-1, the second reclaimer
+would pick memcg-2 and scan zone-1, then the first reclaimer would
+pick memcg-3 and scan zone-2.  If the reclaimers are concurrently
+scanning at different priority levels, things are even worse because
+one reclaimer may put much more force on the memcgs it gets from
+mem_cgroup_iter() than the other reclaimer.  They must not share the
+same iterator.
+
+The generations are needed because the old algorithm did not rely too
+much on detecting full round-trips.  After every reclaim cycle, it
+checked the limit and broke out of the loop if enough was reclaimed,
+no matter how many children were reclaimed from.  The new algorithm is
+used for global reclaim, where the only exit condition of the
+hierarchy reclaim is the full roundtrip, because equal pressure needs
+to be applied to all zones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
