@@ -1,45 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 104A3900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 01:48:49 -0400 (EDT)
-Date: Tue, 13 Sep 2011 07:48:39 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 02/11] mm: vmscan: distinguish global reclaim from global
- LRU scanning
-Message-ID: <20110913054839.GD2929@redhat.com>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-3-git-send-email-jweiner@redhat.com>
- <20110912230246.GA20975@shutemov.name>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 63ECD900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 02:07:15 -0400 (EDT)
+Message-ID: <4E6EF310.7060603@profihost.ag>
+Date: Tue, 13 Sep 2011 08:07:12 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110912230246.GA20975@shutemov.name>
+Subject: Re: system freezing with 3.0.4
+References: <4E69A496.9040707@profihost.ag> <20110912201606.GA24927@infradead.org>
+In-Reply-To: <20110912201606.GA24927@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-scsi@vger.kernel.org
 
-On Tue, Sep 13, 2011 at 02:02:46AM +0300, Kirill A. Shutemov wrote:
-> On Mon, Sep 12, 2011 at 12:57:19PM +0200, Johannes Weiner wrote:
-> > @@ -1508,6 +1524,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
-> >  	if (scanning_global_lru(sc)) {
-> >  		nr_taken = isolate_pages_global(nr_to_scan, &page_list,
-> >  			&nr_scanned, sc->order, reclaim_mode, zone, 0, file);
-> > +	} else {
-> > +		nr_taken = mem_cgroup_isolate_pages(nr_to_scan, &page_list,
-> > +			&nr_scanned, sc->order, reclaim_mode, zone,
-> > +			sc->mem_cgroup, 0, file);
-> > +	}
-> 
-> Redundant braces.
+Hi,
 
-I usually keep them for multiline branches, no matter how any
-statements.
+> On Fri, Sep 09, 2011 at 07:31:02AM +0200, Stefan Priebe - Profihost AG wrote:
+>> Hi list,
+>>
+>> here's an updated post of my one yesterday.
+>>
+>> We've updated some systems from 2.6.32 to 3.0.4 vanilla kernel.
+>> Since then we're expecting freezes every now and then. All in memory
+>> apps are still working but nothing which reads or writes from or to
+>> disk (at least it seems like that).
+>
+> What storage driver(s) do you use?
 
-But this is temporary anyway, 10/11 gets rid of this branch, leaving
-only
+aacraid - but i'm also seeing this on other systems.
 
-	nr_taken = isolate_pages(...)
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
