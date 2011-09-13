@@ -1,144 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CC1FB900137
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 19:02:48 -0400 (EDT)
-Date: Tue, 13 Sep 2011 02:02:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [patch 02/11] mm: vmscan: distinguish global reclaim from global
- LRU scanning
-Message-ID: <20110912230246.GA20975@shutemov.name>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-3-git-send-email-jweiner@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5A5900137
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 21:55:19 -0400 (EDT)
+Received: by vws14 with SMTP id 14so119730vws.9
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2011 18:55:17 -0700 (PDT)
+Message-ID: <4E6EB802.4070109@vflare.org>
+Date: Mon, 12 Sep 2011 21:55:14 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315825048-3437-3-git-send-email-jweiner@redhat.com>
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com> <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org> <4E6E18C6.8080900@linux.vnet.ibm.com>
+In-Reply-To: <4E6E18C6.8080900@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, dan.magenheimer@oracle.com, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On Mon, Sep 12, 2011 at 12:57:19PM +0200, Johannes Weiner wrote:
-> The traditional zone reclaim code is scanning the per-zone LRU lists
-> during direct reclaim and kswapd, and the per-zone per-memory cgroup
-> LRU lists when reclaiming on behalf of a memory cgroup limit.
+Hi Seth,
+
+I revised some of the original plans for xcfmalloc and below are some
+details.  I had few nits regarding the current implementation but I'm
+avoiding them here since we may have to change the design itself
+significantly.
+
+On 09/12/2011 10:35 AM, Seth Jennings wrote:
+
+> On 09/09/2011 09:41 PM, Nitin Gupta wrote:
+>> On 09/09/2011 04:34 PM, Greg KH wrote:
+>>
+>>> On Wed, Sep 07, 2011 at 09:09:04AM -0500, Seth Jennings wrote:
+>>>> Changelog:
+>>>> v2: fix bug in find_remove_block()
+>>>>     fix whitespace warning at EOF
+>>>>
+>>>> This patchset introduces a new memory allocator for persistent
+>>>> pages for zcache.  The current allocator is xvmalloc.  xvmalloc
+>>>> has two notable limitations:
+>>>> * High (up to 50%) external fragmentation on allocation sets > PAGE_SIZE/2
+>>>> * No compaction support which reduces page reclaimation
+>>>
+>>> I need some acks from other zcache developers before I can accept this.
+>>>
+>>
+>> First, thanks for this new allocator; xvmalloc badly needed a replacement :)
+>>
 > 
-> Subsequent patches will convert the traditional reclaim code to
-> reclaim exclusively from the per-memory cgroup LRU lists.  As a
-> result, using the predicate for which LRU list is scanned will no
-> longer be appropriate to tell global reclaim from limit reclaim.
+> Hey Nitin, I hope your internship went well :)  It's good to hear from you.
+>
+
+
+Yes, it went well and now I can spend more time on this project :)
+
+ 
+>> I went through xcfmalloc in detail and would be posting detailed
+>> comments tomorrow.  In general, it seems to be quite similar to the
+>> "chunk based" allocator used in initial implementation of "compcache" --
+>> please see section 2.3.1 in this paper:
+>> http://www.linuxsymposium.org/archives/OLS/Reprints-2007/briglia-Reprint.pdf
+>>
 > 
-> This patch adds a global_reclaim() predicate to tell direct/kswapd
-> reclaim from memory cgroup limit reclaim and substitutes it in all
-> places where currently scanning_global_lru() is used for that.
+> Ah, indeed they look similar.  I didn't know that this approach
+> had already been done before in the history of this project.
 > 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> ---
->  mm/vmscan.c |   60 +++++++++++++++++++++++++++++++++++-----------------------
->  1 files changed, 36 insertions(+), 24 deletions(-)
+>> I'm really looking forward to a slab based allocator as I mentioned in
+>> the initial mail:
+>> http://permalink.gmane.org/gmane.linux.kernel.mm/65467
+>>
+>> With the current design xcfmalloc suffers from issues similar to the
+>> allocator described in the paper:
+>>  - High metadata overhead
+>>  - Difficult implementation of compaction
+>>  - Need for extra memcpy()s  etc.
+>>
+>> With slab based approach, we can almost eliminate any metadata overhead,
+>> remove any free chunk merging logic, simplify compaction and so on.
+>>
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7502726..354f125 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -153,9 +153,25 @@ static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> -#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
-> +static bool global_reclaim(struct scan_control *sc)
-> +{
-> +	return !sc->mem_cgroup;
-> +}
-> +
-> +static bool scanning_global_lru(struct scan_control *sc)
-> +{
-> +	return !sc->mem_cgroup;
-> +}
->  #else
-> -#define scanning_global_lru(sc)	(1)
-> +static bool global_reclaim(struct scan_control *sc)
-> +{
-> +	return true;
-> +}
-> +
-> +static bool scanning_global_lru(struct scan_control *sc)
-> +{
-> +	return true;
-> +}
->  #endif
->  
->  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
-> @@ -1011,7 +1027,7 @@ keep_lumpy:
->  	 * back off and wait for congestion to clear because further reclaim
->  	 * will encounter the same problem
->  	 */
-> -	if (nr_dirty && nr_dirty == nr_congested && scanning_global_lru(sc))
-> +	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
->  		zone_set_flag(zone, ZONE_CONGESTED);
->  
->  	free_page_list(&free_pages);
-> @@ -1330,7 +1346,7 @@ static int too_many_isolated(struct zone *zone, int file,
->  	if (current_is_kswapd())
->  		return 0;
->  
-> -	if (!scanning_global_lru(sc))
-> +	if (!global_reclaim(sc))
->  		return 0;
->  
->  	if (file) {
-> @@ -1508,6 +1524,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
->  	if (scanning_global_lru(sc)) {
->  		nr_taken = isolate_pages_global(nr_to_scan, &page_list,
->  			&nr_scanned, sc->order, reclaim_mode, zone, 0, file);
-> +	} else {
-> +		nr_taken = mem_cgroup_isolate_pages(nr_to_scan, &page_list,
-> +			&nr_scanned, sc->order, reclaim_mode, zone,
-> +			sc->mem_cgroup, 0, file);
-> +	}
-
-Redundant braces.
-
-> +	if (global_reclaim(sc)) {
->  		zone->pages_scanned += nr_scanned;
->  		if (current_is_kswapd())
->  			__count_zone_vm_events(PGSCAN_KSWAPD, zone,
-> @@ -1515,14 +1537,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
->  		else
->  			__count_zone_vm_events(PGSCAN_DIRECT, zone,
->  					       nr_scanned);
-> -	} else {
-> -		nr_taken = mem_cgroup_isolate_pages(nr_to_scan, &page_list,
-> -			&nr_scanned, sc->order, reclaim_mode, zone,
-> -			sc->mem_cgroup, 0, file);
-> -		/*
-> -		 * mem_cgroup_isolate_pages() keeps track of
-> -		 * scanned pages on its own.
-> -		 */
->  	}
->  
->  	if (nr_taken == 0) {
-> @@ -1647,18 +1661,16 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  						&pgscanned, sc->order,
->  						reclaim_mode, zone,
->  						1, file);
-> -		zone->pages_scanned += pgscanned;
->  	} else {
->  		nr_taken = mem_cgroup_isolate_pages(nr_pages, &l_hold,
->  						&pgscanned, sc->order,
->  						reclaim_mode, zone,
->  						sc->mem_cgroup, 1, file);
-> -		/*
-> -		 * mem_cgroup_isolate_pages() keeps track of
-> -		 * scanned pages on its own.
-> -		 */
->  	}
-
-Ditto.
+> Just to align my understanding with yours, when I hear slab-based,
+> I'm thinking each page in the compressed memory pool will contain
+> 1 or more blocks that are all the same size.  Is this what you mean?
+> 
 
 
--- 
- Kirill A. Shutemov
+Yes, exactly.  The memory pool will consist of "superblocks" (typically
+16K or 64K). Each of these superblocks will contain objects of only one
+particular size (which is its size class).  This is the general
+structure of all slab allocators. In particular, I'm planning to use
+many of the ideas discussed in this paper:
+http://www.cs.umass.edu/~emery/hoard/asplos2000.pdf
+
+One major point to consider would be that these superblocks cannot be
+physically contiguous in our case, so we will have to do some map/unmap
+trickery.  The basic idea is to link together individual pages
+(typically 4k) using underlying struct_page->lru to form superblocks and
+map/unmap objects on demand.
+
+> If so, I'm not sure how changing to a slab-based system would eliminate
+> metadata overhead or do away with memcpy()s.
+>
+
+
+With slab based approach, the allocator itself need not store any
+metadata with allocated objects.  However, considering zcache and zram
+use-cases, the caller will still have to request additional space for
+per-object header: actual object size and back-reference (which
+inode/page-idx this object belongs to) needed for compaction.
+
+For free-list management, the underlying struct page and the free object
+space itself can be used. Some field in the struct page can point to the
+first free object in a page and free slab objects themselves will
+contain links to next/previous free objects in the page.
+
+> The memcpy()s are a side effect of having an allocation spread over
+> blocks in different pages.  I'm not seeing a way around this.
+>
+
+
+For slab objects than span 2 pages, we can use vm_map_ram() to
+temporarily map pages involved and read/write to objects directly. For
+objects lying entirely within a page, we can use much faster
+kmap_atomic() for access.
+
+ 
+> It also follows that the blocks that make up an allocation must be in
+> a list of some kind, leading to some amount of metadata overhead.
+> 
+
+
+Used objects need not be placed in any list. For free objects we can use
+underlying struct page and free object space itself to manage free list,
+as described above.
+
+> If you want to do compaction, it follows that you can't give the user
+> a direct pointer to the data, since the location of that data may change.
+> In this case, an indirection layer is required (i.e. xcf_blkdesc and
+> xcf_read()/xcf_write()).
+> 
+
+
+Yes, we can't give a direct pointer anyways since pages used by the
+allocator are not permanently mapped (to save precious VA spave on
+32-bit).  Still, we can save on much of metadata overhead and extra
+memcpy() as described above.
+
+
+> The only part of the metadata that could be done away with in a slab-
+> based approach, as far as I can see, is the prevoffset field in xcf_blkhdr,
+> since the size of the previous block in the page (or the previous object
+> in the slab) can be inferred from the size of the current block/object.
+> 
+> I do agree that we don't have to worry about free block merging in a
+> slab-based system.
+> 
+> I didn't implement compaction so a slab-based system could very well
+> make it easier.  I guess it depends on how one ends up doing it.
+>
+
+
+I expect compaction to be much easier with slab like design since
+finding target for relocating objects is so simple. You don't have to
+deal with all those little unusable holes created throughout the heap
+when mix-all-object-sizes-together approach is used.
+
+
+For compaction, I plan to have a scheme where the user (zcache/zram)
+would "cooperate" with the process.  Here is a rough outline for
+relocating an object:
+ - For any size class, when emptiness threshold (=total space allocated
+/ actual used) exceeds some threshold, the allocator will copy objects
+from least used slab superblocks to the most used ones.
+ - It will then issue a callback, registered by the user during pool
+creation, informing about the new object location,
+ - Due to various cases, this callback may return failure in which case
+the relocation is considered failed and we will disk newly created copy.
+ - If callback succeeds, it means that the user successfully updated its
+object reference and we can now mark the original copy as free.
+
+
+We can also batch this process (copy all objects in victim superblock at
+once to other superblocks and issue a single callback) for better
+efficiency.
+
+
+Please let me know if you have any comments. I plan to start with its
+implementation sometime this week.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
