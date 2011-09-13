@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AAC8D900161
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 06:08:43 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 06F723EE0C2
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:08:39 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E168F45DEAD
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:08:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA67F45DEA6
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:08:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA7491DB803F
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:08:38 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B1581DB803B
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 19:08:38 +0900 (JST)
-Date: Tue, 13 Sep 2011 19:07:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 02/11] mm: vmscan: distinguish global reclaim from
- global LRU scanning
-Message-Id: <20110913190749.c56d3f90.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1315825048-3437-3-git-send-email-jweiner@redhat.com>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
-	<1315825048-3437-3-git-send-email-jweiner@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AAA1900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 06:23:16 -0400 (EDT)
+Received: by ywe9 with SMTP id 9so386820ywe.14
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2011 03:23:14 -0700 (PDT)
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Subject: [PATCH 1/1] Trivial: Eliminate the ret variable from mm_take_all_locks
+Date: Tue, 13 Sep 2011 15:55:31 +0530
+Message-Id: <1315909531-13419-1-git-send-email-consul.kautuk@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Jiri Kosina <trivial@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
 
-On Mon, 12 Sep 2011 12:57:19 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
+The ret variable is really not needed in mm_take_all_locks as per
+the current flow of the mm_take_all_locks function.
 
-> The traditional zone reclaim code is scanning the per-zone LRU lists
-> during direct reclaim and kswapd, and the per-zone per-memory cgroup
-> LRU lists when reclaiming on behalf of a memory cgroup limit.
-> 
-> Subsequent patches will convert the traditional reclaim code to
-> reclaim exclusively from the per-memory cgroup LRU lists.  As a
-> result, using the predicate for which LRU list is scanned will no
-> longer be appropriate to tell global reclaim from limit reclaim.
-> 
-> This patch adds a global_reclaim() predicate to tell direct/kswapd
-> reclaim from memory cgroup limit reclaim and substitutes it in all
-> places where currently scanning_global_lru() is used for that.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+So, eliminating this return variable.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ mm/mmap.c |    8 +++-----
+ 1 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a65efd4..48bc056 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2558,7 +2558,6 @@ int mm_take_all_locks(struct mm_struct *mm)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct anon_vma_chain *avc;
+-	int ret = -EINTR;
+ 
+ 	BUG_ON(down_read_trylock(&mm->mmap_sem));
+ 
+@@ -2579,13 +2578,12 @@ int mm_take_all_locks(struct mm_struct *mm)
+ 				vm_lock_anon_vma(mm, avc->anon_vma);
+ 	}
+ 
+-	ret = 0;
++	return 0;
+ 
+ out_unlock:
+-	if (ret)
+-		mm_drop_all_locks(mm);
++	mm_drop_all_locks(mm);
+ 
+-	return ret;
++	return -EINTR;
+ }
+ 
+ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
