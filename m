@@ -1,57 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BEC7900144
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 15:19:51 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8DJGSb8029605
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 13:16:28 -0600
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8DJJTFd119762
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 13:19:29 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8DJPLbd001846
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 13:25:22 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH] staging: zcache: fix cleancache crash
-Date: Tue, 13 Sep 2011 14:19:22 -0500
-Message-Id: <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <4E6FA75A.8060308@linux.vnet.ibm.com>
-References: <4E6FA75A.8060308@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 75245900136
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:35:50 -0400 (EDT)
+Date: Tue, 13 Sep 2011 23:35:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [patch 0/11] mm: memcg naturalization -rc3
+Message-ID: <20110913203548.GA2894@shutemov.name>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@suse.de
-Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, dan.magenheimer@oracle.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-After commit, c5f5c4db, cleancache crashes on the first
-successful get. This was caused by a remaining virt_to_page()
-call in zcache_pampd_get_data_and_free() that only gets
-run in the cleancache path.
+On Mon, Sep 12, 2011 at 12:57:17PM +0200, Johannes Weiner wrote:
+> Hi everyone,
+> 
+> this is the third revision of the memcg naturalization patch set.  Due
+> to controversy, I dropped the reclaim statistics and the soft limit
+> reclaim rewrite.  What's left is mostly making the per-memcg LRU lists
+> exclusive.
+> 
+> Christoph suggested making struct mem_cgroup part of the core and have
+> reclaim always operate on at least a skeleton root_mem_cgroup with
+> basic LRU info even on !CONFIG_MEMCG kernels.  I agree that we should
+> go there, but in its current form this would drag a lot of ugly memcg
+> internals out into the public and I'd prefer another struct mem_cgroup
+> shakedown and the soft limit stuff to be done before this step.  But
+> we are getting there.
+> 
+> Changelog since -rc2
+> - consolidated all memcg hierarchy iteration constructs
+> - pass struct mem_cgroup_zone down the reclaim stack
+> - fix concurrent full hierarchy round-trip detection
+> - split out moving memcg reclaim from hierarchical global reclaim
+> - drop reclaim statistics
+> - rename do_shrink_zone to shrink_mem_cgroup_zone
+> - fix anon pre-aging to operate on per-memcg lrus
+> - revert to traditional limit reclaim hierarchy iteration
+> - split out lruvec introduction
+> - kill __add_page_to_lru_list
+> - fix LRU-accounting during swapcache/pagecache charging
+> - fix LRU-accounting of uncharged swapcache
+> - split out removing array id from pc->flags
+> - drop soft limit rework
+> 
+> More introduction and test results are included in the changelog of
+> the first patch.
+> 
+>  include/linux/memcontrol.h  |   74 +++--
+>  include/linux/mm_inline.h   |   21 +-
+>  include/linux/mmzone.h      |   10 +-
+>  include/linux/page_cgroup.h |   34 ---
+>  mm/memcontrol.c             |  688 ++++++++++++++++++++-----------------------
+>  mm/page_alloc.c             |    2 +-
+>  mm/page_cgroup.c            |   59 +----
+>  mm/swap.c                   |   24 +-
+>  mm/vmscan.c                 |  447 +++++++++++++++++-----------
+>  9 files changed, 674 insertions(+), 685 deletions(-)
 
-The patch converts the virt_to_page() to struct page
-casting like was done for other instances in c5f5c4db.
+Nice patchset. Thank you.
 
-Based on 3.1-rc4
+Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
----
- drivers/staging/zcache/zcache-main.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index a3f5162..462fbc2 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -1242,7 +1242,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *bufsize, bool raw,
- 	int ret = 0;
- 
- 	BUG_ON(!is_ephemeral(pool));
--	zbud_decompress(virt_to_page(data), pampd);
-+	zbud_decompress((struct page *)(data), pampd);
- 	zbud_free_and_delist((struct zbud_hdr *)pampd);
- 	atomic_dec(&zcache_curr_eph_pampd_count);
- 	return ret;
 -- 
-1.7.4.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
