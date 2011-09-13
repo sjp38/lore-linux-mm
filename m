@@ -1,173 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 97D79900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 12:05:45 -0400 (EDT)
-Received: by vws14 with SMTP id 14so1182985vws.9
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2011 09:05:38 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DC6F7900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 13:37:49 -0400 (EDT)
 MIME-Version: 1.0
-In-Reply-To: <1315902583.31737.848.camel@debian>
-References: <1315188460.31737.5.camel@debian>
-	<alpine.DEB.2.00.1109061914440.18646@router.home>
-	<1315357399.31737.49.camel@debian>
-	<alpine.DEB.2.00.1109062022100.20474@router.home>
-	<4E671E5C.7010405@cs.helsinki.fi>
-	<6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
-	<alpine.DEB.2.00.1109071003240.9406@router.home>
-	<1315442639.31737.224.camel@debian>
-	<alpine.DEB.2.00.1109081336320.14787@router.home>
-	<1315557944.31737.782.camel@debian>
-	<1315902583.31737.848.camel@debian>
-Date: Tue, 13 Sep 2011 10:04:13 -0500
-Message-ID: <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
-Subject: Re: [PATCH] slub Discard slab page only when node partials > minimum setting
-From: Christoph Lameter <christoph@lameter.com>
-Content-Type: multipart/alternative; boundary=90e6ba4fc724ec008004acd3f4f2
+Message-ID: <2ca31b06-eef9-49e4-beba-4959471b45d2@default>
+Date: Tue, 13 Sep 2011 10:37:23 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [REVERT for 3.1-rc7] staging: zcache: revert "fix crash on high
+ memory swap"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Alex,Shi" <alex.shi@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Greg KH <greg@kroah.com>
+Cc: Francis Moreau <francis.moro@gmail.com>, gregkh@suse.de, Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org
 
---90e6ba4fc724ec008004acd3f4f2
-Content-Type: text/plain; charset=ISO-8859-1
+Hi Greg --
 
-Sorry to be that late with a response but my email setup is screwed up.
+Please revert the following commit, hopefully before 3.1 is released.
+Although it fixes a crash in 32-bit systems with high memory,
+the fix apparently *causes* crashes on 64-bit systems.  Not sure why
+my testing didn't catch it before but it has now been observed in
+the wild in 3.1-rc4 and I can reproduce it now fairly easily.
+3.1-rc3 works fine, 3.1-rc4 fails, and 3.1-rc3 plus only this
+commit fails.  Let's revert it before 3.1 and Seth and Nitin and I
+will sort out a better fix later.
 
-I was more thinking about the number of slab pages in the partial caches
-rather than the size of the objects itself being an issue. I believe that
-was /sys/kernel/slab/*/cpu_partial.
+Reported-by: Francis Moreau <francis.moro@gmail.com>
+Reproduced-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-That setting could be tuned further before merging. An increase there causes
-additional memory to be caught in the partial list. But it reduces the node
-lock pressure further.
+Thanks,
+Dan
 
-On Tue, Sep 13, 2011 at 3:29 AM, Alex,Shi <alex.shi@intel.com> wrote:
+commit c5f5c4db393837ebb2ae47bf061d70e498f48f8c
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Date:   Wed Aug 10 12:56:49 2011 -0500
 
->
-> > > Hmmm... The sizes of the per cpu partial objects could be varied a bit
-> to
-> > > see if more would make an impact.
-> >
-> >
-> > I find almost in one time my kbuilding.
-> > size 384, was alloced in fastpath about 2900k times
-> > size 176, was alloced in fastpath about 1900k times
-> > size 192, was alloced in fastpath about 500k times
-> > anon_vma, was alloced in fastpath about 560k times
-> > size 72, was alloced in fastpath about 600k times
-> > size 512, 256, 128, was alloced in fastpath about more than 100k for
-> > each of them.
-> >
-> > I may give you objects size involved in my netperf testing later.
-> > and which test case do you prefer to? If I have, I may collection data
-> > on them.
->
-> I write a short script to collect different size object usage of
-> alloc_fastpath.  The output is following, first column is the object
-> name and second is the alloc_fastpath called times.
->
-> :t-0000448 62693419
-> :t-0000384 1037746
-> :at-0000104 191787
-> :t-0000176 2051053
-> anon_vma 953578
-> :t-0000048 2108191
-> :t-0008192 17858636
-> :t-0004096 2307039
-> :t-0002048 21601441
-> :t-0001024 98409238
-> :t-0000512 14896189
-> :t-0000256 96731409
-> :t-0000128 221045
-> :t-0000064 149505
-> :t-0000032 638431
-> :t-0000192 263488
-> -----
->
-> Above output shows size 448/8192/2048/512/256 are used much.
->
-> So at least both kbuild(with 4 jobs) and netperf loopback (one server on
-> CPU socket 1, and one client on CPU socket 2) testing have no clear
-> performance change on our machine
-> NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP.
->
->
->
->
->
->
+    staging: zcache: fix crash on high memory swap
+   =20
+    zcache_put_page() was modified to pass page_address(page) instead of th=
+e
+    actual page structure. In combination with the function signature chang=
+es
+    to tmem_put() and zcache_pampd_create(), zcache_pampd_create() tries to
+    (re)derive the page structure from the virtual address.  However, if th=
+e
+    original page is a high memory page (or any unmapped page), this
+    virt_to_page() fails because the page_address() in zcache_put_page()
+    returned NULL.
+   =20
+    This patch changes zcache_put_page() and zcache_get_page() to pass
+    the page structure instead of the page's virtual address, which
+    may or may not exist.
+   =20
+    Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+    Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+    Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
 
---90e6ba4fc724ec008004acd3f4f2
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-Sorry to be that late with a response but my email setup is screwed up.<br>=
-<br>I was more thinking about the number of slab pages in the partial cache=
-s rather than the size of the objects itself being an issue. I believe that=
- was /sys/kernel/slab/*/cpu_partial.<br>
-<br>That setting could be tuned further before merging. An increase there c=
-auses additional memory to be caught in the partial list. But it reduces th=
-e node lock pressure further.<br><br><div class=3D"gmail_quote">On Tue, Sep=
- 13, 2011 at 3:29 AM, Alex,Shi <span dir=3D"ltr">&lt;<a href=3D"mailto:alex=
-.shi@intel.com">alex.shi@intel.com</a>&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; borde=
-r-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;"><br>
-&gt; &gt; Hmmm... The sizes of the per cpu partial objects could be varied =
-a bit to<br>
-&gt; &gt; see if more would make an impact.<br>
-&gt;<br>
-&gt;<br>
-&gt; I find almost in one time my kbuilding.<br>
-&gt; size 384, was alloced in fastpath about 2900k times<br>
-&gt; size 176, was alloced in fastpath about 1900k times<br>
-&gt; size 192, was alloced in fastpath about 500k times<br>
-&gt; anon_vma, was alloced in fastpath about 560k times<br>
-&gt; size 72, was alloced in fastpath about 600k times<br>
-&gt; size 512, 256, 128, was alloced in fastpath about more than 100k for<b=
-r>
-&gt; each of them.<br>
-&gt;<br>
-&gt; I may give you objects size involved in my netperf testing later.<br>
-&gt; and which test case do you prefer to? If I have, I may collection data=
-<br>
-&gt; on them.<br>
-<br>
-I write a short script to collect different size object usage of<br>
-alloc_fastpath. =A0The output is following, first column is the object<br>
-name and second is the alloc_fastpath called times.<br>
-<br>
-:t-0000448 62693419<br>
-:t-0000384 1037746<br>
-:at-0000104 191787<br>
-:t-0000176 2051053<br>
-anon_vma 953578<br>
-:t-0000048 2108191<br>
-:t-0008192 17858636<br>
-:t-0004096 2307039<br>
-:t-0002048 21601441<br>
-:t-0001024 98409238<br>
-:t-0000512 14896189<br>
-:t-0000256 96731409<br>
-:t-0000128 221045<br>
-:t-0000064 149505<br>
-:t-0000032 638431<br>
-:t-0000192 263488<br>
------<br>
-<br>
-Above output shows size 448/8192/2048/512/256 are used much.<br>
-<br>
-So at least both kbuild(with 4 jobs) and netperf loopback (one server on<br=
->
-CPU socket 1, and one client on CPU socket 2) testing have no clear<br>
-performance change on our machine<br>
-NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP.<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-</blockquote></div><br>
-
---90e6ba4fc724ec008004acd3f4f2--
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/=
+zcache-main.c
+index 855a5bb..a3f5162 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1158,7 +1158,7 @@ static void *zcache_pampd_create(char *data, size_t s=
+ize, bool raw, int eph,
+ =09size_t clen;
+ =09int ret;
+ =09unsigned long count;
+-=09struct page *page =3D virt_to_page(data);
++=09struct page *page =3D (struct page *)(data);
+ =09struct zcache_client *cli =3D pool->client;
+ =09uint16_t client_id =3D get_client_id_from_client(cli);
+ =09unsigned long zv_mean_zsize;
+@@ -1227,7 +1227,7 @@ static int zcache_pampd_get_data(char *data, size_t *=
+bufsize, bool raw,
+ =09int ret =3D 0;
+=20
+ =09BUG_ON(is_ephemeral(pool));
+-=09zv_decompress(virt_to_page(data), pampd);
++=09zv_decompress((struct page *)(data), pampd);
+ =09return ret;
+ }
+=20
+@@ -1539,7 +1539,7 @@ static int zcache_put_page(int cli_id, int pool_id, s=
+truct tmem_oid *oidp,
+ =09=09goto out;
+ =09if (!zcache_freeze && zcache_do_preload(pool) =3D=3D 0) {
+ =09=09/* preload does preempt_disable on success */
+-=09=09ret =3D tmem_put(pool, oidp, index, page_address(page),
++=09=09ret =3D tmem_put(pool, oidp, index, (char *)(page),
+ =09=09=09=09PAGE_SIZE, 0, is_ephemeral(pool));
+ =09=09if (ret < 0) {
+ =09=09=09if (is_ephemeral(pool))
+@@ -1572,7 +1572,7 @@ static int zcache_get_page(int cli_id, int pool_id, s=
+truct tmem_oid *oidp,
+ =09pool =3D zcache_get_pool_by_id(cli_id, pool_id);
+ =09if (likely(pool !=3D NULL)) {
+ =09=09if (atomic_read(&pool->obj_count) > 0)
+-=09=09=09ret =3D tmem_get(pool, oidp, index, page_address(page),
++=09=09=09ret =3D tmem_get(pool, oidp, index, (char *)(page),
+ =09=09=09=09=09&size, 0, is_ephemeral(pool));
+ =09=09zcache_put_pool(pool);
+ =09}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
