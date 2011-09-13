@@ -1,199 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E8C88900172
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 13:41:48 -0400 (EDT)
-Date: Tue, 13 Sep 2011 10:41:26 -0700
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V9 6/6] mm: frontswap/cleancache: final flush->invalidate
-Message-ID: <20110913174126.GA11347@ca-server1.us.oracle.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id A2FFC900172
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 14:09:25 -0400 (EDT)
+Received: by gxk22 with SMTP id 22so1018959gxk.30
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2011 11:09:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <4E6E39DD.2040102@parallels.com>
+References: <1315276556-10970-1-git-send-email-glommer@parallels.com>
+ <CAHH2K0aJxjinSu0Ek6jzsZ5dBmm5mEU-typuwYWYWEudF2F3Qg@mail.gmail.com>
+ <4E664766.40200@parallels.com> <CAHH2K0YJA7vZZ3QNAf63TZOnWhsRUwfuZYfntBL4muZ0G_Vt2w@mail.gmail.com>
+ <4E66A0A9.3060403@parallels.com> <CAHH2K0aq4s1_H-yY0kA3LhM00CCNNbJZyvyBoDD6rHC+qo_gNg@mail.gmail.com>
+ <4E68484A.4000201@parallels.com> <CAHH2K0YcXMUfd1Zr=f5a4=X9cPPp8NZiuichFXaOo=kVp5rRJA@mail.gmail.com>
+ <4E699341.9010606@parallels.com> <CALdu-PCrYPZx38o44ZyFrbQ6H39-vNPKey_Tpm4HRUNHNFMpyA@mail.gmail.com>
+ <4E6E39DD.2040102@parallels.com>
+From: Paul Menage <paul@paulmenage.org>
+Date: Tue, 13 Sep 2011 11:09:03 -0700
+Message-ID: <CALdu-PC7ESSUHuF4vfVoRFFfkaBt1V28rGW3-O5pT3WtegAh4g@mail.gmail.com>
+Subject: Re: [PATCH] per-cgroup tcp buffer limitation
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Suleiman Souhlal <suleiman@google.com>, Lennart Poettering <lennart@poettering.net>
 
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V9 6/6] mm: frontswap/cleancache: final flush->invalidate
+On Mon, Sep 12, 2011 at 9:57 AM, Glauber Costa <glommer@parallels.com> wrot=
+e:
+>
+> I think at this point there is at least consensus that this could very we=
+ll
+> live in memcg, right ?
 
-This sixth patch of six in this frontswap series completes the renaming
-from "flush" to "invalidate" across both tmem frontends (cleancache and
-frontswap) and both tmem backends (Xen and zcache), as required by akpm.
-This change is completely cosmetic.
+Yes, it looks that way.
 
-[v9: akpm@linux-foundation.org: change "flush" to "invalidate", part 3]
+>> This is definitely an improvement, but I'd say it's not enough. I
+>> think we should consider something like:
+>
+> One step at a time =3D)
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Jan Beulich <JBeulich@novell.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Matthew Wilcox <matthew@wil.cx>
-Cc: Chris Mason <chris.mason@oracle.com>
-Cc: Rik Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Yes, as far as design and initial implementation goes - but the full
+plan has to be figured out before anything gets committed to mainline,
+given the stability guarantees that implies.
 
----
+>> - the 'active' control determines whether (all) child cgroups will
+>> have =A0memory.{limit,usage}_in_bytes files, or
+>> memory.{kernel,user}_{limit,usage}_in_bytes files
+>> - kernel memory will be charged either against 'kernel' or 'total'
+>> depending on the value of unified
+>
+> You mean for display/pressure purposes, right? Internally, I think once w=
+e
+> have kernel memory, we always charge it to kernel memory, regardless of
+> anything else. The value in unified field will only take place when we ne=
+ed
+> to grab this value.
+>
+> I don't personally see a reason for not having all files present at all
+> times.
 
-Diffstat:
- drivers/staging/zcache/zcache-main.c     |   10 +++++-----
- drivers/xen/tmem.c                       |   10 +++++-----
- include/linux/cleancache.h               |   11 +++--------
- include/linux/frontswap.h                |    9 ++-------
- mm/cleancache.c                          |    7 ++++---
- mm/frontswap.c                           |    4 ++--
- 6 files changed, 21 insertions(+), 30 deletions(-)
+There's pretty much only one reason - avoiding the overhead of
+maintaining multiple counters.
 
-diff -Napur -x .git frontswap-v9-no_flush_change/drivers/staging/zcache/zcache-main.c frontswap-v9-with_flush_change/drivers/staging/zcache/zcache-main.c
---- frontswap-v9-no_flush_change/drivers/staging/zcache/zcache-main.c	2011-09-12 15:32:16.423932548 -0600
-+++ frontswap-v9-with_flush_change/drivers/staging/zcache/zcache-main.c	2011-09-12 15:44:35.294729696 -0600
-@@ -1775,9 +1775,9 @@ static int zcache_cleancache_init_shared
- static struct cleancache_ops zcache_cleancache_ops = {
- 	.put_page = zcache_cleancache_put_page,
- 	.get_page = zcache_cleancache_get_page,
--	.flush_page = zcache_cleancache_flush_page,
--	.flush_inode = zcache_cleancache_flush_inode,
--	.flush_fs = zcache_cleancache_flush_fs,
-+	.invalidate_page = zcache_cleancache_flush_page,
-+	.invalidate_inode = zcache_cleancache_flush_inode,
-+	.invalidate_fs = zcache_cleancache_flush_fs,
- 	.init_shared_fs = zcache_cleancache_init_shared_fs,
- 	.init_fs = zcache_cleancache_init_fs
- };
-@@ -1883,8 +1883,8 @@ static void zcache_frontswap_init(unsign
- static struct frontswap_ops zcache_frontswap_ops = {
- 	.put_page = zcache_frontswap_put_page,
- 	.get_page = zcache_frontswap_get_page,
--	.flush_page = zcache_frontswap_flush_page,
--	.flush_area = zcache_frontswap_flush_area,
-+	.invalidate_page = zcache_frontswap_flush_page,
-+	.invalidate_area = zcache_frontswap_flush_area,
- 	.init = zcache_frontswap_init
- };
- 
-diff -Napur -x .git frontswap-v9-no_flush_change/drivers/xen/tmem.c frontswap-v9-with_flush_change/drivers/xen/tmem.c
---- frontswap-v9-no_flush_change/drivers/xen/tmem.c	2011-09-12 15:32:17.764196069 -0600
-+++ frontswap-v9-with_flush_change/drivers/xen/tmem.c	2011-09-12 15:43:26.111701645 -0600
-@@ -242,9 +242,9 @@ __setup("nocleancache", no_cleancache);
- static struct cleancache_ops tmem_cleancache_ops = {
- 	.put_page = tmem_cleancache_put_page,
- 	.get_page = tmem_cleancache_get_page,
--	.flush_page = tmem_cleancache_flush_page,
--	.flush_inode = tmem_cleancache_flush_inode,
--	.flush_fs = tmem_cleancache_flush_fs,
-+	.invalidate_page = tmem_cleancache_flush_page,
-+	.invalidate_inode = tmem_cleancache_flush_inode,
-+	.invalidate_fs = tmem_cleancache_flush_fs,
- 	.init_shared_fs = tmem_cleancache_init_shared_fs,
- 	.init_fs = tmem_cleancache_init_fs
- };
-@@ -369,8 +369,8 @@ __setup("nofrontswap", no_frontswap);
- static struct frontswap_ops tmem_frontswap_ops = {
- 	.put_page = tmem_frontswap_put_page,
- 	.get_page = tmem_frontswap_get_page,
--	.flush_page = tmem_frontswap_flush_page,
--	.flush_area = tmem_frontswap_flush_area,
-+	.invalidate_page = tmem_frontswap_flush_page,
-+	.invalidate_area = tmem_frontswap_flush_area,
- 	.init = tmem_frontswap_init
- };
- #endif
-diff -Napur -x .git frontswap-v9-no_flush_change/include/linux/cleancache.h frontswap-v9-with_flush_change/include/linux/cleancache.h
---- frontswap-v9-no_flush_change/include/linux/cleancache.h	2011-09-12 15:39:10.641753680 -0600
-+++ frontswap-v9-with_flush_change/include/linux/cleancache.h	2011-09-12 15:42:01.429056182 -0600
-@@ -28,14 +28,9 @@ struct cleancache_ops {
- 			pgoff_t, struct page *);
- 	void (*put_page)(int, struct cleancache_filekey,
- 			pgoff_t, struct page *);
--	/*
--	 * NOTE: per akpm, flush_page, flush_inode and flush_fs will be
--	 * renamed to invalidate_* in a later commit in which all
--	 * dependencies (i.e Xen, zcache) will be renamed simultaneously
--	 */
--	void (*flush_page)(int, struct cleancache_filekey, pgoff_t);
--	void (*flush_inode)(int, struct cleancache_filekey);
--	void (*flush_fs)(int);
-+	void (*invalidate_page)(int, struct cleancache_filekey, pgoff_t);
-+	void (*invalidate_inode)(int, struct cleancache_filekey);
-+	void (*invalidate_fs)(int);
- };
- 
- extern struct cleancache_ops
-diff -Napur -x .git frontswap-v9-no_flush_change/include/linux/frontswap.h frontswap-v9-with_flush_change/include/linux/frontswap.h
---- frontswap-v9-no_flush_change/include/linux/frontswap.h	2011-09-12 15:39:10.642745506 -0600
-+++ frontswap-v9-with_flush_change/include/linux/frontswap.h	2011-09-12 16:53:48.162102905 -0600
-@@ -9,13 +9,8 @@ struct frontswap_ops {
- 	void (*init)(unsigned);
- 	int (*put_page)(unsigned, pgoff_t, struct page *);
- 	int (*get_page)(unsigned, pgoff_t, struct page *);
--	/*
--	 * NOTE: per akpm, flush_page and flush_area will be renamed to
--	 * invalidate_page and invalidate_area in a later commit in which
--	 * all dependencies (i.e. Xen, zcache) will be renamed simultaneously
--	 */
--	void (*flush_page)(unsigned, pgoff_t);
--	void (*flush_area)(unsigned);
-+	void (*invalidate_page)(unsigned, pgoff_t);
-+	void (*invalidate_area)(unsigned);
- };
- 
- extern int frontswap_enabled;
-diff -Napur -x .git frontswap-v9-no_flush_change/mm/cleancache.c frontswap-v9-with_flush_change/mm/cleancache.c
---- frontswap-v9-no_flush_change/mm/cleancache.c	2011-09-12 15:39:10.652684538 -0600
-+++ frontswap-v9-with_flush_change/mm/cleancache.c	2011-09-12 16:44:50.867691721 -0600
-@@ -166,7 +166,8 @@ void __cleancache_invalidate_page(struct
- 	if (pool_id >= 0) {
- 		VM_BUG_ON(!PageLocked(page));
- 		if (cleancache_get_key(mapping->host, &key) >= 0) {
--			(*cleancache_ops.flush_page)(pool_id, key, page->index);
-+			(*cleancache_ops.invalidate_page)(pool_id,
-+							  key, page->index);
- 			cleancache_invalidates++;
- 		}
- 	}
-@@ -184,7 +185,7 @@ void __cleancache_invalidate_inode(struc
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
- 	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
--		(*cleancache_ops.flush_inode)(pool_id, key);
-+		(*cleancache_ops.invalidate_inode)(pool_id, key);
- }
- EXPORT_SYMBOL(__cleancache_invalidate_inode);
- 
-@@ -198,7 +199,7 @@ void __cleancache_invalidate_fs(struct s
- 	if (sb->cleancache_poolid >= 0) {
- 		int old_poolid = sb->cleancache_poolid;
- 		sb->cleancache_poolid = -1;
--		(*cleancache_ops.flush_fs)(old_poolid);
-+		(*cleancache_ops.invalidate_fs)(old_poolid);
- 	}
- }
- EXPORT_SYMBOL(__cleancache_invalidate_fs);
-diff -Napur -x .git frontswap-v9-no_flush_change/mm/frontswap.c frontswap-v9-with_flush_change/mm/frontswap.c
---- frontswap-v9-no_flush_change/mm/frontswap.c	2011-09-12 15:39:10.655748025 -0600
-+++ frontswap-v9-with_flush_change/mm/frontswap.c	2011-09-12 16:44:20.364800836 -0600
-@@ -147,7 +147,7 @@ void __frontswap_invalidate_page(unsigne
- 
- 	BUG_ON(sis == NULL);
- 	if (frontswap_test(sis, offset)) {
--		(*frontswap_ops.flush_page)(type, offset);
-+		(*frontswap_ops.invalidate_page)(type, offset);
- 		atomic_dec(&sis->frontswap_pages);
- 		frontswap_clear(sis, offset);
- 		frontswap_invalidates++;
-@@ -166,7 +166,7 @@ void __frontswap_invalidate_area(unsigne
- 	BUG_ON(sis == NULL);
- 	if (sis->frontswap_map == NULL)
- 		return;
--	(*frontswap_ops.flush_area)(type);
-+	(*frontswap_ops.invalidate_area)(type);
- 	atomic_set(&sis->frontswap_pages, 0);
- 	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
- }
+Each set of counters (user, kernel, total) will have its own locks,
+contention and other overheads to keep up to date. If userspace
+doesn't care about one or two of the three, then that's mostly wasted.
+
+Now it might be that the accounting of all three can be done with
+little more overhead than that required to update just a split view or
+just a unified view, in which case there's much less argument against
+simplifying and tracking/charging/limiting all three.
+
+>
+> It is overly flexible if we're exposing these counters and expecting the
+> user to do anything with them. It is perfectly fine if a single file, whe=
+n
+> read, displays this information as statistics.
+>
+
+When I proposed this, I guess I was envisioning that most of the
+counters (e.g. things like TCP buffers or general network buffers)
+would be primarily for stats, since the admin probably only cares
+about total memory usage.
+
+The main point of this was to allow people who want to do something
+like tracking/limiting TCP buffer usage specifically per-cgroup to do
+so, without having any performance impact on the regular users.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
