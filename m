@@ -1,54 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 143CF900137
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 02:56:45 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p8D6uhjp018998
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 23:56:43 -0700
-Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
-	by wpaz13.hot.corp.google.com with ESMTP id p8D6ucWK016246
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2011 23:56:42 -0700
-Received: by pzk4 with SMTP id 4so574509pzk.28
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2011 23:56:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4E6E39DD.2040102@parallels.com>
-References: <1315276556-10970-1-git-send-email-glommer@parallels.com>
- <CAHH2K0aJxjinSu0Ek6jzsZ5dBmm5mEU-typuwYWYWEudF2F3Qg@mail.gmail.com>
- <4E664766.40200@parallels.com> <CAHH2K0YJA7vZZ3QNAf63TZOnWhsRUwfuZYfntBL4muZ0G_Vt2w@mail.gmail.com>
- <4E66A0A9.3060403@parallels.com> <CAHH2K0aq4s1_H-yY0kA3LhM00CCNNbJZyvyBoDD6rHC+qo_gNg@mail.gmail.com>
- <4E68484A.4000201@parallels.com> <CAHH2K0YcXMUfd1Zr=f5a4=X9cPPp8NZiuichFXaOo=kVp5rRJA@mail.gmail.com>
- <4E699341.9010606@parallels.com> <CALdu-PCrYPZx38o44ZyFrbQ6H39-vNPKey_Tpm4HRUNHNFMpyA@mail.gmail.com>
- <4E6E39DD.2040102@parallels.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Mon, 12 Sep 2011 23:56:18 -0700
-Message-ID: <CAHH2K0aOHPW2xqb86sN4A3xBwZKU0qgnZ05cn-3XKES392tftg@mail.gmail.com>
-Subject: Re: [PATCH] per-cgroup tcp buffer limitation
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DA63C900137
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 04:23:47 -0400 (EDT)
+Subject: RE: [PATCH] slub Discard slab page only when node partials >
+ minimum setting
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <1315557944.31737.782.camel@debian>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+	 <1315357399.31737.49.camel@debian>
+	 <alpine.DEB.2.00.1109062022100.20474@router.home>
+	 <4E671E5C.7010405@cs.helsinki.fi>
+	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	 <alpine.DEB.2.00.1109071003240.9406@router.home>
+	 <1315442639.31737.224.camel@debian>
+	 <alpine.DEB.2.00.1109081336320.14787@router.home>
+	 <1315557944.31737.782.camel@debian>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 13 Sep 2011 16:29:43 +0800
+Message-ID: <1315902583.31737.848.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, netdev@vger.kernel.org, xemul@parallels.com, "David S. Miller" <davem@davemloft.net>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Suleiman Souhlal <suleiman@google.com>, Lennart Poettering <lennart@poettering.net>
+To: Christoph Lameter <cl@linux.com>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Sep 12, 2011 at 9:57 AM, Glauber Costa <glommer@parallels.com> wrote:
-> On 09/12/2011 02:03 AM, Paul Menage wrote:
->> I definitely think that there was no consensus reached on unified
->> versus split charging - but I think that we can work around that and
->> keep everyone happy, see below.
->
-> I think at this point there is at least consensus that this could very well
-> live in memcg, right ?
 
-Yes, I think it should live in memcg.
+> > Hmmm... The sizes of the per cpu partial objects could be varied a bit to
+> > see if more would make an impact.
+> 
+> 
+> I find almost in one time my kbuilding. 
+> size 384, was alloced in fastpath about 2900k times
+> size 176, was alloced in fastpath about 1900k times
+> size 192, was alloced in fastpath about 500k times
+> anon_vma, was alloced in fastpath about 560k times 
+> size 72, was alloced in fastpath about 600k times 
+> size 512, 256, 128, was alloced in fastpath about more than 100k for
+> each of them.
+> 
+> I may give you objects size involved in my netperf testing later. 
+> and which test case do you prefer to? If I have, I may collection data
+> on them. 
 
->> On the subject of filesystems specifically, see Greg Thelen's proposal
->> for using bind mounts to account on a bind mount to a given cgroup -
->> that could apply to dentries, page tables and other kernel memory as
->> well as page cache.
->
-> Care to point me to it ?
+I write a short script to collect different size object usage of
+alloc_fastpath.  The output is following, first column is the object
+name and second is the alloc_fastpath called times.
 
-http://marc.info/?t=127749867100004&r=1&w=2
+:t-0000448 62693419
+:t-0000384 1037746
+:at-0000104 191787
+:t-0000176 2051053
+anon_vma 953578
+:t-0000048 2108191
+:t-0008192 17858636
+:t-0004096 2307039
+:t-0002048 21601441
+:t-0001024 98409238
+:t-0000512 14896189
+:t-0000256 96731409
+:t-0000128 221045
+:t-0000064 149505
+:t-0000032 638431
+:t-0000192 263488
+-----
+
+Above output shows size 448/8192/2048/512/256 are used much. 
+
+So at least both kbuild(with 4 jobs) and netperf loopback (one server on
+CPU socket 1, and one client on CPU socket 2) testing have no clear
+performance change on our machine
+NHM-EP/NHM-EX/WSM-EP/tigerton/core2-EP. 
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
