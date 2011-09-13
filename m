@@ -1,73 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 75245900136
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:35:50 -0400 (EDT)
-Date: Tue, 13 Sep 2011 23:35:48 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [patch 0/11] mm: memcg naturalization -rc3
-Message-ID: <20110913203548.GA2894@shutemov.name>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB64900136
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:41:09 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 13 Sep 2011 14:41:06 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8DKeiD8165754
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 14:40:45 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8DKeW0Y000310
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 14:40:33 -0600
+Message-ID: <4E6FBFC4.1080901@linux.vnet.ibm.com>
+Date: Tue, 13 Sep 2011 15:40:36 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+Subject: Re: [PATCH V9 3/6] mm: frontswap: core frontswap functionality
+References: <20110913174026.GA11298@ca-server1.us.oracle.com>
+In-Reply-To: <20110913174026.GA11298@ca-server1.us.oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Mon, Sep 12, 2011 at 12:57:17PM +0200, Johannes Weiner wrote:
-> Hi everyone,
-> 
-> this is the third revision of the memcg naturalization patch set.  Due
-> to controversy, I dropped the reclaim statistics and the soft limit
-> reclaim rewrite.  What's left is mostly making the per-memcg LRU lists
-> exclusive.
-> 
-> Christoph suggested making struct mem_cgroup part of the core and have
-> reclaim always operate on at least a skeleton root_mem_cgroup with
-> basic LRU info even on !CONFIG_MEMCG kernels.  I agree that we should
-> go there, but in its current form this would drag a lot of ugly memcg
-> internals out into the public and I'd prefer another struct mem_cgroup
-> shakedown and the soft limit stuff to be done before this step.  But
-> we are getting there.
-> 
-> Changelog since -rc2
-> - consolidated all memcg hierarchy iteration constructs
-> - pass struct mem_cgroup_zone down the reclaim stack
-> - fix concurrent full hierarchy round-trip detection
-> - split out moving memcg reclaim from hierarchical global reclaim
-> - drop reclaim statistics
-> - rename do_shrink_zone to shrink_mem_cgroup_zone
-> - fix anon pre-aging to operate on per-memcg lrus
-> - revert to traditional limit reclaim hierarchy iteration
-> - split out lruvec introduction
-> - kill __add_page_to_lru_list
-> - fix LRU-accounting during swapcache/pagecache charging
-> - fix LRU-accounting of uncharged swapcache
-> - split out removing array id from pc->flags
-> - drop soft limit rework
-> 
-> More introduction and test results are included in the changelog of
-> the first patch.
-> 
->  include/linux/memcontrol.h  |   74 +++--
->  include/linux/mm_inline.h   |   21 +-
->  include/linux/mmzone.h      |   10 +-
->  include/linux/page_cgroup.h |   34 ---
->  mm/memcontrol.c             |  688 ++++++++++++++++++++-----------------------
->  mm/page_alloc.c             |    2 +-
->  mm/page_cgroup.c            |   59 +----
->  mm/swap.c                   |   24 +-
->  mm/vmscan.c                 |  447 +++++++++++++++++-----------
->  9 files changed, 674 insertions(+), 685 deletions(-)
+Hey Dan,
 
-Nice patchset. Thank you.
+I get the following compile warnings:
 
-Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
+mm/frontswap.c: In function ?init_frontswap?:
+mm/frontswap.c:264:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
+include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
+mm/frontswap.c:266:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
+include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
+mm/frontswap.c:268:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
+include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
+mm/frontswap.c:270:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
+include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
 
--- 
- Kirill A. Shutemov
+size_t is platform dependent but is generally "unsigned int"
+for 32-bit and "unsigned long" for 64-bit.
+
+I think just typecasting these to size_t * would fix it.
+
+On 09/13/2011 12:40 PM, Dan Magenheimer wrote:
+> +#ifdef CONFIG_DEBUG_FS
+> +	struct dentry *root = debugfs_create_dir("frontswap", NULL);
+> +	if (root == NULL)
+> +		return -ENXIO;
+> +	debugfs_create_size_t("gets", S_IRUGO,
+> +				root, &frontswap_gets);
+> +	debugfs_create_size_t("succ_puts", S_IRUGO,
+> +				root, &frontswap_succ_puts);
+> +	debugfs_create_size_t("puts", S_IRUGO,
+> +				root, &frontswap_failed_puts);
+> +	debugfs_create_size_t("invalidates", S_IRUGO,
+> +				root, &frontswap_invalidates);
+> +#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
