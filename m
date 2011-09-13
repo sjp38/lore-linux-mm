@@ -1,57 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 71242900136
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:46:20 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8DKM83q031608
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:22:08 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8DKkIqg207634
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:46:18 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8DKjqim011778
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 14:45:53 -0600
-Message-ID: <4E6FC109.5090608@linux.vnet.ibm.com>
-Date: Tue, 13 Sep 2011 15:46:01 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DE81E900136
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:51:03 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH V9 5/6] mm: cleancache: update to match akpm frontswap
- feedback
-References: <20110913174106.GA11330@ca-server1.us.oracle.com>
-In-Reply-To: <20110913174106.GA11330@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Message-ID: <f477a147-9948-4bef-973a-1f77bd185da1@default>
+Date: Tue, 13 Sep 2011 13:50:27 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V9 3/6] mm: frontswap: core frontswap functionality
+References: <20110913174026.GA11298@ca-server1.us.oracle.com
+ 4E6FBFC4.1080901@linux.vnet.ibm.com>
+In-Reply-To: <4E6FBFC4.1080901@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-Hey Dan,
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: [PATCH V9 3/6] mm: frontswap: core frontswap functionality
+>=20
+> Hey Dan,
+>=20
+> I get the following compile warnings:
+>=20
+> mm/frontswap.c: In function 'init_frontswap':
+> mm/frontswap.c:264:5: warning: passing argument 4 of 'debugfs_create_size=
+_t' from incompatible pointer
+> type
+> include/linux/debugfs.h:68:16: note: expected 'size_t *' but argument is =
+of type 'long unsigned int *'
+> mm/frontswap.c:266:5: warning: passing argument 4 of 'debugfs_create_size=
+_t' from incompatible pointer
+> type
+> include/linux/debugfs.h:68:16: note: expected 'size_t *' but argument is =
+of type 'long unsigned int *'
+> mm/frontswap.c:268:5: warning: passing argument 4 of 'debugfs_create_size=
+_t' from incompatible pointer
+> type
+> include/linux/debugfs.h:68:16: note: expected 'size_t *' but argument is =
+of type 'long unsigned int *'
+> mm/frontswap.c:270:5: warning: passing argument 4 of 'debugfs_create_size=
+_t' from incompatible pointer
+> type
+> include/linux/debugfs.h:68:16: note: expected 'size_t *' but argument is =
+of type 'long unsigned int *'
 
-Same typecasting needed here:
+Thanks for checking on 32-bit!
+=20
+> size_t is platform dependent but is generally "unsigned int"
+> for 32-bit and "unsigned long" for 64-bit.
+>=20
+> I think just typecasting these to size_t * would fix it.
 
-mm/cleancache.c: In function ?init_cleancache?:
-mm/cleancache.c:214:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
-include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
-mm/cleancache.c:216:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
-include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
-mm/cleancache.c:218:5: warning: passing argument 4 of ?debugfs_create_size_t? from incompatible pointer type
-include/linux/debugfs.h:68:16: note: expected ?size_t *? but argument is of type ?long unsigned int *?
+Actually, I think the best fix is likely to change the variables
+and the debugfs calls to u64 since even on 32-bit, the
+counters may exceed 2**32 on a heavily-loaded long-running
+system.
 
-On 09/13/2011 12:41 PM, Dan Magenheimer wrote:
-> +#ifdef CONFIG_DEBUG_FS
-> +	struct dentry *root = debugfs_create_dir("cleancache", NULL);
-> +	if (root == NULL)
-> +		return -ENXIO;
-> +	debugfs_create_size_t("succ_gets", S_IRUGO,
-> +				root, &cleancache_succ_gets);
-> +	debugfs_create_size_t("failed_gets", S_IRUGO,
-> +				root, &cleancache_failed_gets);
-> +	debugfs_create_size_t("puts", S_IRUGO,
-> +				root, &cleancache_puts);
-> +	debugfs_create_size_t("invalidates", S_IRUGO,
-> +				root, &cleancache_invalidates);
-> +#endif
+I'll give it a day or two to see if anyone else has any feedback
+before I fix this for V10.
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
