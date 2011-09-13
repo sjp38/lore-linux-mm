@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CED2C900136
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:52:26 -0400 (EDT)
-Date: Tue, 13 Sep 2011 13:51:07 -0700
-From: Andrew Morton <akpm@google.com>
-Subject: Re: [PATCH V9 3/6] mm: frontswap: core frontswap functionality
-Message-Id: <20110913135107.295aecfe.akpm@google.com>
-In-Reply-To: <4E6FBFC4.1080901@linux.vnet.ibm.com>
-References: <20110913174026.GA11298@ca-server1.us.oracle.com>
-	<4E6FBFC4.1080901@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C416C900136
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2011 16:56:23 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+Date: Tue, 13 Sep 2011 13:56:00 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] staging: zcache: fix cleancache crash
+References: <4E6FA75A.8060308@linux.vnet.ibm.com
+ 1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de
+Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com
 
-On Tue, 13 Sep 2011 15:40:36 -0500
-Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Sent: Tuesday, September 13, 2011 1:19 PM
+> To: gregkh@suse.de
+> Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; li=
+nux-kernel@vger.kernel.org;
+> francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
+> Subject: [PATCH] staging: zcache: fix cleancache crash
+>=20
+> After commit, c5f5c4db, cleancache crashes on the first
+> successful get. This was caused by a remaining virt_to_page()
+> call in zcache_pampd_get_data_and_free() that only gets
+> run in the cleancache path.
+>=20
+> The patch converts the virt_to_page() to struct page
+> casting like was done for other instances in c5f5c4db.
+>=20
+> Based on 3.1-rc4
+>=20
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-> Hey Dan,
-> 
-> I get the following compile warnings:
-> 
-> mm/frontswap.c: In function a??init_frontswapa??:
-> mm/frontswap.c:264:5: warning: passing argument 4 of a??debugfs_create_size_ta?? from incompatible pointer type
-> include/linux/debugfs.h:68:16: note: expected a??size_t *a?? but argument is of type a??long unsigned int *a??
-> mm/frontswap.c:266:5: warning: passing argument 4 of a??debugfs_create_size_ta?? from incompatible pointer type
-> include/linux/debugfs.h:68:16: note: expected a??size_t *a?? but argument is of type a??long unsigned int *a??
-> mm/frontswap.c:268:5: warning: passing argument 4 of a??debugfs_create_size_ta?? from incompatible pointer type
-> include/linux/debugfs.h:68:16: note: expected a??size_t *a?? but argument is of type a??long unsigned int *a??
-> mm/frontswap.c:270:5: warning: passing argument 4 of a??debugfs_create_size_ta?? from incompatible pointer type
-> include/linux/debugfs.h:68:16: note: expected a??size_t *a?? but argument is of type a??long unsigned int *a??
-> 
-> size_t is platform dependent but is generally "unsigned int"
-> for 32-bit and "unsigned long" for 64-bit.
-> 
-> I think just typecasting these to size_t * would fix it.
+Yep, this appears to fix it!  Hopefully Francis can confirm.
 
-That's very risky.
+Greg, ideally apply this additional fix rather than do the revert
+of the original patch suggested in https://lkml.org/lkml/2011/9/13/234=20
 
-> On 09/13/2011 12:40 PM, Dan Magenheimer wrote:
-> > +#ifdef CONFIG_DEBUG_FS
-> > +	struct dentry *root = debugfs_create_dir("frontswap", NULL);
-> > +	if (root == NULL)
-> > +		return -ENXIO;
-> > +	debugfs_create_size_t("gets", S_IRUGO,
-> > +				root, &frontswap_gets);
-> > +	debugfs_create_size_t("succ_puts", S_IRUGO,
-> > +				root, &frontswap_succ_puts);
-> > +	debugfs_create_size_t("puts", S_IRUGO,
-> > +				root, &frontswap_failed_puts);
-> > +	debugfs_create_size_t("invalidates", S_IRUGO,
-> > +				root, &frontswap_invalidates);
-> > +#endif
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-Make them u32 and use debugfs_create_x32(), perhaps.  Or create
-debugfs_create_ulong().
+> ---
+>  drivers/staging/zcache/zcache-main.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+>=20
+> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcach=
+e/zcache-main.c
+> index a3f5162..462fbc2 100644
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
+> @@ -1242,7 +1242,7 @@ static int zcache_pampd_get_data_and_free(char *dat=
+a, size_t *bufsize, bool raw,
+>  =09int ret =3D 0;
+>=20
+>  =09BUG_ON(!is_ephemeral(pool));
+> -=09zbud_decompress(virt_to_page(data), pampd);
+> +=09zbud_decompress((struct page *)(data), pampd);
+>  =09zbud_free_and_delist((struct zbud_hdr *)pampd);
+>  =09atomic_dec(&zcache_curr_eph_pampd_count);
+>  =09return ret;
+> --
+> 1.7.4.1
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
