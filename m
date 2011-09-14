@@ -1,98 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EDAD26B0023
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:35:26 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2199632qwa.28
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2011 11:35:25 -0700 (PDT)
-Date: Wed, 14 Sep 2011 14:35:21 -0400 (EDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: [PATCH/RFC] mm: add vm_area_add_early()
-Message-ID: <alpine.LFD.2.00.1109141427340.20358@xanadu.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D336C6B0023
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:44:46 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 14 Sep 2011 14:41:57 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8EIfl6t261780
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:41:48 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8EIfMtO026783
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 12:41:22 -0600
+Subject: Re: [RFC PATCH 2/2] mm: restrict access to /proc/slabinfo
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110910164134.GA2442@albatros>
+References: <20110910164001.GA2342@albatros>
+	 <20110910164134.GA2442@albatros>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 14 Sep 2011 11:41:41 -0700
+Message-ID: <1316025701.4478.65.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org
+To: Vasiliy Kulikov <segoon@openwall.com>
+Cc: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Sat, 2011-09-10 at 20:41 +0400, Vasiliy Kulikov wrote:
+> @@ -4584,7 +4584,8 @@ static const struct file_operations proc_slabstats_operations = {
+>  
+>  static int __init slab_proc_init(void)
+>  {
+> -       proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+> +       proc_create("slabinfo", S_IWUSR | S_IRUSR, NULL,
+> +                   &proc_slabinfo_operations);
+>  #ifdef CONFIG_DEBUG_SLAB_LEAK
+>         proc_create("slab_allocators", 0, NULL, &proc_sla 
 
-The existing vm_area_register_early() allows for early vmalloc space
-allocation.  However upcoming cleanups in the ARM architecture require
-that some fixed locations in the vmalloc area be reserved also very early.
+If you respin this, please don't muck with the whitespace.  Otherwise,
+I'm fine with this.  Distros are already starting to do this anyway in
+userspace.
 
-The name "vm_area_register_early" would have been a good name for the
-reservation part without the allocation.  Since it is already in use with
-different semantics, let's create vm_area_add_early() instead.
+Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
-Both vm_area_register_early() and vm_area_add_early() can be used together
-meaning that the former is now implemented using the later where it is
-ensured that no conflicting areas are added, but no attempt is made to
-make the allocation scheme in vm_area_register_early() more sophisticated.
-After all, you must know what you're doing when using those functions.
-
-Signed-off-by: Nicolas Pitre <nicolas.pitre@linaro.org>
----
-
-Comments / ACKs appreciated.
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 9332e52ea8..e7d2cba995 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -130,6 +130,7 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
-  */
- extern rwlock_t vmlist_lock;
- extern struct vm_struct *vmlist;
-+extern __init void vm_area_add_early(struct vm_struct *vm);
- extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
- 
- #ifdef CONFIG_SMP
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 7ef0903058..bf20a0ff95 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1118,6 +1118,31 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
- EXPORT_SYMBOL(vm_map_ram);
- 
- /**
-+ * vm_area_add_early - add vmap area early during boot
-+ * @vm: vm_struct to add
-+ *
-+ * This function is used to add fixed kernel vm area to vmlist before
-+ * vmalloc_init() is called.  @vm->addr, @vm->size, and @vm->flags
-+ * should contain proper values and the other fields should be zero.
-+ *
-+ * DO NOT USE THIS FUNCTION UNLESS YOU KNOW WHAT YOU'RE DOING.
-+ */
-+void __init vm_area_add_early(struct vm_struct *vm)
-+{
-+	struct vm_struct *tmp, **p;
-+
-+	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
-+		if (tmp->addr >= vm->addr) {
-+			BUG_ON(tmp->addr < vm->addr + vm->size);
-+			break;
-+		} else
-+			BUG_ON(tmp->addr + tmp->size > vm->addr);
-+	}
-+	vm->next = *p;
-+	*p = vm;
-+}
-+
-+/**
-  * vm_area_register_early - register vmap area early during boot
-  * @vm: vm_struct to register
-  * @align: requested alignment
-@@ -1139,8 +1164,7 @@ void __init vm_area_register_early(struct vm_struct *vm, size_t align)
- 
- 	vm->addr = (void *)addr;
- 
--	vm->next = vmlist;
--	vmlist = vm;
-+	vm_area_add_early(vm);
- }
- 
- void __init vmalloc_init(void)
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
