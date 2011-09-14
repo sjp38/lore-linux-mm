@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB4A6B0023
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 03:41:50 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 75D693EE0BC
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 16:41:45 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C1E545DE54
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 16:41:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 448FC45DD6F
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 16:41:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3836C1DB804D
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 16:41:45 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 03B4B1DB803A
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 16:41:45 +0900 (JST)
-Date: Wed, 14 Sep 2011 16:40:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 04/11] mm: memcg: per-priority per-zone hierarchy scan
- generations
-Message-Id: <20110914164045.f8074468.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110914055634.GA28051@redhat.com>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
-	<1315825048-3437-5-git-send-email-jweiner@redhat.com>
-	<20110913192759.ff0da031.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110913110301.GB18886@redhat.com>
-	<20110914095504.30fca5d0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110914055634.GA28051@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D8C16B0023
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 05:26:44 -0400 (EDT)
+Received: by vws10 with SMTP id 10so2203739vws.30
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2011 02:26:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+References: <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+Date: Wed, 14 Sep 2011 11:26:42 +0200
+Message-ID: <CAC9WiBjbWTRBkRN6pKSqJLVJXzcx89j7oFpCf0dzVeHAJM8zyw@mail.gmail.com>
+Subject: Re: [PATCH] staging: zcache: fix cleancache crash
+From: Francis Moreau <francis.moro@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org
 
-On Wed, 14 Sep 2011 07:56:34 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
+On Tue, Sep 13, 2011 at 10:56 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>> Sent: Tuesday, September 13, 2011 1:19 PM
+>> To: gregkh@suse.de
+>> Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; l=
+inux-kernel@vger.kernel.org;
+>> francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
+>> Subject: [PATCH] staging: zcache: fix cleancache crash
+>>
+>> After commit, c5f5c4db, cleancache crashes on the first
+>> successful get. This was caused by a remaining virt_to_page()
+>> call in zcache_pampd_get_data_and_free() that only gets
+>> run in the cleancache path.
+>>
+>> The patch converts the virt_to_page() to struct page
+>> casting like was done for other instances in c5f5c4db.
+>>
+>> Based on 3.1-rc4
+>>
+>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>
+> Yep, this appears to fix it! =A0Hopefully Francis can confirm.
 
-> On Wed, Sep 14, 2011 at 09:55:04AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 13 Sep 2011 13:03:01 +0200
-> > Johannes Weiner <jweiner@redhat.com> wrote:
-> No, the hierarchy iteration in shrink_zone() is done after a single
-> memcg, which is equivalent to the old code: scan all zones at all
-> priority levels from a memcg, then move on to the next memcg.  This
-> also works because of the per-zone per-priority last_scanned_child:
-> 
-> 	for each priority
-> 	  for each zone
-> 	    mem = mem_cgroup_iter(root)
-> 	    scan(mem)
-> 
-> priority-12 + zone-1 will yield memcg-1.  priority-12 + zone-2 starts
-> at its own last_scanned_child, so yields memcg-1 as well, etc.  A
-> second reclaimer that comes in with priority-12 + zone-1 will receive
-> memcg-2 for scanning.  So there is no change in behaviour for limit
-> reclaim.
-> 
-ok, thanks.
+Ok I can give this a try and let you know.
 
-> > If so, I need to abandon node-selection-logic for reclaim-by-limit
-> > and nodemask-for-memcg which shows me very good result. 
-> > I'll be sad ;)
-> 
-> With my clarification, do you still think so?
-> 
+In the meantime, as I said to you privately, 3.1-rc3 doesn't have the
+issue whereas 3.1-rc5 has.
 
-No. Thank you. 
-
-Regards,
--Kame
+Thanks
+--=20
+Francis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
