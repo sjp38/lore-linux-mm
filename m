@@ -1,50 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4383C6B0023
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:25:12 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 14 Sep 2011 14:24:46 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8EIOgqM155492
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:24:43 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8EIOfB7014112
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 12:24:41 -0600
-Subject: Re: [kernel-hardening] Re: [RFC PATCH 2/2] mm: restrict access to
- /proc/slabinfo
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110914154229.GA9776@albatros>
-References: <20110910164001.GA2342@albatros>
-	 <20110910164134.GA2442@albatros> <20110914131630.GA7001@albatros>
-	 <1316013505.4478.50.camel@nimitz>  <20110914154229.GA9776@albatros>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Sep 2011 11:24:40 -0700
-Message-ID: <1316024680.4478.61.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EDAD26B0023
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:35:26 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so2199632qwa.28
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2011 11:35:25 -0700 (PDT)
+Date: Wed, 14 Sep 2011 14:35:21 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: [PATCH/RFC] mm: add vm_area_add_early()
+Message-ID: <alpine.LFD.2.00.1109141427340.20358@xanadu.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Rosenberg <drosenberg@vsecurity.com>, Theodore Tso <tytso@mit.edu>, Alan Cox <alan@linux.intel.com>, Jesper Juhl <jj@chaosbits.net>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-arm-kernel@lists.infradead.org
 
-On Wed, 2011-09-14 at 19:42 +0400, Vasiliy Kulikov wrote:
-> > In other words, I dunno.  If we do this in the kernel, can we at least
-> > do something like CONFIG_INSECURE to both track these kinds of things
-> > and make it easy to get them out of a developer's way?
-> 
-> What do you think about adding your user to the slabinfo's group or
-> chmod it - quite the opposite Ubuntu currently does?  I think it is more
-> generic (e.g. you may chmod 0444 to allow all users to get debug
-> information or just 0440 and chgrp admin to allow only trusted users to
-> do it) and your local policy doesn't touch the kernel.
 
-That obviously _works_.  I'd be happy to ack your patch.  As I said,
-it's pretty minimally painful, even to folks who care about slabinfo
-like me.
+The existing vm_area_register_early() allows for early vmalloc space
+allocation.  However upcoming cleanups in the ARM architecture require
+that some fixed locations in the vmalloc area be reserved also very early.
 
--- Dave
+The name "vm_area_register_early" would have been a good name for the
+reservation part without the allocation.  Since it is already in use with
+different semantics, let's create vm_area_add_early() instead.
+
+Both vm_area_register_early() and vm_area_add_early() can be used together
+meaning that the former is now implemented using the later where it is
+ensured that no conflicting areas are added, but no attempt is made to
+make the allocation scheme in vm_area_register_early() more sophisticated.
+After all, you must know what you're doing when using those functions.
+
+Signed-off-by: Nicolas Pitre <nicolas.pitre@linaro.org>
+---
+
+Comments / ACKs appreciated.
+
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 9332e52ea8..e7d2cba995 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -130,6 +130,7 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
+  */
+ extern rwlock_t vmlist_lock;
+ extern struct vm_struct *vmlist;
++extern __init void vm_area_add_early(struct vm_struct *vm);
+ extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
+ 
+ #ifdef CONFIG_SMP
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 7ef0903058..bf20a0ff95 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1118,6 +1118,31 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
+ EXPORT_SYMBOL(vm_map_ram);
+ 
+ /**
++ * vm_area_add_early - add vmap area early during boot
++ * @vm: vm_struct to add
++ *
++ * This function is used to add fixed kernel vm area to vmlist before
++ * vmalloc_init() is called.  @vm->addr, @vm->size, and @vm->flags
++ * should contain proper values and the other fields should be zero.
++ *
++ * DO NOT USE THIS FUNCTION UNLESS YOU KNOW WHAT YOU'RE DOING.
++ */
++void __init vm_area_add_early(struct vm_struct *vm)
++{
++	struct vm_struct *tmp, **p;
++
++	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
++		if (tmp->addr >= vm->addr) {
++			BUG_ON(tmp->addr < vm->addr + vm->size);
++			break;
++		} else
++			BUG_ON(tmp->addr + tmp->size > vm->addr);
++	}
++	vm->next = *p;
++	*p = vm;
++}
++
++/**
+  * vm_area_register_early - register vmap area early during boot
+  * @vm: vm_struct to register
+  * @align: requested alignment
+@@ -1139,8 +1164,7 @@ void __init vm_area_register_early(struct vm_struct *vm, size_t align)
+ 
+ 	vm->addr = (void *)addr;
+ 
+-	vm->next = vmlist;
+-	vmlist = vm;
++	vm_area_add_early(vm);
+ }
+ 
+ void __init vmalloc_init(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
