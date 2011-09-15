@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2B26B0010
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 17:02:48 -0400 (EDT)
-Received: by ywe9 with SMTP id 9so2290561ywe.14
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2011 14:02:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAC9WiBjbWTRBkRN6pKSqJLVJXzcx89j7oFpCf0dzVeHAJM8zyw@mail.gmail.com>
-References: <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
-	<CAC9WiBjbWTRBkRN6pKSqJLVJXzcx89j7oFpCf0dzVeHAJM8zyw@mail.gmail.com>
-Date: Wed, 14 Sep 2011 23:02:45 +0200
-Message-ID: <CAC9WiBiHZ8jSBRaFQdsk-DwaNLFyR=e0zWUgrNEu6mE0ZoS0vQ@mail.gmail.com>
-Subject: Re: [PATCH] staging: zcache: fix cleancache crash
-From: Francis Moreau <francis.moro@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5806B0010
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 21:26:44 -0400 (EDT)
+Subject: Re: [PATCH] slub Discard slab page only when node partials >
+ minimum setting
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
+References: <1315188460.31737.5.camel@debian>
+	 <alpine.DEB.2.00.1109061914440.18646@router.home>
+	 <1315357399.31737.49.camel@debian>
+	 <alpine.DEB.2.00.1109062022100.20474@router.home>
+	 <4E671E5C.7010405@cs.helsinki.fi>
+	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	 <alpine.DEB.2.00.1109071003240.9406@router.home>
+	 <1315442639.31737.224.camel@debian>
+	 <alpine.DEB.2.00.1109081336320.14787@router.home>
+	 <1315557944.31737.782.camel@debian>	<1315902583.31737.848.camel@debian>
+	 <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 15 Sep 2011 09:32:43 +0800
+Message-ID: <1316050363.8425.483.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Sep 14, 2011 at 11:26 AM, Francis Moreau <francis.moro@gmail.com> w=
-rote:
-> On Tue, Sep 13, 2011 at 10:56 PM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
->>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->>> Sent: Tuesday, September 13, 2011 1:19 PM
->>> To: gregkh@suse.de
->>> Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; =
-linux-kernel@vger.kernel.org;
->>> francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
->>> Subject: [PATCH] staging: zcache: fix cleancache crash
->>>
->>> After commit, c5f5c4db, cleancache crashes on the first
->>> successful get. This was caused by a remaining virt_to_page()
->>> call in zcache_pampd_get_data_and_free() that only gets
->>> run in the cleancache path.
->>>
->>> The patch converts the virt_to_page() to struct page
->>> casting like was done for other instances in c5f5c4db.
->>>
->>> Based on 3.1-rc4
->>>
->>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>
->> Yep, this appears to fix it! =A0Hopefully Francis can confirm.
->
-> Ok I can give this a try and let you know.
+On Tue, 2011-09-13 at 23:04 +0800, Christoph Lameter wrote:
+> Sorry to be that late with a response but my email setup is screwed
+> up.
+> 
+> I was more thinking about the number of slab pages in the partial
+> caches rather than the size of the objects itself being an issue. I
+> believe that was /sys/kernel/slab/*/cpu_partial.
+> 
+> That setting could be tuned further before merging. An increase there
+> causes additional memory to be caught in the partial list. But it
+> reduces the node lock pressure further.
+> 
 
-This patch has fixed the issue I was hitting with qemu.
+Yeah, I think so. The more cpu partial page, the quicker to getting
+slabs. Maybe it's better to considerate the system memory size to set
+them. Do you has some plan or suggestions on tunning? 
 
-Thanks
---=20
-Francis
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
