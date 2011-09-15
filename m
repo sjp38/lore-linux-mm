@@ -1,11 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 841D49000BD
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C20149000BF
 	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 17:34:35 -0400 (EDT)
-Date: Thu, 15 Sep 2011 14:33:25 -0700
+Date: Thu, 15 Sep 2011 14:33:45 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V10 1/6] mm: frontswap: add frontswap header file
-Message-ID: <20110915213325.GA26333@ca-server1.us.oracle.com>
+Subject: [PATCH V10 2/6] mm: frontswap: core swap subsystem hooks and
+	headers
+Message-ID: <20110915213345.GA26352@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,59 +15,49 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V10 1/6] mm: frontswap: add frontswap header file
+Subject: [PATCH V10 2/6] mm: frontswap: core swap subsystem hooks and headers
 
-(Note: Following three paragraphs repeated for git commit log.)
-
-Frontswap is the alter ego of cleancache, the "yang" to cleancache's
-"yin"... and more precisely frontswap is the provider of anonymous
-pages to transcendent memory to nicely complement cleancache's providing
-of clean pagecache pages to transcendent memory.  For optimal use
-of transcendent memory, both are necessary... because a kernel
-under memory pressure first reclaims clean pagecache pages and,
-when under more memory pressure, starts swapping anonymous pages.
-
-Frontswap and cleancache (which was merged at 3.0) are the only
-necessary changes to the core kernel for transcendent memory; all
-other supporting code is implemented as drivers.  See "Transcendent
-memory in a nutshell" for a current (Aug 2011) and detailed overview of
-frontswap and related kernel parts: https://lwn.net/Articles/454795/
-
-Frontswap code was first posted publicly in January 2009 and on LKML
-in May 2009, and has remained very stable for over two years now.
-It is barely invasive, touching only the swap subsystem and adds only
-about 100 lines of code to existing swap subsystem code files.
-It has improved syntactically substantially between V1 and this posting
-of V10, thanks to the review of a few kernel developers, and has adapted
-easily to at least one major swap subsystem change.  As of 3.1, there are
-two in-tree users of frontswap patiently waiting for this patchset and for
-CONFIG_FRONTSWAP to be enabled: zcache (staging driver merged at
-2.6.39) and Xen tmem (merged at 3.0 and 3.1).  V5 of the frontswap
-patchset has been in linux-next since next-110603 (and this V10
-will be there shortly).  Earlier versions of frontswap already appear
-in some leading-edge distros.
-
-This first patch of six in this frontswap series provides the header
-file for the core code for frontswap that interfaces between the hooks
-in the swap subsystem and a frontswap backend via frontswap_ops.
 (Note to earlier reviewers:  This patchset has been reorganized due to
-feedback from Kame Hiroyuki and Andrew Morton. This patch contains part
-of patch 3of4 from the previous series.)
+feedback from Kame Hiroyuki and Andrew Morton. This patch combines patch
+1of4 and patch 3of4 from the previous series.)
 
-New file added: include/linux/frontswap.h
+This second patch of six in the frontswap series contains the changes
+to the core swap subsystem.  This includes:
+
+(1) makes available core swap data structures (swap_lock, swap_list and
+swap_info) that are needed by frontswap.c but we don't need to expose them
+to the dozens of files that include swap.h so we create a new swapfile.h
+just to extern-ify these and modify their declarations to non-static
+
+(2) adds frontswap-related elements to swap_info_struct.  Frontswap_map
+points to vzalloc'ed one-bit-per-swap-page metadata that indicates
+whether the swap page is in frontswap or in the device and frontswap_pages
+counts how many pages are in frontswap.
+
+(3) adds hooks in the swap subsystem and extends try_to_unuse so that
+frontswap_shrink can do a "partial swapoff".
+
+Note that a failed frontswap_map allocation is safe... failure is noted
+by lack of "FS" in the subsequent printk.
 
 [v10: no change]
-[v9: akpm@linux-foundation.org: change "flush" to "invalidate", part 1]
+[v9: akpm@linux-foundation.org: mark some statics __read_mostly]
+[v9: akpm@linux-foundation.org: add clarifying comments]
+[v9: akpm@linux-foundation.org: no need to loop repeating try_to_unuse]
+[v9: error27@gmail.com: remove superfluous check for NULL]
 [v8: rebase to 3.0-rc4]
+[v8: kamezawa.hiroyu@jp.fujitsu.com: change counter to atomic_t to avoid races]
+[v8: kamezawa.hiroyu@jp.fujitsu.com: comment to clarify informational counters]
 [v7: rebase to 3.0-rc3]
-[v7: JBeulich@novell.com: new static inlines resolve to no-ops if not config'd]
-[v7: JBeulich@novell.com: avoid redundant shifts/divides for *_bit lib calls]
-[v6: rebase to 3.1-rc1]
+[v7: JBeulich@novell.com: add new swap struct elements only if config'd]
+[v6: rebase to 3.0-rc1]
+[v6: lliubbo@gmail.com: fix null pointer deref if vzalloc fails]
+[v6: konrad.wilk@oracl.com: various checks and code clarifications/comments]
 [v5: no change from v4]
 [v4: rebase to 2.6.39]
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Jan Beulich <JBeulich@novell.com>
 Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Cc: Jeremy Fitzhardinge <jeremy@goop.org>
@@ -76,141 +67,307 @@ Cc: Nitin Gupta <ngupta@vflare.org>
 Cc: Matthew Wilcox <matthew@wil.cx>
 Cc: Chris Mason <chris.mason@oracle.com>
 Cc: Rik Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
---- linux/include/linux/frontswap.h	1969-12-31 17:00:00.000000000 -0700
-+++ frontswap-v10/include/linux/frontswap.h	2011-09-15 11:40:53.585807413 -0600
-@@ -0,0 +1,131 @@
-+#ifndef _LINUX_FRONTSWAP_H
-+#define _LINUX_FRONTSWAP_H
+---
+
+Diffstat:
+ include/linux/swap.h                     |    4 +
+ include/linux/swapfile.h                 |   13 ++++
+ mm/page_io.c                             |   12 +++
+ mm/swapfile.c                            |   64 ++++++++++++++++-----
+ 4 files changed, 80 insertions(+), 13 deletions(-)
+
+--- linux/include/linux/swapfile.h	1969-12-31 17:00:00.000000000 -0700
++++ frontswap-v10/include/linux/swapfile.h	2011-09-15 11:40:53.585807413 -0600
+@@ -0,0 +1,13 @@
++#ifndef _LINUX_SWAPFILE_H
++#define _LINUX_SWAPFILE_H
 +
-+#include <linux/swap.h>
-+#include <linux/mm.h>
-+#include <linux/bitops.h>
++/*
++ * these were static in swapfile.c but frontswap.c needs them and we don't
++ * want to expose them to the dozens of source files that include swap.h
++ */
++extern spinlock_t swap_lock;
++extern struct swap_list_t swap_list;
++extern struct swap_info_struct *swap_info[];
++extern int try_to_unuse(unsigned int, bool, unsigned long);
 +
-+struct frontswap_ops {
-+	void (*init)(unsigned);
-+	int (*put_page)(unsigned, pgoff_t, struct page *);
-+	int (*get_page)(unsigned, pgoff_t, struct page *);
-+	/*
-+	 * NOTE: per akpm, flush_page and flush_area will be renamed to
-+	 * invalidate_page and invalidate_area in a later commit in which
-+	 * all dependencies (i.e. Xen, zcache) will be renamed simultaneously
-+	 */
-+	void (*flush_page)(unsigned, pgoff_t);
-+	void (*flush_area)(unsigned);
-+};
-+
-+extern int frontswap_enabled;
-+extern struct frontswap_ops
-+	frontswap_register_ops(struct frontswap_ops *ops);
-+extern void frontswap_shrink(unsigned long);
-+extern unsigned long frontswap_curr_pages(void);
-+
-+extern void __frontswap_init(unsigned type);
-+extern int __frontswap_put_page(struct page *page);
-+extern int __frontswap_get_page(struct page *page);
-+extern void __frontswap_invalidate_page(unsigned, pgoff_t);
-+extern void __frontswap_invalidate_area(unsigned);
-+
++#endif /* _LINUX_SWAPFILE_H */
+--- linux/include/linux/swap.h	2011-09-15 09:43:02.648689206 -0600
++++ frontswap-v10/include/linux/swap.h	2011-09-15 11:40:53.586808618 -0600
+@@ -194,6 +194,10 @@ struct swap_info_struct {
+ 	struct block_device *bdev;	/* swap device or bdev of swap file */
+ 	struct file *swap_file;		/* seldom referenced */
+ 	unsigned int old_block_size;	/* seldom referenced */
 +#ifdef CONFIG_FRONTSWAP
-+
-+static inline int frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	int ret = 0;
-+
-+	if (frontswap_enabled && sis->frontswap_map)
-+		ret = test_bit(offset, sis->frontswap_map);
-+	return ret;
-+}
-+
-+static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_map)
-+		set_bit(offset, sis->frontswap_map);
-+}
-+
-+static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_map)
-+		clear_bit(offset, sis->frontswap_map);
-+}
-+
-+static inline void frontswap_map_set(struct swap_info_struct *p,
-+				     unsigned long *map)
-+{
-+	p->frontswap_map = map;
-+}
-+
-+static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
-+{
-+	return p->frontswap_map;
-+}
-+#else
-+/* all inline routines become no-ops and all externs are ignored */
-+
-+#define frontswap_enabled (0)
-+
-+static inline int frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	return 0;
-+}
-+
-+static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+}
-+
-+static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+}
-+
-+static inline void frontswap_map_set(struct swap_info_struct *p,
-+				     unsigned long *map)
-+{
-+}
-+
-+static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
-+{
-+	return NULL;
-+}
++	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
++	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
 +#endif
-+
-+static inline int frontswap_put_page(struct page *page)
-+{
-+	int ret = -1;
-+
+ };
+ 
+ struct swap_list_t {
+--- linux/mm/swapfile.c	2011-08-08 08:19:26.336684746 -0600
++++ frontswap-v10/mm/swapfile.c	2011-09-15 11:40:53.625808750 -0600
+@@ -32,6 +32,8 @@
+ #include <linux/memcontrol.h>
+ #include <linux/poll.h>
+ #include <linux/oom.h>
++#include <linux/frontswap.h>
++#include <linux/swapfile.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -43,7 +45,7 @@ static bool swap_count_continued(struct 
+ static void free_swap_count_continuations(struct swap_info_struct *);
+ static sector_t map_swap_entry(swp_entry_t, struct block_device**);
+ 
+-static DEFINE_SPINLOCK(swap_lock);
++DEFINE_SPINLOCK(swap_lock);
+ static unsigned int nr_swapfiles;
+ long nr_swap_pages;
+ long total_swap_pages;
+@@ -54,9 +56,9 @@ static const char Unused_file[] = "Unuse
+ static const char Bad_offset[] = "Bad swap offset entry ";
+ static const char Unused_offset[] = "Unused swap offset entry ";
+ 
+-static struct swap_list_t swap_list = {-1, -1};
++struct swap_list_t swap_list = {-1, -1};
+ 
+-static struct swap_info_struct *swap_info[MAX_SWAPFILES];
++struct swap_info_struct *swap_info[MAX_SWAPFILES];
+ 
+ static DEFINE_MUTEX(swapon_mutex);
+ 
+@@ -557,6 +559,7 @@ static unsigned char swap_entry_free(str
+ 			swap_list.next = p->type;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
++		frontswap_invalidate_page(p->type, offset);
+ 		if ((p->flags & SWP_BLKDEV) &&
+ 				disk->fops->swap_slot_free_notify)
+ 			disk->fops->swap_slot_free_notify(p->bdev, offset);
+@@ -1018,11 +1021,12 @@ static int unuse_mm(struct mm_struct *mm
+ }
+ 
+ /*
+- * Scan swap_map from current position to next entry still in use.
++ * Scan swap_map (or frontswap_map if frontswap parameter is true)
++ * from current position to next entry still in use.
+  * Recycle to start on reaching the end, returning 0 when empty.
+  */
+ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
+-					unsigned int prev)
++					unsigned int prev, bool frontswap)
+ {
+ 	unsigned int max = si->max;
+ 	unsigned int i = prev;
+@@ -1048,6 +1052,12 @@ static unsigned int find_next_to_unuse(s
+ 			prev = 0;
+ 			i = 1;
+ 		}
++		if (frontswap) {
++			if (frontswap_test(si, i))
++				break;
++			else
++				continue;
++		}
+ 		count = si->swap_map[i];
+ 		if (count && swap_count(count) != SWAP_MAP_BAD)
+ 			break;
+@@ -1059,8 +1069,12 @@ static unsigned int find_next_to_unuse(s
+  * We completely avoid races by reading each swap page in advance,
+  * and then search for the process using it.  All the necessary
+  * page table adjustments can then be made atomically.
++ *
++ * if the boolean frontswap is true, only unuse pages_to_unuse pages;
++ * pages_to_unuse==0 means all pages; ignored if frontswap is false
+  */
+-static int try_to_unuse(unsigned int type)
++int try_to_unuse(unsigned int type, bool frontswap,
++		 unsigned long pages_to_unuse)
+ {
+ 	struct swap_info_struct *si = swap_info[type];
+ 	struct mm_struct *start_mm;
+@@ -1093,7 +1107,7 @@ static int try_to_unuse(unsigned int typ
+ 	 * one pass through swap_map is enough, but not necessarily:
+ 	 * there are races when an instance of an entry might be missed.
+ 	 */
+-	while ((i = find_next_to_unuse(si, i)) != 0) {
++	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+ 		if (signal_pending(current)) {
+ 			retval = -EINTR;
+ 			break;
+@@ -1260,6 +1274,10 @@ static int try_to_unuse(unsigned int typ
+ 		 * interactive performance.
+ 		 */
+ 		cond_resched();
++		if (frontswap && pages_to_unuse > 0) {
++			if (!--pages_to_unuse)
++				break;
++		}
+ 	}
+ 
+ 	mmput(start_mm);
+@@ -1519,7 +1537,8 @@ bad_bmap:
+ }
+ 
+ static void enable_swap_info(struct swap_info_struct *p, int prio,
+-				unsigned char *swap_map)
++				unsigned char *swap_map,
++				unsigned long *frontswap_map)
+ {
+ 	int i, prev;
+ 
+@@ -1529,6 +1548,7 @@ static void enable_swap_info(struct swap
+ 	else
+ 		p->prio = --least_priority;
+ 	p->swap_map = swap_map;
++	frontswap_map_set(p, frontswap_map);
+ 	p->flags |= SWP_WRITEOK;
+ 	nr_swap_pages += p->pages;
+ 	total_swap_pages += p->pages;
+@@ -1545,6 +1565,7 @@ static void enable_swap_info(struct swap
+ 		swap_list.head = swap_list.next = p->type;
+ 	else
+ 		swap_info[prev]->next = p->type;
++	frontswap_init(p->type);
+ 	spin_unlock(&swap_lock);
+ }
+ 
+@@ -1616,7 +1637,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
+ 	spin_unlock(&swap_lock);
+ 
+ 	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
+-	err = try_to_unuse(type);
++	err = try_to_unuse(type, false, 0); /* force all pages to be unused */
+ 	test_set_oom_score_adj(oom_score_adj);
+ 
+ 	if (err) {
+@@ -1627,7 +1648,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
+ 		 * sys_swapoff for this swap_info_struct at this point.
+ 		 */
+ 		/* re-insert swap space back into swap_list */
+-		enable_swap_info(p, p->prio, p->swap_map);
++		enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
+ 		goto out_dput;
+ 	}
+ 
+@@ -1653,9 +1674,11 @@ SYSCALL_DEFINE1(swapoff, const char __us
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
++	frontswap_invalidate_area(type);
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
++	vfree(frontswap_map_get(p));
+ 	/* Destroy swap account informatin */
+ 	swap_cgroup_swapoff(type);
+ 
+@@ -2019,6 +2042,7 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 	sector_t span;
+ 	unsigned long maxpages;
+ 	unsigned char *swap_map = NULL;
++	unsigned long *frontswap_map = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
+ 
+@@ -2099,6 +2123,9 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 		error = nr_extents;
+ 		goto bad_swap;
+ 	}
++	/* frontswap enabled? set up bit-per-page map for frontswap */
 +	if (frontswap_enabled)
-+		ret = __frontswap_put_page(page);
-+	return ret;
-+}
-+
-+static inline int frontswap_get_page(struct page *page)
-+{
-+	int ret = -1;
-+
-+	if (frontswap_enabled)
-+		ret = __frontswap_get_page(page);
-+	return ret;
-+}
-+
-+static inline void frontswap_invalidate_page(unsigned type, pgoff_t offset)
-+{
-+	if (frontswap_enabled)
-+		__frontswap_invalidate_page(type, offset);
-+}
-+
-+static inline void frontswap_invalidate_area(unsigned type)
-+{
-+	if (frontswap_enabled)
-+		__frontswap_invalidate_area(type);
-+}
-+
-+static inline void frontswap_init(unsigned type)
-+{
-+	if (frontswap_enabled)
-+		__frontswap_init(type);
-+}
-+
-+#endif /* _LINUX_FRONTSWAP_H */
++		frontswap_map = vzalloc(maxpages / sizeof(long));
+ 
+ 	if (p->bdev) {
+ 		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
+@@ -2114,14 +2141,15 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 	if (swap_flags & SWAP_FLAG_PREFER)
+ 		prio =
+ 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
+-	enable_swap_info(p, prio, swap_map);
++	enable_swap_info(p, prio, swap_map, frontswap_map);
+ 
+ 	printk(KERN_INFO "Adding %uk swap on %s.  "
+-			"Priority:%d extents:%d across:%lluk %s%s\n",
++			"Priority:%d extents:%d across:%lluk %s%s%s\n",
+ 		p->pages<<(PAGE_SHIFT-10), name, p->prio,
+ 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
+ 		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
+-		(p->flags & SWP_DISCARDABLE) ? "D" : "");
++		(p->flags & SWP_DISCARDABLE) ? "D" : "",
++		(frontswap_map) ? "FS" : "");
+ 
+ 	mutex_unlock(&swapon_mutex);
+ 	atomic_inc(&proc_poll_event);
+@@ -2312,6 +2340,10 @@ int valid_swaphandles(swp_entry_t entry,
+ 		base++;
+ 
+ 	spin_lock(&swap_lock);
++	if (frontswap_test(si, target)) {
++		spin_unlock(&swap_lock);
++		return 0;
++	}
+ 	if (end > si->max)	/* don't go beyond end of map */
+ 		end = si->max;
+ 
+@@ -2322,6 +2354,9 @@ int valid_swaphandles(swp_entry_t entry,
+ 			break;
+ 		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
+ 			break;
++		/* Don't read in frontswap pages */
++		if (frontswap_test(si, toff))
++			break;
+ 	}
+ 	/* Count contiguous allocated slots below our target */
+ 	for (toff = target; --toff >= base; nr_pages++) {
+@@ -2330,6 +2365,9 @@ int valid_swaphandles(swp_entry_t entry,
+ 			break;
+ 		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
+ 			break;
++		/* Don't read in frontswap pages */
++		if (frontswap_test(si, toff))
++			break;
+ 	}
+ 	spin_unlock(&swap_lock);
+ 
+--- linux/mm/page_io.c	2011-07-20 14:50:42.395999221 -0600
++++ frontswap-v10/mm/page_io.c	2011-09-15 11:40:53.624807263 -0600
+@@ -18,6 +18,7 @@
+ #include <linux/bio.h>
+ #include <linux/swapops.h>
+ #include <linux/writeback.h>
++#include <linux/frontswap.h>
+ #include <asm/pgtable.h>
+ 
+ static struct bio *get_swap_bio(gfp_t gfp_flags,
+@@ -98,6 +99,12 @@ int swap_writepage(struct page *page, st
+ 		unlock_page(page);
+ 		goto out;
+ 	}
++	if (frontswap_put_page(page) == 0) {
++		set_page_writeback(page);
++		unlock_page(page);
++		end_page_writeback(page);
++		goto out;
++	}
+ 	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
+ 	if (bio == NULL) {
+ 		set_page_dirty(page);
+@@ -122,6 +129,11 @@ int swap_readpage(struct page *page)
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(PageUptodate(page));
++	if (frontswap_get_page(page) == 0) {
++		SetPageUptodate(page);
++		unlock_page(page);
++		goto out;
++	}
+ 	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
+ 	if (bio == NULL) {
+ 		unlock_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
