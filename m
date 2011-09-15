@@ -1,51 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5806B0010
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 21:26:44 -0400 (EDT)
-Subject: Re: [PATCH] slub Discard slab page only when node partials >
- minimum setting
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
-References: <1315188460.31737.5.camel@debian>
-	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-	 <1315357399.31737.49.camel@debian>
-	 <alpine.DEB.2.00.1109062022100.20474@router.home>
-	 <4E671E5C.7010405@cs.helsinki.fi>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1109071003240.9406@router.home>
-	 <1315442639.31737.224.camel@debian>
-	 <alpine.DEB.2.00.1109081336320.14787@router.home>
-	 <1315557944.31737.782.camel@debian>	<1315902583.31737.848.camel@debian>
-	 <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 15 Sep 2011 09:32:43 +0800
-Message-ID: <1316050363.8425.483.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB586B0010
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 21:47:39 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v2 0/7] per-cgroup tcp buffer pressure settings
+Date: Wed, 14 Sep 2011 22:46:08 -0300
+Message-Id: <1316051175-17780-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2011-09-13 at 23:04 +0800, Christoph Lameter wrote:
-> Sorry to be that late with a response but my email setup is screwed
-> up.
-> 
-> I was more thinking about the number of slab pages in the partial
-> caches rather than the size of the objects itself being an issue. I
-> believe that was /sys/kernel/slab/*/cpu_partial.
-> 
-> That setting could be tuned further before merging. An increase there
-> causes additional memory to be caught in the partial list. But it
-> reduces the node lock pressure further.
-> 
+This patch introduces per-cgroup tcp buffers limitation. This allows
+sysadmins to specify a maximum amount of kernel memory that
+tcp connections can use at any point in time. TCP is the main interest
+in this work, but extending it to other protocols would be easy.
 
-Yeah, I think so. The more cpu partial page, the quicker to getting
-slabs. Maybe it's better to considerate the system memory size to set
-them. Do you has some plan or suggestions on tunning? 
+For this to work, I am hooking it into memcg, after the introdution of
+an extension for tracking and controlling objects in kernel memory.
+Since they are usually not found in page granularity, and are fundamentally
+different from userspace memory (not swappable, can't overcommit), they
+need their special place inside the Memory Controller.
+
+Right now, the kmem extension is quite basic, and just lays down the
+basic infrastucture for the ongoing work. 
+
+Although it does not account kernel memory allocated - I preferred to
+keep this series simple and leave accounting to the slab allocations when
+they arrive.
+
+What it does is to piggyback in the memory control mechanism already present in
+/proc/sys/net/ipv4/tcp_mem. There is a soft limit, and a hard limit,
+that will suppress allocation when reached. For each cgroup, however,
+the file kmem.tcp_maxmem will be used to cap those values. 
+
+The usage I have in mind here is containers. Each container will
+define its own values for soft and hard limits, but none of them will
+be possibly bigger than the value the box' sysadmin specified from
+the outside.
+
+To test for any performance impacts of this patch, I used netperf's
+TCP_RR benchmark on localhost, so we can have both recv and snd in action.
+
+Command line used was ./src/netperf -t TCP_RR -H localhost, and the
+results:
+
+Without the patch
+=================
+
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00    26996.35
+16384  87380
+
+With the patch
+===============
+
+Local /Remote
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00    27291.86
+16384  87380
+
+The difference is within a one-percent range.
+
+Nesting cgroups doesn't seem to be the dominating factor as well,
+with nestings up to 10 levels not showing a significant performance
+difference.
 
 
+Glauber Costa (7):
+  Basic kernel memory functionality for the Memory Controller
+  socket: initial cgroup code.
+  foundations of per-cgroup memory pressure controlling.
+  per-cgroup tcp buffers control
+  per-netns ipv4 sysctl_tcp_mem
+  tcp buffer limitation: per-cgroup limit
+  Display current tcp memory allocation in kmem cgroup
 
+ Documentation/cgroups/memory.txt |   31 +++-
+ crypto/af_alg.c                  |    7 +-
+ include/linux/memcontrol.h       |   84 +++++++++
+ include/net/netns/ipv4.h         |    1 +
+ include/net/sock.h               |  126 +++++++++++++-
+ include/net/tcp.h                |   14 +-
+ include/net/udp.h                |    3 +-
+ include/trace/events/sock.h      |   10 +-
+ init/Kconfig                     |   11 ++
+ mm/memcontrol.c                  |  354 +++++++++++++++++++++++++++++++++++++-
+ net/core/sock.c                  |   93 +++++++---
+ net/decnet/af_decnet.c           |   21 ++-
+ net/ipv4/proc.c                  |    7 +-
+ net/ipv4/sysctl_net_ipv4.c       |   71 +++++++-
+ net/ipv4/tcp.c                   |   58 ++++---
+ net/ipv4/tcp_input.c             |   12 +-
+ net/ipv4/tcp_ipv4.c              |   18 ++-
+ net/ipv4/tcp_output.c            |    2 +-
+ net/ipv4/tcp_timer.c             |    2 +-
+ net/ipv4/udp.c                   |   20 ++-
+ net/ipv6/tcp_ipv6.c              |   16 +-
+ net/ipv6/udp.c                   |    4 +-
+ net/sctp/socket.c                |   35 +++-
+ 23 files changed, 876 insertions(+), 124 deletions(-)
+
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
