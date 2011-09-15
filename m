@@ -1,101 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 994A86B0010
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 02:10:20 -0400 (EDT)
-Subject: Re: [PATCH] slub Discard slab page only when node partials >
- minimum setting
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <CAOJsxLFcvWXcXZGWUrwzAE2rA8SmObrWaeg6ZYV8RfDG=nNCiA@mail.gmail.com>
-References: <1315188460.31737.5.camel@debian>
-	 <alpine.DEB.2.00.1109061914440.18646@router.home>
-	 <1315357399.31737.49.camel@debian>
-	 <CAOJsxLFcvWXcXZGWUrwzAE2rA8SmObrWaeg6ZYV8RfDG=nNCiA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 15 Sep 2011 14:16:21 +0800
-Message-ID: <1316067381.14905.19.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C3CF46B0010
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 10:16:37 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <8cb0f464-7e39-4294-9f98-c4c5a66110ba@default>
+Date: Thu, 15 Sep 2011 07:16:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] staging: zcache: fix cleancache crash
+References: <4E6FA75A.8060308@linux.vnet.ibm.com
+ 1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com
+ a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+In-Reply-To: <a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: gregkh@suse.de
+Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Thu, 2011-09-15 at 13:48 +0800, Pekka Enberg wrote:
-> On Wed, Sep 7, 2011 at 4:03 AM, Alex,Shi <alex.shi@intel.com> wrote:
-> > Unfreeze_partials may try to discard slab page, the discarding condition
-> > should be 'when node partials number > minimum partial number setting',
-> > not '<' in current code.
+> From: Dan Magenheimer
+> Sent: Tuesday, September 13, 2011 2:56 PM
+> To: Seth Jennings; gregkh@suse.de
+> Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; li=
+nux-kernel@vger.kernel.org;
+> francis.moro@gmail.com
+> Subject: RE: [PATCH] staging: zcache: fix cleancache crash
+>=20
+> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> > Sent: Tuesday, September 13, 2011 1:19 PM
+> > To: gregkh@suse.de
+> > Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; =
+linux-kernel@vger.kernel.org;
+> > francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
+> > Subject: [PATCH] staging: zcache: fix cleancache crash
 > >
-> > This patch base on penberg's tree's 'slub/partial' head.
+> > After commit, c5f5c4db, cleancache crashes on the first
+> > successful get. This was caused by a remaining virt_to_page()
+> > call in zcache_pampd_get_data_and_free() that only gets
+> > run in the cleancache path.
 > >
-> > git://git.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git
+> > The patch converts the virt_to_page() to struct page
+> > casting like was done for other instances in c5f5c4db.
 > >
-> > Signed-off-by: Alex Shi <alex.shi@intel.com>
+> > Based on 3.1-rc4
 > >
+> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>=20
+> Yep, this appears to fix it!  Hopefully Francis can confirm.
+>=20
+> Greg, ideally apply this additional fix rather than do the revert
+> of the original patch suggested in https://lkml.org/lkml/2011/9/13/234
+>=20
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+
+Greg, Francis has confirmed offlist that Seth's fix below
+has fixed his issue as well.  Please apply, hopefully as
+soon as possible and before 3.1 goes final!
+
+Thanks,
+Dan
+
+=20
 > > ---
-> >  mm/slub.c |    2 +-
+> >  drivers/staging/zcache/zcache-main.c |    2 +-
 > >  1 files changed, 1 insertions(+), 1 deletions(-)
 > >
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index b351480..66a5b29 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1954,7 +1954,7 @@ static void unfreeze_partials(struct kmem_cache *s)
+> > diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zca=
+che/zcache-main.c
+> > index a3f5162..462fbc2 100644
+> > --- a/drivers/staging/zcache/zcache-main.c
+> > +++ b/drivers/staging/zcache/zcache-main.c
+> > @@ -1242,7 +1242,7 @@ static int zcache_pampd_get_data_and_free(char *d=
+ata, size_t *bufsize, bool
+> raw,
+> >  =09int ret =3D 0;
 > >
-> >                        new.frozen = 0;
+> >  =09BUG_ON(!is_ephemeral(pool));
+> > -=09zbud_decompress(virt_to_page(data), pampd);
+> > +=09zbud_decompress((struct page *)(data), pampd);
+> >  =09zbud_free_and_delist((struct zbud_hdr *)pampd);
+> >  =09atomic_dec(&zcache_curr_eph_pampd_count);
+> >  =09return ret;
+> > --
+> > 1.7.4.1
 > >
-> > -                       if (!new.inuse && (!n || n->nr_partial < s->min_partial))
-> > +                       if (!new.inuse && (!n || n->nr_partial > s->min_partial))
-> >                                m = M_FREE;
-> >                        else {
-> >                                struct kmem_cache_node *n2 = get_node(s,
-> 
-> Can you please resend the patch with Christoph's ACK and a better
-> explanation why the condition needs to be flipped. A reference to
-> commit 81107188f123e3c2217ac2f2feb2a1147904c62f ("slub: Fix partial
-> count comparison confusion") is probably sufficient.
-> 
-> P.S. Please use the penberg@cs.helsinki.fi email address for now.
-> 
->                         Pekka
-
-Is the following OK? Pekka. :) 
-
-==========
-From: Alex Shi <alex.shi@intel.com>
-Date: Tue, 6 Sep 2011 14:46:01 +0800
-Subject: [PATCH ] Discard slab page when node partial > mininum partial number
-
-Unfreeze_partials will try to discard empty slab pages when the slab
-node partial number is greater than s->min_partial, not less than
-s->min_partial. Otherwise the empty slab page will keep growing and eat
-up all system memory.
-
-Signed-off-by: Alex Shi <alex.shi@intel.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- mm/slub.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 1348c09..492beab 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1953,7 +1953,7 @@ static void unfreeze_partials(struct kmem_cache *s)
- 
- 			new.frozen = 0;
- 
--			if (!new.inuse && (!n || n->nr_partial < s->min_partial))
-+			if (!new.inuse && (!n || n->nr_partial > s->min_partial))
- 				m = M_FREE;
- 			else {
- 				struct kmem_cache_node *n2 = get_node(s,
--- 
-1.7.0
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
