@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F1A0B6B0010
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2011 23:35:30 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Wed, 14 Sep 2011 23:33:34 -0400
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CAFE00221@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-	<20110901100650.6d884589.rdunlap@xenotime.net>
-	<20110901152650.7a63cb8b@annuminas.surriel.com>
- <20110901145819.4031ef7c.akpm@linux-foundation.org>,<E1FA588BC672D846BDBB452FCA1E308C2389B4@USINDEVS02.corp.hds.com>
-In-Reply-To: <E1FA588BC672D846BDBB452FCA1E308C2389B4@USINDEVS02.corp.hds.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0676B0010
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 01:40:14 -0400 (EDT)
+Received: by iaen33 with SMTP id n33so1435528iae.14
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2011 22:40:13 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1315448656.31737.252.camel@debian>
+References: <1315188460.31737.5.camel@debian>
+	<alpine.DEB.2.00.1109061914440.18646@router.home>
+	<1315357399.31737.49.camel@debian>
+	<alpine.DEB.2.00.1109062022100.20474@router.home>
+	<4E671E5C.7010405@cs.helsinki.fi>
+	<6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>
+	<alpine.DEB.2.00.1109071003240.9406@router.home>
+	<1315442639.31737.224.camel@debian>
+	<1315445674.29510.74.camel@sli10-conroe>
+	<1315448656.31737.252.camel@debian>
+Date: Thu, 15 Sep 2011 08:40:13 +0300
+Message-ID: <CAOJsxLFeZS-6wt+_+Lronc5ds-D05=PYDHna4-8pNu8aBP+pCw@mail.gmail.com>
+Subject: Re: [PATCH] slub Discard slab page only when node partials > minimum setting
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: "Li, Shaohua" <shaohua.li@intel.com>, Christoph Lameter <cl@linux.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 09/02/2011 12:31 PM, Satoru Moriya wrote:
-> On 09/01/2011 05:58 PM, Andrew Morton wrote:
->> On Thu, 1 Sep 2011 15:26:50 -0400
->> Rik van Riel <riel@redhat.com> wrote:
-> Anyway, now I'm testing this patch and will report a test result later.
+On Thu, Sep 8, 2011 at 5:24 AM, Alex,Shi <alex.shi@intel.com> wrote:
+>> > BTW, some testing results for your PCP SLUB:
+>> >
+>> > for hackbench process testing:
+>> > on WSM-EP, inc ~60%, NHM-EP inc ~25%
+>> > on NHM-EX, inc ~200%, core2-EP, inc ~250%.
+>> > on Tigerton-EX, inc 1900%, :)
+>> >
+>> > for hackbench thread testing:
+>> > on WSM-EP, no clear inc, NHM-EP no clear inc
+>> > on NHM-EX, inc 10%, core2-EP, inc ~20%.
+>> > on Tigertion-EX, inc 100%,
+>> >
+>> > for =A0netperf loopback testing, no clear performance change.
+>> did you add my patch to add page to partial list tail in the test?
+>> Without it the per-cpu partial list can have more significant impact to
+>> reduce lock contention, so the result isn't precise.
+>>
+>
+> No, the penberg tree did include your patch on slub/partial head.
+> Actually PCP won't take that path, so, there is no need for your patch.
+> I daft a patch to remove some unused code in __slab_free, that related
+> this, and will send it out later.
 
-Sorry for late reply. Here is my test result.
-
-I ran some sample workloads and measure memory allocation latency
-(latency of __alloc_page_nodemask()).
-The test is like following:
-
- - CPU: 1 socket, 4 core
- - Memory: 4GB
-
- - Background load:
-   $ dd if=3D/dev/zero of=3D/tmp/tmp1
-   $ dd if=3D/dev/zero of=3D/tmp/tmp2
-   $ dd if=3D/dev/zero of=3D/tmp/tmp3
-
- - Main load:
-   $ mapped-file-stream 1 $((1024 * 1024 * 640))  --(*)
-
- (*) This is made by Johannes Weiner
-     https://lkml.org/lkml/2010/8/30/226
-
-     It allocates/access 640MByte memory at a burst.
-
-The result is follwoing:
-
-                               |         |  extra   |
-                               | default |  kbytes  |
---------------------------------------------------------------
-min_free_kbytes                |    8113 |   8113   |
-extra_free_kbytes              |       0 | 640*1024 | (KB)
---------------------------------------------------------------
-worst latency                  | 517.762 |  20.775  | (usec)
---------------------------------------------------------------
-vmstat result                  |         |          |
- nr_vmscan_write               |       0 |      0   |
- pgsteal_dma                   |       0 |      0   |
- pgsteal_dma32                 |  143667 | 144882   |
- pgsteal_normal                |   31486 |  27001   |
- pgsteal_movable               |       0 |      0   |
- pgscan_kswapd_dma             |       0 |      0   |
- pgscan_kswapd_dma32           |  138617 | 156351   |
- pgscan_kswapd_normal          |   30593 |  27955   |
- pgscan_kswapd_movable         |       0 |      0   |
- pgscan_direct_dma             |       0 |      0   |
- pgscan_direct_dma32           |    5050 |      0   |
- pgscan_direct_normal          |     896 |      0   |
- pgscan_direct_movable         |       0 |      0   |
- kswapd_steal                  |  169207 | 171883   |
- kswapd_inodesteal             |       0 |      0   |
- kswapd_low_wmark_hit_quickly  |      43 |     45   |
- kswapd_high_wmark_hit_quickly |       1 |      0   |
- allocstall                    |      32 |      0   |
-
-
-As you can see, in the default case there were 32 direct reclaim (allocstal=
-l)
-and its worst latency was 517.762 usecs. This value may be larger if
-a process would sleep or issue I/O in the direct reclaim path. OTOH,
-ii the other case where I add extra free bytes, there were no direct
-reclaim and its worst latency was 20.775 usecs.
-
-In this test case, we can avoid direct reclaim and keep a latency low.
-
-Tested-by: Satoru Moriya <satoru.moriya@hds.com>
+Which patch is that? Please send me it to penberg@cs.helsinki.fi as
+@kernel.org email forward isn't working.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
