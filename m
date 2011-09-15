@@ -1,47 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C931A9000BD
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 18:27:35 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <504b4342-e6b0-4544-b81c-ca41240ac5bf@default>
-Date: Thu, 15 Sep 2011 15:27:07 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
- <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
- <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
- <4E72284B.2040907@linux.vnet.ibm.com>
- <075c4e4c-a22d-47d1-ae98-31839df6e722@default>
- <4E725109.3010609@linux.vnet.ibm.com 1316125062.16137.80.camel@nimitz>
-In-Reply-To: <1316125062.16137.80.camel@nimitz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 054379000BD
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 19:56:54 -0400 (EDT)
+Subject: Re: [PATCH] staging: zcache: fix cleancache crash
+In-Reply-To: Your message of "Tue, 13 Sep 2011 14:19:22 CDT."
+             <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
+From: Valdis.Kletnieks@vt.edu
+References: <4E6FA75A.8060308@linux.vnet.ibm.com>
+            <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1316131006_4167P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Sep 2011 19:56:46 -0400
+Message-ID: <23267.1316131006@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, dan.magenheimer@oracle.com
 
-> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
-> Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
->=20
-> On Thu, 2011-09-15 at 14:24 -0500, Seth Jennings wrote:
-> > How would you suggest that I measure xcfmalloc performance on a "very
-> > large set of workloads".  I guess another form of that question is: How
-> > did xvmalloc do this?
->=20
-> Well, it didn't have a competitor, so this probably wasn't done. :)
->=20
-> I'd like to see a microbenchmarky sort of thing.  Do a million (or 100
-> million, whatever) allocations, and time it for both allocators doing
-> the same thing.  You just need to do the *same* allocations for both.
+--==_Exmh_1316131006_4167P
+Content-Type: text/plain; charset=us-ascii
 
-One suggestion:  We already know xvmalloc sucks IF the workload has
-poor compression for most pages.  We are looking to understand if xcfmalloc
-is [very**N] bad when xvmalloc is good.  So please measure BIG-NUMBER
-allocations where compression is known to be OK on average (which is,
-I think, a large fraction of workloads), rather than workloads where
-xvmalloc already sucks.
+On Tue, 13 Sep 2011 14:19:22 CDT, Seth Jennings said:
+> After commit, c5f5c4db, cleancache crashes on the first
+> successful get. This was caused by a remaining virt_to_page()
+> call in zcache_pampd_get_data_and_free() that only gets
+> run in the cleancache path.
+> 
+> The patch converts the virt_to_page() to struct page
+> casting like was done for other instances in c5f5c4db.
+> 
+> Based on 3.1-rc4
+> 
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+I was seeing all sorts of bizzare memory corruptions and panics
+and crashes while testing zcache - average uptime was only 2-3 hours.
+With this patch applied, now have close to 24 hours of crash-free operation.
+Feel free to add this if it isn't in somebody's tree already:
+
+Tested-By: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+
+--==_Exmh_1316131006_4167P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFOcpC+cC3lWbTT17ARArIUAJ4qEl1NZKDoZb0qr2LrbkJXqAo3cwCgiEir
+4nFzV83wIlYhsv5Se2xEdzI=
+=GZc5
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1316131006_4167P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
