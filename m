@@ -1,200 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 05DA99000BD
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 17:35:30 -0400 (EDT)
-Date: Thu, 15 Sep 2011 14:35:06 -0700
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V10 6/6] mm: frontswap/cleancache: final flush->invalidate
-Message-ID: <20110915213506.GA26426@ca-server1.us.oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FE729000BD
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 18:17:45 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8FKv9NK020077
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 16:57:09 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8FMHirp272498
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 18:17:44 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8FMHhqI030437
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 18:17:43 -0400
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4E725109.3010609@linux.vnet.ibm.com>
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	 <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
+	 <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
+	 <4E6F7DA7.9000706@linux.vnet.ibm.com>
+	 <4E6FC8A1.8070902@vflare.org 4E72284B.2040907@linux.vnet.ibm.com>
+	 <075c4e4c-a22d-47d1-ae98-31839df6e722@default>
+	 <4E725109.3010609@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 15 Sep 2011 15:17:42 -0700
+Message-ID: <1316125062.16137.80.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V10 6/6] mm: frontswap/cleancache: final flush->invalidate
+On Thu, 2011-09-15 at 14:24 -0500, Seth Jennings wrote:
+> How would you suggest that I measure xcfmalloc performance on a "very
+> large set of workloads".  I guess another form of that question is: How
+> did xvmalloc do this?
 
-This sixth patch of six in this frontswap series completes the renaming
-from "flush" to "invalidate" across both tmem frontends (cleancache and
-frontswap) and both tmem backends (Xen and zcache), as required by akpm.
-This change is completely cosmetic.
+Well, it didn't have a competitor, so this probably wasn't done. :)
 
-[v10: no change]
-[v9: akpm@linux-foundation.org: change "flush" to "invalidate", part 3]
+I'd like to see a microbenchmarky sort of thing.  Do a million (or 100
+million, whatever) allocations, and time it for both allocators doing
+the same thing.  You just need to do the *same* allocations for both.
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Jan Beulich <JBeulich@novell.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Matthew Wilcox <matthew@wil.cx>
-Cc: Chris Mason <chris.mason@oracle.com>
-Cc: Rik Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+It'd be interesting to see the shape of a graph if you did:
 
----
+	for (i = 0; i < BIG_NUMBER; i++) 
+		for (j = MIN_ALLOC; j < MAX_ALLOC; j += BLOCK_SIZE) 
+			alloc(j);
+			free();
 
-Diffstat:
- drivers/staging/zcache/zcache-main.c     |   10 +++++-----
- drivers/xen/tmem.c                       |   10 +++++-----
- include/linux/cleancache.h               |   11 +++--------
- include/linux/frontswap.h                |    9 ++-------
- mm/cleancache.c                          |    7 ++++---
- mm/frontswap.c                           |    4 ++--
- 6 files changed, 21 insertions(+), 30 deletions(-)
+... basically for both allocators.  Let's see how the graphs look.  You
+could do it a lot of different ways: alloc all, then free all, or alloc
+one free one, etc...  Maybe it will surprise us.  Maybe the page
+allocator overhead will dominate _everything_, and we won't even see the
+x*malloc() functions show up.
 
-diff -Napur -x .git frontswap-v10-no_flush_change/drivers/staging/zcache/zcache-main.c frontswap-v10-with_flush_change/drivers/staging/zcache/zcache-main.c
---- frontswap-v10-no_flush_change/drivers/staging/zcache/zcache-main.c	2011-09-15 11:50:06.237805199 -0600
-+++ frontswap-v10-with_flush_change/drivers/staging/zcache/zcache-main.c	2011-09-15 12:14:11.739746973 -0600
-@@ -1775,9 +1775,9 @@ static int zcache_cleancache_init_shared
- static struct cleancache_ops zcache_cleancache_ops = {
- 	.put_page = zcache_cleancache_put_page,
- 	.get_page = zcache_cleancache_get_page,
--	.flush_page = zcache_cleancache_flush_page,
--	.flush_inode = zcache_cleancache_flush_inode,
--	.flush_fs = zcache_cleancache_flush_fs,
-+	.invalidate_page = zcache_cleancache_flush_page,
-+	.invalidate_inode = zcache_cleancache_flush_inode,
-+	.invalidate_fs = zcache_cleancache_flush_fs,
- 	.init_shared_fs = zcache_cleancache_init_shared_fs,
- 	.init_fs = zcache_cleancache_init_fs
- };
-@@ -1883,8 +1883,8 @@ static void zcache_frontswap_init(unsign
- static struct frontswap_ops zcache_frontswap_ops = {
- 	.put_page = zcache_frontswap_put_page,
- 	.get_page = zcache_frontswap_get_page,
--	.flush_page = zcache_frontswap_flush_page,
--	.flush_area = zcache_frontswap_flush_area,
-+	.invalidate_page = zcache_frontswap_flush_page,
-+	.invalidate_area = zcache_frontswap_flush_area,
- 	.init = zcache_frontswap_init
- };
- 
-diff -Napur -x .git frontswap-v10-no_flush_change/drivers/xen/tmem.c frontswap-v10-with_flush_change/drivers/xen/tmem.c
---- frontswap-v10-no_flush_change/drivers/xen/tmem.c	2011-09-15 11:50:07.742683966 -0600
-+++ frontswap-v10-with_flush_change/drivers/xen/tmem.c	2011-09-15 12:14:11.751802513 -0600
-@@ -242,9 +242,9 @@ __setup("nocleancache", no_cleancache);
- static struct cleancache_ops tmem_cleancache_ops = {
- 	.put_page = tmem_cleancache_put_page,
- 	.get_page = tmem_cleancache_get_page,
--	.flush_page = tmem_cleancache_flush_page,
--	.flush_inode = tmem_cleancache_flush_inode,
--	.flush_fs = tmem_cleancache_flush_fs,
-+	.invalidate_page = tmem_cleancache_flush_page,
-+	.invalidate_inode = tmem_cleancache_flush_inode,
-+	.invalidate_fs = tmem_cleancache_flush_fs,
- 	.init_shared_fs = tmem_cleancache_init_shared_fs,
- 	.init_fs = tmem_cleancache_init_fs
- };
-@@ -369,8 +369,8 @@ __setup("nofrontswap", no_frontswap);
- static struct frontswap_ops tmem_frontswap_ops = {
- 	.put_page = tmem_frontswap_put_page,
- 	.get_page = tmem_frontswap_get_page,
--	.flush_page = tmem_frontswap_flush_page,
--	.flush_area = tmem_frontswap_flush_area,
-+	.invalidate_page = tmem_frontswap_flush_page,
-+	.invalidate_area = tmem_frontswap_flush_area,
- 	.init = tmem_frontswap_init
- };
- #endif
-diff -Napur -x .git frontswap-v10-no_flush_change/include/linux/cleancache.h frontswap-v10-with_flush_change/include/linux/cleancache.h
---- frontswap-v10-no_flush_change/include/linux/cleancache.h	2011-09-15 12:03:06.126744226 -0600
-+++ frontswap-v10-with_flush_change/include/linux/cleancache.h	2011-09-15 12:14:11.752742905 -0600
-@@ -28,14 +28,9 @@ struct cleancache_ops {
- 			pgoff_t, struct page *);
- 	void (*put_page)(int, struct cleancache_filekey,
- 			pgoff_t, struct page *);
--	/*
--	 * NOTE: per akpm, flush_page, flush_inode and flush_fs will be
--	 * renamed to invalidate_* in a later commit in which all
--	 * dependencies (i.e Xen, zcache) will be renamed simultaneously
--	 */
--	void (*flush_page)(int, struct cleancache_filekey, pgoff_t);
--	void (*flush_inode)(int, struct cleancache_filekey);
--	void (*flush_fs)(int);
-+	void (*invalidate_page)(int, struct cleancache_filekey, pgoff_t);
-+	void (*invalidate_inode)(int, struct cleancache_filekey);
-+	void (*invalidate_fs)(int);
- };
- 
- extern struct cleancache_ops
-diff -Napur -x .git frontswap-v10-no_flush_change/include/linux/frontswap.h frontswap-v10-with_flush_change/include/linux/frontswap.h
---- frontswap-v10-no_flush_change/include/linux/frontswap.h	2011-09-15 12:03:06.127744888 -0600
-+++ frontswap-v10-with_flush_change/include/linux/frontswap.h	2011-09-15 12:14:11.753714019 -0600
-@@ -9,13 +9,8 @@ struct frontswap_ops {
- 	void (*init)(unsigned);
- 	int (*put_page)(unsigned, pgoff_t, struct page *);
- 	int (*get_page)(unsigned, pgoff_t, struct page *);
--	/*
--	 * NOTE: per akpm, flush_page and flush_area will be renamed to
--	 * invalidate_page and invalidate_area in a later commit in which
--	 * all dependencies (i.e. Xen, zcache) will be renamed simultaneously
--	 */
--	void (*flush_page)(unsigned, pgoff_t);
--	void (*flush_area)(unsigned);
-+	void (*invalidate_page)(unsigned, pgoff_t);
-+	void (*invalidate_area)(unsigned);
- };
- 
- extern int frontswap_enabled;
-diff -Napur -x .git frontswap-v10-no_flush_change/mm/cleancache.c frontswap-v10-with_flush_change/mm/cleancache.c
---- frontswap-v10-no_flush_change/mm/cleancache.c	2011-09-15 12:03:48.030836482 -0600
-+++ frontswap-v10-with_flush_change/mm/cleancache.c	2011-09-15 12:14:11.754662260 -0600
-@@ -166,7 +166,8 @@ void __cleancache_invalidate_page(struct
- 	if (pool_id >= 0) {
- 		VM_BUG_ON(!PageLocked(page));
- 		if (cleancache_get_key(mapping->host, &key) >= 0) {
--			(*cleancache_ops.flush_page)(pool_id, key, page->index);
-+			(*cleancache_ops.invalidate_page)(pool_id,
-+							  key, page->index);
- 			cleancache_invalidates++;
- 		}
- 	}
-@@ -184,7 +185,7 @@ void __cleancache_invalidate_inode(struc
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
- 	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
--		(*cleancache_ops.flush_inode)(pool_id, key);
-+		(*cleancache_ops.invalidate_inode)(pool_id, key);
- }
- EXPORT_SYMBOL(__cleancache_invalidate_inode);
- 
-@@ -198,7 +199,7 @@ void __cleancache_invalidate_fs(struct s
- 	if (sb->cleancache_poolid >= 0) {
- 		int old_poolid = sb->cleancache_poolid;
- 		sb->cleancache_poolid = -1;
--		(*cleancache_ops.flush_fs)(old_poolid);
-+		(*cleancache_ops.invalidate_fs)(old_poolid);
- 	}
- }
- EXPORT_SYMBOL(__cleancache_invalidate_fs);
-diff -Napur -x .git frontswap-v10-no_flush_change/mm/frontswap.c frontswap-v10-with_flush_change/mm/frontswap.c
---- frontswap-v10-no_flush_change/mm/frontswap.c	2011-09-15 12:04:02.956697561 -0600
-+++ frontswap-v10-with_flush_change/mm/frontswap.c	2011-09-15 12:14:11.754662260 -0600
-@@ -147,7 +147,7 @@ void __frontswap_invalidate_page(unsigne
- 
- 	BUG_ON(sis == NULL);
- 	if (frontswap_test(sis, offset)) {
--		(*frontswap_ops.flush_page)(type, offset);
-+		(*frontswap_ops.invalidate_page)(type, offset);
- 		atomic_dec(&sis->frontswap_pages);
- 		frontswap_clear(sis, offset);
- 		frontswap_invalidates++;
-@@ -166,7 +166,7 @@ void __frontswap_invalidate_area(unsigne
- 	BUG_ON(sis == NULL);
- 	if (sis->frontswap_map == NULL)
- 		return;
--	(*frontswap_ops.flush_area)(type);
-+	(*frontswap_ops.invalidate_area)(type);
- 	atomic_set(&sis->frontswap_pages, 0);
- 	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
- }
+The other thing that's important is to think of cases like I described
+that would cause either allocator to do extra splits/joins or be slow in
+other ways.  I expect xcfmalloc() to be slowest when it is allocating
+and has to break down a reserve page.  Let's say it does a bunch of ~3kb
+allocations and has no pages on the freelists, it will:
+
+	1. scan each of the 64 freelists heads (512 bytes of cache)
+	2. split a 4k page
+	3. reinsert the 1k remainder
+
+Next time, it will:
+
+	1. scan, and find the 1k bit
+	2. continue scanning, eventually touching each freelist...
+	3. split a 4k page
+	4. reinsert the 2k remainder
+
+It'll end up doing a scan/split/reinsert in 3/4 of the cases, I think.
+The case of the freelists being quite empty will also be quite common
+during times the pool is expanding.  I think xvmalloc() will have some
+of the same problems, but let's see if it does in practice.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
