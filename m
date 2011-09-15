@@ -1,157 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DDDB9000BD
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 16:08:12 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <863f8de5-a8e5-427d-a329-e69a5402f88a@default>
-Date: Thu, 15 Sep 2011 13:07:38 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 841D49000BD
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 17:34:35 -0400 (EDT)
+Date: Thu, 15 Sep 2011 14:33:25 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
- <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
- <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
- <4E72284B.2040907@linux.vnet.ibm.com>
- <075c4e4c-a22d-47d1-ae98-31839df6e722@default
- 4E725109.3010609@linux.vnet.ibm.com>
-In-Reply-To: <4E725109.3010609@linux.vnet.ibm.com>
+Subject: [PATCH V10 1/6] mm: frontswap: add frontswap header file
+Message-ID: <20110915213325.GA26333@ca-server1.us.oracle.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-> On 09/15/2011 12:29 PM, Dan Magenheimer wrote:
-> >> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> >> Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-> >>
-> >> Right now xvmalloc is broken for zcache's application because
-> >> of its huge fragmentation for half the valid allocation sizes
-> >> (> PAGE_SIZE/2).
-> >
-> > Um, I have to disagree here. It is broken for zcache for
-> > SOME set of workloads/data, where the AVERAGE compression
-> > is poor (> PAGE_SIZE/2).
->=20
-> True.
->=20
-> But are we not in agreement that xvmalloc needs to be replaced
-> with an allocator that doesn't have this issue? I thought we all
-> agreed on that...
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH V10 1/6] mm: frontswap: add frontswap header file
 
-First, let me make it clear that I very much do appreciate
-your innovation and effort here.  I'm not trying to block
-your work from getting upstream or create hoops for you to
-jump through.  Heaven knows, I can personally attest to
-how frustrating that can be!
+(Note: Following three paragraphs repeated for git commit log.)
 
-I am in agreement that xvmalloc has a significant problem with
-some workloads and that it would be good to fix that.  What
-I'm not clear on is if we are replacing an algorithm with
-Problem X with another algorithm that has Problem Y... or
-at least, if we are, that we agree that Problem Y is not
-worse across a broad set of real world workloads than Problem X.
-=20
-> >> My xcfmalloc patches are _a_ solution that is ready now.  Sure,
-> >> it doesn't so compaction yet, and it has some metadata overhead.
-> >> So it's not "ideal" (if there is such I thing). But it does fix
-> >> the brokenness of xvmalloc for zcache's application.
-> >
-> > But at what cost?  As Dave Hansen pointed out, we still do
-> > not have a comprehensive worst-case performance analysis for
-> > xcfmalloc.  Without that (and without an analysis over a very
-> > large set of workloads), it is difficult to characterize
-> > one as "better" than the other.
->=20
-> I'm not sure what you mean by "comprehensive worst-case performance
-> analysis".  If you're talking about theoretical worst-case runtimes
-> (i.e. O(whatever)) then apparently we are going to have to
-> talk to an authority on algorithm analysis because we can't agree
-> how to determine that.  However, it isn't difficult to look at the
-> code and (within your own understanding) see what it is.
->=20
-> I'd be interested so see what Nitin thinks is the worst-case runtime
-> bound.
->=20
-> How would you suggest that I measure xcfmalloc performance on a "very
-> large set of workloads".  I guess another form of that question is: How
-> did xvmalloc do this?
+Frontswap is the alter ego of cleancache, the "yang" to cleancache's
+"yin"... and more precisely frontswap is the provider of anonymous
+pages to transcendent memory to nicely complement cleancache's providing
+of clean pagecache pages to transcendent memory.  For optimal use
+of transcendent memory, both are necessary... because a kernel
+under memory pressure first reclaims clean pagecache pages and,
+when under more memory pressure, starts swapping anonymous pages.
 
-I'm far from an expert in the allocation algorithms you and
-Nitin are discussing, so let me use an analogy: ordered link
-lists.  If you insert, a sequence of N numbers from largest to
-smallest and then search/retrieve them in order from smallest
-to largest, the data structure appears very very fast.  If you
-insert them in the opposite order and then search/retrieve
-them in the opposite order, the data structure appears
-very very slow.
+Frontswap and cleancache (which was merged at 3.0) are the only
+necessary changes to the core kernel for transcendent memory; all
+other supporting code is implemented as drivers.  See "Transcendent
+memory in a nutshell" for a current (Aug 2011) and detailed overview of
+frontswap and related kernel parts: https://lwn.net/Articles/454795/
 
-For your algorithm, are there sequences of allocations/deallocations
-which will perform very poorly?  If so, how poorly?  If
-"perform very poorly" for allocation/deallocation is
-a fraction of the time to compress/decompress, I don't
-care, let's switch to xcfmalloc.  However, if one could
-manufacture a sequence of allocations/searches where the
-overhead is much larger than the compress/decompress
-time (and especially if grows worse as N grows), that's
-an issue we need to understand better.
+Frontswap code was first posted publicly in January 2009 and on LKML
+in May 2009, and has remained very stable for over two years now.
+It is barely invasive, touching only the swap subsystem and adds only
+about 100 lines of code to existing swap subsystem code files.
+It has improved syntactically substantially between V1 and this posting
+of V10, thanks to the review of a few kernel developers, and has adapted
+easily to at least one major swap subsystem change.  As of 3.1, there are
+two in-tree users of frontswap patiently waiting for this patchset and for
+CONFIG_FRONTSWAP to be enabled: zcache (staging driver merged at
+2.6.39) and Xen tmem (merged at 3.0 and 3.1).  V5 of the frontswap
+patchset has been in linux-next since next-110603 (and this V10
+will be there shortly).  Earlier versions of frontswap already appear
+in some leading-edge distros.
 
-I think Dave Hansen was saying the same thing in an earlier thread:
+This first patch of six in this frontswap series provides the header
+file for the core code for frontswap that interfaces between the hooks
+in the swap subsystem and a frontswap backend via frontswap_ops.
+(Note to earlier reviewers:  This patchset has been reorganized due to
+feedback from Kame Hiroyuki and Andrew Morton. This patch contains part
+of patch 3of4 from the previous series.)
 
-> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
-> It took the largest (most valuable) block, and split a 500 block when it
-> didn't have to.  The reason it doesn't do this is that it doesn't
-> _search_.  It just indexes and guesses.  That's *fast*, but it errs on
-> the side of speed rather than being optimal.  That's OK, we do it all
-> the time, but it *is* a compromise.  We should at least be thinking of
-> the cases when this doesn't perform well.
+New file added: include/linux/frontswap.h
 
-In other words, what happens if on some workload, strictly
-by chance, xcfmalloc always guesses wrong?  Will search time
-grow linearly, or exponentially?  (This is especially an
-issue if interrupts are disabled during the search, which
-they currently are, correct?)
+[v10: no change]
+[v9: akpm@linux-foundation.org: change "flush" to "invalidate", part 1]
+[v8: rebase to 3.0-rc4]
+[v7: rebase to 3.0-rc3]
+[v7: JBeulich@novell.com: new static inlines resolve to no-ops if not config'd]
+[v7: JBeulich@novell.com: avoid redundant shifts/divides for *_bit lib calls]
+[v6: rebase to 3.1-rc1]
+[v5: no change from v4]
+[v4: rebase to 2.6.39]
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Jan Beulich <JBeulich@novell.com>
+Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Matthew Wilcox <matthew@wil.cx>
+Cc: Chris Mason <chris.mason@oracle.com>
+Cc: Rik Riel <riel@redhat.com>
 
-> >> So I see two ways going forward:
-> >>
-> >> 1) We review and integrate xcfmalloc now.  Then, when you are
-> >> done with your allocator, we can run them side by side and see
-> >> which is better by numbers.  If yours is better, you'll get no
-> >> argument from me and we can replace xcfmalloc with yours.
-> >>
-> >> 2) We can agree on a date (sooner rather than later) by which your
-> >> allocator will be completed.  At that time we can compare them and
-> >> integrate the best one by the numbers.
-> >>
-> >> Which would you like to do?
-> >
-> > Seth, I am still not clear why it is not possible to support
-> > either allocation algorithm, selectable at runtime.  Or even
-> > dynamically... use xvmalloc to store well-compressible pages
-> > and xcfmalloc for poorly-compressible pages.  I understand
-> > it might require some additional coding, perhaps even an
-> > ugly hack or two, but it seems possible.
->=20
-> But why do an ugly hack if we can just use a single allocator
-> that has the best overall performance for the allocation range
-> the zcache requires.  Why make it more complicated that it
-> needs to be?
-
-I agree, if we are certain that your statement of "best overall
-performance" is true.
-
-If you and Nitin can agree that xcfmalloc is better than xvmalloc,
-even if future-slab-based-allocator is predicted to be better
-than xcfmalloc, I am OK with (1) above.  I just want to feel
-confident we aren't exchanging problem X for problem Y (in
-which case some runtime or dynamic selection hack might be better).
-
-With all that said, I guess my bottom line is: If Nitin provides
-an Acked-by on your patchset, I will too.
-
-Thanks again for your work on this!
-Dan
+--- linux/include/linux/frontswap.h	1969-12-31 17:00:00.000000000 -0700
++++ frontswap-v10/include/linux/frontswap.h	2011-09-15 11:40:53.585807413 -0600
+@@ -0,0 +1,131 @@
++#ifndef _LINUX_FRONTSWAP_H
++#define _LINUX_FRONTSWAP_H
++
++#include <linux/swap.h>
++#include <linux/mm.h>
++#include <linux/bitops.h>
++
++struct frontswap_ops {
++	void (*init)(unsigned);
++	int (*put_page)(unsigned, pgoff_t, struct page *);
++	int (*get_page)(unsigned, pgoff_t, struct page *);
++	/*
++	 * NOTE: per akpm, flush_page and flush_area will be renamed to
++	 * invalidate_page and invalidate_area in a later commit in which
++	 * all dependencies (i.e. Xen, zcache) will be renamed simultaneously
++	 */
++	void (*flush_page)(unsigned, pgoff_t);
++	void (*flush_area)(unsigned);
++};
++
++extern int frontswap_enabled;
++extern struct frontswap_ops
++	frontswap_register_ops(struct frontswap_ops *ops);
++extern void frontswap_shrink(unsigned long);
++extern unsigned long frontswap_curr_pages(void);
++
++extern void __frontswap_init(unsigned type);
++extern int __frontswap_put_page(struct page *page);
++extern int __frontswap_get_page(struct page *page);
++extern void __frontswap_invalidate_page(unsigned, pgoff_t);
++extern void __frontswap_invalidate_area(unsigned);
++
++#ifdef CONFIG_FRONTSWAP
++
++static inline int frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
++{
++	int ret = 0;
++
++	if (frontswap_enabled && sis->frontswap_map)
++		ret = test_bit(offset, sis->frontswap_map);
++	return ret;
++}
++
++static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
++{
++	if (frontswap_enabled && sis->frontswap_map)
++		set_bit(offset, sis->frontswap_map);
++}
++
++static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
++{
++	if (frontswap_enabled && sis->frontswap_map)
++		clear_bit(offset, sis->frontswap_map);
++}
++
++static inline void frontswap_map_set(struct swap_info_struct *p,
++				     unsigned long *map)
++{
++	p->frontswap_map = map;
++}
++
++static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
++{
++	return p->frontswap_map;
++}
++#else
++/* all inline routines become no-ops and all externs are ignored */
++
++#define frontswap_enabled (0)
++
++static inline int frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
++{
++	return 0;
++}
++
++static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
++{
++}
++
++static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
++{
++}
++
++static inline void frontswap_map_set(struct swap_info_struct *p,
++				     unsigned long *map)
++{
++}
++
++static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
++{
++	return NULL;
++}
++#endif
++
++static inline int frontswap_put_page(struct page *page)
++{
++	int ret = -1;
++
++	if (frontswap_enabled)
++		ret = __frontswap_put_page(page);
++	return ret;
++}
++
++static inline int frontswap_get_page(struct page *page)
++{
++	int ret = -1;
++
++	if (frontswap_enabled)
++		ret = __frontswap_get_page(page);
++	return ret;
++}
++
++static inline void frontswap_invalidate_page(unsigned type, pgoff_t offset)
++{
++	if (frontswap_enabled)
++		__frontswap_invalidate_page(type, offset);
++}
++
++static inline void frontswap_invalidate_area(unsigned type)
++{
++	if (frontswap_enabled)
++		__frontswap_invalidate_area(type);
++}
++
++static inline void frontswap_init(unsigned type)
++{
++	if (frontswap_enabled)
++		__frontswap_init(type);
++}
++
++#endif /* _LINUX_FRONTSWAP_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
