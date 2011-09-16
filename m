@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0319000BD
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 14:08:12 -0400 (EDT)
-Date: Fri, 16 Sep 2011 19:55:52 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH] staging: zcache: fix cleancache crash
-Message-ID: <20110916175552.GA25405@kroah.com>
-References: <a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
- <8cb0f464-7e39-4294-9f98-c4c5a66110ba@default>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BB19000BD
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 14:34:25 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 16 Sep 2011 14:34:21 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8GIXWsB432880
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 14:33:36 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8GIXVm9014486
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 14:33:32 -0400
+Message-ID: <4E739677.4020708@linux.vnet.ibm.com>
+Date: Fri, 16 Sep 2011 13:33:27 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8cb0f464-7e39-4294-9f98-c4c5a66110ba@default>
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com> <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org> <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org> <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org> <4E72284B.2040907@linux.vnet.ibm.com> <4E738B81.2070005@vflare.org>
+In-Reply-To: <4E738B81.2070005@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, dan.magenheimer@oracle.com, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On Thu, Sep 15, 2011 at 07:16:10AM -0700, Dan Magenheimer wrote:
-> > From: Dan Magenheimer
-> > Sent: Tuesday, September 13, 2011 2:56 PM
-> > To: Seth Jennings; gregkh@suse.de
-> > Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; linux-kernel@vger.kernel.org;
-> > francis.moro@gmail.com
-> > Subject: RE: [PATCH] staging: zcache: fix cleancache crash
-> > 
-> > > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > > Sent: Tuesday, September 13, 2011 1:19 PM
-> > > To: gregkh@suse.de
-> > > Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; linux-kernel@vger.kernel.org;
-> > > francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
-> > > Subject: [PATCH] staging: zcache: fix cleancache crash
-> > >
-> > > After commit, c5f5c4db, cleancache crashes on the first
-> > > successful get. This was caused by a remaining virt_to_page()
-> > > call in zcache_pampd_get_data_and_free() that only gets
-> > > run in the cleancache path.
-> > >
-> > > The patch converts the virt_to_page() to struct page
-> > > casting like was done for other instances in c5f5c4db.
-> > >
-> > > Based on 3.1-rc4
-> > >
-> > > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > 
-> > Yep, this appears to fix it!  Hopefully Francis can confirm.
-> > 
-> > Greg, ideally apply this additional fix rather than do the revert
-> > of the original patch suggested in https://lkml.org/lkml/2011/9/13/234
-> > 
-> > Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+On 09/16/2011 12:46 PM, Nitin Gupta wrote:
+> I think replacing allocator every few weeks isn't a good idea. So, I
+> guess better would be to let me work for about 2 weeks and try the slab
+> based approach.  If nothing works out in this time, then maybe xcfmalloc
+> can be integrated after further testing.
+
+Sounds good to me.
+
 > 
+> Thanks,
+> Nitin
 > 
-> Greg, Francis has confirmed offlist that Seth's fix below
-> has fixed his issue as well.  Please apply, hopefully as
-> soon as possible and before 3.1 goes final!
 
-Due to the loss of kernel.org, it might miss it, but don't worry, that's
-what stable kernel releases are for :)
-
-thanks,
-
-greg k-h
+Thanks
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
