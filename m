@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 438609000BD
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 13:52:59 -0400 (EDT)
-Received: by vws7 with SMTP id 7so5060360vws.35
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2011 10:52:57 -0700 (PDT)
-Message-ID: <4E738CF6.4020808@vflare.org>
-Date: Fri, 16 Sep 2011 13:52:54 -0400
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0319000BD
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 14:08:12 -0400 (EDT)
+Date: Fri, 16 Sep 2011 19:55:52 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH] staging: zcache: fix cleancache crash
+Message-ID: <20110916175552.GA25405@kroah.com>
+References: <a7d17e7e-c6a1-448e-b60f-b79a4ae0c3ba@default>
+ <8cb0f464-7e39-4294-9f98-c4c5a66110ba@default>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com> <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org> <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org> <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org 4E72284B.2040907@linux.vnet.ibm.com> <075c4e4c-a22d-47d1-ae98-31839df6e722@default> <4E725109.3010609@linux.vnet.ibm.com>
-In-Reply-To: <4E725109.3010609@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8cb0f464-7e39-4294-9f98-c4c5a66110ba@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On 09/15/2011 03:24 PM, Seth Jennings wrote:
-
-> On 09/15/2011 12:29 PM, Dan Magenheimer wrote:
->>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->>> Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
->>>
-
-
->>
->> Seth, I am still not clear why it is not possible to support
->> either allocation algorithm, selectable at runtime.  Or even
->> dynamically... use xvmalloc to store well-compressible pages
->> and xcfmalloc for poorly-compressible pages.  I understand
->> it might require some additional coding, perhaps even an
->> ugly hack or two, but it seems possible.
+On Thu, Sep 15, 2011 at 07:16:10AM -0700, Dan Magenheimer wrote:
+> > From: Dan Magenheimer
+> > Sent: Tuesday, September 13, 2011 2:56 PM
+> > To: Seth Jennings; gregkh@suse.de
+> > Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; linux-kernel@vger.kernel.org;
+> > francis.moro@gmail.com
+> > Subject: RE: [PATCH] staging: zcache: fix cleancache crash
+> > 
+> > > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> > > Sent: Tuesday, September 13, 2011 1:19 PM
+> > > To: gregkh@suse.de
+> > > Cc: devel@driverdev.osuosl.org; linux-mm@kvack.org; ngupta@vflare.org; linux-kernel@vger.kernel.org;
+> > > francis.moro@gmail.com; Dan Magenheimer; Seth Jennings
+> > > Subject: [PATCH] staging: zcache: fix cleancache crash
+> > >
+> > > After commit, c5f5c4db, cleancache crashes on the first
+> > > successful get. This was caused by a remaining virt_to_page()
+> > > call in zcache_pampd_get_data_and_free() that only gets
+> > > run in the cleancache path.
+> > >
+> > > The patch converts the virt_to_page() to struct page
+> > > casting like was done for other instances in c5f5c4db.
+> > >
+> > > Based on 3.1-rc4
+> > >
+> > > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > 
+> > Yep, this appears to fix it!  Hopefully Francis can confirm.
+> > 
+> > Greg, ideally apply this additional fix rather than do the revert
+> > of the original patch suggested in https://lkml.org/lkml/2011/9/13/234
+> > 
+> > Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 > 
-> But why do an ugly hack if we can just use a single allocator
-> that has the best overall performance for the allocation range
-> the zcache requires.  Why make it more complicated that it
-> needs to be?
 > 
->>
+> Greg, Francis has confirmed offlist that Seth's fix below
+> has fixed his issue as well.  Please apply, hopefully as
+> soon as possible and before 3.1 goes final!
 
+Due to the loss of kernel.org, it might miss it, but don't worry, that's
+what stable kernel releases are for :)
 
-I agree with Seth here: a mix of different allocators for the (small)
-range of sizes which zcache requires, looks like a bad idea to me.
-Maintaining two allocators is a pain and this will also complicate
-future plans like compaction etc.
+thanks,
 
-Thanks,
-Nitin
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
