@@ -1,61 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 51DC29000BD
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:13:01 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8GDpkl8014758
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 09:51:46 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8GFCN6s220406
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:12:23 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8GFCG1l030383
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:12:20 -0400
-Message-ID: <4E73674B.6090901@linux.vnet.ibm.com>
-Date: Fri, 16 Sep 2011 10:12:11 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 932F49000BD
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 13:37:01 -0400 (EDT)
+Received: by vws7 with SMTP id 7so5036389vws.35
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2011 10:36:59 -0700 (PDT)
+Message-ID: <4E738936.5000405@vflare.org>
+Date: Fri, 16 Sep 2011 13:36:54 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
-References: <20110915213406.GA26369@ca-server1.us.oracle.com>
-In-Reply-To: <20110915213406.GA26369@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>  <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>  <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>  <4E6F7DA7.9000706@linux.vnet.ibm.com>  <4E6FC8A1.8070902@vflare.org 4E72284B.2040907@linux.vnet.ibm.com>  <075c4e4c-a22d-47d1-ae98-31839df6e722@default>  <4E725109.3010609@linux.vnet.ibm.com> <1316125062.16137.80.camel@nimitz>
+In-Reply-To: <1316125062.16137.80.camel@nimitz>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On 09/15/2011 04:34 PM, Dan Magenheimer wrote:
-> From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Subject: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
+On 09/15/2011 06:17 PM, Dave Hansen wrote:
+
+> On Thu, 2011-09-15 at 14:24 -0500, Seth Jennings wrote:
+>> How would you suggest that I measure xcfmalloc performance on a "very
+>> large set of workloads".  I guess another form of that question is: How
+>> did xvmalloc do this?
 > 
-> (Note to earlier reviewers:  This patchset has been reorganized due to
-> feedback from Kame Hiroyuki and Andrew Morton. This patch contains part
-> of patch 3of4 from the previous series.)
+> Well, it didn't have a competitor, so this probably wasn't done. :)
+>
+
+
+A lot of testing was done for xvmalloc (and its predecessor, tlsf)
+before it was integrated into zram:
+
+http://code.google.com/p/compcache/wiki/AllocatorsComparison
+http://code.google.com/p/compcache/wiki/xvMalloc
+http://code.google.com/p/compcache/wiki/xvMallocPerformance
+
+I think we can use the same set of testing tools. See:
+http://code.google.com/p/compcache/source/browse/#hg%2Fsub-projects%2Ftesting
+
+These tools do issue mix of alloc and frees each with some probability
+which can be adjusted in code.
+
+There is also a tool called "swap replay" which collects swap-out traces
+and simulates the same behavior in userspace, allowing allocator testing
+with "real world" traces. See:
+http://code.google.com/p/compcache/wiki/SwapReplay
+
+ 
+> I'd like to see a microbenchmarky sort of thing.  Do a million (or 100
+> million, whatever) allocations, and time it for both allocators doing
+> the same thing.  You just need to do the *same* allocations for both.
 > 
-> This third patch of six in the frontswap series provides the core
-> frontswap code that interfaces between the hooks in the swap subsystem
-> and a frontswap backend via frontswap_ops.
+> It'd be interesting to see the shape of a graph if you did:
 > 
-> [v10: sjenning@linux.vnet.ibm.com: fix debugfs calls on 32-bit]
-...
-> +#ifdef CONFIG_DEBUG_FS
-> +	struct dentry *root = debugfs_create_dir("frontswap", NULL);
-> +	if (root == NULL)
-> +		return -ENXIO;
-> +	debugfs_create_u64("gets", S_IRUGO, root, &frontswap_gets);
-> +	debugfs_create_u64("succ_puts", S_IRUGO, root, &frontswap_succ_puts);
-> +	debugfs_create_u64("puts", S_IRUGO, root, &frontswap_failed_puts);
+> 	for (i = 0; i < BIG_NUMBER; i++) 
+> 		for (j = MIN_ALLOC; j < MAX_ALLOC; j += BLOCK_SIZE) 
+> 			alloc(j);
+> 			free();
+> 
+> ... basically for both allocators.  Let's see how the graphs look.  You
+> could do it a lot of different ways: alloc all, then free all, or alloc
+> one free one, etc...  Maybe it will surprise us.  Maybe the page
+> allocator overhead will dominate _everything_, and we won't even see the
+> x*malloc() functions show up.
+> 
+> The other thing that's important is to think of cases like I described
+> that would cause either allocator to do extra splits/joins or be slow in
+> other ways.  I expect xcfmalloc() to be slowest when it is allocating
+> and has to break down a reserve page.  Let's say it does a bunch of ~3kb
+> allocations and has no pages on the freelists, it will:
+> 
+> 	1. scan each of the 64 freelists heads (512 bytes of cache)
+> 	2. split a 4k page
+> 	3. reinsert the 1k remainder
+> 
+> Next time, it will:
+> 
+> 	1. scan, and find the 1k bit
+> 	2. continue scanning, eventually touching each freelist...
+> 	3. split a 4k page
+> 	4. reinsert the 2k remainder
+> 
+> It'll end up doing a scan/split/reinsert in 3/4 of the cases, I think.
+> The case of the freelists being quite empty will also be quite common
+> during times the pool is expanding.  I think xvmalloc() will have some
+> of the same problems, but let's see if it does in practice.
+>
 
-Sorry I didn't see this one before :-/  This should be "failed_puts",
-not "puts".
 
-Other than that, it compiles cleanly here and runs without issue when
-applied on 3.1-rc4 + fix for cleancache crash.
 
-Thanks
---
-Seth
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
