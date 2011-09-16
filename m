@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 054379000BD
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2011 19:56:54 -0400 (EDT)
-Subject: Re: [PATCH] staging: zcache: fix cleancache crash
-In-Reply-To: Your message of "Tue, 13 Sep 2011 14:19:22 CDT."
-             <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
-From: Valdis.Kletnieks@vt.edu
-References: <4E6FA75A.8060308@linux.vnet.ibm.com>
-            <1315941562-25422-1-git-send-email-sjenning@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1316131006_4167P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DC29000BD
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:13:01 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8GDpkl8014758
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 09:51:46 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8GFCN6s220406
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:12:23 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8GFCG1l030383
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2011 11:12:20 -0400
+Message-ID: <4E73674B.6090901@linux.vnet.ibm.com>
+Date: Fri, 16 Sep 2011 10:12:11 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
+References: <20110915213406.GA26369@ca-server1.us.oracle.com>
+In-Reply-To: <20110915213406.GA26369@ca-server1.us.oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Sep 2011 19:56:46 -0400
-Message-ID: <23267.1316131006@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: gregkh@suse.de, devel@driverdev.osuosl.org, linux-mm@kvack.org, ngupta@vflare.org, linux-kernel@vger.kernel.org, francis.moro@gmail.com, dan.magenheimer@oracle.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
---==_Exmh_1316131006_4167P
-Content-Type: text/plain; charset=us-ascii
-
-On Tue, 13 Sep 2011 14:19:22 CDT, Seth Jennings said:
-> After commit, c5f5c4db, cleancache crashes on the first
-> successful get. This was caused by a remaining virt_to_page()
-> call in zcache_pampd_get_data_and_free() that only gets
-> run in the cleancache path.
+On 09/15/2011 04:34 PM, Dan Magenheimer wrote:
+> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Subject: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
 > 
-> The patch converts the virt_to_page() to struct page
-> casting like was done for other instances in c5f5c4db.
+> (Note to earlier reviewers:  This patchset has been reorganized due to
+> feedback from Kame Hiroyuki and Andrew Morton. This patch contains part
+> of patch 3of4 from the previous series.)
 > 
-> Based on 3.1-rc4
+> This third patch of six in the frontswap series provides the core
+> frontswap code that interfaces between the hooks in the swap subsystem
+> and a frontswap backend via frontswap_ops.
 > 
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> [v10: sjenning@linux.vnet.ibm.com: fix debugfs calls on 32-bit]
+...
+> +#ifdef CONFIG_DEBUG_FS
+> +	struct dentry *root = debugfs_create_dir("frontswap", NULL);
+> +	if (root == NULL)
+> +		return -ENXIO;
+> +	debugfs_create_u64("gets", S_IRUGO, root, &frontswap_gets);
+> +	debugfs_create_u64("succ_puts", S_IRUGO, root, &frontswap_succ_puts);
+> +	debugfs_create_u64("puts", S_IRUGO, root, &frontswap_failed_puts);
 
-I was seeing all sorts of bizzare memory corruptions and panics
-and crashes while testing zcache - average uptime was only 2-3 hours.
-With this patch applied, now have close to 24 hours of crash-free operation.
-Feel free to add this if it isn't in somebody's tree already:
+Sorry I didn't see this one before :-/  This should be "failed_puts",
+not "puts".
 
-Tested-By: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+Other than that, it compiles cleanly here and runs without issue when
+applied on 3.1-rc4 + fix for cleancache crash.
 
---==_Exmh_1316131006_4167P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFOcpC+cC3lWbTT17ARArIUAJ4qEl1NZKDoZb0qr2LrbkJXqAo3cwCgiEir
-4nFzV83wIlYhsv5Se2xEdzI=
-=GZc5
------END PGP SIGNATURE-----
-
---==_Exmh_1316131006_4167P--
+Thanks
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
