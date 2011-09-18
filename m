@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5CE9000BD
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2011 23:33:38 -0400 (EDT)
-Message-ID: <4E756666.9000009@parallels.com>
-Date: Sun, 18 Sep 2011 00:32:54 -0300
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 4376A9000BD
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2011 23:39:57 -0400 (EDT)
+Message-ID: <4E7567E0.9010401@parallels.com>
+Date: Sun, 18 Sep 2011 00:39:12 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/7] per-cgroup tcp buffers control
-References: <1316051175-17780-1-git-send-email-glommer@parallels.com> <1316051175-17780-5-git-send-email-glommer@parallels.com> <20110917181132.GC1658@shutemov.name> <20110917183358.GB2783@moon>
-In-Reply-To: <20110917183358.GB2783@moon>
+Subject: Re: [PATCH v2 1/7] Basic kernel memory functionality for the Memory
+ Controller
+References: <1316051175-17780-1-git-send-email-glommer@parallels.com> <1316051175-17780-2-git-send-email-glommer@parallels.com> <20110917174535.GA1658@shutemov.name>
+In-Reply-To: <20110917174535.GA1658@shutemov.name>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On 09/17/2011 03:33 PM, Cyrill Gorcunov wrote:
-> On Sat, Sep 17, 2011 at 09:11:32PM +0300, Kirill A. Shutemov wrote:
->> On Wed, Sep 14, 2011 at 10:46:12PM -0300, Glauber Costa wrote:
->>> +int tcp_init_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
->>> +			 struct cgroup_subsys *ss)
->>> +{
->>> +	prot->enter_memory_pressure	= tcp_enter_memory_pressure;
->>> +	prot->memory_allocated		= memory_allocated_tcp;
->>> +	prot->prot_mem			= tcp_sysctl_mem;
->>> +	prot->sockets_allocated		= sockets_allocated_tcp;
->>> +	prot->memory_pressure		= memory_pressure_tcp;
->>
->> No fancy formatting, please.
->>
+
+>>   	struct mem_cgroup_stat_cpu *stat;
+>> @@ -391,6 +404,7 @@ enum charge_type {
+>>   #define _MEM			(0)
+>>   #define _MEMSWAP		(1)
+>>   #define _OOM_TYPE		(2)
+>> +#define _KMEM			(3)
 >
-> What's wrong with having fancy formatting? It's indeed easier to read
-> when members are assigned this way. It's always up to maintainer to
-> choose what he prefers, but I see nothing wrong in such style (if only it
-> doesn't break the style of the whole file).
+> Ditto. Can we use enum instead?
+Yes we can (tm)
+
+>>   	if (!mem_cgroup_is_root(mem)) {
+>>   		if (!swap)
+>> -			return res_counter_read_u64(&mem->res, RES_USAGE);
+>> +			kmem += res_counter_read_u64(&mem->res, RES_USAGE);
+>>   		else
+>> -			return res_counter_read_u64(&mem->memsw, RES_USAGE);
+>> +			kmem += res_counter_read_u64(&mem->memsw, RES_USAGE);
+>> +
+>> +		return kmem;
+>>   	}
+>>
+>>   	val = mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_CACHE);
 >
-> 	Cyrill
+> No kernel memory accounting for root cgroup, right?
+Not sure. Maybe kernel memory accounting is useful even for root cgroup. 
+Same as normal memory accounting... what we want to avoid is kernel 
+memory limits. OTOH, if we are not limiting it anyway, accounting it is 
+just useless overhead... Even the statistics can then be gathered 
+through all
+the proc files that show slab usage, I guess?
 
+>
+>> @@ -3979,6 +3999,10 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+>>   		else
+>>   			val = res_counter_read_u64(&mem->memsw, name);
+>>   		break;
+>> +	case _KMEM:
+>> +		val = res_counter_read_u64(&mem->kmem, name);
+>> +		break;
+>> +
+>
+> Always zero in root cgroup?
 
-I am in agreement with Cyrill, but I really, really don't care...
+Yes, if we're not accounting, it should be zero. WARN_ON, maybe?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
