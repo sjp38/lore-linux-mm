@@ -1,55 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A508A9000BD
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2011 16:43:37 -0400 (EDT)
-Date: Sun, 18 Sep 2011 23:43:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 1/7] Basic kernel memory functionality for the Memory
- Controller
-Message-ID: <20110918204335.GB28611@shutemov.name>
-References: <1316051175-17780-1-git-send-email-glommer@parallels.com>
- <1316051175-17780-2-git-send-email-glommer@parallels.com>
- <20110917174535.GA1658@shutemov.name>
- <4E7567E0.9010401@parallels.com>
- <20110918190509.GC28057@shutemov.name>
- <4E764259.5070209@parallels.com>
- <20110918203931.GA28611@shutemov.name>
- <4E76572B.2000904@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4E76572B.2000904@parallels.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5C19000BD
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2011 20:58:14 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v3 0/7]  per-cgroup tcp buffer pressure settings
+Date: Sun, 18 Sep 2011 21:56:38 -0300
+Message-Id: <1316393805-3005-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Sun, Sep 18, 2011 at 05:40:11PM -0300, Glauber Costa wrote:
-> On 09/18/2011 05:39 PM, Kirill A. Shutemov wrote:
-> > On Sun, Sep 18, 2011 at 04:11:21PM -0300, Glauber Costa wrote:
-> >> On 09/18/2011 04:05 PM, Kirill A. Shutemov wrote:
-> >>> On Sun, Sep 18, 2011 at 12:39:12AM -0300, Glauber Costa wrote:
-> >>>>> Always zero in root cgroup?
-> >>>>
-> >>>> Yes, if we're not accounting, it should be zero. WARN_ON, maybe?
-> >>>
-> >>> -ENOSYS?
-> >>>
-> >> I'd personally prefer WARN_ON. It is good symmetry from userspace PoV to
-> >> always be able to get a value out of it. Also, it something goes wrong
-> >> and it is not zero for some reason, this will help us find it.
-> >
-> > What's the point to get non-relevant value?
-> > What about -ENOSYS + WARN_ON?
-> >
-> Well,
-> 
-> what about not even registering kernel memory files for !root cgroup?
+[[ v3: merge Kirill's suggestions, + a destroy-related bugfix ]]
 
-ENOENT works for me ;)
+This patch introduces per-cgroup tcp buffers limitation. This allows
+sysadmins to specify a maximum amount of kernel memory that
+tcp connections can use at any point in time. TCP is the main interest
+in this work, but extending it to other protocols would be easy.
+
+For this to work, I am hooking it into memcg, after the introdution of
+an extension for tracking and controlling objects in kernel memory.
+Since they are usually not found in page granularity, and are fundamentally
+different from userspace memory (not swappable, can't overcommit), they
+need their special place inside the Memory Controller.
+
+Right now, the kmem extension is quite basic, and just lays down the
+basic infrastucture for the ongoing work. 
+
+Although it does not account kernel memory allocated - I preferred to
+keep this series simple and leave accounting to the slab allocations when
+they arrive.
+
+What it does is to piggyback in the memory control mechanism already present in
+/proc/sys/net/ipv4/tcp_mem. There is a soft limit, and a hard limit,
+that will suppress allocation when reached. For each non-root cgroup, however,
+the file kmem.tcp_maxmem will be used to cap those values. 
+
+The usage I have in mind here is containers. Each container will
+define its own values for soft and hard limits, but none of them will
+be possibly bigger than the value the box' sysadmin specified from
+the outside.
+
+To test for any performance impacts of this patch, I used netperf's
+TCP_RR benchmark on localhost, so we can have both recv and snd in action.
+For this iteration, I am using the 1% confidence interval as suggested by Rick.
+
+Command line used was ./src/netperf -t TCP_RR -H localhost -i 30,3 -I 99,1 and the
+results:
+
+Without the patch
+=================
+
+Local /Remote
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00    35367.21
+16384  87380
+
+
+With the patch
+==============
+
+Local /Remote
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate
+bytes  Bytes  bytes    bytes   secs.    per sec
+
+16384  87380  1        1       10.00   	35477.10 
+16384  87380
+
+The difference is less than 0.5 %
+
+A simple test with a 1000 level nesting yields more or less the same
+difference:
+
+1000 level nesting
+==================
+
+Local /Remote
+Socket Size   Request  Resp.   Elapsed  Trans.
+Send   Recv   Size     Size    Time     Rate         
+bytes  Bytes  bytes    bytes   secs.    per sec   
+
+16384  87380  1        1       10.00    35305.21   
+16384  87380 
+
+
+Glauber Costa (7):
+  Basic kernel memory functionality for the Memory Controller
+  socket: initial cgroup code.
+  foundations of per-cgroup memory pressure controlling.
+  per-cgroup tcp buffers control
+  per-netns ipv4 sysctl_tcp_mem
+  tcp buffer limitation: per-cgroup limit
+  Display current tcp memory allocation in kmem cgroup
+
+ Documentation/cgroups/memory.txt |   32 +++-
+ crypto/af_alg.c                  |    7 +-
+ include/linux/memcontrol.h       |   58 ++++++
+ include/net/netns/ipv4.h         |    1 +
+ include/net/sock.h               |  127 ++++++++++++-
+ include/net/tcp.h                |   14 +-
+ include/net/udp.h                |    3 +-
+ include/trace/events/sock.h      |   10 +-
+ init/Kconfig                     |   11 +
+ mm/memcontrol.c                  |  406 ++++++++++++++++++++++++++++++++++++--
+ net/core/sock.c                  |  103 +++++++---
+ net/decnet/af_decnet.c           |   21 ++-
+ net/ipv4/proc.c                  |    7 +-
+ net/ipv4/sysctl_net_ipv4.c       |   71 ++++++-
+ net/ipv4/tcp.c                   |   58 ++++---
+ net/ipv4/tcp_input.c             |   12 +-
+ net/ipv4/tcp_ipv4.c              |   18 +-
+ net/ipv4/tcp_output.c            |    2 +-
+ net/ipv4/tcp_timer.c             |    2 +-
+ net/ipv4/udp.c                   |   20 ++-
+ net/ipv6/tcp_ipv6.c              |   15 +-
+ net/ipv6/udp.c                   |    4 +-
+ net/sctp/socket.c                |   35 +++-
+ 23 files changed, 904 insertions(+), 133 deletions(-)
 
 -- 
- Kirill A. Shutemov
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
