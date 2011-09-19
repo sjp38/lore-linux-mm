@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A510B9000BD
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2011 09:42:52 -0400 (EDT)
-Date: Mon, 19 Sep 2011 08:42:46 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [kernel-hardening] Re: [RFC PATCH 2/2] mm: restrict access to
- /proc/slabinfo
-In-Reply-To: <20110918170512.GA2351@albatros>
-Message-ID: <alpine.DEB.2.00.1109190841580.8771@router.home>
-References: <20110910164001.GA2342@albatros> <20110910164134.GA2442@albatros> <20110914192744.GC4529@outflux.net> <20110918170512.GA2351@albatros>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CC9C29000BD
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2011 09:46:09 -0400 (EDT)
+Date: Mon, 19 Sep 2011 15:46:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 02/11] mm: vmscan: distinguish global reclaim from global
+ LRU scanning
+Message-ID: <20110919134606.GF21847@tiehlicka.suse.cz>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+ <1315825048-3437-3-git-send-email-jweiner@redhat.com>
+ <20110919132344.GE21847@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110919132344.GE21847@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-hardening@lists.openwall.com, Kees Cook <kees@ubuntu.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Rosenberg <drosenberg@vsecurity.com>, Theodore Tso <tytso@mit.edu>, Alan Cox <alan@linux.intel.com>, Jesper Juhl <jj@chaosbits.net>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 18 Sep 2011, Vasiliy Kulikov wrote:
+On Mon 19-09-11 15:23:44, Michal Hocko wrote:
+> On Mon 12-09-11 12:57:19, Johannes Weiner wrote:
+> > The traditional zone reclaim code is scanning the per-zone LRU lists
+> > during direct reclaim and kswapd, and the per-zone per-memory cgroup
+> > LRU lists when reclaiming on behalf of a memory cgroup limit.
+> > 
+> > Subsequent patches will convert the traditional reclaim code to
+> > reclaim exclusively from the per-memory cgroup LRU lists.  As a
+> > result, using the predicate for which LRU list is scanned will no
+> > longer be appropriate to tell global reclaim from limit reclaim.
+> > 
+> > This patch adds a global_reclaim() predicate to tell direct/kswapd
+> > reclaim from memory cgroup limit reclaim and substitutes it in all
+> > places where currently scanning_global_lru() is used for that.
+> 
+> I am wondering about vmscan_swappiness. Shouldn't it use global_reclaim
+> instead?
 
-> > Reviewed-by: Kees Cook <kees@ubuntu.com>
->
-> Looks like the members of the previous slabinfo discussion don't object
-> against the patch now and it got two other Reviewed-by responses.  Can
-> you merge it as-is or should I probably convince someone else?
-
-The patch is incomplete. If you want to restrict access to this
-information then /sys/kernel/slab needs to have a similar
-restriction.
-
+Ahh, it looks like the next patch does that. Wouldn't it make more sense
+to have that change here? I see that this makes the patch smaller but...
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
