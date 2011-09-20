@@ -1,132 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AF1579000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 04:53:06 -0400 (EDT)
-Date: Tue, 20 Sep 2011 10:53:02 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 01/11] mm: memcg: consolidate hierarchy iteration
- primitives
-Message-ID: <20110920085302.GC27675@tiehlicka.suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1E5FC9000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 04:58:23 -0400 (EDT)
+Date: Tue, 20 Sep 2011 10:58:11 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 03/11] mm: vmscan: distinguish between memcg triggering
+ reclaim and memcg being scanned
+Message-ID: <20110920085811.GC11489@redhat.com>
 References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-2-git-send-email-jweiner@redhat.com>
- <20110919125333.GC21847@tiehlicka.suse.cz>
- <20110920084553.GA11489@redhat.com>
+ <1315825048-3437-4-git-send-email-jweiner@redhat.com>
+ <20110919142955.GG21847@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110920084553.GA11489@redhat.com>
+In-Reply-To: <20110919142955.GG21847@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 20-09-11 10:45:53, Johannes Weiner wrote:
-> On Mon, Sep 19, 2011 at 02:53:33PM +0200, Michal Hocko wrote:
-> > Hi,
+On Mon, Sep 19, 2011 at 04:29:55PM +0200, Michal Hocko wrote:
+> On Mon 12-09-11 12:57:20, Johannes Weiner wrote:
+> > Memory cgroup hierarchies are currently handled completely outside of
+> > the traditional reclaim code, which is invoked with a single memory
+> > cgroup as an argument for the whole call stack.
 > > 
-> > On Mon 12-09-11 12:57:18, Johannes Weiner wrote:
-> > > Memory control groups are currently bolted onto the side of
-> > > traditional memory management in places where better integration would
-> > > be preferrable.  To reclaim memory, for example, memory control groups
-> > > maintain their own LRU list and reclaim strategy aside from the global
-> > > per-zone LRU list reclaim.  But an extra list head for each existing
-> > > page frame is expensive and maintaining it requires additional code.
-> > > 
-> > > This patchset disables the global per-zone LRU lists on memory cgroup
-> > > configurations and converts all its users to operate on the per-memory
-> > > cgroup lists instead.  As LRU pages are then exclusively on one list,
-> > > this saves two list pointers for each page frame in the system:
-> > > 
-> > > page_cgroup array size with 4G physical memory
-> > > 
-> > >   vanilla: [    0.000000] allocated 31457280 bytes of page_cgroup
-> > >   patched: [    0.000000] allocated 15728640 bytes of page_cgroup
-> > > 
-> > > At the same time, system performance for various workloads is
-> > > unaffected:
-> > > 
-> > > 100G sparse file cat, 4G physical memory, 10 runs, to test for code
-> > > bloat in the traditional LRU handling and kswapd & direct reclaim
-> > > paths, without/with the memory controller configured in
-> > > 
-> > >   vanilla: 71.603(0.207) seconds
-> > >   patched: 71.640(0.156) seconds
-> > > 
-> > >   vanilla: 79.558(0.288) seconds
-> > >   patched: 77.233(0.147) seconds
-> > > 
-> > > 100G sparse file cat in 1G memory cgroup, 10 runs, to test for code
-> > > bloat in the traditional memory cgroup LRU handling and reclaim path
-> > > 
-> > >   vanilla: 96.844(0.281) seconds
-> > >   patched: 94.454(0.311) seconds
-> > > 
-> > > 4 unlimited memcgs running kbuild -j32 each, 4G physical memory, 500M
-> > > swap on SSD, 10 runs, to test for regressions in kswapd & direct
-> > > reclaim using per-memcg LRU lists with multiple memcgs and multiple
-> > > allocators within each memcg
-> > > 
-> > >   vanilla: 717.722(1.440) seconds [ 69720.100(11600.835) majfaults ]
-> > >   patched: 714.106(2.313) seconds [ 71109.300(14886.186) majfaults ]
-> > > 
-> > > 16 unlimited memcgs running kbuild, 1900M hierarchical limit, 500M
-> > > swap on SSD, 10 runs, to test for regressions in hierarchical memcg
-> > > setups
-> > > 
-> > >   vanilla: 2742.058(1.992) seconds [ 26479.600(1736.737) majfaults ]
-> > >   patched: 2743.267(1.214) seconds [ 27240.700(1076.063) majfaults ]
+> > Subsequent patches will switch this code to do hierarchical reclaim,
+> > so there needs to be a distinction between a) the memory cgroup that
+> > is triggering reclaim due to hitting its limit and b) the memory
+> > cgroup that is being scanned as a child of a).
 > > 
-> > I guess you want to have this in the first patch to have it for
-> > reference once it gets to the tree, right? I have no objections but it
-> > seems unrelated to the patch and so it might be confusing a bit. I
-> > haven't seen other patches in the series so there is probably no better
-> > place to put this.
-> 
-> Andrew usually hand-picks what's of long-term interest from the series
-> description and puts it in the first patch.  I thought I'd save him
-> the trouble.
-
-Understood
-
-[...]
-
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index b76011a..912c7c7 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -781,83 +781,75 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
-> > >  	return memcg;
-> > >  }
-> > >  
-> > > -/* The caller has to guarantee "mem" exists before calling this */
+> > This patch introduces a struct mem_cgroup_zone that contains the
+> > combination of the memory cgroup and the zone being scanned, which is
+> > then passed down the stack instead of the zone argument.
 > > 
-> > Shouldn't we have a similar comment that we have to keep a reference to
-> > root if non-NULL. A mention about remember parameter and what is it used
-> > for (hierarchical reclaim) would be helpful as well.
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 > 
-> The only thing that dictates the lifetime of a memcg is its reference
-> count, so having a reference count while operating on a memecg is not
-> even a question for all existing memcg-internal callsites.
-
-Fair enough.
-
-> 
-> But I did, in fact, add kernel-doc style documentation to
-> mem_cgroup_iter() when it becomes a public interface in 5/11.  Can you
-> take a look and tell me whether you are okay with that?
-
-OK, I will comment on that patch once I get to it.
-
-[...]
+> Looks good to me. Some minor comments bellow
+> Anyways:
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
 Thanks!
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+
+> > @@ -1853,13 +1865,13 @@ static int vmscan_swappiness(struct scan_control *sc)
+> >   *
+> >   * nr[0] = anon pages to scan; nr[1] = file pages to scan
+> >   */
+> > -static void get_scan_count(struct zone *zone, struct scan_control *sc,
+> > -					unsigned long *nr, int priority)
+> > +static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+> > +			   unsigned long *nr, int priority)
+> >  {
+> >  	unsigned long anon, file, free;
+> >  	unsigned long anon_prio, file_prio;
+> >  	unsigned long ap, fp;
+> > -	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> > +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
+> >  	u64 fraction[2], denominator;
+> >  	enum lru_list l;
+> >  	int noswap = 0;
+> 
+> You can save some patch lines by:
+> 	struct zone *zone = mz->zone;
+> and not doing zone => mz->zone changes that follow.
+
+Actually, I really hate that I had to do that local zone variable in
+other places.  I only did it where it's used so often that it would
+have changed every other line.  If you insist, I'll change it, but I
+would prefer to avoid it when possible.
+
+> > @@ -2390,6 +2413,18 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+> >  }
+> >  #endif
+> >  
+> > +static void age_active_anon(struct zone *zone, struct scan_control *sc,
+> > +			    int priority)
+> > +{
+> > +	struct mem_cgroup_zone mz = {
+> > +		.mem_cgroup = NULL,
+> > +		.zone = zone,
+> > +	};
+> > +
+> > +	if (inactive_anon_is_low(&mz))
+> > +		shrink_active_list(SWAP_CLUSTER_MAX, &mz, sc, priority, 0);
+> > +}
+> > +
+> 
+> I do not like this very much because we are using a similar construct in
+> shrink_mem_cgroup_zone so we are duplicating that code. 
+> What about adding age_mem_cgroup_active_anon (something like shrink_zone).
+
+I am not sure I follow and I don't see what could be shared between
+the zone shrinking and this as there are different exit conditions to
+the hierarchy walk.  Can you elaborate?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
