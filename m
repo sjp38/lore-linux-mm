@@ -1,53 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B07B69000C6
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:48:35 -0400 (EDT)
-From: Krishna Reddy <vdumpa@nvidia.com>
-Date: Tue, 20 Sep 2011 11:48:26 -0700
-Subject: Re: [PATCH 1/2] ARM: initial proof-of-concept IOMMU mapper for
- DMA-mapping
-Message-ID: <401E54CE964CD94BAE1EB4A729C7087E1229036B6D@HQMAIL04.nvidia.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 433D99000C6
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 15:05:15 -0400 (EDT)
+Message-ID: <4E78E3DF.1070501@redhat.com>
+Date: Tue, 20 Sep 2011 15:05:03 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 1/8] page_referenced: replace vm_flags parameter with
+ struct pr_info
+References: <1316230753-8693-1-git-send-email-walken@google.com> <1316230753-8693-2-git-send-email-walken@google.com>
+In-Reply-To: <1316230753-8693-2-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-ARM Kernel <linux-arm-kernel@lists.infradead.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig <linaro-mm-sig@lists.linaro.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
 
-Hi,
-The following change fixes a bug, which causes releasing incorrect iova spa=
-ce, in the original patch of this mail thread. It fixes compilation error e=
-ither.
+On 09/16/2011 11:39 PM, Michel Lespinasse wrote:
+> Introduce struct pr_info, passed into page_referenced() family of functions,
+> to represent information about the pte references that have been found for
+> that page. Currently contains the vm_flags information as well as
+> a PR_REFERENCED flag. The idea is to make it easy to extend the API
+> with new flags.
+>
+>
+> Signed-off-by: Michel Lespinasse<walken@google.com>
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 82d5134..8c16ed7 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -900,10 +900,8 @@ static int __iommu_remove_mapping(struct device *dev, =
-dma_addr_t iova, size_t si
-        unsigned int count =3D size >> PAGE_SHIFT;
-        int i;
-=20
--       for (i=3D0; i<count; i++) {
--               iommu_unmap(mapping->domain, iova, 0);
--               iova +=3D PAGE_SIZE;
--       }
-+       for (i=3D0; i<count; i++)
-+               iommu_unmap(mapping->domain, iova + i * PAGE_SIZE, 0);
-        __free_iova(mapping, iova, size);
-        return 0;
- }
-@@ -1073,7 +1071,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatt=
-erlist *sg, int nents,
-                size +=3D sg->length;
-        }
-        __map_sg_chunk(dev, start, size, &dma->dma_address, dir);
--       d->dma_address +=3D offset;
-+       dma->dma_address +=3D offset;
-=20
-        return count;
+I have to agree with Joe's suggested name change.
+
+Other than that, this patch looks good (will ack the next version).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
