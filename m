@@ -1,134 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C4C29000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 08:37:08 -0400 (EDT)
-Date: Tue, 20 Sep 2011 14:37:02 +0200
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D32179000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 09:09:20 -0400 (EDT)
+Date: Tue, 20 Sep 2011 15:09:15 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 04/11] mm: memcg: per-priority per-zone hierarchy scan
- generations
-Message-ID: <20110920123702.GD26791@tiehlicka.suse.cz>
+Subject: Re: [patch 05/11] mm: move memcg hierarchy reclaim to generic
+ reclaim code
+Message-ID: <20110920130915.GE27675@tiehlicka.suse.cz>
 References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-5-git-send-email-jweiner@redhat.com>
- <20110920084531.GB27675@tiehlicka.suse.cz>
- <20110920091032.GD11489@redhat.com>
+ <1315825048-3437-6-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110920091032.GD11489@redhat.com>
+In-Reply-To: <1315825048-3437-6-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 20-09-11 11:10:32, Johannes Weiner wrote:
-> On Tue, Sep 20, 2011 at 10:45:32AM +0200, Michal Hocko wrote:
-> > On Mon 12-09-11 12:57:21, Johannes Weiner wrote:
-> > > Memory cgroup limit reclaim currently picks one memory cgroup out of
-> > > the target hierarchy, remembers it as the last scanned child, and
-> > > reclaims all zones in it with decreasing priority levels.
-> > > 
-> > > The new hierarchy reclaim code will pick memory cgroups from the same
-> > > hierarchy concurrently from different zones and priority levels, it
-> > > becomes necessary that hierarchy roots not only remember the last
-> > > scanned child, but do so for each zone and priority level.
-> > > 
-> > > Furthermore, detecting full hierarchy round-trips reliably will become
-> > > crucial, so instead of counting on one iterator site seeing a certain
-> > > memory cgroup twice, use a generation counter that is increased every
-> > > time the child with the highest ID has been visited.
-> > 
-> > In principle I think the patch is good. I have some concerns about
-> > locking and I would really appreciate some more description (like you
-> > provided in the other email in this thread).
+On Mon 12-09-11 12:57:22, Johannes Weiner wrote:
+> Memory cgroup limit reclaim and traditional global pressure reclaim
+> will soon share the same code to reclaim from a hierarchical tree of
+> memory cgroups.
 > 
-> Okay, I'll incorporate that description into the changelog.
+> In preparation of this, move the two right next to each other in
+> shrink_zone().
 
-Thanks!
+I like the way how you've split mem_cgroup_hierarchical_reclaim into
+mem_cgroup_reclaim and mem_cgroup_soft_reclaim and I guess this deserves
+a note in the patch description. Especially that mem_cgroup_reclaim is
+hierarchical even though it doesn't use mem_cgroup_iter directly but
+rather via do_try_to_free_pages and shrink_zone.
+
+I am not sure I see how shrink_mem_cgroup_zone works. See comments and
+questions bellow:
 
 > 
-> > > @@ -131,6 +136,8 @@ struct mem_cgroup_per_zone {
-> > >  	struct list_head	lists[NR_LRU_LISTS];
-> > >  	unsigned long		count[NR_LRU_LISTS];
-> > >  
-> > > +	struct mem_cgroup_iter_state iter_state[DEF_PRIORITY + 1];
-> > > +
-> > >  	struct zone_reclaim_stat reclaim_stat;
-> > >  	struct rb_node		tree_node;	/* RB tree node */
-> > >  	unsigned long long	usage_in_excess;/* Set to the value by which */
-> > [...]
-> > > @@ -781,9 +783,15 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
-> > >  	return memcg;
-> > >  }
-> > >  
-> > > +struct mem_cgroup_iter {
-> > 
-> > Wouldn't be mem_cgroup_zone_iter_state a better name. It is true it is
-> > rather long but I find mem_cgroup_iter very confusing because the actual
-> > position is stored in the zone's state. The other thing is that it looks
-> > like we have two iterators in mem_cgroup_iter function now but in fact
-> > the iter parameter is just a state when we start iteration.
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> ---
+>  include/linux/memcontrol.h |   25 ++++++-
+>  mm/memcontrol.c            |  167 ++++++++++++++++++++++----------------------
+>  mm/vmscan.c                |   43 ++++++++++-
+>  3 files changed, 147 insertions(+), 88 deletions(-)
 > 
-> Agreed, the naming is unfortunate.  How about
-> mem_cgroup_reclaim_cookie or something comparable?  It's limited to
-> reclaim anyway, hierarchy walkers that do not age the LRU lists should
-> not advance the shared iterator state, so might as well encode it in
-> the name.
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f4b404e..413e1f8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -783,19 +781,33 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+>  	return memcg;
+>  }
+>  
+> -struct mem_cgroup_iter {
+> -	struct zone *zone;
+> -	int priority;
+> -	unsigned int generation;
+> -};
+> -
+> -static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> -					  struct mem_cgroup *prev,
+> -					  struct mem_cgroup_iter *iter)
+> +/**
+> + * mem_cgroup_iter - iterate over memory cgroup hierarchy
+> + * @root: hierarchy root
+> + * @prev: previously returned memcg, NULL on first invocation
+> + * @iter: token for partial walks, NULL for full walks
+> + *
+> + * Returns references to children of the hierarchy starting at @root,
 
-Sounds good.
+I guess you meant "starting at @prev"
 
-> 
-> > > +	struct zone *zone;
-> > > +	int priority;
-> > > +	unsigned int generation;
-> > > +};
-> > > +
-> > >  static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> > >  					  struct mem_cgroup *prev,
-> > > -					  bool remember)
-> > > +					  struct mem_cgroup_iter *iter)
-> > 
-> > I would rather see a different name for the last parameter
-> > (iter_state?).
-> 
-> I'm with you on this.  Will think something up.
-> 
-> > > @@ -804,10 +812,20 @@ static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> > >  	}
-> > >  
-> > >  	while (!mem) {
-> > > +		struct mem_cgroup_iter_state *uninitialized_var(is);
-> > >  		struct cgroup_subsys_state *css;
-> > >  
-> > > -		if (remember)
-> > > -			id = root->last_scanned_child;
-> > > +		if (iter) {
-> > > +			int nid = zone_to_nid(iter->zone);
-> > > +			int zid = zone_idx(iter->zone);
-> > > +			struct mem_cgroup_per_zone *mz;
-> > > +
-> > > +			mz = mem_cgroup_zoneinfo(root, nid, zid);
-> > > +			is = &mz->iter_state[iter->priority];
-> > > +			if (prev && iter->generation != is->generation)
-> > > +				return NULL;
-> > > +			id = is->position;
-> > 
-> > Do we need any kind of locking here (spin_lock(&is->lock))?
-> > If two parallel reclaimers start on the same zone and priority they will
-> > see the same position and so bang on the same cgroup.
-> 
-> Note that last_scanned_child wasn't lock-protected before this series,
-> so there is no actual difference.
+> + * or @root itself, or %NULL after a full round-trip.
+> + *
+> + * Caller must pass the return value in @prev on subsequent
+> + * invocations for reference counting, or use mem_cgroup_iter_break()
+> + * to cancel a hierarchy walk before the round-trip is complete.
+> + *
+> + * Reclaimers can specify a zone and a priority level in @iter to
+> + * divide up the memcgs in the hierarchy among all concurrent
+> + * reclaimers operating on the same zone and priority.
+> + */
+> +struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> +				   struct mem_cgroup *prev,
+> +				   struct mem_cgroup_iter *iter)
+>  {
+>  	struct mem_cgroup *mem = NULL;
+>  	int id = 0;
+>  
+> +	if (mem_cgroup_disabled())
+> +		return NULL;
+> +
+>  	if (!root)
+>  		root = root_mem_cgroup;
+>  
+[...]
+> @@ -1479,6 +1496,41 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+>  	return min(limit, memsw);
+>  }
+>  
+> +static unsigned long mem_cgroup_reclaim(struct mem_cgroup *mem,
+> +					gfp_t gfp_mask,
+> +					unsigned long flags)
+> +{
+> +	unsigned long total = 0;
+> +	bool noswap = false;
+> +	int loop;
+> +
+> +	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
+> +		noswap = true;
+> +	else if (!(flags & MEM_CGROUP_RECLAIM_SHRINK) && mem->memsw_is_minimum)
+> +		noswap = true;
+> +
+> +	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
+> +		if (loop)
+> +			drain_all_stock_async(mem);
+> +		total += try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap);
+> +		/*
+> +		 * Avoid freeing too much when shrinking to resize the
+> +		 * limit.  XXX: Shouldn't the margin check be enough?
 
-that's a fair point. Anyway, I think it is worth mentioning this in the
-patch description or in the comment to be clear that this is intentional.
+I guess the MEM_CGROUP_RECLAIM_SHRINK condition should help shrinkers to
+die more easily on signal even if they make some progress.
 
-> 
-> I can say, though, that during development I had a lock in there for
-> some time and it didn't make any difference for 32 concurrent
-> reclaimers on a quadcore.  Feel free to evaluate with higher
-> concurrency :)
+> +		 */
+> +		if (total && (flags & MEM_CGROUP_RECLAIM_SHRINK))
+> +			break;
+> +		if (mem_cgroup_margin(mem))
+> +			break;
+> +		/*
+> +		 * If nothing was reclaimed after two attempts, there
+> +		 * may be no reclaimable pages in this hierarchy.
+> +		 */
+> +		if (loop && !total)
+> +			break;
+> +	}
+> +	return total;
+> +}
+> +
+>  /**
+>   * test_mem_cgroup_node_reclaimable
+>   * @mem: the target memcg
+[...]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 92f4e22..8419e8f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2104,12 +2104,43 @@ restart:
+>  static void shrink_zone(int priority, struct zone *zone,
+>  			struct scan_control *sc)
+>  {
+> -	struct mem_cgroup_zone mz = {
+> -		.mem_cgroup = sc->target_mem_cgroup,
+> +	struct mem_cgroup *root = sc->target_mem_cgroup;
+> +	struct mem_cgroup_iter iter = {
+>  		.zone = zone,
+> +		.priority = priority,
+>  	};
+> +	struct mem_cgroup *mem;
+> +
+> +	if (global_reclaim(sc)) {
+> +		struct mem_cgroup_zone mz = {
+> +			.mem_cgroup = NULL,
+> +			.zone = zone,
+> +		};
+> +
+> +		shrink_mem_cgroup_zone(priority, &mz, sc);
+> +		return;
+> +	}
+> +
+> +	mem = mem_cgroup_iter(root, NULL, &iter);
+> +	do {
+> +		struct mem_cgroup_zone mz = {
+> +			.mem_cgroup = mem,
+> +			.zone = zone,
+> +		};
+>  
+> -	shrink_mem_cgroup_zone(priority, &mz, sc);
+> +		shrink_mem_cgroup_zone(priority, &mz, sc);
+> +		/*
+> +		 * Limit reclaim has historically picked one memcg and
+> +		 * scanned it with decreasing priority levels until
+> +		 * nr_to_reclaim had been reclaimed.  This priority
+> +		 * cycle is thus over after a single memcg.
+> +		 */
+> +		if (!global_reclaim(sc)) {
 
-Thanks!
+How can we have global_reclaim(sc) == true here?
+Shouldn't we just check how much have we reclaimed from that group and
+iterate only if it wasn't sufficient (at least SWAP_CLUSTER_MAX)?
+
+> +			mem_cgroup_iter_break(root, mem);
+> +			break;
+> +		}
+> +		mem = mem_cgroup_iter(root, mem, &iter);
+> +	} while (mem);
+>  }
+>  
+>  /*
+[...]
 -- 
 Michal Hocko
 SUSE Labs
