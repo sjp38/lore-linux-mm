@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A389000C4
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 16:11:35 -0400 (EDT)
-From: Krishna Reddy <vdumpa@nvidia.com>
-Date: Tue, 20 Sep 2011 13:11:20 -0700
-Subject: Re: [PATCH 1/2] ARM: initial proof-of-concept IOMMU mapper for
- DMA-mapping
-Message-ID: <401E54CE964CD94BAE1EB4A729C7087E1229036BAC@HQMAIL04.nvidia.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3558C9000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 16:53:32 -0400 (EDT)
+Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
+	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8KKrK7V001646
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 20:53:20 GMT
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8KKrKVE2232530
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 21:53:20 +0100
+Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8KKrIdP006836
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:53:20 -0600
+Date: Tue, 20 Sep 2011 21:53:17 +0100
+From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+Message-ID: <20110920205317.GA1508@stefanha-thinkpad.localdomain>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
+ <20110920171310.GC27959@stefanha-thinkpad.localdomain>
+ <20110920181225.GA5149@infradead.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110920181225.GA5149@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-ARM Kernel <linux-arm-kernel@lists.infradead.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig <linaro-mm-sig@lists.linaro.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
-The following change fixes a bug, which causes releasing incorrect iova spa=
-ce, in the original patch of this mail thread. It fixes compilation error e=
-ither.
+On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
+> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
+> > You've probably thought of this but it would be nice to skip XOL for
+> > nops.  This would be a common case with static probes (e.g. sdt.h) where
+> > the probe template includes a nop where we can easily plant int $0x3.
+> 
+> Do we now have sdt.h support for uprobes?  That's one of the killer
+> features that always seemed to get postponed.
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 82d5134..8c16ed7 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -900,10 +900,8 @@ static int __iommu_remove_mapping(struct device *dev, =
-dma_addr_t iova, size_t si
-        unsigned int count =3D size >> PAGE_SHIFT;
-        int i;
-=20
--       for (i=3D0; i<count; i++) {
--               iommu_unmap(mapping->domain, iova, 0);
--               iova +=3D PAGE_SIZE;
--       }
-+       for (i=3D0; i<count; i++)
-+               iommu_unmap(mapping->domain, iova + i * PAGE_SIZE, 0);
-        __free_iova(mapping, iova, size);
-        return 0;
- }
-@@ -1073,7 +1071,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatt=
-erlist *sg, int nents,
-                size +=3D sg->length;
-        }
-        __map_sg_chunk(dev, start, size, &dma->dma_address, dir);
--       d->dma_address +=3D offset;
-+       dma->dma_address +=3D offset;
-=20
-        return count;
+Not yet but it's a question of doing roughly what SystemTap does to
+parse the appropriate ELF sections and then putting those probes into
+uprobes.
 
+Masami looked at this and found that SystemTap sdt.h currently requires
+an extra userspace memory store in order to activate probes.  Each probe
+has a "semaphore" 16-bit counter which applications may test before
+hitting the probe itself.  This is used to avoid overhead in
+applications that do expensive argument processing (e.g. creating
+strings) for probes.
 
--nvpublic
+But this should be solvable so it would be possible to use perf-probe(1)
+on a std.h-enabled binary.  Some distros already ship such binaries!
+
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
