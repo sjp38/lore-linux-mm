@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B9F179000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 11:33:12 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8KF2GIm030871
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 11:02:16 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8KFWwsO098552
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 11:33:01 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8KFWkh4019966
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 12:32:49 -0300
-Date: Tue, 20 Sep 2011 20:49:03 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 0/26]   Uprobes patchset with perf
- probe support
-Message-ID: <20110920151903.GA22802@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920133401.GA28550@infradead.org>
- <20110920141204.GC6568@linux.vnet.ibm.com>
- <20110920142843.GA9995@infradead.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D179000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 11:43:04 -0400 (EDT)
+Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
+	by mtagate1.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8KFh1S3030070
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 15:43:01 GMT
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8KFh1ne1974272
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 16:43:01 +0100
+Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8KFgxve015317
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 09:43:01 -0600
+Date: Tue, 20 Sep 2011 16:42:59 +0100
+From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 1/26]   uprobes: Auxillary routines to
+ insert, find, delete uprobes
+Message-ID: <20110920154259.GA25610@stefanha-thinkpad.localdomain>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920115949.25326.2469.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110920142843.GA9995@infradead.org>
+In-Reply-To: <20110920115949.25326.2469.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-* Christoph Hellwig <hch@infradead.org> [2011-09-20 10:28:43]:
+On Tue, Sep 20, 2011 at 05:29:49PM +0530, Srikar Dronamraju wrote:
+> +static void delete_uprobe(struct uprobe *uprobe)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&uprobes_treelock, flags);
+> +	rb_erase(&uprobe->rb_node, &uprobes_tree);
+> +	spin_unlock_irqrestore(&uprobes_treelock, flags);
+> +	put_uprobe(uprobe);
+> +	iput(uprobe->inode);
 
-> On Tue, Sep 20, 2011 at 07:42:04PM +0530, Srikar Dronamraju wrote:
-> > I could use any other inode/file/mapping based sleepable lock that is of
-> > higher order than mmap_sem. Can you please let me know if we have
-> > alternatives.
-> 
-> Please do not overload unrelated locks for this, but add a specific one.
-> 
-> There's two options:
-> 
->  (a) add it to the inode (conditionally)
->  (b) use global, hashed locks
-> 
-> I think (b) is good enough as adding/removing probes isn't exactly the
-> most critical fast path.
-> 
+Use-after-free when put_uprobe() kfrees() the uprobe?
 
-Agree, I will replace the i_mutex with a uprobes specific hash locks.
-I will make this change as part of next patchset.
-
--- 
-Thanks and Regards
-Srikar
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
