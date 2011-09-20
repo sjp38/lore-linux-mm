@@ -1,112 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AF86E9000C7
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 09:46:14 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5D7BE9000C7
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 09:46:18 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 0/4] 50% faster writing to your USB drive!*
-Date: Tue, 20 Sep 2011 15:45:11 +0200
-Message-Id: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+Subject: [patch 2/4] mm: writeback: distribute write pages across allowable zones
+Date: Tue, 20 Sep 2011 15:45:13 +0200
+Message-Id: <1316526315-16801-3-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-*if you use ntfs-3g copy files larger than main memory
+This patch allows allocators to pass __GFP_WRITE when they know in
+advance that the allocated page will be written to and become dirty
+soon.  The page allocator will then attempt to distribute those
+allocations across zones, such that no single zone will end up full of
+dirty, and thus more or less, unreclaimable pages.
 
-or: per-zone dirty limits
+The global dirty limits are put in proportion to the respective zone's
+amount of dirtyable memory and allocations diverted to other zones
+when the limit is reached.
 
-There have been several discussions and patches around the issue of
-dirty pages being written from page reclaim, that is, they reach the
-end of the LRU list before they are cleaned.
+For now, the problem remains for NUMA configurations where the zones
+allowed for allocation are in sum not big enough to trigger the global
+dirty limits, but a future approach to solve this can reuse the
+per-zone dirty limit infrastructure laid out in this patch to have
+dirty throttling and the flusher threads consider individual zones.
 
-Proposed reasons for this are the divergence of dirtying age from page
-cache age, on one hand, and unequal distribution of the globally
-limited dirty memory across the LRU lists of different zones.
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+---
+ include/linux/gfp.h       |    4 ++-
+ include/linux/writeback.h |    1 +
+ mm/page-writeback.c       |   66 +++++++++++++++++++++++++++++++++++++-------
+ mm/page_alloc.c           |   22 ++++++++++++++-
+ 4 files changed, 80 insertions(+), 13 deletions(-)
 
-Mel's recent patches to reduce writes from reclaim, by simply skipping
-over dirty pages until a certain amount of memory pressure builds up,
-do help quite a bit.  But they can only deal with a limited length of
-runs of dirty pages before kswapd goes to lower priority levels to
-balance the zone and begins writing.
-
-The unequal distribution of dirty memory between zones is easily
-observable through the statistics in /proc/zoneinfo, but the test
-results varied between filesystems.  To get an overview of where and
-how often different page cache pages are created and dirtied, I hacked
-together an object tracker that remembers the instantiator of a page
-cache page and associates with it the paths that dirty or activate the
-page, together with counters that indicate how often those operations
-occur.
-
-Btrfs, for example, appears to be activating a significant amount of
-regularly written tree data with mark_page_accessed(), even with a
-purely linear, page-aligned write load.  So in addition to the already
-unbounded dirty memory on smaller zones, this is a divergence between
-page age and dirtying age and leads to a situation where the pages
-reclaimed next are not the ones that are also flushed next:
-
-		pgactivate
-			     min|  median|     max
-	      xfs:	   5.000|   6.500|  20.000
-	fuse-ntfs:	   5.000|  19.000| 275.000
-	     ext4:	   2.000|  67.000| 810.000 
-	    btrfs:	2915.000|3316.500|5786.000
-
-ext4's delalloc, on the other hand, refuses regular write attemps from
-kjournald, but the write index of the inode is still advanced for
-cyclic write ranges and so the pages are not even immediately written
-when the inode is selected again.
-
-I cc'd the filesystem people because it is at least conceivable that
-things could be improved on their side, but I do think the problem is
-mainly with the VM and needs fixing there.
-
-This patch series implements per-zone dirty limits, derived from the
-configured global dirty limits and the individual zone size, that the
-page allocator uses to distribute pages allocated for writing across
-the allowable zones.  Even with pages dirtied out of the inactive LRU
-order this gives page reclaim a minimum number of clean pages on each
-LRU so that balancing a zone should no longer require writeback in the
-common case.
-
-The previous version included code to wake the flushers and stall the
-allocation on NUMA setups where the load is bound to a node that is in
-itself not large enough to reach the global dirty limits, but I am
-still trying to get it to work reliably and dropped it for now, the
-series has merits even without it.
-
-			Test results
-
-15M DMA + 3246M DMA32 + 504 Normal = 3765M memory
-40% dirty ratio
-16G USB thumb drive
-10 runs of dd if=/dev/zero of=disk/zeroes bs=32k count=$((10 << 15))
-
-		seconds			nr_vmscan_write
-		        (stddev)	       min|     median|        max
-xfs
-vanilla:	 549.747( 3.492)	     0.000|      0.000|      0.000
-patched:	 550.996( 3.802)	     0.000|      0.000|      0.000
-
-fuse-ntfs
-vanilla:	1183.094(53.178)	 54349.000|  59341.000|  65163.000
-patched:	 558.049(17.914)	     0.000|      0.000|     43.000
-
-btrfs
-vanilla:	 573.679(14.015)	156657.000| 460178.000| 606926.000
-patched:	 563.365(11.368)	     0.000|      0.000|   1362.000
-
-ext4
-vanilla:	 561.197(15.782)	     0.000|2725438.000|4143837.000
-patched:	 568.806(17.496)	     0.000|      0.000|      0.000
-
-Even though most filesystems already ignore the write request from
-reclaim, we were reluctant in the past to remove it, as it was still
-theoretically our only means to stay on top of the dirty pages on a
-per-zone basis.  This patchset should get us closer to removing the
-dreaded writepage call from page reclaim altogether.
-
-	Hannes
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 3a76faf..50efc7e 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -36,6 +36,7 @@ struct vm_area_struct;
+ #endif
+ #define ___GFP_NO_KSWAPD	0x400000u
+ #define ___GFP_OTHER_NODE	0x800000u
++#define ___GFP_WRITE		0x1000000u
+ 
+ /*
+  * GFP bitmasks..
+@@ -85,6 +86,7 @@ struct vm_area_struct;
+ 
+ #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+ #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
++#define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
+ 
+ /*
+  * This may seem redundant, but it's a way of annotating false positives vs.
+@@ -92,7 +94,7 @@ struct vm_area_struct;
+  */
+ #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+ 
+-#define __GFP_BITS_SHIFT 24	/* Room for N __GFP_FOO bits */
++#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /* This equals 0, but use constants in case they ever change */
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index a5f495f..c96ee0c 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -104,6 +104,7 @@ void laptop_mode_timer_fn(unsigned long data);
+ static inline void laptop_sync_completion(void) { }
+ #endif
+ void throttle_vm_writeout(gfp_t gfp_mask);
++bool zone_dirty_ok(struct zone *zone);
+ 
+ extern unsigned long global_dirty_limit;
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 9f896db..1fc714c 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -142,6 +142,22 @@ unsigned long global_dirty_limit;
+ static struct prop_descriptor vm_completions;
+ static struct prop_descriptor vm_dirties;
+ 
++static unsigned long zone_dirtyable_memory(struct zone *zone)
++{
++	unsigned long x;
++	/*
++	 * To keep a reasonable ratio between dirty memory and lowmem,
++	 * highmem is not considered dirtyable on a global level.
++	 *
++	 * But we allow individual highmem zones to hold a potentially
++	 * bigger share of that global amount of dirty pages as long
++	 * as they have enough free or reclaimable pages around.
++	 */
++	x = zone_page_state(zone, NR_FREE_PAGES) - zone->totalreserve_pages;
++	x += zone_reclaimable_pages(zone);
++	return x;
++}
++
+ /*
+  * Work out the current dirty-memory clamping and background writeout
+  * thresholds.
+@@ -417,7 +433,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
+ }
+ 
+ /*
+- * global_dirty_limits - background-writeback and dirty-throttling thresholds
++ * dirty_limits - background-writeback and dirty-throttling thresholds
+  *
+  * Calculate the dirty thresholds based on sysctl parameters
+  * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
+@@ -425,24 +441,35 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
+  * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
+  * real-time tasks.
+  */
+-void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
++static void dirty_limits(struct zone *zone,
++			 unsigned long *pbackground,
++			 unsigned long *pdirty)
+ {
++	unsigned long uninitialized_var(zone_memory);
++	unsigned long available_memory;
++	unsigned long global_memory;
+ 	unsigned long background;
+-	unsigned long dirty;
+-	unsigned long uninitialized_var(available_memory);
+ 	struct task_struct *tsk;
++	unsigned long dirty;
+ 
+-	if (!vm_dirty_bytes || !dirty_background_bytes)
+-		available_memory = determine_dirtyable_memory();
++	global_memory = determine_dirtyable_memory();
++	if (zone)
++		available_memory = zone_memory = zone_dirtyable_memory(zone);
++	else
++		available_memory = global_memory;
+ 
+-	if (vm_dirty_bytes)
++	if (vm_dirty_bytes) {
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else
++		if (zone)
++			dirty = dirty * zone_memory / global_memory;
++	} else
+ 		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+-	if (dirty_background_bytes)
++	if (dirty_background_bytes) {
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+-	else
++		if (zone)
++			background = background * zone_memory / global_memory;
++	} else
+ 		background = (dirty_background_ratio * available_memory) / 100;
+ 
+ 	if (background >= dirty)
+@@ -452,9 +479,15 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ 		background += background / 4;
+ 		dirty += dirty / 4;
+ 	}
++	if (!zone)
++		trace_global_dirty_state(background, dirty);
+ 	*pbackground = background;
+ 	*pdirty = dirty;
+-	trace_global_dirty_state(background, dirty);
++}
++
++void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
++{
++	dirty_limits(NULL, pbackground, pdirty);
+ }
+ 
+ /**
+@@ -875,6 +908,17 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+         }
+ }
+ 
++bool zone_dirty_ok(struct zone *zone)
++{
++	unsigned long background_thresh, dirty_thresh;
++
++	dirty_limits(zone, &background_thresh, &dirty_thresh);
++
++	return zone_page_state(zone, NR_FILE_DIRTY) +
++		zone_page_state(zone, NR_UNSTABLE_NFS) +
++		zone_page_state(zone, NR_WRITEBACK) <= dirty_thresh;
++}
++
+ /*
+  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
+  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7e8e2ee..3cca043 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1368,6 +1368,7 @@ failed:
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++#define ALLOC_SLOWPATH		0x80 /* allocator retrying */
+ 
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+@@ -1667,6 +1668,25 @@ zonelist_scan:
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+ 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+ 				continue;
++		/*
++		 * This may look like it would increase pressure on
++		 * lower zones by failing allocations in higher zones
++		 * before they are full.  But once they are full, the
++		 * allocations fall back to lower zones anyway, and
++		 * then this check actually protects the lower zones
++		 * from a flood of dirty page allocations.
++		 *
++		 * XXX: Allow allocations to potentially exceed the
++		 * per-zone dirty limit in the slowpath before going
++		 * into reclaim, which is important when NUMA nodes
++		 * are not big enough to reach the global limit.  The
++		 * proper fix on these setups will require awareness
++		 * of zones in the dirty-throttling and the flusher
++		 * threads.
++		 */
++		if (!(alloc_flags & ALLOC_SLOWPATH) &&
++		    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
++			goto this_zone_full;
+ 
+ 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+@@ -2111,7 +2131,7 @@ restart:
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 	 * to how we want to proceed.
+ 	 */
+-	alloc_flags = gfp_to_alloc_flags(gfp_mask);
++	alloc_flags = gfp_to_alloc_flags(gfp_mask) | ALLOC_SLOWPATH;
+ 
+ 	/*
+ 	 * Find the true preferred zone if the allocation is unconstrained by
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
