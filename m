@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 706979000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 15:37:03 -0400 (EDT)
-Subject: Re: [PATCH 3/8] kstaled: page_referenced_kstaled() and supporting
- infrastructure.
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 20 Sep 2011 21:36:39 +0200
-In-Reply-To: <1316230753-8693-4-git-send-email-walken@google.com>
-References: <1316230753-8693-1-git-send-email-walken@google.com>
-	 <1316230753-8693-4-git-send-email-walken@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 42A389000C4
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 16:11:35 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Tue, 20 Sep 2011 13:11:20 -0700
+Subject: Re: [PATCH 1/2] ARM: initial proof-of-concept IOMMU mapper for
+ DMA-mapping
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E1229036BAC@HQMAIL04.nvidia.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1316547399.13664.65.camel@twins>
-Mime-Version: 1.0
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>, rostedt <rostedt@goodmis.org>
+To: Linux-ARM Kernel <linux-arm-kernel@lists.infradead.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig <linaro-mm-sig@lists.linaro.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On Fri, 2011-09-16 at 20:39 -0700, Michel Lespinasse wrote:
-> +PAGEFLAG(Young, young)
+Hi,
+The following change fixes a bug, which causes releasing incorrect iova spa=
+ce, in the original patch of this mail thread. It fixes compilation error e=
+ither.
 
-We should probably do something like the below, I couldn't figure out a
-way to make it do multiple functions from one macro though so I picked
-the simple PageFoo test..=20
-
-I even added an Emacs variant, although I didn't test it..
-
----
- scripts/tags.sh |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/scripts/tags.sh b/scripts/tags.sh
-index 75c5d24f1..b07797a 100755
---- a/scripts/tags.sh
-+++ b/scripts/tags.sh
-@@ -132,7 +132,8 @@ exuberant()
- 	--regex-asm=3D'/^ENTRY\(([^)]*)\).*/\1/'                  \
- 	--regex-c=3D'/^SYSCALL_DEFINE[[:digit:]]?\(([^,)]*).*/sys_\1/' \
- 	--regex-c++=3D'/^TRACE_EVENT\(([^,)]*).*/trace_\1/'		\
--	--regex-c++=3D'/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1/'
-+	--regex-c++=3D'/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1/'	\
-+	--regex-c++=3D'/^PAGEFLAG\(([^,)]*).*/Page\1/'
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 82d5134..8c16ed7 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -900,10 +900,8 @@ static int __iommu_remove_mapping(struct device *dev, =
+dma_addr_t iova, size_t si
+        unsigned int count =3D size >> PAGE_SHIFT;
+        int i;
 =20
- 	all_kconfigs | xargs $1 -a                              \
- 	--langdef=3Dkconfig --language-force=3Dkconfig              \
-@@ -154,7 +155,8 @@ emacs()
- 	--regex=3D'/^ENTRY(\([^)]*\)).*/\1/'                      \
- 	--regex=3D'/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
- 	--regex=3D'/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
--	--regex=3D'/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/'
-+	--regex=3D'/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/'\
-+	--regex=3D'/^PAGEFLAG(\([^,)]*\).*/Page\1/'
+-       for (i=3D0; i<count; i++) {
+-               iommu_unmap(mapping->domain, iova, 0);
+-               iova +=3D PAGE_SIZE;
+-       }
++       for (i=3D0; i<count; i++)
++               iommu_unmap(mapping->domain, iova + i * PAGE_SIZE, 0);
+        __free_iova(mapping, iova, size);
+        return 0;
+ }
+@@ -1073,7 +1071,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatt=
+erlist *sg, int nents,
+                size +=3D sg->length;
+        }
+        __map_sg_chunk(dev, start, size, &dma->dma_address, dir);
+-       d->dma_address +=3D offset;
++       dma->dma_address +=3D offset;
 =20
- 	all_kconfigs | xargs $1 -a                              \
- 	--regex=3D'/^[ \t]*\(\(menu\)*config\)[ \t]+\([a-zA-Z0-9_]+\)/\3/'
+        return count;
+
+
+-nvpublic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
