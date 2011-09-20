@@ -1,28 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5BABB9000C6
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:41:25 -0400 (EDT)
-Message-ID: <4E78DE4C.3040703@redhat.com>
-Date: Tue, 20 Sep 2011 14:41:16 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 910F69000C6
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:44:37 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] HWPOISON: Convert pr_debug()s to pr_info()s
+References: <20110920183254.3926.59134.email-sent-by-dnelson@localhost6.localdomain6>
+Date: Tue, 20 Sep 2011 11:44:35 -0700
+In-Reply-To: <20110920183254.3926.59134.email-sent-by-dnelson@localhost6.localdomain6>
+	(Dean Nelson's message of "Tue, 20 Sep 2011 14:32:55 -0400")
+Message-ID: <m27h53dpf0.fsf@firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [patch 4/4] Btrfs: pass __GFP_WRITE for buffered write page allocations
-References: <1316526315-16801-1-git-send-email-jweiner@redhat.com> <1316526315-16801-5-git-send-email-jweiner@redhat.com>
-In-Reply-To: <1316526315-16801-5-git-send-email-jweiner@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dean Nelson <dnelson@redhat.com>
+Cc: linux-mm@kvack.org, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On 09/20/2011 09:45 AM, Johannes Weiner wrote:
-> Tell the page allocator that pages allocated for a buffered write are
-> expected to become dirty soon.
+Dean Nelson <dnelson@redhat.com> writes:
+
+> Commit fb46e73520940bfc426152cfe5e4a9f1ae3f00b6 authored by Andi Kleen
+> converted a number of pr_debug()s to pr_info()s.
 >
-> Signed-off-by: Johannes Weiner<jweiner@redhat.com>
+> About the same time additional code with pr_debug()s was added by
+> two other commits 8c6c2ecb44667f7204e9d2b89c4c1f42edc5a196 and
+> d950b95882f3dc47e86f1496cd3f7fef540d6d6b. And these pr_debug()s
+> failed to get converted to pr_info()s.
+>
+> This patch converts them as well. And does some minor related
+> whitespace cleanup.
+>
+> Signed-off-by: Dean Nelson <dnelson@redhat.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Looks good. Andrew please merge.
+
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
