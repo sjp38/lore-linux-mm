@@ -1,58 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3558C9000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 16:53:32 -0400 (EDT)
-Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
-	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8KKrK7V001646
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 20:53:20 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8KKrKVE2232530
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 21:53:20 +0100
-Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8KKrIdP006836
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:53:20 -0600
-Date: Tue, 20 Sep 2011 21:53:17 +0100
-From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
- determine fixups.
-Message-ID: <20110920205317.GA1508@stefanha-thinkpad.localdomain>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
- <20110920171310.GC27959@stefanha-thinkpad.localdomain>
- <20110920181225.GA5149@infradead.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFAF9000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 17:23:47 -0400 (EDT)
+Message-ID: <4E790459.9070903@redhat.com>
+Date: Tue, 20 Sep 2011 17:23:37 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110920181225.GA5149@infradead.org>
+Subject: Re: [PATCH 2/8] kstaled: documentation and config option.
+References: <1316230753-8693-1-git-send-email-walken@google.com> <1316230753-8693-3-git-send-email-walken@google.com>
+In-Reply-To: <1316230753-8693-3-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
 
-On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
-> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
-> > You've probably thought of this but it would be nice to skip XOL for
-> > nops.  This would be a common case with static probes (e.g. sdt.h) where
-> > the probe template includes a nop where we can easily plant int $0x3.
-> 
-> Do we now have sdt.h support for uprobes?  That's one of the killer
-> features that always seemed to get postponed.
+On 09/16/2011 11:39 PM, Michel Lespinasse wrote:
+> Extend memory cgroup documentation do describe the optional idle page
+> tracking features, and add the corresponding configuration option.
+>
+>
+> Signed-off-by: Michel Lespinasse<walken@google.com>
 
-Not yet but it's a question of doing roughly what SystemTap does to
-parse the appropriate ELF sections and then putting those probes into
-uprobes.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Masami looked at this and found that SystemTap sdt.h currently requires
-an extra userspace memory store in order to activate probes.  Each probe
-has a "semaphore" 16-bit counter which applications may test before
-hitting the probe itself.  This is used to avoid overhead in
-applications that do expensive argument processing (e.g. creating
-strings) for probes.
-
-But this should be solvable so it would be possible to use perf-probe(1)
-on a std.h-enabled binary.  Some distros already ship such binaries!
-
-Stefan
+(I'm going through these in order, and am assuming the
+docs match the code from the later patches in the series)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
