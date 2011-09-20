@@ -1,65 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DE729000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:29:25 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <a7471ea9-1d24-452a-8e3b-eb5836e8e7d5@default>
-Date: Tue, 20 Sep 2011 11:28:21 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
-References: <20110915213406.GA26369@ca-server1.us.oracle.com
- 4E73674B.6090901@linux.vnet.ibm.com>
-In-Reply-To: <4E73674B.6090901@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D41AA9000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:32:57 -0400 (EDT)
+Date: Tue, 20 Sep 2011 14:32:55 -0400
+From: Dean Nelson <dnelson@redhat.com>
+Message-Id: <20110920183254.3926.59134.email-sent-by-dnelson@localhost6.localdomain6>
+Subject: [PATCH] HWPOISON: Convert pr_debug()s to pr_info()s
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: linux-mm@kvack.org
+Cc: Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Sent: Friday, September 16, 2011 9:12 AM
-> To: Dan Magenheimer
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; jeremy@goop.org; hu=
-ghd@google.com;
-> ngupta@vflare.org; Konrad Wilk; JBeulich@novell.com; Kurt Hackel; npiggin=
-@kernel.dk; akpm@linux-
-> foundation.org; riel@redhat.com; hannes@cmpxchg.org; matthew@wil.cx; Chri=
-s Mason;
-> kamezawa.hiroyu@jp.fujitsu.com; jackdachef@gmail.com; cyclonusj@gmail.com=
-; levinsasha928@gmail.com
-> Subject: Re: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
->=20
-> On 09/15/2011 04:34 PM, Dan Magenheimer wrote:
-> > From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > Subject: [PATCH V10 3/6] mm: frontswap: core frontswap functionality
-> >
-> > [v10: sjenning@linux.vnet.ibm.com: fix debugfs calls on 32-bit]
-> ...
-> > +#ifdef CONFIG_DEBUG_FS
-> > +=09struct dentry *root =3D debugfs_create_dir("frontswap", NULL);
-> > +=09if (root =3D=3D NULL)
-> > +=09=09return -ENXIO;
-> > +=09debugfs_create_u64("gets", S_IRUGO, root, &frontswap_gets);
-> > +=09debugfs_create_u64("succ_puts", S_IRUGO, root, &frontswap_succ_puts=
-);
-> > +=09debugfs_create_u64("puts", S_IRUGO, root, &frontswap_failed_puts);
->=20
-> Sorry I didn't see this one before :-/  This should be "failed_puts",
-> not "puts".
+Commit fb46e73520940bfc426152cfe5e4a9f1ae3f00b6 authored by Andi Kleen
+converted a number of pr_debug()s to pr_info()s.
 
-Oops, thought I had replied to this but hadn't.
+About the same time additional code with pr_debug()s was added by
+two other commits 8c6c2ecb44667f7204e9d2b89c4c1f42edc5a196 and
+d950b95882f3dc47e86f1496cd3f7fef540d6d6b. And these pr_debug()s
+failed to get converted to pr_info()s.
 
-Thanks for catching that typo.  Unless someone reports something
-else that needs fixing, I will likely just fix that in my git tree
-rather than post a V11.
-=20
-> Other than that, it compiles cleanly here and runs without issue when
-> applied on 3.1-rc4 + fix for cleancache crash.
+This patch converts them as well. And does some minor related
+whitespace cleanup.
 
-Thanks for the testing!
+Signed-off-by: Dean Nelson <dnelson@redhat.com>
 
-Dan
+---
+ mm/memory-failure.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 2b43ba0..edc388d 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1310,7 +1310,7 @@ int unpoison_memory(unsigned long pfn)
+ 		 * to the end.
+ 		 */
+ 		if (PageHuge(page)) {
+-			pr_debug("MCE: Memory failure is now running on free hugepage %#lx\n", pfn);
++			pr_info("MCE: Memory failure is now running on free hugepage %#lx\n", pfn);
+ 			return 0;
+ 		}
+ 		if (TestClearPageHWPoison(p))
+@@ -1419,7 +1419,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 
+ 	if (PageHWPoison(hpage)) {
+ 		put_page(hpage);
+-		pr_debug("soft offline: %#lx hugepage already poisoned\n", pfn);
++		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
+ 		return -EBUSY;
+ 	}
+ 
+@@ -1433,8 +1433,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 		list_for_each_entry_safe(page1, page2, &pagelist, lru)
+ 			put_page(page1);
+ 
+-		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+-			 pfn, ret, page->flags);
++		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
++			pfn, ret, page->flags);
+ 		if (ret > 0)
+ 			ret = -EIO;
+ 		return ret;
+@@ -1505,7 +1505,7 @@ int soft_offline_page(struct page *page, int flags)
+ 	}
+ 	if (!PageLRU(page)) {
+ 		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+-				pfn, page->flags);
++			pfn, page->flags);
+ 		return -EIO;
+ 	}
+ 
+@@ -1566,7 +1566,7 @@ int soft_offline_page(struct page *page, int flags)
+ 		}
+ 	} else {
+ 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+-				pfn, ret, page_count(page), page->flags);
++			pfn, ret, page_count(page), page->flags);
+ 	}
+ 	if (ret)
+ 		return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
