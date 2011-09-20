@@ -1,44 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 910F69000C6
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:44:37 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] HWPOISON: Convert pr_debug()s to pr_info()s
-References: <20110920183254.3926.59134.email-sent-by-dnelson@localhost6.localdomain6>
-Date: Tue, 20 Sep 2011 11:44:35 -0700
-In-Reply-To: <20110920183254.3926.59134.email-sent-by-dnelson@localhost6.localdomain6>
-	(Dean Nelson's message of "Tue, 20 Sep 2011 14:32:55 -0400")
-Message-ID: <m27h53dpf0.fsf@firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id CB8109000C6
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 14:46:44 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Tue, 20 Sep 2011 11:46:32 -0700
+Subject: Re: [PATCH 1/2] ARM: initial proof-of-concept IOMMU mapper for
+ DMA-mapping
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E1229036B69@HQMAIL04.nvidia.com>
+Content-Language: en-US
+Content-Type: multipart/alternative;
+	boundary="_000_401E54CE964CD94BAE1EB4A729C7087E1229036B69HQMAIL04nvidi_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dean Nelson <dnelson@redhat.com>
-Cc: linux-mm@kvack.org, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Linux-ARM Kernel <linux-arm-kernel@lists.infradead.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig <linaro-mm-sig@lists.linaro.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-Dean Nelson <dnelson@redhat.com> writes:
+--_000_401E54CE964CD94BAE1EB4A729C7087E1229036B69HQMAIL04nvidi_
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-> Commit fb46e73520940bfc426152cfe5e4a9f1ae3f00b6 authored by Andi Kleen
-> converted a number of pr_debug()s to pr_info()s.
+Hi,
+The following change fixes a bug, which causes releasing incorrect iova spa=
+ce, in the original patch of this mail thread. It fixes compilation error e=
+ither.
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 82d5134..8c16ed7 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -900,10 +900,8 @@ static int __iommu_remove_mapping(struct device *dev, =
+dma_addr_t iova, size_t si
+        unsigned int count =3D size >> PAGE_SHIFT;
+        int i;
+
+-       for (i=3D0; i<count; i++) {
+-               iommu_unmap(mapping->domain, iova, 0);
+-               iova +=3D PAGE_SIZE;
+-       }
++       for (i=3D0; i<count; i++)
++               iommu_unmap(mapping->domain, iova + i * PAGE_SIZE, 0);
+        __free_iova(mapping, iova, size);
+        return 0;
+ }
+@@ -1073,7 +1071,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatt=
+erlist *sg, int nents,
+                size +=3D sg->length;
+        }
+        __map_sg_chunk(dev, start, size, &dma->dma_address, dir);
+-       d->dma_address +=3D offset;
++       dma->dma_address +=3D offset;
+
+        return count;
+
+
+--_000_401E54CE964CD94BAE1EB4A729C7087E1229036B69HQMAIL04nvidi_
+Content-Type: text/html; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dus-ascii"=
 >
-> About the same time additional code with pr_debug()s was added by
-> two other commits 8c6c2ecb44667f7204e9d2b89c4c1f42edc5a196 and
-> d950b95882f3dc47e86f1496cd3f7fef540d6d6b. And these pr_debug()s
-> failed to get converted to pr_info()s.
->
-> This patch converts them as well. And does some minor related
-> whitespace cleanup.
->
-> Signed-off-by: Dean Nelson <dnelson@redhat.com>
+<meta name=3D"Generator" content=3D"Microsoft Exchange Server">
+<!-- converted from rtf -->
+<style><!-- .EmailQuote { margin-left: 1pt; padding-left: 4pt; border-left:=
+ #800000 2px solid; } --></style>
+</head>
+<body>
+<font face=3D"Consolas, monospace" size=3D"2">
+<div>Hi,</div>
+<div>The following change fixes a bug, which causes releasing incorrect iov=
+a space, in the original patch of this mail thread. It fixes compilation er=
+ror either.</div>
+<div>&nbsp;</div>
+<div>diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c</di=
+v>
+<div>index 82d5134..8c16ed7 100644</div>
+<div>--- a/arch/arm/mm/dma-mapping.c</div>
+<div>&#43;&#43;&#43; b/arch/arm/mm/dma-mapping.c</div>
+<div>@@ -900,10 &#43;900,8 @@ static int __iommu_remove_mapping(struct devi=
+ce *dev, dma_addr_t iova, size_t si</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; unsigned int count =3D size=
+ &gt;&gt; PAGE_SHIFT;</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; int i;</div>
+<div>&nbsp;</div>
+<div>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for (i=3D0; i&lt;count; i&#43;&#=
+43;) {</div>
+<div>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp; iommu_unmap(mapping-&gt;domain, iova, 0);</div>
+<div>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp; iova &#43;=3D PAGE_SIZE;</div>
+<div>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }</div>
+<div>&#43;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for (i=3D0; i&lt;count; i&#4=
+3;&#43;)</div>
+<div>&#43;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp; iommu_unmap(mapping-&gt;domain, iova &#43; i * PAGE_SIZ=
+E, 0);</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __free_iova(mapping, iova, =
+size);</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;</div>
+<div> }</div>
+<div>@@ -1073,7 &#43;1071,7 @@ int arm_iommu_map_sg(struct device *dev, str=
+uct scatterlist *sg, int nents,</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp; size &#43;=3D sg-&gt;length;</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __map_sg_chunk(dev, start, =
+size, &amp;dma-&gt;dma_address, dir);</div>
+<div>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; d-&gt;dma_address &#43;=3D offse=
+t;</div>
+<div>&#43;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dma-&gt;dma_address &#43;=3D=
+ offset;</div>
+<div>&nbsp;</div>
+<div><font face=3D"Calibri, sans-serif" size=3D"2">&nbsp;&nbsp;&nbsp;&nbsp;=
+&nbsp;&nbsp;&nbsp; return count;<font face=3D"Calibri, sans-serif"> </font>=
+</font></div>
+<div><font face=3D"Calibri, sans-serif" size=3D"2">&nbsp;</font></div>
+</font>
+</body>
+</html>
 
-Looks good. Andrew please merge.
-
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+--_000_401E54CE964CD94BAE1EB4A729C7087E1229036B69HQMAIL04nvidi_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
