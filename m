@@ -1,59 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3F55E9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:47:13 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=utf-8
-Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LRV006M9KYNX140@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 21 Sep 2011 14:47:11 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LRV00KETKYM0C@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 21 Sep 2011 14:47:11 +0100 (BST)
-Date: Wed, 21 Sep 2011 15:47:05 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 7/8] ARM: integrate CMA with DMA-mapping subsystem
-In-reply-to: 
- <CAMjpGUch=ogFQwBLqOukKVnyh60600jw5tMq-KYeNGSZ2PLQpA@mail.gmail.com>
-Message-id: <001a01cc7864$f2c98ea0$d85cabe0$%szyprowski@samsung.com>
-Content-language: pl
-References: <1313764064-9747-1-git-send-email-m.szyprowski@samsung.com>
- <1313764064-9747-8-git-send-email-m.szyprowski@samsung.com>
- <CAMjpGUch=ogFQwBLqOukKVnyh60600jw5tMq-KYeNGSZ2PLQpA@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 230989000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:48:03 -0400 (EDT)
+Date: Wed, 21 Sep 2011 15:47:51 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 07/11] mm: vmscan: convert unevictable page rescue
+ scanner to per-memcg LRU lists
+Message-ID: <20110921134751.GD22516@redhat.com>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+ <1315825048-3437-8-git-send-email-jweiner@redhat.com>
+ <20110921123354.GC8501@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110921123354.GC8501@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Frysinger' <vapier.adi@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Thursday, September 08, 2011 7:27 PM Mike Frysinger wrote:
-
-> On Fri, Aug 19, 2011 at 10:27, Marek Szyprowski wrote:
-> >  arch/arm/include/asm/device.h         |    3 +
-> >  arch/arm/include/asm/dma-contiguous.h |   33 +++
+On Wed, Sep 21, 2011 at 02:33:56PM +0200, Michal Hocko wrote:
+> On Mon 12-09-11 12:57:24, Johannes Weiner wrote:
+> > The global per-zone LRU lists are about to go away on memcg-enabled
+> > kernels, the unevictable page rescue scanner must be able to find its
+> > pages on the per-memcg LRU lists.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 > 
-> seems like these would be good asm-generic/ additions rather than arm
+> The patch is correct but I guess the original implementation of
+> scan_zone_unevictable_pages is buggy (see bellow). This should be
+> addressed separatelly, though.
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Only some of them can be really moved to asm-generic imho. The following
-lines are definitely architecture specific:
+Thanks for your effort, Michal, I really appreciate it.
 
-void dma_contiguous_early_fixup(phys_addr_t base, unsigned long size);
+> > @@ -3490,32 +3501,40 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+> >  #define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
+> >  static void scan_zone_unevictable_pages(struct zone *zone)
+> >  {
+> > -	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
+> > -	unsigned long scan;
+> > -	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
+> > -
+> > -	while (nr_to_scan > 0) {
+> > -		unsigned long batch_size = min(nr_to_scan,
+> > -						SCAN_UNEVICTABLE_BATCH_SIZE);
+> > -
+> > -		spin_lock_irq(&zone->lru_lock);
+> > -		for (scan = 0;  scan < batch_size; scan++) {
+> > -			struct page *page = lru_to_page(l_unevictable);
+> > +	struct mem_cgroup *mem;
+> >  
+> > -			if (!trylock_page(page))
+> > -				continue;
+> > +	mem = mem_cgroup_iter(NULL, NULL, NULL);
+> > +	do {
+> > +		struct mem_cgroup_zone mz = {
+> > +			.mem_cgroup = mem,
+> > +			.zone = zone,
+> > +		};
+> > +		unsigned long nr_to_scan;
+> >  
+> > -			prefetchw_prev_lru_page(page, l_unevictable, flags);
+> > +		nr_to_scan = zone_nr_lru_pages(&mz, LRU_UNEVICTABLE);
+> > +		while (nr_to_scan > 0) {
+> > +			unsigned long batch_size;
+> > +			unsigned long scan;
+> >  
+> > -			if (likely(PageLRU(page) && PageUnevictable(page)))
+> > -				check_move_unevictable_page(page, zone);
+> > +			batch_size = min(nr_to_scan,
+> > +					 SCAN_UNEVICTABLE_BATCH_SIZE);
+> > +			spin_lock_irq(&zone->lru_lock);
+> > +			for (scan = 0; scan < batch_size; scan++) {
+> > +				struct page *page;
+> >  
+> > -			unlock_page(page);
+> > +				page = lru_tailpage(&mz, LRU_UNEVICTABLE);
+> > +				if (!trylock_page(page))
+> > +					continue;
+> 
+> We are not moving to the next page so we will try it again in the next
+> round while we already increased the scan count. In the end we will
+> missed some pages.
 
-Some other archs might define empty fixup function. Right now only ARM 
-architecture is the real client of the CMA. IMHO if any other arch stats
-using CMA, some of the CMA definitions can be then moved to asm-generic.
-Right now I wanted to keep it as simple as possible.
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
+I guess this is about latency.  This code is only executed when the
+user requests so by writing to a proc-file, check the comment above
+scan_all_zones_unevictable_pages.  I think at one point Lee wanted to
+move anon pages to the unevictable LRU when no swap is configured, but
+we have separate anon LRUs now that are not scanned without swap, and
+I think except for bugs there is no actual need to move these pages by
+hand, let alone reliably every single page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
