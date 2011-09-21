@@ -1,46 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B83A09000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 22:51:39 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id p8L2pVjs027564
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 19:51:31 -0700
-Received: from qwm42 (qwm42.prod.google.com [10.241.196.42])
-	by hpaq3.eem.corp.google.com with ESMTP id p8L2oB2C022945
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 19:51:30 -0700
-Received: by qwm42 with SMTP id 42so1562577qwm.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2011 19:51:30 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 03CB59000BD
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 23:39:59 -0400 (EDT)
+Received: by wyf23 with SMTP id 23so1330794wyf.9
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2011 20:39:49 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4E78E3DF.1070501@redhat.com>
-References: <1316230753-8693-1-git-send-email-walken@google.com>
-	<1316230753-8693-2-git-send-email-walken@google.com>
-	<4E78E3DF.1070501@redhat.com>
-Date: Tue, 20 Sep 2011 19:51:29 -0700
-Message-ID: <CANN689EkOMyUuMCZFBHMUtq85uU-233c-4i3_cT=ZqfYVW1JjQ@mail.gmail.com>
-Subject: Re: [PATCH 1/8] page_referenced: replace vm_flags parameter with
- struct pr_info
-From: Michel Lespinasse <walken@google.com>
+In-Reply-To: <20110920071408.GB26791@tiehlicka.suse.cz>
+References: <1315909531-13419-1-git-send-email-consul.kautuk@gmail.com>
+	<20110920071408.GB26791@tiehlicka.suse.cz>
+Date: Wed, 21 Sep 2011 09:09:47 +0530
+Message-ID: <CAFPAmTQPLPnB8EhZYvcdWFPtmWC+my0M3qoojBsms=0SwQ9XXA@mail.gmail.com>
+Subject: Re: [PATCH 1/1] Trivial: Eliminate the ret variable from mm_take_all_locks
+From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Jiri Kosina <trivial@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 20, 2011 at 12:05 PM, Rik van Riel <riel@redhat.com> wrote:
-> I have to agree with Joe's suggested name change.
+Thanks, Michal.
+
+On Tue, Sep 20, 2011 at 12:44 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Tue 13-09-11 15:55:31, Kautuk Consul wrote:
+>> The ret variable is really not needed in mm_take_all_locks as per
+>> the current flow of the mm_take_all_locks function.
+>>
+>> So, eliminating this return variable.
+>>
+>> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
 >
-> Other than that, this patch looks good (will ack the next version).
-
-Very sweet ! I'll make sure to send that out soon. I think it's
-easiest if I wait for you to review the current patches first, though
-? (I'll send an incremental diff along with the next patch series)
-
-Thanks a lot for having a look.
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+> The compiled code seems to be very same - compilers are clever enough to
+> reorganize the code but anyway the code reads better this way.
+>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>
+>> ---
+>> =A0mm/mmap.c | =A0 =A08 +++-----
+>> =A01 files changed, 3 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/mmap.c b/mm/mmap.c
+>> index a65efd4..48bc056 100644
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -2558,7 +2558,6 @@ int mm_take_all_locks(struct mm_struct *mm)
+>> =A0{
+>> =A0 =A0 =A0 struct vm_area_struct *vma;
+>> =A0 =A0 =A0 struct anon_vma_chain *avc;
+>> - =A0 =A0 int ret =3D -EINTR;
+>>
+>> =A0 =A0 =A0 BUG_ON(down_read_trylock(&mm->mmap_sem));
+>>
+>> @@ -2579,13 +2578,12 @@ int mm_take_all_locks(struct mm_struct *mm)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 vm_lock_anon=
+_vma(mm, avc->anon_vma);
+>> =A0 =A0 =A0 }
+>>
+>> - =A0 =A0 ret =3D 0;
+>> + =A0 =A0 return 0;
+>>
+>> =A0out_unlock:
+>> - =A0 =A0 if (ret)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 mm_drop_all_locks(mm);
+>> + =A0 =A0 mm_drop_all_locks(mm);
+>>
+>> - =A0 =A0 return ret;
+>> + =A0 =A0 return -EINTR;
+>> =A0}
+>>
+>> =A0static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+>> --
+>> 1.7.6
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Fight unfair telecom internet charges in Canada: sign http://stopthemete=
+r.ca/
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
