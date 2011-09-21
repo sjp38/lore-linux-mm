@@ -1,131 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 807EF9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 10:50:50 -0400 (EDT)
-Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LRV0041FNWM3M@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 21 Sep 2011 15:50:46 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LRV000HMNWMTS@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 21 Sep 2011 15:50:46 +0100 (BST)
-Date: Wed, 21 Sep 2011 16:50:41 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
- mapper for DMA-mapping
-In-reply-to: <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
-Message-id: <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
- <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
- <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 899F59000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:03:35 -0400 (EDT)
+Date: Wed, 21 Sep 2011 16:03:28 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/4] mm: exclude reserved pages from dirtyable memory
+Message-ID: <20110921150328.GJ4849@suse.de>
+References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+ <1316526315-16801-2-git-send-email-jweiner@redhat.com>
+ <20110921140423.GG4849@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110921140423.GG4849@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Laura Abbott' <lauraa@codeaurora.org>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Thursday, September 08, 2011 6:42 PM Laura Abbott wrote:
-
-> Hi, a few comments
-> On Fri, September 2, 2011 6:56 am, Marek Szyprowski wrote:
-> ...
-> > +
-> > +struct dma_iommu_mapping {
-> > +	/* iommu specific data */
-> > +	struct iommu_domain	*domain;
-> > +
-> > +	void			*bitmap;
+On Wed, Sep 21, 2011 at 03:04:23PM +0100, Mel Gorman wrote:
+> On Tue, Sep 20, 2011 at 03:45:12PM +0200, Johannes Weiner wrote:
+> > The amount of dirtyable pages should not include the total number of
+> > free pages: there is a number of reserved pages that the page
+> > allocator and kswapd always try to keep free.
+> > 
+> > The closer (reclaimable pages - dirty pages) is to the number of
+> > reserved pages, the more likely it becomes for reclaim to run into
+> > dirty pages:
+> > 
+> >        +----------+ ---
+> >        |   anon   |  |
+> >        +----------+  |
+> >        |          |  |
+> >        |          |  -- dirty limit new    -- flusher new
+> >        |   file   |  |                     |
+> >        |          |  |                     |
+> >        |          |  -- dirty limit old    -- flusher old
+> >        |          |                        |
+> >        +----------+                       --- reclaim
+> >        | reserved |
+> >        +----------+
+> >        |  kernel  |
+> >        +----------+
+> > 
+> > Not treating reserved pages as dirtyable on a global level is only a
+> > conceptual fix.  In reality, dirty pages are not distributed equally
+> > across zones and reclaim runs into dirty pages on a regular basis.
+> > 
+> > But it is important to get this right before tackling the problem on a
+> > per-zone level, where the distance between reclaim and the dirty pages
+> > is mostly much smaller in absolute numbers.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > ---
+> >  include/linux/mmzone.h |    1 +
+> >  mm/page-writeback.c    |    8 +++++---
+> >  mm/page_alloc.c        |    1 +
+> >  3 files changed, 7 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 1ed4116..e28f8e0 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -316,6 +316,7 @@ struct zone {
+> >  	 * sysctl_lowmem_reserve_ratio sysctl changes.
+> >  	 */
+> >  	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+> > +	unsigned long		totalreserve_pages;
+> >  
 > 
-> In the earlier version of this patch you had this as a genpool instead of
-> just doing the bitmaps manually. Is there a reason genpool can't be used
-> to get the iova addresses?
+> This is nit-picking but totalreserve_pages is a poor name because it's
+> a per-zone value that is one of the lowmem_reserve[] fields instead
+> of a total. After this patch, we have zone->totalreserve_pages and
+> totalreserve_pages but are not related to the same thing.
+> but they are not the same.
+> 
 
-IMHO genpool was a bit overkill in this case and required some additional
-patches for aligned allocations. In the next version I also want to extend
-this bitmap based allocator to dynamically resize the bitmap for more than
-one page if the io address space gets exhausted. 
+As you correctly pointed out to be on IRC, zone->totalreserve_pages
+is not the lowmem_reserve because it takes the high_wmark into
+account. Sorry about that, I should have kept thinking.  The name is
+still poor though because it does not explain what the value is or
+what it means.
 
-> > +	size_t			bits;
-> > +	unsigned int		order;
-> > +	dma_addr_t		base;
-> > +
-> > +	struct mutex		lock;
-> > +};
-> <snip>
-> > +int arm_iommu_attach_device(struct device *dev, dma_addr_t base, size_t
-> > size, int order)
-> > +{
-> > +	unsigned int count = (size >> PAGE_SHIFT) - order;
-> > +	unsigned int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
-> > +	struct dma_iommu_mapping *mapping;
-> > +	int err = -ENOMEM;
-> > +
-> > +	mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
-> > +	if (!mapping)
-> > +		goto err;
-> > +
-> > +	mapping->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-> > +	if (!mapping->bitmap)
-> > +		goto err2;
-> > +
-> > +	mapping->base = base;
-> > +	mapping->bits = bitmap_size;
-> > +	mapping->order = order;
-> > +	mutex_init(&mapping->lock);
-> > +
-> > +	mapping->domain = iommu_domain_alloc();
-> > +	if (!mapping->domain)
-> > +		goto err3;
-> > +
-> > +	err = iommu_attach_device(mapping->domain, dev);
-> > +	if (err != 0)
-> > +		goto err4;
-> > +
-> > +	dev->archdata.mapping = mapping;
-> > +	set_dma_ops(dev, &iommu_ops);
-> > +
-> > +	printk(KERN_INFO "Attached IOMMU controller to %s device.\n",
-> > dev_name(dev));
-> > +	return 0;
-> > +
-> > +err4:
-> > +	iommu_domain_free(mapping->domain);
-> > +err3:
-> > +	kfree(mapping->bitmap);
-> > +err2:
-> > +	kfree(mapping);
-> > +err:
-> > +	return -ENOMEM;
-> > +}
-> > +EXPORT_SYMBOL(arm_iommu_attach_device);
-> > +
-> > +#endif
+zone->FOO value needs to be related to lowmem_reserve because this
+	is related to balancing zone usage.
 
-> Attach makes the assumption that each iommu device will exist in a
-> separate domain. What if multiple devices want to use the same iommu
-> domain? The msm iommu implementation has many different iommu devices but
-> many of these will need the same buffer to be mapped in each context so
-> currently many devices share the same domain. Without this, the same map
-> call would need to happen for each device, which creates extra map calls
-> and overhead.
+zone->FOO value should also be related to the high_wmark because
+	this is avoiding writeback from page reclaim
 
-Ah, right. I forgot about the case when devices need to share one domain.
-Moving iommu_domain_alloc out of arm_iommu_attach_device and giving that
-function just a pointer to the iommu domain should solve this issue. I will
-change this in the next version of the patches.
+err....... umm... this?
 
-Best regards
+	/*
+	 * When allocating a new page that is expected to be
+	 * dirtied soon, the number of free pages and the
+	 * dirty_balance reserve are taken into account. The
+	 * objective is that the globally allowed number of dirty
+	 * pages should be distributed throughout the zones such
+	 * that it is very unlikely that page reclaim will call
+	 * ->writepage.
+	 *
+	 * dirty_balance_reserve takes both lowmem_reserve and
+	 * the high watermark into account. The lowmem_reserve
+	 * is taken into account because we don't want the
+	 * distribution of dirty pages to unnecessarily increase
+	 * lowmem pressure. The watermark is taken into account
+	 * because it's correlated with when kswapd wakes up
+	 * and how long it stays awake.
+	 */
+	unsigned long		dirty_balance_reserve.
+
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
