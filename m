@@ -1,119 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E73C9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:06 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8LEPGTW025283
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 10:25:16 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8LFk3u4217108
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:03 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8LFk2jx005327
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:03 -0400
-Subject: Re: [PATCH 1/3] fixup! mm: alloc_contig_freed_pages() added
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <ea1bc31120e0670a044de6af7b3c67203c178065.1316617681.git.mina86@mina86.com>
-References: <1315505152.3114.9.camel@nimitz>
-	 <ea1bc31120e0670a044de6af7b3c67203c178065.1316617681.git.mina86@mina86.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Sep 2011 08:45:59 -0700
-Message-ID: <1316619959.16137.308.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7559000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:47:57 -0400 (EDT)
+Date: Wed, 21 Sep 2011 17:47:45 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 10/11] mm: make per-memcg LRU lists exclusive
+Message-ID: <20110921154745.GA25828@redhat.com>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+ <1315825048-3437-11-git-send-email-jweiner@redhat.com>
+ <20110921152458.GI8501@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110921152458.GI8501@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mnazarewicz@google.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 2011-09-21 at 17:19 +0200, Michal Nazarewicz wrote:
-> Do the attached changes seem to make sense?
+On Wed, Sep 21, 2011 at 05:24:58PM +0200, Michal Hocko wrote:
+> On Mon 12-09-11 12:57:27, Johannes Weiner wrote:
+> > Now that all code that operated on global per-zone LRU lists is
+> > converted to operate on per-memory cgroup LRU lists instead, there is
+> > no reason to keep the double-LRU scheme around any longer.
+> > 
+> > The pc->lru member is removed and page->lru is linked directly to the
+> > per-memory cgroup LRU lists, which removes two pointers from a
+> > descriptor that exists for every page frame in the system.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Ying Han <yinghan@google.com>
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-The logic looks OK.
+Thanks.
 
-> I wanted to avoid calling pfn_to_page() each time as it seem fairly
-> expensive in sparsemem and disctontig modes.  At the same time, the
-> macro trickery is so that users of sparsemem-vmemmap and flatmem won't
-> have to pay the price.
+> > @@ -934,115 +954,123 @@ EXPORT_SYMBOL(mem_cgroup_count_vm_event);
+> >   * When moving account, the page is not on LRU. It's isolated.
+> >   */
+> >  
+> > -struct page *mem_cgroup_lru_to_page(struct zone *zone, struct mem_cgroup *mem,
+> > -				    enum lru_list lru)
+> > +/**
+> > + * mem_cgroup_lru_add_list - account for adding an lru page and return lruvec
+> > + * @zone: zone of the page
+> > + * @page: the page
+> > + * @lru: current lru
+> > + *
+> > + * This function accounts for @page being added to @lru, and returns
+> > + * the lruvec for the given @zone and the memcg @page is charged to.
+> > + *
+> > + * The callsite is then responsible for physically linking the page to
+> > + * the returned lruvec->lists[@lru].
+> > + */
+> > +struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+> > +				       enum lru_list lru)
+> 
+> I know that names are alway tricky but what about mem_cgroup_acct_lru_add?
+> Analogously for mem_cgroup_lru_del_list, mem_cgroup_lru_del and
+> mem_cgroup_lru_move_lists.
 
-Personally, I'd say the (incredibly minuscule) runtime cost is worth the
-cost of making folks' eyes bleed when they see those macros.  I think
-there are some nicer ways to do it.
+Hmm, but it doesn't just lru-account, it also looks up the right
+lruvec for the caller to link the page to, so it's not necessarily an
+improvement, although I agree that the name could be better.
 
-Is there a reason you can't logically do?
+> > @@ -3615,11 +3593,11 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+> >  static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+> >  				int node, int zid, enum lru_list lru)
+> >  {
+> > -	struct zone *zone;
+> >  	struct mem_cgroup_per_zone *mz;
+> > -	struct page_cgroup *pc, *busy;
+> >  	unsigned long flags, loop;
+> >  	struct list_head *list;
+> > +	struct page *busy;
+> > +	struct zone *zone;
+> 
+> Any specific reason to move zone declaration down here? Not that it
+> matters much. Just curious.
 
-	page = pfn_to_page(pfn);
-	for (;;) {
-		if (pfn_to_section_nr(pfn) == pfn_to_section_nr(pfn+1))
-			page++;
-		else
-			page = pfn_to_page(pfn+1);
-	}
+I find this arrangement more readable, I believe Ingo Molnar called it
+the reverse christmas tree once :-).  Longest lines first, then sort
+lines of equal length alphabetically.
 
-pfn_to_section_nr() is a register shift.  Our smallest section size on
-x86 is 128MB and on ppc64 16MB.  So, at *WORST* (64k pages on ppc64),
-you're doing pfn_to_page() one of every 256 loops.
+And since it was basically complete, except for @zone, I just HAD to!
 
-My suggestion would be put put a macro up in the sparsemem headers that
-does something like:
+> > @@ -3639,16 +3618,16 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+> >  			spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >  			break;
+> >  		}
+> > -		pc = list_entry(list->prev, struct page_cgroup, lru);
+> > -		if (busy == pc) {
+> > -			list_move(&pc->lru, list);
+> > +		page = list_entry(list->prev, struct page, lru);
+> > +		if (busy == page) {
+> > +			list_move(&page->lru, list);
+> >  			busy = NULL;
+> >  			spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >  			continue;
+> >  		}
+> >  		spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >  
+> > -		page = lookup_cgroup_page(pc);
+> > +		pc = lookup_page_cgroup(page);
+> 
+> lookup_page_cgroup might return NULL so we probably want BUG_ON(!pc)
+> here. We are not very consistent about checking the return value,
+> though.
 
-#ifdef VMEMMAP
-#define zone_pfn_same_memmap(pfn1, pfn2) (1)
-#elif SPARSEMEM_OTHER
-static inline int zone_pfn_same_memmap(unsigned long pfn1, unsigned long pfn2)
-{
-	return (pfn_to_section_nr(pfn1) == pfn_to_section_nr(pfn2));
-}
-#else
-#define zone_pfn_same_memmap(pfn1, pfn2) (1)
-#endif
-
-The zone_ bit is necessary in the naming because DISCONTIGMEM's pfns are
-at least contiguous within a zone.  Only the non-VMEMMAP sparsemem case
-isn't.
-
-Other folks would probably have a use for something like that.  Although
-most of the previous users have gotten to this point, given up, and just
-done pfn_to_page() on each loop. :)
-
-> +#if defined(CONFIG_FLATMEM) || defined(CONFIG_SPARSEMEM_VMEMMAP)
-> +
-> +/*
-> + * In FLATMEM and CONFIG_SPARSEMEM_VMEMMAP we can safely increment the page
-> + * pointer and get the same value as if we were to get by calling
-> + * pfn_to_page() on incremented pfn counter.
-> + */
-> +#define __contig_next_page(page, pageblock_left, pfn, increment) \
-> +	((page) + (increment))
-> +
-> +#define __contig_first_page(pageblock_left, pfn) pfn_to_page(pfn)
-> +
-> +#else
-> +
-> +/*
-> + * If we cross pageblock boundary, make sure we get a valid page pointer.  If
-> + * we are within pageblock, incrementing the pointer is good enough, and is
-> + * a bit of an optimisation.
-> + */
-> +#define __contig_next_page(page, pageblock_left, pfn, increment)	\
-> +	(likely((pageblock_left) -= (increment)) ? (page) + (increment)	\
-> +	 : (((pageblock_left) = pageblock_nr_pages), pfn_to_page(pfn)))
-> +
-> +#define __contig_first_page(pageblock_left, pfn) (			\
-> +	((pageblock_left) = pageblock_nr_pages -			\
-> +		 ((pfn) & (pageblock_nr_pages - 1))),			\
-> +	pfn_to_page(pfn))
-> +
-> +
-> +#endif
-
-For the love of Pete, please make those in to functions if you're going
-to keep them.  They're really unreadable like that.
-
-You might also want to look at mm/internal.h's mem_map_offset() and
-mem_map_next().  They're not _quite_ what you need, but they're close.
-
--- Dave
+I think this is a myth and we should remove all those checks.  How can
+pages circulate in userspace before they are fully onlined and their
+page_cgroup buddies allocated?  In this case: how would they have been
+charged in the first place and sit on a list without a list_head? :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
