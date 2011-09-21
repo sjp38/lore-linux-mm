@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CCDF9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 15:00:40 -0400 (EDT)
-Message-ID: <4E7A342B.5040608@parallels.com>
-Date: Wed, 21 Sep 2011 15:59:55 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D21C9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 15:13:59 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/7] socket: initial cgroup code.
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-3-git-send-email-glommer@parallels.com> <CAHH2K0YgkG2J_bO+U9zbZYhTTqSLvr6NtxKxN8dRtfHs=iB8iA@mail.gmail.com>
-In-Reply-To: <CAHH2K0YgkG2J_bO+U9zbZYhTTqSLvr6NtxKxN8dRtfHs=iB8iA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <af23974b-20e8-47fc-8063-e7c1440e46aa@default>
+Date: Wed, 21 Sep 2011 12:13:17 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V10 5/6] mm: cleancache: update to match akpm frontswap
+ feedback
+References: <20110915213446.GA26406@ca-server1.us.oracle.com
+ 20110921150232.GB541@phenom.oracle.com>
+In-Reply-To: <20110921150232.GB541@phenom.oracle.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Konrad Wilk <konrad.wilk@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On 09/21/2011 03:47 PM, Greg Thelen wrote:
-> On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa<glommer@parallels.com>  wrote:
->> We aim to control the amount of kernel memory pinned at any
->> time by tcp sockets. To lay the foundations for this work,
->> this patch adds a pointer to the kmem_cgroup to the socket
->> structure.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: David S. Miller<davem@davemloft.net>
->> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Eric W. Biederman<ebiederm@xmission.com>
-> ...
->> +void sock_update_memcg(struct sock *sk)
->> +{
->> +       /* right now a socket spends its whole life in the same cgroup */
->> +       BUG_ON(sk->sk_cgrp);
->> +
->> +       rcu_read_lock();
->> +       sk->sk_cgrp = mem_cgroup_from_task(current);
->> +
->> +       /*
->> +        * We don't need to protect against anything task-related, because
->> +        * we are basically stuck with the sock pointer that won't change,
->> +        * even if the task that originated the socket changes cgroups.
->> +        *
->> +        * What we do have to guarantee, is that the chain leading us to
->> +        * the top level won't change under our noses. Incrementing the
->> +        * reference count via cgroup_exclude_rmdir guarantees that.
->> +        */
->> +       cgroup_exclude_rmdir(mem_cgroup_css(sk->sk_cgrp));
->
-> This grabs a css_get() reference, which prevents rmdir (will return
-> -EBUSY).
-Yes.
+> From: Konrad Wilk
+>=20
+> On Thu, Sep 15, 2011 at 02:34:46PM -0700, Dan Magenheimer wrote:
+> > From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > Subject: [PATCH V10 5/6] mm: cleancache: update to match akpm frontswap=
+ feedback
+>=20
+> That is a pretty bad title. Think about it - in a year, you are going to
+> try to track down something using 'git annotate' and this git commit is g=
+oing
+> to come up. And you look at it and this is the title. It does not carry
+> the technical details of what is in the patch.
+>=20
+> Also in case you are thinking "But there are so more git commits" - don't
+> fret about them. It is OK to have many of them. So don't by shy with them=
+.
 
-  How long is this reference held?
-For the socket lifetime.
+OK, thanks for the feedback.  Since there are no code changes,
+I won't flood the list with another version with the patches divided
+differently (and thanks for your help reorganizing them and your offlist
+review so I know it meets your approval!); instead I will just make a
+new v11 git branch.  Since kernel.org is still down, if anyone
+wants to look at the latest, it can be found at:
 
-> I wonder about the case
-> where a process creates a socket in memcg M1 and later is moved into
-> memcg M2.  At that point an admin would expect to be able to 'rmdir
-> M1'.  I think this rmdir would return -EBUSY and I suspect it would be
-> difficult for the admin to understand why the rmdir of M1 failed.  It
-> seems that to rmdir a memcg, an admin would have to kill all processes
-> that allocated sockets while in M1.  Such processes may not still be
-> in M1.
->
->> +       rcu_read_unlock();
->> +}
-I agree. But also, don't see too much ways around it without 
-implementing full task migration.
+git://oss.oracle.com/git/djm/tmem.git#frontswap-v11
 
-Right now I am working under the assumption that tasks are long lived 
-inside the cgroup. Migration potentially introduces some nasty locking 
-problems in the mem_schedule path.
+I'll also be asking Stephen Rothwell to pull v11 into linux-next
+because the frontswap version that is there is getting a bit stale.
 
-Also, unless I am missing something, the memcg already has the policy of
-not carrying charges around, probably because of this very same complexity.
+Hopefully everything is finally now ready for merging for the
+3.2 window!
 
-True that at least it won't EBUSY you... But I think this is at least a 
-way to guarantee that the cgroup under our nose won't disappear in the 
-middle of our allocations.
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
