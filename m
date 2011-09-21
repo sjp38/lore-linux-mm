@@ -1,93 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 03CB59000BD
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 23:39:59 -0400 (EDT)
-Received: by wyf23 with SMTP id 23so1330794wyf.9
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2011 20:39:49 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E563B9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 00:17:43 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8L4EHWG026868
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 22:14:17 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8L4HYof141866
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 22:17:34 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8L4HWdE014328
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2011 22:17:34 -0600
+Date: Wed, 21 Sep 2011 09:33:44 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 4/26]   uprobes: Define hooks for
+ mmap/munmap.
+Message-ID: <20110921040344.GD6568@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
+ <20110920170310.GB27959@stefanha-thinkpad.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20110920071408.GB26791@tiehlicka.suse.cz>
-References: <1315909531-13419-1-git-send-email-consul.kautuk@gmail.com>
-	<20110920071408.GB26791@tiehlicka.suse.cz>
-Date: Wed, 21 Sep 2011 09:09:47 +0530
-Message-ID: <CAFPAmTQPLPnB8EhZYvcdWFPtmWC+my0M3qoojBsms=0SwQ9XXA@mail.gmail.com>
-Subject: Re: [PATCH 1/1] Trivial: Eliminate the ret variable from mm_take_all_locks
-From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110920170310.GB27959@stefanha-thinkpad.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Jiri Kosina <trivial@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-Thanks, Michal.
+* Stefan Hajnoczi <stefanha@linux.vnet.ibm.com> [2011-09-20 18:03:10]:
 
-On Tue, Sep 20, 2011 at 12:44 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 13-09-11 15:55:31, Kautuk Consul wrote:
->> The ret variable is really not needed in mm_take_all_locks as per
->> the current flow of the mm_take_all_locks function.
->>
->> So, eliminating this return variable.
->>
->> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
->
-> The compiled code seems to be very same - compilers are clever enough to
-> reorganize the code but anyway the code reads better this way.
->
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->
->> ---
->> =A0mm/mmap.c | =A0 =A08 +++-----
->> =A01 files changed, 3 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index a65efd4..48bc056 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -2558,7 +2558,6 @@ int mm_take_all_locks(struct mm_struct *mm)
->> =A0{
->> =A0 =A0 =A0 struct vm_area_struct *vma;
->> =A0 =A0 =A0 struct anon_vma_chain *avc;
->> - =A0 =A0 int ret =3D -EINTR;
->>
->> =A0 =A0 =A0 BUG_ON(down_read_trylock(&mm->mmap_sem));
->>
->> @@ -2579,13 +2578,12 @@ int mm_take_all_locks(struct mm_struct *mm)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 vm_lock_anon=
-_vma(mm, avc->anon_vma);
->> =A0 =A0 =A0 }
->>
->> - =A0 =A0 ret =3D 0;
->> + =A0 =A0 return 0;
->>
->> =A0out_unlock:
->> - =A0 =A0 if (ret)
->> - =A0 =A0 =A0 =A0 =A0 =A0 mm_drop_all_locks(mm);
->> + =A0 =A0 mm_drop_all_locks(mm);
->>
->> - =A0 =A0 return ret;
->> + =A0 =A0 return -EINTR;
->> =A0}
->>
->> =A0static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
->> --
->> 1.7.6
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org. =A0For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Fight unfair telecom internet charges in Canada: sign http://stopthemete=
-r.ca/
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
->
+> On Tue, Sep 20, 2011 at 05:30:40PM +0530, Srikar Dronamraju wrote:
+> > +static void build_probe_list(struct inode *inode, struct list_head *head)
+> > +{
+> > +	struct uprobe *uprobe;
+> > +	struct rb_node *n;
+> > +	unsigned long flags;
+> > +
+> > +	n = uprobes_tree.rb_node;
+> > +	spin_lock_irqsave(&uprobes_treelock, flags);
+> 
+> Not sure whether grabbing root.rb_node outside the spinlock is safe?  If
+> the tree is rotated on another CPU you could catch and out-of-date node?
+
+
+Agree that its better to access the node in the spinlock.
+Shall correct this.
+ 
+> > +static void dec_mm_uprobes_count(struct vm_area_struct *vma,
+> > +		struct inode *inode)
+> > +{
+> > +	struct uprobe *uprobe;
+> > +	struct rb_node *n;
+> > +	unsigned long flags;
+> > +
+> > +	n = uprobes_tree.rb_node;
+> > +	spin_lock_irqsave(&uprobes_treelock, flags);
+> 
+> Same here.
+
+Okay.
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
