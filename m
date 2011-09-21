@@ -1,92 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 18ECB9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:10:51 -0400 (EDT)
-Date: Wed, 21 Sep 2011 15:10:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 08/11] mm: vmscan: convert global reclaim to per-memcg
- LRU lists
-Message-ID: <20110921131045.GD8501@tiehlicka.suse.cz>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-9-git-send-email-jweiner@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B87EC9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:17:55 -0400 (EDT)
+Received: by ewy22 with SMTP id 22so1380955ewy.9
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2011 06:17:53 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 2/8] mm: alloc_contig_freed_pages() added
+References: <1313764064-9747-1-git-send-email-m.szyprowski@samsung.com>
+ <1313764064-9747-3-git-send-email-m.szyprowski@samsung.com>
+ <1315505152.3114.9.camel@nimitz>
+Date: Wed, 21 Sep 2011 15:17:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315825048-3437-9-git-send-email-jweiner@redhat.com>
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v15tv0183l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1315505152.3114.9.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd
+ Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan
+ Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On Mon 12-09-11 12:57:25, Johannes Weiner wrote:
-> The global per-zone LRU lists are about to go away on memcg-enabled
-> kernels, global reclaim must be able to find its pages on the
-> per-memcg LRU lists.
-> 
-> Since the LRU pages of a zone are distributed over all existing memory
-> cgroups, a scan target for a zone is complete when all memory cgroups
-> are scanned for their proportional share of a zone's memory.
-> 
-> The forced scanning of small scan targets from kswapd is limited to
-> zones marked unreclaimable, otherwise kswapd can quickly overreclaim
-> by force-scanning the LRU lists of multiple memory cgroups.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+On Thu, 08 Sep 2011 20:05:52 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
+wrote:
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> On Fri, 2011-08-19 at 16:27 +0200, Marek Szyprowski wrote:
+>> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned  
+>> long end,
+>> +				       gfp_t flag)
+>> +{
+>> +	unsigned long pfn = start, count;
+>> +	struct page *page;
+>> +	struct zone *zone;
+>> +	int order;
+>> +
+>> +	VM_BUG_ON(!pfn_valid(start));
+>> +	zone = page_zone(pfn_to_page(start));
+>
+> This implies that start->end are entirely contained in a single zone.
+> What enforces that?
 
-Minor nit bellow
+In case of CMA, the __cma_activate_area() function from 6/8 has the check:
 
-> ---
->  mm/vmscan.c |   39 ++++++++++++++++++++++-----------------
->  1 files changed, 22 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bb4d8b8..053609e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2451,13 +2445,24 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->  static void age_active_anon(struct zone *zone, struct scan_control *sc,
->  			    int priority)
->  {
-> -	struct mem_cgroup_zone mz = {
-> -		.mem_cgroup = NULL,
-> -		.zone = zone,
-> -	};
-> +	struct mem_cgroup *mem;
-> +
-> +	if (!total_swap_pages)
-> +		return;
-> +
-> +	mem = mem_cgroup_iter(NULL, NULL, NULL);
+  151                         VM_BUG_ON(!pfn_valid(pfn));
+  152                         VM_BUG_ON(page_zone(pfn_to_page(pfn)) !=  
+zone);
 
-Wouldn't be for_each_mem_cgroup more appropriate? Macro is not exported
-but probably worth exporting? The same applies for
-scan_zone_unevictable_pages from the previous patch.
+This guarantees that CMA will never try to call alloc_contig_freed_pages()
+on a region that spans multiple regions.
 
-> +	do {
-> +		struct mem_cgroup_zone mz = {
-> +			.mem_cgroup = mem,
-> +			.zone = zone,
-> +		};
->  
-> -	if (inactive_anon_is_low(&mz))
-> -		shrink_active_list(SWAP_CLUSTER_MAX, &mz, sc, priority, 0);
-> +		if (inactive_anon_is_low(&mz))
-> +			shrink_active_list(SWAP_CLUSTER_MAX, &mz,
-> +					   sc, priority, 0);
-> +
-> +		mem = mem_cgroup_iter(NULL, mem, NULL);
-> +	} while (mem);
->  }
+> If some higher layer enforces that, I think we probably need at least
+> a VM_BUG_ON() in here and a comment about who enforces it.
+
+Agreed.
+
+>> +	spin_lock_irq(&zone->lock);
+>> +
+>> +	page = pfn_to_page(pfn);
+>> +	for (;;) {
+>> +		VM_BUG_ON(page_count(page) || !PageBuddy(page));
+>> +		list_del(&page->lru);
+>> +		order = page_order(page);
+>> +		zone->free_area[order].nr_free--;
+>> +		rmv_page_order(page);
+>> +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+>> +		pfn  += 1 << order;
+>> +		if (pfn >= end)
+>> +			break;
+>> +		VM_BUG_ON(!pfn_valid(pfn));
+>> +		page += 1 << order;
+>> +	}
+
+> This 'struct page *'++ stuff is OK, but only for small, aligned areas.
+> For at least some of the sparsemem modes (non-VMEMMAP), you could walk
+> off of the end of the section_mem_map[] when you cross a MAX_ORDER
+> boundary.  I'd feel a little bit more comfortable if pfn_to_page() was
+> being done each time, or only occasionally when you cross a section
+> boundary.
+
+I'm fine with that.  I've used pointer arithmetic for performance reasons
+but if that may potentially lead to bugs then obviously pfn_to_page()  
+should
+be used.
 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
