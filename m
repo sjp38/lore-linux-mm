@@ -1,236 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 877AC9000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 07:04:36 -0400 (EDT)
-Subject: Re: [patch 2/4] mm: writeback: distribute write pages across
- allowable zones
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1316526315-16801-3-git-send-email-jweiner@redhat.com>
-References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
-	 <1316526315-16801-3-git-send-email-jweiner@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Sep 2011 19:04:28 +0800
-Message-ID: <1316603068.2001.3.camel@shli-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 16B0A9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 08:34:02 -0400 (EDT)
+Date: Wed, 21 Sep 2011 14:33:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 07/11] mm: vmscan: convert unevictable page rescue
+ scanner to per-memcg LRU lists
+Message-ID: <20110921123354.GC8501@tiehlicka.suse.cz>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+ <1315825048-3437-8-git-send-email-jweiner@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1315825048-3437-8-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2011-09-20 at 21:45 +0800, Johannes Weiner wrote:
-> This patch allows allocators to pass __GFP_WRITE when they know in
-> advance that the allocated page will be written to and become dirty
-> soon.  The page allocator will then attempt to distribute those
-> allocations across zones, such that no single zone will end up full of
-> dirty, and thus more or less, unreclaimable pages.
-> 
-> The global dirty limits are put in proportion to the respective zone's
-> amount of dirtyable memory and allocations diverted to other zones
-> when the limit is reached.
-> 
-> For now, the problem remains for NUMA configurations where the zones
-> allowed for allocation are in sum not big enough to trigger the global
-> dirty limits, but a future approach to solve this can reuse the
-> per-zone dirty limit infrastructure laid out in this patch to have
-> dirty throttling and the flusher threads consider individual zones.
+On Mon 12-09-11 12:57:24, Johannes Weiner wrote:
+> The global per-zone LRU lists are about to go away on memcg-enabled
+> kernels, the unevictable page rescue scanner must be able to find its
+> pages on the per-memcg LRU lists.
 > 
 > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+
+The patch is correct but I guess the original implementation of
+scan_zone_unevictable_pages is buggy (see bellow). This should be
+addressed separatelly, though.
+
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
->  include/linux/gfp.h       |    4 ++-
->  include/linux/writeback.h |    1 +
->  mm/page-writeback.c       |   66 +++++++++++++++++++++++++++++++++++++-------
->  mm/page_alloc.c           |   22 ++++++++++++++-
->  4 files changed, 80 insertions(+), 13 deletions(-)
+>  include/linux/memcontrol.h |    3 ++
+>  mm/memcontrol.c            |   11 ++++++++
+>  mm/vmscan.c                |   61 ++++++++++++++++++++++++++++---------------
+>  3 files changed, 54 insertions(+), 21 deletions(-)
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 3a76faf..50efc7e 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -36,6 +36,7 @@ struct vm_area_struct;
->  #endif
->  #define ___GFP_NO_KSWAPD	0x400000u
->  #define ___GFP_OTHER_NODE	0x800000u
-> +#define ___GFP_WRITE		0x1000000u
->  
->  /*
->   * GFP bitmasks..
-> @@ -85,6 +86,7 @@ struct vm_area_struct;
->  
->  #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
->  #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
-> +#define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
->  
->  /*
->   * This may seem redundant, but it's a way of annotating false positives vs.
-> @@ -92,7 +94,7 @@ struct vm_area_struct;
->   */
->  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
->  
-> -#define __GFP_BITS_SHIFT 24	/* Room for N __GFP_FOO bits */
-> +#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
->  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
->  
->  /* This equals 0, but use constants in case they ever change */
-> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-> index a5f495f..c96ee0c 100644
-> --- a/include/linux/writeback.h
-> +++ b/include/linux/writeback.h
-> @@ -104,6 +104,7 @@ void laptop_mode_timer_fn(unsigned long data);
->  static inline void laptop_sync_completion(void) { }
->  #endif
->  void throttle_vm_writeout(gfp_t gfp_mask);
-> +bool zone_dirty_ok(struct zone *zone);
->  
->  extern unsigned long global_dirty_limit;
->  
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 9f896db..1fc714c 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -142,6 +142,22 @@ unsigned long global_dirty_limit;
->  static struct prop_descriptor vm_completions;
->  static struct prop_descriptor vm_dirties;
->  
-> +static unsigned long zone_dirtyable_memory(struct zone *zone)
-> +{
-> +	unsigned long x;
-> +	/*
-> +	 * To keep a reasonable ratio between dirty memory and lowmem,
-> +	 * highmem is not considered dirtyable on a global level.
-> +	 *
-> +	 * But we allow individual highmem zones to hold a potentially
-> +	 * bigger share of that global amount of dirty pages as long
-> +	 * as they have enough free or reclaimable pages around.
-> +	 */
-> +	x = zone_page_state(zone, NR_FREE_PAGES) - zone->totalreserve_pages;
-> +	x += zone_reclaimable_pages(zone);
-> +	return x;
-> +}
-> +
->  /*
->   * Work out the current dirty-memory clamping and background writeout
->   * thresholds.
-> @@ -417,7 +433,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
->  }
->  
->  /*
-> - * global_dirty_limits - background-writeback and dirty-throttling thresholds
-> + * dirty_limits - background-writeback and dirty-throttling thresholds
->   *
->   * Calculate the dirty thresholds based on sysctl parameters
->   * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
-> @@ -425,24 +441,35 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
->   * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
->   * real-time tasks.
->   */
-> -void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
-> +static void dirty_limits(struct zone *zone,
-> +			 unsigned long *pbackground,
-> +			 unsigned long *pdirty)
+[...]
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -3490,32 +3501,40 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+>  #define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
+>  static void scan_zone_unevictable_pages(struct zone *zone)
 >  {
-> +	unsigned long uninitialized_var(zone_memory);
-> +	unsigned long available_memory;
-> +	unsigned long global_memory;
->  	unsigned long background;
-> -	unsigned long dirty;
-> -	unsigned long uninitialized_var(available_memory);
->  	struct task_struct *tsk;
-> +	unsigned long dirty;
+> -	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
+> -	unsigned long scan;
+> -	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
+> -
+> -	while (nr_to_scan > 0) {
+> -		unsigned long batch_size = min(nr_to_scan,
+> -						SCAN_UNEVICTABLE_BATCH_SIZE);
+> -
+> -		spin_lock_irq(&zone->lru_lock);
+> -		for (scan = 0;  scan < batch_size; scan++) {
+> -			struct page *page = lru_to_page(l_unevictable);
+> +	struct mem_cgroup *mem;
 >  
-> -	if (!vm_dirty_bytes || !dirty_background_bytes)
-> -		available_memory = determine_dirtyable_memory();
-> +	global_memory = determine_dirtyable_memory();
-> +	if (zone)
-> +		available_memory = zone_memory = zone_dirtyable_memory(zone);
-> +	else
-> +		available_memory = global_memory;
+> -			if (!trylock_page(page))
+> -				continue;
+> +	mem = mem_cgroup_iter(NULL, NULL, NULL);
+> +	do {
+> +		struct mem_cgroup_zone mz = {
+> +			.mem_cgroup = mem,
+> +			.zone = zone,
+> +		};
+> +		unsigned long nr_to_scan;
 >  
-> -	if (vm_dirty_bytes)
-> +	if (vm_dirty_bytes) {
->  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> -	else
-> +		if (zone)
-> +			dirty = dirty * zone_memory / global_memory;
-> +	} else
->  		dirty = (vm_dirty_ratio * available_memory) / 100;
+> -			prefetchw_prev_lru_page(page, l_unevictable, flags);
+> +		nr_to_scan = zone_nr_lru_pages(&mz, LRU_UNEVICTABLE);
+> +		while (nr_to_scan > 0) {
+> +			unsigned long batch_size;
+> +			unsigned long scan;
 >  
-> -	if (dirty_background_bytes)
-> +	if (dirty_background_bytes) {
->  		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> -	else
-> +		if (zone)
-> +			background = background * zone_memory / global_memory;
-> +	} else
->  		background = (dirty_background_ratio * available_memory) / 100;
+> -			if (likely(PageLRU(page) && PageUnevictable(page)))
+> -				check_move_unevictable_page(page, zone);
+> +			batch_size = min(nr_to_scan,
+> +					 SCAN_UNEVICTABLE_BATCH_SIZE);
+> +			spin_lock_irq(&zone->lru_lock);
+> +			for (scan = 0; scan < batch_size; scan++) {
+> +				struct page *page;
 >  
->  	if (background >= dirty)
-> @@ -452,9 +479,15 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
->  		background += background / 4;
->  		dirty += dirty / 4;
->  	}
-> +	if (!zone)
-> +		trace_global_dirty_state(background, dirty);
->  	*pbackground = background;
->  	*pdirty = dirty;
-> -	trace_global_dirty_state(background, dirty);
-> +}
-> +
-> +void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
-> +{
-> +	dirty_limits(NULL, pbackground, pdirty);
+> -			unlock_page(page);
+> +				page = lru_tailpage(&mz, LRU_UNEVICTABLE);
+> +				if (!trylock_page(page))
+> +					continue;
+
+We are not moving to the next page so we will try it again in the next
+round while we already increased the scan count. In the end we will
+missed some pages.
+
+> +				if (likely(PageLRU(page) &&
+> +					   PageUnevictable(page)))
+> +					check_move_unevictable_page(page, zone);
+> +				unlock_page(page);
+> +			}
+> +			spin_unlock_irq(&zone->lru_lock);
+> +			nr_to_scan -= batch_size;
+>  		}
+> -		spin_unlock_irq(&zone->lru_lock);
+> -
+> -		nr_to_scan -= batch_size;
+> -	}
+> +		mem = mem_cgroup_iter(NULL, mem, NULL);
+> +	} while (mem);
 >  }
 >  
->  /**
-> @@ -875,6 +908,17 @@ void throttle_vm_writeout(gfp_t gfp_mask)
->          }
->  }
 >  
-> +bool zone_dirty_ok(struct zone *zone)
-> +{
-> +	unsigned long background_thresh, dirty_thresh;
-> +
-> +	dirty_limits(zone, &background_thresh, &dirty_thresh);
-> +
-> +	return zone_page_state(zone, NR_FILE_DIRTY) +
-> +		zone_page_state(zone, NR_UNSTABLE_NFS) +
-> +		zone_page_state(zone, NR_WRITEBACK) <= dirty_thresh;
-> +}
-> +
->  /*
->   * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
->   */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7e8e2ee..3cca043 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1368,6 +1368,7 @@ failed:
->  #define ALLOC_HARDER		0x10 /* try to alloc harder */
->  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
->  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-> +#define ALLOC_SLOWPATH		0x80 /* allocator retrying */
->  
->  #ifdef CONFIG_FAIL_PAGE_ALLOC
->  
-> @@ -1667,6 +1668,25 @@ zonelist_scan:
->  		if ((alloc_flags & ALLOC_CPUSET) &&
->  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
->  				continue;
-> +		/*
-> +		 * This may look like it would increase pressure on
-> +		 * lower zones by failing allocations in higher zones
-> +		 * before they are full.  But once they are full, the
-> +		 * allocations fall back to lower zones anyway, and
-> +		 * then this check actually protects the lower zones
-> +		 * from a flood of dirty page allocations.
-if increasing pressure on lower zones isn't a problem since higher zones
-will eventually be full, how about a workload without too many writes,
-so higher zones will not be full. In such case, increasing low zone
-pressure sounds not good.
+> -- 
+> 1.7.6
+> 
 
-Thanks,
-Shaohua
-
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
