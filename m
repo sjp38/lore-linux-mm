@@ -1,222 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EBD59000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:32:54 -0400 (EDT)
-Date: Wed, 21 Sep 2011 17:32:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 11/11] mm: memcg: remove unused node/section info from
- pc->flags
-Message-ID: <20110921153249.GJ8501@tiehlicka.suse.cz>
-References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-12-git-send-email-jweiner@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1315825048-3437-12-git-send-email-jweiner@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E73C9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:06 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8LEPGTW025283
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 10:25:16 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8LFk3u4217108
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:03 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8LFk2jx005327
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 11:46:03 -0400
+Subject: Re: [PATCH 1/3] fixup! mm: alloc_contig_freed_pages() added
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <ea1bc31120e0670a044de6af7b3c67203c178065.1316617681.git.mina86@mina86.com>
+References: <1315505152.3114.9.camel@nimitz>
+	 <ea1bc31120e0670a044de6af7b3c67203c178065.1316617681.git.mina86@mina86.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 21 Sep 2011 08:45:59 -0700
+Message-ID: <1316619959.16137.308.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Nazarewicz <mnazarewicz@google.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On Mon 12-09-11 12:57:28, Johannes Weiner wrote:
-> To find the page corresponding to a certain page_cgroup, the pc->flags
-> encoded the node or section ID with the base array to compare the pc
-> pointer to.
-> 
-> Now that the per-memory cgroup LRU lists link page descriptors
-> directly, there is no longer any code that knows the page_cgroup but
-> not the page.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+On Wed, 2011-09-21 at 17:19 +0200, Michal Nazarewicz wrote:
+> Do the attached changes seem to make sense?
 
-Nice.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+The logic looks OK.
 
-> ---
->  include/linux/page_cgroup.h |   33 ------------------------
->  mm/page_cgroup.c            |   58 ++++++-------------------------------------
->  2 files changed, 8 insertions(+), 83 deletions(-)
-> 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index 5bae753..aaa60da 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -121,39 +121,6 @@ static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
->  	local_irq_restore(*flags);
->  }
->  
-> -#ifdef CONFIG_SPARSEMEM
-> -#define PCG_ARRAYID_WIDTH	SECTIONS_SHIFT
-> -#else
-> -#define PCG_ARRAYID_WIDTH	NODES_SHIFT
-> -#endif
-> -
-> -#if (PCG_ARRAYID_WIDTH > BITS_PER_LONG - NR_PCG_FLAGS)
-> -#error Not enough space left in pc->flags to store page_cgroup array IDs
-> -#endif
-> -
-> -/* pc->flags: ARRAY-ID | FLAGS */
-> -
-> -#define PCG_ARRAYID_MASK	((1UL << PCG_ARRAYID_WIDTH) - 1)
-> -
-> -#define PCG_ARRAYID_OFFSET	(BITS_PER_LONG - PCG_ARRAYID_WIDTH)
-> -/*
-> - * Zero the shift count for non-existent fields, to prevent compiler
-> - * warnings and ensure references are optimized away.
-> - */
-> -#define PCG_ARRAYID_SHIFT	(PCG_ARRAYID_OFFSET * (PCG_ARRAYID_WIDTH != 0))
-> -
-> -static inline void set_page_cgroup_array_id(struct page_cgroup *pc,
-> -					    unsigned long id)
-> -{
-> -	pc->flags &= ~(PCG_ARRAYID_MASK << PCG_ARRAYID_SHIFT);
-> -	pc->flags |= (id & PCG_ARRAYID_MASK) << PCG_ARRAYID_SHIFT;
-> -}
-> -
-> -static inline unsigned long page_cgroup_array_id(struct page_cgroup *pc)
-> -{
-> -	return (pc->flags >> PCG_ARRAYID_SHIFT) & PCG_ARRAYID_MASK;
-> -}
-> -
->  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
->  struct page_cgroup;
->  
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 256dee8..2601a65 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -11,12 +11,6 @@
->  #include <linux/swapops.h>
->  #include <linux/kmemleak.h>
->  
-> -static void __meminit init_page_cgroup(struct page_cgroup *pc, unsigned long id)
-> -{
-> -	pc->flags = 0;
-> -	set_page_cgroup_array_id(pc, id);
-> -	pc->mem_cgroup = NULL;
-> -}
->  static unsigned long total_usage;
->  
->  #if !defined(CONFIG_SPARSEMEM)
-> @@ -41,24 +35,11 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
->  	return base + offset;
->  }
->  
-> -struct page *lookup_cgroup_page(struct page_cgroup *pc)
-> -{
-> -	unsigned long pfn;
-> -	struct page *page;
-> -	pg_data_t *pgdat;
-> -
-> -	pgdat = NODE_DATA(page_cgroup_array_id(pc));
-> -	pfn = pc - pgdat->node_page_cgroup + pgdat->node_start_pfn;
-> -	page = pfn_to_page(pfn);
-> -	VM_BUG_ON(pc != lookup_page_cgroup(page));
-> -	return page;
-> -}
-> -
->  static int __init alloc_node_page_cgroup(int nid)
->  {
-> -	struct page_cgroup *base, *pc;
-> +	struct page_cgroup *base;
->  	unsigned long table_size;
-> -	unsigned long start_pfn, nr_pages, index;
-> +	unsigned long nr_pages;
->  
->  	start_pfn = NODE_DATA(nid)->node_start_pfn;
->  	nr_pages = NODE_DATA(nid)->node_spanned_pages;
-> @@ -72,10 +53,6 @@ static int __init alloc_node_page_cgroup(int nid)
->  			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
->  	if (!base)
->  		return -ENOMEM;
-> -	for (index = 0; index < nr_pages; index++) {
-> -		pc = base + index;
-> -		init_page_cgroup(pc, nid);
-> -	}
->  	NODE_DATA(nid)->node_page_cgroup = base;
->  	total_usage += table_size;
->  	return 0;
-> @@ -116,31 +93,19 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
->  	return section->page_cgroup + pfn;
->  }
->  
-> -struct page *lookup_cgroup_page(struct page_cgroup *pc)
-> -{
-> -	struct mem_section *section;
-> -	struct page *page;
-> -	unsigned long nr;
-> -
-> -	nr = page_cgroup_array_id(pc);
-> -	section = __nr_to_section(nr);
-> -	page = pfn_to_page(pc - section->page_cgroup);
-> -	VM_BUG_ON(pc != lookup_page_cgroup(page));
-> -	return page;
-> -}
-> -
->  static void *__meminit alloc_page_cgroup(size_t size, int nid)
->  {
->  	void *addr = NULL;
->  
-> -	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
-> +	addr = alloc_pages_exact_nid(nid, size,
-> +				     GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
->  	if (addr)
->  		return addr;
->  
->  	if (node_state(nid, N_HIGH_MEMORY))
-> -		addr = vmalloc_node(size, nid);
-> +		addr = vzalloc_node(size, nid);
->  	else
-> -		addr = vmalloc(size);
-> +		addr = vzalloc(size);
->  
->  	return addr;
->  }
-> @@ -163,14 +128,11 @@ static void free_page_cgroup(void *addr)
->  
->  static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
->  {
-> -	struct page_cgroup *base, *pc;
->  	struct mem_section *section;
-> +	struct page_cgroup *base;
->  	unsigned long table_size;
-> -	unsigned long nr;
-> -	int index;
->  
-> -	nr = pfn_to_section_nr(pfn);
-> -	section = __nr_to_section(nr);
-> +	section = __pfn_to_section(pfn);
->  
->  	if (section->page_cgroup)
->  		return 0;
-> @@ -190,10 +152,6 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
->  		return -ENOMEM;
->  	}
->  
-> -	for (index = 0; index < PAGES_PER_SECTION; index++) {
-> -		pc = base + index;
-> -		init_page_cgroup(pc, nr);
-> -	}
->  	/*
->  	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
->  	 * we need to apply a mask.
-> -- 
-> 1.7.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I wanted to avoid calling pfn_to_page() each time as it seem fairly
+> expensive in sparsemem and disctontig modes.  At the same time, the
+> macro trickery is so that users of sparsemem-vmemmap and flatmem won't
+> have to pay the price.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Personally, I'd say the (incredibly minuscule) runtime cost is worth the
+cost of making folks' eyes bleed when they see those macros.  I think
+there are some nicer ways to do it.
+
+Is there a reason you can't logically do?
+
+	page = pfn_to_page(pfn);
+	for (;;) {
+		if (pfn_to_section_nr(pfn) == pfn_to_section_nr(pfn+1))
+			page++;
+		else
+			page = pfn_to_page(pfn+1);
+	}
+
+pfn_to_section_nr() is a register shift.  Our smallest section size on
+x86 is 128MB and on ppc64 16MB.  So, at *WORST* (64k pages on ppc64),
+you're doing pfn_to_page() one of every 256 loops.
+
+My suggestion would be put put a macro up in the sparsemem headers that
+does something like:
+
+#ifdef VMEMMAP
+#define zone_pfn_same_memmap(pfn1, pfn2) (1)
+#elif SPARSEMEM_OTHER
+static inline int zone_pfn_same_memmap(unsigned long pfn1, unsigned long pfn2)
+{
+	return (pfn_to_section_nr(pfn1) == pfn_to_section_nr(pfn2));
+}
+#else
+#define zone_pfn_same_memmap(pfn1, pfn2) (1)
+#endif
+
+The zone_ bit is necessary in the naming because DISCONTIGMEM's pfns are
+at least contiguous within a zone.  Only the non-VMEMMAP sparsemem case
+isn't.
+
+Other folks would probably have a use for something like that.  Although
+most of the previous users have gotten to this point, given up, and just
+done pfn_to_page() on each loop. :)
+
+> +#if defined(CONFIG_FLATMEM) || defined(CONFIG_SPARSEMEM_VMEMMAP)
+> +
+> +/*
+> + * In FLATMEM and CONFIG_SPARSEMEM_VMEMMAP we can safely increment the page
+> + * pointer and get the same value as if we were to get by calling
+> + * pfn_to_page() on incremented pfn counter.
+> + */
+> +#define __contig_next_page(page, pageblock_left, pfn, increment) \
+> +	((page) + (increment))
+> +
+> +#define __contig_first_page(pageblock_left, pfn) pfn_to_page(pfn)
+> +
+> +#else
+> +
+> +/*
+> + * If we cross pageblock boundary, make sure we get a valid page pointer.  If
+> + * we are within pageblock, incrementing the pointer is good enough, and is
+> + * a bit of an optimisation.
+> + */
+> +#define __contig_next_page(page, pageblock_left, pfn, increment)	\
+> +	(likely((pageblock_left) -= (increment)) ? (page) + (increment)	\
+> +	 : (((pageblock_left) = pageblock_nr_pages), pfn_to_page(pfn)))
+> +
+> +#define __contig_first_page(pageblock_left, pfn) (			\
+> +	((pageblock_left) = pageblock_nr_pages -			\
+> +		 ((pfn) & (pageblock_nr_pages - 1))),			\
+> +	pfn_to_page(pfn))
+> +
+> +
+> +#endif
+
+For the love of Pete, please make those in to functions if you're going
+to keep them.  They're really unreadable like that.
+
+You might also want to look at mm/internal.h's mem_map_offset() and
+mem_map_next().  They're not _quite_ what you need, but they're close.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
