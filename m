@@ -1,80 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C18D89000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 18:13:32 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8LLcL0w015936
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 17:38:21 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8LMDUaI258340
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 18:13:30 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8LMDUVG029136
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 18:13:30 -0400
-Subject: [RFC][PATCH] show page size in /proc/$pid/numa_maps
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Wed, 21 Sep 2011 15:13:29 -0700
-Message-Id: <20110921221329.5B7EE5C5@kernel>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 96FEF9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 19:03:35 -0400 (EDT)
+Date: Wed, 21 Sep 2011 16:02:26 -0700
+From: Andrew Morton <akpm@google.com>
+Subject: Re: [patch 2/4] mm: writeback: distribute write pages across
+ allowable zones
+Message-Id: <20110921160226.1bf74494.akpm@google.com>
+In-Reply-To: <1316526315-16801-3-git-send-email-jweiner@redhat.com>
+References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+	<1316526315-16801-3-git-send-email-jweiner@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
+On Tue, 20 Sep 2011 15:45:13 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-The output of /proc/$pid/numa_maps is in terms of number of pages
-like anon=22 or dirty=54.  Here's some output:
+> This patch allows allocators to pass __GFP_WRITE when they know in
+> advance that the allocated page will be written to and become dirty
+> soon.  The page allocator will then attempt to distribute those
+> allocations across zones, such that no single zone will end up full of
+> dirty, and thus more or less, unreclaimable pages.
 
-7f4680000000 default file=/hugetlb/bigfile anon=50 dirty=50 N0=50
-7f7659600000 default file=/anon_hugepage\040(deleted) anon=50 dirty=50 N0=50
-7fff8d425000 default stack anon=50 dirty=50 N0=50
+Across all zones, or across the zones within the node or what?  Some
+more description of how all this plays with NUMA is needed, please.
 
-Looks like we have a stack and a couple of anonymous hugetlbfs
-areas page which both use the same amount of memory.  They don't.
+> The global dirty limits are put in proportion to the respective zone's
+> amount of dirtyable memory
 
-The 'bigfile' uses 1GB pages and takes up ~50GB of space.  The
-anon_hugepage uses 2MB pages and takes up ~100MB of space while
-the stack uses normal 4k pages.  You can go over to smaps to
-figure out what the page size _really_ is with KernelPageSize
-or MMUPageSize.  But, I think this is a pretty nasty and
-counterintuitive interface as it stands.
+I don't know what this means.  How can a global limit be controlled by
+what is happening within each single zone?  Please describe this design
+concept fully.
 
-The following patch adds a pagemult= field.  It is placed only
-in cases where the VMA's page size differs from the base kernel
-page size.  I'm calling it pagemult to emphasize that it is
-indended to modify the statistics output rather than _really_
-show the page size that the kernel or MMU is using.
+> and allocations diverted to other zones
+> when the limit is reached.
 
-Signed-off-by: Dave Haneen <dave@linux.vnet.ibm.com>
----
+hm.
 
- linux-2.6.git-dave/fs/proc/task_mmu.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+> For now, the problem remains for NUMA configurations where the zones
+> allowed for allocation are in sum not big enough to trigger the global
+> dirty limits, but a future approach to solve this can reuse the
+> per-zone dirty limit infrastructure laid out in this patch to have
+> dirty throttling and the flusher threads consider individual zones.
+> 
+> ...
+>
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -36,6 +36,7 @@ struct vm_area_struct;
+>  #endif
+>  #define ___GFP_NO_KSWAPD	0x400000u
+>  #define ___GFP_OTHER_NODE	0x800000u
+> +#define ___GFP_WRITE		0x1000000u
+>  
+>  /*
+>   * GFP bitmasks..
+> 
+> ...
+>
+> +static unsigned long zone_dirtyable_memory(struct zone *zone)
 
-diff -puN fs/proc/task_mmu.c~show-page-size fs/proc/task_mmu.c
---- linux-2.6.git/fs/proc/task_mmu.c~show-page-size	2011-09-21 15:05:49.846739432 -0700
-+++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-09-21 15:10:26.798329158 -0700
-@@ -1007,6 +1007,7 @@ static int show_numa_map(struct seq_file
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mm_walk walk = {};
- 	struct mempolicy *pol;
-+	unsigned long pagesize_multiplier;
- 	int n;
- 	char buffer[50];
- 
-@@ -1044,6 +1045,12 @@ static int show_numa_map(struct seq_file
- 	if (!md->pages)
- 		goto out;
- 
-+	/* This will only really do something for hugetlbfs pages.
-+	 * Transparent hugepages are still pagemult=1 */
-+	pagesize_multiplier = vma_kernel_pagesize(vma) / PAGE_SIZE;
-+	if (pagesize_multiplier > 1)
-+		seq_printf(m, " pagemult=%lu", pagesize_multiplier);
-+
- 	if (md->anon)
- 		seq_printf(m, " anon=%lu", md->anon);
- 
-_
+Appears to return the number of pages in a particular zone which are
+considered "dirtyable".  Some discussion of how this decision is made
+would be illuminating.
+
+> +{
+> +	unsigned long x;
+> +	/*
+> +	 * To keep a reasonable ratio between dirty memory and lowmem,
+> +	 * highmem is not considered dirtyable on a global level.
+
+Whereabouts in the kernel is this policy implemented? 
+determine_dirtyable_memory()?  It does (or can) consider highmem
+pages?  Comment seems wrong?
+
+Should we rename determine_dirtyable_memory() to
+global_dirtyable_memory(), to get some sense of its relationship with
+zone_dirtyable_memory()?
+
+> +	 * But we allow individual highmem zones to hold a potentially
+> +	 * bigger share of that global amount of dirty pages as long
+> +	 * as they have enough free or reclaimable pages around.
+> +	 */
+> +	x = zone_page_state(zone, NR_FREE_PAGES) - zone->totalreserve_pages;
+> +	x += zone_reclaimable_pages(zone);
+> +	return x;
+> +}
+> +
+> 
+> ...
+>
+> -void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+> +static void dirty_limits(struct zone *zone,
+> +			 unsigned long *pbackground,
+> +			 unsigned long *pdirty)
+>  {
+> +	unsigned long uninitialized_var(zone_memory);
+> +	unsigned long available_memory;
+> +	unsigned long global_memory;
+>  	unsigned long background;
+> -	unsigned long dirty;
+> -	unsigned long uninitialized_var(available_memory);
+>  	struct task_struct *tsk;
+> +	unsigned long dirty;
+>  
+> -	if (!vm_dirty_bytes || !dirty_background_bytes)
+> -		available_memory = determine_dirtyable_memory();
+> +	global_memory = determine_dirtyable_memory();
+> +	if (zone)
+> +		available_memory = zone_memory = zone_dirtyable_memory(zone);
+> +	else
+> +		available_memory = global_memory;
+>  
+> -	if (vm_dirty_bytes)
+> +	if (vm_dirty_bytes) {
+>  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+> -	else
+> +		if (zone)
+
+So passing zone==NULL alters dirty_limits()'s behaviour.  Seems that it
+flips the function between global_dirty_limits and zone_dirty_limits?
+
+Would it be better if we actually had separate global_dirty_limits()
+and zone_dirty_limits() rather than a magical mode?
+
+> +			dirty = dirty * zone_memory / global_memory;
+> +	} else
+>  		dirty = (vm_dirty_ratio * available_memory) / 100;
+>  
+> -	if (dirty_background_bytes)
+> +	if (dirty_background_bytes) {
+>  		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+> -	else
+> +		if (zone)
+> +			background = background * zone_memory / global_memory;
+> +	} else
+>  		background = (dirty_background_ratio * available_memory) / 100;
+>  
+>  	if (background >= dirty)
+> 
+> ...
+>
+> +bool zone_dirty_ok(struct zone *zone)
+
+Full description of the return value, please.
+
+> +{
+> +	unsigned long background_thresh, dirty_thresh;
+> +
+> +	dirty_limits(zone, &background_thresh, &dirty_thresh);
+> +
+> +	return zone_page_state(zone, NR_FILE_DIRTY) +
+> +		zone_page_state(zone, NR_UNSTABLE_NFS) +
+> +		zone_page_state(zone, NR_WRITEBACK) <= dirty_thresh;
+> +}
+
+We never needed to calculate &background_thresh,.  I wonder if that
+matters.
+
+> 
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
