@@ -1,97 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 230989000BD
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:48:03 -0400 (EDT)
-Date: Wed, 21 Sep 2011 15:47:51 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E676F9000BD
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2011 09:51:52 -0400 (EDT)
+Date: Wed, 21 Sep 2011 15:51:43 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 07/11] mm: vmscan: convert unevictable page rescue
- scanner to per-memcg LRU lists
-Message-ID: <20110921134751.GD22516@redhat.com>
+Subject: Re: [patch 08/11] mm: vmscan: convert global reclaim to per-memcg
+ LRU lists
+Message-ID: <20110921135142.GE22516@redhat.com>
 References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
- <1315825048-3437-8-git-send-email-jweiner@redhat.com>
- <20110921123354.GC8501@tiehlicka.suse.cz>
+ <1315825048-3437-9-git-send-email-jweiner@redhat.com>
+ <20110921131045.GD8501@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110921123354.GC8501@tiehlicka.suse.cz>
+In-Reply-To: <20110921131045.GD8501@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 21, 2011 at 02:33:56PM +0200, Michal Hocko wrote:
-> On Mon 12-09-11 12:57:24, Johannes Weiner wrote:
+On Wed, Sep 21, 2011 at 03:10:45PM +0200, Michal Hocko wrote:
+> On Mon 12-09-11 12:57:25, Johannes Weiner wrote:
 > > The global per-zone LRU lists are about to go away on memcg-enabled
-> > kernels, the unevictable page rescue scanner must be able to find its
-> > pages on the per-memcg LRU lists.
+> > kernels, global reclaim must be able to find its pages on the
+> > per-memcg LRU lists.
+> > 
+> > Since the LRU pages of a zone are distributed over all existing memory
+> > cgroups, a scan target for a zone is complete when all memory cgroups
+> > are scanned for their proportional share of a zone's memory.
+> > 
+> > The forced scanning of small scan targets from kswapd is limited to
+> > zones marked unreclaimable, otherwise kswapd can quickly overreclaim
+> > by force-scanning the LRU lists of multiple memory cgroups.
 > > 
 > > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 > 
-> The patch is correct but I guess the original implementation of
-> scan_zone_unevictable_pages is buggy (see bellow). This should be
-> addressed separatelly, though.
-> 
 > Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks for your effort, Michal, I really appreciate it.
+Thanks
 
-> > @@ -3490,32 +3501,40 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
-> >  #define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
-> >  static void scan_zone_unevictable_pages(struct zone *zone)
+> Minor nit bellow
+
+> > @@ -2451,13 +2445,24 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+> >  static void age_active_anon(struct zone *zone, struct scan_control *sc,
+> >  			    int priority)
 > >  {
-> > -	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
-> > -	unsigned long scan;
-> > -	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
-> > -
-> > -	while (nr_to_scan > 0) {
-> > -		unsigned long batch_size = min(nr_to_scan,
-> > -						SCAN_UNEVICTABLE_BATCH_SIZE);
-> > -
-> > -		spin_lock_irq(&zone->lru_lock);
-> > -		for (scan = 0;  scan < batch_size; scan++) {
-> > -			struct page *page = lru_to_page(l_unevictable);
+> > -	struct mem_cgroup_zone mz = {
+> > -		.mem_cgroup = NULL,
+> > -		.zone = zone,
+> > -	};
 > > +	struct mem_cgroup *mem;
-> >  
-> > -			if (!trylock_page(page))
-> > -				continue;
+> > +
+> > +	if (!total_swap_pages)
+> > +		return;
+> > +
 > > +	mem = mem_cgroup_iter(NULL, NULL, NULL);
-> > +	do {
-> > +		struct mem_cgroup_zone mz = {
-> > +			.mem_cgroup = mem,
-> > +			.zone = zone,
-> > +		};
-> > +		unsigned long nr_to_scan;
-> >  
-> > -			prefetchw_prev_lru_page(page, l_unevictable, flags);
-> > +		nr_to_scan = zone_nr_lru_pages(&mz, LRU_UNEVICTABLE);
-> > +		while (nr_to_scan > 0) {
-> > +			unsigned long batch_size;
-> > +			unsigned long scan;
-> >  
-> > -			if (likely(PageLRU(page) && PageUnevictable(page)))
-> > -				check_move_unevictable_page(page, zone);
-> > +			batch_size = min(nr_to_scan,
-> > +					 SCAN_UNEVICTABLE_BATCH_SIZE);
-> > +			spin_lock_irq(&zone->lru_lock);
-> > +			for (scan = 0; scan < batch_size; scan++) {
-> > +				struct page *page;
-> >  
-> > -			unlock_page(page);
-> > +				page = lru_tailpage(&mz, LRU_UNEVICTABLE);
-> > +				if (!trylock_page(page))
-> > +					continue;
 > 
-> We are not moving to the next page so we will try it again in the next
-> round while we already increased the scan count. In the end we will
-> missed some pages.
+> Wouldn't be for_each_mem_cgroup more appropriate? Macro is not exported
+> but probably worth exporting? The same applies for
+> scan_zone_unevictable_pages from the previous patch.
 
-I guess this is about latency.  This code is only executed when the
-user requests so by writing to a proc-file, check the comment above
-scan_all_zones_unevictable_pages.  I think at one point Lee wanted to
-move anon pages to the unevictable LRU when no swap is configured, but
-we have separate anon LRUs now that are not scanned without swap, and
-I think except for bugs there is no actual need to move these pages by
-hand, let alone reliably every single page.
+Unfortunately, in generic code, these loops need to be layed out like
+this for !CONFIG_MEMCG to do the right thing.  mem_cgroup_iter() will
+return NULL and the loop has to execute exactly once.
+
+This is something that will go away once we implement Christoph's
+suggestion of always having a (skeleton) root_mem_cgroup around, even
+for !CONFIG_MEMCG.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
