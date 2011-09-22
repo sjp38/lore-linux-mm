@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E9FDA9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 17:11:44 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p8MLBg3e022279
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:42 -0700
-Received: from gwj19 (gwj19.prod.google.com [10.200.10.19])
-	by wpaz1.hot.corp.google.com with ESMTP id p8MLBMrs030079
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:41 -0700
-Received: by gwj19 with SMTP id 19so1911570gwj.23
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:41 -0700 (PDT)
-Date: Thu, 22 Sep 2011 14:11:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch resend] thp: fix khugepaged defrag tunable documentation
-Message-ID: <alpine.DEB.2.00.1109221410300.1505@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BDFA49000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 17:24:35 -0400 (EDT)
+Date: Thu, 22 Sep 2011 17:24:32 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: kernel crash
+Message-ID: <20110922212432.GB25623@redhat.com>
+References: <1316717125.61795.YahooMailClassic@web162017.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1316717125.61795.YahooMailClassic@web162017.mail.bf1.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: M <sah_8@yahoo.com>
+Cc: linux-mm@kvack.org
 
-e27e6151b154 ("mm/thp: use conventional format for boolean attributes")
-changed /sys/kernel/mm/transparent_hugepage/khugepaged/defrag to be tuned
-by using 1 (enabled) or 0 (disabled) instead of "yes" and "no",
-respectively.
+On Thu, Sep 22, 2011 at 11:45:25AM -0700, M wrote:
+ > Hi,
+ > 
+ > I am running Fedora 15 644bit on AMD 64bit arch. After update 3 days ago, kernel started to crash when I submit a heavy computation job. It happened today also with similar type of job. 
+ > 
+ > I submitted a bug report to https://bugzilla.redhat.com/  d=740613 . They referred me to contact linux memory management group. I have also uploaded my log file in the bug report. I will be very happy to provide more information if required to resolve this issue.
+ > 
+ > Thanks.
 
-Update the documentation.
+(fixed url is https://bugzilla.redhat.com/show_bug.cgi?id=740613)
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/vm/transhuge.txt |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
+Manoj's report here has a system with 32GB of RAM and 40GB of swap
+oomkill'ing processes when there seems to be ram still available.
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -123,10 +123,11 @@ be automatically shutdown if it's set to "never".
- khugepaged runs usually at low frequency so while one may not want to
- invoke defrag algorithms synchronously during the page faults, it
- should be worth invoking defrag at least in khugepaged. However it's
--also possible to disable defrag in khugepaged:
-+also possible to disable defrag in khugepaged by writing 0 or enable
-+defrag in khugepaged by writing 1:
- 
--echo yes >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
--echo no >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-+echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-+echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
- 
- You can also control how many pages khugepaged should scan at each
- pass:
+I note the gfp mask of the failing allocations has GFP_HIGHMEM,
+and this apparently doesn't happen when he runs 32-bit.
+
+Could that be a clue ?
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
