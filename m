@@ -1,49 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF139000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:44:39 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p8MFibKs023514
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:44:37 -0700
-Received: from gyf2 (gyf2.prod.google.com [10.243.50.66])
-	by wpaz33.hot.corp.google.com with ESMTP id p8MFiMh8004438
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1EB9000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:59:31 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p8MFxSQ5017571
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:28 -0700
+Received: from gxk26 (gxk26.prod.google.com [10.202.11.26])
+	by hpaq13.eem.corp.google.com with ESMTP id p8MFxQOW012148
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:44:36 -0700
-Received: by gyf2 with SMTP id 2so2315374gyf.41
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:44:31 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:27 -0700
+Received: by gxk26 with SMTP id 26so1508066gxk.41
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:26 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110922095803.GA4530@shutemov.name>
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
- <1316393805-3005-7-git-send-email-glommer@parallels.com> <CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com>
- <20110922095803.GA4530@shutemov.name>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 22 Sep 2011 08:44:11 -0700
-Message-ID: <CAHH2K0ZMq_jCGr3m3PZDtmDwHUXnnL-fuQDt-A-SdUKgeK6P6g@mail.gmail.com>
-Subject: Re: [PATCH v3 6/7] tcp buffer limitation: per-cgroup limit
+In-Reply-To: <1316693805.10571.25.camel@dabdike>
+References: <1316693805.10571.25.camel@dabdike>
+From: Tim Hockin <thockin@google.com>
+Date: Thu, 22 Sep 2011 08:59:05 -0700
+Message-ID: <CAO_RewY98hakC658tqX0vKqFxfFpnvs-_xbTWtFZcvgWdWbrVA@mail.gmail.com>
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
+ in Prague
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <jbottomley@parallels.com>
+Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Sep 22, 2011 at 2:58 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Wed, Sep 21, 2011 at 11:01:46PM -0700, Greg Thelen wrote:
->> On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa <glommer@parallels.com> w=
-rote:
->> > +static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
->> > +{
->> > + =A0 =A0 =A0 return (mem =3D=3D root_mem_cgroup);
->> > +}
->> > +
->>
->> Why are you adding a copy of mem_cgroup_is_root(). =A0I see one already
->> in v3.0. =A0Was it deleted in a previous patch?
+It is unlikely that I or anyone on my direct team (the userspace
+management side) will be able to attend, but You obviously have the
+key players from the kernel side of Google on this list.  I'll put it
+to my team to see if anyone is able to make it.
+
+On Thu, Sep 22, 2011 at 5:16 AM, James Bottomley
+<jbottomley@parallels.com> wrote:
+> Hi All,
 >
-> mem_cgroup_is_root() moved up in the file.
-
-Got it.  Thanks.
+> One of the major work items that came out of the Plumbers conference
+> containers and Cgroups meeting was the need to work on memcg:
+>
+> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+>
+> (see etherpad and presentations)
+>
+> Since almost everyone will be either at KS or LinuxCon, I thought doing
+> a small meeting on the Wednesday of Linux Con (so those at KS who might
+> not be staying for the whole of LinuxCon could attend) might be a good
+> idea. =A0The object would be to get all the major players to agree on
+> who's doing what. =A0You can see Parallels' direction from the patches
+> Glauber has been posting. =A0Google should shortly be starting work on
+> other aspects of the memgc as well.
+>
+> As a precursor to the meeting (and actually a requirement to make it
+> effective) we need to start posting our preliminary patches and design
+> ideas to the mm list (hint, Google people, this means you).
+>
+> I think I've got all of the interested parties in the To: field, but I'm
+> sending this to the mm list just in case I missed anyone. =A0If everyone'=
+s
+> OK with the idea (and enough people are going to be there) I'll get the
+> Linux Foundation to find us a room.
+>
+> James
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
