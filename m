@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F7E39000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:45:27 -0400 (EDT)
-Message-ID: <1316717125.61795.YahooMailClassic@web162017.mail.bf1.yahoo.com>
-Date: Thu, 22 Sep 2011 11:45:25 -0700 (PDT)
-From: M <sah_8@yahoo.com>
-Subject: kernel crash
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D629000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 16:43:44 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p8MKhgel016966
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:42 -0700
+Received: from gyf1 (gyf1.prod.google.com [10.243.50.65])
+	by wpaz13.hot.corp.google.com with ESMTP id p8MKgf4B004016
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:41 -0700
+Received: by gyf1 with SMTP id 1so2146960gyf.9
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:40 -0700 (PDT)
+Date: Thu, 22 Sep 2011 13:43:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] show page size in /proc/$pid/numa_maps
+In-Reply-To: <20110921221329.5B7EE5C5@kernel>
+Message-ID: <alpine.DEB.2.00.1109221339520.31548@chino.kir.corp.google.com>
+References: <20110921221329.5B7EE5C5@kernel>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="1066215213-1948884978-1316717125=:61795"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---1066215213-1948884978-1316717125=:61795
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Wed, 21 Sep 2011, Dave Hansen wrote:
 
-Hi,
+> 
+> The output of /proc/$pid/numa_maps is in terms of number of pages
+> like anon=22 or dirty=54.  Here's some output:
+> 
+> 7f4680000000 default file=/hugetlb/bigfile anon=50 dirty=50 N0=50
+> 7f7659600000 default file=/anon_hugepage\040(deleted) anon=50 dirty=50 N0=50
+> 7fff8d425000 default stack anon=50 dirty=50 N0=50
+> 
+> Looks like we have a stack and a couple of anonymous hugetlbfs
+> areas page which both use the same amount of memory.  They don't.
+> 
+> The 'bigfile' uses 1GB pages and takes up ~50GB of space.  The
+> anon_hugepage uses 2MB pages and takes up ~100MB of space while
+> the stack uses normal 4k pages.  You can go over to smaps to
+> figure out what the page size _really_ is with KernelPageSize
+> or MMUPageSize.  But, I think this is a pretty nasty and
+> counterintuitive interface as it stands.
+> 
+> The following patch adds a pagemult= field.  It is placed only
+> in cases where the VMA's page size differs from the base kernel
+> page size.  I'm calling it pagemult to emphasize that it is
+> indended to modify the statistics output rather than _really_
+> show the page size that the kernel or MMU is using.
+> 
 
-I am running Fedora 15 644bit on AMD 64bit arch. After update 3 days ago, k=
-ernel started to crash when I submit a heavy computation job. It happened t=
-oday also with similar type of job.=20
-
-I submitted a bug report to https://bugzilla.redhat.com/=A0 d=3D740613 . Th=
-ey referred me to contact linux memory management group. I have also upload=
-ed my log file in the bug report. I will be very happy to provide more info=
-rmation if required to resolve this issue.
-
-Thanks.
-
---1066215213-1948884978-1316717125=:61795
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" ><tr><td valign=3D"=
-top" style=3D"font: inherit;">Hi,<br><br>I am running Fedora 15 644bit on A=
-MD 64bit arch. After update 3 days ago, kernel started to crash when I subm=
-it a heavy computation job. It happened today also with similar type of job=
-. <br><br>I submitted a bug report to https://bugzilla.redhat.com/&nbsp; d=
-=3D740613 . They referred me to contact linux memory management group. I ha=
-ve also uploaded my log file in the bug report. I will be very happy to pro=
-vide more information if required to resolve this issue.<br><br>Thanks.<br>=
-</td></tr></table>
---1066215213-1948884978-1316717125=:61795--
+Why not just add a pagesize={4K,2M,1G,...} field for every output?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
