@@ -1,74 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9B0BC9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 10:00:40 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LRX00JKYG91ID40@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 22 Sep 2011 15:00:37 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LRX00E63G90C7@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 22 Sep 2011 15:00:37 +0100 (BST)
-Date: Thu, 22 Sep 2011 16:00:28 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 6/7] common: dma-mapping: change alloc/free_coherent	method
- to more generic alloc/free_attrs
-In-reply-to: <20110905104352.GD5203@8bytes.org>
-Message-id: <006301cc792f$fc3a3a40$f4aeaec0$%szyprowski@samsung.com>
-Content-language: pl
-References: <1314971599-14428-1-git-send-email-m.szyprowski@samsung.com>
- <1314971599-14428-7-git-send-email-m.szyprowski@samsung.com>
- <20110905104352.GD5203@8bytes.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id F01EA9000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:06:28 -0400 (EDT)
+Received: by fxh17 with SMTP id 17so3756885fxh.14
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:06:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1316693805.10571.25.camel@dabdike>
+References: <1316693805.10571.25.camel@dabdike>
+Date: Thu, 22 Sep 2011 20:36:24 +0530
+Message-ID: <CAKTCnzm7UVH20gEw_DaYTci2VcDZ-MvCb1TbBGZdMYvdHKUMDw@mail.gmail.com>
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
+ in Prague
+From: Balbir Singh <bsingharora@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Joerg Roedel' <joro@8bytes.org>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: James Bottomley <jbottomley@parallels.com>
+Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello,
+On Thu, Sep 22, 2011 at 5:46 PM, James Bottomley
+<jbottomley@parallels.com> wrote:
+> Hi All,
+>
+> One of the major work items that came out of the Plumbers conference
+> containers and Cgroups meeting was the need to work on memcg:
+>
+> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+>
+> (see etherpad and presentations)
+>
+> Since almost everyone will be either at KS or LinuxCon, I thought doing
+> a small meeting on the Wednesday of Linux Con (so those at KS who might
+> not be staying for the whole of LinuxCon could attend) might be a good
+> idea. =A0The object would be to get all the major players to agree on
+> who's doing what. =A0You can see Parallels' direction from the patches
+> Glauber has been posting. =A0Google should shortly be starting work on
+> other aspects of the memgc as well.
+>
+> As a precursor to the meeting (and actually a requirement to make it
+> effective) we need to start posting our preliminary patches and design
+> ideas to the mm list (hint, Google people, this means you).
+>
+> I think I've got all of the interested parties in the To: field, but I'm
+> sending this to the mm list just in case I missed anyone. =A0If everyone'=
+s
+> OK with the idea (and enough people are going to be there) I'll get the
+> Linux Foundation to find us a room.
 
-On Monday, September 05, 2011 12:44 PM Joerg Roedel wrote:
+Hi, James
 
-> On Fri, Sep 02, 2011 at 03:53:18PM +0200, Marek Szyprowski wrote:
-> >  struct dma_map_ops {
-> > -	void* (*alloc_coherent)(struct device *dev, size_t size,
-> > -				dma_addr_t *dma_handle, gfp_t gfp);
-> > -	void (*free_coherent)(struct device *dev, size_t size,
-> > -			      void *vaddr, dma_addr_t dma_handle);
-> > +	void* (*alloc)(struct device *dev, size_t size,
-> > +				dma_addr_t *dma_handle, gfp_t gfp,
-> > +				struct dma_attrs *attrs);
-> > +	void (*free)(struct device *dev, size_t size,
-> > +			      void *vaddr, dma_addr_t dma_handle,
-> > +			      struct dma_attrs *attrs);
-> > +	int (*mmap)(struct device *, struct vm_area_struct *,
-> > +			  void *, dma_addr_t, size_t, struct dma_attrs *attrs);
-> > +
-> >  	dma_addr_t (*map_page)(struct device *dev, struct page *page,
-> >  			       unsigned long offset, size_t size,
-> >  			       enum dma_data_direction dir,
-> > --
-> > 1.7.1.569.g6f426
-> 
-> This needs conversion of all drivers implementing dma_map_ops or you
-> will break a lot of architectures. A better approach is to keep
-> *_coherent and implement alloc/free/mmap side-by-side until all drivers
-> are converted.
-> Also I miss some documentation about the new call-backs.
+I'd be interested in attending and getting active on memcg design
+again (if the funding works out), what dates are we looking at? When
+is LinuxCon planned?
 
-Right this patch will break all other architectures, however it was just 
-a snapshot of my work-in-progress. Converting all other architectures from
-alloc_coherent to alloc with NULL attribute shouldn't be really hard and will
-be added in the final version - together with documentation.
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
