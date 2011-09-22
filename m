@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1EB9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:59:31 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p8MFxSQ5017571
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:28 -0700
-Received: from gxk26 (gxk26.prod.google.com [10.202.11.26])
-	by hpaq13.eem.corp.google.com with ESMTP id p8MFxQOW012148
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:27 -0700
-Received: by gxk26 with SMTP id 26so1508066gxk.41
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:59:26 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7E39000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:45:27 -0400 (EDT)
+Message-ID: <1316717125.61795.YahooMailClassic@web162017.mail.bf1.yahoo.com>
+Date: Thu, 22 Sep 2011 11:45:25 -0700 (PDT)
+From: M <sah_8@yahoo.com>
+Subject: kernel crash
 MIME-Version: 1.0
-In-Reply-To: <1316693805.10571.25.camel@dabdike>
-References: <1316693805.10571.25.camel@dabdike>
-From: Tim Hockin <thockin@google.com>
-Date: Thu, 22 Sep 2011 08:59:05 -0700
-Message-ID: <CAO_RewY98hakC658tqX0vKqFxfFpnvs-_xbTWtFZcvgWdWbrVA@mail.gmail.com>
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
- in Prague
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/alternative; boundary="1066215213-1948884978-1316717125=:61795"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <jbottomley@parallels.com>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 
-It is unlikely that I or anyone on my direct team (the userspace
-management side) will be able to attend, but You obviously have the
-key players from the kernel side of Google on this list.  I'll put it
-to my team to see if anyone is able to make it.
+--1066215213-1948884978-1316717125=:61795
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-On Thu, Sep 22, 2011 at 5:16 AM, James Bottomley
-<jbottomley@parallels.com> wrote:
-> Hi All,
->
-> One of the major work items that came out of the Plumbers conference
-> containers and Cgroups meeting was the need to work on memcg:
->
-> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
->
-> (see etherpad and presentations)
->
-> Since almost everyone will be either at KS or LinuxCon, I thought doing
-> a small meeting on the Wednesday of Linux Con (so those at KS who might
-> not be staying for the whole of LinuxCon could attend) might be a good
-> idea. =A0The object would be to get all the major players to agree on
-> who's doing what. =A0You can see Parallels' direction from the patches
-> Glauber has been posting. =A0Google should shortly be starting work on
-> other aspects of the memgc as well.
->
-> As a precursor to the meeting (and actually a requirement to make it
-> effective) we need to start posting our preliminary patches and design
-> ideas to the mm list (hint, Google people, this means you).
->
-> I think I've got all of the interested parties in the To: field, but I'm
-> sending this to the mm list just in case I missed anyone. =A0If everyone'=
-s
-> OK with the idea (and enough people are going to be there) I'll get the
-> Linux Foundation to find us a room.
->
-> James
->
->
+Hi,
+
+I am running Fedora 15 644bit on AMD 64bit arch. After update 3 days ago, k=
+ernel started to crash when I submit a heavy computation job. It happened t=
+oday also with similar type of job.=20
+
+I submitted a bug report to https://bugzilla.redhat.com/=A0 d=3D740613 . Th=
+ey referred me to contact linux memory management group. I have also upload=
+ed my log file in the bug report. I will be very happy to provide more info=
+rmation if required to resolve this issue.
+
+Thanks.
+
+--1066215213-1948884978-1316717125=:61795
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" ><tr><td valign=3D"=
+top" style=3D"font: inherit;">Hi,<br><br>I am running Fedora 15 644bit on A=
+MD 64bit arch. After update 3 days ago, kernel started to crash when I subm=
+it a heavy computation job. It happened today also with similar type of job=
+. <br><br>I submitted a bug report to https://bugzilla.redhat.com/&nbsp; d=
+=3D740613 . They referred me to contact linux memory management group. I ha=
+ve also uploaded my log file in the bug report. I will be very happy to pro=
+vide more information if required to resolve this issue.<br><br>Thanks.<br>=
+</td></tr></table>
+--1066215213-1948884978-1316717125=:61795--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
