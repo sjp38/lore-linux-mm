@@ -1,44 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 52CBE9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 19:13:02 -0400 (EDT)
-Received: by fxh17 with SMTP id 17so4280738fxh.14
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 16:12:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1316706223.10571.43.camel@dabdike>
-References: <1316693805.10571.25.camel@dabdike>
-	<CAKTCnzm7UVH20gEw_DaYTci2VcDZ-MvCb1TbBGZdMYvdHKUMDw@mail.gmail.com>
-	<1316706223.10571.43.camel@dabdike>
-Date: Fri, 23 Sep 2011 04:42:59 +0530
-Message-ID: <CAKTCnzm_XHO_HAZMUsqrMU3KWCh6KKN4a0Kh9mGai=VcWh5MEA@mail.gmail.com>
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
- in Prague
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 37E029000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 19:13:47 -0400 (EDT)
+Date: Thu, 22 Sep 2011 16:13:25 -0700
+From: Andrew Morton <akpm@google.com>
+Subject: Re: [PATCH 0/8] idle page tracking / working set estimation
+Message-Id: <20110922161325.f94f9c9e.akpm@google.com>
+In-Reply-To: <1316230753-8693-1-git-send-email-walken@google.com>
+References: <1316230753-8693-1-git-send-email-walken@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Sep 22, 2011 at 9:13 PM, James Bottomley
-<James.Bottomley@hansenpartnership.com> wrote:
-> On Thu, 2011-09-22 at 20:36 +0530, Balbir Singh wrote:
->> Hi, James
->>
->> I'd be interested in attending and getting active on memcg design
->> again (if the funding works out), what dates are we looking at? When
->> is LinuxCon planned?
->
-> Heh, I was assuming everyone knew, but I should have put them in the
-> original message. =A0Kernel Summit is 23-25 October and LinuxCon is 26-28=
-,
-> so the proposed day is Wednesday 26 October.
+On Fri, 16 Sep 2011 20:39:05 -0700
+Michel Lespinasse <walken@google.com> wrote:
 
-Thanks, I am afraid I won't be able to make it in person. 26 October
-is a big festival. I'll catch up with the minutes
+> Please comment on the following patches (which are against the v3.0 kernel).
+> We are using these to collect memory utilization statistics for each cgroup
+> accross many machines, and optimize job placement accordingly.
 
-Balbir Singh
+Please consider updating /proc/kpageflags with the three new page
+flags.  If "yes": update.  If "no": explain/justify.
+
+Which prompts the obvious: the whole feature could have been mostly
+implemented in userspace, using kpageflags.  Some additional kernel
+support would presumably be needed, but I'm not sure how much.
+
+If you haven't already done so, please sketch down what that
+infrastructure would look like and have a think about which approach is
+preferable?
+
+
+
+What bugs me a bit about the proposal is its cgroups-centricity.  The
+question "how much memory is my application really using" comes up
+again and again.  It predates cgroups.  One way to answer that question
+is to force a massive amount of swapout on the entire machine, then let
+the system recover and take a look at your app's RSS two minutes later.
+This is very lame.
+
+It's a legitimate requirement, and the kstaled infrastructure puts a
+lot of things in place to answer it well.  But as far as I can tell it
+doesn't quite get over the line.  Then again, maybe it _does_ get
+there: put the application into a memcg all of its own, just for
+instrumentation purposes and then use kstaled to monitor it?
+
+<later> OK, I'm surprised to discover that kstaled is doing a physical
+scan and not a virtual one.  I assume it works, but I don't know why. 
+But it makes the above requirement harder, methinks.
+
+
+
+How does all this code get along with hugepages, btw?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
