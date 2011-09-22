@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id F01EA9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:06:28 -0400 (EDT)
-Received: by fxh17 with SMTP id 17so3756885fxh.14
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:06:24 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 117499000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 11:10:01 -0400 (EDT)
+Received: by fxh17 with SMTP id 17so3762220fxh.14
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:09:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1316693805.10571.25.camel@dabdike>
-References: <1316693805.10571.25.camel@dabdike>
-Date: Thu, 22 Sep 2011 20:36:24 +0530
-Message-ID: <CAKTCnzm7UVH20gEw_DaYTci2VcDZ-MvCb1TbBGZdMYvdHKUMDw@mail.gmail.com>
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
- in Prague
+In-Reply-To: <CAHH2K0Z_2LJPL0sLVHqkh_6b_BLQnknULTB9a9WfEuibk5kONg@mail.gmail.com>
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
+	<1316393805-3005-3-git-send-email-glommer@parallels.com>
+	<CAHH2K0YgkG2J_bO+U9zbZYhTTqSLvr6NtxKxN8dRtfHs=iB8iA@mail.gmail.com>
+	<4E7A342B.5040608@parallels.com>
+	<CAHH2K0Z_2LJPL0sLVHqkh_6b_BLQnknULTB9a9WfEuibk5kONg@mail.gmail.com>
+Date: Thu, 22 Sep 2011 20:39:55 +0530
+Message-ID: <CAKTCnz=59HuEg9T-USi5oKSK=F+vr2QxCA17+i-rGj73k49rzw@mail.gmail.com>
+Subject: Re: [PATCH v3 2/7] socket: initial cgroup code.
 From: Balbir Singh <bsingharora@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <jbottomley@parallels.com>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Thu, Sep 22, 2011 at 5:46 PM, James Bottomley
-<jbottomley@parallels.com> wrote:
-> Hi All,
+On Thu, Sep 22, 2011 at 11:30 AM, Greg Thelen <gthelen@google.com> wrote:
+> On Wed, Sep 21, 2011 at 11:59 AM, Glauber Costa <glommer@parallels.com> w=
+rote:
+>> Right now I am working under the assumption that tasks are long lived in=
+side
+>> the cgroup. Migration potentially introduces some nasty locking problems=
+ in
+>> the mem_schedule path.
+>>
+>> Also, unless I am missing something, the memcg already has the policy of
+>> not carrying charges around, probably because of this very same complexi=
+ty.
+>>
+>> True that at least it won't EBUSY you... But I think this is at least a =
+way
+>> to guarantee that the cgroup under our nose won't disappear in the middl=
+e of
+>> our allocations.
 >
-> One of the major work items that came out of the Plumbers conference
-> containers and Cgroups meeting was the need to work on memcg:
+> Here's the memcg user page behavior using the same pattern:
 >
-> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+> 1. user page P is allocate by task T in memcg M1
+> 2. T is moved to memcg M2. =A0The P charge is left behind still charged
+> to M1 if memory.move_charge_at_immigrate=3D0; or the charge is moved to
+> M2 if memory.move_charge_at_immigrate=3D1.
+> 3. rmdir M1 will try to reclaim P (if P was left in M1). =A0If unable to
+> reclaim, then P is recharged to parent(M1).
 >
-> (see etherpad and presentations)
->
-> Since almost everyone will be either at KS or LinuxCon, I thought doing
-> a small meeting on the Wednesday of Linux Con (so those at KS who might
-> not be staying for the whole of LinuxCon could attend) might be a good
-> idea. =A0The object would be to get all the major players to agree on
-> who's doing what. =A0You can see Parallels' direction from the patches
-> Glauber has been posting. =A0Google should shortly be starting work on
-> other aspects of the memgc as well.
->
-> As a precursor to the meeting (and actually a requirement to make it
-> effective) we need to start posting our preliminary patches and design
-> ideas to the mm list (hint, Google people, this means you).
->
-> I think I've got all of the interested parties in the To: field, but I'm
-> sending this to the mm list just in case I missed anyone. =A0If everyone'=
-s
-> OK with the idea (and enough people are going to be there) I'll get the
-> Linux Foundation to find us a room.
 
-Hi, James
+We also have some magic in page_referenced() to remove pages
+referenced from different containers. What we do is try not to
+penalize a cgroup if another cgroup is referencing this page and the
+page under consideration is being reclaimed from the cgroup that
+touched it.
 
-I'd be interested in attending and getting active on memcg design
-again (if the funding works out), what dates are we looking at? When
-is LinuxCon planned?
-
-Balbir
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
