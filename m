@@ -1,210 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A439000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 04:53:07 -0400 (EDT)
-Date: Thu, 22 Sep 2011 10:52:42 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 02C2B9000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 05:03:43 -0400 (EDT)
+Date: Thu, 22 Sep 2011 11:03:26 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 2/4] mm: writeback: distribute write pages across
- allowable zones
-Message-ID: <20110922085242.GA29046@redhat.com>
+Subject: Re: [patch 1/4] mm: exclude reserved pages from dirtyable memory
+Message-ID: <20110922090326.GB29046@redhat.com>
 References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
- <1316526315-16801-3-git-send-email-jweiner@redhat.com>
- <20110921160226.1bf74494.akpm@google.com>
+ <1316526315-16801-2-git-send-email-jweiner@redhat.com>
+ <20110921140423.GG4849@suse.de>
+ <20110921150328.GJ4849@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110921160226.1bf74494.akpm@google.com>
+In-Reply-To: <20110921150328.GJ4849@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 21, 2011 at 04:02:26PM -0700, Andrew Morton wrote:
-> On Tue, 20 Sep 2011 15:45:13 +0200
-> Johannes Weiner <jweiner@redhat.com> wrote:
-> 
-> > This patch allows allocators to pass __GFP_WRITE when they know in
-> > advance that the allocated page will be written to and become dirty
-> > soon.  The page allocator will then attempt to distribute those
-> > allocations across zones, such that no single zone will end up full of
-> > dirty, and thus more or less, unreclaimable pages.
-> 
-> Across all zones, or across the zones within the node or what?  Some
-> more description of how all this plays with NUMA is needed, please.
-
-Across the zones the allocator considers for allocation, which on NUMA
-is determined by the allocating task's NUMA memory policy.
-
-> > The global dirty limits are put in proportion to the respective zone's
-> > amount of dirtyable memory
-> 
-> I don't know what this means.  How can a global limit be controlled by
-> what is happening within each single zone?  Please describe this design
-> concept fully.
-
-Yikes, it's mein English.
-
-A zone's dirty limit is to the zone's contribution of dirtyable memory
-what the global dirty limit is to the global amount of dirtyable
-memory.
-
-As a result, the sum of the dirty limits of all existing zones equals
-the global dirty limit, such that no single zone receives more than
-its fair share of the globally allowable dirty pages.
-
-When the allocator tries to allocate from the list of allowable zones,
-it skips those that have reached their maximum share of dirty pages.
-
-> > For now, the problem remains for NUMA configurations where the zones
-> > allowed for allocation are in sum not big enough to trigger the global
-> > dirty limits, but a future approach to solve this can reuse the
-> > per-zone dirty limit infrastructure laid out in this patch to have
-> > dirty throttling and the flusher threads consider individual zones.
-
-> > +static unsigned long zone_dirtyable_memory(struct zone *zone)
-> 
-> Appears to return the number of pages in a particular zone which are
-> considered "dirtyable".  Some discussion of how this decision is made
-> would be illuminating.
-
-Is the proportional relationship between zones and the global level a
-satisfactory explanation?
-
-Because I am looking for a central place to explain all this.
-
-> > +{
-> > +	unsigned long x;
-> > +	/*
-> > +	 * To keep a reasonable ratio between dirty memory and lowmem,
-> > +	 * highmem is not considered dirtyable on a global level.
-> 
-> Whereabouts in the kernel is this policy implemented? 
-> determine_dirtyable_memory()?  It does (or can) consider highmem
-> pages?  Comment seems wrong?
-
-Yes, in determine_dirtyable_memory().
-
-It is possible to configure an unreasonable ratio between dirty memory
-and lowmem with the vm_highmem_is_dirtyable sysctl.  The point is that
-even though highmem is subtracted from the effective amount of global
-dirtyable memory again (which is strictly a big-picture measure), we
-only care about the individual zone here and so highmem can very much
-always hold dirty pages up to its dirty limit.
-
-> Should we rename determine_dirtyable_memory() to
-> global_dirtyable_memory(), to get some sense of its relationship with
-> zone_dirtyable_memory()?
-
-Sounds good.
-
-> > +	 * But we allow individual highmem zones to hold a potentially
-> > +	 * bigger share of that global amount of dirty pages as long
-> > +	 * as they have enough free or reclaimable pages around.
-> > +	 */
-> > +	x = zone_page_state(zone, NR_FREE_PAGES) - zone->totalreserve_pages;
-> > +	x += zone_reclaimable_pages(zone);
-> > +	return x;
-> > +}
-> > +
+On Wed, Sep 21, 2011 at 04:03:28PM +0100, Mel Gorman wrote:
+> On Wed, Sep 21, 2011 at 03:04:23PM +0100, Mel Gorman wrote:
+> > On Tue, Sep 20, 2011 at 03:45:12PM +0200, Johannes Weiner wrote:
+> > > The amount of dirtyable pages should not include the total number of
+> > > free pages: there is a number of reserved pages that the page
+> > > allocator and kswapd always try to keep free.
+> > > 
+> > > The closer (reclaimable pages - dirty pages) is to the number of
+> > > reserved pages, the more likely it becomes for reclaim to run into
+> > > dirty pages:
+> > > 
+> > >        +----------+ ---
+> > >        |   anon   |  |
+> > >        +----------+  |
+> > >        |          |  |
+> > >        |          |  -- dirty limit new    -- flusher new
+> > >        |   file   |  |                     |
+> > >        |          |  |                     |
+> > >        |          |  -- dirty limit old    -- flusher old
+> > >        |          |                        |
+> > >        +----------+                       --- reclaim
+> > >        | reserved |
+> > >        +----------+
+> > >        |  kernel  |
+> > >        +----------+
+> > > 
+> > > Not treating reserved pages as dirtyable on a global level is only a
+> > > conceptual fix.  In reality, dirty pages are not distributed equally
+> > > across zones and reclaim runs into dirty pages on a regular basis.
+> > > 
+> > > But it is important to get this right before tackling the problem on a
+> > > per-zone level, where the distance between reclaim and the dirty pages
+> > > is mostly much smaller in absolute numbers.
+> > > 
+> > > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > > ---
+> > >  include/linux/mmzone.h |    1 +
+> > >  mm/page-writeback.c    |    8 +++++---
+> > >  mm/page_alloc.c        |    1 +
+> > >  3 files changed, 7 insertions(+), 3 deletions(-)
+> > > 
+> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > > index 1ed4116..e28f8e0 100644
+> > > --- a/include/linux/mmzone.h
+> > > +++ b/include/linux/mmzone.h
+> > > @@ -316,6 +316,7 @@ struct zone {
+> > >  	 * sysctl_lowmem_reserve_ratio sysctl changes.
+> > >  	 */
+> > >  	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+> > > +	unsigned long		totalreserve_pages;
+> > >  
 > > 
-> > ...
-> >
-> > -void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
-> > +static void dirty_limits(struct zone *zone,
-> > +			 unsigned long *pbackground,
-> > +			 unsigned long *pdirty)
-> >  {
-> > +	unsigned long uninitialized_var(zone_memory);
-> > +	unsigned long available_memory;
-> > +	unsigned long global_memory;
-> >  	unsigned long background;
-> > -	unsigned long dirty;
-> > -	unsigned long uninitialized_var(available_memory);
-> >  	struct task_struct *tsk;
-> > +	unsigned long dirty;
-> >  
-> > -	if (!vm_dirty_bytes || !dirty_background_bytes)
-> > -		available_memory = determine_dirtyable_memory();
-> > +	global_memory = determine_dirtyable_memory();
-> > +	if (zone)
-> > +		available_memory = zone_memory = zone_dirtyable_memory(zone);
-> > +	else
-> > +		available_memory = global_memory;
-> >  
-> > -	if (vm_dirty_bytes)
-> > +	if (vm_dirty_bytes) {
-> >  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> > -	else
-> > +		if (zone)
+> > This is nit-picking but totalreserve_pages is a poor name because it's
+> > a per-zone value that is one of the lowmem_reserve[] fields instead
+> > of a total. After this patch, we have zone->totalreserve_pages and
+> > totalreserve_pages but are not related to the same thing.
+> > but they are not the same.
 > 
-> So passing zone==NULL alters dirty_limits()'s behaviour.  Seems that it
-> flips the function between global_dirty_limits and zone_dirty_limits?
-
-Yes.
-
-> Would it be better if we actually had separate global_dirty_limits()
-> and zone_dirty_limits() rather than a magical mode?
-
-I did that the first time around, but Mel raised the valid point that
-this will be bad for maintainability.
-
-The global dirty limit and the per-zone dirty limit are not only
-incidentally calculated the same way, they are intentionally similar
-in the geometrical sense (modulo workarounds for not having fp
-arithmetic), so it would be good to keep this stuff together.
-
-But the same applies to determine_dirtyable_memory() and
-zone_dirtyable_memory(), so they should be done the same way and I
-don't care too much which that would be.
-
-If noone complains, I would structure the code such that
-global_dirtyable_memory() and zone_dirtyable_memory(), as well as
-global_dirty_limits() and zone_dirty_limits() are separate functions
-next to each other with a big fat comment above that block explaining
-the per-zone dirty limits and the proportional relationship to the
-global parameters.
-
-> > +			dirty = dirty * zone_memory / global_memory;
-> > +	} else
-> >  		dirty = (vm_dirty_ratio * available_memory) / 100;
-> >  
-> > -	if (dirty_background_bytes)
-> > +	if (dirty_background_bytes) {
-> >  		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> > -	else
-> > +		if (zone)
-> > +			background = background * zone_memory / global_memory;
-> > +	} else
-> >  		background = (dirty_background_ratio * available_memory) / 100;
-> >  
-> >  	if (background >= dirty)
-> > 
-> > ...
-> >
-> > +bool zone_dirty_ok(struct zone *zone)
+> As you correctly pointed out to be on IRC, zone->totalreserve_pages
+> is not the lowmem_reserve because it takes the high_wmark into
+> account. Sorry about that, I should have kept thinking.  The name is
+> still poor though because it does not explain what the value is or
+> what it means.
 > 
-> Full description of the return value, please.
-
-Returns false when the zone has reached its maximum share of the
-global allowed dirty pages, true otherwise.
-
+> zone->FOO value needs to be related to lowmem_reserve because this
+> 	is related to balancing zone usage.
 > 
-> > +{
-> > +	unsigned long background_thresh, dirty_thresh;
-> > +
-> > +	dirty_limits(zone, &background_thresh, &dirty_thresh);
-> > +
-> > +	return zone_page_state(zone, NR_FILE_DIRTY) +
-> > +		zone_page_state(zone, NR_UNSTABLE_NFS) +
-> > +		zone_page_state(zone, NR_WRITEBACK) <= dirty_thresh;
-> > +}
+> zone->FOO value should also be related to the high_wmark because
+> 	this is avoiding writeback from page reclaim
 > 
-> We never needed to calculate &background_thresh,.  I wonder if that
-> matters.
+> err....... umm... this?
+> 
+> 	/*
+> 	 * When allocating a new page that is expected to be
+> 	 * dirtied soon, the number of free pages and the
+> 	 * dirty_balance reserve are taken into account. The
+> 	 * objective is that the globally allowed number of dirty
+> 	 * pages should be distributed throughout the zones such
+> 	 * that it is very unlikely that page reclaim will call
+> 	 * ->writepage.
+> 	 *
+> 	 * dirty_balance_reserve takes both lowmem_reserve and
+> 	 * the high watermark into account. The lowmem_reserve
+> 	 * is taken into account because we don't want the
+> 	 * distribution of dirty pages to unnecessarily increase
+> 	 * lowmem pressure. The watermark is taken into account
+> 	 * because it's correlated with when kswapd wakes up
+> 	 * and how long it stays awake.
+> 	 */
+> 	unsigned long		dirty_balance_reserve.
 
-I didn't think dirty_limits() could take another branch, but if I
-split up the function I will drop it.  It's not rocket science and can
-be easily added on demand.
+Yes, that's much better, thanks.
+
+I assume this is meant the same for both the zone and the global level
+and we should not mess with totalreserve_pages in either case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
