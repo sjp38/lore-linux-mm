@@ -1,43 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 775C69000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 08:16:57 -0400 (EDT)
-From: James Bottomley <jbottomley@parallels.com>
-Subject: Proposed memcg meeting at October Kernel Summit/European LinuxCon
- in Prague
-Date: Thu, 22 Sep 2011 12:16:47 +0000
-Message-ID: <1316693805.10571.25.camel@dabdike>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4C6B1665BF318A48923C4AFB956BC7A8@sw.swsoft.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9B0BC9000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 10:00:40 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LRX00JKYG91ID40@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Sep 2011 15:00:37 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LRX00E63G90C7@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Sep 2011 15:00:37 +0100 (BST)
+Date: Thu, 22 Sep 2011 16:00:28 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 6/7] common: dma-mapping: change alloc/free_coherent	method
+ to more generic alloc/free_attrs
+In-reply-to: <20110905104352.GD5203@8bytes.org>
+Message-id: <006301cc792f$fc3a3a40$f4aeaec0$%szyprowski@samsung.com>
+Content-language: pl
+References: <1314971599-14428-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971599-14428-7-git-send-email-m.szyprowski@samsung.com>
+ <20110905104352.GD5203@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: 'Joerg Roedel' <joro@8bytes.org>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-SGkgQWxsLA0KDQpPbmUgb2YgdGhlIG1ham9yIHdvcmsgaXRlbXMgdGhhdCBjYW1lIG91dCBvZiB0
-aGUgUGx1bWJlcnMgY29uZmVyZW5jZQ0KY29udGFpbmVycyBhbmQgQ2dyb3VwcyBtZWV0aW5nIHdh
-cyB0aGUgbmVlZCB0byB3b3JrIG9uIG1lbWNnOg0KDQpodHRwOi8vd3d3LmxpbnV4cGx1bWJlcnNj
-b25mLm9yZy8yMDExL29jdy9ldmVudHMvTFBDMjAxMU1DL3RyYWNrcy8xMDUNCg0KKHNlZSBldGhl
-cnBhZCBhbmQgcHJlc2VudGF0aW9ucykNCg0KU2luY2UgYWxtb3N0IGV2ZXJ5b25lIHdpbGwgYmUg
-ZWl0aGVyIGF0IEtTIG9yIExpbnV4Q29uLCBJIHRob3VnaHQgZG9pbmcNCmEgc21hbGwgbWVldGlu
-ZyBvbiB0aGUgV2VkbmVzZGF5IG9mIExpbnV4IENvbiAoc28gdGhvc2UgYXQgS1Mgd2hvIG1pZ2h0
-DQpub3QgYmUgc3RheWluZyBmb3IgdGhlIHdob2xlIG9mIExpbnV4Q29uIGNvdWxkIGF0dGVuZCkg
-bWlnaHQgYmUgYSBnb29kDQppZGVhLiAgVGhlIG9iamVjdCB3b3VsZCBiZSB0byBnZXQgYWxsIHRo
-ZSBtYWpvciBwbGF5ZXJzIHRvIGFncmVlIG9uDQp3aG8ncyBkb2luZyB3aGF0LiAgWW91IGNhbiBz
-ZWUgUGFyYWxsZWxzJyBkaXJlY3Rpb24gZnJvbSB0aGUgcGF0Y2hlcw0KR2xhdWJlciBoYXMgYmVl
-biBwb3N0aW5nLiAgR29vZ2xlIHNob3VsZCBzaG9ydGx5IGJlIHN0YXJ0aW5nIHdvcmsgb24NCm90
-aGVyIGFzcGVjdHMgb2YgdGhlIG1lbWdjIGFzIHdlbGwuDQoNCkFzIGEgcHJlY3Vyc29yIHRvIHRo
-ZSBtZWV0aW5nIChhbmQgYWN0dWFsbHkgYSByZXF1aXJlbWVudCB0byBtYWtlIGl0DQplZmZlY3Rp
-dmUpIHdlIG5lZWQgdG8gc3RhcnQgcG9zdGluZyBvdXIgcHJlbGltaW5hcnkgcGF0Y2hlcyBhbmQg
-ZGVzaWduDQppZGVhcyB0byB0aGUgbW0gbGlzdCAoaGludCwgR29vZ2xlIHBlb3BsZSwgdGhpcyBt
-ZWFucyB5b3UpLg0KDQpJIHRoaW5rIEkndmUgZ290IGFsbCBvZiB0aGUgaW50ZXJlc3RlZCBwYXJ0
-aWVzIGluIHRoZSBUbzogZmllbGQsIGJ1dCBJJ20NCnNlbmRpbmcgdGhpcyB0byB0aGUgbW0gbGlz
-dCBqdXN0IGluIGNhc2UgSSBtaXNzZWQgYW55b25lLiAgSWYgZXZlcnlvbmUncw0KT0sgd2l0aCB0
-aGUgaWRlYSAoYW5kIGVub3VnaCBwZW9wbGUgYXJlIGdvaW5nIHRvIGJlIHRoZXJlKSBJJ2xsIGdl
-dCB0aGUNCkxpbnV4IEZvdW5kYXRpb24gdG8gZmluZCB1cyBhIHJvb20uDQoNCkphbWVzDQoNCg==
+Hello,
+
+On Monday, September 05, 2011 12:44 PM Joerg Roedel wrote:
+
+> On Fri, Sep 02, 2011 at 03:53:18PM +0200, Marek Szyprowski wrote:
+> >  struct dma_map_ops {
+> > -	void* (*alloc_coherent)(struct device *dev, size_t size,
+> > -				dma_addr_t *dma_handle, gfp_t gfp);
+> > -	void (*free_coherent)(struct device *dev, size_t size,
+> > -			      void *vaddr, dma_addr_t dma_handle);
+> > +	void* (*alloc)(struct device *dev, size_t size,
+> > +				dma_addr_t *dma_handle, gfp_t gfp,
+> > +				struct dma_attrs *attrs);
+> > +	void (*free)(struct device *dev, size_t size,
+> > +			      void *vaddr, dma_addr_t dma_handle,
+> > +			      struct dma_attrs *attrs);
+> > +	int (*mmap)(struct device *, struct vm_area_struct *,
+> > +			  void *, dma_addr_t, size_t, struct dma_attrs *attrs);
+> > +
+> >  	dma_addr_t (*map_page)(struct device *dev, struct page *page,
+> >  			       unsigned long offset, size_t size,
+> >  			       enum dma_data_direction dir,
+> > --
+> > 1.7.1.569.g6f426
+> 
+> This needs conversion of all drivers implementing dma_map_ops or you
+> will break a lot of architectures. A better approach is to keep
+> *_coherent and implement alloc/free/mmap side-by-side until all drivers
+> are converted.
+> Also I miss some documentation about the new call-backs.
+
+Right this patch will break all other architectures, however it was just 
+a snapshot of my work-in-progress. Converting all other architectures from
+alloc_coherent to alloc with NULL attribute shouldn't be really hard and will
+be added in the final version - together with documentation.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
