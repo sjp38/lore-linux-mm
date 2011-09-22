@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 71D629000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 16:43:44 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p8MKhgel016966
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:42 -0700
-Received: from gyf1 (gyf1.prod.google.com [10.243.50.65])
-	by wpaz13.hot.corp.google.com with ESMTP id p8MKgf4B004016
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E9FDA9000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 17:11:44 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p8MLBg3e022279
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:42 -0700
+Received: from gwj19 (gwj19.prod.google.com [10.200.10.19])
+	by wpaz1.hot.corp.google.com with ESMTP id p8MLBMrs030079
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:41 -0700
-Received: by gyf1 with SMTP id 1so2146960gyf.9
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 13:43:40 -0700 (PDT)
-Date: Thu, 22 Sep 2011 13:43:37 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:41 -0700
+Received: by gwj19 with SMTP id 19so1911570gwj.23
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2011 14:11:41 -0700 (PDT)
+Date: Thu, 22 Sep 2011 14:11:38 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH] show page size in /proc/$pid/numa_maps
-In-Reply-To: <20110921221329.5B7EE5C5@kernel>
-Message-ID: <alpine.DEB.2.00.1109221339520.31548@chino.kir.corp.google.com>
-References: <20110921221329.5B7EE5C5@kernel>
+Subject: [patch resend] thp: fix khugepaged defrag tunable documentation
+Message-ID: <alpine.DEB.2.00.1109221410300.1505@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Wed, 21 Sep 2011, Dave Hansen wrote:
+e27e6151b154 ("mm/thp: use conventional format for boolean attributes")
+changed /sys/kernel/mm/transparent_hugepage/khugepaged/defrag to be tuned
+by using 1 (enabled) or 0 (disabled) instead of "yes" and "no",
+respectively.
 
-> 
-> The output of /proc/$pid/numa_maps is in terms of number of pages
-> like anon=22 or dirty=54.  Here's some output:
-> 
-> 7f4680000000 default file=/hugetlb/bigfile anon=50 dirty=50 N0=50
-> 7f7659600000 default file=/anon_hugepage\040(deleted) anon=50 dirty=50 N0=50
-> 7fff8d425000 default stack anon=50 dirty=50 N0=50
-> 
-> Looks like we have a stack and a couple of anonymous hugetlbfs
-> areas page which both use the same amount of memory.  They don't.
-> 
-> The 'bigfile' uses 1GB pages and takes up ~50GB of space.  The
-> anon_hugepage uses 2MB pages and takes up ~100MB of space while
-> the stack uses normal 4k pages.  You can go over to smaps to
-> figure out what the page size _really_ is with KernelPageSize
-> or MMUPageSize.  But, I think this is a pretty nasty and
-> counterintuitive interface as it stands.
-> 
-> The following patch adds a pagemult= field.  It is placed only
-> in cases where the VMA's page size differs from the base kernel
-> page size.  I'm calling it pagemult to emphasize that it is
-> indended to modify the statistics output rather than _really_
-> show the page size that the kernel or MMU is using.
-> 
+Update the documentation.
 
-Why not just add a pagesize={4K,2M,1G,...} field for every output?
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/vm/transhuge.txt |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -123,10 +123,11 @@ be automatically shutdown if it's set to "never".
+ khugepaged runs usually at low frequency so while one may not want to
+ invoke defrag algorithms synchronously during the page faults, it
+ should be worth invoking defrag at least in khugepaged. However it's
+-also possible to disable defrag in khugepaged:
++also possible to disable defrag in khugepaged by writing 0 or enable
++defrag in khugepaged by writing 1:
+ 
+-echo yes >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+-echo no >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
++echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
++echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+ 
+ You can also control how many pages khugepaged should scan at each
+ pass:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
