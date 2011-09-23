@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E9B9000BD
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 01:23:30 -0400 (EDT)
-Subject: Re: [RFC][PATCH] slab: fix caller tracking onCONFIG_OPTIMIZE_INLINING.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201109241208.IEH26037.FtSVLJOOQHMFFO@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.00.1109241550230.14043@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1109241550230.14043@chino.kir.corp.google.com>
-Message-Id: <201109251421.BEB71358.OFOHJVMFQOFLtS@I-love.SAKURA.ne.jp>
-Date: Sun, 25 Sep 2011 14:21:56 +0900
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1E39000BD
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 04:14:59 -0400 (EDT)
+Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
+	by mtagate2.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8P8Emww021184
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 08:14:48 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8P8EkfI2723872
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 09:14:48 +0100
+Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8P8Ej4S013590
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 02:14:46 -0600
+Date: Fri, 23 Sep 2011 17:51:32 +0100
+From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+Message-ID: <20110923165132.GA23870@stefanha-thinkpad.localdomain>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
+ <20110920171310.GC27959@stefanha-thinkpad.localdomain>
+ <20110920181225.GA5149@infradead.org>
+ <20110920205317.GA1508@stefanha-thinkpad.localdomain>
+ <4E7C7353.50802@hitachi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E7C7353.50802@hitachi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, vegard.nossum@gmail.com, dmonakhov@openvz.org, catalin.marinas@arm.com, dfeng@redhat.com, linux-mm@kvack.org
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-David Rientjes wrote:
-> On Sat, 24 Sep 2011, Tetsuo Handa wrote:
+On Fri, Sep 23, 2011 at 08:53:55PM +0900, Masami Hiramatsu wrote:
+> (2011/09/21 5:53), Stefan Hajnoczi wrote:
+> > On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
+> >> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
+> > But this should be solvable so it would be possible to use perf-probe(1)
+> > on a std.h-enabled binary.  Some distros already ship such binaries!
 > 
-> > If CONFIG_OPTIMIZE_INLINING=y, /proc/slab_allocators shows entries like
-> > 
-> >   size-512: 5 kzalloc+0xb/0x10
-> >   size-256: 31 kzalloc+0xb/0x10
-> > 
-> > which are useless for debugging.
-> 
-> This is only an issue for gcc 4.x compilers, correct?
+> I'm not sure that we should stick on the current implementation
+> of the sdt.h. I think we'd better modify the sdt.h to replace
+> such semaphores with checking whether the tracepoint is changed from nop.
 
-Yes.
+I like this option.  The only implication is that all userspace tracing
+needs to go through uprobes if we want to support multiple consumers
+tracing the same address.
 
-> So this is going against the inlining algorithms in gcc 4.x which will 
-> make the kernel image significantly larger even though there seems to be 
-> no benefit unless you have CONFIG_DEBUG_SLAB_LEAK, although this patch 
-> changes behavior for every system running CONFIG_SLAB with tracing 
-> support.
+> Or, we can introduce an add-hoc ptrace code to perftools for modifying
+> those semaphores. However, this means that user always has to use
+> perf to trace applications, and it's hard to trace multiple applications
+> at a time (can we attach all of them?)...
 
-If use of address of kzalloc() itself is fine for tracing functionality, we
-don't need to force tracing functionality to use caller address of kzalloc().
+I don't think perf needs to stay attached to the processes.  It just
+needs to increment the semaphores on startup and decrement them on
+shutdown.
 
-I merely want /proc/slab_allocators to print caller address of kzalloc() rather
-than kzalloc() address itself.
+Are you going to attempt either of these implementations?
+
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
