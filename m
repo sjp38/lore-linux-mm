@@ -1,29 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DA16F9000BD
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 19:15:47 -0400 (EDT)
-Date: Thu, 22 Sep 2011 16:15:39 -0700
-From: Andrew Morton <akpm@google.com>
-Subject: Re: [PATCH 7/8] kstaled: add histogram sampling functionality
-Message-Id: <20110922161539.d947e014.akpm@google.com>
-In-Reply-To: <1316230753-8693-8-git-send-email-walken@google.com>
-References: <1316230753-8693-1-git-send-email-walken@google.com>
-	<1316230753-8693-8-git-send-email-walken@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B48E39000BD
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2011 20:50:19 -0400 (EDT)
+From: H Hartley Sweeten <hartleys@visionengravers.com>
+Subject: [PATCH] mm/memblock.c: quiet sparse noise
+Date: Thu, 22 Sep 2011 17:49:21 -0700
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-ID: <201109221749.22433.hartleys@visionengravers.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, yinghai@kernel.org, hpa@linux.intel.com, benh@kernel.crashing.org, tomi.valkeinen@nokia.com
 
-On Fri, 16 Sep 2011 20:39:12 -0700
-Michel Lespinasse <walken@google.com> wrote:
+Quiet the following sparse noise in this file:
 
-> add statistics for pages that have been idle for 1,2,5,15,30,60,120 or
-> 240 scan intervals into /dev/cgroup/*/memory.idle_page_stats
+warning: function 'memblock_memory_can_coalesce' with external linkage has definition
+warning: symbol 'memblock_overlaps_region' was not declared. Should it be static?
 
-Why?  What's the use case for this feature?
+Signed-off-by: H Hartley Sweeten <hsweeten@visionengravers,com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+"H. Peter Anvin" <hpa@linux.intel.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+
+---
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index b7ed636..f40b22c 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -58,7 +58,8 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
+ 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
+ }
+ 
+-long __init_memblock memblock_overlaps_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
++static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
++					phys_addr_t base, phys_addr_t size)
+ {
+ 	unsigned long i;
+ 
+@@ -267,8 +268,8 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
+ 	return 0;
+ }
+ 
+-extern int __init_memblock __weak memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
+-					  phys_addr_t addr2, phys_addr_t size2)
++int __init_memblock __weak memblock_memory_can_coalesce(phys_addr_t addr1,
++		phys_addr_t size1, phys_addr_t addr2, phys_addr_t size2)
+ {
+ 	return 1;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
