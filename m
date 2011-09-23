@@ -1,66 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6BA039000BD
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 07:54:20 -0400 (EDT)
-Message-ID: <4E7C7353.50802@hitachi.com>
-Date: Fri, 23 Sep 2011 20:53:55 +0900
-From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2D3389000BD
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 10:38:37 -0400 (EDT)
+Date: Fri, 23 Sep 2011 16:38:17 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: [patch 1/4 v2] mm: exclude reserved pages from dirtyable memory
+Message-ID: <20110923143816.GA2606@redhat.com>
+References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+ <1316526315-16801-2-git-send-email-jweiner@redhat.com>
+ <20110921140423.GG4849@suse.de>
+ <20110921150328.GJ4849@suse.de>
+ <20110922090326.GB29046@redhat.com>
+ <20110922105400.GL4849@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
- determine fixups.
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com> <20110920171310.GC27959@stefanha-thinkpad.localdomain> <20110920181225.GA5149@infradead.org> <20110920205317.GA1508@stefanha-thinkpad.localdomain>
-In-Reply-To: <20110920205317.GA1508@stefanha-thinkpad.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110922105400.GL4849@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-(2011/09/21 5:53), Stefan Hajnoczi wrote:
-> On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
->> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
->>> You've probably thought of this but it would be nice to skip XOL for
->>> nops.  This would be a common case with static probes (e.g. sdt.h) where
->>> the probe template includes a nop where we can easily plant int $0x3.
->>
->> Do we now have sdt.h support for uprobes?  That's one of the killer
->> features that always seemed to get postponed.
-> 
-> Not yet but it's a question of doing roughly what SystemTap does to
-> parse the appropriate ELF sections and then putting those probes into
-> uprobes.
-> 
-> Masami looked at this and found that SystemTap sdt.h currently requires
-> an extra userspace memory store in order to activate probes.  Each probe
-> has a "semaphore" 16-bit counter which applications may test before
-> hitting the probe itself.  This is used to avoid overhead in
-> applications that do expensive argument processing (e.g. creating
-> strings) for probes.
+The amount of dirtyable pages should not include the full number of
+free pages: there is a number of reserved pages that the page
+allocator and kswapd always try to keep free.
 
-Indeed, originally, those semaphores designed for such use cases.
-However, some applications *always* use it (e.g. qemu-kvm).
+The closer (reclaimable pages - dirty pages) is to the number of
+reserved pages, the more likely it becomes for reclaim to run into
+dirty pages:
 
-> 
-> But this should be solvable so it would be possible to use perf-probe(1)
-> on a std.h-enabled binary.  Some distros already ship such binaries!
+       +----------+ ---
+       |   anon   |  |
+       +----------+  |
+       |          |  |
+       |          |  -- dirty limit new    -- flusher new
+       |   file   |  |                     |
+       |          |  |                     |
+       |          |  -- dirty limit old    -- flusher old
+       |          |                        |
+       +----------+                       --- reclaim
+       | reserved |
+       +----------+
+       |  kernel  |
+       +----------+
 
-I'm not sure that we should stick on the current implementation
-of the sdt.h. I think we'd better modify the sdt.h to replace
-such semaphores with checking whether the tracepoint is changed from nop.
+This patch introduces a per-zone dirty reserve that takes both the
+lowmem reserve as well as the high watermark of the zone into account,
+and a global sum of those per-zone values that is subtracted from the
+global amount of dirtyable pages.  The lowmem reserve is unavailable
+to page cache allocations and kswapd tries to keep the high watermark
+free.  We don't want to end up in a situation where reclaim has to
+clean pages in order to balance zones.
 
-Or, we can introduce an add-hoc ptrace code to perftools for modifying
-those semaphores. However, this means that user always has to use
-perf to trace applications, and it's hard to trace multiple applications
-at a time (can we attach all of them?)...
+Not treating reserved pages as dirtyable on a global level is only a
+conceptual fix.  In reality, dirty pages are not distributed equally
+across zones and reclaim runs into dirty pages on a regular basis.
 
-Thank you,
+But it is important to get this right before tackling the problem on a
+per-zone level, where the distance between reclaim and the dirty pages
+is mostly much smaller in absolute numbers.
 
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+---
+ include/linux/mmzone.h |    6 ++++++
+ include/linux/swap.h   |    1 +
+ mm/page-writeback.c    |    6 ++++--
+ mm/page_alloc.c        |   19 +++++++++++++++++++
+ 4 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1ed4116..37a61e7 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -317,6 +317,12 @@ struct zone {
+ 	 */
+ 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+ 
++	/*
++	 * This is a per-zone reserve of pages that should not be
++	 * considered dirtyable memory.
++	 */
++	unsigned long		dirty_balance_reserve;
++
+ #ifdef CONFIG_NUMA
+ 	int node;
+ 	/*
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index b156e80..9021453 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -209,6 +209,7 @@ struct swap_list_t {
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
++extern unsigned long dirty_balance_reserve;
+ extern unsigned int nr_free_buffer_pages(void);
+ extern unsigned int nr_free_pagecache_pages(void);
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index da6d263..c8acf8a 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -170,7 +170,8 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+ 			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
+ 
+ 		x += zone_page_state(z, NR_FREE_PAGES) +
+-		     zone_reclaimable_pages(z);
++		     zone_reclaimable_pages(z) -
++		     zone->dirty_balance_reserve;
+ 	}
+ 	/*
+ 	 * Make sure that the number of highmem pages is never larger
+@@ -194,7 +195,8 @@ static unsigned long determine_dirtyable_memory(void)
+ {
+ 	unsigned long x;
+ 
+-	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
++	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages() -
++	    dirty_balance_reserve;
+ 
+ 	if (!vm_highmem_is_dirtyable)
+ 		x -= highmem_dirtyable_memory(x);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1dba05e..f8cba89 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -96,6 +96,14 @@ EXPORT_SYMBOL(node_states);
+ 
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
++/*
++ * When calculating the number of globally allowed dirty pages, there
++ * is a certain number of per-zone reserves that should not be
++ * considered dirtyable memory.  This is the sum of those reserves
++ * over all existing zones that contribute dirtyable memory.
++ */
++unsigned long dirty_balance_reserve __read_mostly;
++
+ int percpu_pagelist_fraction;
+ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+ 
+@@ -5076,8 +5084,19 @@ static void calculate_totalreserve_pages(void)
+ 			if (max > zone->present_pages)
+ 				max = zone->present_pages;
+ 			reserve_pages += max;
++			/*
++			 * Lowmem reserves are not available to
++			 * GFP_HIGHUSER page cache allocations and
++			 * kswapd tries to balance zones to their high
++			 * watermark.  As a result, neither should be
++			 * regarded as dirtyable memory, to prevent a
++			 * situation where reclaim has to clean pages
++			 * in order to balance the zones.
++			 */
++			zone->dirty_balance_reserve = max;
+ 		}
+ 	}
++	dirty_balance_reserve = reserve_pages;
+ 	totalreserve_pages = reserve_pages;
+ }
+ 
 -- 
-Masami HIRAMATSU
-Software Platform Research Dept. Linux Technology Center
-Hitachi, Ltd., Yokohama Research Laboratory
-E-mail: masami.hiramatsu.pt@hitachi.com
+1.7.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
