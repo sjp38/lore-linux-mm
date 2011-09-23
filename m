@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 32FD29000BD
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 15:27:59 -0400 (EDT)
-Message-ID: <4E7CDDAD.7010704@redhat.com>
-Date: Fri, 23 Sep 2011 15:27:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CBDB9000BD
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 16:04:24 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p8NK4LAK025587
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 13:04:21 -0700
+Received: from gwm11 (gwm11.prod.google.com [10.200.13.11])
+	by hpaq5.eem.corp.google.com with ESMTP id p8NK2v5t019591
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 13:04:19 -0700
+Received: by gwm11 with SMTP id 11so3019328gwm.16
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2011 13:04:14 -0700 (PDT)
+Date: Fri, 23 Sep 2011 13:04:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] show page size in /proc/$pid/numa_maps
+In-Reply-To: <1316793268.16137.481.camel@nimitz>
+Message-ID: <alpine.DEB.2.00.1109231256540.11347@chino.kir.corp.google.com>
+References: <20110921221329.5B7EE5C5@kernel> <alpine.DEB.2.00.1109221339520.31548@chino.kir.corp.google.com> <1316793268.16137.481.camel@nimitz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/8] kstaled: documentation and config option.
-References: <1316230753-8693-1-git-send-email-walken@google.com> <1316230753-8693-3-git-send-email-walken@google.com>
-In-Reply-To: <1316230753-8693-3-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/16/2011 11:39 PM, Michel Lespinasse wrote:
-> Extend memory cgroup documentation do describe the optional idle page
-> tracking features, and add the corresponding configuration option.
->
->
-> Signed-off-by: Michel Lespinasse<walken@google.com>
+On Fri, 23 Sep 2011, Dave Hansen wrote:
 
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -370,3 +370,13 @@ config CLEANCACHE
->   	  in a negligible performance hit.
->
->   	  If unsure, say Y to enable cleancache
-> +
-> +config KSTALED
-> +       depends on CGROUP_MEM_RES_CTLR
+> > Why not just add a pagesize={4K,2M,1G,...} field for every output? 
+> 
+> I think it's a bit misleading.  With THP at least we have 2M pages in
+> the MMU, but we're reporting in 4k units.
+> 
+> I certainly considered doing just what you're suggesting, though.  It's
+> definitely not a bad idea.  Certainly much more clear.
+> 
 
-Looking at patch #3, I wonder if this needs to be dependent
-on 64 bit, or at least make sure this is not selected when
-a user builds a 32 bit kernel with NUMA.
-
-The reason is that on a 32 bit system we could run out of
-page flags + zone bits + node bits.
-
-> +       bool "Per-cgroup idle page tracking"
-> +       help
-> +         This feature allows the kernel to report the amount of user pages
-> +	 in a cgroup that have not been touched in a given time.
-> +	 This information may be used to size the cgroups and/or for
-> +	 job placement within a compute cluster.
-> +	 See Documentation/cgroups/memory.txt for a more complete description.
-
-
-
--- 
-All rights reversed
+Een though the code is in task_mmu.c, I think that /proc/pid/numa_maps 
+should be more representative of the state of vmas where any 
+pagesize={4K,2M,1G,...} would be true rather than whether or not the mmu 
+sees tham as large or small pages.  I actually don't see much difference 
+between anon=50 pagemult=512 and anon=50 pagesize=2M, but I'd definitely 
+recommend printing the field for every vma.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
