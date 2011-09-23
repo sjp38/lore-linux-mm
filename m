@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F3C9000BD
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 06:26:33 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p8NAQW6d024982
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 03:26:32 -0700
-Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
-	by wpaz1.hot.corp.google.com with ESMTP id p8NAOZZL002959
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 03:26:31 -0700
-Received: by qyk29 with SMTP id 29so6829240qyk.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2011 03:26:31 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6BA039000BD
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 07:54:20 -0400 (EDT)
+Message-ID: <4E7C7353.50802@hitachi.com>
+Date: Fri, 23 Sep 2011 20:53:55 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-In-Reply-To: <20110922161539.d947e014.akpm@google.com>
-References: <1316230753-8693-1-git-send-email-walken@google.com>
-	<1316230753-8693-8-git-send-email-walken@google.com>
-	<20110922161539.d947e014.akpm@google.com>
-Date: Fri, 23 Sep 2011 03:26:30 -0700
-Message-ID: <CANN689E7GyTB7RLng9M4aF9vQNOFd8gjLr5fKoWpmOYsM3UJNA@mail.gmail.com>
-Subject: Re: [PATCH 7/8] kstaled: add histogram sampling functionality
-From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com> <20110920171310.GC27959@stefanha-thinkpad.localdomain> <20110920181225.GA5149@infradead.org> <20110920205317.GA1508@stefanha-thinkpad.localdomain>
+In-Reply-To: <20110920205317.GA1508@stefanha-thinkpad.localdomain>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 22, 2011 at 4:15 PM, Andrew Morton <akpm@google.com> wrote:
-> On Fri, 16 Sep 2011 20:39:12 -0700
-> Michel Lespinasse <walken@google.com> wrote:
->
->> add statistics for pages that have been idle for 1,2,5,15,30,60,120 or
->> 240 scan intervals into /dev/cgroup/*/memory.idle_page_stats
->
-> Why? =A0What's the use case for this feature?
+(2011/09/21 5:53), Stefan Hajnoczi wrote:
+> On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
+>> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
+>>> You've probably thought of this but it would be nice to skip XOL for
+>>> nops.  This would be a common case with static probes (e.g. sdt.h) where
+>>> the probe template includes a nop where we can easily plant int $0x3.
+>>
+>> Do we now have sdt.h support for uprobes?  That's one of the killer
+>> features that always seemed to get postponed.
+> 
+> Not yet but it's a question of doing roughly what SystemTap does to
+> parse the appropriate ELF sections and then putting those probes into
+> uprobes.
+> 
+> Masami looked at this and found that SystemTap sdt.h currently requires
+> an extra userspace memory store in order to activate probes.  Each probe
+> has a "semaphore" 16-bit counter which applications may test before
+> hitting the probe itself.  This is used to avoid overhead in
+> applications that do expensive argument processing (e.g. creating
+> strings) for probes.
 
-In the fakenuma implementation of kstaled, we were able to configure a
-different scan rate for each container (which was represented in the
-kernel as a set of fakenuma nodes, rather than a memory cgroup). This
-was used to reclaim memory more agressively from some containers than
-others, by varying the interval after which pages would be considered
-idle.
+Indeed, originally, those semaphores designed for such use cases.
+However, some applications *always* use it (e.g. qemu-kvm).
 
-In the memcg implementation, scanning is done globally so we can't
-configure a per-cgroup rate. Instead, we track the number of scan
-cycles that each page has been observed to be idle for. At that point,
-we could have a per-cgroup configurable threshold and report pages
-that have been idle for longer than that number of scans; however it
-seemed nicer to provide a full histogram since the information is
-actually available.
+> 
+> But this should be solvable so it would be possible to use perf-probe(1)
+> on a std.h-enabled binary.  Some distros already ship such binaries!
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+I'm not sure that we should stick on the current implementation
+of the sdt.h. I think we'd better modify the sdt.h to replace
+such semaphores with checking whether the tracepoint is changed from nop.
+
+Or, we can introduce an add-hoc ptrace code to perftools for modifying
+those semaphores. However, this means that user always has to use
+perf to trace applications, and it's hard to trace multiple applications
+at a time (can we attach all of them?)...
+
+Thank you,
+
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
