@@ -1,41 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 07D079000BD
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 11:54:35 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8NFdmlD022829
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 11:39:48 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8NFsYMQ260726
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 11:54:34 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8NFsWKo021655
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 11:54:33 -0400
-Subject: Re: [RFC][PATCH] show page size in /proc/$pid/numa_maps
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1109221339520.31548@chino.kir.corp.google.com>
-References: <20110921221329.5B7EE5C5@kernel>
-	 <alpine.DEB.2.00.1109221339520.31548@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E67F39000BD
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2011 11:57:41 -0400 (EDT)
+Subject: Re: [PATCH] thp: tail page refcounting fix #6
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 23 Sep 2011 17:57:12 +0200
+In-Reply-To: <20110908165118.GC24539@redhat.com>
+References: <20110824002717.GI23870@redhat.com>
+	 <20110824133459.GP23870@redhat.com> <20110826062436.GA5847@google.com>
+	 <20110826161048.GE23870@redhat.com> <20110826185430.GA2854@redhat.com>
+	 <20110827094152.GA16402@google.com> <20110827173421.GA2967@redhat.com>
+	 <CAEwNFnDk0bQZKReKccuQMPEw_6EA2DxN4dm9cmjr01BVT4A7Dw@mail.gmail.com>
+	 <20110901152417.GF10779@redhat.com>
+	 <20110901170353.6f92b50f.akpm@linux-foundation.org>
+	 <20110908165118.GC24539@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 23 Sep 2011 08:54:28 -0700
-Message-ID: <1316793268.16137.481.camel@nimitz>
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1316793432.9084.47.camel@twins>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul
+ E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Thu, 2011-09-22 at 13:43 -0700, David Rientjes wrote:
-> Why not just add a pagesize={4K,2M,1G,...} field for every output? 
+On Thu, 2011-09-08 at 18:51 +0200, Andrea Arcangeli wrote:
 
-I think it's a bit misleading.  With THP at least we have 2M pages in
-the MMU, but we're reporting in 4k units.
+> +++ b/arch/powerpc/mm/gup.c
+> +++ b/arch/x86/mm/gup.c
 
-I certainly considered doing just what you're suggesting, though.  It's
-definitely not a bad idea.  Certainly much more clear.
+lacking a diffstat a quick look seems to suggest you missed a few:
 
--- Dave
+$ ls arch/*/mm/gup.c
+arch/powerpc/mm/gup.c =20
+arch/s390/mm/gup.c =20
+arch/sh/mm/gup.c =20
+arch/sparc/mm/gup.c =20
+arch/x86/mm/gup.c
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
