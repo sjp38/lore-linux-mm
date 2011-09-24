@@ -1,67 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD169000BD
-	for <linux-mm@kvack.org>; Sat, 24 Sep 2011 09:32:02 -0400 (EDT)
-Message-ID: <4E7DDB82.3030802@parallels.com>
-Date: Sat, 24 Sep 2011 10:30:42 -0300
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC9F9000BD
+	for <linux-mm@kvack.org>; Sat, 24 Sep 2011 09:35:04 -0400 (EDT)
+Message-ID: <4E7DDC3A.1060100@parallels.com>
+Date: Sat, 24 Sep 2011 10:33:46 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 6/7] tcp buffer limitation: per-cgroup limit
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-7-git-send-email-glommer@parallels.com> <CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com>
-In-Reply-To: <CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com>
+Subject: Re: [PATCH v3 2/7] socket: initial cgroup code.
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-3-git-send-email-glommer@parallels.com> <CAHH2K0YgkG2J_bO+U9zbZYhTTqSLvr6NtxKxN8dRtfHs=iB8iA@mail.gmail.com> <4E7A342B.5040608@parallels.com> <CAHH2K0Z_2LJPL0sLVHqkh_6b_BLQnknULTB9a9WfEuibk5kONg@mail.gmail.com> <CAKTCnz=59HuEg9T-USi5oKSK=F+vr2QxCA17+i-rGj73k49rzw@mail.gmail.com>
+In-Reply-To: <CAKTCnz=59HuEg9T-USi5oKSK=F+vr2QxCA17+i-rGj73k49rzw@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On 09/22/2011 03:01 AM, Greg Thelen wrote:
-> On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa<glommer@parallels.com>  wrote:
->> +static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
->> +{
->> +       return (mem == root_mem_cgroup);
->> +}
->> +
+On 09/22/2011 12:09 PM, Balbir Singh wrote:
+> On Thu, Sep 22, 2011 at 11:30 AM, Greg Thelen<gthelen@google.com>  wrote:
+>> On Wed, Sep 21, 2011 at 11:59 AM, Glauber Costa<glommer@parallels.com>  wrote:
+>>> Right now I am working under the assumption that tasks are long lived inside
+>>> the cgroup. Migration potentially introduces some nasty locking problems in
+>>> the mem_schedule path.
+>>>
+>>> Also, unless I am missing something, the memcg already has the policy of
+>>> not carrying charges around, probably because of this very same complexity.
+>>>
+>>> True that at least it won't EBUSY you... But I think this is at least a way
+>>> to guarantee that the cgroup under our nose won't disappear in the middle of
+>>> our allocations.
+>>
+>> Here's the memcg user page behavior using the same pattern:
+>>
+>> 1. user page P is allocate by task T in memcg M1
+>> 2. T is moved to memcg M2.  The P charge is left behind still charged
+>> to M1 if memory.move_charge_at_immigrate=0; or the charge is moved to
+>> M2 if memory.move_charge_at_immigrate=1.
+>> 3. rmdir M1 will try to reclaim P (if P was left in M1).  If unable to
+>> reclaim, then P is recharged to parent(M1).
+>>
 >
-> Why are you adding a copy of mem_cgroup_is_root().  I see one already
-> in v3.0.  Was it deleted in a previous patch?
-
-Already answered by another good samaritan.
-
->> +static int tcp_write_maxmem(struct cgroup *cgrp, struct cftype *cft, u64 val)
->> +{
->> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
->> +       struct mem_cgroup *parent = parent_mem_cgroup(sg);
->> +       struct net *net = current->nsproxy->net_ns;
->> +       int i;
->> +
->> +       if (!cgroup_lock_live_group(cgrp))
->> +               return -ENODEV;
+> We also have some magic in page_referenced() to remove pages
+> referenced from different containers. What we do is try not to
+> penalize a cgroup if another cgroup is referencing this page and the
+> page under consideration is being reclaimed from the cgroup that
+> touched it.
 >
-> Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
-> to sg->tcp_prot_mem[*]?
->
->> +static u64 tcp_read_maxmem(struct cgroup *cgrp, struct cftype *cft)
->> +{
->> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
->> +       u64 ret;
->> +
->> +       if (!cgroup_lock_live_group(cgrp))
->> +               return -ENODEV;
->
-> Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
-> to sg->tcp_max_memory?
-
-No, that is not my understanding. My understanding is this lock is 
-needed to protect against the cgroup just disappearing under our nose.
-
-The task reading/writing it is not necessarily inside the cgroup 
-(usually it is not...), so the mere fact of opening the file does not 
-guarantee the cgroup will be kept alive. So we can grab a pointer - 
-cgroup exists - and write to it - cgroup does not exist.
-
-Or am I missing something ?
+> Balbir Singh
+humm... Then we need to keep pointers to: 1) Which allocations comes 
+from each socket, and 2) Which sockets comes from each task. 2 is pretty 
+easy, 1 may get expensive. I will investigate it now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
