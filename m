@@ -1,42 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8109000BD
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 04:55:44 -0400 (EDT)
-Received: by yia25 with SMTP id 25so4842409yia.14
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 01:55:44 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AD96E9000BD
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 04:55:57 -0400 (EDT)
+Received: by gxk28 with SMTP id 28so700331gxk.14
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 01:55:55 -0700 (PDT)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH 0/5] Reduce cross CPU IPI interference
-Date: Sun, 25 Sep 2011 11:54:45 +0300
-Message-Id: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+Subject: [PATCH 1/5] smp: Introduce a generic on_each_cpu_mask function
+Date: Sun, 25 Sep 2011 11:54:46 +0300
+Message-Id: <1316940890-24138-2-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-We have lots of infrastructure in place to partition a multi-core system such 
-that we have a group of CPUs that are dedicated to specific task: cgroups, 
-scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel 
-code will some time interrupt all CPUs in the system via IPIs for various 
-needs. These IPIs are useful and cannot be avoided altogether, but in certain 
-cases it is possible to interrupt only specific CPUs that have useful work to 
-do and not the entire system.
+on_each_cpu_mask calls a function on processors specified my cpumask,
+which may include the local processor.
 
-This patch set, inspired by discussions with Peter Zijlstra and Frederic 
-Weisbecker when testing the nohz task patch set, is a first stab at trying to 
-explore doing this by locating the places where such global IPI calls are 
-being made and turning a global IPI into an IPI for a specific group of CPUs. 
-The purpose of the patch set is to get  feedback if this is the right way to 
-go for dealing with this issue and indeed, if the issue is even worth dealing 
-with at all.
-
-This first version creates an on_each_cpu_mask infrastructure API (derived from 
-existing arch specific versions in Tile and Arm) and uses it to turn two global 
-IPI invocation to per CPU group invocations.
-
-The patch is against 3.1-rc4 and was compiled for x86 and arm in both UP and 
-SMP mode (I could not get Tile to build, regardless of this patch) and was 
-further tested by running hackbench on x86 in SMP mode in a 4 CPUs VM. No
-obvious regression where noted, but I obviously did not test this quite enough.
+All the limitation specified in smp_call_function_many apply.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
@@ -47,22 +29,73 @@ CC: linux-mm@kvack.org
 CC: Christoph Lameter <cl@linux-foundation.org>
 CC: Pekka Enberg <penberg@kernel.org>
 CC: Matt Mackall <mpm@selenic.com>
+---
+ include/linux/smp.h |   14 ++++++++++++++
+ kernel/smp.c        |   20 ++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 0 deletions(-)
 
- Ben-Yossef (5):
-  Introduce a generic on_each_cpu_mask function
-  Move arm over to generic on_each_cpu_mask
-  Move tile to use generic on_each_cpu_mask
-  Only IPI CPUs to drain local pages if they exist
-  slub: only IPI CPUs that have per cpu obj to flush
-
- arch/arm/kernel/smp_tlb.c   |   20 ++++------------
- arch/tile/include/asm/smp.h |    7 -----
- arch/tile/kernel/smp.c      |   19 ---------------
- include/linux/smp.h         |   14 +++++++++++
- kernel/smp.c                |   20 ++++++++++++++++
- mm/page_alloc.c             |   53 +++++++++++++++++++++++++++++++++++-------
- mm/slub.c                   |   15 +++++++++++-
- 7 files changed, 97 insertions(+), 51 deletions(-)
+diff --git a/include/linux/smp.h b/include/linux/smp.h
+index 8cc38d3..02a8377 100644
+--- a/include/linux/smp.h
++++ b/include/linux/smp.h
+@@ -102,6 +102,13 @@ static inline void call_function_init(void) { }
+ int on_each_cpu(smp_call_func_t func, void *info, int wait);
+ 
+ /*
++ * Call a function on processors specified by mask, which might include
++ * the local one.
++ */
++void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
++		void *info, bool wait);
++
++/*
+  * Mark the boot cpu "online" so that it can call console drivers in
+  * printk() and can access its per-cpu storage.
+  */
+@@ -132,6 +139,13 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
+ 		local_irq_enable();		\
+ 		0;				\
+ 	})
++#define on_each_cpu_mask(mask, func, info, wait) \
++	if (cpumask_test_cpu(0, (mask))) {	\
++		local_irq_disable();		\
++		func(info);			\
++		local_irq_enable();		\
++	}
++
+ static inline void smp_send_reschedule(int cpu) { }
+ #define num_booting_cpus()			1
+ #define smp_prepare_boot_cpu()			do {} while (0)
+diff --git a/kernel/smp.c b/kernel/smp.c
+index fb67dfa..df37c08 100644
+--- a/kernel/smp.c
++++ b/kernel/smp.c
+@@ -701,3 +701,23 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait)
+ 	return ret;
+ }
+ EXPORT_SYMBOL(on_each_cpu);
++
++/*
++ * Call a function on processors specified by cpumask, which may include
++ * the local processor. All the limitation specified in smp_call_function_many
++ * apply.
++ */
++void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
++			void *info, bool wait)
++{
++	int cpu = get_cpu();
++
++	smp_call_function_many(mask, func, info, wait);
++	if (cpumask_test_cpu(cpu, mask)) {
++		local_irq_disable();
++		func(info);
++		local_irq_enable();
++	}
++	put_cpu();
++}
++EXPORT_SYMBOL(on_each_cpu_mask);
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
