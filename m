@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1E39000BD
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 04:14:59 -0400 (EDT)
-Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
-	by mtagate2.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8P8Emww021184
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 08:14:48 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8P8EkfI2723872
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 09:14:48 +0100
-Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8P8Ej4S013590
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 02:14:46 -0600
-Date: Fri, 23 Sep 2011 17:51:32 +0100
-From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
- determine fixups.
-Message-ID: <20110923165132.GA23870@stefanha-thinkpad.localdomain>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
- <20110920171310.GC27959@stefanha-thinkpad.localdomain>
- <20110920181225.GA5149@infradead.org>
- <20110920205317.GA1508@stefanha-thinkpad.localdomain>
- <4E7C7353.50802@hitachi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4E7C7353.50802@hitachi.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8109000BD
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 04:55:44 -0400 (EDT)
+Received: by yia25 with SMTP id 25so4842409yia.14
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 01:55:44 -0700 (PDT)
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Subject: [PATCH 0/5] Reduce cross CPU IPI interference
+Date: Sun, 25 Sep 2011 11:54:45 +0300
+Message-Id: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Fri, Sep 23, 2011 at 08:53:55PM +0900, Masami Hiramatsu wrote:
-> (2011/09/21 5:53), Stefan Hajnoczi wrote:
-> > On Tue, Sep 20, 2011 at 02:12:25PM -0400, Christoph Hellwig wrote:
-> >> On Tue, Sep 20, 2011 at 06:13:10PM +0100, Stefan Hajnoczi wrote:
-> > But this should be solvable so it would be possible to use perf-probe(1)
-> > on a std.h-enabled binary.  Some distros already ship such binaries!
-> 
-> I'm not sure that we should stick on the current implementation
-> of the sdt.h. I think we'd better modify the sdt.h to replace
-> such semaphores with checking whether the tracepoint is changed from nop.
+We have lots of infrastructure in place to partition a multi-core system such 
+that we have a group of CPUs that are dedicated to specific task: cgroups, 
+scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel 
+code will some time interrupt all CPUs in the system via IPIs for various 
+needs. These IPIs are useful and cannot be avoided altogether, but in certain 
+cases it is possible to interrupt only specific CPUs that have useful work to 
+do and not the entire system.
 
-I like this option.  The only implication is that all userspace tracing
-needs to go through uprobes if we want to support multiple consumers
-tracing the same address.
+This patch set, inspired by discussions with Peter Zijlstra and Frederic 
+Weisbecker when testing the nohz task patch set, is a first stab at trying to 
+explore doing this by locating the places where such global IPI calls are 
+being made and turning a global IPI into an IPI for a specific group of CPUs. 
+The purpose of the patch set is to get  feedback if this is the right way to 
+go for dealing with this issue and indeed, if the issue is even worth dealing 
+with at all.
 
-> Or, we can introduce an add-hoc ptrace code to perftools for modifying
-> those semaphores. However, this means that user always has to use
-> perf to trace applications, and it's hard to trace multiple applications
-> at a time (can we attach all of them?)...
+This first version creates an on_each_cpu_mask infrastructure API (derived from 
+existing arch specific versions in Tile and Arm) and uses it to turn two global 
+IPI invocation to per CPU group invocations.
 
-I don't think perf needs to stay attached to the processes.  It just
-needs to increment the semaphores on startup and decrement them on
-shutdown.
+The patch is against 3.1-rc4 and was compiled for x86 and arm in both UP and 
+SMP mode (I could not get Tile to build, regardless of this patch) and was 
+further tested by running hackbench on x86 in SMP mode in a 4 CPUs VM. No
+obvious regression where noted, but I obviously did not test this quite enough.
 
-Are you going to attempt either of these implementations?
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: Russell King <linux@arm.linux.org.uk>
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: linux-mm@kvack.org
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Matt Mackall <mpm@selenic.com>
 
-Stefan
+ Ben-Yossef (5):
+  Introduce a generic on_each_cpu_mask function
+  Move arm over to generic on_each_cpu_mask
+  Move tile to use generic on_each_cpu_mask
+  Only IPI CPUs to drain local pages if they exist
+  slub: only IPI CPUs that have per cpu obj to flush
+
+ arch/arm/kernel/smp_tlb.c   |   20 ++++------------
+ arch/tile/include/asm/smp.h |    7 -----
+ arch/tile/kernel/smp.c      |   19 ---------------
+ include/linux/smp.h         |   14 +++++++++++
+ kernel/smp.c                |   20 ++++++++++++++++
+ mm/page_alloc.c             |   53 +++++++++++++++++++++++++++++++++++-------
+ mm/slub.c                   |   15 +++++++++++-
+ 7 files changed, 97 insertions(+), 51 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
