@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 860369000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:35:59 -0400 (EDT)
-Date: Mon, 26 Sep 2011 10:35:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 2/2] oom: give bonus to frozen processes
-Message-ID: <20110926083555.GD10156@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
- <20110825091920.GA22564@tiehlicka.suse.cz>
- <20110825151818.GA4003@redhat.com>
- <20110825164758.GB22564@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
- <20110826070946.GA7280@tiehlicka.suse.cz>
- <20110826085610.GA9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
- <20110826095356.GB9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EEA59000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:39:05 -0400 (EDT)
+Received: by ywe9 with SMTP id 9so5526100ywe.14
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 01:39:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+In-Reply-To: <1317022114.9084.53.camel@twins>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+	<1316940890-24138-5-git-send-email-gilad@benyossef.com>
+	<1317022114.9084.53.camel@twins>
+Date: Mon, 26 Sep 2011 11:39:03 +0300
+Message-ID: <CAOtvUMf9Vk_e3kAbSxXH4J86f1sgouYX50wkMnahaCq+YAGEvQ@mail.gmail.com>
+Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they exist
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Fri 26-08-11 11:13:40, David Rientjes wrote:
-> On Fri, 26 Aug 2011, Michal Hocko wrote:
-[...]
-> > I am not saying the bonus is necessary, though. It depends on what
-> > the freezer is used for (e.g. freeze a process which went wild and
-> > debug what went wrong wouldn't welcome that somebody killed it or other
-> > (mis)use which relies on D state).
-[...]
-> If it actually does come down to a heuristic change, then it need not 
-> happen in the oom killer: the freezing code would need to use 
-> test_set_oom_score_adj() to temporarily reduce the oom_score_adj for that 
-> task until it comes out of the refrigerator.  We already use that in ksm 
-> and swapoff to actually prefer threads, but we can use it to bias against 
-> threads as well.
+On Mon, Sep 26, 2011 at 10:28 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> w=
+rote:
+> On Sun, 2011-09-25 at 11:54 +0300, Gilad Ben-Yossef wrote:
+>> +static inline void inc_pcp_count(int cpu, struct per_cpu_pages *pcp, in=
+t count)
+>> +{
+>> + =A0 =A0 =A0 if (unlikely(!total_cpu_pcp_count))
+>
+> =A0 =A0 =A0 =A0if (unlikely(!__this_cpu_read(total_cpu_pco_count))
+>
 
-Let's try it with a heuristic change first. If you really do not like
-it, we can move to oom_scode_adj. I like the heuristic change little bit
-more because it is at the same place as the root bonus.
----
+Thanks for the feedback. I will correct this and the comment style in
+the next spin of the patch.
+
+Thanks,
+Gilad
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"I've seen things you people wouldn't believe. Goto statements used to
+implement co-routines. I watched C structures being stored in
+registers. All those moments will be lost in time... like tears in
+rain... Time to die. "
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
