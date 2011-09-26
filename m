@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6D89000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:57:09 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id p8Q8v74L019921
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 01:57:07 -0700
-Received: from ywa6 (ywa6.prod.google.com [10.192.1.6])
-	by hpaq5.eem.corp.google.com with ESMTP id p8Q8udYj015407
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FAB99000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 05:03:08 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id p8Q934AG031602
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:03:05 -0700
+Received: from gwj17 (gwj17.prod.google.com [10.200.10.17])
+	by wpaz29.hot.corp.google.com with ESMTP id p8Q92g0I015264
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 01:57:05 -0700
-Received: by ywa6 with SMTP id 6so4214023ywa.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 01:57:00 -0700 (PDT)
-Date: Mon, 26 Sep 2011 01:56:57 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:03:03 -0700
+Received: by gwj17 with SMTP id 17so2906066gwj.24
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:03:03 -0700 (PDT)
+Date: Mon, 26 Sep 2011 02:02:59 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-In-Reply-To: <20110926082837.GC10156@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com>
+Subject: Re: [PATCH 2/2] oom: give bonus to frozen processes
+In-Reply-To: <20110926083555.GD10156@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1109260157270.1389@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com> <20110825091920.GA22564@tiehlicka.suse.cz> <20110825151818.GA4003@redhat.com> <20110825164758.GB22564@tiehlicka.suse.cz> <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
  <20110826070946.GA7280@tiehlicka.suse.cz> <20110826085610.GA9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com> <20110826095356.GB9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
- <20110926082837.GC10156@tiehlicka.suse.cz>
+ <20110926083555.GD10156@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
 On Mon, 26 Sep 2011, Michal Hocko wrote:
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 626303b..b9774f3 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -32,6 +32,7 @@
->  #include <linux/mempolicy.h>
->  #include <linux/security.h>
->  #include <linux/ptrace.h>
-> +#include <linux/freezer.h>
->  
->  int sysctl_panic_on_oom;
->  int sysctl_oom_kill_allocating_task;
-> @@ -451,6 +452,9 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
->  				task_pid_nr(q), q->comm);
->  			task_unlock(q);
->  			force_sig(SIGKILL, q);
-> +
-> +			if (frozen(q))
-> +				thaw_process(q);
->  		}
->  
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> Let's try it with a heuristic change first. If you really do not like
+> it, we can move to oom_scode_adj. I like the heuristic change little bit
+> more because it is at the same place as the root bonus.
 
-This is in the wrong place, oom_kill_task() iterates over all threads that 
-are _not_ in the same thread group as the chosen thread and kills them 
-without giving them access to memory reserves.  The chosen task, p, could 
-still be frozen and may not exit.
+The problem with the bonus is that, as mentioned previously, it doesn't 
+protect against ANYTHING for the case you're trying to fix.  This won't 
+panic the machine because all killable threads are guaranteed to have a 
+non-zero badness score, but it's a very valid configuration to have either
 
-Once that's fixed, feel free to add my
+ - all eligible threads (system-wide, shared cpuset, shared mempolicy 
+   nodes) are frozen, or
 
-	Acked-by: David Rientjes <rientjes@google.com>
+ - all eligible frozen threads use <5% of memory whereas all other 
+   eligible killable threads use 1% of available memory.
 
-once Rafael sends his acked-by or reviewed-by.
+and that means the oom killer will repeatedly select those threads and the 
+livelock still exists unless you can guarantee that they are successfully 
+thawed, that thawing them in all situations is safe, and that once thawed 
+they will make a timely exit.
+
+Additionally, I don't think biasing against frozen tasks makes sense from 
+a heusritic standpoint of the oom killer.  Why would we want give 
+non-frozen tasks that are actually getting work done a preference over a 
+task that is frozen and doing absolutely nothing?  It seems like that's 
+backwards and that we'd actually prefer killing the task doing nothing so 
+it can free its memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
