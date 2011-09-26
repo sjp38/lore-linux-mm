@@ -1,76 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 681909000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:19:18 -0400 (EDT)
-Date: Mon, 26 Sep 2011 16:18:34 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch] mm: remove sysctl to manually rescue unevictable pages
-Message-ID: <20110926141834.GD14333@redhat.com>
-References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com>
- <20110926112944.GC14333@redhat.com>
- <CAFPAmTQPiHU8AKnQvzMM5KiQr1GnUY+Yf8PwVC6++QK8u149Ew@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFPAmTQPiHU8AKnQvzMM5KiQr1GnUY+Yf8PwVC6++QK8u149Ew@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 070B19000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:20:43 -0400 (EDT)
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 13/26]   x86: define a x86 specific
+ exception notifier.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 26 Sep 2011 16:19:51 +0200
+In-Reply-To: <20110920120238.25326.71868.sendpatchset@srdronam.in.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+	 <20110920120238.25326.71868.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1317046791.1763.26.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Sep 26, 2011 at 05:40:52PM +0530, kautuk.c @samsung.com wrote:
-> On Mon, Sep 26, 2011 at 4:59 PM, Johannes Weiner <jweiner@redhat.com> wrote:
-> > On Sun, Sep 25, 2011 at 04:29:40PM +0530, Kautuk Consul wrote:
-> >> write_scan_unavictable_node checks the value req returned by
-> >> strict_strtoul and returns 1 if req is 0.
-> >>
-> >> However, when strict_strtoul returns 0, it means successful conversion
-> >> of buf to unsigned long.
-> >>
-> >> Due to this, the function was not proceeding to scan the zones for
-> >> unevictable pages even though we write a valid value to the
-> >> scan_unevictable_pages sys file.
-> >
-> > Given that there is not a real reason for this knob (anymore) and that
-> > it apparently never really worked since the day it was introduced, how
-> > about we just drop all that code instead?
-> >
-> >        Hannes
-> >
-> > ---
-> > From: Johannes Weiner <jweiner@redhat.com>
-> > Subject: mm: remove sysctl to manually rescue unevictable pages
-> >
-> > At one point, anonymous pages were supposed to go on the unevictable
-> > list when no swap space was configured, and the idea was to manually
-> > rescue those pages after adding swap and making them evictable again.
-> > But nowadays, swap-backed pages on the anon LRU list are not scanned
-> > without available swap space anyway, so there is no point in moving
-> > them to a separate list anymore.
-> 
-> Is this code only for anonymous pages ?
-> It seems to look at all pages in the zone both file as well as anon.
+On Tue, 2011-09-20 at 17:32 +0530, Srikar Dronamraju wrote:
+> @@ -820,6 +821,19 @@ do_notify_resume(struct pt_regs *regs, void *unused,=
+ __u32 thread_info_flags)
+>                 mce_notify_process();
+>  #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
+> =20
+> +       if (thread_info_flags & _TIF_UPROBE) {
+> +               clear_thread_flag(TIF_UPROBE);
+> +#ifdef CONFIG_X86_32
+> +               /*
+> +                * On x86_32, do_notify_resume() gets called with
+> +                * interrupts disabled. Hence enable interrupts if they
+> +                * are still disabled.
+> +                */
+> +               local_irq_enable();
+> +#endif
+> +               uprobe_notify_resume(regs);
+> +       }
+> +
+>         /* deal with pending signal delivery */
+>         if (thread_info_flags & _TIF_SIGPENDING)
+>                 do_signal(regs);=20
 
-The code scans both, but the usecase I described was moving swapbacked
-pages from the unevictable list after configuring swap space.
-
-> > The manual rescue could also be used in case pages were stranded on
-> > the unevictable list due to race conditions.  But the code has been
-> > around for a while now and newly discovered bugs should be properly
-> > reported and dealt with instead of relying on such a manual fixup.
-> 
-> What you say seems to be all right for anon pages, but what about file
-> pages ?
-> I'm not sure about how this could happen, but what if some file-system caused
-> a file cache page to be set to evictable or reclaimable without
-> actually removing
-> that page from the unevictable list ?
-
-Currently, unevictable file pages come from ramfs, shmem, and mlock.
-ramfs never makes them evictable.  shmem, after making an inode
-evictable again, scans the that inode's address_space and rescues the
-pages it finds.  munlock synchroneously rescues the pages vma's range.
+It would be good to remove this difference between i386 and x86_64.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
