@@ -1,51 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BF2E9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:28:45 -0400 (EDT)
-Date: Mon, 26 Sep 2011 10:28:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 1/2] oom: do not live lock on frozen tasks
-Message-ID: <20110926082837.GC10156@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1108241226550.31357@chino.kir.corp.google.com>
- <20110825091920.GA22564@tiehlicka.suse.cz>
- <20110825151818.GA4003@redhat.com>
- <20110825164758.GB22564@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
- <20110826070946.GA7280@tiehlicka.suse.cz>
- <20110826085610.GA9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
- <20110826095356.GB9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AFF599000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:35:34 -0400 (EDT)
+Received: by gya6 with SMTP id 6so5346403gya.14
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 01:35:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+In-Reply-To: <1317022420.9084.57.camel@twins>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+	<1316940890-24138-6-git-send-email-gilad@benyossef.com>
+	<1317022420.9084.57.camel@twins>
+Date: Mon, 26 Sep 2011 11:35:21 +0300
+Message-ID: <CAOtvUMeMsd0Jk1k4wP9Y+7NW3FYZZAqV1-cRj5Zt4+eaugWoPg@mail.gmail.com>
+Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-[Let's add some more people to CC list]
+On Mon, Sep 26, 2011 at 10:33 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> w=
+rote:
+> On Sun, 2011-09-25 at 11:54 +0300, Gilad Ben-Yossef wrote:
+>> + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 c =3D per_cpu_ptr(s->cpu_s=
+lab, cpu);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (c && c->page)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_se=
+t_cpu(cpu, cpus);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu_mask(cpus, flush_cpu_slab, s, =
+1);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cpumask_var(cpus);
+>
+> Right, having to do that for_each_oneline_cpu() loop only to then IPI
+> them can cause a massive cacheline bounce fest.. Ideally you'd want to
+> keep a cpumask per kmem_cache, although I bet the memory overhead of
+> that isn't attractive.
+>
+> Also, what Pekka says, having that alloc here isn't good either.
 
-Sorry it took so long but I was quite bussy recently.
+Yes, the alloc in the flush_all path definitively needs to go. I
+wonder if just to resolve that allocating the mask per cpu and not in
+kmem_cache itself is not better - after all, all we need is a single
+mask per cpu when we wish to do a flush_all and no per cache. The
+memory overhead of that is slightly better. This doesn't cover the
+cahce bounce issue.
 
-On Fri 26-08-11 11:13:40, David Rientjes wrote:
-> On Fri, 26 Aug 2011, Michal Hocko wrote:
-[...]
-> > I am not saying the bonus is necessary, though. It depends on what
-> > the freezer is used for (e.g. freeze a process which went wild and
-> > debug what went wrong wouldn't welcome that somebody killed it or other
-> > (mis)use which relies on D state).
-> > 
-> 
-> I'd love to be able to do a thaw on a PF_FROZEN task in the oom killer 
-> followed by a SIGKILL if that task is selected for oom kill without an 
-> heuristic change.  Not sure if that's possible, so we'll wait for Rafael 
-> to chime in.
+My thoughts regarding that were that since the flush_all() was a
+rather rare operation it is preferable to do some more
+work/interference here, if it allows us to avoid having to do more
+work in the hotter alloc/dealloc paths, especially since it allows us
+to have less IPIs that I figured are more intrusive then cacheline
+steals (are they?)
 
-We have discussed that with Rafael and it should be safe to do that. See
-the patch bellow.
-The only place I am not entirely sure about is run_guest
-(drivers/lguest/core.c). It seems that the code is able to cope with
-signals but it also calls lguest_arch_run_guest after try_to_freeze.
----
+After all, for each CPU that actually needs to do a flush, we are
+making the flush a bit more expensive because of the cache bounce just
+before we send the IPI, but that IPI and further operations are an
+expensive operations anyway. For CPUs that don't need to do a flush, I
+replaced an IPI for a cacheline(s) steal. I figured it was still a
+good bargain
+
+I will spin a new patch that moves this to kmem_cache if you believe
+this is the right way to go.
+
+Thanks!
+Gilad
+
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"I've seen things you people wouldn't believe. Goto statements used to
+implement co-routines. I watched C structures being stored in
+registers. All those moments will be lost in time... like tears in
+rain... Time to die. "
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
