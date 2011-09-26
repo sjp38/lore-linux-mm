@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 34F6C9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:01:58 -0400 (EDT)
-Date: Mon, 26 Sep 2011 14:00:14 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-Message-ID: <20110926130014.GG22455@n2100.arm.linux.org.uk>
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com> <20110705113345.GA8286@n2100.arm.linux.org.uk> <201107051427.44899.arnd@arndb.de> <1312393430.2855.51.camel@mulgrave>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 203889000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:10:33 -0400 (EDT)
+Date: Mon, 26 Sep 2011 15:10:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European
+ LinuxCon in Prague
+Message-ID: <20110926131027.GA14964@tiehlicka.suse.cz>
+References: <1316693805.10571.25.camel@dabdike>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312393430.2855.51.camel@mulgrave>
+In-Reply-To: <1316693805.10571.25.camel@dabdike>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jesse Barker <jesse.barker@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, ksummit-2011-discuss@lists.linux-foundation.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: James Bottomley <jbottomley@parallels.com>
+Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Aug 03, 2011 at 12:43:50PM -0500, James Bottomley wrote:
-> I assume from the above that ARM has a hardware page walker?
+On Thu 22-09-11 12:16:47, James Bottomley wrote:
+> Hi All,
 
-Correct, and speculative prefetch (which isn't prevented by not having
-TLB entries), so you can't keep entries out of the TLB.  If it's in
-the page tables it can end up in the TLB.
+Hi,
 
-The problem is that we could end up with conflicting attributes available
-to the hardware for the same physical page, and it is _completely_
-undefined how hardware behaves with that (except that it does not halt -
-and there's no exception path for the condition because there's no
-detection of the problem case.)
+> 
+> One of the major work items that came out of the Plumbers conference
+> containers and Cgroups meeting was the need to work on memcg:
+> 
+> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+> 
+> (see etherpad and presentations)
+> 
+> Since almost everyone will be either at KS or LinuxCon, I thought doing
+> a small meeting on the Wednesday of Linux Con (so those at KS who might
+> not be staying for the whole of LinuxCon could attend) might be a good
+> idea.  The object would be to get all the major players to agree on
+> who's doing what.  You can see Parallels' direction from the patches
+> Glauber has been posting.  Google should shortly be starting work on
+> other aspects of the memgc as well.
+> 
+> As a precursor to the meeting (and actually a requirement to make it
+> effective) we need to start posting our preliminary patches and design
+> ideas to the mm list (hint, Google people, this means you).
+> 
+> I think I've got all of the interested parties in the To: field, but I'm
+> sending this to the mm list just in case I missed anyone.  If everyone's
+> OK with the idea (and enough people are going to be there) I'll get the
+> Linux Foundation to find us a room.
 
-So, if you had one mapping which was fully cacheable and another mapping
-which wasn't, you can flush the TLB all you like - it could be possible
-that you still up with an access through the non-cacheable mapping being
-cached (either hitting speculatively prefetched cache lines via the
-cacheable mapping, or the cacheable attributes being applied to the
-non-cacheable mapping - or conversely uncacheable attributes applied to
-the cacheable mapping.)
+I am not going to be at KS but I am in Prague. I would be happy to meet
+as well if it is possible.
 
-Essentially, the condition is labelled 'unpredictable' in the TRMs,
-which basically means that not even observed behaviour can be relied
-upon, because there may be cases where the observed behaviour fails.
+> 
+> James
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
