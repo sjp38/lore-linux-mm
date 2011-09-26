@@ -1,138 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 975AB9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:32:47 -0400 (EDT)
-Received: by yia25 with SMTP id 25so5956869yia.14
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:32:45 -0700 (PDT)
-Subject: Re: Question about memory leak detector giving false positive
- report for net/core/flow.c
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
-References: 
-	 <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 26 Sep 2011 18:32:54 +0200
-Message-ID: <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 27B829000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:34:47 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8QGRvXi030797
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:27:57 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8QGYNPx100882
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:34:24 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8QGYI2c007795
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:34:20 -0600
+Date: Mon, 26 Sep 2011 21:49:09 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 1/26]   uprobes: Auxillary routines to
+ insert, find, delete uprobes
+Message-ID: <20110926161909.GD13535@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920115949.25326.2469.sendpatchset@srdronam.in.ibm.com>
+ <1317044115.1763.13.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1317044115.1763.13.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huajun Li <huajun.li.lee@gmail.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Le lundi 26 septembre 2011 A  23:17 +0800, Huajun Li a A(C)crit :
-> Memory leak detector gives following memory leak report, it seems the
-> report is triggered by net/core/flow.c, but actually, it should be a
-> false positive report.
-> So, is there any idea from kmemleak side to fix/disable this false
-> positive report like this?
-> Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
-> 
-> BTW, I wrote a simple test code to emulate net/core/flow.c behavior at
-> this stage which triggers the report, and it could also make kmemleak
-> give similar report, please check below test code:
-> 
-> kernel version:
-> #uname -a
-> Linux 3.1.0-rc7 #22 SMP Tue Sep 26 05:43:01 CST 2011 x86_64 x86_64
-> x86_64 GNU/Linux
-> 
-> memory leak report:
-> -------------------------------------------------------------------------------------------
-> unreferenced object 0xffff880073a70000 (size 8192):
->   comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<ffffffff8124db64>] create_object+0x144/0x360
->     [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
->     [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
->     [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
->     [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
->     [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
->     [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
->     [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
->     [<ffffffffffffffff>] 0xffffffffffffffff
-> unreferenced object 0xffff880073a74290 (size 8192):
->   comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<ffffffff8124db64>] create_object+0x144/0x360
->     [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
->     [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
->     [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
->     [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
->     [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
->     [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
->     [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
->     [<ffffffffffffffff>] 0xffffffffffffffff
-> 
-> 
-> 
-> Simple test code to reproduce a similar report:
-> -----------------------------------------------------------------------------------------
-> MODULE_LICENSE("GPL");
-> 
-> struct test {
->         int *pt;
+* Peter Zijlstra <peterz@infradead.org> [2011-09-26 15:35:15]:
 
-
-	char spaceholder[30000];
-
-> };
+> On Tue, 2011-09-20 at 17:29 +0530, Srikar Dronamraju wrote:
+> > +static struct uprobe *__find_uprobe(struct inode * inode, loff_t offset)
 > 
-> static struct test __percpu *percpu;
+> Here and elsewhere, your whitespace is off, it should read:
 > 
-> static int __init test_init(void)
-> {
->         int i;
+> 	struct inode *inode
 > 
->         percpu = alloc_percpu(struct test);
->         if (!percpu)
->                 return -ENOMEM;
+> I think checkpatch will inform you of this, but I didn't check.
 > 
->         for_each_online_cpu(i) {
->                 struct test *p = per_cpu_ptr(percpu, i);
->                 p->pt = kmalloc(sizeof(int), GFP_KERNEL);
->         }
-> 
->         return 0;
-> }
-> 
-> static void __exit test_exit(void)
-> {
->         int i;
-> 
->         for_each_possible_cpu(i) {
->                 struct test *p = per_cpu_ptr(percpu, i);
->                 if (p->pt)
->                         kfree(p->pt);
->         }
-> 
->         if (percpu)
->                 free_percpu(percpu);
-> }
-> module_init(test_init);
-> module_exit(test_exit);
 
+I have run checkpatch.pl --strict on all the patches and it doesnt
+report them.
 
-CC lkml and percpu maintainers (Tejun Heo & Christoph Lameter ) as well
+However I do see these whitespace in three places definitions for
+write_opcode, __find_uprobe, and find_uprobe.
 
-AFAIK this false positive only occurs if percpu data is allocated
-outside of embedded pcu space. 
-
- (grep pcpu_get_vm_areas /proc/vmallocinfo)
-
-I suspect this is a percpu/kmemleak cooperation problem (a missing
-kmemleak_alloc() ?)
-
-I am pretty sure kmemleak_not_leak() is not the right answer to this
-problem.
-
-
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
