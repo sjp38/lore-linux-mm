@@ -1,43 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 327F09000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:58:57 -0400 (EDT)
-From: Wizard <wizarddewhite@gmail.com>
-Subject: [PATCH]   fix find_next_system_ram comments
-Date: Mon, 26 Sep 2011 21:58:02 +0800
-Message-Id: <1317045482-3355-1-git-send-email-wizarddewhite@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 976E69000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:59:56 -0400 (EDT)
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 12/26]   Uprobes: Handle breakpoint and
+ Singlestep
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 26 Sep 2011 15:59:13 +0200
+In-Reply-To: <20110920120221.25326.74714.sendpatchset@srdronam.in.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+	 <20110920120221.25326.74714.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1317045553.1763.23.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, Wizard <wizarddewhite@gmail.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-The purpose of find_next_system_ram() is to find a the lowest
-memory resource which contain or overlap the [res->start, res->end),
-not just contain.
+On Tue, 2011-09-20 at 17:32 +0530, Srikar Dronamraju wrote:
+> 						Hence provide some extra
+> + * time (by way of synchronize_sched() for breakpoint hit threads to acq=
+uire
+> + * the uprobes_treelock before the uprobe is removed from the rbtree.=
+=20
 
-In this patch, I make this comment more exact and fix one typo.
+'Some extra time' doesn't make me all warm an fuzzy inside, but instead
+screams we fudge around a race condition.
 
-Signed-off-by: Wizard <wizarddewhite@gmail.com>
----
- kernel/resource.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 3b3cedc..2751a8c 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -279,7 +279,8 @@ EXPORT_SYMBOL(release_resource);
- 
- #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
- /*
-- * Finds the lowest memory reosurce exists within [res->start.res->end)
-+ * Finds the lowest memory resource which contains or overlaps
-+ * [res->start.res->end)
-  * the caller must specify res->start, res->end, res->flags and "name".
-  * If found, returns 0, res is overwritten, if not found, returns -1.
-  */
--- 
-1.6.3.3
+ISTR raising this before ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
