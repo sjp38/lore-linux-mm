@@ -1,112 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB1559000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:23:45 -0400 (EDT)
-Received: by fxh17 with SMTP id 17so7938260fxh.14
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:23:42 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 983659000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:25:04 -0400 (EDT)
+Date: Mon, 26 Sep 2011 10:24:59 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they
+ exist
+In-Reply-To: <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1109261023400.24164@router.home>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com> <1316940890-24138-5-git-send-email-gilad@benyossef.com> <1317001924.29510.160.camel@sli10-conroe> <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
 MIME-Version: 1.0
-Date: Mon, 26 Sep 2011 23:17:24 +0800
-Message-ID: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
-Subject: Question about memory leak detector giving false positive report for net/core/flow.c
-From: Huajun Li <huajun.li.lee@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
-Cc: "\"Eric Dumaze\"t" <eric.dumazet@gmail.com>, netdev <netdev@vger.kernel.org>, Huajun Li <huajun.li.lee@gmail.com>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-Memory leak detector gives following memory leak report, it seems the
-report is triggered by net/core/flow.c, but actually, it should be a
-false positive report.
-So, is there any idea from kmemleak side to fix/disable this false
-positive report like this?
-Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
+On Mon, 26 Sep 2011, Gilad Ben-Yossef wrote:
 
-BTW, I wrote a simple test code to emulate net/core/flow.c behavior at
-this stage which triggers the report, and it could also make kmemleak
-give similar report, please check below test code:
+> I do not know if these scenarios warrant the additional overhead,
+> certainly not in all situations. Maybe the right thing is to make it a
+> config option dependent. As I stated in the patch description, that is
+> one of the thing I'm interested in feedback on.
 
-kernel version:
-#uname -a
-Linux 3.1.0-rc7 #22 SMP Tue Sep 26 05:43:01 CST 2011 x86_64 x86_64
-x86_64 GNU/Linux
+The flushing of the per cpu pages only done when kmem_cache_shrink() is
+run or when a slab cache is closed. And for diagnostics. So its rare and
+not performance critical.
 
-memory leak report:
--------------------------------------------------------------------------------------------
-unreferenced object 0xffff880073a70000 (size 8192):
-  comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<ffffffff8124db64>] create_object+0x144/0x360
-    [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
-    [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
-    [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
-    [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
-    [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
-    [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
-    [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
-    [<ffffffffffffffff>] 0xffffffffffffffff
-unreferenced object 0xffff880073a74290 (size 8192):
-  comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<ffffffff8124db64>] create_object+0x144/0x360
-    [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
-    [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
-    [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
-    [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
-    [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
-    [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
-    [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
-    [<ffffffffffffffff>] 0xffffffffffffffff
-
-
-
-Simple test code to reproduce a similar report:
------------------------------------------------------------------------------------------
-MODULE_LICENSE("GPL");
-
-struct test {
-        int *pt;
-};
-
-static struct test __percpu *percpu;
-
-static int __init test_init(void)
-{
-        int i;
-
-        percpu = alloc_percpu(struct test);
-        if (!percpu)
-                return -ENOMEM;
-
-        for_each_online_cpu(i) {
-                struct test *p = per_cpu_ptr(percpu, i);
-                p->pt = kmalloc(sizeof(int), GFP_KERNEL);
-        }
-
-        return 0;
-}
-
-static void __exit test_exit(void)
-{
-        int i;
-
-        for_each_possible_cpu(i) {
-                struct test *p = per_cpu_ptr(percpu, i);
-                if (p->pt)
-                        kfree(p->pt);
-        }
-
-        if (percpu)
-                free_percpu(percpu);
-}
-module_init(test_init);
-module_exit(test_exit);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
