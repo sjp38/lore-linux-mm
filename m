@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 823949000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:58:58 -0400 (EDT)
-Message-ID: <4E80AF4F.1030706@xenotime.net>
-Date: Mon, 26 Sep 2011 09:58:55 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C31649000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 14:29:04 -0400 (EDT)
+Date: Mon, 26 Sep 2011 20:28:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
+Message-ID: <20110926182859.GA22434@tiehlicka.suse.cz>
+References: <20110825151818.GA4003@redhat.com>
+ <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com>
+ <20110926091440.GE10156@tiehlicka.suse.cz>
+ <201109261751.40688.rjw@sisk.pl>
 MIME-Version: 1.0
-Subject: Re: [PATCH]   fix find_next_system_ram comments
-References: <1317045482-3355-1-git-send-email-wizarddewhite@gmail.com>
-In-Reply-To: <1317045482-3355-1-git-send-email-wizarddewhite@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201109261751.40688.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wizard <wizarddewhite@gmail.com>
-Cc: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
 
-On 09/26/2011 06:58 AM, Wizard wrote:
-> The purpose of find_next_system_ram() is to find a the lowest
-> memory resource which contain or overlap the [res->start, res->end),
-> not just contain.
+On Mon 26-09-11 17:51:40, Rafael J. Wysocki wrote:
+> On Monday, September 26, 2011, Michal Hocko wrote:
+[...]
+> > From f935ed4558c2fb033ef5c14e02b28e12a615f80e Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Fri, 16 Sep 2011 11:23:15 +0200
+> > Subject: [PATCH] oom: do not live lock on frozen tasks
+> > 
+> > Konstantin Khlebnikov has reported (https://lkml.org/lkml/2011/8/23/45)
+> > that OOM can end up in a live lock if select_bad_process picks up a frozen
+> > task.
+> > Unfortunately we cannot mark such processes as unkillable to ignore them
+> > because we could panic the system even though there is a chance that
+> > somebody could thaw the process so we can make a forward process (e.g. a
+> > process from another cpuset or with a different nodemask).
+> > 
+> > Let's thaw an OOM selected frozen process right after we've sent fatal
+> > signal from oom_kill_task.
+> > Thawing is safe if the frozen task doesn't access any suspended device
+> > (e.g. by ioctl) on the way out to the userspace where we handle the
+> > signal and die. Note, we are not interested in the kernel threads because
+> > they are not oom killable.
+> > 
+> > Accessing suspended devices by a userspace processes shouldn't be an
+> > issue because devices are suspended only after userspace is already
+> > frozen and oom is disabled at that time.
+> > 
+> > run_guest (drivers/lguest/core.c) calls try_to_freeze with an user
+> > context but it seems it is able to cope with signals because it
+> > explicitly checks for pending signals so we should be safe.
+> > 
+> > Other than that userspace accesses the fridge only from the
+> > signal handling routines so we are able to handle SIGKILL without any
+> > negative side effects.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 > 
-> In this patch, I make this comment more exact and fix one typo.
-> 
-> Signed-off-by: Wizard <wizarddewhite@gmail.com>
+> Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
 
-For Signed-off-by: Documentation/SubmittingPatches says:
-
-using your real name (sorry, no pseudonyms or anonymous contributions.)
-
-> ---
->  kernel/resource.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/kernel/resource.c b/kernel/resource.c
-> index 3b3cedc..2751a8c 100644
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -279,7 +279,8 @@ EXPORT_SYMBOL(release_resource);
->  
->  #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
->  /*
-> - * Finds the lowest memory reosurce exists within [res->start.res->end)
-> + * Finds the lowest memory resource which contains or overlaps
-> + * [res->start.res->end)
-
-Your patch description uses ", " (comma) here.  I think that's better than
-keeping the ".".
-
->   * the caller must specify res->start, res->end, res->flags and "name".
->   * If found, returns 0, res is overwritten, if not found, returns -1.
->   */
-
+Thanks.
 
 -- 
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
