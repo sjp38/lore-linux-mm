@@ -1,107 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 28B9C9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 06:53:05 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 80A5F3EE0BB
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:53:01 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 60C7945DE90
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:53:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 327CA45DE92
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:53:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2122D1DB803F
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:53:01 +0900 (JST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FDF59000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 06:59:58 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CC03E3EE0AE
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B393B45DE7A
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C48845DE61
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 908BC1DB802C
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D4C781DB803E
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:53:00 +0900 (JST)
-Date: Mon, 26 Sep 2011 19:52:13 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AEC71DB8038
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
+Date: Mon, 26 Sep 2011 19:59:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 2/7] socket: initial cgroup code.
-Message-Id: <20110926195213.12da87b4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4E7DECF0.9050804@parallels.com>
+Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
+Message-Id: <20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1316393805-3005-5-git-send-email-glommer@parallels.com>
 References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-3-git-send-email-glommer@parallels.com>
-	<CAHH2K0YgkG2J_bO+U9zbZYhTTqSLvr6NtxKxN8dRtfHs=iB8iA@mail.gmail.com>
-	<4E7A342B.5040608@parallels.com>
-	<CAHH2K0Z_2LJPL0sLVHqkh_6b_BLQnknULTB9a9WfEuibk5kONg@mail.gmail.com>
-	<CAKTCnz=59HuEg9T-USi5oKSK=F+vr2QxCA17+i-rGj73k49rzw@mail.gmail.com>
-	<4E7DECF0.9050804@parallels.com>
+	<1316393805-3005-5-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Sat, 24 Sep 2011 11:45:04 -0300
+On Sun, 18 Sep 2011 21:56:42 -0300
 Glauber Costa <glommer@parallels.com> wrote:
 
-> On 09/22/2011 12:09 PM, Balbir Singh wrote:
-> > On Thu, Sep 22, 2011 at 11:30 AM, Greg Thelen<gthelen@google.com>  wrote:
-> >> On Wed, Sep 21, 2011 at 11:59 AM, Glauber Costa<glommer@parallels.com>  wrote:
-> >>> Right now I am working under the assumption that tasks are long lived inside
-> >>> the cgroup. Migration potentially introduces some nasty locking problems in
-> >>> the mem_schedule path.
-> >>>
-> >>> Also, unless I am missing something, the memcg already has the policy of
-> >>> not carrying charges around, probably because of this very same complexity.
-> >>>
-> >>> True that at least it won't EBUSY you... But I think this is at least a way
-> >>> to guarantee that the cgroup under our nose won't disappear in the middle of
-> >>> our allocations.
-> >>
-> >> Here's the memcg user page behavior using the same pattern:
-> >>
-> >> 1. user page P is allocate by task T in memcg M1
-> >> 2. T is moved to memcg M2.  The P charge is left behind still charged
-> >> to M1 if memory.move_charge_at_immigrate=0; or the charge is moved to
-> >> M2 if memory.move_charge_at_immigrate=1.
-> >> 3. rmdir M1 will try to reclaim P (if P was left in M1).  If unable to
-> >> reclaim, then P is recharged to parent(M1).
-> >>
-> >
-> > We also have some magic in page_referenced() to remove pages
-> > referenced from different containers. What we do is try not to
-> > penalize a cgroup if another cgroup is referencing this page and the
-> > page under consideration is being reclaimed from the cgroup that
-> > touched it.
-> >
-> > Balbir Singh
-> Do you guys see it as a showstopper for this series to be merged, or can 
-> we just TODO it ?
+> With all the infrastructure in place, this patch implements
+> per-cgroup control for tcp memory pressure handling.
 > 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: David S. Miller <davem@davemloft.net>
+> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Eric W. Biederman <ebiederm@xmission.com>
 
-In my experience, 'I can't rmdir cgroup.' is always an important/difficult
-problem. The users cannot know where the accouting is leaking other than
-kmem.usage_in_bytes or memory.usage_in_bytes. and can't fix the issue.
+a comment below.
 
-please add EXPERIMENTAL to Kconfig until this is fixed.
+> +int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
+> +		    struct cgroup_subsys *ss)
+> +{
+> +	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
+> +	unsigned long limit;
+> +
+> +	cg->tcp_memory_pressure = 0;
+> +	atomic_long_set(&cg->tcp_memory_allocated, 0);
+> +	percpu_counter_init(&cg->tcp_sockets_allocated, 0);
+> +
+> +	limit = nr_free_buffer_pages() / 8;
+> +	limit = max(limit, 128UL);
+> +
+> +	cg->tcp_prot_mem[0] = sysctl_tcp_mem[0];
+> +	cg->tcp_prot_mem[1] = sysctl_tcp_mem[1];
+> +	cg->tcp_prot_mem[2] = sysctl_tcp_mem[2];
+> +
 
-> I can push a proposal for it, but it would be done in a separate patch 
-> anyway. Also, we may be in better conditions to fix this when the slab 
-> part is merged - since it will likely have the same problems...
-> 
+Then, the parameter doesn't inherit parent's one ?
 
-Yes. considering sockets which can be shared between tasks(cgroups)
-you'll finally need
-  - owner task of socket 
-  - account moving callback
+I think sockets_populate should pass 'parent' and
 
-Or disallow task moving once accounted.
 
+I think you should have a function 
+
+    mem_cgroup_should_inherit_parent_settings(parent)
+
+(This is because you made this feature as a part of memcg.
+ please provide expected behavior.)
 
 Thanks,
 -Kame
-
-
-
-
-
-
 
 
 --
