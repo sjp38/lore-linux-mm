@@ -1,88 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD119000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:26:23 -0400 (EDT)
-Date: Mon, 26 Sep 2011 16:25:41 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch] mm: remove sysctl to manually rescue unevictable pages
-Message-ID: <20110926142540.GE14333@redhat.com>
-References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com>
- <20110926112944.GC14333@redhat.com>
- <CAFPAmTQPiHU8AKnQvzMM5KiQr1GnUY+Yf8PwVC6++QK8u149Ew@mail.gmail.com>
- <CAFPAmTQbHhj8wodFEutpstXdQ6Kc2_qRV6Pe69ngHwz1erF29Q@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 528FB9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:40:25 -0400 (EDT)
+Message-ID: <4E808EA6.4000301@gmail.com>
+Date: Mon, 26 Sep 2011 18:39:34 +0400
+From: Andrew Vagin <avagin@gmail.com>
+Reply-To: avagin@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFPAmTQbHhj8wodFEutpstXdQ6Kc2_qRV6Pe69ngHwz1erF29Q@mail.gmail.com>
+Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-5-git-send-email-glommer@parallels.com>
+In-Reply-To: <1316393805-3005-5-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=KOI8-R; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Mon, Sep 26, 2011 at 05:59:39PM +0530, kautuk.c @samsung.com wrote:
-> On Mon, Sep 26, 2011 at 5:40 PM, kautuk.c @samsung.com
-> <consul.kautuk@gmail.com> wrote:
-> > On Mon, Sep 26, 2011 at 4:59 PM, Johannes Weiner <jweiner@redhat.com> wrote:
-> >> On Sun, Sep 25, 2011 at 04:29:40PM +0530, Kautuk Consul wrote:
-> >>> write_scan_unavictable_node checks the value req returned by
-> >>> strict_strtoul and returns 1 if req is 0.
-> >>>
-> >>> However, when strict_strtoul returns 0, it means successful conversion
-> >>> of buf to unsigned long.
-> >>>
-> >>> Due to this, the function was not proceeding to scan the zones for
-> >>> unevictable pages even though we write a valid value to the
-> >>> scan_unevictable_pages sys file.
-> >>
-> >> Given that there is not a real reason for this knob (anymore) and that
-> >> it apparently never really worked since the day it was introduced, how
-> >> about we just drop all that code instead?
-> >>
-> >>        Hannes
-> >>
-> >> ---
-> >> From: Johannes Weiner <jweiner@redhat.com>
-> >> Subject: mm: remove sysctl to manually rescue unevictable pages
-> >>
-> >> At one point, anonymous pages were supposed to go on the unevictable
-> >> list when no swap space was configured, and the idea was to manually
-> >> rescue those pages after adding swap and making them evictable again.
-> >> But nowadays, swap-backed pages on the anon LRU list are not scanned
-> >> without available swap space anyway, so there is no point in moving
-> >> them to a separate list anymore.
-> >
-> > Is this code only for anonymous pages ?
-> > It seems to look at all pages in the zone both file as well as anon.
-> >
-> >>
-> >> The manual rescue could also be used in case pages were stranded on
-> >> the unevictable list due to race conditions.  But the code has been
-> >> around for a while now and newly discovered bugs should be properly
-> >> reported and dealt with instead of relying on such a manual fixup.
-> >
-> > What you say seems to be all right for anon pages, but what about file
-> > pages ?
-> > I'm not sure about how this could happen, but what if some file-system caused
-> > a file cache page to be set to evictable or reclaimable without
-> > actually removing
-> > that page from the unevictable list ?
-> 
-> What I would like to also add is that while the transition of an anon
-> page from and
-> to the unevictable lists is straight-forward, should we make the same assumption
-> about file cache pages ?
+We can't change net.ipv4.tcp_mem if a cgroup with memory controller 
+isn't mounted.
 
-We should make no assumptions if our code base is open source :-)
+[root@dhcp-10-30-20-19 ~]# sysctl -w net.ipv4.tcp_mem="3 2 3"
+error: "Invalid argument" setting key "net.ipv4.tcp_mem"
 
-> I am not sure about this, but could a file-system cause this kind of a problem
-> independent of the mlocking behaviour of a user-mode app ?
+It's because tcp_max_memory is initialized in mem_cgroup_populate:
 
-Currently, I only see shmem and ramfs meddling with unevictability
-outside of mlock and they both look correct to me.
+mem_cgroup_populate->register_kmem_files->sockets_populate->tcp_init_cgroup
 
-I'd say that if a filesystem required this knob and user-intervention
-for the VM to behave correctly, it needs fixing.
+> +int sockets_populate(struct cgroup *cgrp, struct cgroup_subsys *ss)
+> +{
+> +	struct proto *proto;
+> +	int ret = 0;
+> +
+> +	read_lock(&proto_list_lock);
+> +	list_for_each_entry(proto,&proto_list, node) {
+> +		if (proto->init_cgroup)
+> +			ret |= proto->init_cgroup(proto, cgrp, ss);
+> +	}
+> +	if (!ret)
+> +		goto out;
+> +
+> +	list_for_each_entry_continue_reverse(proto,&proto_list, node)
+> +		if (proto->destroy_cgroup)
+> +			proto->destroy_cgroup(proto, cgrp, ss);
+> +
+> +out:
+> +	read_unlock(&proto_list_lock);
+> +	return ret;
+> +}
+
+> @@ -198,6 +203,21 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
+>   	if (ret)
+>   		return ret;
+>
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	rcu_read_lock();
+> +	cg = mem_cgroup_from_task(current);
+> +	for (i = 0; i<  3; i++)
+> +		if (vec[i]>  tcp_max_memory(cg)) {
+> +			rcu_read_unlock();
+> +			return -EINVAL;
+> +		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
