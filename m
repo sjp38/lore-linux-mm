@@ -1,105 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 022A19000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:02:19 -0400 (EDT)
-Date: Mon, 26 Sep 2011 16:02:12 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -mm] limit direct reclaim for higher order allocations
-Message-ID: <20110926150212.GB11313@suse.de>
-References: <20110926095507.34a2c48c@annuminas.surriel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1559000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:23:45 -0400 (EDT)
+Received: by fxh17 with SMTP id 17so7938260fxh.14
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:23:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110926095507.34a2c48c@annuminas.surriel.com>
+Date: Mon, 26 Sep 2011 23:17:24 +0800
+Message-ID: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
+Subject: Question about memory leak detector giving false positive report for net/core/flow.c
+From: Huajun Li <huajun.li.lee@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
+Cc: "\"Eric Dumaze\"t" <eric.dumazet@gmail.com>, netdev <netdev@vger.kernel.org>, Huajun Li <huajun.li.lee@gmail.com>
 
-On Mon, Sep 26, 2011 at 09:55:07AM -0400, Rik van Riel wrote:
-> When suffering from memory fragmentation due to unfreeable pages,
-> THP page faults will repeatedly try to compact memory.  Due to
-> the unfreeable pages, compaction fails.
-> 
-> Needless to say, at that point page reclaim also fails to create
-> free contiguous 2MB areas.  However, that doesn't stop the current
-> code from trying, over and over again, and freeing a minimum of
-> 4MB (2UL << sc->order pages) at every single invocation.
-> 
-> This resulted in my 12GB system having 2-3GB free memory, a
-> corresponding amount of used swap and very sluggish response times.
-> 
-> This can be avoided by having the direct reclaim code not reclaim
-> from zones that already have plenty of free memory available for
-> compaction.
-> 
-> If compaction still fails due to unmovable memory, doing additional
-> reclaim will only hurt the system, not help.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
-> I believe Mel has another idea in mind on how to fix this issue. 
-> I believe it will be good to compare both approaches side by side...
-> 
->  mm/vmscan.c |   16 ++++++++++++++++
->  1 files changed, 16 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b7719ec..56811a1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2083,6 +2083,22 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
->  				continue;
->  			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
->  				continue;	/* Let kswapd poll it */
-> +			if (COMPACTION_BUILD) {
-> +				/*
-> +				 * If we already have plenty of memory free
-> +				 * for compaction, don't free any more.
-> +				 */
-> +				unsigned long balance_gap;
-> +				balance_gap = min(low_wmark_pages(zone),
-> +					(zone->present_pages +
-> +					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
-> +					KSWAPD_ZONE_BALANCE_GAP_RATIO);
-> +				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-> +					zone_watermark_ok_safe(zone, 0,
-> +					high_wmark_pages(zone) + balance_gap +
-> +					(2UL << sc->order), 0, 0))
-> +					continue;
-> +			}
+Memory leak detector gives following memory leak report, it seems the
+report is triggered by net/core/flow.c, but actually, it should be a
+false positive report.
+So, is there any idea from kmemleak side to fix/disable this false
+positive report like this?
+Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
 
-I don't have a proper patch prepared but I think it is a mistake for
-reclaim and compaction to be using different logic when deciding
-if action should be taken. Compaction uses compaction_suitable()
-and compaction_deferred() to decide whether it should compact or not
-and reclaim/compaction should share the same logic. I don't have a
-proper patch but the check would look something like;
+BTW, I wrote a simple test code to emulate net/core/flow.c behavior at
+this stage which triggers the report, and it could also make kmemleak
+give similar report, please check below test code:
 
-                /*
-                 * If reclaiming for THP, check if try_to_compact_pages
-                 * would try and compact this zone or if compaction is deferred
-                 * due to a recent failure. If these conditions are met,
-                 * we should not reclaim more pages as the cost of reclaiming an
-                 * excessive number of pages exceeds the benefit of using huge
-                 * pages. If we are not reclaiming, pretend we have reclaimed
-		 * pages so the caller bails.
-                 */
-                if ((sc->gfp_mask & __GFP_NO_KSWAPD) &&
-                        (compaction_suitable(zone, sc->order) ||
-                                compaction_deferred(zone))) {
-			sc->nr_scanned = SWAP_CLUSTER_MAX;
-			sc->nr_reclaimed = SWAP_CLUSTER_MAX;
-			continue;
-		}
+kernel version:
+#uname -a
+Linux 3.1.0-rc7 #22 SMP Tue Sep 26 05:43:01 CST 2011 x86_64 x86_64
+x86_64 GNU/Linux
 
-compaction_suitable() takes into account the amount of free memory
-so it is similar to your patch in that it takes into account "if we
-already have plenty of memory free for compaction".
+memory leak report:
+-------------------------------------------------------------------------------------------
+unreferenced object 0xffff880073a70000 (size 8192):
+  comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
+  hex dump (first 32 bytes):
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<ffffffff8124db64>] create_object+0x144/0x360
+    [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
+    [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
+    [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
+    [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
+    [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
+    [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
+    [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
+    [<ffffffffffffffff>] 0xffffffffffffffff
+unreferenced object 0xffff880073a74290 (size 8192):
+  comm "swapper", pid 1, jiffies 4294937832 (age 445.740s)
+  hex dump (first 32 bytes):
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<ffffffff8124db64>] create_object+0x144/0x360
+    [<ffffffff8191192e>] kmemleak_alloc+0x7e/0x110
+    [<ffffffff81235b26>] __kmalloc_node+0x156/0x3a0
+    [<ffffffff81935512>] flow_cache_cpu_prepare.clone.1+0x58/0xc0
+    [<ffffffff8214c361>] flow_cache_init_global+0xb6/0x1af
+    [<ffffffff8100225d>] do_one_initcall+0x4d/0x260
+    [<ffffffff820ec2e9>] kernel_init+0x161/0x23a
+    [<ffffffff8194ab04>] kernel_thread_helper+0x4/0x10
+    [<ffffffffffffffff>] 0xffffffffffffffff
 
--- 
-Mel Gorman
-SUSE Labs
+
+
+Simple test code to reproduce a similar report:
+-----------------------------------------------------------------------------------------
+MODULE_LICENSE("GPL");
+
+struct test {
+        int *pt;
+};
+
+static struct test __percpu *percpu;
+
+static int __init test_init(void)
+{
+        int i;
+
+        percpu = alloc_percpu(struct test);
+        if (!percpu)
+                return -ENOMEM;
+
+        for_each_online_cpu(i) {
+                struct test *p = per_cpu_ptr(percpu, i);
+                p->pt = kmalloc(sizeof(int), GFP_KERNEL);
+        }
+
+        return 0;
+}
+
+static void __exit test_exit(void)
+{
+        int i;
+
+        for_each_possible_cpu(i) {
+                struct test *p = per_cpu_ptr(percpu, i);
+                if (p->pt)
+                        kfree(p->pt);
+        }
+
+        if (percpu)
+                free_percpu(percpu);
+}
+module_init(test_init);
+module_exit(test_exit);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
