@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C13339000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:53:06 -0400 (EDT)
-Date: Mon, 26 Sep 2011 15:52:50 -0700
-From: Andrew Morton <akpm@google.com>
-Subject: Re: [patch]mm: initialize zone all_unreclaimable
-Message-Id: <20110926155250.464e7770.akpm@google.com>
-In-Reply-To: <20110926132320.GA4206@tiehlicka.suse.cz>
-References: <1317024712.29510.178.camel@sli10-conroe>
-	<20110926132320.GA4206@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8C19000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:53:08 -0400 (EDT)
+Message-ID: <4E810224.4060204@parallels.com>
+Date: Mon, 26 Sep 2011 19:52:20 -0300
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-5-git-send-email-glommer@parallels.com> <4E808EA6.4000301@gmail.com>
+In-Reply-To: <4E808EA6.4000301@gmail.com>
+Content-Type: text/plain; charset="KOI8-R"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: avagin@gmail.com
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Mon, 26 Sep 2011 15:23:20 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On 09/26/2011 11:39 AM, Andrew Vagin wrote:
+> We can't change net.ipv4.tcp_mem if a cgroup with memory controller
+> isn't mounted.
+>
+> [root@dhcp-10-30-20-19 ~]# sysctl -w net.ipv4.tcp_mem="3 2 3"
+> error: "Invalid argument" setting key "net.ipv4.tcp_mem"
+>
+> It's because tcp_max_memory is initialized in mem_cgroup_populate:
+>
+> mem_cgroup_populate->register_kmem_files->sockets_populate->tcp_init_cgroup
 
-> On Mon 26-09-11 16:11:52, Shaohua Li wrote:
-> > I saw DMA zone is always unreclaimable in my system. 
-> > zone->all_unreclaimable isn't initialized till a page from the zone is
-> > freed. This isn't a big problem normally, but a little confused, so
-> > fix here.
-> 
-> The value is initialized when a node is allocated. setup_node_data uses
-> alloc_remap which memsets the whole structure or memblock allocation
-> which is initialized to 0 as well AFAIK and memory hotplug uses
-> arch_alloc_nodedata which is kzalloc.
+Thank you, will fix it
 
-setup_node_data() does memset(NODE_DATA(nid), 0, sizeof(pg_data_t)) just
-to be sure.
-
-However, Shaohua reports that "DMA zone is always unreclaimable in my system",
-and presumably this patch fixed it.  So we don't know what's going on?
-
-
-
-Presumably all the other "zone->foo = 0" assignments in free_area_init_core()
-are unneeded.
+>> +int sockets_populate(struct cgroup *cgrp, struct cgroup_subsys *ss)
+>> +{
+>> + struct proto *proto;
+>> + int ret = 0;
+>> +
+>> + read_lock(&proto_list_lock);
+>> + list_for_each_entry(proto,&proto_list, node) {
+>> + if (proto->init_cgroup)
+>> + ret |= proto->init_cgroup(proto, cgrp, ss);
+>> + }
+>> + if (!ret)
+>> + goto out;
+>> +
+>> + list_for_each_entry_continue_reverse(proto,&proto_list, node)
+>> + if (proto->destroy_cgroup)
+>> + proto->destroy_cgroup(proto, cgrp, ss);
+>> +
+>> +out:
+>> + read_unlock(&proto_list_lock);
+>> + return ret;
+>> +}
+>
+>> @@ -198,6 +203,21 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
+>> if (ret)
+>> return ret;
+>>
+>> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> + rcu_read_lock();
+>> + cg = mem_cgroup_from_task(current);
+>> + for (i = 0; i< 3; i++)
+>> + if (vec[i]> tcp_max_memory(cg)) {
+>> + rcu_read_unlock();
+>> + return -EINVAL;
+>> + }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
