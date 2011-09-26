@@ -1,87 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BB809000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 07:03:41 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C88123EE0C0
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF00445DE9E
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79F3C45DEAD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 619661DB8041
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26C7A1DB803B
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
-Date: Mon, 26 Sep 2011 20:02:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 6/7] tcp buffer limitation: per-cgroup limit
-Message-Id: <20110926200247.c80f7e47.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4E7DDB82.3030802@parallels.com>
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-7-git-send-email-glommer@parallels.com>
-	<CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com>
-	<4E7DDB82.3030802@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E9CD19000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 07:06:03 -0400 (EDT)
+Date: Mon, 26 Sep 2011 13:05:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
+Message-ID: <20110926110559.GH10156@tiehlicka.suse.cz>
+References: <20110825151818.GA4003@redhat.com>
+ <20110825164758.GB22564@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
+ <20110826070946.GA7280@tiehlicka.suse.cz>
+ <20110826085610.GA9083@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
+ <20110826095356.GB9083@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+ <20110926082837.GC10156@tiehlicka.suse.cz>
+ <87sjnjk36l.fsf@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87sjnjk36l.fsf@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>
 
-On Sat, 24 Sep 2011 10:30:42 -0300
-Glauber Costa <glommer@parallels.com> wrote:
+On Mon 26-09-11 19:58:50, Rusty Russell wrote:
+> On Mon, 26 Sep 2011 10:28:37 +0200, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Fri 26-08-11 11:13:40, David Rientjes wrote:
+> > > I'd love to be able to do a thaw on a PF_FROZEN task in the oom killer 
+> > > followed by a SIGKILL if that task is selected for oom kill without an 
+> > > heuristic change.  Not sure if that's possible, so we'll wait for Rafael 
+> > > to chime in.
+> > 
+> > We have discussed that with Rafael and it should be safe to do that. See
+> > the patch bellow.
+> > The only place I am not entirely sure about is run_guest
+> > (drivers/lguest/core.c). It seems that the code is able to cope with
+> > signals but it also calls lguest_arch_run_guest after try_to_freeze.
+> 
+> Yes; if you want to kill things in the refrigerator(), then will a
+> 
+> 		if (cpu->lg->dead || task_is_dead(current))
+>                         break;
+> 
+> Work?  
 
-> On 09/22/2011 03:01 AM, Greg Thelen wrote:
-> > On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa<glommer@parallels.com>  wrote:
-> >> +static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
-> >> +{
-> >> +       return (mem == root_mem_cgroup);
-> >> +}
-> >> +
-> >
-> > Why are you adding a copy of mem_cgroup_is_root().  I see one already
-> > in v3.0.  Was it deleted in a previous patch?
-> 
-> Already answered by another good samaritan.
-> 
-> >> +static int tcp_write_maxmem(struct cgroup *cgrp, struct cftype *cft, u64 val)
-> >> +{
-> >> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
-> >> +       struct mem_cgroup *parent = parent_mem_cgroup(sg);
-> >> +       struct net *net = current->nsproxy->net_ns;
-> >> +       int i;
-> >> +
-> >> +       if (!cgroup_lock_live_group(cgrp))
-> >> +               return -ENODEV;
-> >
-> > Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
-> > to sg->tcp_prot_mem[*]?
-> >
-> >> +static u64 tcp_read_maxmem(struct cgroup *cgrp, struct cftype *cft)
-> >> +{
-> >> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
-> >> +       u64 ret;
-> >> +
-> >> +       if (!cgroup_lock_live_group(cgrp))
-> >> +               return -ENODEV;
-> >
-> > Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
-> > to sg->tcp_max_memory?
-> 
-> No, that is not my understanding. My understanding is this lock is 
-> needed to protect against the cgroup just disappearing under our nose.
-> 
+The task is not dead yet. We should rather check for pending signals.
+Can we just move try_to_freeze up before the pending signals check?
 
-Hm. reference count of dentry for cgroup isn't enough ?
+diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
+index 2535933..a513509 100644
+--- a/drivers/lguest/core.c
++++ b/drivers/lguest/core.c
+@@ -232,6 +232,12 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+ 			}
+ 		}
+ 
++		/*
++		 * All long-lived kernel loops need to check with this horrible
++		 * thing called the freezer.  If the Host is trying to suspend,
++		 * it stops us.
++		 */
++		try_to_freeze();
+ 		/* Check for signals */
+ 		if (signal_pending(current))
+ 			return -ERESTARTSYS;
+@@ -246,13 +252,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+ 			try_deliver_interrupt(cpu, irq, more);
+ 
+ 		/*
+-		 * All long-lived kernel loops need to check with this horrible
+-		 * thing called the freezer.  If the Host is trying to suspend,
+-		 * it stops us.
+-		 */
+-		try_to_freeze();
+-
+-		/*
+ 		 * Just make absolutely sure the Guest is still alive.  One of
+ 		 * those hypercalls could have been fatal, for example.
+ 		 */
 
-Thanks,
--Kame
+> That break means we return to the read() syscall pretty much
+> immediately.
+> 
+> Thanks for the CC,
+> Rusty.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
