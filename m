@@ -1,83 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FDF59000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 06:59:58 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CC03E3EE0AE
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B393B45DE7A
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C48845DE61
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 908BC1DB802C
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AEC71DB8038
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:59:54 +0900 (JST)
-Date: Mon, 26 Sep 2011 19:59:06 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BB809000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 07:03:41 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C88123EE0C0
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF00445DE9E
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79F3C45DEAD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 619661DB8041
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26C7A1DB803B
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 20:03:36 +0900 (JST)
+Date: Mon, 26 Sep 2011 20:02:47 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
-Message-Id: <20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1316393805-3005-5-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v3 6/7] tcp buffer limitation: per-cgroup limit
+Message-Id: <20110926200247.c80f7e47.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4E7DDB82.3030802@parallels.com>
 References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-5-git-send-email-glommer@parallels.com>
+	<1316393805-3005-7-git-send-email-glommer@parallels.com>
+	<CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com>
+	<4E7DDB82.3030802@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Sun, 18 Sep 2011 21:56:42 -0300
+On Sat, 24 Sep 2011 10:30:42 -0300
 Glauber Costa <glommer@parallels.com> wrote:
 
-> With all the infrastructure in place, this patch implements
-> per-cgroup control for tcp memory pressure handling.
+> On 09/22/2011 03:01 AM, Greg Thelen wrote:
+> > On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa<glommer@parallels.com>  wrote:
+> >> +static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+> >> +{
+> >> +       return (mem == root_mem_cgroup);
+> >> +}
+> >> +
+> >
+> > Why are you adding a copy of mem_cgroup_is_root().  I see one already
+> > in v3.0.  Was it deleted in a previous patch?
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: David S. Miller <davem@davemloft.net>
-> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Eric W. Biederman <ebiederm@xmission.com>
+> Already answered by another good samaritan.
+> 
+> >> +static int tcp_write_maxmem(struct cgroup *cgrp, struct cftype *cft, u64 val)
+> >> +{
+> >> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
+> >> +       struct mem_cgroup *parent = parent_mem_cgroup(sg);
+> >> +       struct net *net = current->nsproxy->net_ns;
+> >> +       int i;
+> >> +
+> >> +       if (!cgroup_lock_live_group(cgrp))
+> >> +               return -ENODEV;
+> >
+> > Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
+> > to sg->tcp_prot_mem[*]?
+> >
+> >> +static u64 tcp_read_maxmem(struct cgroup *cgrp, struct cftype *cft)
+> >> +{
+> >> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
+> >> +       u64 ret;
+> >> +
+> >> +       if (!cgroup_lock_live_group(cgrp))
+> >> +               return -ENODEV;
+> >
+> > Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
+> > to sg->tcp_max_memory?
+> 
+> No, that is not my understanding. My understanding is this lock is 
+> needed to protect against the cgroup just disappearing under our nose.
+> 
 
-a comment below.
-
-> +int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
-> +		    struct cgroup_subsys *ss)
-> +{
-> +	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
-> +	unsigned long limit;
-> +
-> +	cg->tcp_memory_pressure = 0;
-> +	atomic_long_set(&cg->tcp_memory_allocated, 0);
-> +	percpu_counter_init(&cg->tcp_sockets_allocated, 0);
-> +
-> +	limit = nr_free_buffer_pages() / 8;
-> +	limit = max(limit, 128UL);
-> +
-> +	cg->tcp_prot_mem[0] = sysctl_tcp_mem[0];
-> +	cg->tcp_prot_mem[1] = sysctl_tcp_mem[1];
-> +	cg->tcp_prot_mem[2] = sysctl_tcp_mem[2];
-> +
-
-Then, the parameter doesn't inherit parent's one ?
-
-I think sockets_populate should pass 'parent' and
-
-
-I think you should have a function 
-
-    mem_cgroup_should_inherit_parent_settings(parent)
-
-(This is because you made this feature as a part of memcg.
- please provide expected behavior.)
+Hm. reference count of dentry for cgroup isn't enough ?
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
