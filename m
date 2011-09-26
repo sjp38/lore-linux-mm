@@ -1,32 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 983659000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:25:04 -0400 (EDT)
-Date: Mon, 26 Sep 2011 10:24:59 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they
- exist
-In-Reply-To: <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1109261023400.24164@router.home>
-References: <1316940890-24138-1-git-send-email-gilad@benyossef.com> <1316940890-24138-5-git-send-email-gilad@benyossef.com> <1317001924.29510.160.camel@sli10-conroe> <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5B32A9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:31:14 -0400 (EDT)
+Message-ID: <4E809ABB.2020807@redhat.com>
+Date: Mon, 26 Sep 2011 11:31:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH -mm] limit direct reclaim for higher order allocations
+References: <20110926095507.34a2c48c@annuminas.surriel.com> <20110926150212.GB11313@suse.de>
+In-Reply-To: <20110926150212.GB11313@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 26 Sep 2011, Gilad Ben-Yossef wrote:
+On 09/26/2011 11:02 AM, Mel Gorman wrote:
 
-> I do not know if these scenarios warrant the additional overhead,
-> certainly not in all situations. Maybe the right thing is to make it a
-> config option dependent. As I stated in the patch description, that is
-> one of the thing I'm interested in feedback on.
+> I don't have a proper patch prepared but I think it is a mistake for
+> reclaim and compaction to be using different logic when deciding
+> if action should be taken. Compaction uses compaction_suitable()
+> and compaction_deferred() to decide whether it should compact or not
+> and reclaim/compaction should share the same logic. I don't have a
+> proper patch but the check would look something like;
 
-The flushing of the per cpu pages only done when kmem_cache_shrink() is
-run or when a slab cache is closed. And for diagnostics. So its rare and
-not performance critical.
+Mel and I just hashed out the details on IRC.
 
+I'm building a test kernel with the new logic now and will
+post an updated patch if everything works as expected.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
