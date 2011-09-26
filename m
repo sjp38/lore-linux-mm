@@ -1,280 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE6F9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:19:20 -0400 (EDT)
-Message-ID: <4E81084F.9010208@parallels.com>
-Date: Mon, 26 Sep 2011 20:18:39 -0300
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/7] Basic kernel memory functionality for the Memory
- Controller
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-2-git-send-email-glommer@parallels.com> <20110926193451.b419f630.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110926193451.b419f630.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B77679000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 19:33:47 -0400 (EDT)
+Date: Mon, 26 Sep 2011 16:11:36 -0700
+From: Andrew Morton <akpm@google.com>
+Subject: Re: [patch] mm: remove sysctl to manually rescue unevictable pages
+Message-Id: <20110926161136.b4508ecb.akpm@google.com>
+In-Reply-To: <20110926112944.GC14333@redhat.com>
+References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com>
+	<20110926112944.GC14333@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Kautuk Consul <consul.kautuk@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/26/2011 07:34 AM, KAMEZAWA Hiroyuki wrote:
-> On Sun, 18 Sep 2011 21:56:39 -0300
-> Glauber Costa<glommer@parallels.com>  wrote:
->
->> This patch lays down the foundation for the kernel memory component
->> of the Memory Controller.
->>
->> As of today, I am only laying down the following files:
->>
->>   * memory.independent_kmem_limit
->>   * memory.kmem.limit_in_bytes (currently ignored)
->>   * memory.kmem.usage_in_bytes (always zero)
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: Paul Menage<paul@paulmenage.org>
->> CC: Greg Thelen<gthelen@google.com>
->
-> I'm sorry that my slow review is delaying you.
->
->
->> ---
->>   Documentation/cgroups/memory.txt |   30 +++++++++-
->>   init/Kconfig                     |   11 ++++
->>   mm/memcontrol.c                  |  115 ++++++++++++++++++++++++++++++++++++--
->>   3 files changed, 148 insertions(+), 8 deletions(-)
->>
->> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
->> index 6f3c598..6f1954a 100644
->> --- a/Documentation/cgroups/memory.txt
->> +++ b/Documentation/cgroups/memory.txt
->> @@ -44,8 +44,9 @@ Features:
->>    - oom-killer disable knob and oom-notifier
->>    - Root cgroup has no limit controls.
->>
->> - Kernel memory and Hugepages are not under control yet. We just manage
->> - pages on LRU. To add more controls, we have to take care of performance.
->> + Hugepages is not under control yet. We just manage pages on LRU. To add more
->> + controls, we have to take care of performance. Kernel memory support is work
->> + in progress, and the current version provides basically functionality.
->>
->>   Brief summary of control files.
->>
->> @@ -56,8 +57,11 @@ Brief summary of control files.
->>   				 (See 5.5 for details)
->>    memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
->>   				 (See 5.5 for details)
->> + memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
->> +				 (See 2.7 for details)
->>    memory.limit_in_bytes		 # set/show limit of memory usage
->>    memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
->> + memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
->>    memory.failcnt			 # show the number of memory usage hits limits
->>    memory.memsw.failcnt		 # show the number of memory+Swap hits limits
->>    memory.max_usage_in_bytes	 # show max memory usage recorded
->> @@ -72,6 +76,9 @@ Brief summary of control files.
->>    memory.oom_control		 # set/show oom controls.
->>    memory.numa_stat		 # show the number of memory usage per numa node
->>
->> + memory.independent_kmem_limit	 # select whether or not kernel memory limits are
->> +				   independent of user limits
->> +
->>   1. History
->>
->>   The memory controller has a long history. A request for comments for the memory
->> @@ -255,6 +262,25 @@ When oom event notifier is registered, event will be delivered.
->>     per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
->>     zone->lru_lock, it has no lock of its own.
->>
->> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
->> +
->> + With the Kernel memory extension, the Memory Controller is able to limit
->> +the amount of kernel memory used by the system. Kernel memory is fundamentally
->> +different than user memory, since it can't be swapped out, which makes it
->> +possible to DoS the system by consuming too much of this precious resource.
->> +Kernel memory limits are not imposed for the root cgroup.
->> +
->> +Memory limits as specified by the standard Memory Controller may or may not
->> +take kernel memory into consideration. This is achieved through the file
->> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
->> +memory to be controlled separately.
->> +
->> +When kernel memory limits are not independent, the limit values set in
->> +memory.kmem files are ignored.
->> +
->> +Currently no soft limit is implemented for kernel memory. It is future work
->> +to trigger slab reclaim when those limits are reached.
->> +
->>   3. User Interface
->>
->>   0. Configuration
->> diff --git a/init/Kconfig b/init/Kconfig
->> index d627783..49e5839 100644
->> --- a/init/Kconfig
->> +++ b/init/Kconfig
->> @@ -689,6 +689,17 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
->>   	  For those who want to have the feature enabled by default should
->>   	  select this option (if, for some reason, they need to disable it
->>   	  then swapaccount=0 does the trick).
->> +config CGROUP_MEM_RES_CTLR_KMEM
->> +	bool "Memory Resource Controller Kernel Memory accounting"
->> +	depends on CGROUP_MEM_RES_CTLR
->> +	default y
->> +	help
->> +	  The Kernel Memory extension for Memory Resource Controller can limit
->> +	  the amount of memory used by kernel objects in the system. Those are
->> +	  fundamentally different from the entities handled by the standard
->> +	  Memory Controller, which are page-based, and can be swapped. Users of
->> +	  the kmem extension can use it to guarantee that no group of processes
->> +	  will ever exhaust kernel resources alone.
->>
->>   config CGROUP_PERF
->>   	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index ebd1e86..d32e931 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -73,7 +73,11 @@ static int really_do_swap_account __initdata = 0;
->>   #define do_swap_account		(0)
->>   #endif
->>
->> -
->> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> +int do_kmem_account __read_mostly = 1;
->> +#else
->> +#define do_kmem_account		0
->> +#endif
->
->
-> Hmm, do we really need this boot option ?
->  From my experience to have swap-accounting boot option,
-> this scares us ;) I think config is enough.
->
->
->
->
->>   /*
->>    * Statistics for memory cgroup.
->>    */
->> @@ -270,6 +274,10 @@ struct mem_cgroup {
->>   	 */
->>   	struct res_counter memsw;
->>   	/*
->> +	 * the counter to account for kmem usage.
->> +	 */
->> +	struct res_counter kmem;
->> +	/*
->>   	 * Per cgroup active and inactive list, similar to the
->>   	 * per zone LRU lists.
->>   	 */
->> @@ -321,6 +329,11 @@ struct mem_cgroup {
->>   	 */
->>   	unsigned long 	move_charge_at_immigrate;
->>   	/*
->> +	 * Should kernel memory limits be stabilished independently
->> +	 * from user memory ?
->> +	 */
->> +	int		kmem_independent;
->> +	/*
->>   	 * percpu counter.
->>   	 */
->>   	struct mem_cgroup_stat_cpu *stat;
->> @@ -388,9 +401,14 @@ enum charge_type {
->>   };
->>
->>   /* for encoding cft->private value on file */
->> -#define _MEM			(0)
->> -#define _MEMSWAP		(1)
->> -#define _OOM_TYPE		(2)
->> +
->> +enum mem_type {
->> +	_MEM = 0,
->> +	_MEMSWAP,
->> +	_OOM_TYPE,
->> +	_KMEM,
->> +};
->> +
->
-> ok, nice clean up.
->
->
->>   #define MEMFILE_PRIVATE(x, val)	(((x)<<  16) | (val))
->>   #define MEMFILE_TYPE(val)	(((val)>>  16)&  0xffff)
->>   #define MEMFILE_ATTR(val)	((val)&  0xffff)
->> @@ -3943,10 +3961,15 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
->>   	u64 val;
->>
->>   	if (!mem_cgroup_is_root(mem)) {
->> +		val = 0;
->> +		if (!mem->kmem_independent)
->> +			val = res_counter_read_u64(&mem->kmem, RES_USAGE);
->
->>   		if (!swap)
->> -			return res_counter_read_u64(&mem->res, RES_USAGE);
->> +			val += res_counter_read_u64(&mem->res, RES_USAGE);
->>   		else
->> -			return res_counter_read_u64(&mem->memsw, RES_USAGE);
->> +			val += res_counter_read_u64(&mem->memsw, RES_USAGE);
->> +
->> +		return val;
->>   	}
->>
->>   	val = mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_CACHE);
->> @@ -3979,6 +4002,10 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
->>   		else
->>   			val = res_counter_read_u64(&mem->memsw, name);
->>   		break;
->> +	case _KMEM:
->> +		val = res_counter_read_u64(&mem->kmem, name);
->> +		break;
->> +
->>   	default:
->>   		BUG();
->>   		break;
->> @@ -4756,6 +4783,21 @@ static int mem_cgroup_reset_vmscan_stat(struct cgroup *cgrp,
->>   	return 0;
->>   }
->>
->> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> +static u64 kmem_limit_independent_read(struct cgroup *cont, struct cftype *cft)
->> +{
->> +	return mem_cgroup_from_cont(cont)->kmem_independent;
->> +}
->> +
->> +static int kmem_limit_independent_write(struct cgroup *cont, struct cftype *cft,
->> +					u64 val)
->> +{
->> +	cgroup_lock();
->> +	mem_cgroup_from_cont(cont)->kmem_independent = !!val;
->> +	cgroup_unlock();
->
-> Hm. This code allows that parent/child can have different settings.
-> Could you add parent-child check as..
->
-> "If parent sets use_hierarchy==1, children must have the same kmem_independent value
-> with parant's one."
->
-> How do you think ? I think a hierarchy must have the same config.
-BTW, Kame:
+On Mon, 26 Sep 2011 13:29:45 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-Look again (I forgot myself when I first replied to you)
-Only in the root cgroup those files get registered.
-So shouldn't be a problem, because children won't even
-be able to see them.
+> On Sun, Sep 25, 2011 at 04:29:40PM +0530, Kautuk Consul wrote:
+> > write_scan_unavictable_node checks the value req returned by
+> > strict_strtoul and returns 1 if req is 0.
+> > 
+> > However, when strict_strtoul returns 0, it means successful conversion
+> > of buf to unsigned long.
+> > 
+> > Due to this, the function was not proceeding to scan the zones for
+> > unevictable pages even though we write a valid value to the 
+> > scan_unevictable_pages sys file.
+> 
+> Given that there is not a real reason for this knob (anymore) and that
+> it apparently never really worked since the day it was introduced, how
+> about we just drop all that code instead?
+> 
 
-Do you agree with this ?
+Yes, let's remove it if at all possible.
 
->
-> BTW...I don't like naming a little ;)
->
-> memory->consolidated/shared/?????_kmem_accounting ?
-> Or
-> memory->kmem_independent_accounting ?
->
-> or some better naming ?
->
-> Thanks,
-> -Kame
->
+However, to be nice to people I do think we should emit a once-per-boot
+printk when someone tries to use it, then remove it for real at least a
+couple of kernel cycles later.  Just in case someone's script or tuning
+app is trying to open that procfs file.
+
+> 
+> ---
+> From: Johannes Weiner <jweiner@redhat.com>
+> Subject: mm: remove sysctl to manually rescue unevictable pages
+> 
+> At one point, anonymous pages were supposed to go on the unevictable
+> list when no swap space was configured, and the idea was to manually
+> rescue those pages after adding swap and making them evictable again.
+> But nowadays, swap-backed pages on the anon LRU list are not scanned
+> without available swap space anyway, so there is no point in moving
+> them to a separate list anymore.
+> 
+> The manual rescue could also be used in case pages were stranded on
+> the unevictable list due to race conditions.  But the code has been
+> around for a while now and newly discovered bugs should be properly
+> reported and dealt with instead of relying on such a manual fixup.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+
+The changelog failed to note that the sysctl doesn't actually *work*. 
+This is a pretty strong argument for removing it ;)
+
+Also, a reported-by:Kautuk would have been nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
