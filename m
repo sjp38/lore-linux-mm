@@ -1,188 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA509000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:44:31 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 26 Sep 2011 09:40:46 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8QDcpSr196744
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:38:51 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8QDckw7012948
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:38:47 -0300
-Date: Mon, 26 Sep 2011 18:53:37 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 3/26]   Uprobes: register/unregister
- probes.
-Message-ID: <20110926132337.GA13535@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
- <1317042900.1763.7.camel@twins>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A25449000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 09:49:08 -0400 (EDT)
+Received: by gwaa12 with SMTP id a12so6325418gwa.14
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 06:49:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1317042900.1763.7.camel@twins>
+In-Reply-To: <CAOtvUMdfGsPq2aaW2SOXkVvhpOKk8nLhjKGU90YGp07w_vy9Vw@mail.gmail.com>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+	<1316940890-24138-6-git-send-email-gilad@benyossef.com>
+	<1317022420.9084.57.camel@twins>
+	<CAOtvUMeMsd0Jk1k4wP9Y+7NW3FYZZAqV1-cRj5Zt4+eaugWoPg@mail.gmail.com>
+	<1317030352.9084.76.camel@twins>
+	<CAOtvUMdfGsPq2aaW2SOXkVvhpOKk8nLhjKGU90YGp07w_vy9Vw@mail.gmail.com>
+Date: Mon, 26 Sep 2011 16:49:06 +0300
+Message-ID: <CAOtvUMeC=XMCQaa8TyyWEcE6jjb0sQr1WTKkv=orTxZ9907hPQ@mail.gmail.com>
+Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-09-26 15:15:00]:
+On Mon, Sep 26, 2011 at 3:05 PM, Gilad Ben-Yossef <gilad@benyossef.com> wrote:
 
-> On Tue, 2011-09-20 at 17:30 +0530, Srikar Dronamraju wrote:
-> 
-> > +static struct vma_info *__find_next_vma_info(struct list_head *head,
-> > +			loff_t offset, struct address_space *mapping,
-> > +			struct vma_info *vi)
-> > +{
-> > +	struct prio_tree_iter iter;
-> > +	struct vm_area_struct *vma;
-> > +	struct vma_info *tmpvi;
-> > +	loff_t vaddr;
-> > +	unsigned long pgoff = offset >> PAGE_SHIFT;
-> > +	int existing_vma;
-> > +
-> > +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-> > +		if (!vma || !valid_vma(vma))
-> > +			return NULL;
-> > +
-> > +		existing_vma = 0;
-> > +		vaddr = vma->vm_start + offset;
-> > +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-> > +		list_for_each_entry(tmpvi, head, probe_list) {
-> > +			if (tmpvi->mm == vma->vm_mm && tmpvi->vaddr == vaddr) {
-> > +				existing_vma = 1;
-> > +				break;
-> > +			}
-> > +		}
-> > +		if (!existing_vma &&
-> > +				atomic_inc_not_zero(&vma->vm_mm->mm_users)) {
-> > +			vi->mm = vma->vm_mm;
-> > +			vi->vaddr = vaddr;
-> > +			list_add(&vi->probe_list, head);
-> > +			return vi;
-> 
-> The the sole purpose of actually having that list is the above linear
-> was to test if we've already had this one?
-> 
-> Does that really matter? After all, if the probe is already installed
-> installing it again will return with -EEXIST, which should be easy
-> enough to deal with.
-> 
 
-No, There is a possibility of going in a forever loop.
-Since the the priotree can change when we drop the mapping->mutex, we
-dont pass the hint to vma_prio_tree_foreach.
-So we might keep getting the same vma again and again.
+>> The problem with a per-cpu cpumask is that you need to disable
+>> preemption over the whole for_each_online_cpu() scan and that's not
+>> really sane on very large machines as that can easily take a very long
+>> time indeed.
+>
+> hmm... I might be thick, but why disable the preemption with the
+> per-cpu cpumask at all?
+...
+>
+> Does that makes sense or have I've gone over board with this concept? :-)
 
-> > +		}
-> > +	}
-> > +	return NULL;
-> > +}
-> > +
-> > +/*
-> > + * Iterate in the rmap prio tree  and find a vma where a probe has not
-> > + * yet been inserted.
-> > + */
-> > +static struct vma_info *find_next_vma_info(struct list_head *head,
-> > +			loff_t offset, struct address_space *mapping)
-> > +{
-> > +	struct vma_info *vi, *retvi;
-> > +	vi = kzalloc(sizeof(struct vma_info), GFP_KERNEL);
-> > +	if (!vi)
-> > +		return ERR_PTR(-ENOMEM);
-> > +
-> > +	INIT_LIST_HEAD(&vi->probe_list);
-> 
-> weird place for the INIT_LIST_HEAD, I would have expected it near where
-> the rest of vi is initialized, although it looks to be superfluous
-> anyway, since list_add() can handle an uninitialized entry.
-> 
-> 
-> > +	mutex_lock(&mapping->i_mmap_mutex);
-> > +	retvi = __find_next_vma_info(head, offset, mapping, vi);
-> > +	mutex_unlock(&mapping->i_mmap_mutex);
-> > +
-> > +	if (!retvi)
-> > +		kfree(vi);
-> > +	return retvi;
-> > +}
-> > +
-> > +static int __register_uprobe(struct inode *inode, loff_t offset,
-> > +				struct uprobe *uprobe)
-> > +{
-> > +	struct list_head try_list;
-> > +	struct vm_area_struct *vma;
-> > +	struct address_space *mapping;
-> > +	struct vma_info *vi, *tmpvi;
-> > +	struct mm_struct *mm;
-> > +	int ret = 0;
-> > +
-> > +	mapping = inode->i_mapping;
-> > +	INIT_LIST_HEAD(&try_list);
-> > +	while ((vi = find_next_vma_info(&try_list, offset,
-> > +							mapping)) != NULL) {
-> > +		if (IS_ERR(vi)) {
-> > +			ret = -ENOMEM;
-> > +			break;
-> > +		}
-> 
-> Here we hold neither i_mmap_mutex nor mmap_sem, so everything can change
-> under our feet. See below..
-> 
-> > +		mm = vi->mm;
-> > +		down_read(&mm->mmap_sem);
-> > +		vma = find_vma(mm, (unsigned long) vi->vaddr);
-> > +		if (!vma || !valid_vma(vma)) {
-> 
-> No validation if its indeed the same vma you found earlier? At the very
-> least we should validate the vma returned from find_vma() is indeed a
-> mapping of the inode we're after and that the offset is still to be
-> found at vaddr.
-> 
+Scratch that. The cpumask must be per cache or the patch doesn't make
+sense at all.
+So sadly the only sane place to put it is in struct kmem_cache.
 
-Yes, this can be done.
+I think we can still update the cpumask field without caring about
+preemption for the reasons
+stated above, but the per cache memory overhead is still there I'm afraid.
 
-> > +			list_del(&vi->probe_list);
-> > +			kfree(vi);
-> > +			up_read(&mm->mmap_sem);
-> > +			mmput(mm);
-> > +			continue;
-> > +		}
-> > +		ret = install_breakpoint(mm);
-> > +		if (ret && (ret != -ESRCH || ret != -EEXIST)) {
-> > +			up_read(&mm->mmap_sem);
-> > +			mmput(mm);
-> > +			break;
-> > +		}
-> 
-> Right, so you already deal with -EEXIST, so why do we need that list at
-> all then?
-> 
-> Aah, its to make fwd progress, without it we would keep retrying the
-> same vma over and over,.. hmm?
-> 
-
-Yes.
-
-> > +		ret = 0;
-> > +		up_read(&mm->mmap_sem);
-> > +		mmput(mm);
-> > +	}
-> > +	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
-> > +		list_del(&vi->probe_list);
-> > +		kfree(vi);
-> > +	}
-> > +	return ret;
-> > +}
-> 
+Gilad
 
 -- 
-Thanks and Regards
-Srikar
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"I've seen things you people wouldn't believe. Goto statements used to
+implement co-routines. I watched C structures being stored in
+registers. All those moments will be lost in time... like tears in
+rain... Time to die. "
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
