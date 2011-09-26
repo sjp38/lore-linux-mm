@@ -1,122 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C13A9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:05:15 -0400 (EDT)
-Received: by gxk28 with SMTP id 28so1499470gxk.14
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 05:05:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1317030352.9084.76.camel@twins>
-References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
-	<1316940890-24138-6-git-send-email-gilad@benyossef.com>
-	<1317022420.9084.57.camel@twins>
-	<CAOtvUMeMsd0Jk1k4wP9Y+7NW3FYZZAqV1-cRj5Zt4+eaugWoPg@mail.gmail.com>
-	<1317030352.9084.76.camel@twins>
-Date: Mon, 26 Sep 2011 15:05:12 +0300
-Message-ID: <CAOtvUMdfGsPq2aaW2SOXkVvhpOKk8nLhjKGU90YGp07w_vy9Vw@mail.gmail.com>
-Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C9B6B9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:06:56 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=UTF-8
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LS400EITPNDO930@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 26 Sep 2011 13:06:49 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LS4008S0PNDZ4@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 26 Sep 2011 13:06:49 +0100 (BST)
+Date: Mon, 26 Sep 2011 14:06:43 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 6/8] drivers: add Contiguous Memory Allocator
+In-reply-to: <1312393430.2855.51.camel@mulgrave>
+Message-id: <011c01cc7c44$c1aea3d0$450beb70$%szyprowski@samsung.com>
+Content-language: pl
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
+ <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
+ <20110705113345.GA8286@n2100.arm.linux.org.uk>
+ <201107051427.44899.arnd@arndb.de> <1312393430.2855.51.camel@mulgrave>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: 'James Bottomley' <James.Bottomley@HansenPartnership.com>, 'Arnd Bergmann' <arnd@arndb.de>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, ksummit-2011-discuss@lists.linux-foundation.org
 
-On Mon, Sep 26, 2011 at 12:45 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> On Mon, 2011-09-26 at 11:35 +0300, Gilad Ben-Yossef wrote:
->> Yes, the alloc in the flush_all path definitively needs to go. I
->> wonder if just to resolve that allocating the mask per cpu and not in
->> kmem_cache itself is not better - after all, all we need is a single
->> mask per cpu when we wish to do a flush_all and no per cache. The
->> memory overhead of that is slightly better. This doesn't cover the
->> cahce bounce issue.
->>
->> My thoughts regarding that were that since the flush_all() was a
->> rather rare operation it is preferable to do some more
->> work/interference here, if it allows us to avoid having to do more
->> work in the hotter alloc/dealloc paths, especially since it allows us
->> to have less IPIs that I figured are more intrusive then cacheline
->> steals (are they?)
->>
->> After all, for each CPU that actually needs to do a flush, we are
->> making the flush a bit more expensive because of the cache bounce just
->> before we send the IPI, but that IPI and further operations are an
->> expensive operations anyway. For CPUs that don't need to do a flush, I
->> replaced an IPI for a cacheline(s) steal. I figured it was still a
->> good bargain
+Hello,
+
+I'm sorry for the late reply. I must have missed this mail...
+
+On Wednesday, August 03, 2011 7:44 PM James Bottomley wrote:
+
+> [cc to ks-discuss added, since this may be a relevant topic]
+> 
+> On Tue, 2011-07-05 at 14:27 +0200, Arnd Bergmann wrote:
+> > On Tuesday 05 July 2011, Russell King - ARM Linux wrote:
+> > > On Tue, Jul 05, 2011 at 09:41:48AM +0200, Marek Szyprowski wrote:
+> > > > The Contiguous Memory Allocator is a set of helper functions for DMA
+> > > > mapping framework that improves allocations of contiguous memory chunks.
+> > > >
+> > > > CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
+> > > > gives back to the system. Kernel is allowed to allocate movable pages
+> > > > within CMA's managed memory so that it can be used for example for page
+> > > > cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
+> > > > request such pages are migrated out of CMA area to free required
+> > > > contiguous block and fulfill the request. This allows to allocate large
+> > > > contiguous chunks of memory at any time assuming that there is enough
+> > > > free memory available in the system.
+> > > >
+> > > > This code is heavily based on earlier works by Michal Nazarewicz.
+> > >
+> > > And how are you addressing the technical concerns about aliasing of
+> > > cache attributes which I keep bringing up with this and you keep
+> > > ignoring and telling me that I'm standing in your way.
+> 
+> Just to chime in here, parisc has an identical issue.  If the CPU ever
+> sees an alias with different attributes for the same page, it will HPMC
+> the box (that's basically the bios will kill the system as being
+> architecturally inconsistent), so an architecture neutral solution on
+> this point is essential to us as well.
 >
-> Hard to tell really, I've never really worked with these massive
-> machines, biggest I've got is 2 nodes and for that I think your
-> for_each_online_cpu() loop might indeed still be a win when compared to
-> extra accounting on the alloc/free paths.
+> > This is of course an important issue, and it's the one item listed as
+> > TODO in the introductory mail that sent.
+> >
+> > It's also a preexisting problem as far as I can tell, and it needs
+> > to be solved in __dma_alloc for both cases, dma_alloc_from_contiguous
+> > and __alloc_system_pages as introduced in patch 7.
+> >
+> > We've discussed this back and forth, and it always comes down to
+> > one of two ugly solutions:
+> >
+> > 1. Put all of the MIGRATE_CMA and pages into highmem and change
+> > __alloc_system_pages so it also allocates only from highmem pages.
+> > The consequences of this are that we always need to build kernels
+> > with highmem enabled and that we have less lowmem on systems that
+> > are already small, both of which can be fairly expensive unless
+> > you have lots of highmem already.
+> 
+> So this would require that systems using the API have a highmem? (parisc
+> doesn't today).
 
- I've worked on the SGI Altix which supports up to 1,024 cores in a
-single Linux instance, although my dev. machine
-at the time only had 32 cores, if I remember correctly,  but I still
-don't know the answer either... :-)
+Yes, such solution will require highmem. It will introduce the highmem 
+issues to systems that typically don't use highmem, that's why I searched
+for other solutions.
+ 
+> > 2. Add logic to unmap pages from the linear mapping, which is
+> > very expensive because it forces the use of small pages in the
+> > linear mapping (or in parts of it), and possibly means walking
+> > all page tables to remove the PTEs on alloc and put them back
+> > in on free.
+> >
+> > I believe that Chunsang Jeong from Linaro is planning to
+> > implement both variants and post them for review, so we can
+> > decide which one to merge, or even to merge both and make
+> > it a configuration option. See also
+> > https://blueprints.launchpad.net/linaro-mm-sig/+spec/engr-mm-dma-mapping-2011.07
+> >
+> > I don't think we need to make merging the CMA patches depending on
+> > the other patches, it's clear that both need to be solved, and
+> > they are independent enough.
+> 
+> I assume from the above that ARM has a hardware page walker?
 
-> The problem with a per-cpu cpumask is that you need to disable
-> preemption over the whole for_each_online_cpu() scan and that's not
-> really sane on very large machines as that can easily take a very long
-> time indeed.
+Right.
 
-hmm... I might be thick, but why disable the preemption with the
-per-cpu cpumask at all?
-Are you worried about re-entering flush_all()? because I don't think
-that is a problem -
+> The way I'd fix this on parisc, because we have a software based TLB, is
+> to rely on the fact that a page may only be used either for DMA or for
+> Page Cache, so the aliases should never be interleaved.  Since you know
+> the point at which the page flips from DMA to Cache (and vice versa),
+> I'd purge the TLB entry and flush the page at that point and rely on the
+> usage guarantees to ensure that the alias TLB entry doesn't reappear.
+> This isn't inexpensive but the majority of the cost is the cache flush
+> which is a requirement to clean the aliases anyway (a TLB entry purge is
+> pretty cheap).
+> 
+> Would this work for the ARM hardware walker as well?  It would require
+> you to have a TLB entry purge instruction as well as some architectural
+> guarantees about not speculating the TLB.
 
-Let's say we're in the middle of flush_all doing for_each_online_cpu
-and updating our cpumask
-and then we get preempted and go again into flush_all again. We'll run
-over whatever values we
-started to put into the cpumask and do the IPIs. When we get back to
-our original context
-we'll continue updating the tail of the cpumask and send IPIs based on
-the updated mask again.
+The main problem with ARM linear mapping is the fact that it is created 
+using 2MiB sections, so entries for kernel linear mapping fits entirely in
+first lever of process page table. This implies that direct changing this
+linear mapping is not easy task and must be performed for all tasks in the
+system. In my CMA v12+ patches I decided to use simpler way of solving this
+issue. I rely on the fact that DMA memory is allocated only from CMA regions,
+so during early boot I change the kernel linear mappings for these regions.
+Instead of 2MiB sections, I use regular 4KiB pages which create 2 level of
+page tables. Second level of page table for these regions can be easily
+shared for all processes in the system.
 
-True, we'll end up sending the IPI twice to the head of the cpumask
-(the part we managed to update
-in the first part of flush_all before the preemption), but that's
-doesn't really do any harm and it is still
-better then what we have now - in a flush_all preempting flush_all,
-we're 100% sure to double IPI all the
-processors in the system currently.
+This way I can easily update cache attributes for any single 4KiB page that
+is used for DMA and avoid any aliasing at all. The only drawback of this
+method is larger TLB pressure what might result in some slowdown during
+heavy IO if pages with 4KiB linear mapping are used. However with my 
+hardware has only slow io (with eMMC I get only about 30MiB/s) so I cannot
+notice any impact of the mapping method on the io speed.
 
-Actually, continuing the same line of though - why not have only  one
-single global cpumask  that we update
-in flush_all before sending the IPI? Using the same reasoning, it
-might get updated in parallel from one
-processor when  we IPI from another or being doubly updated in
-parallel in a few - but we don't really care as
-long as cpumask_set_cpu() does its work atomically and
-on_each_cpu_mask() is OK with the cpumask
-changing under its feet (which I believe both are). We might end up
-doing the IPIs based on more updated
-values then the one that "our" for_each_online_cpu() walk calculated,
-but that isn't a problem.
-
-Sure, it will generate some cacheline bouncing for the global cpumask
-variable if several processor do flush_all()
-in parallel, but that's supposed to be rare and frankly, if more then
-one CPU is about send a bunch of cross system
-IPIs you're bound for hell more then some cacheline bouncing anyway.
-
-Does that makes sense or have I've gone over board with this concept? :-)
-
-Thanks,
-Gilad
-
+Best regards
 -- 
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+Marek Szyprowski
+Samsung Poland R&D Center
 
-"I've seen things you people wouldn't believe. Goto statements used to
-implement co-routines. I watched C structures being stored in
-registers. All those moments will be lost in time... like tears in
-rain... Time to die. "
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
