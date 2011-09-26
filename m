@@ -1,73 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C31649000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 14:29:04 -0400 (EDT)
-Date: Mon, 26 Sep 2011 20:28:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-Message-ID: <20110926182859.GA22434@tiehlicka.suse.cz>
-References: <20110825151818.GA4003@redhat.com>
- <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com>
- <20110926091440.GE10156@tiehlicka.suse.cz>
- <201109261751.40688.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201109261751.40688.rjw@sisk.pl>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id A0F8B9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 15:46:42 -0400 (EDT)
+Received: by wyf22 with SMTP id 22so7306793wyf.14
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:46:38 -0700 (PDT)
+Subject: Re: Question about memory leak detector giving false positive
+ report for net/core/flow.c
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
+References: 
+	 <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
+	 <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 26 Sep 2011 21:46:35 +0200
+Message-ID: <1317066395.2796.11.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Catalin Marinas <Catalin.Marinas@arm.com>
+Cc: Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 
-On Mon 26-09-11 17:51:40, Rafael J. Wysocki wrote:
-> On Monday, September 26, 2011, Michal Hocko wrote:
-[...]
-> > From f935ed4558c2fb033ef5c14e02b28e12a615f80e Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Fri, 16 Sep 2011 11:23:15 +0200
-> > Subject: [PATCH] oom: do not live lock on frozen tasks
+Le lundi 26 septembre 2011 A  17:50 +0100, Catalin Marinas a A(C)crit :
+> On Mon, Sep 26, 2011 at 05:32:54PM +0100, Eric Dumazet wrote:
+> > Le lundi 26 septembre 2011 A  23:17 +0800, Huajun Li a A(C)crit :
+> > > Memory leak detector gives following memory leak report, it seems the
+> > > report is triggered by net/core/flow.c, but actually, it should be a
+> > > false positive report.
+> > > So, is there any idea from kmemleak side to fix/disable this false
+> > > positive report like this?
+> > > Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
+> ...
+> > CC lkml and percpu maintainers (Tejun Heo & Christoph Lameter ) as well
 > > 
-> > Konstantin Khlebnikov has reported (https://lkml.org/lkml/2011/8/23/45)
-> > that OOM can end up in a live lock if select_bad_process picks up a frozen
-> > task.
-> > Unfortunately we cannot mark such processes as unkillable to ignore them
-> > because we could panic the system even though there is a chance that
-> > somebody could thaw the process so we can make a forward process (e.g. a
-> > process from another cpuset or with a different nodemask).
+> > AFAIK this false positive only occurs if percpu data is allocated
+> > outside of embedded pcu space. 
 > > 
-> > Let's thaw an OOM selected frozen process right after we've sent fatal
-> > signal from oom_kill_task.
-> > Thawing is safe if the frozen task doesn't access any suspended device
-> > (e.g. by ioctl) on the way out to the userspace where we handle the
-> > signal and die. Note, we are not interested in the kernel threads because
-> > they are not oom killable.
+> >  (grep pcpu_get_vm_areas /proc/vmallocinfo)
 > > 
-> > Accessing suspended devices by a userspace processes shouldn't be an
-> > issue because devices are suspended only after userspace is already
-> > frozen and oom is disabled at that time.
+> > I suspect this is a percpu/kmemleak cooperation problem (a missing
+> > kmemleak_alloc() ?)
 > > 
-> > run_guest (drivers/lguest/core.c) calls try_to_freeze with an user
-> > context but it seems it is able to cope with signals because it
-> > explicitly checks for pending signals so we should be safe.
-> > 
-> > Other than that userspace accesses the fridge only from the
-> > signal handling routines so we are able to handle SIGKILL without any
-> > negative side effects.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > I am pretty sure kmemleak_not_leak() is not the right answer to this
+> > problem.
 > 
-> Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+> kmemleak_not_leak() definitely not the write answer. The alloc_percpu()
+> call does not have any kmemleak_alloc() callback, so it doesn't scan
+> them.
+> 
+> Huajun, could you please try the patch below:
+> 
+> 8<--------------------------------
+> kmemleak: Handle percpu memory allocation
+> 
+> From: Catalin Marinas <catalin.marinas@arm.com>
+> 
+> This patch adds kmemleak callbacks from the percpu allocator, reducing a
+> number of false positives caused by kmemleak not scanning such memory
+> blocks.
+> 
+> Reported-by: Huajun Li <huajun.li.lee@gmail.com>
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> ---
+>  mm/percpu.c |   11 +++++++++--
+>  1 files changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index bf80e55..c47a90b 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -67,6 +67,7 @@
+>  #include <linux/spinlock.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/workqueue.h>
+> +#include <linux/kmemleak.h>
+>  
+>  #include <asm/cacheflush.h>
+>  #include <asm/sections.h>
+> @@ -833,7 +834,9 @@ fail_unlock_mutex:
+>   */
+>  void __percpu *__alloc_percpu(size_t size, size_t align)
+>  {
+> -	return pcpu_alloc(size, align, false);
+> +	void __percpu *ptr = pcpu_alloc(size, align, false);
+> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> +	return ptr;
+>  }
+>  EXPORT_SYMBOL_GPL(__alloc_percpu);
+>  
+> @@ -855,7 +858,9 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
+>   */
+>  void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
+>  {
+> -	return pcpu_alloc(size, align, true);
+> +	void __percpu *ptr = pcpu_alloc(size, align, true);
+> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> +	return ptr;
+>  }
+>  
+>  /**
+> @@ -915,6 +920,8 @@ void free_percpu(void __percpu *ptr)
+>  	if (!ptr)
+>  		return;
+>  
+> +	kmemleak_free(ptr);
+> +
+>  	addr = __pcpu_ptr_to_addr(ptr);
+>  
+>  	spin_lock_irqsave(&pcpu_lock, flags);
+> 
 
-Thanks.
+Hmm, you need to call kmemleak_alloc() for each chunk allocated per
+possible cpu.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Here is the (untested) patch for the allocation phase, need the same at
+freeing time
+
+diff --git a/mm/percpu-km.c b/mm/percpu-km.c
+index 89633fe..5061ac5 100644
+--- a/mm/percpu-km.c
++++ b/mm/percpu-km.c
+@@ -37,9 +37,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
+ {
+ 	unsigned int cpu;
+ 
+-	for_each_possible_cpu(cpu)
+-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
++	for_each_possible_cpu(cpu) {
++		void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
+ 
++		kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
++		memset(chunk_addr, 0, size);
++	}
+ 	return 0;
+ }
+ 
+diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
+index ea53496..0d397cc 100644
+--- a/mm/percpu-vm.c
++++ b/mm/percpu-vm.c
+@@ -342,8 +342,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
+ 	/* commit new bitmap */
+ 	bitmap_copy(chunk->populated, populated, pcpu_unit_pages);
+ clear:
+-	for_each_possible_cpu(cpu)
+-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
++	for_each_possible_cpu(cpu) {
++		void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
++
++		kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
++		memset(chunk_addr, 0, size);
++	}
+ 	return 0;
+ 
+ err_unmap:
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
