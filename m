@@ -1,162 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A0F8B9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 15:46:42 -0400 (EDT)
-Received: by wyf22 with SMTP id 22so7306793wyf.14
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:46:38 -0700 (PDT)
-Subject: Re: Question about memory leak detector giving false positive
- report for net/core/flow.c
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
-References: 
-	 <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
-	 <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 26 Sep 2011 21:46:35 +0200
-Message-ID: <1317066395.2796.11.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with ESMTP id 5735E9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 16:00:07 -0400 (EDT)
+Message-ID: <4E80D9B2.3010404@redhat.com>
+Date: Mon, 26 Sep 2011 12:59:46 -0700
+From: Josh Stone <jistone@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com> <20110920171310.GC27959@stefanha-thinkpad.localdomain> <20110920181225.GA5149@infradead.org> <20110920205317.GA1508@stefanha-think <20110923165132.GA23870@stefanha-thinkpad.localdomain>
+In-Reply-To: <20110923165132.GA23870@stefanha-thinkpad.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <Catalin.Marinas@arm.com>
-Cc: Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, SystemTap <systemtap@sourceware.org>
 
-Le lundi 26 septembre 2011 A  17:50 +0100, Catalin Marinas a A(C)crit :
-> On Mon, Sep 26, 2011 at 05:32:54PM +0100, Eric Dumazet wrote:
-> > Le lundi 26 septembre 2011 A  23:17 +0800, Huajun Li a A(C)crit :
-> > > Memory leak detector gives following memory leak report, it seems the
-> > > report is triggered by net/core/flow.c, but actually, it should be a
-> > > false positive report.
-> > > So, is there any idea from kmemleak side to fix/disable this false
-> > > positive report like this?
-> > > Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
-> ...
-> > CC lkml and percpu maintainers (Tejun Heo & Christoph Lameter ) as well
-> > 
-> > AFAIK this false positive only occurs if percpu data is allocated
-> > outside of embedded pcu space. 
-> > 
-> >  (grep pcpu_get_vm_areas /proc/vmallocinfo)
-> > 
-> > I suspect this is a percpu/kmemleak cooperation problem (a missing
-> > kmemleak_alloc() ?)
-> > 
-> > I am pretty sure kmemleak_not_leak() is not the right answer to this
-> > problem.
-> 
-> kmemleak_not_leak() definitely not the write answer. The alloc_percpu()
-> call does not have any kmemleak_alloc() callback, so it doesn't scan
-> them.
-> 
-> Huajun, could you please try the patch below:
-> 
-> 8<--------------------------------
-> kmemleak: Handle percpu memory allocation
-> 
-> From: Catalin Marinas <catalin.marinas@arm.com>
-> 
-> This patch adds kmemleak callbacks from the percpu allocator, reducing a
-> number of false positives caused by kmemleak not scanning such memory
-> blocks.
-> 
-> Reported-by: Huajun Li <huajun.li.lee@gmail.com>
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> ---
->  mm/percpu.c |   11 +++++++++--
->  1 files changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/percpu.c b/mm/percpu.c
-> index bf80e55..c47a90b 100644
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -67,6 +67,7 @@
->  #include <linux/spinlock.h>
->  #include <linux/vmalloc.h>
->  #include <linux/workqueue.h>
-> +#include <linux/kmemleak.h>
->  
->  #include <asm/cacheflush.h>
->  #include <asm/sections.h>
-> @@ -833,7 +834,9 @@ fail_unlock_mutex:
->   */
->  void __percpu *__alloc_percpu(size_t size, size_t align)
->  {
-> -	return pcpu_alloc(size, align, false);
-> +	void __percpu *ptr = pcpu_alloc(size, align, false);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  EXPORT_SYMBOL_GPL(__alloc_percpu);
->  
-> @@ -855,7 +858,9 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
->   */
->  void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
->  {
-> -	return pcpu_alloc(size, align, true);
-> +	void __percpu *ptr = pcpu_alloc(size, align, true);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  
->  /**
-> @@ -915,6 +920,8 @@ void free_percpu(void __percpu *ptr)
->  	if (!ptr)
->  		return;
->  
-> +	kmemleak_free(ptr);
-> +
->  	addr = __pcpu_ptr_to_addr(ptr);
->  
->  	spin_lock_irqsave(&pcpu_lock, flags);
-> 
+On 09/23/2011 04:53 AM, Masami Hiramatsu wrote:
+>> Masami looked at this and found that SystemTap sdt.h currently requires
+>> an extra userspace memory store in order to activate probes.  Each probe
+>> has a "semaphore" 16-bit counter which applications may test before
+>> hitting the probe itself.  This is used to avoid overhead in
+>> applications that do expensive argument processing (e.g. creating
+>> strings) for probes.
+> Indeed, originally, those semaphores designed for such use cases.
+> However, some applications *always* use it (e.g. qemu-kvm).
 
-Hmm, you need to call kmemleak_alloc() for each chunk allocated per
-possible cpu.
+I found that qemu-kvm generates its tracepoints like this:
 
-Here is the (untested) patch for the allocation phase, need the same at
-freeing time
+  static inline void trace_$name($args) {
+      if (QEMU_${nameupper}_ENABLED()) {
+          QEMU_${nameupper}($argnames);
+      }
+  }
 
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index 89633fe..5061ac5 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -37,9 +37,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
- {
- 	unsigned int cpu;
- 
--	for_each_possible_cpu(cpu)
--		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-+	for_each_possible_cpu(cpu) {
-+		void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
- 
-+		kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
-+		memset(chunk_addr, 0, size);
-+	}
- 	return 0;
- }
- 
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index ea53496..0d397cc 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -342,8 +342,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
- 	/* commit new bitmap */
- 	bitmap_copy(chunk->populated, populated, pcpu_unit_pages);
- clear:
--	for_each_possible_cpu(cpu)
--		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-+	for_each_possible_cpu(cpu) {
-+		void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
-+
-+		kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
-+		memset(chunk_addr, 0, size);
-+	}
- 	return 0;
- 
- err_unmap:
+In that case, the $args are always computed to call the inline, so
+you'll basically just get a memory read, jump, NOP.  There's no benefit
+from checking ENABLED() here, and removing it would leave only the NOP.
+ Even if you invent an improved mechanism for ENABLED(), that doesn't
+change the fact that it's doing useless work here.
+
+So in this case, it may be better to patch qemu, assuming my statements
+hold for DTrace's implementation on other platforms too.  The ENABLED()
+guard still does have other genuine uses though, as with the string
+preparation in Python's probes.
 
 
+On 09/23/2011 09:51 AM, Stefan Hajnoczi wrote:
+>> I'm not sure that we should stick on the current implementation
+>> of the sdt.h. I think we'd better modify the sdt.h to replace
+>> such semaphores with checking whether the tracepoint is changed from nop.
+> 
+> I like this option.  The only implication is that all userspace tracing
+> needs to go through uprobes if we want to support multiple consumers
+> tracing the same address.
+
+This limitation is practically true already, since sharing consumers
+have to negotiate the breakpoint anyway.
+
+If we can find a better way to handle semaphores, we at systemtap will
+welcome sdt.h improvements.  On the face of it, checking one's own NOP
+for modification sounds pretty elegant, but I'm not convinced that it's
+possible in practice.
+
+For one, it requires arch specific knowledge in sdt.h of what the NOP or
+breakpoint looks like, whereas sdt.h currently only knows whether to use
+NOP or NOP 0, without knowledge of how that's encoded.  And this gets
+trickier with archs like IA64 where you're part of a bundle.  So this
+much is hard, but not impossible.
+
+Another issue is that there's not an easy compile-time correlation
+between semaphore checks and probe locations, nor is it necessarily a
+1:1 mapping.  The FOO_ENABLED() and PROBE_FOO() code blocks are
+distinct, and the compiler can do many tricks with them, loop unrolling,
+function specialization, etc.  And if we start placing constraints to
+prevent this, then I think we'll be impacting code-gen of the
+application more than we'd like.
+
+So, I invite sdt.h prototypes of the nop check, but I'm skeptical...
+
+>> Or, we can introduce an add-hoc ptrace code to perftools for modifying
+>> those semaphores. However, this means that user always has to use
+>> perf to trace applications, and it's hard to trace multiple applications
+>> at a time (can we attach all of them?)...
+> 
+> I don't think perf needs to stay attached to the processes.  It just
+> needs to increment the semaphores on startup and decrement them on
+> shutdown.
+
+You're still relying on getting in there twice, but ptrace could be busy
+either or both times.  Plus you could inadvertently block any of the
+other legitimate ptrace apps, especially if doing systemwide probing.
+
+FWIW, the counter-semaphore is really only useful for the case where the
+breakpoint is placed centrally (by uprobes), but the semaphore is
+managed by each separate consumer.  In that case each consumer can
+inc/dec their presence.  But if uprobes were to manage this itself, it
+basically becomes a simple flag.  So, it would do the trick to have
+uprobes take an extra inode offset as a flag to write in a 1, which is
+admittedly a bit gross, but IMO the most workable.
+
+Josh
+
+
+PS - context for the CCed systemtap list:
+https://lkml.org/lkml/2011/9/23/93
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
