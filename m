@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 403B69000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:47:13 -0400 (EDT)
-Received: by yia25 with SMTP id 25so5434652yia.14
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 23:47:11 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D78B9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:54:29 -0400 (EDT)
+Received: by yxi19 with SMTP id 19so5447713yxi.14
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 23:54:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1317001924.29510.160.camel@sli10-conroe>
+In-Reply-To: <1316940890-24138-6-git-send-email-gilad@benyossef.com>
 References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
-	<1316940890-24138-5-git-send-email-gilad@benyossef.com>
-	<1317001924.29510.160.camel@sli10-conroe>
-Date: Mon, 26 Sep 2011 09:47:10 +0300
-Message-ID: <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
-Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
+	<1316940890-24138-6-git-send-email-gilad@benyossef.com>
+Date: Mon, 26 Sep 2011 09:54:27 +0300
+Message-ID: <CAOJsxLEHHJyPnCngQceRW04PLKFa3RUQEbc3rLwiOPXa7XZNeQ@mail.gmail.com>
+Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
 
-Hi Li,
+On Sun, Sep 25, 2011 at 11:54 AM, Gilad Ben-Yossef <gilad@benyossef.com> wr=
+ote:
+> Try to send IPI to flush per cpu objects back to free lists
+> to CPUs to seems to have such objects.
+>
+> The check which CPU to IPI is racy but we don't care since
+> asking a CPU without per cpu objects to flush does no
+> damage and as far as I can tell the flush_all by itself is
+> racy against allocs on remote CPUs anyway, so if you meant
+> the flush_all to be determinstic, you had to arrange for
+> locking regardless.
+>
+> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: Frederic Weisbecker <fweisbec@gmail.com>
+> CC: Russell King <linux@arm.linux.org.uk>
+> CC: Chris Metcalf <cmetcalf@tilera.com>
+> CC: linux-mm@kvack.org
+> CC: Christoph Lameter <cl@linux-foundation.org>
+> CC: Pekka Enberg <penberg@kernel.org>
+> CC: Matt Mackall <mpm@selenic.com>
+> ---
+> =A0mm/slub.c | =A0 15 ++++++++++++++-
+> =A01 files changed, 14 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 9f662d7..8baae30 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1948,7 +1948,20 @@ static void flush_cpu_slab(void *d)
+>
+> =A0static void flush_all(struct kmem_cache *s)
+> =A0{
+> - =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
+> + =A0 =A0 =A0 cpumask_var_t cpus;
+> + =A0 =A0 =A0 struct kmem_cache_cpu *c;
+> + =A0 =A0 =A0 int cpu;
+> +
+> + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 c =3D per_cpu_ptr(s->cpu_sl=
+ab, cpu);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (c && c->page)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_set=
+_cpu(cpu, cpus);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu_mask(cpus, flush_cpu_slab, s, 1=
+);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cpumask_var(cpus);
+> + =A0 =A0 =A0 } else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
+> =A0}
 
-Thank you for the feedback!
+AFAICT, flush_all() isn't all that performance sensitive. Why do we
+want to reduce IPIs here? Also, I'm somewhat unhappy about introducing
+memory allocations in memory shrinking code paths. If we really want
+to do this, can we preallocate cpumask in struct kmem_cache, for
+example?
 
-On Mon, Sep 26, 2011 at 4:52 AM, Shaohua Li <shaohua.li@intel.com> wrote:
-> On Sun, 2011-09-25 at 16:54 +0800, Gilad Ben-Yossef wrote:
->> Use a cpumask to track CPUs with per-cpu pages in any zone
->> and only send an IPI requesting CPUs to drain these pages
->> to the buddy allocator if they actually have pages.
-> Did you have evaluation why the fine-grained ipi is required? I suppose
-> every CPU has local pages here.
-
-
-I have given it a lot of though and I believe It's a question of work
-load - in a "classic" symmetric work load on a small SMP system I
-would indeed expect each CPU to have a per cpu pages cache in some
-zone.  However, we are seeing more and more push towards massively
-multi core systems and we add support for using them (e.g. cpusets,
-Frederic's dynamic tick task patch set etc.). For these work loads,
-things can be different:
-
-In a system where you have many core (or hardware threads) and you
-dedicate processors to run a singe CPU bound task that performs
-virtually no system calls (quite typical for some high performance
-computing set ups), you can very well have situations where the per
-cpu released page is empty on many processors, since the working set
-per cpu rarely changes, so there was now release since the last drain.
-
-Or just consider a multicore machine where a lot of processors are
-simply idle with no activity (and we now have cores with 8 cores / 128
-hw threads in a single package) - again, no per CPU local page cache
-since there was 0 activity since the last drain, but the IPI will be
-yanking cores out of low power states to do the check.
-
-I do not know if these scenarios warrant the additional overhead,
-certainly not in all situations. Maybe the right thing is to make it a
-config option dependent. As I stated in the patch description, that is
-one of the thing I'm interested in feedback on.
-
-Thanks,
-Gilad
-
--- 
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"I've seen things you people wouldn't believe. Goto statements used to
-implement co-routines. I watched C structures being stored in
-registers. All those moments will be lost in time... like tears in
-rain... Time to die. "
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
