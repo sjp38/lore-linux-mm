@@ -1,150 +1,329 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C9B6B9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:06:56 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=UTF-8
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LS400EITPNDO930@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 26 Sep 2011 13:06:49 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LS4008S0PNDZ4@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 26 Sep 2011 13:06:49 +0100 (BST)
-Date: Mon, 26 Sep 2011 14:06:43 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-In-reply-to: <1312393430.2855.51.camel@mulgrave>
-Message-id: <011c01cc7c44$c1aea3d0$450beb70$%szyprowski@samsung.com>
-Content-language: pl
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
- <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
- <20110705113345.GA8286@n2100.arm.linux.org.uk>
- <201107051427.44899.arnd@arndb.de> <1312393430.2855.51.camel@mulgrave>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E64CD9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 08:10:55 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so5230575wwi.26
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 05:10:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110926112944.GC14333@redhat.com>
+References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com>
+	<20110926112944.GC14333@redhat.com>
+Date: Mon, 26 Sep 2011 17:40:52 +0530
+Message-ID: <CAFPAmTQPiHU8AKnQvzMM5KiQr1GnUY+Yf8PwVC6++QK8u149Ew@mail.gmail.com>
+Subject: Re: [patch] mm: remove sysctl to manually rescue unevictable pages
+From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'James Bottomley' <James.Bottomley@HansenPartnership.com>, 'Arnd Bergmann' <arnd@arndb.de>
-Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, ksummit-2011-discuss@lists.linux-foundation.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hello,
-
-I'm sorry for the late reply. I must have missed this mail...
-
-On Wednesday, August 03, 2011 7:44 PM James Bottomley wrote:
-
-> [cc to ks-discuss added, since this may be a relevant topic]
-> 
-> On Tue, 2011-07-05 at 14:27 +0200, Arnd Bergmann wrote:
-> > On Tuesday 05 July 2011, Russell King - ARM Linux wrote:
-> > > On Tue, Jul 05, 2011 at 09:41:48AM +0200, Marek Szyprowski wrote:
-> > > > The Contiguous Memory Allocator is a set of helper functions for DMA
-> > > > mapping framework that improves allocations of contiguous memory chunks.
-> > > >
-> > > > CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
-> > > > gives back to the system. Kernel is allowed to allocate movable pages
-> > > > within CMA's managed memory so that it can be used for example for page
-> > > > cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
-> > > > request such pages are migrated out of CMA area to free required
-> > > > contiguous block and fulfill the request. This allows to allocate large
-> > > > contiguous chunks of memory at any time assuming that there is enough
-> > > > free memory available in the system.
-> > > >
-> > > > This code is heavily based on earlier works by Michal Nazarewicz.
-> > >
-> > > And how are you addressing the technical concerns about aliasing of
-> > > cache attributes which I keep bringing up with this and you keep
-> > > ignoring and telling me that I'm standing in your way.
-> 
-> Just to chime in here, parisc has an identical issue.  If the CPU ever
-> sees an alias with different attributes for the same page, it will HPMC
-> the box (that's basically the bios will kill the system as being
-> architecturally inconsistent), so an architecture neutral solution on
-> this point is essential to us as well.
+On Mon, Sep 26, 2011 at 4:59 PM, Johannes Weiner <jweiner@redhat.com> wrote=
+:
+> On Sun, Sep 25, 2011 at 04:29:40PM +0530, Kautuk Consul wrote:
+>> write_scan_unavictable_node checks the value req returned by
+>> strict_strtoul and returns 1 if req is 0.
+>>
+>> However, when strict_strtoul returns 0, it means successful conversion
+>> of buf to unsigned long.
+>>
+>> Due to this, the function was not proceeding to scan the zones for
+>> unevictable pages even though we write a valid value to the
+>> scan_unevictable_pages sys file.
 >
-> > This is of course an important issue, and it's the one item listed as
-> > TODO in the introductory mail that sent.
-> >
-> > It's also a preexisting problem as far as I can tell, and it needs
-> > to be solved in __dma_alloc for both cases, dma_alloc_from_contiguous
-> > and __alloc_system_pages as introduced in patch 7.
-> >
-> > We've discussed this back and forth, and it always comes down to
-> > one of two ugly solutions:
-> >
-> > 1. Put all of the MIGRATE_CMA and pages into highmem and change
-> > __alloc_system_pages so it also allocates only from highmem pages.
-> > The consequences of this are that we always need to build kernels
-> > with highmem enabled and that we have less lowmem on systems that
-> > are already small, both of which can be fairly expensive unless
-> > you have lots of highmem already.
-> 
-> So this would require that systems using the API have a highmem? (parisc
-> doesn't today).
+> Given that there is not a real reason for this knob (anymore) and that
+> it apparently never really worked since the day it was introduced, how
+> about we just drop all that code instead?
+>
+> =A0 =A0 =A0 =A0Hannes
+>
+> ---
+> From: Johannes Weiner <jweiner@redhat.com>
+> Subject: mm: remove sysctl to manually rescue unevictable pages
+>
+> At one point, anonymous pages were supposed to go on the unevictable
+> list when no swap space was configured, and the idea was to manually
+> rescue those pages after adding swap and making them evictable again.
+> But nowadays, swap-backed pages on the anon LRU list are not scanned
+> without available swap space anyway, so there is no point in moving
+> them to a separate list anymore.
 
-Yes, such solution will require highmem. It will introduce the highmem 
-issues to systems that typically don't use highmem, that's why I searched
-for other solutions.
- 
-> > 2. Add logic to unmap pages from the linear mapping, which is
-> > very expensive because it forces the use of small pages in the
-> > linear mapping (or in parts of it), and possibly means walking
-> > all page tables to remove the PTEs on alloc and put them back
-> > in on free.
-> >
-> > I believe that Chunsang Jeong from Linaro is planning to
-> > implement both variants and post them for review, so we can
-> > decide which one to merge, or even to merge both and make
-> > it a configuration option. See also
-> > https://blueprints.launchpad.net/linaro-mm-sig/+spec/engr-mm-dma-mapping-2011.07
-> >
-> > I don't think we need to make merging the CMA patches depending on
-> > the other patches, it's clear that both need to be solved, and
-> > they are independent enough.
-> 
-> I assume from the above that ARM has a hardware page walker?
+Is this code only for anonymous pages ?
+It seems to look at all pages in the zone both file as well as anon.
 
-Right.
+>
+> The manual rescue could also be used in case pages were stranded on
+> the unevictable list due to race conditions. =A0But the code has been
+> around for a while now and newly discovered bugs should be properly
+> reported and dealt with instead of relying on such a manual fixup.
 
-> The way I'd fix this on parisc, because we have a software based TLB, is
-> to rely on the fact that a page may only be used either for DMA or for
-> Page Cache, so the aliases should never be interleaved.  Since you know
-> the point at which the page flips from DMA to Cache (and vice versa),
-> I'd purge the TLB entry and flush the page at that point and rely on the
-> usage guarantees to ensure that the alias TLB entry doesn't reappear.
-> This isn't inexpensive but the majority of the cost is the cache flush
-> which is a requirement to clean the aliases anyway (a TLB entry purge is
-> pretty cheap).
-> 
-> Would this work for the ARM hardware walker as well?  It would require
-> you to have a TLB entry purge instruction as well as some architectural
-> guarantees about not speculating the TLB.
+What you say seems to be all right for anon pages, but what about file
+pages ?
+I'm not sure about how this could happen, but what if some file-system caus=
+ed
+a file cache page to be set to evictable or reclaimable without
+actually removing
+that page from the unevictable list ?
 
-The main problem with ARM linear mapping is the fact that it is created 
-using 2MiB sections, so entries for kernel linear mapping fits entirely in
-first lever of process page table. This implies that direct changing this
-linear mapping is not easy task and must be performed for all tasks in the
-system. In my CMA v12+ patches I decided to use simpler way of solving this
-issue. I rely on the fact that DMA memory is allocated only from CMA regions,
-so during early boot I change the kernel linear mappings for these regions.
-Instead of 2MiB sections, I use regular 4KiB pages which create 2 level of
-page tables. Second level of page table for these regions can be easily
-shared for all processes in the system.
-
-This way I can easily update cache attributes for any single 4KiB page that
-is used for DMA and avoid any aliasing at all. The only drawback of this
-method is larger TLB pressure what might result in some slowdown during
-heavy IO if pages with 4KiB linear mapping are used. However with my 
-hardware has only slow io (with eMMC I get only about 30MiB/s) so I cannot
-notice any impact of the mapping method on the io speed.
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
+>
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> ---
+> =A0drivers/base/node.c =A0| =A0 =A03 -
+> =A0include/linux/swap.h | =A0 16 ------
+> =A0kernel/sysctl.c =A0 =A0 =A0| =A0 =A07 ---
+> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0| =A0130 ------------------------------=
+--------------------
+> =A04 files changed, 0 insertions(+), 156 deletions(-)
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 9e58e71..b9d6e93 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -278,8 +278,6 @@ int register_node(struct node *node, int num, struct =
+node *parent)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sysdev_create_file(&node->sysdev, &attr_di=
+stance);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sysdev_create_file_optional(&node->sysdev,=
+ &attr_vmstat);
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan_unevictable_register_node(node);
+> -
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0hugetlb_register_node(node);
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0compaction_register_node(node);
+> @@ -303,7 +301,6 @@ void unregister_node(struct node *node)
+> =A0 =A0 =A0 =A0sysdev_remove_file(&node->sysdev, &attr_distance);
+> =A0 =A0 =A0 =A0sysdev_remove_file_optional(&node->sysdev, &attr_vmstat);
+>
+> - =A0 =A0 =A0 scan_unevictable_unregister_node(node);
+> =A0 =A0 =A0 =A0hugetlb_unregister_node(node); =A0 =A0 =A0 =A0 =A0/* no-op=
+, if memoryless node */
+>
+> =A0 =A0 =A0 =A0sysdev_unregister(&node->sysdev);
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index b156e80..a6a9ee5 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -276,22 +276,6 @@ static inline int zone_reclaim(struct zone *z, gfp_t=
+ mask, unsigned int order)
+> =A0extern int page_evictable(struct page *page, struct vm_area_struct *vm=
+a);
+> =A0extern void scan_mapping_unevictable_pages(struct address_space *);
+>
+> -extern unsigned long scan_unevictable_pages;
+> -extern int scan_unevictable_handler(struct ctl_table *, int,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 void __user *, size_t *, loff_t *);
+> -#ifdef CONFIG_NUMA
+> -extern int scan_unevictable_register_node(struct node *node);
+> -extern void scan_unevictable_unregister_node(struct node *node);
+> -#else
+> -static inline int scan_unevictable_register_node(struct node *node)
+> -{
+> - =A0 =A0 =A0 return 0;
+> -}
+> -static inline void scan_unevictable_unregister_node(struct node *node)
+> -{
+> -}
+> -#endif
+> -
+> =A0extern int kswapd_run(int nid);
+> =A0extern void kswapd_stop(int nid);
+> =A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 4f057f9..0d66092 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1325,13 +1325,6 @@ static struct ctl_table vm_table[] =3D {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.extra2 =A0 =A0 =A0 =A0 =3D &one,
+> =A0 =A0 =A0 =A0},
+> =A0#endif
+> - =A0 =A0 =A0 {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .procname =A0 =A0 =A0 =3D "scan_unevictable=
+_pages",
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .data =A0 =A0 =A0 =A0 =A0 =3D &scan_unevict=
+able_pages,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .maxlen =A0 =A0 =A0 =A0 =3D sizeof(scan_une=
+victable_pages),
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .mode =A0 =A0 =A0 =A0 =A0 =3D 0644,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D scan_unevictable_hand=
+ler,
+> - =A0 =A0 =A0 },
+> =A0#ifdef CONFIG_MEMORY_FAILURE
+> =A0 =A0 =A0 =A0{
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.procname =A0 =A0 =A0 =3D "memory_failure_=
+early_kill",
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7502726..c99a097 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3396,133 +3396,3 @@ void scan_mapping_unevictable_pages(struct addres=
+s_space *mapping)
+> =A0 =A0 =A0 =A0}
+>
+> =A0}
+> -
+> -/**
+> - * scan_zone_unevictable_pages - check unevictable list for evictable pa=
+ges
+> - * @zone - zone of which to scan the unevictable list
+> - *
+> - * Scan @zone's unevictable LRU lists to check for pages that have becom=
+e
+> - * evictable. =A0Move those that have to @zone's inactive list where the=
+y
+> - * become candidates for reclaim, unless shrink_inactive_zone() decides
+> - * to reactivate them. =A0Pages that are still unevictable are rotated
+> - * back onto @zone's unevictable list.
+> - */
+> -#define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch si=
+ze */
+> -static void scan_zone_unevictable_pages(struct zone *zone)
+> -{
+> - =A0 =A0 =A0 struct list_head *l_unevictable =3D &zone->lru[LRU_UNEVICTA=
+BLE].list;
+> - =A0 =A0 =A0 unsigned long scan;
+> - =A0 =A0 =A0 unsigned long nr_to_scan =3D zone_page_state(zone, NR_UNEVI=
+CTABLE);
+> -
+> - =A0 =A0 =A0 while (nr_to_scan > 0) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long batch_size =3D min(nr_to_scan=
+,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 SCAN_UNEVICTABLE_BATCH_SIZE);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock_irq(&zone->lru_lock);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (scan =3D 0; =A0scan < batch_size; scan=
+++) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *page =3D lru_t=
+o_page(l_unevictable);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!trylock_page(page))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 prefetchw_prev_lru_page(pag=
+e, l_unevictable, flags);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (likely(PageLRU(page) &&=
+ PageUnevictable(page)))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 check_move_=
+unevictable_page(page, zone);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unlock_page(page);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock_irq(&zone->lru_lock);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_to_scan -=3D batch_size;
+> - =A0 =A0 =A0 }
+> -}
+> -
+> -
+> -/**
+> - * scan_all_zones_unevictable_pages - scan all unevictable lists for evi=
+ctable pages
+> - *
+> - * A really big hammer: =A0scan all zones' unevictable LRU lists to chec=
+k for
+> - * pages that have become evictable. =A0Move those back to the zones'
+> - * inactive list where they become candidates for reclaim.
+> - * This occurs when, e.g., we have unswappable pages on the unevictable =
+lists,
+> - * and we add swap to the system. =A0As such, it runs in the context of =
+a task
+> - * that has possibly/probably made some previously unevictable pages
+> - * evictable.
+> - */
+> -static void scan_all_zones_unevictable_pages(void)
+> -{
+> - =A0 =A0 =A0 struct zone *zone;
+> -
+> - =A0 =A0 =A0 for_each_zone(zone) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan_zone_unevictable_pages(zone);
+> - =A0 =A0 =A0 }
+> -}
+> -
+> -/*
+> - * scan_unevictable_pages [vm] sysctl handler. =A0On demand re-scan of
+> - * all nodes' unevictable lists for evictable pages
+> - */
+> -unsigned long scan_unevictable_pages;
+> -
+> -int scan_unevictable_handler(struct ctl_table *table, int write,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void __user *buffer,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0size_t *length, loff=
+_t *ppos)
+> -{
+> - =A0 =A0 =A0 proc_doulongvec_minmax(table, write, buffer, length, ppos);
+> -
+> - =A0 =A0 =A0 if (write && *(unsigned long *)table->data)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan_all_zones_unevictable_pages();
+> -
+> - =A0 =A0 =A0 scan_unevictable_pages =3D 0;
+> - =A0 =A0 =A0 return 0;
+> -}
+> -
+> -#ifdef CONFIG_NUMA
+> -/*
+> - * per node 'scan_unevictable_pages' attribute. =A0On demand re-scan of
+> - * a specified node's per zone unevictable lists for evictable pages.
+> - */
+> -
+> -static ssize_t read_scan_unevictable_node(struct sys_device *dev,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 struct sysdev_attribute *attr,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 char *buf)
+> -{
+> - =A0 =A0 =A0 return sprintf(buf, "0\n"); =A0 =A0 /* always zero; should =
+fit... */
+> -}
+> -
+> -static ssize_t write_scan_unevictable_node(struct sys_device *dev,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0struct sysdev_attribute *attr,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 const char *buf, size_t count)
+> -{
+> - =A0 =A0 =A0 struct zone *node_zones =3D NODE_DATA(dev->id)->node_zones;
+> - =A0 =A0 =A0 struct zone *zone;
+> - =A0 =A0 =A0 unsigned long res;
+> - =A0 =A0 =A0 unsigned long req =3D strict_strtoul(buf, 10, &res);
+> -
+> - =A0 =A0 =A0 if (!req)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 1; =A0 =A0 =A0 /* zero is no-op */
+> -
+> - =A0 =A0 =A0 for (zone =3D node_zones; zone - node_zones < MAX_NR_ZONES;=
+ ++zone) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!populated_zone(zone))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan_zone_unevictable_pages(zone);
+> - =A0 =A0 =A0 }
+> - =A0 =A0 =A0 return 1;
+> -}
+> -
+> -
+> -static SYSDEV_ATTR(scan_unevictable_pages, S_IRUGO | S_IWUSR,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 read_scan_unevictable_node,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 write_scan_unevictable_node=
+);
+> -
+> -int scan_unevictable_register_node(struct node *node)
+> -{
+> - =A0 =A0 =A0 return sysdev_create_file(&node->sysdev, &attr_scan_unevict=
+able_pages);
+> -}
+> -
+> -void scan_unevictable_unregister_node(struct node *node)
+> -{
+> - =A0 =A0 =A0 sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pa=
+ges);
+> -}
+> -#endif
+> --
+> 1.7.6.2
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
