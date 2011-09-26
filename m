@@ -1,76 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C3CDA9000BD
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2011 22:24:34 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F3E053EE0C1
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:24:27 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D53FE45DE6A
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:24:27 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC25045DE81
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:24:27 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A6FB91DB8041
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:24:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D43C1DB803A
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 11:24:27 +0900 (JST)
-Date: Mon, 26 Sep 2011 11:23:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European
- LinuxCon in Prague
-Message-Id: <20110926112337.f713ad8c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1316693805.10571.25.camel@dabdike>
-References: <1316693805.10571.25.camel@dabdike>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D5F79000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 02:17:40 -0400 (EDT)
+Received: by bkbzs2 with SMTP id zs2so7008540bkb.14
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2011 23:17:37 -0700 (PDT)
+Date: Mon, 26 Sep 2011 09:17:29 +0300 (EEST)
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [RFC][PATCH] slab: fix caller tracking on
+ CONFIG_OPTIMIZE_INLINING.
+In-Reply-To: <201109241208.IEH26037.FtSVLJOOQHMFFO@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.LFD.2.02.1109260917080.1943@tux.localdomain>
+References: <201109241208.IEH26037.FtSVLJOOQHMFFO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <jbottomley@parallels.com>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: cl@linux-foundation.org, mpm@selenic.com, vegard.nossum@gmail.com, dmonakhov@openvz.org, catalin.marinas@arm.com, rientjes@google.com, dfeng@redhat.com, linux-mm@kvack.org
 
-On Thu, 22 Sep 2011 12:16:47 +0000
-James Bottomley <jbottomley@parallels.com> wrote:
+On Sat, 24 Sep 2011, Tetsuo Handa wrote:
+> If CONFIG_OPTIMIZE_INLINING=y, /proc/slab_allocators shows entries like
+>
+>  size-512: 5 kzalloc+0xb/0x10
+>  size-256: 31 kzalloc+0xb/0x10
+>
+> which are useless for debugging.
+> Use "__always_inline" rather than "inline" in order to make
+> /proc/slab_allocators show caller of kzalloc() if caller tracking is enabled.
+>
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ----------
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 573c809..2b745c0 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -188,6 +188,18 @@ size_t ksize(const void *);
+> #else
+> #include <linux/slab_def.h>
+> #endif
+> +/*
+> + * /proc/slab_allocator needs _RET_IP_ value. If CONFIG_OPTIMIZE_INLINING=y,
+> + * use of "inline" causes compilers to pass address of kzalloc() etc. rather
+> + * than address of caller. Thus, use "__always_inline" if _RET_IP_ value is
+> + * needed.
+> + */
+> +#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
+> +	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
+> +#define slabtrace_inline __always_inline
+> +#else
+> +#define slabtrace_inline inline
+> +#endif
+>
+> /**
+>  * kcalloc - allocate memory for an array. The memory is set to zero.
+> @@ -240,7 +252,7 @@ size_t ksize(const void *);
+>  * for general use, and so are not documented here. For a full list of
+>  * potential flags, always refer to linux/gfp.h.
+>  */
+> -static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+> +static slabtrace_inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 
-> Hi All,
-> 
-> One of the major work items that came out of the Plumbers conference
-> containers and Cgroups meeting was the need to work on memcg:
-> 
-> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
-> 
-> (see etherpad and presentations)
-> 
-> Since almost everyone will be either at KS or LinuxCon, I thought doing
-> a small meeting on the Wednesday of Linux Con (so those at KS who might
-> not be staying for the whole of LinuxCon could attend) might be a good
-> idea.  The object would be to get all the major players to agree on
-> who's doing what.  You can see Parallels' direction from the patches
-> Glauber has been posting.  Google should shortly be starting work on
-> other aspects of the memgc as well.
-> 
-> As a precursor to the meeting (and actually a requirement to make it
-> effective) we need to start posting our preliminary patches and design
-> ideas to the mm list (hint, Google people, this means you).
-> 
-I'd like to see.
+So who don't we just make these __always_inline and leave it at that?
 
-But if it's for performance improvement, please show performance numbers.
-
-
-> I think I've got all of the interested parties in the To: field, but I'm
-> sending this to the mm list just in case I missed anyone.  If everyone's
-> OK with the idea (and enough people are going to be there) I'll get the
-> Linux Foundation to find us a room.
-> 
-
-Thank you. I'll attend.
-
-Regards,
--Kame
+> {
+> 	if (size != 0 && n > ULONG_MAX / size)
+> 		return NULL;
+> @@ -258,19 +270,19 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+>  * if available. Equivalent to kmalloc() in the non-NUMA single-node
+>  * case.
+>  */
+> -static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+> +static slabtrace_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+> {
+> 	return kmalloc(size, flags);
+> }
+>
+> -static inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
+> +static slabtrace_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
+> {
+> 	return __kmalloc(size, flags);
+> }
+>
+> void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+>
+> -static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+> +static slabtrace_inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+> 					gfp_t flags, int node)
+> {
+> 	return kmem_cache_alloc(cachep, flags);
+> @@ -325,7 +337,7 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+> /*
+>  * Shortcuts
+>  */
+> -static inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
+> +static slabtrace_inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
+> {
+> 	return kmem_cache_alloc(k, flags | __GFP_ZERO);
+> }
+> @@ -335,7 +347,7 @@ static inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
+>  * @size: how many bytes of memory are required.
+>  * @flags: the type of memory to allocate (see kmalloc).
+>  */
+> -static inline void *kzalloc(size_t size, gfp_t flags)
+> +static slabtrace_inline void *kzalloc(size_t size, gfp_t flags)
+> {
+> 	return kmalloc(size, flags | __GFP_ZERO);
+> }
+> @@ -346,7 +358,7 @@ static inline void *kzalloc(size_t size, gfp_t flags)
+>  * @flags: the type of memory to allocate (see kmalloc).
+>  * @node: memory node from which to allocate
+>  */
+> -static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+> +static slabtrace_inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+> {
+> 	return kmalloc_node(size, flags | __GFP_ZERO, node);
+> }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
