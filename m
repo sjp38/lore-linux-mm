@@ -1,38 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 703509000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 03:34:11 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 836319000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 03:36:45 -0400 (EDT)
 Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 26 Sep 2011 09:33:40 +0200
-In-Reply-To: <1316940890-24138-6-git-send-email-gilad@benyossef.com>
+Date: Mon, 26 Sep 2011 09:36:05 +0200
+In-Reply-To: <CAOJsxLEHHJyPnCngQceRW04PLKFa3RUQEbc3rLwiOPXa7XZNeQ@mail.gmail.com>
 References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
 	 <1316940890-24138-6-git-send-email-gilad@benyossef.com>
+	 <CAOJsxLEHHJyPnCngQceRW04PLKFa3RUQEbc3rLwiOPXa7XZNeQ@mail.gmail.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317022420.9084.57.camel@twins>
+Message-ID: <1317022565.9084.60.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
 
-On Sun, 2011-09-25 at 11:54 +0300, Gilad Ben-Yossef wrote:
-> +       if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
-> +               for_each_online_cpu(cpu) {
-> +                       c =3D per_cpu_ptr(s->cpu_slab, cpu);
-> +                       if (c && c->page)
-> +                               cpumask_set_cpu(cpu, cpus);
-> +               }
-> +               on_each_cpu_mask(cpus, flush_cpu_slab, s, 1);
-> +               free_cpumask_var(cpus);=20
+On Mon, 2011-09-26 at 09:54 +0300, Pekka Enberg wrote:
+>=20
+> AFAICT, flush_all() isn't all that performance sensitive. Why do we
+> want to reduce IPIs here?=20
 
-Right, having to do that for_each_oneline_cpu() loop only to then IPI
-them can cause a massive cacheline bounce fest.. Ideally you'd want to
-keep a cpumask per kmem_cache, although I bet the memory overhead of
-that isn't attractive.
+Because it can wake up otherwise idle CPUs, wasting power. Or for the
+case I care more about, unnecessarily perturb a CPU that didn't actually
+have anything to flush but was running something, introducing jitter.
 
-Also, what Pekka says, having that alloc here isn't good either.
+on_each_cpu() things are bad when you have a ton of CPUs (which is
+pretty normal these days).=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
