@@ -1,68 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C13DC9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:16:04 -0400 (EDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 02D449000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:20:40 -0400 (EDT)
 Received: from /spool/local
 	by us.ibm.com with XMail ESMTP
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 26 Sep 2011 12:09:23 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8QG83CH227280
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:08:03 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8QG7xV3011776
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 10:08:00 -0600
-Date: Mon, 26 Sep 2011 21:22:52 +0530
+	Mon, 26 Sep 2011 12:18:33 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8QGGrPu192446
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:16:53 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8QGGpCo008243
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 12:16:53 -0400
+Date: Mon, 26 Sep 2011 21:31:44 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 13/26] x86: define a x86 specific
- exception notifier.
-Message-ID: <20110926155252.GA8087@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 12/26]   Uprobes: Handle breakpoint
+ and Singlestep
+Message-ID: <20110926160144.GC13535@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120238.25326.71868.sendpatchset@srdronam.in.ibm.com>
- <1317046791.1763.26.camel@twins>
+ <20110920120221.25326.74714.sendpatchset@srdronam.in.ibm.com>
+ <1317045553.1763.23.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1317046791.1763.26.camel@twins>
+In-Reply-To: <1317045553.1763.23.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-09-26 16:19:51]:
+* Peter Zijlstra <peterz@infradead.org> [2011-09-26 15:59:13]:
 
 > On Tue, 2011-09-20 at 17:32 +0530, Srikar Dronamraju wrote:
-> > @@ -820,6 +821,19 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
-> >                 mce_notify_process();
-> >  #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
-> >  
-> > +       if (thread_info_flags & _TIF_UPROBE) {
-> > +               clear_thread_flag(TIF_UPROBE);
-> > +#ifdef CONFIG_X86_32
-> > +               /*
-> > +                * On x86_32, do_notify_resume() gets called with
-> > +                * interrupts disabled. Hence enable interrupts if they
-> > +                * are still disabled.
-> > +                */
-> > +               local_irq_enable();
-> > +#endif
-> > +               uprobe_notify_resume(regs);
-> > +       }
-> > +
-> >         /* deal with pending signal delivery */
-> >         if (thread_info_flags & _TIF_SIGPENDING)
-> >                 do_signal(regs); 
+> > 						Hence provide some extra
+> > + * time (by way of synchronize_sched() for breakpoint hit threads to acquire
+> > + * the uprobes_treelock before the uprobe is removed from the rbtree. 
 > 
-> It would be good to remove this difference between i386 and x86_64.
+> 'Some extra time' doesn't make me all warm an fuzzy inside, but instead
+> screams we fudge around a race condition.
 
+The extra time provided is sufficient to avoid the race. So will modify
+it to mean "sufficient" instead of "some".   
 
-I think, we have already discussed this. I tried getting to know why we
-have this difference in behaviour. However I havent been able to find
-the answer.
-
-If you can get somebody to answer this, I would be happy to modify as
-required.
+Would that suffice?
 
 -- 
 Thanks and Regards
