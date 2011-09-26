@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0F09000C4
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:48:55 -0400 (EDT)
-Message-ID: <4E81012F.2070001@parallels.com>
-Date: Mon, 26 Sep 2011 19:48:15 -0300
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E03EA9000C4
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:50:25 -0400 (EDT)
+Message-ID: <4E810187.3000106@parallels.com>
+Date: Mon, 26 Sep 2011 19:49:43 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-5-git-send-email-glommer@parallels.com> <20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 6/7] tcp buffer limitation: per-cgroup limit
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-7-git-send-email-glommer@parallels.com> <CAHH2K0Yuji2_2pMdzEaMvRx0KE7OOaoEGT+OK4gJgTcOPKuT9g@mail.gmail.com> <4E7DDB82.3030802@parallels.com> <20110926200247.c80f7e47.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110926200247.c80f7e47.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On 09/26/2011 07:59 AM, KAMEZAWA Hiroyuki wrote:
-> On Sun, 18 Sep 2011 21:56:42 -0300
+On 09/26/2011 08:02 AM, KAMEZAWA Hiroyuki wrote:
+> On Sat, 24 Sep 2011 10:30:42 -0300
 > Glauber Costa<glommer@parallels.com>  wrote:
 >
->> With all the infrastructure in place, this patch implements
->> per-cgroup control for tcp memory pressure handling.
+>> On 09/22/2011 03:01 AM, Greg Thelen wrote:
+>>> On Sun, Sep 18, 2011 at 5:56 PM, Glauber Costa<glommer@parallels.com>   wrote:
+>>>> +static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+>>>> +{
+>>>> +       return (mem == root_mem_cgroup);
+>>>> +}
+>>>> +
+>>>
+>>> Why are you adding a copy of mem_cgroup_is_root().  I see one already
+>>> in v3.0.  Was it deleted in a previous patch?
 >>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: David S. Miller<davem@davemloft.net>
->> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Eric W. Biederman<ebiederm@xmission.com>
+>> Already answered by another good samaritan.
+>>
+>>>> +static int tcp_write_maxmem(struct cgroup *cgrp, struct cftype *cft, u64 val)
+>>>> +{
+>>>> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
+>>>> +       struct mem_cgroup *parent = parent_mem_cgroup(sg);
+>>>> +       struct net *net = current->nsproxy->net_ns;
+>>>> +       int i;
+>>>> +
+>>>> +       if (!cgroup_lock_live_group(cgrp))
+>>>> +               return -ENODEV;
+>>>
+>>> Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
+>>> to sg->tcp_prot_mem[*]?
+>>>
+>>>> +static u64 tcp_read_maxmem(struct cgroup *cgrp, struct cftype *cft)
+>>>> +{
+>>>> +       struct mem_cgroup *sg = mem_cgroup_from_cont(cgrp);
+>>>> +       u64 ret;
+>>>> +
+>>>> +       if (!cgroup_lock_live_group(cgrp))
+>>>> +               return -ENODEV;
+>>>
+>>> Why is cgroup_lock_live_cgroup() needed here?  Does it protect updates
+>>> to sg->tcp_max_memory?
+>>
+>> No, that is not my understanding. My understanding is this lock is
+>> needed to protect against the cgroup just disappearing under our nose.
+>>
 >
-> a comment below.
+> Hm. reference count of dentry for cgroup isn't enough ?
 >
->> +int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
->> +		    struct cgroup_subsys *ss)
->> +{
->> +	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
->> +	unsigned long limit;
->> +
->> +	cg->tcp_memory_pressure = 0;
->> +	atomic_long_set(&cg->tcp_memory_allocated, 0);
->> +	percpu_counter_init(&cg->tcp_sockets_allocated, 0);
->> +
->> +	limit = nr_free_buffer_pages() / 8;
->> +	limit = max(limit, 128UL);
->> +
->> +	cg->tcp_prot_mem[0] = sysctl_tcp_mem[0];
->> +	cg->tcp_prot_mem[1] = sysctl_tcp_mem[1];
->> +	cg->tcp_prot_mem[2] = sysctl_tcp_mem[2];
->> +
+> Thanks,
+> -Kame
 >
-> Then, the parameter doesn't inherit parent's one ?
->
-> I think sockets_populate should pass 'parent' and
->
->
-> I think you should have a function
->
->      mem_cgroup_should_inherit_parent_settings(parent)
->
-> (This is because you made this feature as a part of memcg.
->   please provide expected behavior.)
->
-All right Kame, will do.
-Thanks.
-
+think think think think think think...
+Yeah, I guess it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
