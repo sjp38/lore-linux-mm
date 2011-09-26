@@ -1,34 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 836319000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 03:36:45 -0400 (EDT)
-Subject: Re: [PATCH 5/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 26 Sep 2011 09:36:05 +0200
-In-Reply-To: <CAOJsxLEHHJyPnCngQceRW04PLKFa3RUQEbc3rLwiOPXa7XZNeQ@mail.gmail.com>
-References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
-	 <1316940890-24138-6-git-send-email-gilad@benyossef.com>
-	 <CAOJsxLEHHJyPnCngQceRW04PLKFa3RUQEbc3rLwiOPXa7XZNeQ@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3859000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 04:07:06 -0400 (EDT)
+Subject: [patch]mm: initialize zone all_unreclaimable
+From: Shaohua Li <shaohua.li@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317022565.9084.60.camel@twins>
+Date: Mon, 26 Sep 2011 16:11:52 +0800
+Message-ID: <1317024712.29510.178.camel@sli10-conroe>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On Mon, 2011-09-26 at 09:54 +0300, Pekka Enberg wrote:
->=20
-> AFAICT, flush_all() isn't all that performance sensitive. Why do we
-> want to reduce IPIs here?=20
+I saw DMA zone is always unreclaimable in my system. zone->all_unreclaimable
+isn't initialized till a page from the zone is freed. This isn't a big problem
+normally, but a little confused, so fix here.
 
-Because it can wake up otherwise idle CPUs, wasting power. Or for the
-case I care more about, unnecessarily perturb a CPU that didn't actually
-have anything to flush but was running something, introducing jitter.
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
-on_each_cpu() things are bad when you have a ton of CPUs (which is
-pretty normal these days).=20
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6e8ecb6..1facc05 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4335,6 +4335,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		zone_pcp_init(zone);
+ 		for_each_lru(l)
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
++		zone->all_unreclaimable = 0;
+ 		zone->reclaim_stat.recent_rotated[0] = 0;
+ 		zone->reclaim_stat.recent_rotated[1] = 0;
+ 		zone->reclaim_stat.recent_scanned[0] = 0;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
