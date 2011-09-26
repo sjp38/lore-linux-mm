@@ -1,99 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E9CD19000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 07:06:03 -0400 (EDT)
-Date: Mon, 26 Sep 2011 13:05:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-Message-ID: <20110926110559.GH10156@tiehlicka.suse.cz>
-References: <20110825151818.GA4003@redhat.com>
- <20110825164758.GB22564@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
- <20110826070946.GA7280@tiehlicka.suse.cz>
- <20110826085610.GA9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
- <20110826095356.GB9083@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
- <20110926082837.GC10156@tiehlicka.suse.cz>
- <87sjnjk36l.fsf@rustcorp.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87sjnjk36l.fsf@rustcorp.com.au>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E25219000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 07:19:24 -0400 (EDT)
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 1/26]   uprobes: Auxillary routines to
+ insert, find, delete uprobes
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 26 Sep 2011 13:18:38 +0200
+In-Reply-To: <20110920154259.GA25610@stefanha-thinkpad.localdomain>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+	 <20110920115949.25326.2469.sendpatchset@srdronam.in.ibm.com>
+	 <20110920154259.GA25610@stefanha-thinkpad.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1317035918.9084.83.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>
+To: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 26-09-11 19:58:50, Rusty Russell wrote:
-> On Mon, 26 Sep 2011 10:28:37 +0200, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Fri 26-08-11 11:13:40, David Rientjes wrote:
-> > > I'd love to be able to do a thaw on a PF_FROZEN task in the oom killer 
-> > > followed by a SIGKILL if that task is selected for oom kill without an 
-> > > heuristic change.  Not sure if that's possible, so we'll wait for Rafael 
-> > > to chime in.
-> > 
-> > We have discussed that with Rafael and it should be safe to do that. See
-> > the patch bellow.
-> > The only place I am not entirely sure about is run_guest
-> > (drivers/lguest/core.c). It seems that the code is able to cope with
-> > signals but it also calls lguest_arch_run_guest after try_to_freeze.
-> 
-> Yes; if you want to kill things in the refrigerator(), then will a
-> 
-> 		if (cpu->lg->dead || task_is_dead(current))
->                         break;
-> 
-> Work?  
+On Tue, 2011-09-20 at 16:42 +0100, Stefan Hajnoczi wrote:
+> On Tue, Sep 20, 2011 at 05:29:49PM +0530, Srikar Dronamraju wrote:
+> > +static void delete_uprobe(struct uprobe *uprobe)
+> > +{
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&uprobes_treelock, flags);
+> > +	rb_erase(&uprobe->rb_node, &uprobes_tree);
+> > +	spin_unlock_irqrestore(&uprobes_treelock, flags);
+> > +	put_uprobe(uprobe);
+> > +	iput(uprobe->inode);
+>=20
+> Use-after-free when put_uprobe() kfrees() the uprobe?
 
-The task is not dead yet. We should rather check for pending signals.
-Can we just move try_to_freeze up before the pending signals check?
+I suspect the caller still has one, and this was the reference for being
+part of the tree. But yes, that could do with a comment.
 
-diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
-index 2535933..a513509 100644
---- a/drivers/lguest/core.c
-+++ b/drivers/lguest/core.c
-@@ -232,6 +232,12 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
- 			}
- 		}
- 
-+		/*
-+		 * All long-lived kernel loops need to check with this horrible
-+		 * thing called the freezer.  If the Host is trying to suspend,
-+		 * it stops us.
-+		 */
-+		try_to_freeze();
- 		/* Check for signals */
- 		if (signal_pending(current))
- 			return -ERESTARTSYS;
-@@ -246,13 +252,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
- 			try_deliver_interrupt(cpu, irq, more);
- 
- 		/*
--		 * All long-lived kernel loops need to check with this horrible
--		 * thing called the freezer.  If the Host is trying to suspend,
--		 * it stops us.
--		 */
--		try_to_freeze();
--
--		/*
- 		 * Just make absolutely sure the Guest is still alive.  One of
- 		 * those hypercalls could have been fatal, for example.
- 		 */
+The comment near atomic_set() in __insert_uprobe() isn't too clear
+either. /* get access + drop ref */, would naively seem +1 -1 =3D 0,
+instead of +1 +1 =3D 2.
 
-> That break means we return to the read() syscall pretty much
-> immediately.
-> 
-> Thanks for the CC,
-> Rusty.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
