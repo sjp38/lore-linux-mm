@@ -1,45 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D35C49000C4
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:30:21 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p8RIUI5C012021
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:18 -0700
-Received: from gyb11 (gyb11.prod.google.com [10.243.49.75])
-	by wpaz13.hot.corp.google.com with ESMTP id p8RIQEKN005423
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 884389000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:35:14 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p8RIZ9xv000459
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:35:09 -0700
+Received: from yic13 (yic13.prod.google.com [10.243.65.141])
+	by hpaq3.eem.corp.google.com with ESMTP id p8RIZ2Zk007408
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:16 -0700
-Received: by gyb11 with SMTP id 11so9709559gyb.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:16 -0700 (PDT)
-Date: Tue, 27 Sep 2011 11:30:13 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:35:08 -0700
+Received: by yic13 with SMTP id 13so7992533yic.17
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:35:08 -0700 (PDT)
+Date: Tue, 27 Sep 2011 11:35:04 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-In-Reply-To: <20110927075245.GA25807@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1109271128110.17876@chino.kir.corp.google.com>
-References: <20110825151818.GA4003@redhat.com> <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com> <20110926091440.GE10156@tiehlicka.suse.cz> <201109261751.40688.rjw@sisk.pl> <alpine.DEB.2.00.1109261801150.8510@chino.kir.corp.google.com>
- <20110927075245.GA25807@tiehlicka.suse.cz>
+Subject: [patch] oom: thaw threads if oom killed thread is frozen before
+ deferring
+In-Reply-To: <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
+Message-ID: <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
+References: <cover.1317110948.git.mhocko@suse.cz> <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Tue, 27 Sep 2011, Michal Hocko wrote:
 
-> I guess you mean a situation when select_bad_process picks up a process
-> which is not marked as frozen yet but we send SIGKILL right before
-> schedule is called in refrigerator. 
-> In that case either schedule should catch it by signal_pending_state
-> check or we will pick it up next OOM round when we pick up the same
-> process (if nothing else is eligible). Or am I missing something?
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 626303b..c419a7e 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/mempolicy.h>
+>  #include <linux/security.h>
+>  #include <linux/ptrace.h>
+> +#include <linux/freezer.h>
 >  
+>  int sysctl_panic_on_oom;
+>  int sysctl_oom_kill_allocating_task;
+> @@ -451,10 +452,15 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+>  				task_pid_nr(q), q->comm);
+>  			task_unlock(q);
+>  			force_sig(SIGKILL, q);
+> +
+> +			if (frozen(q))
+> +				thaw_process(q);
+>  		}
+>  
+>  	set_tsk_thread_flag(p, TIF_MEMDIE);
+>  	force_sig(SIGKILL, p);
+> +	if (frozen(p))
+> +		thaw_process(p);
+>  
+>  	return 0;
+>  }
 
-That doesn't close the race, the oom killer will see the presence of an 
-eligible TIF_MEMDIE thread in select_bad_process() and simply return to 
-the page allocator.  You'd need to thaw it there as well and hope that 
-nothing now or in the future will get into an endless thaw-freeze-thaw 
-loop in the exit path.
+Also needs this...
+
+
+oom: thaw threads if oom killed thread is frozen before deferring
+
+If a thread has been oom killed and is frozen, thaw it before returning
+to the page allocator.  Otherwise, it can stay frozen indefinitely and
+no memory will be freed.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -318,8 +318,11 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		 * blocked waiting for another task which itself is waiting
+ 		 * for memory. Is there a better alternative?
+ 		 */
+-		if (test_tsk_thread_flag(p, TIF_MEMDIE))
++		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
++			if (unlikely(frozen(p)))
++				thaw_process(p);
+ 			return ERR_PTR(-1UL);
++		}
+ 		if (!p->mm)
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
