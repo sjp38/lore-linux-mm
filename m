@@ -1,65 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E72C89000C4
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:16:23 -0400 (EDT)
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European
- LinuxCon in Prague
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20110926131027.GA14964@tiehlicka.suse.cz>
-References: <1316693805.10571.25.camel@dabdike>
-	 <20110926131027.GA14964@tiehlicka.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 27 Sep 2011 13:16:19 -0500
-Message-ID: <1317147379.9186.19.camel@dabdike.hansenpartnership.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B148A9000C4
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:21:35 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p8RILWqG028142
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:21:32 -0700
+Received: from ywa6 (ywa6.prod.google.com [10.192.1.6])
+	by hpaq13.eem.corp.google.com with ESMTP id p8RIKhmd031598
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:21:31 -0700
+Received: by ywa6 with SMTP id 6so5716535ywa.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:21:27 -0700 (PDT)
+Date: Tue, 27 Sep 2011 11:21:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm: restrict access to slab files under procfs and
+ sysfs
+In-Reply-To: <20110927175453.GA3393@albatros>
+Message-ID: <alpine.DEB.2.00.1109271117200.17876@chino.kir.corp.google.com>
+References: <20110927175453.GA3393@albatros>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vasiliy Kulikov <segoon@openwall.com>
+Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
-> On Thu 22-09-11 12:16:47, James Bottomley wrote:
-> > Hi All,
+On Tue, 27 Sep 2011, Vasiliy Kulikov wrote:
+
+> Historically /proc/slabinfo and files under /sys/kernel/slab/* have
+> world read permissions and are accessible to the world.  slabinfo
+> contains rather private information related both to the kernel and
+> userspace tasks.  Depending on the situation, it might reveal either
+> private information per se or information useful to make another
+> targeted attack.  Some examples of what can be learned by
+> reading/watching for /proc/slabinfo entries:
 > 
-> Hi,
+> 1) dentry (and different *inode*) number might reveal other processes fs
+> activity.  The number of dentry "active objects" doesn't strictly show
+> file count opened/touched by a process, however, there is a good
+> correlation between them.  The patch "proc: force dcache drop on
+> unauthorized access" relies on the privacy of dentry count.
 > 
-> > 
-> > One of the major work items that came out of the Plumbers conference
-> > containers and Cgroups meeting was the need to work on memcg:
-> > 
-> > http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
-> > 
-> > (see etherpad and presentations)
-> > 
-> > Since almost everyone will be either at KS or LinuxCon, I thought doing
-> > a small meeting on the Wednesday of Linux Con (so those at KS who might
-> > not be staying for the whole of LinuxCon could attend) might be a good
-> > idea.  The object would be to get all the major players to agree on
-> > who's doing what.  You can see Parallels' direction from the patches
-> > Glauber has been posting.  Google should shortly be starting work on
-> > other aspects of the memgc as well.
-> > 
-> > As a precursor to the meeting (and actually a requirement to make it
-> > effective) we need to start posting our preliminary patches and design
-> > ideas to the mm list (hint, Google people, this means you).
-> > 
-> > I think I've got all of the interested parties in the To: field, but I'm
-> > sending this to the mm list just in case I missed anyone.  If everyone's
-> > OK with the idea (and enough people are going to be there) I'll get the
-> > Linux Foundation to find us a room.
+> 2) different inode entries might reveal the same information as (1), but
+> these are more fine granted counters.  If a filesystem is mounted in a
+> private mount point (or even a private namespace) and fs type differs from
+> other mounted fs types, fs activity in this mount point/namespace is
+> revealed.  If there is a single ecryptfs mount point, the whole fs
+> activity of a single user is revealed.  Number of files in ecryptfs
+> mount point is a private information per se.
 > 
-> I am not going to be at KS but I am in Prague. I would be happy to meet
-> as well if it is possible.
+> 3) fuse_* reveals number of files / fs activity of a user in a user
+> private mount point.  It is approx. the same severity as ecryptfs
+> infoleak in (2).
+> 
+> 4) sysfs_dir_cache similar to (2) reveals devices' addition/removal,
+> which can be otherwise hidden by "chmod 0700 /sys/".  With 0444 slabinfo
+> the precise number of sysfs files is known to the world.
+> 
+> 5) buffer_head might reveal some kernel activity.  With other
+> information leaks an attacker might identify what specific kernel
+> routines generate buffer_head activity.
+> 
+> 6) *kmalloc* infoleaks are very situational.  Attacker should watch for
+> the specific kmalloc size entry and filter the noise related to the unrelated
+> kernel activity.  If an attacker has relatively silent victim system, he
+> might get rather precise counters.
+> 
+> Additional information sources might significantly increase the slabinfo
+> infoleak benefits.  E.g. if an attacker knows that the processes
+> activity on the system is very low (only core daemons like syslog and
+> cron), he may run setxid binaries / trigger local daemon activity /
+> trigger network services activity / await sporadic cron jobs activity
+> / etc. and get rather precise counters for fs and network activity of
+> these privileged tasks, which is unknown otherwise.
+> 
+> 
+> Also hiding slabinfo and /sys/kernel/slab/* is a one step to complicate
+> exploitation of kernel heap overflows (and possibly, other bugs).  The
+> related discussion:
+> 
+> http://thread.gmane.org/gmane.linux.kernel/1108378
+> 
+> 
+> To keep compatibility with old permission model where non-root
+> monitoring daemon could watch for kernel memleaks though slabinfo one
+> should do:
+> 
+>     groupadd slabinfo
+>     usermod -a -G slabinfo $MONITOR_USER
+> 
+> And add the following commands to init scripts (to mountall.conf in
+> Ubuntu's upstart case):
+> 
+>     chmod g+r /proc/slabinfo /sys/kernel/slab/*/*
+>     chgrp slabinfo /proc/slabinfo /sys/kernel/slab/*/*
+> 
+> Signed-off-by: Vasiliy Kulikov <segoon@openwall.com>
+> Reviewed-by: Kees Cook <kees@ubuntu.com>
+> Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> CC: Christoph Lameter <cl@gentwo.org>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Valdis.Kletnieks@vt.edu
+> CC: Linus Torvalds <torvalds@linux-foundation.org>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Alan Cox <alan@linux.intel.com>
 
-Certainly.  I'm just really proposing a working meeting of memcg people;
-primarily to try to make sure we're not all pulling the memcg in
-different directions.  I do need a rough headcount, though, to make sure
-we find a correctly sized room.
-
-James
-
-
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
