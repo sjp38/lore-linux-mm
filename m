@@ -1,39 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 594649000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 06:06:07 -0400 (EDT)
-Received: by fxh17 with SMTP id 17so9047715fxh.14
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:06:04 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C66F9000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 06:14:19 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p8RAEF3g009251
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:14:15 -0700
+Received: from qyk27 (qyk27.prod.google.com [10.241.83.155])
+	by wpaz21.hot.corp.google.com with ESMTP id p8RADrZ1019324
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:14:14 -0700
+Received: by qyk27 with SMTP id 27so8214320qyk.14
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:14:10 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4E7DECA0.5020707@parallels.com>
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-2-git-send-email-glommer@parallels.com>
-	<4E794AA2.9080008@parallels.com>
-	<CAKTCnzmkuL+9ftD5d0Z8b5w+DUSUoLiWqSX_TgGxtRxtoPsxpA@mail.gmail.com>
-	<4E7DECA0.5020707@parallels.com>
-Date: Tue, 27 Sep 2011 15:36:04 +0530
-Message-ID: <CAKTCnz=DFUc=s9LzxPp-P2jOPXvNzWj8OswadCR09nVmM=ozxQ@mail.gmail.com>
-Subject: Re: [PATCH v3 1/7] Basic kernel memory functionality for the Memory Controller
-From: Balbir Singh <bsingharora@gmail.com>
+In-Reply-To: <CAKTCnzkzdQgut96NZf3Mi2kpOWW7N3qeybets5AHy7Gp8Wj_HQ@mail.gmail.com>
+References: <1316230753-8693-1-git-send-email-walken@google.com>
+	<CAKTCnzkzdQgut96NZf3Mi2kpOWW7N3qeybets5AHy7Gp8Wj_HQ@mail.gmail.com>
+Date: Tue, 27 Sep 2011 03:14:09 -0700
+Message-ID: <CANN689G4Z21v6fcF1dt-10CpQp9V42_hGPcPP2d5FChfCon_9Q@mail.gmail.com>
+Subject: Re: [PATCH 0/8] idle page tracking / working set estimation
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, Ying Han <yinghan@google.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
 
->> I know we have a lot of pending xxx_from_cont() and struct cgroup
->> *cont, can we move it to memcg notation to be more consistent with our
->> usage. There is a patch to convert old usage
->>
+On Tue, Sep 27, 2011 at 3:03 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+> On Sat, Sep 17, 2011 at 9:09 AM, Michel Lespinasse <walken@google.com> wrote:
+>> Patch 3 introduces page_referenced_kstaled(), which is similar to
+>> page_referenced() but is used for idle page tracking rather than
+>> for memory reclaimation. Since both functions clear the pte_young bits
+>> and we don't want them to interfere with each other, two new page flags
+>> are introduced that track when young pte references have been cleared by
+>> each of the page_referenced variants.
 >
-> Hello Balbir, I missed this comment. What exactly do you propose in this
-> patch, since I have to assume that the patch you talk about is not applied?
-> Is it just a change to the parameter name that you propose?
->
+> Sorry, I have trouble parsing this sentence, could you elaborate on "when"?
 
-Yes, it is a patch posted on linux-mm by raghavendra
+page_referenced() indicates if a page was accessed since the previous
+page_referenced() call.
 
-Balbir Singh
+page_referenced_kstaled() indicates if a page was accessed since the
+previous page_referenced_kstaled() call.
+
+Both of the functions need to clear PTE young bits; however we don't
+want the two functions to interfere with each other. To achieve this,
+we add two page bits to indicate when a young PTE has been observed by
+one of the functions but not by the other.
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
