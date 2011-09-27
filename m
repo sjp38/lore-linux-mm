@@ -1,51 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 29A029000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 22:39:24 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-In-Reply-To: <20110926110559.GH10156@tiehlicka.suse.cz>
-References: <20110825151818.GA4003@redhat.com> <20110825164758.GB22564@tiehlicka.suse.cz> <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com> <20110826070946.GA7280@tiehlicka.suse.cz> <20110826085610.GA9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com> <20110826095356.GB9083@tiehlicka.suse.cz> <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com> <20110926082837.GC10156@tiehlicka.suse.cz> <87sjnjk36l.fsf@rustcorp.com.au> <20110926110559.GH10156@tiehlicka.suse.cz>
-Date: Tue, 27 Sep 2011 11:51:00 +0930
-Message-ID: <87k48uk9o3.fsf@rustcorp.com.au>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 82CC59000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 23:00:27 -0400 (EDT)
+Message-ID: <4E813C29.1030604@redhat.com>
+Date: Mon, 26 Sep 2011 19:59:53 -0700
+From: Josh Stone <jistone@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com> <20110920171310.GC27959@stefanha-thinkpad.localdomain> <20110920181225.GA5149@infradead.org> <20110920205317.GA1508@stefanha-think <20110923165132.GA23870@stefanha-thinkpad.localdomain> <4E80D9B2.3010404@redhat.com> <4E812797.1090207@hitachi.com>
+In-Reply-To: <4E812797.1090207@hitachi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, SystemTap <systemtap@sourceware.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 26 Sep 2011 13:05:59 +0200, Michal Hocko <mhocko@suse.cz> wrote:
-> On Mon 26-09-11 19:58:50, Rusty Russell wrote:
-> > On Mon, 26 Sep 2011 10:28:37 +0200, Michal Hocko <mhocko@suse.cz> wrote:
-> > > On Fri 26-08-11 11:13:40, David Rientjes wrote:
-> > > > I'd love to be able to do a thaw on a PF_FROZEN task in the oom killer 
-> > > > followed by a SIGKILL if that task is selected for oom kill without an 
-> > > > heuristic change.  Not sure if that's possible, so we'll wait for Rafael 
-> > > > to chime in.
-> > > 
-> > > We have discussed that with Rafael and it should be safe to do that. See
-> > > the patch bellow.
-> > > The only place I am not entirely sure about is run_guest
-> > > (drivers/lguest/core.c). It seems that the code is able to cope with
-> > > signals but it also calls lguest_arch_run_guest after try_to_freeze.
-> > 
-> > Yes; if you want to kill things in the refrigerator(), then will a
-> > 
-> > 		if (cpu->lg->dead || task_is_dead(current))
-> >                         break;
-> > 
-> > Work?  
+On 09/26/2011 06:32 PM, Masami Hiramatsu wrote:
+>> On 09/23/2011 09:51 AM, Stefan Hajnoczi wrote:
+>>>> I'm not sure that we should stick on the current implementation
+>>>> of the sdt.h. I think we'd better modify the sdt.h to replace
+>>>> such semaphores with checking whether the tracepoint is changed from nop.
+>>>
+>>> I like this option.  The only implication is that all userspace tracing
+>>> needs to go through uprobes if we want to support multiple consumers
+>>> tracing the same address.
+>>
+>> This limitation is practically true already, since sharing consumers
+>> have to negotiate the breakpoint anyway.
+>>
+>> If we can find a better way to handle semaphores, we at systemtap will
+>> welcome sdt.h improvements.  On the face of it, checking one's own NOP
+>> for modification sounds pretty elegant, but I'm not convinced that it's
+>> possible in practice.
+>>
+>> For one, it requires arch specific knowledge in sdt.h of what the NOP or
+>> breakpoint looks like, whereas sdt.h currently only knows whether to use
+>> NOP or NOP 0, without knowledge of how that's encoded.  And this gets
+>> trickier with archs like IA64 where you're part of a bundle.  So this
+>> much is hard, but not impossible.
 > 
-> The task is not dead yet. We should rather check for pending signals.
-> Can we just move try_to_freeze up before the pending signals check?
+> Even though, we can start with x86, which is currently one and only one
+> platform supporting uprobes :)
 
-Yep, that works.
+This inode-based uprobes only supports x86 so far.  The utrace-based
+uprobes also supports s390 and ppc, which you can bet Srikar will be
+tasked with here before long...
 
-Acked-by: Rusty Russell <rusty@rustcorp.com.au>
+But uprobes is not the only sdt.h consumer anyway.  GDB also supports
+sdt.h in its targets, covering x86, ppc, s390, and arm so far IIRC.
 
-Cheers,
-Rusty.
+> Maybe we can prepare asm/sdt.h for describing arch-dep code.
+
+In sys/sdt.h itself, these would probably be short enough snippets that
+we can just add each arch's check directly.  I'm just averse to adding
+arch-dependent stuff unless we have to, but maybe we need it.
+
+>> Another issue is that there's not an easy compile-time correlation
+>> between semaphore checks and probe locations, nor is it necessarily a
+>> 1:1 mapping.  The FOO_ENABLED() and PROBE_FOO() code blocks are
+>> distinct, and the compiler can do many tricks with them, loop unrolling,
+>> function specialization, etc.  And if we start placing constraints to
+>> prevent this, then I think we'll be impacting code-gen of the
+>> application more than we'd like.
+> 
+> Perhaps, we can use the constructor attribute for that purpose.
+> 
+> __attribute__((constructor)) FOO_init() {
+> 	/* Search FOO tracepoint address from tracepoint table(like extable) */
+> 	FOO_sem = __find_first_trace_point("FOO");
+> }
+> 
+> This sets the address of first tracepoint of FOO to FOO_sem. :)
+
+This works as long as all FOO instances are enabled altogether, and as
+long as FOO events are not in constructors themselves.  Those are minor
+and probably reasonable limitations, just need to be acknowledged.  And
+I'm not sure how complicated __find_first_trace_point will be.
+
+This adds a bit of start-up overhead too, but the libraries that
+strongly care about this (like glibc and libgcc) are not the ones who
+are using ENABLED() checks.
+
+So OK, can you flesh out or prototype what __find_first_trace_point and
+its tracepoint table should look like?  If you can demonstrate these,
+then I'd be willing to try modifying bin/dtrace and sys/sdt.h.
+
+The good news is that if we figure this out, then the kernel can be
+completely SDT-agnostic -- it's just like any other address to probe.  I
+hope we can also make it transparent to existing sdt.h consumers, so it
+just looks like there's no semaphore-counter to manipulate.
+
+
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
