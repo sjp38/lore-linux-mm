@@ -1,38 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 816D59000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:08:14 -0400 (EDT)
-Date: Tue, 27 Sep 2011 13:08:09 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH 1/2] mm: restrict access to slab files under procfs and
- sysfs
-In-Reply-To: <20110927175453.GA3393@albatros>
-Message-ID: <alpine.DEB.2.00.1109271304470.11361@router.home>
-References: <20110927175453.GA3393@albatros>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA4F9000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:10:57 -0400 (EDT)
+Message-Id: <e213ea00900cba783f228eb4234ad929a05d4359.1317110948.git.mhocko@suse.cz>
+In-Reply-To: <cover.1317110948.git.mhocko@suse.cz>
+References: <cover.1317110948.git.mhocko@suse.cz>
+From: Michal Hocko <mhocko@suse.cz>
+Date: Tue, 27 Sep 2011 08:56:03 +0200
+Subject: [PATCH 1/2] lguest: move process freezing before pending signals
+ check
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This also needs to other /proc files I believe,
+run_guest tries to freeze the current process after it has handled
+pending interrupts and before it calls lguest_arch_run_guest.
+This doesn't work nicely if the task has been killed while being frozen
+and when we want to handle that signal as soon as possible.
+Let's move try_to_freeze before we check for pending signal so that we
+can get out of the loop as soon as possible.
 
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Rusty Russell <rusty@rustcorp.com.au>
+---
+ drivers/lguest/core.c |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
 
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
+index 2535933..e7dda91 100644
+--- a/drivers/lguest/core.c
++++ b/drivers/lguest/core.c
+@@ -232,6 +232,13 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+ 			}
+ 		}
+ 
++		/*
++		 * All long-lived kernel loops need to check with this horrible
++		 * thing called the freezer.  If the Host is trying to suspend,
++		 * it stops us.
++		 */
++		try_to_freeze();
++
+ 		/* Check for signals */
+ 		if (signal_pending(current))
+ 			return -ERESTARTSYS;
+@@ -246,13 +253,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+ 			try_deliver_interrupt(cpu, irq, more);
+ 
+ 		/*
+-		 * All long-lived kernel loops need to check with this horrible
+-		 * thing called the freezer.  If the Host is trying to suspend,
+-		 * it stops us.
+-		 */
+-		try_to_freeze();
+-
+-		/*
+ 		 * Just make absolutely sure the Guest is still alive.  One of
+ 		 * those hypercalls could have been fatal, for example.
+ 		 */
+-- 
+1.7.5.4
 
-
-Possible candidates:
-
-christoph@oldy:~/n/linux-2.6$ grep proc_create mm/*
-mm/swapfile.c:	proc_create("swaps", 0, NULL, &proc_swaps_operations);
-mm/vmstat.c:	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
-mm/vmstat.c:	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
-mm/vmstat.c:	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
-mm/vmstat.c:	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
-
-vmstat and zoneinfo in particular give similar information to what is
-revealed through the slab proc files.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
