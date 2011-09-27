@@ -1,189 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8EF9000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 01:55:26 -0400 (EDT)
-Received: by wyf22 with SMTP id 22so7955724wyf.14
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 22:55:23 -0700 (PDT)
-Subject: Re: Question about memory leak detector giving false positive
- report for net/core/flow.c
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <CA+v9cxYzWJScCa2mMoEovq3WULSZYQaq6EjoRV7SQUjr0L_RiQ@mail.gmail.com>
-References: 
-	 <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
-	 <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
-	 <1317066395.2796.11.camel@edumazet-laptop>
-	 <CA+v9cxYzWJScCa2mMoEovq3WULSZYQaq6EjoRV7SQUjr0L_RiQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 27 Sep 2011 07:55:18 +0200
-Message-ID: <1317102918.2796.22.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E27269000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:03:32 -0400 (EDT)
+Date: Tue, 27 Sep 2011 09:03:26 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] lguest: move process freezing before pending signals check
+Message-ID: <20110927070326.GA24377@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1108251404130.18747@chino.kir.corp.google.com>
+ <20110826070946.GA7280@tiehlicka.suse.cz>
+ <20110826085610.GA9083@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108260218050.14732@chino.kir.corp.google.com>
+ <20110826095356.GB9083@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1108261110020.13943@chino.kir.corp.google.com>
+ <20110926082837.GC10156@tiehlicka.suse.cz>
+ <87sjnjk36l.fsf@rustcorp.com.au>
+ <20110926110559.GH10156@tiehlicka.suse.cz>
+ <87k48uk9o3.fsf@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87k48uk9o3.fsf@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huajun Li <huajun.li.lee@gmail.com>
-Cc: Catalin Marinas <Catalin.Marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <tj@kernel.org>
 
-Le mardi 27 septembre 2011 A  13:29 +0800, Huajun Li a A(C)crit :
-> 2011/9/27 Eric Dumazet <eric.dumazet@gmail.com>:
-> > Le lundi 26 septembre 2011 A  17:50 +0100, Catalin Marinas a A(C)crit :
-> >> On Mon, Sep 26, 2011 at 05:32:54PM +0100, Eric Dumazet wrote:
-> >> > Le lundi 26 septembre 2011 A  23:17 +0800, Huajun Li a A(C)crit :
-> >> > > Memory leak detector gives following memory leak report, it seems the
-> >> > > report is triggered by net/core/flow.c, but actually, it should be a
-> >> > > false positive report.
-> >> > > So, is there any idea from kmemleak side to fix/disable this false
-> >> > > positive report like this?
-> >> > > Yes, kmemleak_not_leak(...) could disable it, but is it suitable for this case ?
-> >> ...
-> >> > CC lkml and percpu maintainers (Tejun Heo & Christoph Lameter ) as well
-> >> >
-> >> > AFAIK this false positive only occurs if percpu data is allocated
-> >> > outside of embedded pcu space.
-> >> >
-> >> >  (grep pcpu_get_vm_areas /proc/vmallocinfo)
-> >> >
-> >> > I suspect this is a percpu/kmemleak cooperation problem (a missing
-> >> > kmemleak_alloc() ?)
-> >> >
-> >> > I am pretty sure kmemleak_not_leak() is not the right answer to this
-> >> > problem.
-> >>
-> >> kmemleak_not_leak() definitely not the write answer. The alloc_percpu()
-> >> call does not have any kmemleak_alloc() callback, so it doesn't scan
-> >> them.
-> >>
-> >> Huajun, could you please try the patch below:
-> >>
-> >> 8<--------------------------------
-> >> kmemleak: Handle percpu memory allocation
-> >>
-> >> From: Catalin Marinas <catalin.marinas@arm.com>
-> >>
-> >> This patch adds kmemleak callbacks from the percpu allocator, reducing a
-> >> number of false positives caused by kmemleak not scanning such memory
-> >> blocks.
-> >>
-> >> Reported-by: Huajun Li <huajun.li.lee@gmail.com>
-> >> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> >> ---
-> >>  mm/percpu.c |   11 +++++++++--
-> >>  1 files changed, 9 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/mm/percpu.c b/mm/percpu.c
-> >> index bf80e55..c47a90b 100644
-> >> --- a/mm/percpu.c
-> >> +++ b/mm/percpu.c
-> >> @@ -67,6 +67,7 @@
-> >>  #include <linux/spinlock.h>
-> >>  #include <linux/vmalloc.h>
-> >>  #include <linux/workqueue.h>
-> >> +#include <linux/kmemleak.h>
-> >>
-> >>  #include <asm/cacheflush.h>
-> >>  #include <asm/sections.h>
-> >> @@ -833,7 +834,9 @@ fail_unlock_mutex:
-> >>   */
-> >>  void __percpu *__alloc_percpu(size_t size, size_t align)
-> >>  {
-> >> -     return pcpu_alloc(size, align, false);
-> >> +     void __percpu *ptr = pcpu_alloc(size, align, false);
-> >> +     kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> >> +     return ptr;
-> >>  }
-> >>  EXPORT_SYMBOL_GPL(__alloc_percpu);
-> >>
-> >> @@ -855,7 +858,9 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
-> >>   */
-> >>  void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
-> >>  {
-> >> -     return pcpu_alloc(size, align, true);
-> >> +     void __percpu *ptr = pcpu_alloc(size, align, true);
-> >> +     kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> >> +     return ptr;
-> >>  }
-> >>
-> >>  /**
-> >> @@ -915,6 +920,8 @@ void free_percpu(void __percpu *ptr)
-> >>       if (!ptr)
-> >>               return;
-> >>
-> >> +     kmemleak_free(ptr);
-> >> +
-> >>       addr = __pcpu_ptr_to_addr(ptr);
-> >>
-> >>       spin_lock_irqsave(&pcpu_lock, flags);
-> >>
-> >
-> > Hmm, you need to call kmemleak_alloc() for each chunk allocated per
-> > possible cpu.
-> >
-> > Here is the (untested) patch for the allocation phase, need the same at
-> > freeing time
-> >
-> > diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-> > index 89633fe..5061ac5 100644
-> > --- a/mm/percpu-km.c
-> > +++ b/mm/percpu-km.c
-> > @@ -37,9 +37,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
-> >  {
-> >        unsigned int cpu;
-> >
-> > -       for_each_possible_cpu(cpu)
-> > -               memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-> > +       for_each_possible_cpu(cpu) {
-> > +               void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
-> >
-> > +               kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
-> > +               memset(chunk_addr, 0, size);
-> > +       }
-> >        return 0;
-> >  }
-> >
-> > diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-> > index ea53496..0d397cc 100644
-> > --- a/mm/percpu-vm.c
-> > +++ b/mm/percpu-vm.c
-> > @@ -342,8 +342,12 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
-> >        /* commit new bitmap */
-> >        bitmap_copy(chunk->populated, populated, pcpu_unit_pages);
-> >  clear:
-> > -       for_each_possible_cpu(cpu)
-> > -               memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-> > +       for_each_possible_cpu(cpu) {
-> > +               void *chunk_addr = (void *)pcpu_chunk_addr(chunk, cpu, 0) + off;
-> > +
-> > +               kmemleak_alloc(chunk_addr, size, 1, GFP_KERNEL);
-> > +               memset(chunk_addr, 0, size);
-> > +       }
-> >        return 0;
-> >
-> >  err_unmap:
-> >
-> >
+On Tue 27-09-11 11:51:00, Rusty Russell wrote:
+> On Mon, 26 Sep 2011 13:05:59 +0200, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Mon 26-09-11 19:58:50, Rusty Russell wrote:
+> > > On Mon, 26 Sep 2011 10:28:37 +0200, Michal Hocko <mhocko@suse.cz> wrote:
+> > > > On Fri 26-08-11 11:13:40, David Rientjes wrote:
+> > > > > I'd love to be able to do a thaw on a PF_FROZEN task in the oom killer 
+> > > > > followed by a SIGKILL if that task is selected for oom kill without an 
+> > > > > heuristic change.  Not sure if that's possible, so we'll wait for Rafael 
+> > > > > to chime in.
+> > > > 
+> > > > We have discussed that with Rafael and it should be safe to do that. See
+> > > > the patch bellow.
+> > > > The only place I am not entirely sure about is run_guest
+> > > > (drivers/lguest/core.c). It seems that the code is able to cope with
+> > > > signals but it also calls lguest_arch_run_guest after try_to_freeze.
+> > > 
+> > > Yes; if you want to kill things in the refrigerator(), then will a
+> > > 
+> > > 		if (cpu->lg->dead || task_is_dead(current))
+> > >                         break;
+> > > 
+> > > Work?  
+> > 
+> > The task is not dead yet. We should rather check for pending signals.
+> > Can we just move try_to_freeze up before the pending signals check?
 > 
-> About this one,  memory leak detector disabled(actually I enable it
-> while config the kernel) while booting system, and and found following
-> info in dmesg:
+> Yep, that works.
+> 
+> Acked-by: Rusty Russell <rusty@rustcorp.com.au>
 
-Yes, it was not a patch, but the general idea for Catalin ;)
-
-You hit the fact that same zone (embedded percpu space) is now in a
-mixed state.
-
-In current kernels, the embedded percpu zone is already known by
-kmemleak, but with a large granularity. kmemleak is not aware of
-individual allocations/freeing in this large zone.
-
-Once kmemleak and percpu allocator are cooperating, we might find more
-kmemleaks. Right now, kmemleak can find pointers in percpu chunks that
-are not anymore reachable (they were freed), and therefore doesnt warn
-of possible memory leaks.
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks.
+The full patch bellow:
+---
