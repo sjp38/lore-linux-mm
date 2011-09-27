@@ -1,56 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 033FA9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:22:47 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p8R1MiJc007254
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:45 -0700
-Received: from yie21 (yie21.prod.google.com [10.243.66.21])
-	by hpaq2.eem.corp.google.com with ESMTP id p8R1MHTP029033
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:43 -0700
-Received: by yie21 with SMTP id 21so6932051yie.40
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:43 -0700 (PDT)
-Date: Mon, 26 Sep 2011 18:22:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH] slab: fix caller tracking
- onCONFIG_OPTIMIZE_INLINING.
-In-Reply-To: <201109251421.BEB71358.OFOHJVMFQOFLtS@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.00.1109261815510.10419@chino.kir.corp.google.com>
-References: <201109241208.IEH26037.FtSVLJOOQHMFFO@I-love.SAKURA.ne.jp> <alpine.DEB.2.00.1109241550230.14043@chino.kir.corp.google.com> <201109251421.BEB71358.OFOHJVMFQOFLtS@I-love.SAKURA.ne.jp>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 854499000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:32:17 -0400 (EDT)
+Message-ID: <4E812797.1090207@hitachi.com>
+Date: Tue, 27 Sep 2011 10:32:07 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com> <20110920171310.GC27959@stefanha-thinkpad.localdomain> <20110920181225.GA5149@infradead.org> <20110920205317.GA1508@stefanha-think <20110923165132.GA23870@stefanha-thinkpad.localdomain> <4E80D9B2.3010404@redhat.com>
+In-Reply-To: <4E80D9B2.3010404@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, vegard.nossum@gmail.com, dmonakhov@openvz.org, catalin.marinas@arm.com, dfeng@redhat.com, linux-mm@kvack.org
+To: Josh Stone <jistone@redhat.com>
+Cc: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, SystemTap <systemtap@sourceware.org>
 
-On Sun, 25 Sep 2011, Tetsuo Handa wrote:
+(2011/09/27 4:59), Josh Stone wrote:
+> On 09/23/2011 04:53 AM, Masami Hiramatsu wrote:
+>>> Masami looked at this and found that SystemTap sdt.h currently requires
+>>> an extra userspace memory store in order to activate probes.  Each probe
+>>> has a "semaphore" 16-bit counter which applications may test before
+>>> hitting the probe itself.  This is used to avoid overhead in
+>>> applications that do expensive argument processing (e.g. creating
+>>> strings) for probes.
+>> Indeed, originally, those semaphores designed for such use cases.
+>> However, some applications *always* use it (e.g. qemu-kvm).
+>
+> I found that qemu-kvm generates its tracepoints like this:
+>
+>   static inline void trace_$name($args) {
+>       if (QEMU_${nameupper}_ENABLED()) {
+>           QEMU_${nameupper}($argnames);
+>       }
+>   }
 
-> > So this is going against the inlining algorithms in gcc 4.x which will 
-> > make the kernel image significantly larger even though there seems to be 
-> > no benefit unless you have CONFIG_DEBUG_SLAB_LEAK, although this patch 
-> > changes behavior for every system running CONFIG_SLAB with tracing 
-> > support.
-> 
-> If use of address of kzalloc() itself is fine for tracing functionality, we
-> don't need to force tracing functionality to use caller address of kzalloc().
-> 
-> I merely want /proc/slab_allocators to print caller address of kzalloc() rather
-> than kzalloc() address itself.
-> 
+Right, that's what I've said.
 
-Yeah, I understand the intent of the patch, but I don't think we need to 
-force inlining in all the conditions that you specified it.  We know that 
-CONFIG_DEBUG_SLAB_LEAK kernels aren't performance critical and it seems 
-reasonable that they aren't image size critical either, but we certainly 
-don't need this for kernels configured for SLUB or for SLAB kernels with 
-tracing support and not CONFIG_DEBUG_SLAB_LEAK.
+> In that case, the $args are always computed to call the inline, so
+> you'll basically just get a memory read, jump, NOP.  There's no benefit
+> from checking ENABLED() here, and removing it would leave only the NOP.
+>  Even if you invent an improved mechanism for ENABLED(), that doesn't
+> change the fact that it's doing useless work here.
 
-The "caller" formal to cache_alloc_debugcheck_after() wants the true 
-caller of the allocation for CONFIG_DEBUG_SLAB_LEAK.  kmalloc() is already 
-__always_inline, so just define slabtrace_inline to be __always_inline for 
-CONFIG_DEBUG_SLAB_LEAK?
+Yeah, this use is totally meaningless...
+
+> So in this case, it may be better to patch qemu, assuming my statements
+> hold for DTrace's implementation on other platforms too.  The ENABLED()
+> guard still does have other genuine uses though, as with the string
+> preparation in Python's probes.
+
+I agree with that qemu needs to be fixed. However, this is just for
+the qemu case. Not the best solution.
+
+> On 09/23/2011 09:51 AM, Stefan Hajnoczi wrote:
+>>> I'm not sure that we should stick on the current implementation
+>>> of the sdt.h. I think we'd better modify the sdt.h to replace
+>>> such semaphores with checking whether the tracepoint is changed from nop.
+>>
+>> I like this option.  The only implication is that all userspace tracing
+>> needs to go through uprobes if we want to support multiple consumers
+>> tracing the same address.
+>
+> This limitation is practically true already, since sharing consumers
+> have to negotiate the breakpoint anyway.
+>
+> If we can find a better way to handle semaphores, we at systemtap will
+> welcome sdt.h improvements.  On the face of it, checking one's own NOP
+> for modification sounds pretty elegant, but I'm not convinced that it's
+> possible in practice.
+>
+> For one, it requires arch specific knowledge in sdt.h of what the NOP or
+> breakpoint looks like, whereas sdt.h currently only knows whether to use
+> NOP or NOP 0, without knowledge of how that's encoded.  And this gets
+> trickier with archs like IA64 where you're part of a bundle.  So this
+> much is hard, but not impossible.
+
+Even though, we can start with x86, which is currently one and only one
+platform supporting uprobes :)
+Maybe we can prepare asm/sdt.h for describing arch-dep code.
+
+> Another issue is that there's not an easy compile-time correlation
+> between semaphore checks and probe locations, nor is it necessarily a
+> 1:1 mapping.  The FOO_ENABLED() and PROBE_FOO() code blocks are
+> distinct, and the compiler can do many tricks with them, loop unrolling,
+> function specialization, etc.  And if we start placing constraints to
+> prevent this, then I think we'll be impacting code-gen of the
+> application more than we'd like.
+
+Perhaps, we can use the constructor attribute for that purpose.
+
+__attribute__((constructor)) FOO_init() {
+	/* Search FOO tracepoint address from tracepoint table(like extable) */
+	FOO_sem = __find_first_trace_point("FOO");
+}
+
+This sets the address of first tracepoint of FOO to FOO_sem. :)
+
+Thank you,
+
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
