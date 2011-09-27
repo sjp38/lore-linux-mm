@@ -1,104 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D6E79000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:27:08 -0400 (EDT)
-Received: by gya6 with SMTP id 6so6548567gya.14
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 00:27:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 1C6F69000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:28:03 -0400 (EDT)
+Date: Tue, 27 Sep 2011 09:27:14 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: [patch] mm: disable user interface to manually rescue unevictable
+ pages
+Message-ID: <20110927072714.GA1997@redhat.com>
+References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com>
+ <20110926112944.GC14333@redhat.com>
+ <20110926161136.b4508ecb.akpm@google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1109261023400.24164@router.home>
-References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
-	<1316940890-24138-5-git-send-email-gilad@benyossef.com>
-	<1317001924.29510.160.camel@sli10-conroe>
-	<CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
-	<alpine.DEB.2.00.1109261023400.24164@router.home>
-Date: Tue, 27 Sep 2011 10:27:06 +0300
-Message-ID: <CAOtvUMcvwWFxxxv7tsOj6FO-wrHAU8EYc+U=9u8yT=cz7XajBA@mail.gmail.com>
-Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110926161136.b4508ecb.akpm@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Andrew Morton <akpm@google.com>
+Cc: Kautuk Consul <consul.kautuk@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+At one point, anonymous pages were supposed to go on the unevictable
+list when no swap space was configured, and the idea was to manually
+rescue those pages after adding swap and making them evictable again.
+But nowadays, swap-backed pages on the anon LRU list are not scanned
+without available swap space anyway, so there is no point in moving
+them to a separate list anymore.
 
-On Mon, Sep 26, 2011 at 6:24 PM, Christoph Lameter <cl@gentwo.org> wrote:
-> On Mon, 26 Sep 2011, Gilad Ben-Yossef wrote:
->
->> I do not know if these scenarios warrant the additional overhead,
->> certainly not in all situations. Maybe the right thing is to make it a
->> config option dependent. As I stated in the patch description, that is
->> one of the thing I'm interested in feedback on.
->
-> The flushing of the per cpu pages only done when kmem_cache_shrink() is
-> run or when a slab cache is closed. And for diagnostics. So its rare and
-> not performance critical.
+The manual rescue could also be used in case pages were stranded on
+the unevictable list due to race conditions.  But the code has been
+around for a while now and newly discovered bugs should be properly
+reported and dealt with instead of relying on such a manual fixup.
 
-Yes, I understand. The problem is it pops up in the oddest of place.
-An example is in order:
+In addition to the lack of a usecase, the sysfs interface to rescue
+pages from a specific NUMA node has been broken since its
+introduction, so it's unlikely that anybody ever relied on that.
 
-The Ipath Infiniband hardware exports a char device interface to user space.
-When a user opens the char device and configures a port, a kmem_cache
-is created.
-When the user later closes the fd, the release method of the char
-device destroys
-the kmem_cache.
+This patch removes the functionality behind the sysctl and the
+node-interface and emits a one-time warning when somebody tries to
+access either of them.
 
-So, if I have some high performance server with 128 processors, and
-I've dedicated
-127 processors to run my CPU bound computing tasks (and made sure the interrupt
-are serviced by the last CPU)  and then run a shell on  the lone admin
-CPU to do a backup,
-I can interrupt my 127 CPUs doing computational tasks, even though
-they have nothing to do
-with Infiniband, or backup and have never allocated a single buffer
-form that cache.
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Reported-by: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ mm/vmscan.c |   84 +++++-----------------------------------------------------
+ 1 files changed, 8 insertions(+), 76 deletions(-)
 
-I believe there is a similar scenario with software raid if I change
-RAID configs and several
-other places. In fact, I'm guessing many of the lines that pop up when
-doing the following
-grep hide a similar scenario:
-
-$ git grep kmem_cache_destroy . | grep '\->'
-
-I hope this explains my interest.
-
-My hope is to come up with a way to do more code on the CPU doing the
-flush_all (which
-as you said is a rare and none performance critical code path anyway)
-and by that gain the ability
-to do the job without interrupting CPUs that do not need to flush
-their per cpu pages.
-
-Thanks,
-Gilad
-
-
-
-
-
-
-
->
->
->
-
-
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7502726..71b5616 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3397,66 +3397,12 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+ 
+ }
+ 
+-/**
+- * scan_zone_unevictable_pages - check unevictable list for evictable pages
+- * @zone - zone of which to scan the unevictable list
+- *
+- * Scan @zone's unevictable LRU lists to check for pages that have become
+- * evictable.  Move those that have to @zone's inactive list where they
+- * become candidates for reclaim, unless shrink_inactive_zone() decides
+- * to reactivate them.  Pages that are still unevictable are rotated
+- * back onto @zone's unevictable list.
+- */
+-#define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
+-static void scan_zone_unevictable_pages(struct zone *zone)
++static void warn_scan_unevictable_pages(void)
+ {
+-	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
+-	unsigned long scan;
+-	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
+-
+-	while (nr_to_scan > 0) {
+-		unsigned long batch_size = min(nr_to_scan,
+-						SCAN_UNEVICTABLE_BATCH_SIZE);
+-
+-		spin_lock_irq(&zone->lru_lock);
+-		for (scan = 0;  scan < batch_size; scan++) {
+-			struct page *page = lru_to_page(l_unevictable);
+-
+-			if (!trylock_page(page))
+-				continue;
+-
+-			prefetchw_prev_lru_page(page, l_unevictable, flags);
+-
+-			if (likely(PageLRU(page) && PageUnevictable(page)))
+-				check_move_unevictable_page(page, zone);
+-
+-			unlock_page(page);
+-		}
+-		spin_unlock_irq(&zone->lru_lock);
+-
+-		nr_to_scan -= batch_size;
+-	}
+-}
+-
+-
+-/**
+- * scan_all_zones_unevictable_pages - scan all unevictable lists for evictable pages
+- *
+- * A really big hammer:  scan all zones' unevictable LRU lists to check for
+- * pages that have become evictable.  Move those back to the zones'
+- * inactive list where they become candidates for reclaim.
+- * This occurs when, e.g., we have unswappable pages on the unevictable lists,
+- * and we add swap to the system.  As such, it runs in the context of a task
+- * that has possibly/probably made some previously unevictable pages
+- * evictable.
+- */
+-static void scan_all_zones_unevictable_pages(void)
+-{
+-	struct zone *zone;
+-
+-	for_each_zone(zone) {
+-		scan_zone_unevictable_pages(zone);
+-	}
++	printk_once(KERN_WARNING
++		    "The scan_unevictable_pages sysctl/node-interface has been "
++		    "disabled for lack of a legitimate use case.  If you have "
++		    "one, please send an email to linux-mm@kvack.org.\n");
+ }
+ 
+ /*
+@@ -3469,11 +3415,8 @@ int scan_unevictable_handler(struct ctl_table *table, int write,
+ 			   void __user *buffer,
+ 			   size_t *length, loff_t *ppos)
+ {
++	warn_scan_unevictable_pages();
+ 	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+-
+-	if (write && *(unsigned long *)table->data)
+-		scan_all_zones_unevictable_pages();
+-
+ 	scan_unevictable_pages = 0;
+ 	return 0;
+ }
+@@ -3488,6 +3431,7 @@ static ssize_t read_scan_unevictable_node(struct sys_device *dev,
+ 					  struct sysdev_attribute *attr,
+ 					  char *buf)
+ {
++	warn_scan_unevictable_pages();
+ 	return sprintf(buf, "0\n");	/* always zero; should fit... */
+ }
+ 
+@@ -3495,19 +3439,7 @@ static ssize_t write_scan_unevictable_node(struct sys_device *dev,
+ 					   struct sysdev_attribute *attr,
+ 					const char *buf, size_t count)
+ {
+-	struct zone *node_zones = NODE_DATA(dev->id)->node_zones;
+-	struct zone *zone;
+-	unsigned long res;
+-	unsigned long req = strict_strtoul(buf, 10, &res);
+-
+-	if (!req)
+-		return 1;	/* zero is no-op */
+-
+-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+-		if (!populated_zone(zone))
+-			continue;
+-		scan_zone_unevictable_pages(zone);
+-	}
++	warn_scan_unevictable_pages();
+ 	return 1;
+ }
+ 
 -- 
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"I've seen things you people wouldn't believe. Goto statements used to
-implement co-routines. I watched C structures being stored in
-registers. All those moments will be lost in time... like tears in
-rain... Time to die. "
+1.7.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
