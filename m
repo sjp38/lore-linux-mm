@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AE5F59000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:05:24 -0400 (EDT)
-Subject: Re: [patch]mm: initialize zone all_unreclaimable
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110926155250.464e7770.akpm@google.com>
-References: <1317024712.29510.178.camel@sli10-conroe>
-	 <20110926132320.GA4206@tiehlicka.suse.cz>
-	 <20110926155250.464e7770.akpm@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 27 Sep 2011 09:10:11 +0800
-Message-ID: <1317085811.29510.180.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 033FA9000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:22:47 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p8R1MiJc007254
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:45 -0700
+Received: from yie21 (yie21.prod.google.com [10.243.66.21])
+	by hpaq2.eem.corp.google.com with ESMTP id p8R1MHTP029033
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:43 -0700
+Received: by yie21 with SMTP id 21so6932051yie.40
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:22:43 -0700 (PDT)
+Date: Mon, 26 Sep 2011 18:22:40 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] slab: fix caller tracking
+ onCONFIG_OPTIMIZE_INLINING.
+In-Reply-To: <201109251421.BEB71358.OFOHJVMFQOFLtS@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.00.1109261815510.10419@chino.kir.corp.google.com>
+References: <201109241208.IEH26037.FtSVLJOOQHMFFO@I-love.SAKURA.ne.jp> <alpine.DEB.2.00.1109241550230.14043@chino.kir.corp.google.com> <201109251421.BEB71358.OFOHJVMFQOFLtS@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, vegard.nossum@gmail.com, dmonakhov@openvz.org, catalin.marinas@arm.com, dfeng@redhat.com, linux-mm@kvack.org
 
-On Tue, 2011-09-27 at 06:52 +0800, Andrew Morton wrote:
-> On Mon, 26 Sep 2011 15:23:20 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
+On Sun, 25 Sep 2011, Tetsuo Handa wrote:
+
+> > So this is going against the inlining algorithms in gcc 4.x which will 
+> > make the kernel image significantly larger even though there seems to be 
+> > no benefit unless you have CONFIG_DEBUG_SLAB_LEAK, although this patch 
+> > changes behavior for every system running CONFIG_SLAB with tracing 
+> > support.
 > 
-> > On Mon 26-09-11 16:11:52, Shaohua Li wrote:
-> > > I saw DMA zone is always unreclaimable in my system. 
-> > > zone->all_unreclaimable isn't initialized till a page from the zone is
-> > > freed. This isn't a big problem normally, but a little confused, so
-> > > fix here.
-> > 
-> > The value is initialized when a node is allocated. setup_node_data uses
-> > alloc_remap which memsets the whole structure or memblock allocation
-> > which is initialized to 0 as well AFAIK and memory hotplug uses
-> > arch_alloc_nodedata which is kzalloc.
+> If use of address of kzalloc() itself is fine for tracing functionality, we
+> don't need to force tracing functionality to use caller address of kzalloc().
 > 
-> setup_node_data() does memset(NODE_DATA(nid), 0, sizeof(pg_data_t)) just
-> to be sure.
+> I merely want /proc/slab_allocators to print caller address of kzalloc() rather
+> than kzalloc() address itself.
 > 
-> However, Shaohua reports that "DMA zone is always unreclaimable in my system",
-> and presumably this patch fixed it.  So we don't know what's going on?
-> 
-> 
-> 
-> Presumably all the other "zone->foo = 0" assignments in free_area_init_core()
-> are unneeded.
-Looks I didn't run my test correctly, sorry. I just check it, and this
-is a vmscan bug, I'll work out a new patch.
+
+Yeah, I understand the intent of the patch, but I don't think we need to 
+force inlining in all the conditions that you specified it.  We know that 
+CONFIG_DEBUG_SLAB_LEAK kernels aren't performance critical and it seems 
+reasonable that they aren't image size critical either, but we certainly 
+don't need this for kernels configured for SLUB or for SLAB kernels with 
+tracing support and not CONFIG_DEBUG_SLAB_LEAK.
+
+The "caller" formal to cache_alloc_debugcheck_after() wants the true 
+caller of the allocation for CONFIG_DEBUG_SLAB_LEAK.  kmalloc() is already 
+__always_inline, so just define slabtrace_inline to be __always_inline for 
+CONFIG_DEBUG_SLAB_LEAK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
