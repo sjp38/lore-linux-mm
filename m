@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A24A49000C4
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:27:30 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p8RIRRpb032312
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:27:27 -0700
-Received: from yxk30 (yxk30.prod.google.com [10.190.3.158])
-	by hpaq1.eem.corp.google.com with ESMTP id p8RIPthB004707
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D35C49000C4
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 14:30:21 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p8RIUI5C012021
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:18 -0700
+Received: from gyb11 (gyb11.prod.google.com [10.243.49.75])
+	by wpaz13.hot.corp.google.com with ESMTP id p8RIQEKN005423
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:27:26 -0700
-Received: by yxk30 with SMTP id 30so6592430yxk.12
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:27:26 -0700 (PDT)
-Date: Tue, 27 Sep 2011 11:27:22 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:16 -0700
+Received: by gyb11 with SMTP id 11so9709559gyb.1
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 11:30:16 -0700 (PDT)
+Date: Tue, 27 Sep 2011 11:30:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
-In-Reply-To: <20110927175642.GA3432@albatros>
-Message-ID: <alpine.DEB.2.00.1109271122480.17876@chino.kir.corp.google.com>
-References: <20110927175453.GA3393@albatros> <20110927175642.GA3432@albatros>
+Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
+In-Reply-To: <20110927075245.GA25807@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1109271128110.17876@chino.kir.corp.google.com>
+References: <20110825151818.GA4003@redhat.com> <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com> <20110926091440.GE10156@tiehlicka.suse.cz> <201109261751.40688.rjw@sisk.pl> <alpine.DEB.2.00.1109261801150.8510@chino.kir.corp.google.com>
+ <20110927075245.GA25807@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy Kulikov <segoon@openwall.com>
-Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
 
-On Tue, 27 Sep 2011, Vasiliy Kulikov wrote:
+On Tue, 27 Sep 2011, Michal Hocko wrote:
 
-> /proc/meminfo stores information related to memory pages usage, which
-> may be used to monitor the number of objects in specific caches (and/or
-> the changes of these numbers).  This might reveal private information
-> similar to /proc/slabinfo infoleaks.  To remove the infoleak, just
-> restrict meminfo to root.  If it is used by unprivileged daemons,
-> meminfo permissions can be altered the same way as slabinfo:
-> 
->     groupadd meminfo
->     usermod -a -G meminfo $MONITOR_USER
->     chmod g+r /proc/meminfo
->     chgrp meminfo /proc/meminfo
-> 
+> I guess you mean a situation when select_bad_process picks up a process
+> which is not marked as frozen yet but we send SIGKILL right before
+> schedule is called in refrigerator. 
+> In that case either schedule should catch it by signal_pending_state
+> check or we will pick it up next OOM round when we pick up the same
+> process (if nothing else is eligible). Or am I missing something?
+>  
 
-I guess the side-effect of this is that users without root will no longer 
-report VM issues where "there's tons of freeable memory but my task got 
-killed", "there's swap available but is unutilized in lowmem situations", 
-etc. :)
-
-Seriously, though, can't we just change the granularity of /proc/meminfo 
-to be MB instead of KB or at least provide a separate file that is 
-readable that does that?  I can understand not exporting information on a 
-page-level granularity but not giving users a way to determine the amount 
-of free memory is a little extreme.
+That doesn't close the race, the oom killer will see the presence of an 
+eligible TIF_MEMDIE thread in select_bad_process() and simply return to 
+the page allocator.  You'd need to thaw it there as well and hope that 
+nothing now or in the future will get into an endless thaw-freeze-thaw 
+loop in the exit path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
