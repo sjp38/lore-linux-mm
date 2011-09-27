@@ -1,97 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F80D9000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 03:52:50 -0400 (EDT)
-Date: Tue, 27 Sep 2011 09:52:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-Message-ID: <20110927075245.GA25807@tiehlicka.suse.cz>
-References: <20110825151818.GA4003@redhat.com>
- <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com>
- <20110926091440.GE10156@tiehlicka.suse.cz>
- <201109261751.40688.rjw@sisk.pl>
- <alpine.DEB.2.00.1109261801150.8510@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A8E859000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 04:00:39 -0400 (EDT)
+Received: from d06nrmr1507.portsmouth.uk.ibm.com (d06nrmr1507.portsmouth.uk.ibm.com [9.149.38.233])
+	by mtagate2.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p8R80aac021029
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 08:00:36 GMT
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8R80aoA2596940
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 09:00:36 +0100
+Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8R80VoE014189
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 02:00:32 -0600
+Date: Tue, 27 Sep 2011 08:08:47 +0100
+From: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
+ determine fixups.
+Message-ID: <20110927070847.GA8725@stefanha-thinkpad.localdomain>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
+ <20110920171310.GC27959@stefanha-thinkpad.localdomain>
+ <20110920181225.GA5149@infradead.org>
+ <20110923165132.GA23870@stefanha-thinkpad.localdomain>
+ <4E80D9B2.3010404@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1109261801150.8510@chino.kir.corp.google.com>
+In-Reply-To: <4E80D9B2.3010404@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Josh Stone <jistone@redhat.com>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, SystemTap <systemtap@sourceware.org>
 
-On Mon 26-09-11 18:03:26, David Rientjes wrote:
-> On Mon, 26 Sep 2011, Rafael J. Wysocki wrote:
+On Mon, Sep 26, 2011 at 12:59:46PM -0700, Josh Stone wrote:
+> On 09/23/2011 04:53 AM, Masami Hiramatsu wrote:
+> >> Masami looked at this and found that SystemTap sdt.h currently requires
+> >> an extra userspace memory store in order to activate probes.  Each probe
+> >> has a "semaphore" 16-bit counter which applications may test before
+> >> hitting the probe itself.  This is used to avoid overhead in
+> >> applications that do expensive argument processing (e.g. creating
+> >> strings) for probes.
+> > Indeed, originally, those semaphores designed for such use cases.
+> > However, some applications *always* use it (e.g. qemu-kvm).
 > 
-> > > Konstantin Khlebnikov has reported (https://lkml.org/lkml/2011/8/23/45)
-> > > that OOM can end up in a live lock if select_bad_process picks up a frozen
-> > > task.
-> > > Unfortunately we cannot mark such processes as unkillable to ignore them
-> > > because we could panic the system even though there is a chance that
-> > > somebody could thaw the process so we can make a forward process (e.g. a
-> > > process from another cpuset or with a different nodemask).
-> > > 
-> > > Let's thaw an OOM selected frozen process right after we've sent fatal
-> > > signal from oom_kill_task.
-> > > Thawing is safe if the frozen task doesn't access any suspended device
-> > > (e.g. by ioctl) on the way out to the userspace where we handle the
-> > > signal and die. Note, we are not interested in the kernel threads because
-> > > they are not oom killable.
-> > > 
-> > > Accessing suspended devices by a userspace processes shouldn't be an
-> > > issue because devices are suspended only after userspace is already
-> > > frozen and oom is disabled at that time.
-> > > 
-> > > run_guest (drivers/lguest/core.c) calls try_to_freeze with an user
-> > > context but it seems it is able to cope with signals because it
-> > > explicitly checks for pending signals so we should be safe.
-> > > 
-> > > Other than that userspace accesses the fridge only from the
-> > > signal handling routines so we are able to handle SIGKILL without any
-> > > negative side effects.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > > Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> > 
-> > Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
-> > 
+> I found that qemu-kvm generates its tracepoints like this:
 > 
-> Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks!
-
+>   static inline void trace_$name($args) {
+>       if (QEMU_${nameupper}_ENABLED()) {
+>           QEMU_${nameupper}($argnames);
+>       }
+>   }
 > 
-> Although this still seems to be problematic if the chosen thread gets 
-> frozen before the SIGKILL can be handled.  We don't have any checks for 
-> fatal_signal_pending() when freezing threads and waiting for them to exit?
-
-I guess you mean a situation when select_bad_process picks up a process
-which is not marked as frozen yet but we send SIGKILL right before
-schedule is called in refrigerator. 
-In that case either schedule should catch it by signal_pending_state
-check or we will pick it up next OOM round when we pick up the same
-process (if nothing else is eligible). Or am I missing something?
- 
-> Michal, could you send Andrew your revised patch with all the acked-bys?
-
-Yes I will. I would just like to hear back from Konstantin who
-originally reported the issue. Maybe he has a test case.
-
+> In that case, the $args are always computed to call the inline, so
+> you'll basically just get a memory read, jump, NOP.  There's no benefit
+> from checking ENABLED() here, and removing it would leave only the NOP.
+>  Even if you invent an improved mechanism for ENABLED(), that doesn't
+> change the fact that it's doing useless work here.
 > 
-> Thanks!
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> So in this case, it may be better to patch qemu, assuming my statements
+> hold for DTrace's implementation on other platforms too.  The ENABLED()
+> guard still does have other genuine uses though, as with the string
+> preparation in Python's probes.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+I will get qemu fixed.
+
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
