@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 444B99000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 07:44:52 -0400 (EDT)
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 17/26]   x86: arch specific hooks for
- pre/post singlestep handling.
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1707C9000C4
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 07:47:17 -0400 (EDT)
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 13/26] x86: define a x86 specific
+ exception notifier.
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 27 Sep 2011 13:44:12 +0200
-In-Reply-To: <20110926163426.GA15435@linux.vnet.ibm.com>
+Date: Tue, 27 Sep 2011 13:46:15 +0200
+In-Reply-To: <20110926155252.GA8087@linux.vnet.ibm.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
-	 <20110920120325.25326.11641.sendpatchset@srdronam.in.ibm.com>
-	 <1317047033.1763.27.camel@twins>
-	 <20110926163426.GA15435@linux.vnet.ibm.com>
+	 <20110920120238.25326.71868.sendpatchset@srdronam.in.ibm.com>
+	 <1317046791.1763.26.camel@twins> <20110926155252.GA8087@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317123853.15383.41.camel@twins>
+Message-ID: <1317123975.15383.43.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2011-09-26 at 22:04 +0530, Srikar Dronamraju wrote:
-> * Peter Zijlstra <peterz@infradead.org> [2011-09-26 16:23:53]:
+On Mon, 2011-09-26 at 21:22 +0530, Srikar Dronamraju wrote:
+> * Peter Zijlstra <peterz@infradead.org> [2011-09-26 16:19:51]:
 >=20
-> > On Tue, 2011-09-20 at 17:33 +0530, Srikar Dronamraju wrote:
-> > > +fail:
-> > > +       pr_warn_once("uprobes: Failed to adjust return address after"
-> > > +               " single-stepping call instruction;"
-> > > +               " pid=3D%d, sp=3D%#lx\n", current->pid, sp);
-> > > +       return -EFAULT;=20
+> > On Tue, 2011-09-20 at 17:32 +0530, Srikar Dronamraju wrote:
+> > > @@ -820,6 +821,19 @@ do_notify_resume(struct pt_regs *regs, void *unu=
+sed, __u32 thread_info_flags)
+> > >                 mce_notify_process();
+> > >  #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
+> > > =20
+> > > +       if (thread_info_flags & _TIF_UPROBE) {
+> > > +               clear_thread_flag(TIF_UPROBE);
+> > > +#ifdef CONFIG_X86_32
+> > > +               /*
+> > > +                * On x86_32, do_notify_resume() gets called with
+> > > +                * interrupts disabled. Hence enable interrupts if th=
+ey
+> > > +                * are still disabled.
+> > > +                */
+> > > +               local_irq_enable();
+> > > +#endif
+> > > +               uprobe_notify_resume(regs);
+> > > +       }
+> > > +
+> > >         /* deal with pending signal delivery */
+> > >         if (thread_info_flags & _TIF_SIGPENDING)
+> > >                 do_signal(regs);=20
 > >=20
-> > So how can that happen? Single-Step while someone unmapped the stack?
+> > It would be good to remove this difference between i386 and x86_64.
 >=20
-> We do a copy_to_user, copy_from_user just above this,
+>=20
+> I think, we have already discussed this. I tried getting to know why we
+> have this difference in behaviour. However I havent been able to find
+> the answer.
+>=20
+> If you can get somebody to answer this, I would be happy to modify as
+> required.
 
-I saw that,
-
->  Now if either of
-> them fail, we have no choice but to Bail out.
-
-Agreed,
-
->  What caused this EFault may not be under Uprobes's Control.
-
-I never said it was.. All I asked is what (outside of uprobe) was done
-to cause this, and why is this particular error important enough to
-warrant a warn.
+The Changelog failed to mention this. Afaict there really is no reason
+other than that touching entry_32.S is a pain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
