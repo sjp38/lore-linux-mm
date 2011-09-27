@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 48A149000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 07:38:09 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D2A949000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 07:42:05 -0400 (EDT)
 Subject: Re: [PATCH v5 3.1.0-rc4-tip 4/26]   uprobes: Define hooks for
  mmap/munmap.
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 27 Sep 2011 13:37:15 +0200
+Date: Tue, 27 Sep 2011 13:41:21 +0200
 In-Reply-To: <20110926154414.GB13535@linux.vnet.ibm.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
 	 <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
@@ -13,7 +13,7 @@ References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
 	 <20110926154414.GB13535@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317123435.15383.33.camel@twins>
+Message-ID: <1317123681.15383.37.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -21,128 +21,59 @@ To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
 On Mon, 2011-09-26 at 21:14 +0530, Srikar Dronamraju wrote:
->=20
-> > > +
-> > > +/*
-> > > + * Called from mmap_region.
-> > > + * called with mm->mmap_sem acquired.
-> > > + *
-> > > + * Return -ve no if we fail to insert probes and we cannot
-> > > + * bail-out.
-> > > + * Return 0 otherwise. i.e :
-> > > + * - successful insertion of probes
-> > > + * - (or) no possible probes to be inserted.
-> > > + * - (or) insertion of probes failed but we can bail-out.
-> > > + */
-> > > +int mmap_uprobe(struct vm_area_struct *vma)
-> > > +{
-> > > +   struct list_head tmp_list;
-> > > +   struct uprobe *uprobe, *u;
-> > > +   struct inode *inode;
-> > > +   int ret =3D 0;
-> > > +
-> > > +   if (!valid_vma(vma))
-> > > +           return ret;     /* Bail-out */
-> > > +
-> > > +   inode =3D igrab(vma->vm_file->f_mapping->host);
-> > > +   if (!inode)
-> > > +           return ret;
-> > > +
-> > > +   INIT_LIST_HEAD(&tmp_list);
-> > > +   mutex_lock(&uprobes_mmap_mutex);
-> > > +   build_probe_list(inode, &tmp_list);
-> > > +   list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-> > > +           loff_t vaddr;
-> > > +
-> > > +           list_del(&uprobe->pending_list);
-> > > +           if (!ret && uprobe->consumers) {
-> > > +                   vaddr =3D vma->vm_start + uprobe->offset;
-> > > +                   vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
-> > > +                   if (vaddr < vma->vm_start || vaddr >=3D vma->vm_e=
-nd)
-> > > +                           continue;
-> > > +                   ret =3D install_breakpoint(vma->vm_mm, uprobe);
-> > > +
-> > > +                   if (ret && (ret =3D=3D -ESRCH || ret =3D=3D -EEXI=
-ST))
-> > > +                           ret =3D 0;
-> > > +           }
-> > > +           put_uprobe(uprobe);
-> > > +   }
-> > > +
-> > > +   mutex_unlock(&uprobes_mmap_mutex);
-> > > +   iput(inode);
-> > > +   return ret;
-> > > +}
-> > > +
-> > > +static void dec_mm_uprobes_count(struct vm_area_struct *vma,
-> > > +           struct inode *inode)
-> > > +{
-> > > +   struct uprobe *uprobe;
-> > > +   struct rb_node *n;
-> > > +   unsigned long flags;
-> > > +
-> > > +   n =3D uprobes_tree.rb_node;
-> > > +   spin_lock_irqsave(&uprobes_treelock, flags);
-> > > +   uprobe =3D __find_uprobe(inode, 0, &n);
-> > > +
-> > > +   /*
-> > > +    * If indeed there is a probe for the inode and with offset zero,
-> > > +    * then lets release its reference. (ref got thro __find_uprobe)
-> > > +    */
-> > > +   if (uprobe)
-> > > +           put_uprobe(uprobe);
-> > > +   for (; n; n =3D rb_next(n)) {
-> > > +           loff_t vaddr;
-> > > +
-> > > +           uprobe =3D rb_entry(n, struct uprobe, rb_node);
-> > > +           if (uprobe->inode !=3D inode)
-> > > +                   break;
-> > > +           vaddr =3D vma->vm_start + uprobe->offset;
-> > > +           vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
-> > > +           if (vaddr < vma->vm_start || vaddr >=3D vma->vm_end)
-> > > +                   continue;
-> > > +           atomic_dec(&vma->vm_mm->mm_uprobes_count);
-> > > +   }
-> > > +   spin_unlock_irqrestore(&uprobes_treelock, flags);
-> > > +}
-> > > +
-> > > +/*
-> > > + * Called in context of a munmap of a vma.
-> > > + */
-> > > +void munmap_uprobe(struct vm_area_struct *vma)
-> > > +{
-> > > +   struct inode *inode;
-> > > +
-> > > +   if (!valid_vma(vma))
-> > > +           return;         /* Bail-out */
-> > > +
-> > > +   if (!atomic_read(&vma->vm_mm->mm_uprobes_count))
-> > > +           return;
-> > > +
-> > > +   inode =3D igrab(vma->vm_file->f_mapping->host);
-> > > +   if (!inode)
-> > > +           return;
-> > > +
-> > > +   dec_mm_uprobes_count(vma, inode);
-> > > +   iput(inode);
-> > > +   return;
-> > > +}
+> > Why not something like:
 > >=20
-> > One has to wonder why mmap_uprobe() can be one function but
-> > munmap_uprobe() cannot.
+> >=20
+> > +static struct uprobe *__find_uprobe(struct inode * inode, loff_t offse=
+t,
+> >                                       bool inode_only)
+> > +{
+> >         struct uprobe u =3D { .inode =3D inode, .offset =3D inode_only =
+? 0 : offset };
+> > +       struct rb_node *n =3D uprobes_tree.rb_node;
+> > +       struct uprobe *uprobe;
+> >       struct uprobe *ret =3D NULL;
+> > +       int match;
+> > +
+> > +       while (n) {
+> > +               uprobe =3D rb_entry(n, struct uprobe, rb_node);
+> > +               match =3D match_uprobe(&u, uprobe);
+> > +               if (!match) {
+> >                       if (!inode_only)
+> >                              atomic_inc(&uprobe->ref);
+> > +                       return uprobe;
+> > +               }
+> >               if (inode_only && uprobe->inode =3D=3D inode)
+> >                       ret =3D uprobe;
+> > +               if (match < 0)
+> > +                       n =3D n->rb_left;
+> > +               else
+> > +                       n =3D n->rb_right;
+> > +
+> > +       }
+> >         return ret;
+> > +}
 > >=20
 >=20
-> I didnt understand this comment, Can you please elaborate?
-> mmap_uprobe uses build_probe_list and munmap_uprobe uses
-> dec_mm_uprobes_count.=20
+> I am not comfortable with this change.
+> find_uprobe() was suppose to return back a uprobe if and only if
+> the inode and offset match,
 
-Ah, I missed build_probe_list(), but I didn't see a reason for the
-existence of dec_mm_uprobe_count(), the name doesn't make sense and the
-content is 'small' enough to just put in munmap_uprobe.
+And it will, because find_uprobe() will never expose that third
+argument.
 
-To me it looks similar to the list iteration you have in mmap_uprobe(),
-you didn't split that out into another function either.
+>  However with your approach, we end up
+> returning a uprobe that isnt matching and one that isnt refcounted.
+> Moreover if even if we have a matching uprobe, we end up sending a
+> unrefcounted uprobe back.=20
+
+Because the matching isn't the important part, you want to return the
+leftmost node matching the specified inode. Also, in that case you
+explicitly don't want the ref, since the first thing you do on the
+call-site is drop the ref if there was a match. You don't care about
+inode:0 in particular, you want a place to start iterating all of
+inode:*.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
