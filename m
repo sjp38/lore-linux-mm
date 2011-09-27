@@ -1,80 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 659CD9000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 12:06:56 -0400 (EDT)
-Date: Tue, 27 Sep 2011 18:06:48 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH v2 -mm] limit direct reclaim for higher order allocations
-Message-ID: <20110927160648.GA16878@redhat.com>
-References: <20110927105246.164e2fc7@annuminas.surriel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 27C109000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 12:13:18 -0400 (EDT)
+Date: Tue, 27 Sep 2011 11:13:13 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH 4/5] mm: Only IPI CPUs to drain local pages if they
+ exist
+In-Reply-To: <CAOtvUMcvwWFxxxv7tsOj6FO-wrHAU8EYc+U=9u8yT=cz7XajBA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1109271109570.9569@router.home>
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com> <1316940890-24138-5-git-send-email-gilad@benyossef.com> <1317001924.29510.160.camel@sli10-conroe> <CAOtvUMddUAATZcU_5jLgY10ocsHNnOO2GC2c4ecYO9KGt-U7VQ@mail.gmail.com>
+ <alpine.DEB.2.00.1109261023400.24164@router.home> <CAOtvUMcvwWFxxxv7tsOj6FO-wrHAU8EYc+U=9u8yT=cz7XajBA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110927105246.164e2fc7@annuminas.surriel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, aarcange@redhat.com
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Tue, Sep 27, 2011 at 10:52:46AM -0400, Rik van Riel wrote:
-> When suffering from memory fragmentation due to unfreeable pages,
-> THP page faults will repeatedly try to compact memory.  Due to
-> the unfreeable pages, compaction fails.
-> 
-> Needless to say, at that point page reclaim also fails to create
-> free contiguous 2MB areas.  However, that doesn't stop the current
-> code from trying, over and over again, and freeing a minimum of
-> 4MB (2UL << sc->order pages) at every single invocation.
-> 
-> This resulted in my 12GB system having 2-3GB free memory, a
-> corresponding amount of used swap and very sluggish response times.
-> 
-> This can be avoided by having the direct reclaim code not reclaim
-> from zones that already have plenty of free memory available for
-> compaction.
-> 
-> If compaction still fails due to unmovable memory, doing additional
-> reclaim will only hurt the system, not help.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> 
-> ---
-> -v2: shrink_zones now uses the same thresholds as used by compaction itself,
->      not only is this conceptually nicer, it also results in kswapd doing
->      some actual work; before all the page freeing work was done by THP
->      allocators, I seem to see fewer application stalls after this change.
-> 
->  mm/vmscan.c |   10 ++++++++++
->  1 files changed, 10 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b7719ec..117eb4d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2083,6 +2083,16 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
->  				continue;
->  			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
->  				continue;	/* Let kswapd poll it */
-> +			if (COMPACTION_BUILD) {
-> +				/*
-> +				 * If we already have plenty of memory free
-> +				 * for compaction, don't free any more.
-> +				 */
-> +				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-> +					(compaction_suitable(zone, sc->order) ||
-> +					 compaction_deferred(zone)))
-> +					continue;
-> +			}
+On Tue, 27 Sep 2011, Gilad Ben-Yossef wrote:
 
-I don't think the comment is complete in combination with the check
-for order > PAGE_ALLOC_COSTLY_ORDER, as compaction is invoked for all
-non-zero orders.
+> My hope is to come up with a way to do more code on the CPU doing the
+> flush_all (which
+> as you said is a rare and none performance critical code path anyway)
+> and by that gain the ability
+> to do the job without interrupting CPUs that do not need to flush
+> their per cpu pages.
 
-But the traditional behaviour does less harm if the orders are small
-and your problem was triggered by THP allocations, so I agree with the
-code itself.
+You may not need that for the kmem_cache_destroy(). At close time there
+are no users left and no one should be accessing the cache anyways. You
+could flush the whole shebang without IPIs.
 
-Acked-by: Johannes Weiner <jweiner@redhat.com>
+Problem is that there is no guarantee that other processes will not still
+try to access the cache. If you want to guarantee that then change some
+settings in either struct kmem_cache or struct kmem_cache_cpu that makes
+allocation and freeing impossible before flushing the per cpu pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
