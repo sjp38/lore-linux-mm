@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A4C09000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 12:57:02 -0400 (EDT)
-Received: by fxh17 with SMTP id 17so9644605fxh.14
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 09:56:57 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A2E4C9000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 13:02:04 -0400 (EDT)
+Date: Tue, 27 Sep 2011 17:58:07 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: Question about memory leak detector giving false positive
+ report for net/core/flow.c
+Message-ID: <20110927165807.GM14237@e102109-lin.cambridge.arm.com>
+References: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
+ <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+ <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
+ <1317066395.2796.11.camel@edumazet-laptop>
+ <CA+v9cxYzWJScCa2mMoEovq3WULSZYQaq6EjoRV7SQUjr0L_RiQ@mail.gmail.com>
+ <1317102918.2796.22.camel@edumazet-laptop>
 MIME-Version: 1.0
-In-Reply-To: <CANN689G4Z21v6fcF1dt-10CpQp9V42_hGPcPP2d5FChfCon_9Q@mail.gmail.com>
-References: <1316230753-8693-1-git-send-email-walken@google.com>
-	<CAKTCnzkzdQgut96NZf3Mi2kpOWW7N3qeybets5AHy7Gp8Wj_HQ@mail.gmail.com>
-	<CANN689G4Z21v6fcF1dt-10CpQp9V42_hGPcPP2d5FChfCon_9Q@mail.gmail.com>
-Date: Tue, 27 Sep 2011 22:20:21 +0530
-Message-ID: <CAKTCnzkmwiDcetuNY4yeOgfog39ojQBW9oZF8+THD+Uqshbdwg@mail.gmail.com>
-Subject: Re: [PATCH 0/8] idle page tracking / working set estimation
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1317102918.2796.22.camel@edumazet-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michael Wolf <mjwolf@us.ibm.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 
->>
->> Sorry, I have trouble parsing this sentence, could you elaborate on "when"?
->
-> page_referenced() indicates if a page was accessed since the previous
-> page_referenced() call.
->
-> page_referenced_kstaled() indicates if a page was accessed since the
-> previous page_referenced_kstaled() call.
->
-> Both of the functions need to clear PTE young bits; however we don't
-> want the two functions to interfere with each other. To achieve this,
-> we add two page bits to indicate when a young PTE has been observed by
-> one of the functions but not by the other.
+On Tue, Sep 27, 2011 at 06:55:18AM +0100, Eric Dumazet wrote:
+> Yes, it was not a patch, but the general idea for Catalin ;)
+> 
+> You hit the fact that same zone (embedded percpu space) is now in a
+> mixed state.
+> 
+> In current kernels, the embedded percpu zone is already known by
+> kmemleak, but with a large granularity. kmemleak is not aware of
+> individual allocations/freeing in this large zone.
+> 
+> Once kmemleak and percpu allocator are cooperating, we might find more
+> kmemleaks. Right now, kmemleak can find pointers in percpu chunks that
+> are not anymore reachable (they were freed), and therefore doesnt warn
+> of possible memory leaks.
 
-OK and this gives different page aging schemes for the same page? Is
-this to track state changes
+Thanks for suggestions. I need to understand the percpu code a bit
+better as it looks that kmemleak is told about some memory blocks twice.
 
-PR1 sees: PTE x young as 0
-PR2 sees: PTE x as 1, the rest to 0
-
-so PR1 and PR2 will disagree? Should I be looking deeper in the
-patches to understand
-
-Balbir
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
