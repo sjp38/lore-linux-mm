@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8654B9000BD
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:03:44 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id p8R13VJj012428
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:03:31 -0700
-Received: from gyd8 (gyd8.prod.google.com [10.243.49.200])
-	by hpaq6.eem.corp.google.com with ESMTP id p8R12G58013502
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:03:30 -0700
-Received: by gyd8 with SMTP id 8so7301272gyd.11
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2011 18:03:29 -0700 (PDT)
-Date: Mon, 26 Sep 2011 18:03:26 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] oom: do not live lock on frozen tasks
-In-Reply-To: <201109261751.40688.rjw@sisk.pl>
-Message-ID: <alpine.DEB.2.00.1109261801150.8510@chino.kir.corp.google.com>
-References: <20110825151818.GA4003@redhat.com> <alpine.DEB.2.00.1109260154510.1389@chino.kir.corp.google.com> <20110926091440.GE10156@tiehlicka.suse.cz> <201109261751.40688.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AE5F59000BD
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2011 21:05:24 -0400 (EDT)
+Subject: Re: [patch]mm: initialize zone all_unreclaimable
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110926155250.464e7770.akpm@google.com>
+References: <1317024712.29510.178.camel@sli10-conroe>
+	 <20110926132320.GA4206@tiehlicka.suse.cz>
+	 <20110926155250.464e7770.akpm@google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 27 Sep 2011 09:10:11 +0800
+Message-ID: <1317085811.29510.180.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>
-Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Andrew Morton <akpm@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 26 Sep 2011, Rafael J. Wysocki wrote:
-
-> > Konstantin Khlebnikov has reported (https://lkml.org/lkml/2011/8/23/45)
-> > that OOM can end up in a live lock if select_bad_process picks up a frozen
-> > task.
-> > Unfortunately we cannot mark such processes as unkillable to ignore them
-> > because we could panic the system even though there is a chance that
-> > somebody could thaw the process so we can make a forward process (e.g. a
-> > process from another cpuset or with a different nodemask).
-> > 
-> > Let's thaw an OOM selected frozen process right after we've sent fatal
-> > signal from oom_kill_task.
-> > Thawing is safe if the frozen task doesn't access any suspended device
-> > (e.g. by ioctl) on the way out to the userspace where we handle the
-> > signal and die. Note, we are not interested in the kernel threads because
-> > they are not oom killable.
-> > 
-> > Accessing suspended devices by a userspace processes shouldn't be an
-> > issue because devices are suspended only after userspace is already
-> > frozen and oom is disabled at that time.
-> > 
-> > run_guest (drivers/lguest/core.c) calls try_to_freeze with an user
-> > context but it seems it is able to cope with signals because it
-> > explicitly checks for pending signals so we should be safe.
-> > 
-> > Other than that userspace accesses the fridge only from the
-> > signal handling routines so we are able to handle SIGKILL without any
-> > negative side effects.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+On Tue, 2011-09-27 at 06:52 +0800, Andrew Morton wrote:
+> On Mon, 26 Sep 2011 15:23:20 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+> > On Mon 26-09-11 16:11:52, Shaohua Li wrote:
+> > > I saw DMA zone is always unreclaimable in my system. 
+> > > zone->all_unreclaimable isn't initialized till a page from the zone is
+> > > freed. This isn't a big problem normally, but a little confused, so
+> > > fix here.
+> > 
+> > The value is initialized when a node is allocated. setup_node_data uses
+> > alloc_remap which memsets the whole structure or memblock allocation
+> > which is initialized to 0 as well AFAIK and memory hotplug uses
+> > arch_alloc_nodedata which is kzalloc.
 > 
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-Although this still seems to be problematic if the chosen thread gets 
-frozen before the SIGKILL can be handled.  We don't have any checks for 
-fatal_signal_pending() when freezing threads and waiting for them to exit?
-
-Michal, could you send Andrew your revised patch with all the acked-bys?
-
-Thanks!
+> setup_node_data() does memset(NODE_DATA(nid), 0, sizeof(pg_data_t)) just
+> to be sure.
+> 
+> However, Shaohua reports that "DMA zone is always unreclaimable in my system",
+> and presumably this patch fixed it.  So we don't know what's going on?
+> 
+> 
+> 
+> Presumably all the other "zone->foo = 0" assignments in free_area_init_core()
+> are unneeded.
+Looks I didn't run my test correctly, sorry. I just check it, and this
+is a vmscan bug, I'll work out a new patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
