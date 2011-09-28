@@ -1,127 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 16BD09000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 06:44:51 -0400 (EDT)
-Date: Wed, 28 Sep 2011 12:44:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen before
- deferring
-Message-ID: <20110928104445.GB15062@tiehlicka.suse.cz>
-References: <cover.1317110948.git.mhocko@suse.cz>
- <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
- <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 224489000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 07:58:16 -0400 (EDT)
+Received: by qyl38 with SMTP id 38so2484865qyl.14
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 04:58:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
+In-Reply-To: <1316051175-17780-5-git-send-email-glommer@parallels.com>
+References: <1316051175-17780-1-git-send-email-glommer@parallels.com>
+	<1316051175-17780-5-git-send-email-glommer@parallels.com>
+Date: Wed, 28 Sep 2011 15:58:13 +0400
+Message-ID: <CANaxB-wy8VDv0Wjni6UzcfBzSgNn=bZBey5f+fXHebNuek=O1A@mail.gmail.com>
+Subject: Re: [PATCH v2 4/7] per-cgroup tcp buffers control
+From: Andrew Wagin <avagin@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 27-09-11 11:35:04, David Rientjes wrote:
-> On Tue, 27 Sep 2011, Michal Hocko wrote:
-> 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 626303b..c419a7e 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -32,6 +32,7 @@
-> >  #include <linux/mempolicy.h>
-> >  #include <linux/security.h>
-> >  #include <linux/ptrace.h>
-> > +#include <linux/freezer.h>
-> >  
-> >  int sysctl_panic_on_oom;
-> >  int sysctl_oom_kill_allocating_task;
-> > @@ -451,10 +452,15 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-> >  				task_pid_nr(q), q->comm);
-> >  			task_unlock(q);
-> >  			force_sig(SIGKILL, q);
-> > +
-> > +			if (frozen(q))
-> > +				thaw_process(q);
-> >  		}
-> >  
-> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> >  	force_sig(SIGKILL, p);
-> > +	if (frozen(p))
-> > +		thaw_process(p);
-> >  
-> >  	return 0;
-> >  }
-> 
-> Also needs this...
-> 
-> 
-> oom: thaw threads if oom killed thread is frozen before deferring
-> 
-> If a thread has been oom killed and is frozen, thaw it before returning
-> to the page allocator.  Otherwise, it can stay frozen indefinitely and
-> no memory will be freed.
+* tcp_destroy_cgroup_fill() is executed for each cgroup and
+initializes some proto methods. proto_list is global and we can
+initialize each proto one time. Do we need this really?
 
-OK, I can see the race now:
-oom_kill_task				refrigerator
-  set_tsk_thread_flag(p, TIF_MEMDIE);
-  force_sig(SIGKILL, p);
-  if (frozen(p))
-  	thaw_process(p)
-					  frozen_process();
-					  [...]
-					  if (!frozen(current))
-					  	break;
-					  schedule();
+* And when a cgroup is destroyed, it cleans proto methods
+(tcp_destroy_cgroup_fill), how other cgroups will work after that?
 
-select_bad_process
-  [...]
-  if (test_tsk_thread_flag(p, TIF_MEMDIE))
-	  return ERR_PTR(-1UL);
+* What about proto, which is registered when cgroup mounted?
 
-So we either have to make sure that TIF_MEMDIE task is not frozen in
-select_bad_process (your patch) or check for fatal_signal_pending
-in refrigerator before we schedule and break out of the loop. Maybe the
-later one is safer? Rafael?
+My opinion that we may initialize proto by the following way:
 
-Anyway this looks good. I guess it would be good to fold it into the
-patch.
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM+       .enter_memory_pressure
+=3D tcp_enter_memory_pressure_nocg,
++       .sockets_allocated      =3D sockets_allocated_tcp_nocg,
++       .memory_allocated       =3D memory_allocated_tcp_nocg,
++       .memory_pressure        =3D memory_pressure_tcp_nocg,
++#else
+        .enter_memory_pressure  =3D tcp_enter_memory_pressure,
+        .sockets_allocated      =3D sockets_allocated_tcp,
+        .memory_allocated       =3D memory_allocated_tcp,
+        .memory_pressure        =3D memory_pressure_tcp,
++#endif
 
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/oom_kill.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -318,8 +318,11 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		 * blocked waiting for another task which itself is waiting
->  		 * for memory. Is there a better alternative?
->  		 */
-> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> +		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
-> +			if (unlikely(frozen(p)))
-> +				thaw_process(p);
->  			return ERR_PTR(-1UL);
-> +		}
->  		if (!p->mm)
->  			continue;
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+It should work, because the root memory cgroup always exists.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+>+int tcp_init_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
+>+                        struct cgroup_subsys *ss)
+>+{
+>+       prot->enter_memory_pressure     =3D tcp_enter_memory_pressure;
+>+       prot->memory_allocated          =3D memory_allocated_tcp;
+>+       prot->prot_mem                  =3D tcp_sysctl_mem;
+>+       prot->sockets_allocated         =3D sockets_allocated_tcp;
+>+       prot->memory_pressure           =3D memory_pressure_tcp;
+>+
+>+       return 0;
+>+}
+
+
+> +void tcp_destroy_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct cgroup_su=
+bsys *ss)
+> +{
+> + =A0 =A0 =A0 prot->enter_memory_pressure =A0 =A0 =3D tcp_enter_memory_pr=
+essure_nocg;
+> + =A0 =A0 =A0 prot->memory_allocated =A0 =A0 =A0 =A0 =A0=3D memory_alloca=
+ted_tcp_nocg;
+> + =A0 =A0 =A0 prot->prot_mem =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D tcp_s=
+ysctl_mem_nocg;
+> + =A0 =A0 =A0 prot->sockets_allocated =A0 =A0 =A0 =A0 =3D sockets_allocat=
+ed_tcp_nocg;
+> + =A0 =A0 =A0 prot->memory_pressure =A0 =A0 =A0 =A0 =A0 =3D memory_pressu=
+re_tcp_nocg;
+>
+
+>@@ -2220,12 +2220,16 @@ struct proto tcpv6_prot =3D {
+>       .hash                   =3D tcp_v6_hash,
+>       .unhash                 =3D inet_unhash,
+>       .get_port               =3D inet_csk_get_port
+> + =A0 =A0 =A0 .enter_memory_pressure =A0=3D tcp_enter_memory_pressure_noc=
+g,
+> + =A0 =A0 =A0 .sockets_allocated =A0 =A0 =A0=3D sockets_allocated_tcp_noc=
+g,
+> + =A0 =A0 =A0 .memory_allocated =A0 =A0 =A0 =3D memory_allocated_tcp_nocg=
+,
+> + =A0 =A0 =A0 .memory_pressure =A0 =A0 =A0 =A0=3D memory_pressure_tcp_noc=
+g,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
