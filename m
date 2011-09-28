@@ -1,78 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BB23D9000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:00:40 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 23A123EE0C7
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 18:00:37 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FCA945DEB3
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 18:00:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12F0D45DEA6
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 18:00:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 022801DB8042
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 18:00:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB49C1DB803B
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 18:00:35 +0900 (JST)
-Date: Wed, 28 Sep 2011 17:59:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/9] kstaled: rate limit pages scanned per second.
-Message-Id: <20110928175947.d3af52f0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CANN689GFE_hqtndKY6i4ouBBe+gVU_pqOK2HRrc-U1LJMONaXw@mail.gmail.com>
-References: <1317170947-17074-1-git-send-email-walken@google.com>
-	<1317170947-17074-7-git-send-email-walken@google.com>
-	<20110928171309.b45c684f.kamezawa.hiroyu@jp.fujitsu.com>
-	<CANN689GFE_hqtndKY6i4ouBBe+gVU_pqOK2HRrc-U1LJMONaXw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1565F9000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:20:26 -0400 (EDT)
+Message-ID: <4E82E6D0.4000508@hitachi.com>
+Date: Wed, 28 Sep 2011 18:20:16 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 25/26]   perf: Documentation for perf
+ uprobes
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120507.25326.68120.sendpatchset@srdronam.in.ibm.com>
+In-Reply-To: <20110920120507.25326.68120.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 28 Sep 2011 01:19:50 -0700
-Michel Lespinasse <walken@google.com> wrote:
+(2011/09/20 21:05), Srikar Dronamraju wrote:
+> Modify perf-probe.txt to include uprobe documentation
 
-> On Wed, Sep 28, 2011 at 1:13 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 27 Sep 2011 17:49:04 -0700
-> > Michel Lespinasse <walken@google.com> wrote:
-> >
-> >> Scan some number of pages from each node every second, instead of trying to
-> >> scan the entime memory at once and being idle for the rest of the configured
-> >> interval.
-> >>
-> >> In addition to spreading the CPU usage over the entire scanning interval,
-> >> this also reduces the jitter between two consecutive scans of the same page.
-> >>
-> >>
-> >> Signed-off-by: Michel Lespinasse <walken@google.com>
-> >
-> > Does this scan thread need to be signle thread ?
+This change should be included in 23rd and 24th patches,
+because the documentation should be updated with the tool
+enhancement.
+
+Thank you,
+
 > 
-> It tends to perform worse if we try making it multithreaded. What
-> happens is that the scanning threads call page_referenced() a lot, and
-> if they both try scanning pages that belong to the same file that
-> causes the mapping's i_mmap_mutex lock to bounce. Same things happens
-> if they try scanning pages that belong to the same anon VMA too.
+> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> ---
+>  tools/perf/Documentation/perf-probe.txt |   14 ++++++++++++++
+>  1 files changed, 14 insertions(+), 0 deletions(-)
 > 
+> diff --git a/tools/perf/Documentation/perf-probe.txt b/tools/perf/Documentation/perf-probe.txt
+> index 800775e..3c98a54 100644
+> --- a/tools/perf/Documentation/perf-probe.txt
+> +++ b/tools/perf/Documentation/perf-probe.txt
+> @@ -78,6 +78,8 @@ OPTIONS
+>  -F::
+>  --funcs::
+>  	Show available functions in given module or kernel.
+> +	With -x/--exec, can also list functions in a user space executable
+> +	/ shared library.
+>  
+>  --filter=FILTER::
+>  	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
+> @@ -98,6 +100,11 @@ OPTIONS
+>  --max-probes::
+>  	Set the maximum number of probe points for an event. Default is 128.
+>  
+> +-x::
+> +--exec=PATH::
+> +	Specify path to the executable or shared library file for user
+> +	space tracing. Can also be used with --funcs option.
+> +
+>  PROBE SYNTAX
+>  ------------
+>  Probe points are defined by following syntax.
+> @@ -182,6 +189,13 @@ Delete all probes on schedule().
+>  
+>   ./perf probe --del='schedule*'
+>  
+> +Add probes at zfree() function on /bin/zsh
+> +
+> + ./perf probe -x /bin/zsh zfree
+> +
+> +Add probes at malloc() function on libc
+> +
+> + ./perf probe -x /lib/libc.so.6 malloc
+>  
+>  SEE ALSO
+>  --------
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Hmm. with brief thinking, if you can scan list of page tables,
-you can set young flags without any locks. 
-For inode pages, you can hook page lookup, I think.
 
-You only need to clear Young flag by scanning [pfn, end_pfn].
-Then, multi-threaded. ?
-
-
-Thanks,
--Kame
-
-
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
