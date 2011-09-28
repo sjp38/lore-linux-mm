@@ -1,85 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF829000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:58:24 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A9CC49000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:59:17 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7BC773EE0C5
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:58:21 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 862783EE0BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6181B45DE9E
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:58:21 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5576445DEB8
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 31F1B45DEAD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:58:21 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35B7E45DEB5
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 272811DB8037
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:58:21 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2306B1DB803E
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E5CB01DB8038
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:58:20 +0900 (JST)
-Message-ID: <4E8271C5.3080500@jp.fujitsu.com>
-Date: Wed, 28 Sep 2011 10:00:53 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [patch] mm: remove sysctl to manually rescue unevictable pages
-References: <1316948380-1879-1-git-send-email-consul.kautuk@gmail.com> <20110926112944.GC14333@redhat.com>
-In-Reply-To: <20110926112944.GC14333@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D62251DB8040
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:12 +0900 (JST)
+Date: Wed, 28 Sep 2011 09:58:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 1/7] Basic kernel memory functionality for the Memory
+ Controller
+Message-Id: <20110928095826.eb8ebc8c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4E81084F.9010208@parallels.com>
+References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
+	<1316393805-3005-2-git-send-email-glommer@parallels.com>
+	<20110926193451.b419f630.kamezawa.hiroyu@jp.fujitsu.com>
+	<4E81084F.9010208@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jweiner@redhat.com
-Cc: consul.kautuk@gmail.com, akpm@linux-foundation.org, mel@csn.ul.ie, minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-(2011/09/26 20:29), Johannes Weiner wrote:
-> On Sun, Sep 25, 2011 at 04:29:40PM +0530, Kautuk Consul wrote:
->> write_scan_unavictable_node checks the value req returned by
->> strict_strtoul and returns 1 if req is 0.
->>
->> However, when strict_strtoul returns 0, it means successful conversion
->> of buf to unsigned long.
->>
->> Due to this, the function was not proceeding to scan the zones for
->> unevictable pages even though we write a valid value to the 
->> scan_unevictable_pages sys file.
+On Mon, 26 Sep 2011 20:18:39 -0300
+Glauber Costa <glommer@parallels.com> wrote:
+
+> On 09/26/2011 07:34 AM, KAMEZAWA Hiroyuki wrote:
+> > On Sun, 18 Sep 2011 21:56:39 -0300
+> > Glauber Costa<glommer@parallels.com>  wrote:
+"If parent sets use_hierarchy==1, children must have the same kmem_independent value
+> > with parant's one."
+> >
+> > How do you think ? I think a hierarchy must have the same config.
+> BTW, Kame:
 > 
-> Given that there is not a real reason for this knob (anymore) and that
-> it apparently never really worked since the day it was introduced, how
-> about we just drop all that code instead?
+> Look again (I forgot myself when I first replied to you)
+> Only in the root cgroup those files get registered.
+> So shouldn't be a problem, because children won't even
+> be able to see them.
 > 
-> 	Hannes
+> Do you agree with this ?
 > 
-> ---
-> From: Johannes Weiner <jweiner@redhat.com>
-> Subject: mm: remove sysctl to manually rescue unevictable pages
-> 
-> At one point, anonymous pages were supposed to go on the unevictable
-> list when no swap space was configured, and the idea was to manually
-> rescue those pages after adding swap and making them evictable again.
-> But nowadays, swap-backed pages on the anon LRU list are not scanned
-> without available swap space anyway, so there is no point in moving
-> them to a separate list anymore.
-> 
-> The manual rescue could also be used in case pages were stranded on
-> the unevictable list due to race conditions.  But the code has been
-> around for a while now and newly discovered bugs should be properly
-> reported and dealt with instead of relying on such a manual fixup.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
-About three years ago when we introduced unevictable pages feature,
-we were worry about there are mlock, shmmem-lock abuse in the real
-world and we broke such assumption. And we expected this knob help
-to dig unevictable pages bug report. Briefly says, If this knob works
-meangfully, our unevictable handling code or their driver code are buggy.
+agreed.
 
-Fortunately, Such bug report was never happen. So, this knob finished
-the role.
-
-    Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
