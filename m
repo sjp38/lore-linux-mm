@@ -1,75 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D379000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:01 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 044B89000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:59:37 -0400 (EDT)
+Date: Wed, 28 Sep 2011 10:58:57 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 00/18] IO-less dirty throttling v11
+Message-ID: <20110928145857.GA15587@infradead.org>
+References: <20110904015305.367445271@intel.com>
 MIME-Version: 1.0
-Message-ID: <22173398-de03-43ef-abe4-a3f3231dd2e9@default>
-Date: Wed, 28 Sep 2011 07:09:18 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V10 0/6] mm: frontswap: overview (and proposal to merge at
- next window)
-References: <20110915213305.GA26317@ca-server1.us.oracle.com
- 20110928151558.dca1da5e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110928151558.dca1da5e.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20110904015305.367445271@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> Sent: Wednesday, September 28, 2011 12:16 AM
-> To: Dan Magenheimer
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; jeremy@goop.org; hu=
-ghd@google.com;
-> ngupta@vflare.org; Konrad Wilk; JBeulich@novell.com; Kurt Hackel; npiggin=
-@kernel.dk; akpm@linux-
-> foundation.org; riel@redhat.com; hannes@cmpxchg.org; matthew@wil.cx; Chri=
-s Mason;
-> sjenning@linux.vnet.ibm.com; jackdachef@gmail.com; cyclonusj@gmail.com; l=
-evinsasha928@gmail.com
-> Subject: Re: [PATCH V10 0/6] mm: frontswap: overview (and proposal to mer=
-ge at next window)
->=20
-> On Thu, 15 Sep 2011 14:33:05 -0700
-> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
->=20
-> > [PATCH V10 0/6] mm: frontswap: overview (and proposal to merge at next =
-window)
-> >
-> > (Note: V9->V10 only change is corrections in debugfs-related code/count=
-ers)
-> >
-> > (Note to earlier reviewers:  This patchset was reorganized at V9 due
-> > to feedback from Kame Hiroyuki and Andrew Morton.  Additionally, feedba=
-ck
-> > on frontswap v8 from Andrew Morton also applies to cleancache, to wit:
-> >  (1) change usage of sysfs to debugfs to avoid unnecessary kernel ABIs
-> >  (2) rename all uses of "flush" to "invalidate"
-> > As a result, additional patches (5of6 and 6of6) were added to this
-> > series at V9 to patch cleancache core code and cleancache hooks in the =
-mm
-> > and fs subsystems and update cleancache documentation accordingly.)
->=20
-> I'm sorry I couldn't catch following... what happens at hibernation ?
-> frontswap is effectively stopped/skipped automatically ? or contents of
-> TMEM can be kept after power off and it can be read correctly when
-> resume thread reads swap ?
->=20
-> In short: no influence to hibernation ?
-> I'm sorry if I misunderstand some.
+On Sun, Sep 04, 2011 at 09:53:05AM +0800, Wu Fengguang wrote:
+> Hi,
+> 
+> Finally, the complete IO-less balance_dirty_pages(). NFS is observed to perform
+> better or worse depending on the memory size. Otherwise the added patches can
+> address all known regressions.
+> 
+>         git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v11
+> 	(to be updated; currently it contains a pre-release v11)
 
-Hi Kame --
+Fengguang,
 
-Hibernation would need to be handled by the tmem backend (e.g. zcache, Xen
-tmem).  In the case of Xen tmem, both save/restore and live migration are
-fully supported.  I'm not sure if zcache works across hibernation; since
-all memory is kmalloc'ed, I think it should work fine, but it would be an
-interesting experiment.
-
-Thanks,
-Dan
+is there any chance we could start doing just the IO-less
+balance_dirty_pages, but not all the subtile other changes?  I.e. are
+the any known issues that make things work than current mainline if we
+only put in patches 1 to 6?  We're getting close to another merge
+window, and we're still busy trying to figure out all the details of
+the bandwith estimation.  I think we'd have a much more robust tree
+if we'd first only merge the infrastructure (IO-less
+balance_dirty_pages()) and then work on the algorithms separately.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
