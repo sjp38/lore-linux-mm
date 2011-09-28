@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B2609000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 08:12:26 -0400 (EDT)
-Message-ID: <4E830EF1.5080704@parallels.com>
-Date: Wed, 28 Sep 2011 09:11:29 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 812889000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:00:52 -0400 (EDT)
+Message-ID: <4E831A79.1030402@tilera.com>
+Date: Wed, 28 Sep 2011 09:00:41 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/7] per-cgroup tcp buffers control
-References: <1316051175-17780-1-git-send-email-glommer@parallels.com> <1316051175-17780-5-git-send-email-glommer@parallels.com> <CANaxB-wy8VDv0Wjni6UzcfBzSgNn=bZBey5f+fXHebNuek=O1A@mail.gmail.com>
-In-Reply-To: <CANaxB-wy8VDv0Wjni6UzcfBzSgNn=bZBey5f+fXHebNuek=O1A@mail.gmail.com>
+Subject: Re: [PATCH 0/5] Reduce cross CPU IPI interference
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1316940890-24138-1-git-send-email-gilad@benyossef.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Wagin <avagin@gmail.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On 09/28/2011 08:58 AM, Andrew Wagin wrote:
-> * tcp_destroy_cgroup_fill() is executed for each cgroup and
-> initializes some proto methods. proto_list is global and we can
-> initialize each proto one time. Do we need this really?
+On 9/25/2011 4:54 AM, Gilad Ben-Yossef wrote:
+> We have lots of infrastructure in place to partition a multi-core system such
+> that we have a group of CPUs that are dedicated to specific task: cgroups,
+> scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel
+> code will some time interrupt all CPUs in the system via IPIs for various
+> needs. These IPIs are useful and cannot be avoided altogether, but in certain
+> cases it is possible to interrupt only specific CPUs that have useful work to
+> do and not the entire system.
 >
-> * And when a cgroup is destroyed, it cleans proto methods
-> (tcp_destroy_cgroup_fill), how other cgroups will work after that?
+> This patch set, inspired by discussions with Peter Zijlstra and Frederic
+> Weisbecker when testing the nohz task patch set, is a first stab at trying to
+> explore doing this by locating the places where such global IPI calls are
+> being made and turning a global IPI into an IPI for a specific group of CPUs.
+> The purpose of the patch set is to get  feedback if this is the right way to
+> go for dealing with this issue and indeed, if the issue is even worth dealing
+> with at all.
 
-I've already realized that, and removed destruction from my upcoming
-series. Thanks
+I strongly concur with your motivation in looking for and removing sources 
+of unnecessary cross-cpu interrupts.  We have some code in our tree (not 
+yet returned to the community) that tries to deal with some sources of 
+interrupt jitter on tiles that are running isolcpu and want to be 100% in 
+userspace.
 
-> * What about proto, which is registered when cgroup mounted?
->
-> My opinion that we may initialize proto by the following way:
->
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM+       .enter_memory_pressure
-> = tcp_enter_memory_pressure_nocg,
-> +       .sockets_allocated      = sockets_allocated_tcp_nocg,
-> +       .memory_allocated       = memory_allocated_tcp_nocg,
-> +       .memory_pressure        = memory_pressure_tcp_nocg,
-> +#else
->          .enter_memory_pressure  = tcp_enter_memory_pressure,
->          .sockets_allocated      = sockets_allocated_tcp,
->          .memory_allocated       = memory_allocated_tcp,
->          .memory_pressure        = memory_pressure_tcp,
-> +#endif
->
-> It should work, because the root memory cgroup always exists.
-Yeah, I was still doing the initialization through cgroups, but I think
-this works.
+> This first version creates an on_each_cpu_mask infrastructure API (derived from
+> existing arch specific versions in Tile and Arm) and uses it to turn two global
+> IPI invocation to per CPU group invocations.
 
-The reason I was keeping it cgroup's initialization method, was because 
-we have a parameter that allowed kmem accounting to be disabled.
-But Kame suggested we'd remove it, and so I did.
+The global version looks fine; I would probably make on_each_cpu() an 
+inline in the !SMP case now that you are (correctly, I suspect) disabling 
+interrupts when calling the function.
 
->
->> +int tcp_init_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
->> +                        struct cgroup_subsys *ss)
->> +{
->> +       prot->enter_memory_pressure     = tcp_enter_memory_pressure;
->> +       prot->memory_allocated          = memory_allocated_tcp;
->> +       prot->prot_mem                  = tcp_sysctl_mem;
->> +       prot->sockets_allocated         = sockets_allocated_tcp;
->> +       prot->memory_pressure           = memory_pressure_tcp;
->> +
->> +       return 0;
->> +}
->
->
->> +void tcp_destroy_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
->> +                            struct cgroup_subsys *ss)
->> +{
->> +       prot->enter_memory_pressure     = tcp_enter_memory_pressure_nocg;
->> +       prot->memory_allocated          = memory_allocated_tcp_nocg;
->> +       prot->prot_mem                  = tcp_sysctl_mem_nocg;
->> +       prot->sockets_allocated         = sockets_allocated_tcp_nocg;
->> +       prot->memory_pressure           = memory_pressure_tcp_nocg;
->>
->
->> @@ -2220,12 +2220,16 @@ struct proto tcpv6_prot = {
->>        .hash                   = tcp_v6_hash,
->>        .unhash                 = inet_unhash,
->>        .get_port               = inet_csk_get_port
->> +       .enter_memory_pressure  = tcp_enter_memory_pressure_nocg,
->> +       .sockets_allocated      = sockets_allocated_tcp_nocg,
->> +       .memory_allocated       = memory_allocated_tcp_nocg,
->> +       .memory_pressure        = memory_pressure_tcp_nocg,
+> The patch is against 3.1-rc4 and was compiled for x86 and arm in both UP and
+> SMP mode (I could not get Tile to build, regardless of this patch)
+
+Yes, our gcc changes are still being prepped for return to the community, 
+so unless you want to grab the source code on the http://www.tilera.com/scm 
+website, you won't have tile support in gcc yet.  (binutils has been 
+returned, so gcc is next up.)
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
