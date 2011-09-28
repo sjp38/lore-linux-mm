@@ -1,87 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 88CC29000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 11:09:59 -0400 (EDT)
-Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
- area
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 28 Sep 2011 16:50:35 +0200
-In-Reply-To: <20110928140205.GA26617@localhost>
-References: <20110904015305.367445271@intel.com>
-	 <20110904020915.942753370@intel.com> <1315318179.14232.3.camel@twins>
-	 <20110907123108.GB6862@localhost> <1315822779.26517.23.camel@twins>
-	 <20110918141705.GB15366@localhost> <20110918143721.GA17240@localhost>
-	 <20110918144751.GA18645@localhost> <20110928140205.GA26617@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317221435.24040.39.camel@twins>
-Mime-Version: 1.0
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F8409000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 13:27:40 -0400 (EDT)
+Date: Wed, 28 Sep 2011 18:23:43 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: Question about memory leak detector giving false positive
+ report for net/core/flow.c
+Message-ID: <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
+References: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
+ <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+ <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
+ <1317066395.2796.11.camel@edumazet-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1317066395.2796.11.camel@edumazet-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 
-On Wed, 2011-09-28 at 22:02 +0800, Wu Fengguang wrote:
+On Mon, Sep 26, 2011 at 08:46:35PM +0100, Eric Dumazet wrote:
+> Le lundi 26 septembre 2011 a 17:50 +0100, Catalin Marinas a ecrit :
+> > kmemleak_not_leak() definitely not the write answer. The alloc_percpu()
+> > call does not have any kmemleak_alloc() callback, so it doesn't scan
+> > them.
+> > 
+> > Huajun, could you please try the patch below:
+...
+> Hmm, you need to call kmemleak_alloc() for each chunk allocated per
+> possible cpu.
 
-/me attempts to swap back neurons related to writeback
+I tried this but it's tricky. The problem is that the percpu pointer
+returned by alloc_percpu() does not directly point to the per-cpu chunks
+and kmemleak would report most percpu allocations as leaks. So far the
+workaround is to simply mark the alloc_percpu() objects as never leaking
+and at least we avoid false positives in other areas. See the patch
+below (note that you have to increase the CONFIG_KMEMLEAK_EARLY_LOG_SIZE
+as there are many alloc_percpu() calls before kmemleak is fully
+initialised):
 
-> After lots of experiments, I end up with this bdi reserve point
->=20
-> +       x_intercept =3D bdi_thresh / 2 + MIN_WRITEBACK_PAGES;
->=20
-> together with this chunk to avoid a bdi stuck in bdi_thresh=3D0 state:
->=20
-> @@ -590,6 +590,7 @@ static unsigned long bdi_position_ratio(
->          */
->         if (unlikely(bdi_thresh > thresh))
->                 bdi_thresh =3D thresh;
-> +       bdi_thresh =3D max(bdi_thresh, (limit - dirty) / 8);
->         /*
->          * scale global setpoint to bdi's:
->          *      bdi_setpoint =3D setpoint * bdi_thresh / thresh
+------------8<------------------------------------
 
-So you cap bdi_thresh at a minimum of (limit-dirty)/8 which can be
-pretty close to 0 if we have a spike in dirty or a negative spike in
-writeout bandwidth (sudden seeks or whatnot).
+kmemleak: Handle percpu memory allocation
 
+From: Catalin Marinas <catalin.marinas@arm.com>
 
-> The above changes are good enough to keep reasonable amount of bdi
-> dirty pages, so the bdi underrun flag ("[PATCH 11/18] block: add bdi
-> flag to indicate risk of io queue underrun") is dropped.
+This patch adds kmemleak callbacks from the percpu allocator, reducing a
+number of false positives caused by kmemleak not scanning such memory
+blocks.
 
-That sounds like goodness ;-)
+Reported-by: Huajun Li <huajun.li.lee@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>,
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+---
+ mm/percpu.c |   22 +++++++++++++++++++++-
+ 1 files changed, 21 insertions(+), 1 deletions(-)
 
-> I also tried various bdi freerun patches, however the results are not
-> satisfactory. Basically the bdi reserve area approach (this patch)
-> yields noticeably more smooth/resilient behavior than the
-> freerun/underrun approaches. I noticed that the bdi underrun flag
-> could lead to sudden surge of dirty pages (especially if not
-> safeguarded by the dirty_exceeded condition) in the very small
-> window..=20
+diff --git a/mm/percpu.c b/mm/percpu.c
+index bf80e55..ece9f85 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -67,6 +67,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
+ #include <linux/workqueue.h>
++#include <linux/kmemleak.h>
+ 
+ #include <asm/cacheflush.h>
+ #include <asm/sections.h>
+@@ -709,6 +710,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+ 	const char *err;
+ 	int slot, off, new_alloc;
+ 	unsigned long flags;
++	void __percpu *ptr;
++	unsigned int cpu;
+ 
+ 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+ 		WARN(true, "illegal size (%zu) or align (%zu) for "
+@@ -801,7 +804,16 @@ area_found:
+ 	mutex_unlock(&pcpu_alloc_mutex);
+ 
+ 	/* return address relative to base address */
+-	return __addr_to_pcpu_ptr(chunk->base_addr + off);
++	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
++
++	/*
++	 * Percpu allocations are currently reported as leaks (kmemleak false
++	 * positives). To avoid this, just set min_count to 0.
++	 */
++	for_each_possible_cpu(cpu)
++		kmemleak_alloc(per_cpu_ptr(ptr, cpu), size, 0, GFP_KERNEL);
++
++	return ptr;
+ 
+ fail_unlock:
+ 	spin_unlock_irqrestore(&pcpu_lock, flags);
+@@ -911,10 +923,14 @@ void free_percpu(void __percpu *ptr)
+ 	struct pcpu_chunk *chunk;
+ 	unsigned long flags;
+ 	int off;
++	unsigned int cpu;
+ 
+ 	if (!ptr)
+ 		return;
+ 
++	for_each_possible_cpu(cpu)
++		kmemleak_free(per_cpu_ptr(ptr, cpu));
++
+ 	addr = __pcpu_ptr_to_addr(ptr);
+ 
+ 	spin_lock_irqsave(&pcpu_lock, flags);
+@@ -1619,6 +1635,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 			rc = -ENOMEM;
+ 			goto out_free_areas;
+ 		}
++		/* kmemleak tracks the percpu allocations separately */
++		kmemleak_free(ptr);
+ 		areas[group] = ptr;
+ 
+ 		base = min(ptr, base);
+@@ -1733,6 +1751,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 					   "for cpu%u\n", psize_str, cpu);
+ 				goto enomem;
+ 			}
++			/* kmemleak tracks the percpu allocations separately */
++			kmemleak_free(ptr);
+ 			pages[j++] = virt_to_page(ptr);
+ 		}
+ 
 
-OK, so let me try and parse this magic:
-
-+       x_intercept =3D bdi_thresh / 2 + MIN_WRITEBACK_PAGES;
-+       if (bdi_dirty < x_intercept) {
-+               if (bdi_dirty > x_intercept / 8) {
-+                       pos_ratio *=3D x_intercept;
-+                       do_div(pos_ratio, bdi_dirty);
-+               } else
-+                       pos_ratio *=3D 8;
-+       }
-
-So we set our target some place north of MIN_WRITEBACK_PAGES: if we're
-short we add a factor of: x_intercept/bdi_dirty.=20
-
-Now, since bdi_dirty < x_intercept, this is > 1 and thus we promote more
-dirties.
-
-Additionally we don't let the factor get larger than 8 to avoid silly
-large fluctuations (8 already seems quite generous to me).
-
-
-Now I guess the only problem is when nr_bdi * MIN_WRITEBACK_PAGES ~
-limit, at which point things go pear shaped.
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
