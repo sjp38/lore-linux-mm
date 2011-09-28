@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 068089000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:49:34 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p8S0nWqu020673
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:32 -0700
-Received: from iabn5 (iabn5.prod.google.com [10.12.90.5])
-	by wpaz33.hot.corp.google.com with ESMTP id p8S0nT0a008041
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 332079000C7
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:49:36 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p8S0nUBk024709
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:30 -0700
+Received: from iaen33 (iaen33.prod.google.com [10.12.165.33])
+	by hpaq12.eem.corp.google.com with ESMTP id p8S0iQnP010490
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:31 -0700
-Received: by iabn5 with SMTP id n5so7054535iab.38
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:31 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:29 -0700
+Received: by iaen33 with SMTP id n33so8953827iae.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:28 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 3/9] kstaled: page_referenced_kstaled() and supporting infrastructure.
-Date: Tue, 27 Sep 2011 17:49:01 -0700
-Message-Id: <1317170947-17074-4-git-send-email-walken@google.com>
+Subject: [PATCH 1/9] page_referenced: replace vm_flags parameter with struct page_referenced_info
+Date: Tue, 27 Sep 2011 17:48:59 -0700
+Message-Id: <1317170947-17074-2-git-send-email-walken@google.com>
 In-Reply-To: <1317170947-17074-1-git-send-email-walken@google.com>
 References: <1317170947-17074-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,319 +22,447 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
 
-Add a new page_referenced_kstaled() interface. The desired behavior
-is that page_referenced() returns page references since the last
-page_referenced() call, and page_referenced_kstaled() returns page
-references since the last page_referenced_kstaled() call, but they
-are both independent of each other and do not influence each other.
-
-The following events are counted as kstaled page references:
-- CPU data access to the page (as noticed through pte_young());
-- mark_page_accessed() calls;
-- page being freed / reallocated.
+Introduce struct page_referenced_info, passed into page_referenced() family
+of functions, to represent information about the pte references that have
+been found for that page. Currently contains the vm_flags information as
+well as a PR_REFERENCED flag. The idea is to make it easy to extend the API
+with new flags.
 
 
 Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- include/linux/page-flags.h |   35 ++++++++++++++++++++++
- include/linux/rmap.h       |   68 +++++++++++++++++++++++++++++++++++++++----
- mm/rmap.c                  |   62 ++++++++++++++++++++++++++++-----------
- mm/swap.c                  |    1 +
- 4 files changed, 141 insertions(+), 25 deletions(-)
+ include/linux/ksm.h  |    9 ++---
+ include/linux/rmap.h |   28 ++++++++++-----
+ mm/ksm.c             |   15 +++-----
+ mm/rmap.c            |   92 +++++++++++++++++++++++---------------------------
+ mm/vmscan.c          |   18 +++++----
+ 5 files changed, 81 insertions(+), 81 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6081493..e964d98 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -51,6 +51,13 @@
-  * PG_hwpoison indicates that a page got corrupted in hardware and contains
-  * data with incorrect ECC bits that triggered a machine check. Accessing is
-  * not safe since it may cause another machine check. Don't touch!
-+ *
-+ * PG_young indicates that kstaled cleared the young bit on some PTEs pointing
-+ * to that page. In order to avoid interacting with the LRU algorithm, we want
-+ * the next page_referenced() call to still consider the page young.
-+ *
-+ * PG_idle indicates that the page has not been referenced since the last time
-+ * kstaled scanned it.
-  */
+diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+index 3319a69..fac4b16 100644
+--- a/include/linux/ksm.h
++++ b/include/linux/ksm.h
+@@ -83,8 +83,8 @@ static inline int ksm_might_need_to_copy(struct page *page,
+ 		 page->index != linear_page_index(vma, address));
+ }
  
- /*
-@@ -107,6 +114,10 @@ enum pageflags {
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	PG_compound_lock,
- #endif
-+#ifdef CONFIG_KSTALED
-+	PG_young,		/* kstaled cleared pte_young */
-+	PG_idle,		/* idle since start of kstaled interval */
-+#endif
- 	__NR_PAGEFLAGS,
+-int page_referenced_ksm(struct page *page,
+-			struct mem_cgroup *memcg, unsigned long *vm_flags);
++void page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
++			 struct page_referenced_info *info);
+ int try_to_unmap_ksm(struct page *page, enum ttu_flags flags);
+ int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
+ 		  struct vm_area_struct *, unsigned long, void *), void *arg);
+@@ -119,10 +119,9 @@ static inline int ksm_might_need_to_copy(struct page *page,
+ 	return 0;
+ }
  
- 	/* Filesystems */
-@@ -278,6 +289,30 @@ PAGEFLAG_FALSE(HWPoison)
- #define __PG_HWPOISON 0
- #endif
+-static inline int page_referenced_ksm(struct page *page,
+-			struct mem_cgroup *memcg, unsigned long *vm_flags)
++static inline void page_referenced_ksm(struct page *page,
++		struct mem_cgroup *memcg, struct page_referenced_info *info)
+ {
+-	return 0;
+ }
  
-+#ifdef CONFIG_KSTALED
-+
-+PAGEFLAG(Young, young)
-+PAGEFLAG(Idle, idle)
-+
-+static inline void set_page_young(struct page *page)
-+{
-+	if (!PageYoung(page))
-+		SetPageYoung(page);
-+}
-+
-+static inline void clear_page_idle(struct page *page)
-+{
-+	if (PageIdle(page))
-+		ClearPageIdle(page);
-+}
-+
-+#else /* !CONFIG_KSTALED */
-+
-+static inline void set_page_young(struct page *page) {}
-+static inline void clear_page_idle(struct page *page) {}
-+
-+#endif /* CONFIG_KSTALED */
-+
- u64 stable_page_flags(struct page *page);
- 
- static inline int PageUptodate(struct page *page)
+ static inline int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
 diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 82fef42..88a0b85 100644
+index 2148b12..82fef42 100644
 --- a/include/linux/rmap.h
 +++ b/include/linux/rmap.h
-@@ -74,6 +74,8 @@ struct page_referenced_info {
- 	unsigned long vm_flags;
- 	unsigned int pr_flags;
- #define PR_REFERENCED  1
-+#define PR_DIRTY       2
-+#define PR_FOR_KSTALED 4
+@@ -67,6 +67,15 @@ struct anon_vma_chain {
+ 	struct list_head same_anon_vma;	/* locked by anon_vma->mutex */
  };
  
++/*
++ * Information to be filled by page_referenced() and friends.
++ */
++struct page_referenced_info {
++	unsigned long vm_flags;
++	unsigned int pr_flags;
++#define PR_REFERENCED  1
++};
++
  #ifdef CONFIG_MMU
-@@ -165,8 +167,8 @@ static inline void page_dup_rmap(struct page *page)
+ static inline void get_anon_vma(struct anon_vma *anon_vma)
+ {
+@@ -156,10 +165,11 @@ static inline void page_dup_rmap(struct page *page)
  /*
   * Called from mm/vmscan.c to handle paging out
   */
--void page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt,
--		     struct page_referenced_info *info);
-+void __page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt,
-+		       struct page_referenced_info *info);
- void page_referenced_one(struct page *, struct vm_area_struct *,
- 			 unsigned long address, unsigned int *mapcount,
- 			 struct page_referenced_info *info);
-@@ -244,12 +246,10 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+-int page_referenced(struct page *, int is_locked,
+-			struct mem_cgroup *cnt, unsigned long *vm_flags);
+-int page_referenced_one(struct page *, struct vm_area_struct *,
+-	unsigned long address, unsigned int *mapcount, unsigned long *vm_flags);
++void page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt,
++		     struct page_referenced_info *info);
++void page_referenced_one(struct page *, struct vm_area_struct *,
++			 unsigned long address, unsigned int *mapcount,
++			 struct page_referenced_info *info);
+ 
+ enum ttu_flags {
+ 	TTU_UNMAP = 0,			/* unmap mode */
+@@ -234,12 +244,12 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
  #define anon_vma_prepare(vma)	(0)
  #define anon_vma_link(vma)	do {} while (0)
  
--static inline void page_referenced(struct page *page, int is_locked,
--				   struct mem_cgroup *cnt,
--				   struct page_referenced_info *info)
-+static inline void __page_referenced(struct page *page, int is_locked,
-+				     struct mem_cgroup *cnt,
-+				     struct page_referenced_info *info)
+-static inline int page_referenced(struct page *page, int is_locked,
+-				  struct mem_cgroup *cnt,
+-				  unsigned long *vm_flags)
++static inline void page_referenced(struct page *page, int is_locked,
++				   struct mem_cgroup *cnt,
++				   struct page_referenced_info *info)
  {
--	info->vm_flags = 0;
--	info->pr_flags = 0;
+-	*vm_flags = 0;
+-	return 0;
++	info->vm_flags = 0;
++	info->pr_flags = 0;
  }
  
  #define try_to_unmap(page, refs) SWAP_FAIL
-@@ -262,6 +262,60 @@ static inline int page_mkclean(struct page *page)
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 9a68b0c..fc3fb06 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1587,14 +1587,13 @@ struct page *ksm_does_need_to_copy(struct page *page,
+ 	return new_page;
+ }
  
- #endif	/* CONFIG_MMU */
+-int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
+-			unsigned long *vm_flags)
++void page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
++			struct page_referenced_info *info)
+ {
+ 	struct stable_node *stable_node;
+ 	struct rmap_item *rmap_item;
+ 	struct hlist_node *hlist;
+ 	unsigned int mapcount = page_mapcount(page);
+-	int referenced = 0;
+ 	int search_new_forks = 0;
  
-+/**
-+ * page_referenced - test if the page was referenced
-+ * @page: the page to test
-+ * @is_locked: caller holds lock on the page
-+ * @mem_cont: target memory controller
-+ * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
-+ *
-+ * Quick test_and_clear_referenced for all mappings to a page,
-+ * returns the number of ptes which referenced the page.
-+ */
-+static inline void page_referenced(struct page *page,
-+				   int is_locked,
-+				   struct mem_cgroup *mem_cont,
-+				   struct page_referenced_info *info)
-+{
-+	info->vm_flags = 0;
-+	info->pr_flags = 0;
-+
-+#ifdef CONFIG_KSTALED
-+	/*
-+	 * Always clear PageYoung at the start of a scanning interval. It will
-+	 * get get set if kstaled clears a young bit in a pte reference,
-+	 * so that vmscan will still see the page as referenced.
-+	 */
-+	if (PageYoung(page)) {
-+		ClearPageYoung(page);
-+		info->pr_flags |= PR_REFERENCED;
-+	}
-+#endif
-+
-+	__page_referenced(page, is_locked, mem_cont, info);
-+}
-+
-+#ifdef CONFIG_KSTALED
-+static inline void page_referenced_kstaled(struct page *page, bool is_locked,
-+					   struct page_referenced_info *info)
-+{
-+	info->vm_flags = 0;
-+	info->pr_flags = PR_FOR_KSTALED;
-+
-+	/*
-+	 * Always set PageIdle at the start of a scanning interval. It will
-+	 * get cleared if a young page reference is encountered; otherwise
-+	 * the page will be counted as idle at the next kstaled scan cycle.
-+	 */
-+	if (!PageIdle(page)) {
-+		SetPageIdle(page);
-+		info->pr_flags |= PR_REFERENCED;
-+	}
-+
-+	__page_referenced(page, is_locked, NULL, info);
-+}
-+#endif
-+
- /*
-  * Return values of try_to_unmap
-  */
+ 	VM_BUG_ON(!PageKsm(page));
+@@ -1602,7 +1601,7 @@ int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
+ 
+ 	stable_node = page_stable_node(page);
+ 	if (!stable_node)
+-		return 0;
++		return;
+ again:
+ 	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+ 		struct anon_vma *anon_vma = rmap_item->anon_vma;
+@@ -1627,19 +1626,17 @@ again:
+ 			if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
+ 				continue;
+ 
+-			referenced += page_referenced_one(page, vma,
+-				rmap_item->address, &mapcount, vm_flags);
++			page_referenced_one(page, vma, rmap_item->address,
++					    &mapcount, info);
+ 			if (!search_new_forks || !mapcount)
+ 				break;
+ 		}
+ 		anon_vma_unlock(anon_vma);
+ 		if (!mapcount)
+-			goto out;
++			return;
+ 	}
+ 	if (!search_new_forks++)
+ 		goto again;
+-out:
+-	return referenced;
+ }
+ 
+ int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
 diff --git a/mm/rmap.c b/mm/rmap.c
-index f87afd0..fa8440e 100644
+index 23295f6..f87afd0 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -670,6 +670,8 @@ void page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			return;
+@@ -648,12 +648,12 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+  * Subfunctions of page_referenced: page_referenced_one called
+  * repeatedly from either page_referenced_anon or page_referenced_file.
+  */
+-int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+-			unsigned long address, unsigned int *mapcount,
+-			unsigned long *vm_flags)
++void page_referenced_one(struct page *page, struct vm_area_struct *vma,
++			 unsigned long address, unsigned int *mapcount,
++			 struct page_referenced_info *info)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	int referenced = 0;
++	bool referenced = false;
+ 
+ 	if (unlikely(PageTransHuge(page))) {
+ 		pmd_t *pmd;
+@@ -667,19 +667,19 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 					     PAGE_CHECK_ADDRESS_PMD_FLAG);
+ 		if (!pmd) {
+ 			spin_unlock(&mm->page_table_lock);
+-			goto out;
++			return;
  		}
  
-+		info->pr_flags |= PR_DIRTY;
-+
  		if (vma->vm_flags & VM_LOCKED) {
  			spin_unlock(&mm->page_table_lock);
  			*mapcount = 0;	/* break early from loop */
-@@ -678,8 +680,17 @@ void page_referenced_one(struct page *page, struct vm_area_struct *vma,
+-			*vm_flags |= VM_LOCKED;
+-			goto out;
++			info->vm_flags |= VM_LOCKED;
++			return;
  		}
  
  		/* go ahead even if the pmd is pmd_trans_splitting() */
--		if (pmdp_clear_flush_young_notify(vma, address, pmd))
--			referenced = true;
-+		if (!(info->pr_flags & PR_FOR_KSTALED)) {
-+			if (pmdp_clear_flush_young_notify(vma, address, pmd)) {
-+				referenced = true;
-+				clear_page_idle(page);
-+			}
-+		} else {
-+			if (pmdp_test_and_clear_young(vma, address, pmd)) {
-+				referenced = true;
-+				set_page_young(page);
-+			}
-+		}
+ 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
+-			referenced++;
++			referenced = true;
  		spin_unlock(&mm->page_table_lock);
  	} else {
  		pte_t *pte;
-@@ -693,6 +704,9 @@ void page_referenced_one(struct page *page, struct vm_area_struct *vma,
+@@ -691,13 +691,13 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		 */
+ 		pte = page_check_address(page, mm, address, &ptl, 0);
  		if (!pte)
- 			return;
+-			goto out;
++			return;
  
-+		if (pte_dirty(*pte))
-+			info->pr_flags |= PR_DIRTY;
-+
  		if (vma->vm_flags & VM_LOCKED) {
  			pte_unmap_unlock(pte, ptl);
  			*mapcount = 0;	/* break early from loop */
-@@ -700,23 +714,38 @@ void page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			return;
+-			*vm_flags |= VM_LOCKED;
+-			goto out;
++			info->vm_flags |= VM_LOCKED;
++			return;
  		}
  
--		if (ptep_clear_flush_young_notify(vma, address, pte)) {
-+		if (!(info->pr_flags & PR_FOR_KSTALED)) {
-+			if (ptep_clear_flush_young_notify(vma, address, pte)) {
-+				/*
-+				 * Don't treat a reference through a
-+				 * sequentially read mapping as such.
-+				 * If the page has been used in another
-+				 * mapping, we will catch it; if this other
-+				 * mapping is already gone, the unmap path
-+				 * will have set PG_referenced or activated
-+				 * the page.
-+				 */
-+				if (likely(!VM_SequentialReadHint(vma)))
-+					referenced = true;
-+				clear_page_idle(page);
-+			}
-+		} else {
- 			/*
--			 * Don't treat a reference through a sequentially read
--			 * mapping as such.  If the page has been used in
--			 * another mapping, we will catch it; if this other
--			 * mapping is already gone, the unmap path will have
--			 * set PG_referenced or activated the page.
-+			 * Within page_referenced_kstaled():
-+			 * skip TLB shootdown & VM_SequentialReadHint heuristic
+ 		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+@@ -709,7 +709,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 			 * set PG_referenced or activated the page.
  			 */
--			if (likely(!VM_SequentialReadHint(vma)))
-+			if (ptep_test_and_clear_young(vma, address, pte)) {
- 				referenced = true;
-+				set_page_young(page);
-+			}
+ 			if (likely(!VM_SequentialReadHint(vma)))
+-				referenced++;
++				referenced = true;
  		}
  		pte_unmap_unlock(pte, ptl);
  	}
- 
- 	/* Pretend the page is referenced if the task has the
+@@ -718,28 +718,27 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
  	   swap token and is in the middle of a page fault. */
--	if (mm != current->mm && has_swap_token(mm) &&
-+	if (!(info->pr_flags & PR_FOR_KSTALED) &&
-+			mm != current->mm && has_swap_token(mm) &&
+ 	if (mm != current->mm && has_swap_token(mm) &&
  			rwsem_is_locked(&mm->mmap_sem))
- 		referenced = true;
+-		referenced++;
++		referenced = true;
  
-@@ -828,7 +857,7 @@ static void page_referenced_file(struct page *page,
+ 	(*mapcount)--;
+ 
+-	if (referenced)
+-		*vm_flags |= vma->vm_flags;
+-out:
+-	return referenced;
++	if (referenced) {
++		info->vm_flags |= vma->vm_flags;
++		info->pr_flags |= PR_REFERENCED;
++	}
+ }
+ 
+-static int page_referenced_anon(struct page *page,
+-				struct mem_cgroup *mem_cont,
+-				unsigned long *vm_flags)
++static void page_referenced_anon(struct page *page,
++				 struct mem_cgroup *mem_cont,
++				 struct page_referenced_info *info)
+ {
+ 	unsigned int mapcount;
+ 	struct anon_vma *anon_vma;
+ 	struct anon_vma_chain *avc;
+-	int referenced = 0;
+ 
+ 	anon_vma = page_lock_anon_vma(page);
+ 	if (!anon_vma)
+-		return referenced;
++		return;
+ 
+ 	mapcount = page_mapcount(page);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+@@ -754,21 +753,20 @@ static int page_referenced_anon(struct page *page,
+ 		 */
+ 		if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
+ 			continue;
+-		referenced += page_referenced_one(page, vma, address,
+-						  &mapcount, vm_flags);
++		page_referenced_one(page, vma, address, &mapcount, info);
+ 		if (!mapcount)
+ 			break;
+ 	}
+ 
+ 	page_unlock_anon_vma(anon_vma);
+-	return referenced;
  }
  
  /**
-- * page_referenced - test if the page was referenced
-+ * __page_referenced - test if the page was referenced
+  * page_referenced_file - referenced check for object-based rmap
+  * @page: the page we're checking references on.
+  * @mem_cont: target memory controller
+- * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
++ * @info: collect encountered vma->vm_flags who actually referenced the page
++ *        as well as flags describing the page references encountered.
+  *
+  * For an object-based mapped page, find all the places it is mapped and
+  * check/clear the referenced flag.  This is done by following the page->mapping
+@@ -777,16 +775,15 @@ static int page_referenced_anon(struct page *page,
+  *
+  * This function is only called from page_referenced for object-based pages.
+  */
+-static int page_referenced_file(struct page *page,
+-				struct mem_cgroup *mem_cont,
+-				unsigned long *vm_flags)
++static void page_referenced_file(struct page *page,
++				 struct mem_cgroup *mem_cont,
++				 struct page_referenced_info *info)
+ {
+ 	unsigned int mapcount;
+ 	struct address_space *mapping = page->mapping;
+ 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 	struct vm_area_struct *vma;
+ 	struct prio_tree_iter iter;
+-	int referenced = 0;
+ 
+ 	/*
+ 	 * The caller's checks on page->mapping and !PageAnon have made
+@@ -822,14 +819,12 @@ static int page_referenced_file(struct page *page,
+ 		 */
+ 		if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
+ 			continue;
+-		referenced += page_referenced_one(page, vma, address,
+-						  &mapcount, vm_flags);
++		page_referenced_one(page, vma, address, &mapcount, info);
+ 		if (!mapcount)
+ 			break;
+ 	}
+ 
+ 	mutex_unlock(&mapping->i_mmap_mutex);
+-	return referenced;
+ }
+ 
+ /**
+@@ -837,45 +832,42 @@ static int page_referenced_file(struct page *page,
   * @page: the page to test
   * @is_locked: caller holds lock on the page
   * @mem_cont: target memory controller
-@@ -838,16 +867,13 @@ static void page_referenced_file(struct page *page,
+- * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
++ * @info: collect encountered vma->vm_flags who actually referenced the page
++ *        as well as flags describing the page references encountered.
+  *
   * Quick test_and_clear_referenced for all mappings to a page,
   * returns the number of ptes which referenced the page.
   */
--void page_referenced(struct page *page,
--		     int is_locked,
--		     struct mem_cgroup *mem_cont,
--		     struct page_referenced_info *info)
-+void __page_referenced(struct page *page,
-+		       int is_locked,
-+		       struct mem_cgroup *mem_cont,
-+		       struct page_referenced_info *info)
+-int page_referenced(struct page *page,
+-		    int is_locked,
+-		    struct mem_cgroup *mem_cont,
+-		    unsigned long *vm_flags)
++void page_referenced(struct page *page,
++		     int is_locked,
++		     struct mem_cgroup *mem_cont,
++		     struct page_referenced_info *info)
  {
+-	int referenced = 0;
  	int we_locked = 0;
  
--	info->vm_flags = 0;
--	info->pr_flags = 0;
--
+-	*vm_flags = 0;
++	info->vm_flags = 0;
++	info->pr_flags = 0;
++
  	if (page_mapped(page) && page_rmapping(page)) {
  		if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
  			we_locked = trylock_page(page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 3a442f1..d65b69e 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -344,6 +344,7 @@ void mark_page_accessed(struct page *page)
- 	} else if (!PageReferenced(page)) {
- 		SetPageReferenced(page);
+ 			if (!we_locked) {
+-				referenced++;
++				info->pr_flags |= PR_REFERENCED;
+ 				goto out;
+ 			}
+ 		}
+ 		if (unlikely(PageKsm(page)))
+-			referenced += page_referenced_ksm(page, mem_cont,
+-								vm_flags);
++			page_referenced_ksm(page, mem_cont, info);
+ 		else if (PageAnon(page))
+-			referenced += page_referenced_anon(page, mem_cont,
+-								vm_flags);
++			page_referenced_anon(page, mem_cont, info);
+ 		else if (page->mapping)
+-			referenced += page_referenced_file(page, mem_cont,
+-								vm_flags);
++			page_referenced_file(page, mem_cont, info);
+ 		if (we_locked)
+ 			unlock_page(page);
  	}
-+	clear_page_idle(page);
+ out:
+ 	if (page_test_and_clear_young(page_to_pfn(page)))
+-		referenced++;
+-
+-	return referenced;
++		info->pr_flags |= PR_REFERENCED;
  }
  
- EXPORT_SYMBOL(mark_page_accessed);
+ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d036e59..f0a8a1d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -647,10 +647,10 @@ enum page_references {
+ static enum page_references page_check_references(struct page *page,
+ 						  struct scan_control *sc)
+ {
+-	int referenced_ptes, referenced_page;
+-	unsigned long vm_flags;
++	int referenced_page;
++	struct page_referenced_info info;
+ 
+-	referenced_ptes = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
++	page_referenced(page, 1, sc->mem_cgroup, &info);
+ 	referenced_page = TestClearPageReferenced(page);
+ 
+ 	/* Lumpy reclaim - ignore references */
+@@ -661,10 +661,10 @@ static enum page_references page_check_references(struct page *page,
+ 	 * Mlock lost the isolation race with us.  Let try_to_unmap()
+ 	 * move the page to the unevictable list.
+ 	 */
+-	if (vm_flags & VM_LOCKED)
++	if (info.vm_flags & VM_LOCKED)
+ 		return PAGEREF_RECLAIM;
+ 
+-	if (referenced_ptes) {
++	if (info.pr_flags & PR_REFERENCED) {
+ 		if (PageAnon(page))
+ 			return PAGEREF_ACTIVATE;
+ 		/*
+@@ -1535,7 +1535,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ {
+ 	unsigned long nr_taken;
+ 	unsigned long pgscanned;
+-	unsigned long vm_flags;
++	struct page_referenced_info info;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_active);
+ 	LIST_HEAD(l_inactive);
+@@ -1582,7 +1582,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 			continue;
+ 		}
+ 
+-		if (page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
++		page_referenced(page, 0, sc->mem_cgroup, &info);
++		if (info.pr_flags & PR_REFERENCED) {
+ 			nr_rotated += hpage_nr_pages(page);
+ 			/*
+ 			 * Identify referenced, file-backed active pages and
+@@ -1593,7 +1594,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 			 * IO, plus JVM can create lots of anon VM_EXEC pages,
+ 			 * so we ignore them here.
+ 			 */
+-			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
++			if ((info.vm_flags & VM_EXEC) &&
++			    page_is_file_cache(page)) {
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+ 			}
 -- 
 1.7.3.1
 
