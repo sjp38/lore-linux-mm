@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A9CC49000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:59:17 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 926B39000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 21:10:28 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 862783EE0BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D315E3EE0B5
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5576445DEB8
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B979345DEB5
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35B7E45DEB5
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A14C845DE7E
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2306B1DB803E
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:13 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D62251DB8040
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 09:59:12 +0900 (JST)
-Date: Wed, 28 Sep 2011 09:58:26 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9483B1DB8038
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B7EE1DB803F
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
+Date: Wed, 28 Sep 2011 10:09:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 1/7] Basic kernel memory functionality for the Memory
- Controller
-Message-Id: <20110928095826.eb8ebc8c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4E81084F.9010208@parallels.com>
+Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
+Message-Id: <20110928100938.89c68c45.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4E812C81.9020909@parallels.com>
 References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-2-git-send-email-glommer@parallels.com>
-	<20110926193451.b419f630.kamezawa.hiroyu@jp.fujitsu.com>
-	<4E81084F.9010208@parallels.com>
+	<1316393805-3005-5-git-send-email-glommer@parallels.com>
+	<20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
+	<4E812C81.9020909@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,30 +34,77 @@ List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
 
-On Mon, 26 Sep 2011 20:18:39 -0300
+On Mon, 26 Sep 2011 22:53:05 -0300
 Glauber Costa <glommer@parallels.com> wrote:
 
-> On 09/26/2011 07:34 AM, KAMEZAWA Hiroyuki wrote:
-> > On Sun, 18 Sep 2011 21:56:39 -0300
+> On 09/26/2011 07:59 AM, KAMEZAWA Hiroyuki wrote:
+> > On Sun, 18 Sep 2011 21:56:42 -0300
 > > Glauber Costa<glommer@parallels.com>  wrote:
-"If parent sets use_hierarchy==1, children must have the same kmem_independent value
-> > with parant's one."
 > >
-> > How do you think ? I think a hierarchy must have the same config.
-> BTW, Kame:
+> >> With all the infrastructure in place, this patch implements
+> >> per-cgroup control for tcp memory pressure handling.
+> >>
+> >> Signed-off-by: Glauber Costa<glommer@parallels.com>
+> >> CC: David S. Miller<davem@davemloft.net>
+> >> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
+> >> CC: Eric W. Biederman<ebiederm@xmission.com>
+> >
+> > a comment below.
+> >
+> >> +int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
+> >> +		    struct cgroup_subsys *ss)
+> >> +{
+> >> +	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
+> >> +	unsigned long limit;
+> >> +
+> >> +	cg->tcp_memory_pressure = 0;
+> >> +	atomic_long_set(&cg->tcp_memory_allocated, 0);
+> >> +	percpu_counter_init(&cg->tcp_sockets_allocated, 0);
+> >> +
+> >> +	limit = nr_free_buffer_pages() / 8;
+> >> +	limit = max(limit, 128UL);
+> >> +
+> >> +	cg->tcp_prot_mem[0] = sysctl_tcp_mem[0];
+> >> +	cg->tcp_prot_mem[1] = sysctl_tcp_mem[1];
+> >> +	cg->tcp_prot_mem[2] = sysctl_tcp_mem[2];
+> >> +
+> >
+> > Then, the parameter doesn't inherit parent's one ?
+> >
+> > I think sockets_populate should pass 'parent' and
+> >
+> >
+> > I think you should have a function
+> >
+> >      mem_cgroup_should_inherit_parent_settings(parent)
+> >
+> > (This is because you made this feature as a part of memcg.
+> >   please provide expected behavior.)
+> >
+> > Thanks,
+> > -Kame
 > 
-> Look again (I forgot myself when I first replied to you)
-> Only in the root cgroup those files get registered.
-> So shouldn't be a problem, because children won't even
-> be able to see them.
+> Kame: Another look into this:
 > 
-> Do you agree with this ?
+> sysctl_tcp_mem is a global value, unless you have different namespaces.
+> So it is either global anyway, or should come from the namespace, not 
+> the parent.
 > 
-
-agreed.
+> Now, the goal here is to set the maximum possible value for those 
+> fields. That, indeed, should come from the parent.
+> 
+> That's my understanding...
+> 
+Hmm, I may misunderstand something. If this isn't a value you don't want to limit
+by memcg's kmem_limit, it's ok.
+Maybe memcg should just take care of kmem_limit.
 
 Thanks,
 -Kame
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
