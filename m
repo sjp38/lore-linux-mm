@@ -1,103 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 825809000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 01:56:55 -0400 (EDT)
-Received: by iaen33 with SMTP id n33so10603000iae.14
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 22:56:52 -0700 (PDT)
-Date: Wed, 28 Sep 2011 14:56:40 +0900
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B16F9000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 01:57:28 -0400 (EDT)
+Received: by iaen33 with SMTP id n33so10603587iae.14
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 22:57:26 -0700 (PDT)
+Date: Wed, 28 Sep 2011 14:57:14 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 2/2/4] mm: try to distribute dirty pages fairly across
- zones
-Message-ID: <20110928055640.GB14561@barrios-desktop>
+Subject: Re: [patch 1/2/4] mm: writeback: cleanups in preparation for
+ per-zone dirty limits
+Message-ID: <20110928055714.GC14561@barrios-desktop>
 References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
  <1316526315-16801-3-git-send-email-jweiner@redhat.com>
  <20110921160226.1bf74494.akpm@google.com>
  <20110922085242.GA29046@redhat.com>
- <20110923144248.GC2606@redhat.com>
+ <20110923144107.GB2606@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110923144248.GC2606@redhat.com>
+In-Reply-To: <20110923144107.GB2606@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
 Cc: Andrew Morton <akpm@google.com>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Sep 23, 2011 at 04:42:48PM +0200, Johannes Weiner wrote:
-> The maximum number of dirty pages that exist in the system at any time
-> is determined by a number of pages considered dirtyable and a
-> user-configured percentage of those, or an absolute number in bytes.
-
-It's explanation of old approach.
-
+On Fri, Sep 23, 2011 at 04:41:07PM +0200, Johannes Weiner wrote:
+> On Thu, Sep 22, 2011 at 10:52:42AM +0200, Johannes Weiner wrote:
+> > On Wed, Sep 21, 2011 at 04:02:26PM -0700, Andrew Morton wrote:
+> > > Should we rename determine_dirtyable_memory() to
+> > > global_dirtyable_memory(), to get some sense of its relationship with
+> > > zone_dirtyable_memory()?
+> > 
+> > Sounds good.
 > 
-> This number of dirtyable pages is the sum of memory provided by all
-> the zones in the system minus their lowmem reserves and high
-> watermarks, so that the system can retain a healthy number of free
-> pages without having to reclaim dirty pages.
-
-It's a explanation of new approach.
-
+> ---
 > 
-> But there is a flaw in that we have a zoned page allocator which does
-> not care about the global state but rather the state of individual
-> memory zones.  And right now there is nothing that prevents one zone
-> from filling up with dirty pages while other zones are spared, which
-> frequently leads to situations where kswapd, in order to restore the
-> watermark of free pages, does indeed have to write pages from that
-> zone's LRU list.  This can interfere so badly with IO from the flusher
-> threads that major filesystems (btrfs, xfs, ext4) mostly ignore write
-> requests from reclaim already, taking away the VM's only possibility
-> to keep such a zone balanced, aside from hoping the flushers will soon
-> clean pages from that zone.
-
-It's a explanation of old approach, again!
-Shoudn't we move above phrase of new approach into below?
-
+> The next patch will introduce per-zone dirty limiting functions in
+> addition to the traditional global dirty limiting.
 > 
-> Enter per-zone dirty limits.  They are to a zone's dirtyable memory
-> what the global limit is to the global amount of dirtyable memory, and
-> try to make sure that no single zone receives more than its fair share
-> of the globally allowed dirty pages in the first place.  As the number
-> of pages considered dirtyable exclude the zones' lowmem reserves and
-> high watermarks, the maximum number of dirty pages in a zone is such
-> that the zone can always be balanced without requiring page cleaning.
+> Rename determine_dirtyable_memory() to global_dirtyable_memory()
+> before adding the zone-specific version, and fix up its documentation.
 > 
-> As this is a placement decision in the page allocator and pages are
-> dirtied only after the allocation, this patch allows allocators to
-> pass __GFP_WRITE when they know in advance that the page will be
-> written to and become dirty soon.  The page allocator will then
-> attempt to allocate from the first zone of the zonelist - which on
-> NUMA is determined by the task's NUMA memory policy - that has not
-> exceeded its dirty limit.
-> 
-> At first glance, it would appear that the diversion to lower zones can
-> increase pressure on them, but this is not the case.  With a full high
-> zone, allocations will be diverted to lower zones eventually, so it is
-> more of a shift in timing of the lower zone allocations.  Workloads
-> that previously could fit their dirty pages completely in the higher
-> zone may be forced to allocate from lower zones, but the amount of
-> pages that 'spill over' are limited themselves by the lower zones'
-> dirty constraints, and thus unlikely to become a problem.
-
-That's a good justification.
-
-> 
-> For now, the problem of unfair dirty page distribution remains for
-> NUMA configurations where the zones allowed for allocation are in sum
-> not big enough to trigger the global dirty limits, wake up the flusher
-> threads and remedy the situation.  Because of this, an allocation that
-> could not succeed on any of the considered zones is allowed to ignore
-> the dirty limits before going into direct reclaim or even failing the
-> allocation, until a future patch changes the global dirty throttling
-> and flusher thread activation so that they take individual zone states
-> into account.
+> Also, move the functions to determine the dirtyable memory and the
+> function to calculate the dirty limit based on that together so that
+> their relationship is more apparent and that they can be commented on
+> as a group.
 > 
 > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-
-Otherwise, looks good to me.
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
 -- 
 Kinds regards,
 Minchan Kim
