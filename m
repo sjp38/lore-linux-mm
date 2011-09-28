@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0D49000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 16:44:24 -0400 (EDT)
-Date: Wed, 28 Sep 2011 21:52:35 +0100
-From: Alan Cox <alan@linux.intel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4579000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 17:46:19 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so23053135pzk.6
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 14:46:17 -0700 (PDT)
+Date: Wed, 28 Sep 2011 14:46:14 -0700
+From: Andrew Morton <akpm00@gmail.com>
 Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
-Message-ID: <20110928215235.05d4f2e5@bob.linux.org.uk>
-In-Reply-To: <1317241905.16137.516.camel@nimitz>
+Message-Id: <20110928144614.38591e97.akpm00@gmail.com>
+In-Reply-To: <20110927193810.GA5416@albatros>
 References: <20110927175453.GA3393@albatros>
 	<20110927175642.GA3432@albatros>
 	<20110927193810.GA5416@albatros>
-	<alpine.DEB.2.00.1109271459180.13797@router.home>
-	<alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1109271546320.13797@router.home>
-	<1317241905.16137.516.camel@nimitz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@gentwo.org>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segoon@openwall.com>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Vasiliy Kulikov <segoon@openwall.com>
+Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 28 Sep 2011 13:31:45 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+On Tue, 27 Sep 2011 23:38:10 +0400
+Vasiliy Kulikov <segoon@openwall.com> wrote:
 
-> On Tue, 2011-09-27 at 15:47 -0500, Christoph Lameter wrote:
-> > On Tue, 27 Sep 2011, David Rientjes wrote:
-> > > It'll turn into another one of our infinite number of
-> > > capabilities.  Does anything actually care about statistics at KB
-> > > granularity these days?
+> On Tue, Sep 27, 2011 at 21:56 +0400, Vasiliy Kulikov wrote:
+> > /proc/meminfo stores information related to memory pages usage, which
+> > may be used to monitor the number of objects in specific caches (and/or
+> > the changes of these numbers).  This might reveal private information
+> > similar to /proc/slabinfo infoleaks.  To remove the infoleak, just
+> > restrict meminfo to root.  If it is used by unprivileged daemons,
+> > meminfo permissions can be altered the same way as slabinfo:
 > > 
-> > Changing that to MB may also break things. It may be better to have
-> > consistent system for access control to memory management counters
-> > that are not related to a process.
+> >     groupadd meminfo
+> >     usermod -a -G meminfo $MONITOR_USER
+> >     chmod g+r /proc/meminfo
+> >     chgrp meminfo /proc/meminfo
 > 
-> We could also just _effectively_ make it output in MB:
-> 
-> 	foo = foo & ~(1<<20)
+> Just to make it clear: since this patch breaks "free", I don't propose
+> it anymore.
 
-I do not think that does what you intend 8)
-
-I do like the idea - it avoids any interfaces vanishing and surprise
-breakages while only CAP_SYS_whatever needs the real numbers
+It will break top(1) too.  It isn't my favoritest-ever patch :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
