@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D98089000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:27:26 -0400 (EDT)
-Date: Wed, 28 Sep 2011 10:27:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 1/2/4] mm: writeback: cleanups in preparation for
- per-zone dirty limits
-Message-ID: <20110928092718.GD11313@suse.de>
-References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
- <1316526315-16801-3-git-send-email-jweiner@redhat.com>
- <20110921160226.1bf74494.akpm@google.com>
- <20110922085242.GA29046@redhat.com>
- <20110923144107.GB2606@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D6EAC9000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:27:54 -0400 (EDT)
+Date: Wed, 28 Sep 2011 11:27:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/2]vmscan: correctly detect GFP_ATOMIC allocation failure
+Message-ID: <20110928092751.GA15062@tiehlicka.suse.cz>
+References: <1317108187.29510.201.camel@sli10-conroe>
+ <20110927112810.GA3897@tiehlicka.suse.cz>
+ <1317170933.22361.5.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110923144107.GB2606@redhat.com>
+In-Reply-To: <1317170933.22361.5.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@google.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@google.com>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Fri, Sep 23, 2011 at 04:41:07PM +0200, Johannes Weiner wrote:
-> On Thu, Sep 22, 2011 at 10:52:42AM +0200, Johannes Weiner wrote:
-> > On Wed, Sep 21, 2011 at 04:02:26PM -0700, Andrew Morton wrote:
-> > > Should we rename determine_dirtyable_memory() to
-> > > global_dirtyable_memory(), to get some sense of its relationship with
-> > > zone_dirtyable_memory()?
+On Wed 28-09-11 08:48:53, Shaohua Li wrote:
+> On Tue, 2011-09-27 at 19:28 +0800, Michal Hocko wrote:
+> > On Tue 27-09-11 15:23:07, Shaohua Li wrote:
+> > > has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
+> > > failure risk. For a high end_zone, if any zone below or equal to it has min
+> > > matermark ok, we have no risk. But current logic is any zone has min watermark
+> > > not ok, then we have risk. This is wrong to me.
 > > 
-> > Sounds good.
-> 
-> ---
-> 
-> The next patch will introduce per-zone dirty limiting functions in
-> addition to the traditional global dirty limiting.
-> 
-> Rename determine_dirtyable_memory() to global_dirtyable_memory()
-> before adding the zone-specific version, and fix up its documentation.
-> 
-> Also, move the functions to determine the dirtyable memory and the
-> function to calculate the dirty limit based on that together so that
-> their relationship is more apparent and that they can be commented on
-> as a group.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > This, however, means that we skip congestion_wait more often as ZONE_DMA
+> > tend to be mostly balanced, right? This would mean that kswapd could hog
+> > CPU more.
+> We actually might have more congestion_wait, as now if any zone can meet
+> min watermark, we don't have has_under_min_watermark_zone set so do
+> congestion_wait
 
-Acked-by: Mel Gorman <mel@suse.de>
+Ahh, sorry, got confused.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
