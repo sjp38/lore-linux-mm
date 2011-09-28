@@ -1,110 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 926B39000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 21:10:28 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D315E3EE0B5
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B979345DEB5
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A14C845DE7E
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9483B1DB8038
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B7EE1DB803F
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:10:24 +0900 (JST)
-Date: Wed, 28 Sep 2011 10:09:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 4/7] per-cgroup tcp buffers control
-Message-Id: <20110928100938.89c68c45.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4E812C81.9020909@parallels.com>
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com>
-	<1316393805-3005-5-git-send-email-glommer@parallels.com>
-	<20110926195906.f1f5831c.kamezawa.hiroyu@jp.fujitsu.com>
-	<4E812C81.9020909@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B1BFF9000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 21:45:45 -0400 (EDT)
+Received: by iaen33 with SMTP id n33so10323778iae.14
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 18:45:43 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] vmscan: add barrier to prevent evictable page in unevictable list
+Date: Wed, 28 Sep 2011 10:45:30 +0900
+Message-Id: <1317174330-2677-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-On Mon, 26 Sep 2011 22:53:05 -0300
-Glauber Costa <glommer@parallels.com> wrote:
+When racing between putback_lru_page and shmem_unlock happens,
+progrom execution order is as follows, but clear_bit in processor #1
+could be reordered right before spin_unlock of processor #1.
+Then, the page would be stranded on the unevictable list.
 
-> On 09/26/2011 07:59 AM, KAMEZAWA Hiroyuki wrote:
-> > On Sun, 18 Sep 2011 21:56:42 -0300
-> > Glauber Costa<glommer@parallels.com>  wrote:
-> >
-> >> With all the infrastructure in place, this patch implements
-> >> per-cgroup control for tcp memory pressure handling.
-> >>
-> >> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >> CC: David S. Miller<davem@davemloft.net>
-> >> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
-> >> CC: Eric W. Biederman<ebiederm@xmission.com>
-> >
-> > a comment below.
-> >
-> >> +int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
-> >> +		    struct cgroup_subsys *ss)
-> >> +{
-> >> +	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
-> >> +	unsigned long limit;
-> >> +
-> >> +	cg->tcp_memory_pressure = 0;
-> >> +	atomic_long_set(&cg->tcp_memory_allocated, 0);
-> >> +	percpu_counter_init(&cg->tcp_sockets_allocated, 0);
-> >> +
-> >> +	limit = nr_free_buffer_pages() / 8;
-> >> +	limit = max(limit, 128UL);
-> >> +
-> >> +	cg->tcp_prot_mem[0] = sysctl_tcp_mem[0];
-> >> +	cg->tcp_prot_mem[1] = sysctl_tcp_mem[1];
-> >> +	cg->tcp_prot_mem[2] = sysctl_tcp_mem[2];
-> >> +
-> >
-> > Then, the parameter doesn't inherit parent's one ?
-> >
-> > I think sockets_populate should pass 'parent' and
-> >
-> >
-> > I think you should have a function
-> >
-> >      mem_cgroup_should_inherit_parent_settings(parent)
-> >
-> > (This is because you made this feature as a part of memcg.
-> >   please provide expected behavior.)
-> >
-> > Thanks,
-> > -Kame
-> 
-> Kame: Another look into this:
-> 
-> sysctl_tcp_mem is a global value, unless you have different namespaces.
-> So it is either global anyway, or should come from the namespace, not 
-> the parent.
-> 
-> Now, the goal here is to set the maximum possible value for those 
-> fields. That, indeed, should come from the parent.
-> 
-> That's my understanding...
-> 
-Hmm, I may misunderstand something. If this isn't a value you don't want to limit
-by memcg's kmem_limit, it's ok.
-Maybe memcg should just take care of kmem_limit.
+spin_lock
+SetPageLRU
+spin_unlock
+                                clear_bit(AS_UNEVICTABLE)
+                                spin_lock
+                                if PageLRU()
+                                        if !test_bit(AS_UNEVICTABLE)
+                                        	move evictable list
+smp_mb
+if !test_bit(AS_UNEVICTABLE)
+        move evictable list
+                                spin_unlock
 
-Thanks,
--Kame
+But, pagevec_lookup in scan_mapping_unevictable_pages has rcu_read_[un]lock so
+it could protect reordering before reaching test_bit(AS_UNEVICTABLE) on processor #1
+so this problem never happens. But it's a unexpected side effect and we should
+solve this problem properly.
 
+This patch adds a barrier after mapping_clear_unevictable.
 
+side-note: I didn't meet this problem but just found during review.
 
+Cc: Johannes Weiner <jweiner@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/shmem.c  |    1 +
+ mm/vmscan.c |   11 ++++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 2d35772..22cb349 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1068,6 +1068,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 		user_shm_unlock(inode->i_size, user);
+ 		info->flags &= ~VM_LOCKED;
+ 		mapping_clear_unevictable(file->f_mapping);
++		smp_mb__after_clear_bit();
+ 		scan_mapping_unevictable_pages(file->f_mapping);
+ 	}
+ 	retval = 0;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 23256e8..4480f67 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -634,13 +634,14 @@ redo:
+ 		lru = LRU_UNEVICTABLE;
+ 		add_page_to_unevictable_list(page);
+ 		/*
+-		 * When racing with an mlock clearing (page is
+-		 * unlocked), make sure that if the other thread does
+-		 * not observe our setting of PG_lru and fails
+-		 * isolation, we see PG_mlocked cleared below and move
++		 * When racing with an mlock or AS_UNEVICTABLE clearing
++		 * (page is unlocked) make sure that if the other thread
++		 * does not observe our setting of PG_lru and fails
++		 * isolation/check_move_unevictable_page,
++		 * we see PG_mlocked/AS_UNEVICTABLE cleared below and move
+ 		 * the page back to the evictable list.
+ 		 *
+-		 * The other side is TestClearPageMlocked().
++		 * The other side is TestClearPageMlocked() or shmem_lock().
+ 		 */
+ 		smp_mb();
+ 	}
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
