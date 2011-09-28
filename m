@@ -1,88 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1565F9000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:20:26 -0400 (EDT)
-Message-ID: <4E82E6D0.4000508@hitachi.com>
-Date: Wed, 28 Sep 2011 18:20:16 +0900
-From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D98089000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 05:27:26 -0400 (EDT)
+Date: Wed, 28 Sep 2011 10:27:19 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/2/4] mm: writeback: cleanups in preparation for
+ per-zone dirty limits
+Message-ID: <20110928092718.GD11313@suse.de>
+References: <1316526315-16801-1-git-send-email-jweiner@redhat.com>
+ <1316526315-16801-3-git-send-email-jweiner@redhat.com>
+ <20110921160226.1bf74494.akpm@google.com>
+ <20110922085242.GA29046@redhat.com>
+ <20110923144107.GB2606@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 25/26]   perf: Documentation for perf
- uprobes
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120507.25326.68120.sendpatchset@srdronam.in.ibm.com>
-In-Reply-To: <20110920120507.25326.68120.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110923144107.GB2606@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@google.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-(2011/09/20 21:05), Srikar Dronamraju wrote:
-> Modify perf-probe.txt to include uprobe documentation
-
-This change should be included in 23rd and 24th patches,
-because the documentation should be updated with the tool
-enhancement.
-
-Thank you,
-
+On Fri, Sep 23, 2011 at 04:41:07PM +0200, Johannes Weiner wrote:
+> On Thu, Sep 22, 2011 at 10:52:42AM +0200, Johannes Weiner wrote:
+> > On Wed, Sep 21, 2011 at 04:02:26PM -0700, Andrew Morton wrote:
+> > > Should we rename determine_dirtyable_memory() to
+> > > global_dirtyable_memory(), to get some sense of its relationship with
+> > > zone_dirtyable_memory()?
+> > 
+> > Sounds good.
 > 
-> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 > ---
->  tools/perf/Documentation/perf-probe.txt |   14 ++++++++++++++
->  1 files changed, 14 insertions(+), 0 deletions(-)
 > 
-> diff --git a/tools/perf/Documentation/perf-probe.txt b/tools/perf/Documentation/perf-probe.txt
-> index 800775e..3c98a54 100644
-> --- a/tools/perf/Documentation/perf-probe.txt
-> +++ b/tools/perf/Documentation/perf-probe.txt
-> @@ -78,6 +78,8 @@ OPTIONS
->  -F::
->  --funcs::
->  	Show available functions in given module or kernel.
-> +	With -x/--exec, can also list functions in a user space executable
-> +	/ shared library.
->  
->  --filter=FILTER::
->  	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
-> @@ -98,6 +100,11 @@ OPTIONS
->  --max-probes::
->  	Set the maximum number of probe points for an event. Default is 128.
->  
-> +-x::
-> +--exec=PATH::
-> +	Specify path to the executable or shared library file for user
-> +	space tracing. Can also be used with --funcs option.
-> +
->  PROBE SYNTAX
->  ------------
->  Probe points are defined by following syntax.
-> @@ -182,6 +189,13 @@ Delete all probes on schedule().
->  
->   ./perf probe --del='schedule*'
->  
-> +Add probes at zfree() function on /bin/zsh
-> +
-> + ./perf probe -x /bin/zsh zfree
-> +
-> +Add probes at malloc() function on libc
-> +
-> + ./perf probe -x /lib/libc.so.6 malloc
->  
->  SEE ALSO
->  --------
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> The next patch will introduce per-zone dirty limiting functions in
+> addition to the traditional global dirty limiting.
+> 
+> Rename determine_dirtyable_memory() to global_dirtyable_memory()
+> before adding the zone-specific version, and fix up its documentation.
+> 
+> Also, move the functions to determine the dirtyable memory and the
+> function to calculate the dirty limit based on that together so that
+> their relationship is more apparent and that they can be commented on
+> as a group.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
+Acked-by: Mel Gorman <mel@suse.de>
 
 -- 
-Masami HIRAMATSU
-Software Platform Research Dept. Linux Technology Center
-Hitachi, Ltd., Yokohama Research Laboratory
-E-mail: masami.hiramatsu.pt@hitachi.com
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
