@@ -1,28 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B3CD29000BD
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 16:47:29 -0400 (EDT)
-Date: Tue, 27 Sep 2011 15:47:24 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
-In-Reply-To: <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1109271546320.13797@router.home>
-References: <20110927175453.GA3393@albatros> <20110927175642.GA3432@albatros> <20110927193810.GA5416@albatros> <alpine.DEB.2.00.1109271459180.13797@router.home> <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D09509000BD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:04:39 -0400 (EDT)
+Date: Wed, 28 Sep 2011 10:04:29 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Why isn't shrink_slab more zone oriented ?
+Message-ID: <20110928000429.GD3159@dastard>
+References: <CAFPAmTRHFOT+tc=J-=jTBpvi8ksnp6H32UsEwptrrv=hagjUsA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFPAmTRHFOT+tc=J-=jTBpvi8ksnp6H32UsEwptrrv=hagjUsA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vasiliy Kulikov <segoon@openwall.com>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
+To: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 27 Sep 2011, David Rientjes wrote:
+On Mon, Sep 26, 2011 at 05:21:12PM +0530, kautuk.c @samsung.com wrote:
+> Hi,
+> 
+> I was going through the do_try_to_free_pages(), balance_pgdat(),
+> __zone_reclaim()
+> functions and I see that shrink_zone and shrink_slab are called for each zone.
+> 
+> But, shrink_slab() doesn't seem to bother about the zone from where it
+> is freeing
+> memory.
 
-> It'll turn into another one of our infinite number of capabilities.  Does
-> anything actually care about statistics at KB granularity these days?
+Work is in progress to do this.
 
-Changing that to MB may also break things. It may be better to have
-consistent system for access control to memory management counters that
-are not related to a process.
+http://lwn.net/Articles/456071/
+
+Dirty slab objects are currently not tracked in a manner that makes
+per-zone reclaim efficient to do, os that needs to be corrected
+first.  Once we have generic per-zone LRU infrastructure, then we
+can easily push zone reclaim hints down into the shrinkers for them
+to scan the appropriate LRU....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
