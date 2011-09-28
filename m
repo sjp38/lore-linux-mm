@@ -1,139 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8409000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 13:27:40 -0400 (EDT)
-Date: Wed, 28 Sep 2011 18:23:43 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: Question about memory leak detector giving false positive
- report for net/core/flow.c
-Message-ID: <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
-References: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com>
- <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <20110926165024.GA21617@e102109-lin.cambridge.arm.com>
- <1317066395.2796.11.camel@edumazet-laptop>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DACBB9000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 13:58:00 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so22581494pzk.6
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 10:57:57 -0700 (PDT)
+Date: Thu, 29 Sep 2011 02:57:50 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
+ lru pages
+Message-ID: <20110928175750.GA1696@barrios-desktop>
+References: <1317108184.29510.200.camel@sli10-conroe>
+ <20110928065721.GA15021@barrios-desktop>
+ <1317193711.22361.16.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1317066395.2796.11.camel@edumazet-laptop>
+In-Reply-To: <1317193711.22361.16.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@google.com>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Sep 26, 2011 at 08:46:35PM +0100, Eric Dumazet wrote:
-> Le lundi 26 septembre 2011 a 17:50 +0100, Catalin Marinas a ecrit :
-> > kmemleak_not_leak() definitely not the write answer. The alloc_percpu()
-> > call does not have any kmemleak_alloc() callback, so it doesn't scan
-> > them.
+On Wed, Sep 28, 2011 at 03:08:31PM +0800, Shaohua Li wrote:
+> On Wed, 2011-09-28 at 14:57 +0800, Minchan Kim wrote:
+> > On Tue, Sep 27, 2011 at 03:23:04PM +0800, Shaohua Li wrote:
+> > > I saw DMA zone always has ->all_unreclaimable set. The reason is the high zones
+> > > are big, so zone_watermark_ok/_safe() will always return false with a high
+> > > classzone_idx for DMA zone, because DMA zone's lowmem_reserve is big for a high
+> > > classzone_idx. When kswapd runs into DMA zone, it doesn't scan/reclaim any
+> > > pages(no pages in lru), but mark the zone as all_unreclaimable. This can
+> > > happen in other low zones too.
 > > 
-> > Huajun, could you please try the patch below:
-...
-> Hmm, you need to call kmemleak_alloc() for each chunk allocated per
-> possible cpu.
+> > Good catch!
+> > 
+> > > This is confusing and can potentially cause oom. Say a low zone has
+> > > all_unreclaimable when high zone hasn't enough memory. Then allocating
+> > > some pages in low zone(for example reading blkdev with highmem support),
+> > > then run into direct reclaim. Since the zone has all_unreclaimable set,
+> > > direct reclaim might reclaim nothing and an oom reported. If
+> > > all_unreclaimable is unset, the zone can actually reclaim some pages.
+> > > If all_unreclaimable is unset, in the inner loop of balance_pgdat we always have
+> > > all_zones_ok 0 when checking a low zone's watermark. If high zone watermark isn't
+> > > good, there is no problem. Otherwise, we might loop one more time in the outer
+> > > loop, but since high zone watermark is ok, the end_zone will be lower, then low
+> > > zone's watermark check will be ok and the outer loop will break. So looks this
+> > > doesn't bring any problem.
+> > 
+> > I think it would be better to correct zone_reclaimable.
+> > My point is zone_reclaimable should consider zone->pages_scanned.
+> > The point of the function is how many pages scanned VS how many pages remained in LRU.
+> > If reclaimer doesn't scan the zone at all because of no lru pages, it shouldn't tell
+> > the zone is all_unreclaimable.
+> actually this is exact my first version of the patch. The problem is if
+> a zone is true unreclaimable (used by kenrel pages or whatever), we will
+> have zone->pages_scanned 0 too. I thought we should set
+> all_unreclaimable in this case.
 
-I tried this but it's tricky. The problem is that the percpu pointer
-returned by alloc_percpu() does not directly point to the per-cpu chunks
-and kmemleak would report most percpu allocations as leaks. So far the
-workaround is to simply mark the alloc_percpu() objects as never leaking
-and at least we avoid false positives in other areas. See the patch
-below (note that you have to increase the CONFIG_KMEMLEAK_EARLY_LOG_SIZE
-as there are many alloc_percpu() calls before kmemleak is fully
-initialised):
+Let's think the problem again.
+Fundamental problem is that why the lower zone's lowmem_reserve for higher zone is huge big
+that might be bigger than the zone's size.
+I think we need the boundary for limiting lowmem_reseve.
+So how about this?
 
-------------8<------------------------------------
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2a25213..9267db4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5101,6 +5101,7 @@ static void setup_per_zone_lowmem_reserve(void)
+                        idx = j;
+                        while (idx) {
+                                struct zone *lower_zone;
++                               unsigned long lowmem_reserve;
+ 
+                                idx--;
+ 
+@@ -5108,8 +5109,9 @@ static void setup_per_zone_lowmem_reserve(void)
+                                        sysctl_lowmem_reserve_ratio[idx] = 1;
+ 
+                                lower_zone = pgdat->node_zones + idx;
+-                               lower_zone->lowmem_reserve[j] = present_pages /
+-                                       sysctl_lowmem_reserve_ratio[idx];
++                               lowmem_reserve = present_pages / sysctl_lowmem_reserve_ratio[idx];
++                               lower_zone->lowmem_reserve[j] = min(lowmem_reserve,
++                                               lower_zone->present_pages - high_wmark_pages(zone));
+                                present_pages += lower_zone->present_pages;
+                        }
+                }
 
-kmemleak: Handle percpu memory allocation
 
-From: Catalin Marinas <catalin.marinas@arm.com>
-
-This patch adds kmemleak callbacks from the percpu allocator, reducing a
-number of false positives caused by kmemleak not scanning such memory
-blocks.
-
-Reported-by: Huajun Li <huajun.li.lee@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>,
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
- mm/percpu.c |   22 +++++++++++++++++++++-
- 1 files changed, 21 insertions(+), 1 deletions(-)
-
-diff --git a/mm/percpu.c b/mm/percpu.c
-index bf80e55..ece9f85 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -67,6 +67,7 @@
- #include <linux/spinlock.h>
- #include <linux/vmalloc.h>
- #include <linux/workqueue.h>
-+#include <linux/kmemleak.h>
- 
- #include <asm/cacheflush.h>
- #include <asm/sections.h>
-@@ -709,6 +710,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
- 	const char *err;
- 	int slot, off, new_alloc;
- 	unsigned long flags;
-+	void __percpu *ptr;
-+	unsigned int cpu;
- 
- 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
- 		WARN(true, "illegal size (%zu) or align (%zu) for "
-@@ -801,7 +804,16 @@ area_found:
- 	mutex_unlock(&pcpu_alloc_mutex);
- 
- 	/* return address relative to base address */
--	return __addr_to_pcpu_ptr(chunk->base_addr + off);
-+	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
-+
-+	/*
-+	 * Percpu allocations are currently reported as leaks (kmemleak false
-+	 * positives). To avoid this, just set min_count to 0.
-+	 */
-+	for_each_possible_cpu(cpu)
-+		kmemleak_alloc(per_cpu_ptr(ptr, cpu), size, 0, GFP_KERNEL);
-+
-+	return ptr;
- 
- fail_unlock:
- 	spin_unlock_irqrestore(&pcpu_lock, flags);
-@@ -911,10 +923,14 @@ void free_percpu(void __percpu *ptr)
- 	struct pcpu_chunk *chunk;
- 	unsigned long flags;
- 	int off;
-+	unsigned int cpu;
- 
- 	if (!ptr)
- 		return;
- 
-+	for_each_possible_cpu(cpu)
-+		kmemleak_free(per_cpu_ptr(ptr, cpu));
-+
- 	addr = __pcpu_ptr_to_addr(ptr);
- 
- 	spin_lock_irqsave(&pcpu_lock, flags);
-@@ -1619,6 +1635,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
- 			rc = -ENOMEM;
- 			goto out_free_areas;
- 		}
-+		/* kmemleak tracks the percpu allocations separately */
-+		kmemleak_free(ptr);
- 		areas[group] = ptr;
- 
- 		base = min(ptr, base);
-@@ -1733,6 +1751,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
- 					   "for cpu%u\n", psize_str, cpu);
- 				goto enomem;
- 			}
-+			/* kmemleak tracks the percpu allocations separately */
-+			kmemleak_free(ptr);
- 			pages[j++] = virt_to_page(ptr);
- 		}
- 
+> 
+> Thanks,
+> Shaohua
+> 
 
 -- 
-Catalin
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
