@@ -1,52 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 46DD49000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 08:04:56 -0400 (EDT)
-Message-ID: <4E830D1B.1070503@parallels.com>
-Date: Wed, 28 Sep 2011 09:03:39 -0300
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B2609000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 08:12:26 -0400 (EDT)
+Message-ID: <4E830EF1.5080704@parallels.com>
+Date: Wed, 28 Sep 2011 09:11:29 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/7] Basic kernel memory functionality for the Memory
- Controller
-References: <1316393805-3005-1-git-send-email-glommer@parallels.com> <1316393805-3005-2-git-send-email-glommer@parallels.com> <20110926193451.b419f630.kamezawa.hiroyu@jp.fujitsu.com> <4E81084F.9010208@parallels.com> <20110928095826.eb8ebc8c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110928095826.eb8ebc8c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v2 4/7] per-cgroup tcp buffers control
+References: <1316051175-17780-1-git-send-email-glommer@parallels.com> <1316051175-17780-5-git-send-email-glommer@parallels.com> <CANaxB-wy8VDv0Wjni6UzcfBzSgNn=bZBey5f+fXHebNuek=O1A@mail.gmail.com>
+In-Reply-To: <CANaxB-wy8VDv0Wjni6UzcfBzSgNn=bZBey5f+fXHebNuek=O1A@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name
+To: Andrew Wagin <avagin@gmail.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On 09/27/2011 09:58 PM, KAMEZAWA Hiroyuki wrote:
-> On Mon, 26 Sep 2011 20:18:39 -0300
-> Glauber Costa<glommer@parallels.com>  wrote:
+On 09/28/2011 08:58 AM, Andrew Wagin wrote:
+> * tcp_destroy_cgroup_fill() is executed for each cgroup and
+> initializes some proto methods. proto_list is global and we can
+> initialize each proto one time. Do we need this really?
 >
->> On 09/26/2011 07:34 AM, KAMEZAWA Hiroyuki wrote:
->>> On Sun, 18 Sep 2011 21:56:39 -0300
->>> Glauber Costa<glommer@parallels.com>   wrote:
-> "If parent sets use_hierarchy==1, children must have the same kmem_independent value
->>> with parant's one."
->>>
->>> How do you think ? I think a hierarchy must have the same config.
->> BTW, Kame:
->>
->> Look again (I forgot myself when I first replied to you)
->> Only in the root cgroup those files get registered.
->> So shouldn't be a problem, because children won't even
->> be able to see them.
->>
->> Do you agree with this ?
->>
->
-> agreed.
->
+> * And when a cgroup is destroyed, it cleans proto methods
+> (tcp_destroy_cgroup_fill), how other cgroups will work after that?
 
-Actually it is the other way around, following previous suggestions...
+I've already realized that, and removed destruction from my upcoming
+series. Thanks
 
-The root cgroup does *not* get those files registered, since we don't 
-intend to do any kernel memory limitation for it. The others get it.
-Given that, I will proceed writing some code to respect parent cgroup's
-hierarchy.
+> * What about proto, which is registered when cgroup mounted?
+>
+> My opinion that we may initialize proto by the following way:
+>
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM+       .enter_memory_pressure
+> = tcp_enter_memory_pressure_nocg,
+> +       .sockets_allocated      = sockets_allocated_tcp_nocg,
+> +       .memory_allocated       = memory_allocated_tcp_nocg,
+> +       .memory_pressure        = memory_pressure_tcp_nocg,
+> +#else
+>          .enter_memory_pressure  = tcp_enter_memory_pressure,
+>          .sockets_allocated      = sockets_allocated_tcp,
+>          .memory_allocated       = memory_allocated_tcp,
+>          .memory_pressure        = memory_pressure_tcp,
+> +#endif
+>
+> It should work, because the root memory cgroup always exists.
+Yeah, I was still doing the initialization through cgroups, but I think
+this works.
+
+The reason I was keeping it cgroup's initialization method, was because 
+we have a parameter that allowed kmem accounting to be disabled.
+But Kame suggested we'd remove it, and so I did.
+
+>
+>> +int tcp_init_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
+>> +                        struct cgroup_subsys *ss)
+>> +{
+>> +       prot->enter_memory_pressure     = tcp_enter_memory_pressure;
+>> +       prot->memory_allocated          = memory_allocated_tcp;
+>> +       prot->prot_mem                  = tcp_sysctl_mem;
+>> +       prot->sockets_allocated         = sockets_allocated_tcp;
+>> +       prot->memory_pressure           = memory_pressure_tcp;
+>> +
+>> +       return 0;
+>> +}
+>
+>
+>> +void tcp_destroy_cgroup_fill(struct proto *prot, struct cgroup *cgrp,
+>> +                            struct cgroup_subsys *ss)
+>> +{
+>> +       prot->enter_memory_pressure     = tcp_enter_memory_pressure_nocg;
+>> +       prot->memory_allocated          = memory_allocated_tcp_nocg;
+>> +       prot->prot_mem                  = tcp_sysctl_mem_nocg;
+>> +       prot->sockets_allocated         = sockets_allocated_tcp_nocg;
+>> +       prot->memory_pressure           = memory_pressure_tcp_nocg;
+>>
+>
+>> @@ -2220,12 +2220,16 @@ struct proto tcpv6_prot = {
+>>        .hash                   = tcp_v6_hash,
+>>        .unhash                 = inet_unhash,
+>>        .get_port               = inet_csk_get_port
+>> +       .enter_memory_pressure  = tcp_enter_memory_pressure_nocg,
+>> +       .sockets_allocated      = sockets_allocated_tcp_nocg,
+>> +       .memory_allocated       = memory_allocated_tcp_nocg,
+>> +       .memory_pressure        = memory_pressure_tcp_nocg,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
