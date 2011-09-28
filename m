@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 90FB09000C7
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:49:39 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p8S0nb5e030107
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:37 -0700
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E042E9000CD
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 20:49:42 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p8S0neRn025269
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:40 -0700
 Received: from iadx2 (iadx2.prod.google.com [10.12.150.2])
-	by wpaz1.hot.corp.google.com with ESMTP id p8S0nT8j010367
+	by hpaq5.eem.corp.google.com with ESMTP id p8S0nSN9024674
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:36 -0700
-Received: by iadx2 with SMTP id x2so7477679iad.20
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:36 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:38 -0700
+Received: by iadx2 with SMTP id x2so7477672iad.20
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 17:49:38 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 4/9] kstaled: minimalistic implementation.
-Date: Tue, 27 Sep 2011 17:49:02 -0700
-Message-Id: <1317170947-17074-5-git-send-email-walken@google.com>
+Subject: [PATCH 7/9] kstaled: add histogram sampling functionality
+Date: Tue, 27 Sep 2011 17:49:05 -0700
+Message-Id: <1317170947-17074-8-git-send-email-walken@google.com>
 In-Reply-To: <1317170947-17074-1-git-send-email-walken@google.com>
 References: <1317170947-17074-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,356 +22,253 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
 
-Introduce minimal kstaled implementation. The scan rate is controlled by
-/sys/kernel/mm/kstaled/scan_seconds and per-cgroup statistics are output
-into /dev/cgroup/*/memory.idle_page_stats.
+Add statistics for pages that have been idle for 1,2,5,15,30,60,120 or
+240 scan intervals into /dev/cgroup/*/memory.idle_page_stats
 
 
 Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- mm/memcontrol.c |  297 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 297 insertions(+), 0 deletions(-)
+ include/linux/mmzone.h |    2 +
+ mm/memcontrol.c        |  108 ++++++++++++++++++++++++++++++++++++++----------
+ mm/memory_hotplug.c    |    6 +++
+ 3 files changed, 94 insertions(+), 22 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 272fbed..d8eca1b 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -633,6 +633,8 @@ typedef struct pglist_data {
+ 					     range, including holes */
+ #ifdef CONFIG_KSTALED
+ 	unsigned long node_idle_scan_pfn;
++	u8 *node_idle_page_age;           /* number of scan intervals since
++					     each page was referenced */
+ #endif
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e013b8e..e55056f 100644
+index b468867..cfe812b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -49,6 +49,8 @@
- #include <linux/page_cgroup.h>
- #include <linux/cpu.h>
- #include <linux/oom.h>
-+#include <linux/kthread.h>
-+#include <linux/rmap.h>
- #include "internal.h"
+@@ -207,6 +207,11 @@ struct mem_cgroup_eventfd_list {
+ static void mem_cgroup_threshold(struct mem_cgroup *mem);
+ static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
  
- #include <asm/uaccess.h>
-@@ -283,6 +285,16 @@ struct mem_cgroup {
- 	 */
- 	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
-+
 +#ifdef CONFIG_KSTALED
-+	seqcount_t idle_page_stats_lock;
-+	struct idle_page_stats {
-+		unsigned long idle_clean;
-+		unsigned long idle_dirty_file;
-+		unsigned long idle_dirty_swap;
-+	} idle_page_stats, idle_scan_stats;
-+	unsigned long idle_page_scans;
++static const int kstaled_buckets[] = {1, 2, 5, 15, 30, 60, 120, 240};
++#define NUM_KSTALED_BUCKETS ARRAY_SIZE(kstaled_buckets)
 +#endif
- };
- 
- /* Stuffs for move charges at task migration. */
-@@ -4668,6 +4680,30 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
- }
- #endif /* CONFIG_NUMA */
- 
-+#ifdef CONFIG_KSTALED
-+static int mem_cgroup_idle_page_stats_read(struct cgroup *cgrp,
-+	struct cftype *cft,  struct cgroup_map_cb *cb)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	unsigned int seqcount;
-+	struct idle_page_stats stats;
-+	unsigned long scans;
 +
-+	do {
-+		seqcount = read_seqcount_begin(&memcg->idle_page_stats_lock);
-+		stats = memcg->idle_page_stats;
-+		scans = memcg->idle_page_scans;
-+	} while (read_seqcount_retry(&memcg->idle_page_stats_lock, seqcount));
-+
-+	cb->fill(cb, "idle_clean", stats.idle_clean * PAGE_SIZE);
-+	cb->fill(cb, "idle_dirty_file", stats.idle_dirty_file * PAGE_SIZE);
-+	cb->fill(cb, "idle_dirty_swap", stats.idle_dirty_swap * PAGE_SIZE);
-+	cb->fill(cb, "scans", scans);
-+
-+	return 0;
-+}
-+#endif /* CONFIG_KSTALED */
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -4738,6 +4774,12 @@ static struct cftype mem_cgroup_files[] = {
- 		.mode = S_IRUGO,
- 	},
+ /*
+  * The memory controller data structure. The memory controller controls both
+  * page cache and RSS per cgroup. We would eventually like to provide
+@@ -292,7 +297,8 @@ struct mem_cgroup {
+ 		unsigned long idle_clean;
+ 		unsigned long idle_dirty_file;
+ 		unsigned long idle_dirty_swap;
+-	} idle_page_stats, idle_scan_stats;
++	} idle_page_stats[NUM_KSTALED_BUCKETS],
++	  idle_scan_stats[NUM_KSTALED_BUCKETS];
+ 	unsigned long idle_page_scans;
  #endif
-+#ifdef CONFIG_KSTALED
-+	{
-+		.name = "idle_page_stats",
-+		.read_map = mem_cgroup_idle_page_stats_read,
-+	},
-+#endif
  };
+@@ -4686,18 +4692,29 @@ static int mem_cgroup_idle_page_stats_read(struct cgroup *cgrp,
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	unsigned int seqcount;
+-	struct idle_page_stats stats;
++	struct idle_page_stats stats[NUM_KSTALED_BUCKETS];
+ 	unsigned long scans;
++	int bucket;
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-@@ -5001,6 +5043,9 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	atomic_set(&mem->refcnt, 1);
- 	mem->move_charge_at_immigrate = 0;
- 	mutex_init(&mem->thresholds_lock);
-+#ifdef CONFIG_KSTALED
-+	seqcount_init(&mem->idle_page_stats_lock);
-+#endif
- 	return &mem->css;
- free_out:
- 	__mem_cgroup_free(mem);
-@@ -5568,3 +5613,255 @@ static int __init enable_swap_account(char *s)
- __setup("swapaccount=", enable_swap_account);
+ 	do {
+ 		seqcount = read_seqcount_begin(&memcg->idle_page_stats_lock);
+-		stats = memcg->idle_page_stats;
++		memcpy(stats, memcg->idle_page_stats, sizeof(stats));
+ 		scans = memcg->idle_page_scans;
+ 	} while (read_seqcount_retry(&memcg->idle_page_stats_lock, seqcount));
  
- #endif
-+
-+#ifdef CONFIG_KSTALED
-+
-+static unsigned int kstaled_scan_seconds;
-+static DECLARE_WAIT_QUEUE_HEAD(kstaled_wait);
-+
-+static unsigned kstaled_scan_page(struct page *page)
-+{
-+	bool is_locked = false;
-+	bool is_file;
-+	struct page_referenced_info info;
-+	struct page_cgroup *pc;
-+	struct idle_page_stats *stats;
-+	unsigned nr_pages;
-+
-+	/*
-+	 * Before taking the page reference, check if the page is
-+	 * a user page which is not obviously unreclaimable
-+	 * (we will do more complete checks later).
-+	 */
-+	if (!PageLRU(page) ||
-+	    (!PageCompound(page) &&
-+	     (PageMlocked(page) ||
-+	      (page->mapping == NULL && !PageSwapCache(page)))))
-+		return 1;
-+
-+	if (!get_page_unless_zero(page))
-+		return 1;
-+
-+	/* Recheck now that we have the page reference. */
-+	if (unlikely(!PageLRU(page)))
-+		goto out;
-+	nr_pages = 1 << compound_trans_order(page);
-+	if (PageMlocked(page))
-+		goto out;
-+
-+	/*
-+	 * Anon and SwapCache pages can be identified without locking.
-+	 * For all other cases, we need the page locked in order to
-+	 * dereference page->mapping.
-+	 */
-+	if (PageAnon(page) || PageSwapCache(page))
-+		is_file = false;
-+	else if (!trylock_page(page)) {
-+		/*
-+		 * We need to lock the page to dereference the mapping.
-+		 * But don't risk sleeping by calling lock_page().
-+		 * We don't want to stall kstaled, so we conservatively
-+		 * count locked pages as unreclaimable.
-+		 */
-+		goto out;
-+	} else {
-+		struct address_space *mapping = page->mapping;
-+
-+		is_locked = true;
-+
-+		/*
-+		 * The page is still anon - it has been continuously referenced
-+		 * since the prior check.
-+		 */
-+		VM_BUG_ON(PageAnon(page) || mapping != page_rmapping(page));
-+
-+		/*
-+		 * Check the mapping under protection of the page lock.
-+		 * 1. If the page is not swap cache and has no mapping,
-+		 *    shrink_page_list can't do anything with it.
-+		 * 2. If the mapping is unevictable (as in SHM_LOCK segments),
-+		 *    shrink_page_list can't do anything with it.
-+		 * 3. If the page is swap cache or the mapping is swap backed
-+		 *    (as in shmem), consider it a swappable page.
-+		 * 4. If the backing dev has indicated that it does not want
-+		 *    its pages sync'd to disk (as in ramfs), take this as
-+		 *    a hint that its pages are not reclaimable.
-+		 * 5. Otherwise, consider this as a file page reclaimable
-+		 *    through standard pageout.
-+		 */
-+		if (!mapping && !PageSwapCache(page))
-+			goto out;
-+		else if (mapping_unevictable(mapping))
-+			goto out;
-+		else if (PageSwapCache(page) ||
-+			 mapping_cap_swap_backed(mapping))
-+			is_file = false;
-+		else if (!mapping_cap_writeback_dirty(mapping))
-+			goto out;
+-	cb->fill(cb, "idle_clean", stats.idle_clean * PAGE_SIZE);
+-	cb->fill(cb, "idle_dirty_file", stats.idle_dirty_file * PAGE_SIZE);
+-	cb->fill(cb, "idle_dirty_swap", stats.idle_dirty_swap * PAGE_SIZE);
++	for (bucket = 0; bucket < NUM_KSTALED_BUCKETS; bucket++) {
++		char basename[32], name[32];
++		if (!bucket)
++			sprintf(basename, "idle");
 +		else
-+			is_file = true;
++			sprintf(basename, "idle_%d", kstaled_buckets[bucket]);
++		sprintf(name, "%s_clean", basename);
++		cb->fill(cb, name, stats[bucket].idle_clean * PAGE_SIZE);
++		sprintf(name, "%s_dirty_file", basename);
++		cb->fill(cb, name, stats[bucket].idle_dirty_file * PAGE_SIZE);
++		sprintf(name, "%s_dirty_swap", basename);
++		cb->fill(cb, name, stats[bucket].idle_dirty_swap * PAGE_SIZE);
 +	}
+ 	cb->fill(cb, "scans", scans);
+ 
+ 	return 0;
+@@ -5619,12 +5636,25 @@ __setup("swapaccount=", enable_swap_account);
+ static unsigned int kstaled_scan_seconds;
+ static DECLARE_WAIT_QUEUE_HEAD(kstaled_wait);
+ 
+-static unsigned kstaled_scan_page(struct page *page)
++static inline struct idle_page_stats *
++kstaled_idle_stats(struct mem_cgroup *memcg, int age)
++{
++	int bucket = 0;
 +
-+	/* Find out if the page is idle. Also test for pending mlock. */
-+	page_referenced_kstaled(page, is_locked, &info);
-+	if ((info.pr_flags & PR_REFERENCED) || (info.vm_flags & VM_LOCKED))
-+		goto out;
-+
-+	/* Locate kstaled stats for the page's cgroup. */
-+	pc = lookup_page_cgroup(page);
-+	if (!pc)
-+		goto out;
-+	lock_page_cgroup(pc);
-+	if (!PageCgroupUsed(pc))
-+		goto unlock_page_cgroup_out;
-+	stats = &pc->mem_cgroup->idle_scan_stats;
-+
-+	/* Finally increment the correct statistic for this page. */
-+	if (!(info.pr_flags & PR_DIRTY) &&
-+	    !PageDirty(page) && !PageWriteback(page))
-+		stats->idle_clean += nr_pages;
-+	else if (is_file)
-+		stats->idle_dirty_file += nr_pages;
-+	else
-+		stats->idle_dirty_swap += nr_pages;
-+
-+ unlock_page_cgroup_out:
-+	unlock_page_cgroup(pc);
-+
-+ out:
-+	if (is_locked)
-+		unlock_page(page);
-+	put_page(page);
-+
-+	return nr_pages;
++	while (age >= kstaled_buckets[bucket + 1])
++		if (++bucket == NUM_KSTALED_BUCKETS - 1)
++			break;
++	return memcg->idle_scan_stats + bucket;
 +}
 +
-+static void kstaled_scan_node(pg_data_t *pgdat)
-+{
-+	unsigned long flags;
-+	unsigned long pfn, end;
++static unsigned kstaled_scan_page(struct page *page, u8 *idle_page_age)
+ {
+ 	bool is_locked = false;
+ 	bool is_file;
+ 	struct page_referenced_info info;
+ 	struct page_cgroup *pc;
++	struct mem_cgroup *memcg;
++	int age;
+ 	struct idle_page_stats *stats;
+ 	unsigned nr_pages;
+ 
+@@ -5704,17 +5734,25 @@ static unsigned kstaled_scan_page(struct page *page)
+ 
+ 	/* Find out if the page is idle. Also test for pending mlock. */
+ 	page_referenced_kstaled(page, is_locked, &info);
+-	if ((info.pr_flags & PR_REFERENCED) || (info.vm_flags & VM_LOCKED))
++	if ((info.pr_flags & PR_REFERENCED) || (info.vm_flags & VM_LOCKED)) {
++		*idle_page_age = 0;
+ 		goto out;
++	}
+ 
+ 	/* Locate kstaled stats for the page's cgroup. */
+ 	pc = lookup_page_cgroup(page);
+ 	if (!pc)
+ 		goto out;
+ 	lock_page_cgroup(pc);
++	memcg = pc->mem_cgroup;
+ 	if (!PageCgroupUsed(pc))
+ 		goto unlock_page_cgroup_out;
+-	stats = &pc->mem_cgroup->idle_scan_stats;
 +
-+	pgdat_resize_lock(pgdat, &flags);
-+
-+	pfn = pgdat->node_start_pfn;
-+	end = pfn + pgdat->node_spanned_pages;
-+
-+	while (pfn < end) {
-+		if (need_resched()) {
++	/* Page is idle, increment its age and get the right stats bucket */
++	age = *idle_page_age;
++	if (age < 255)
++		*idle_page_age = ++age;
++	stats = kstaled_idle_stats(memcg, age);
+ 
+ 	/* Finally increment the correct statistic for this page. */
+ 	if (!(info.pr_flags & PR_DIRTY) &&
+@@ -5740,11 +5778,22 @@ static bool kstaled_scan_node(pg_data_t *pgdat, int scan_seconds, bool reset)
+ {
+ 	unsigned long flags;
+ 	unsigned long pfn, end, node_end;
++	u8 *idle_page_age;
+ 
+ 	pgdat_resize_lock(pgdat, &flags);
+ 
++	if (!pgdat->node_idle_page_age) {
++		pgdat->node_idle_page_age = vmalloc(pgdat->node_spanned_pages);
++		if (!pgdat->node_idle_page_age) {
 +			pgdat_resize_unlock(pgdat, &flags);
-+			cond_resched();
-+			pgdat_resize_lock(pgdat, &flags);
++			return false;
++		}
++		memset(pgdat->node_idle_page_age, 0, pgdat->node_spanned_pages);
++	}
 +
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+			/* abort if the node got resized */
-+			if (pfn < pgdat->node_start_pfn ||
-+			    end > (pgdat->node_start_pfn +
-+				   pgdat->node_spanned_pages))
-+				goto abort;
+ 	pfn = pgdat->node_start_pfn;
+ 	node_end = pfn + pgdat->node_spanned_pages;
++	idle_page_age = pgdat->node_idle_page_age - pfn;
+ 	if (!reset && pfn < pgdat->node_idle_scan_pfn)
+ 		pfn = pgdat->node_idle_scan_pfn;
+ 	end = min(pfn + DIV_ROUND_UP(pgdat->node_spanned_pages, scan_seconds),
+@@ -5766,13 +5815,15 @@ static bool kstaled_scan_node(pg_data_t *pgdat, int scan_seconds, bool reset)
+ 				/* abort if the node got resized */
+ 				if (pfn < pgdat->node_start_pfn ||
+ 				    node_end > (pgdat->node_start_pfn +
+-						pgdat->node_spanned_pages))
++						pgdat->node_spanned_pages) ||
++				    !pgdat->node_idle_page_age)
+ 					goto abort;
+ #endif
+ 			}
+ 
+ 			pfn += pfn_valid(pfn) ?
+-				kstaled_scan_page(pfn_to_page(pfn)) : 1;
++				kstaled_scan_page(pfn_to_page(pfn),
++						  idle_page_age + pfn) : 1;
+ 		}
+ 	}
+ 
+@@ -5783,6 +5834,28 @@ abort:
+ 	return pfn >= node_end;
+ }
+ 
++static void kstaled_update_stats(struct mem_cgroup *memcg)
++{
++	struct idle_page_stats tot;
++	int i;
++
++	memset(&tot, 0, sizeof(tot));
++
++	write_seqcount_begin(&memcg->idle_page_stats_lock);
++	for (i = NUM_KSTALED_BUCKETS - 1; i >= 0; i--) {
++		struct idle_page_stats *idle_scan_bucket;
++		idle_scan_bucket = memcg->idle_scan_stats + i;
++		tot.idle_clean      += idle_scan_bucket->idle_clean;
++		tot.idle_dirty_file += idle_scan_bucket->idle_dirty_file;
++		tot.idle_dirty_swap += idle_scan_bucket->idle_dirty_swap;
++		memcg->idle_page_stats[i] = tot;
++	}
++	memcg->idle_page_scans++;
++	write_seqcount_end(&memcg->idle_page_stats_lock);
++
++	memset(&memcg->idle_scan_stats, 0, sizeof(memcg->idle_scan_stats));
++}
++
+ static int kstaled(void *dummy)
+ {
+ 	bool reset = true;
+@@ -5819,17 +5892,8 @@ static int kstaled(void *dummy)
+ 		if (scan_done) {
+ 			struct mem_cgroup *memcg;
+ 
+-			for_each_mem_cgroup_all(memcg) {
+-				write_seqcount_begin(
+-					&memcg->idle_page_stats_lock);
+-				memcg->idle_page_stats =
+-					memcg->idle_scan_stats;
+-				memcg->idle_page_scans++;
+-				write_seqcount_end(
+-					&memcg->idle_page_stats_lock);
+-				memset(&memcg->idle_scan_stats, 0,
+-				       sizeof(memcg->idle_scan_stats));
+-			}
++			for_each_mem_cgroup_all(memcg)
++				kstaled_update_stats(memcg);
+ 		}
+ 
+ 		delta = jiffies - deadline;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c46887b..0b490ac 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -211,6 +211,12 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+ 
+ 	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
+ 					pgdat->node_start_pfn;
++#ifdef CONFIG_KSTALED
++	if (pgdat->node_idle_page_age) {
++		vfree(pgdat->node_idle_page_age);
++		pgdat->node_idle_page_age = NULL;
++	}
 +#endif
-+		}
-+
-+		pfn += pfn_valid(pfn) ?
-+			kstaled_scan_page(pfn_to_page(pfn)) : 1;
-+	}
-+
-+abort:
-+	pgdat_resize_unlock(pgdat, &flags);
-+}
-+
-+static int kstaled(void *dummy)
-+{
-+	while (1) {
-+		int scan_seconds;
-+		int nid;
-+		struct mem_cgroup *memcg;
-+
-+		wait_event_interruptible(kstaled_wait,
-+				 (scan_seconds = kstaled_scan_seconds) > 0);
-+		/*
-+		 * We use interruptible wait_event so as not to contribute
-+		 * to the machine load average while we're sleeping.
-+		 * However, we don't actually expect to receive a signal
-+		 * since we run as a kernel thread, so the condition we were
-+		 * waiting for should be true once we get here.
-+		 */
-+		BUG_ON(scan_seconds <= 0);
-+
-+		for_each_mem_cgroup_all(memcg)
-+			memset(&memcg->idle_scan_stats, 0,
-+			       sizeof(memcg->idle_scan_stats));
-+
-+		for_each_node_state(nid, N_HIGH_MEMORY)
-+			kstaled_scan_node(NODE_DATA(nid));
-+
-+		for_each_mem_cgroup_all(memcg) {
-+			write_seqcount_begin(&memcg->idle_page_stats_lock);
-+			memcg->idle_page_stats = memcg->idle_scan_stats;
-+			memcg->idle_page_scans++;
-+			write_seqcount_end(&memcg->idle_page_stats_lock);
-+		}
-+
-+		schedule_timeout_interruptible(scan_seconds * HZ);
-+	}
-+
-+	BUG();
-+	return 0;	/* NOT REACHED */
-+}
-+
-+static ssize_t kstaled_scan_seconds_show(struct kobject *kobj,
-+					 struct kobj_attribute *attr,
-+					 char *buf)
-+{
-+	return sprintf(buf, "%u\n", kstaled_scan_seconds);
-+}
-+
-+static ssize_t kstaled_scan_seconds_store(struct kobject *kobj,
-+					  struct kobj_attribute *attr,
-+					  const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long input;
-+
-+	err = kstrtoul(buf, 10, &input);
-+	if (err)
-+		return -EINVAL;
-+	kstaled_scan_seconds = input;
-+	wake_up_interruptible(&kstaled_wait);
-+	return count;
-+}
-+
-+static struct kobj_attribute kstaled_scan_seconds_attr = __ATTR(
-+	scan_seconds, 0644,
-+	kstaled_scan_seconds_show, kstaled_scan_seconds_store);
-+
-+static struct attribute *kstaled_attrs[] = {
-+	&kstaled_scan_seconds_attr.attr,
-+	NULL
-+};
-+static struct attribute_group kstaled_attr_group = {
-+	.name = "kstaled",
-+	.attrs = kstaled_attrs,
-+};
-+
-+static int __init kstaled_init(void)
-+{
-+	int error;
-+	struct task_struct *thread;
-+
-+	error = sysfs_create_group(mm_kobj, &kstaled_attr_group);
-+	if (error) {
-+		pr_err("Failed to create kstaled sysfs node\n");
-+		return error;
-+	}
-+
-+	thread = kthread_run(kstaled, NULL, "kstaled");
-+	if (IS_ERR(thread)) {
-+		pr_err("Failed to start kstaled\n");
-+		return PTR_ERR(thread);
-+	}
-+
-+	return 0;
-+}
-+module_init(kstaled_init);
-+
-+#endif /* CONFIG_KSTALED */
+ }
+ 
+ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 -- 
 1.7.3.1
 
