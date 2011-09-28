@@ -1,43 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C2139000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 14:05:12 -0400 (EDT)
-Received: by yia25 with SMTP id 25so8816445yia.14
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 11:05:10 -0700 (PDT)
-Date: Thu, 29 Sep 2011 03:05:03 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] vmscan: add barrier to prevent evictable page in
- unevictable list
-Message-ID: <20110928180503.GC1696@barrios-desktop>
-References: <1317174330-2677-1-git-send-email-minchan.kim@gmail.com>
- <CAF1ivSaf8ER9yDWohudy-huiq5QHS8vE04R+4+nPTQihZ2MAmQ@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C888F9000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 14:09:14 -0400 (EDT)
+Date: Wed, 28 Sep 2011 11:09:09 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: RFC -- new zone type
+Message-ID: <20110928180909.GA7007@labbmf-linux.qualcomm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAF1ivSaf8ER9yDWohudy-huiq5QHS8vE04R+4+nPTQihZ2MAmQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Ming <mlin@ss.pku.edu.cn>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: linux-mm@kvack.org
+Cc: vgandhi@codeaurora.org
 
-On Wed, Sep 28, 2011 at 11:04:05PM +0800, Lin Ming wrote:
-> On Wed, Sep 28, 2011 at 9:45 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> > When racing between putback_lru_page and shmem_unlock happens,
-> 
-> s/shmem_unlock/shmem_lock/
+We need to create a large (~100M) contiguous physical memory region
+which will only be needed occasionally. As this region will
+use up 10-20% of all of the available memory, we do not want
+to pre-reserve it at boot time. Instead, we want to create
+this memory region "on the fly" when asked to by userspace,
+and do it as quickly as possible, and return it to
+system use when not needed.
 
-I did it intentionally for represent shmem_lock with user = 1, lock = 0.
-If you think it makes others confusing, I will change in next version.
+AFAIK, this sort of operation is currently done using memory
+compaction (as CMA does for instance).
+Alternatively, this memory region (if it is in a fixed place)
+could be created using "logical memory hotremove" and returned
+to the system using "logical memory hotplug". In either case,
+the contiguous physical memory would be created via migrating
+pages from the "movable zone".
+
+The problem with this approach is that the copying of up to 25000
+pages may take considerable time (as well as finding destinations
+for all of the pages if free memory is scarce -- this may
+even fail, causing the memory region not to be created).
+
+It was suggested to me that a new zone type which would be similar
+to the "movable zone" but is only allowed to contain pages
+that can be discarded (such as text) could solve this problem,
+so that there is no copying or finding destination pages needed (thus
+considerably reducing latency).
+
+The downside I see is that there may not be anywhere near
+25000 such discardable pages, so most of this zone would go unused, and
+the memory would be "wasted" as in the case where it is pre-reserved.
+Also, this is not currently supported, so new code would
+have to be designed and implemented.
+
+I would appreciate people's comments about:
+
+1. Does this type of zone make any sense? It
+would have to co-exist with the current movable zone type.
+
+2. How hard would it be to implement this? The new zone type would
+need to be supported and "discardable" pages steered into this zone.
+
+3. Are there better ways of allocating a large memory region
+with minimal latency that I haven't mentioned here?
+
 Thanks.
 
-> 
-> > progrom execution order is as follows, but clear_bit in processor #1
-> > could be reordered right before spin_unlock of processor #1.
-> > Then, the page would be stranded on the unevictable list.
+Larry Bassel
 
 -- 
-Kind regards,
-Minchan Kim
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
