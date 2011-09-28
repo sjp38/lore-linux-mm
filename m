@@ -1,34 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 92C459000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 02:04:53 -0400 (EDT)
-Received: by iaen33 with SMTP id n33so10611490iae.14
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2011 23:04:51 -0700 (PDT)
-Date: Wed, 28 Sep 2011 15:04:43 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] mm: compaction: staticize compact_zone_order
-Message-ID: <20110928060443.GE14561@barrios-desktop>
-References: <20110921085843.GA16233@july>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110921085843.GA16233@july>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AFF89000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 02:09:39 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CA6563EE0BB
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 15:09:36 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AC13E45DEB9
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 15:09:36 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DE8D45DEB7
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 15:09:36 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6376D1DB803F
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 15:09:36 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 18F4A1DB8040
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 15:09:36 +0900 (JST)
+Date: Wed, 28 Sep 2011 15:08:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V10 5/6] mm: cleancache: update to match akpm frontswap
+ feedback
+Message-Id: <20110928150841.fbe661fe.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110915213446.GA26406@ca-server1.us.oracle.com>
+References: <20110915213446.GA26406@ca-server1.us.oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, konrad.wilk@oracle.com, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, chris.mason@oracle.com, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Wed, Sep 21, 2011 at 05:58:43PM +0900, Kyungmin Park wrote:
-> From: Kyungmin Park <kyungmin.park@samsung.com>
-> 
-> There's no user to use compact_zone_order. So staticize this function.
-> 
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Thu, 15 Sep 2011 14:34:46 -0700
+Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
--- 
-Kinds regards,
-Minchan Kim
+> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Subject: [PATCH V10 5/6] mm: cleancache: update to match akpm frontswap feedback
+	err = sysfs_create_group(mm_kobj, &cleancache_attr_group);
+> -#endif /* CONFIG_SYSFS */
+> +#ifdef CONFIG_DEBUG_FS
+> +	struct dentry *root = debugfs_create_dir("cleancache", NULL);
+> +	if (root == NULL)
+> +		return -ENXIO;
+> +	debugfs_create_u64("succ_gets", S_IRUGO, root, &cleancache_succ_gets);
+> +	debugfs_create_u64("failed_gets", S_IRUGO,
+> +				root, &cleancache_failed_gets);
+> +	debugfs_create_u64("puts", S_IRUGO, root, &cleancache_puts);
+> +	debugfs_create_u64("invalidates", S_IRUGO,
+> +				root, &cleancache_invalidates);
+> +#endif
+
+No exisiting userlands are affected by this change of flush->invalidates ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
