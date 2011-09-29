@@ -1,200 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 965949000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:03:02 -0400 (EDT)
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 10/10] mm: memcg: remove unused node/section info from pc->flags
-Date: Thu, 29 Sep 2011 23:01:04 +0200
-Message-Id: <1317330064-28893-11-git-send-email-jweiner@redhat.com>
-In-Reply-To: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
-References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 098149000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:18:51 -0400 (EDT)
+MIME-Version: 1.0
+Content-Type: text/plain;
+ charset=UTF-8;
+ format=flowed
+Content-Transfer-Encoding: 8bit
+Date: Thu, 29 Sep 2011 17:18:18 -0400
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 0/9] V2: idle page tracking / working set estimation
+In-Reply-To: <CANN689H1G-USQYQrOTb47Hrc7KMjLdxkppYCDKsTUy5WhuRs7w@mail.gmail.com>
+References: <1317170947-17074-1-git-send-email-walken@google.com>
+ <20110929164319.GA3509@mgebm.net>
+ <CANN689H1G-USQYQrOTb47Hrc7KMjLdxkppYCDKsTUy5WhuRs7w@mail.gmail.com>
+Message-ID: <4186d5662b3fb21af1b45f8a335414d3@mgebm.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
 
-To find the page corresponding to a certain page_cgroup, the pc->flags
-encoded the node or section ID with the base array to compare the pc
-pointer to.
+ On Thu, 29 Sep 2011 13:25:00 -0700, Michel Lespinasse wrote:
+> On Thu, Sep 29, 2011 at 9:43 AM, Eric B Munson <emunson@mgebm.net> 
+> wrote:
+>> I have been trying to test these patches since yesterday afternoon. 
+>> A When my
+>> machine is idle, they behave fine. A I started looking at performance 
+>> to make
+>> sure they were a big regression by testing kernel builds with the 
+>> scanner
+>> disabled, and then enabled (set to 120 seconds). A The scanner 
+>> disabled builds
+>> work fine, but with the scanner enabled the second time I build my 
+>> kernel hangs
+>> my machine every time. A Unfortunately, I do not have any more 
+>> information than
+>> that for you at the moment. A My next step is to try the same tests 
+>> in qemu to
+>> see if I can get more state information when the kernel hangs.
+>
+> Could you please send me your .config file ? Also, did you apply the
+> patches on top of straight v3.0 and what is your machine like ?
+>
+> Thanks,
 
-Now that the per-memory cgroup LRU lists link page descriptors
-directly, there is no longer any code that knows the struct
-page_cgroup of a PFN but not the struct page.
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
----
- include/linux/page_cgroup.h |   33 ------------------------
- mm/page_cgroup.c            |   58 ++++++-------------------------------------
- 2 files changed, 8 insertions(+), 83 deletions(-)
+ My .config will come separately to you.  I applied the patches to 
+ Linus' master branch as of yesterday.  My machine is a single Xeon 5690 
+ with 12G of ram (do you need more details than that?)
 
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 5bae753..aaa60da 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -121,39 +121,6 @@ static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
- 	local_irq_restore(*flags);
- }
- 
--#ifdef CONFIG_SPARSEMEM
--#define PCG_ARRAYID_WIDTH	SECTIONS_SHIFT
--#else
--#define PCG_ARRAYID_WIDTH	NODES_SHIFT
--#endif
--
--#if (PCG_ARRAYID_WIDTH > BITS_PER_LONG - NR_PCG_FLAGS)
--#error Not enough space left in pc->flags to store page_cgroup array IDs
--#endif
--
--/* pc->flags: ARRAY-ID | FLAGS */
--
--#define PCG_ARRAYID_MASK	((1UL << PCG_ARRAYID_WIDTH) - 1)
--
--#define PCG_ARRAYID_OFFSET	(BITS_PER_LONG - PCG_ARRAYID_WIDTH)
--/*
-- * Zero the shift count for non-existent fields, to prevent compiler
-- * warnings and ensure references are optimized away.
-- */
--#define PCG_ARRAYID_SHIFT	(PCG_ARRAYID_OFFSET * (PCG_ARRAYID_WIDTH != 0))
--
--static inline void set_page_cgroup_array_id(struct page_cgroup *pc,
--					    unsigned long id)
--{
--	pc->flags &= ~(PCG_ARRAYID_MASK << PCG_ARRAYID_SHIFT);
--	pc->flags |= (id & PCG_ARRAYID_MASK) << PCG_ARRAYID_SHIFT;
--}
--
--static inline unsigned long page_cgroup_array_id(struct page_cgroup *pc)
--{
--	return (pc->flags >> PCG_ARRAYID_SHIFT) & PCG_ARRAYID_MASK;
--}
--
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct page_cgroup;
- 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 256dee8..2601a65 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -11,12 +11,6 @@
- #include <linux/swapops.h>
- #include <linux/kmemleak.h>
- 
--static void __meminit init_page_cgroup(struct page_cgroup *pc, unsigned long id)
--{
--	pc->flags = 0;
--	set_page_cgroup_array_id(pc, id);
--	pc->mem_cgroup = NULL;
--}
- static unsigned long total_usage;
- 
- #if !defined(CONFIG_SPARSEMEM)
-@@ -41,24 +35,11 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
- 	return base + offset;
- }
- 
--struct page *lookup_cgroup_page(struct page_cgroup *pc)
--{
--	unsigned long pfn;
--	struct page *page;
--	pg_data_t *pgdat;
--
--	pgdat = NODE_DATA(page_cgroup_array_id(pc));
--	pfn = pc - pgdat->node_page_cgroup + pgdat->node_start_pfn;
--	page = pfn_to_page(pfn);
--	VM_BUG_ON(pc != lookup_page_cgroup(page));
--	return page;
--}
--
- static int __init alloc_node_page_cgroup(int nid)
- {
--	struct page_cgroup *base, *pc;
-+	struct page_cgroup *base;
- 	unsigned long table_size;
--	unsigned long start_pfn, nr_pages, index;
-+	unsigned long nr_pages;
- 
- 	start_pfn = NODE_DATA(nid)->node_start_pfn;
- 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
-@@ -72,10 +53,6 @@ static int __init alloc_node_page_cgroup(int nid)
- 			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
- 	if (!base)
- 		return -ENOMEM;
--	for (index = 0; index < nr_pages; index++) {
--		pc = base + index;
--		init_page_cgroup(pc, nid);
--	}
- 	NODE_DATA(nid)->node_page_cgroup = base;
- 	total_usage += table_size;
- 	return 0;
-@@ -116,31 +93,19 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
- 	return section->page_cgroup + pfn;
- }
- 
--struct page *lookup_cgroup_page(struct page_cgroup *pc)
--{
--	struct mem_section *section;
--	struct page *page;
--	unsigned long nr;
--
--	nr = page_cgroup_array_id(pc);
--	section = __nr_to_section(nr);
--	page = pfn_to_page(pc - section->page_cgroup);
--	VM_BUG_ON(pc != lookup_page_cgroup(page));
--	return page;
--}
--
- static void *__meminit alloc_page_cgroup(size_t size, int nid)
- {
- 	void *addr = NULL;
- 
--	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
-+	addr = alloc_pages_exact_nid(nid, size,
-+				     GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
- 	if (addr)
- 		return addr;
- 
- 	if (node_state(nid, N_HIGH_MEMORY))
--		addr = vmalloc_node(size, nid);
-+		addr = vzalloc_node(size, nid);
- 	else
--		addr = vmalloc(size);
-+		addr = vzalloc(size);
- 
- 	return addr;
- }
-@@ -163,14 +128,11 @@ static void free_page_cgroup(void *addr)
- 
- static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
- {
--	struct page_cgroup *base, *pc;
- 	struct mem_section *section;
-+	struct page_cgroup *base;
- 	unsigned long table_size;
--	unsigned long nr;
--	int index;
- 
--	nr = pfn_to_section_nr(pfn);
--	section = __nr_to_section(nr);
-+	section = __pfn_to_section(pfn);
- 
- 	if (section->page_cgroup)
- 		return 0;
-@@ -190,10 +152,6 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
- 		return -ENOMEM;
- 	}
- 
--	for (index = 0; index < PAGES_PER_SECTION; index++) {
--		pc = base + index;
--		init_page_cgroup(pc, nr);
--	}
- 	/*
- 	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
- 	 * we need to apply a mask.
--- 
-1.7.6.2
+ Thanks,
+ Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
