@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD4E9000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 20:09:37 -0400 (EDT)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p8T09Zc7000402
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 17:09:35 -0700
-Received: from qyg14 (qyg14.prod.google.com [10.241.82.142])
-	by hpaq11.eem.corp.google.com with ESMTP id p8T09XSJ027937
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 17:09:34 -0700
-Received: by qyg14 with SMTP id 14so201378qyg.16
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 17:09:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110928161805.8acb33c5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1317170947-17074-1-git-send-email-walken@google.com>
-	<1317170947-17074-4-git-send-email-walken@google.com>
-	<20110928161805.8acb33c5.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 28 Sep 2011 17:09:32 -0700
-Message-ID: <CANN689GuZHzCa4Xr-YwPrpvy8Fcff4pQLrDQ+a+G_56mvBMwMQ@mail.gmail.com>
-Subject: Re: [PATCH 3/9] kstaled: page_referenced_kstaled() and supporting infrastructure.
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 660549000BD
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 20:45:03 -0400 (EDT)
+Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
+In-Reply-To: Your message of "Wed, 28 Sep 2011 13:31:45 PDT."
+             <1317241905.16137.516.camel@nimitz>
+From: Valdis.Kletnieks@vt.edu
+References: <20110927175453.GA3393@albatros> <20110927175642.GA3432@albatros> <20110927193810.GA5416@albatros> <alpine.DEB.2.00.1109271459180.13797@router.home> <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com> <alpine.DEB.2.00.1109271546320.13797@router.home>
+            <1317241905.16137.516.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1317257024_2944P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 28 Sep 2011 20:43:44 -0400
+Message-ID: <30918.1317257024@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@gentwo.org>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segoon@openwall.com>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Wed, Sep 28, 2011 at 12:18 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 2 questions.
->
-> What happens at Transparent HugeTLB pages are splitted/collapsed ?
+--==_Exmh_1317257024_2944P
+Content-Type: text/plain; charset=us-ascii
 
-Nothing special - at the next scan, pages are counted again
-considering their new size.
+On Wed, 28 Sep 2011 13:31:45 PDT, Dave Hansen said:
 
-> Does this feature can ignore page migration i.e. flags should not be copied ?
+> We could also just _effectively_ make it output in MB:
+> 
+> 	foo = foo & ~(1<<20)
+> 
+> or align-up.
 
-We're not doing it currently. As I understand, the migrate code does
-not copy the PTE young bits either, nor does it try to preserve page
-order in the LRU lists. So it's not transparent to the LRU algorithms,
-but it does not cause incorrect behavior either.
+I think we want align-up here, there's a bunch of fields that code probably
+expects to be non-zero on a system that's finished booting...
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+> We could also give the imprecise numbers to unprivileged
+> users and let privileged ones see the page-level ones.
+
+That also sounds like a good idea.
+
+--==_Exmh_1317257024_2944P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFOg79AcC3lWbTT17ARAmqiAJ9V4cm5nViiDdSy1BfRSTUxIHFRvwCfScmt
+aoEo4KjbCZekOI0n/qkZOTc=
+=CRrZ
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1317257024_2944P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
