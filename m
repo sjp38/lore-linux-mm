@@ -1,97 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 15A459000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 12:43:41 -0400 (EDT)
-Date: Thu, 29 Sep 2011 12:43:19 -0400
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 0/9] V2: idle page tracking / working set estimation
-Message-ID: <20110929164319.GA3509@mgebm.net>
-References: <1317170947-17074-1-git-send-email-walken@google.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D87639000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 12:44:43 -0400 (EDT)
+Received: by bkbzs2 with SMTP id zs2so1165975bkb.14
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2011 09:44:40 -0700 (PDT)
+Date: Thu, 29 Sep 2011 20:43:41 +0400
+From: Vasiliy Kulikov <segoon@openwall.com>
+Subject: Re: [kernel-hardening] Re: [PATCH 2/2] mm: restrict access to
+ /proc/meminfo
+Message-ID: <20110929164341.GA16888@albatros>
+References: <20110927175453.GA3393@albatros>
+ <20110927175642.GA3432@albatros>
+ <20110927193810.GA5416@albatros>
+ <alpine.DEB.2.00.1109271459180.13797@router.home>
+ <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
+ <20110929161848.GA16348@albatros>
+ <1317313836.16137.620.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="lrZ03NoBR/3+SXJZ"
-Content-Disposition: inline
-In-Reply-To: <1317170947-17074-1-git-send-email-walken@google.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
-
-
---lrZ03NoBR/3+SXJZ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1317313836.16137.620.camel@nimitz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: kernel-hardening@lists.openwall.com
+Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Tue, 27 Sep 2011, Michel Lespinasse wrote:
+On Thu, Sep 29, 2011 at 09:30 -0700, Dave Hansen wrote:
+> On Thu, 2011-09-29 at 20:18 +0400, Vasiliy Kulikov wrote:
+> > I'm not convinced with rounding the information to MBs.  The attacker
+> > still may fill slabs with new objects to trigger new slab pages
+> > allocations.  He will be able to see when this MB-granularity barrier is
+> > overrun thus seeing how many kbs there were before:
+> > 
+> >     old = new - filled_obj_size_sum
+> > 
+> > As `new' is just increased, it means it is known with KB granularity,
+> > not MB.  By counting used slab objects he learns filled_obj_size_sum.
+> > 
+> > So, rounding gives us nothing, but obscurity. 
+> 
+> I'll agree that it doesn't fundamentally fix anything.  But, it does
+> make an attack more difficult in the real world.
 
-> This is a followup to the prior version of this patchset, which I sent out
-> on September 16.
->=20
-> I have addressed most of the basic feedback I got so far:
->=20
-> - Renamed struct pr_info -> struct page_referenced_info
->=20
-> - Config option now depends on 64BIT, as we may not have sufficient
->   free page flags in 32-bit builds
->=20
-> - Renamed mem -> memcg in kstaled code within memcontrol.c
->=20
-> - Uninlined kstaled_scan_page
->=20
-> - Replaced strict_strtoul -> kstrtoul
->=20
-> - Report PG_stale in /proc/kpageflags
->=20
-> - Fix accounting of THP pages. Sorry for forgeting to do this in the
->   V1 patchset - to detail the change here, what I had to do was make sure
->   page_referenced() reports THP pages as dirty (as they always are - the
->   dirty bit in the pmd is currently meaningless) and update the minimalis=
-tic
->   implementation change to count THP pages as equivalent to 512 small pag=
-es.
->=20
-> - The ugliest parts of patch 6 (rate limit pages scanned per second) have
->   been reworked. If the scanning thread gets delayed, it tries to catch up
->   so as to minimize jitter. If it can't catch up, it would probably be a
->   good idea to increase the scanning interval, but this is left up
->   to userspace.
->=20
+No, it doesn't.  An attacker is able to simply add/remove objects from
+slab and get the precise numbers.  The only thing it takes some time,
+but the delay is negligible.  It neither eliminates the whole attack
+vector in specific cases nor makes the attacks probabilistic.
 
-Michel,
 
-I have been trying to test these patches since yesterday afternoon.  When my
-machine is idle, they behave fine.  I started looking at performance to make
-sure they were a big regression by testing kernel builds with the scanner
-disabled, and then enabled (set to 120 seconds).  The scanner disabled buil=
-ds
-work fine, but with the scanner enabled the second time I build my kernel h=
-angs
-my machine every time.  Unfortunately, I do not have any more information t=
-han
-that for you at the moment.  My next step is to try the same tests in qemu =
-to
-see if I can get more state information when the kernel hangs.
+>  There's a reason that
+> real-world attackers are going after slabinfo: it's a fundamentally
+> *BETTER* than meminfo as a tool with which to aim an attack.
 
-Eric
+Agreed, it gives much more information.
 
---lrZ03NoBR/3+SXJZ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+>  A
+> MB-rounded meminfo is also fundamentally *BETTER* than a
+> PAGE_SIZE-rounded meminfo.  I find it hard to call this "nothing".
 
-iQEcBAEBAgAGBQJOhKAnAAoJEH65iIruGRnNcZgH/AxQwlnAQEf6s6kshaySU13c
-ajC2JFmE2Zya4RM727lDivMid9Ybipqdc+loA7JT6yojPhKptvU8DbxRrf2pRVf4
-cNvZSfbAwx4EIXQQisprz6XhLX2hRMx/M4STvbHxZhbHTzZiPDueKUveONQlul8x
-2suGBmjbv0FLCNNXhZFtxz9JWrWhudV2UiJFd3l54/fSx1gBGpD4EM8KC4+E4HW7
-6p4dKk102O4ItGRhM6wRY9B+o2rN+1YBBHnRyE0XhGqijwA4QVYVx5v3VErmWZhc
-6p4PLL4Lf09qDTi6hk3z5jK25L+qPJlJm04udgCwmzOPjUR5vCB5XyZUfdh45eM=
-=5/Qm
------END PGP SIGNATURE-----
+Could you elaborate?  As I've tried to describe above, an attacker still
+may recover the numbers.
 
---lrZ03NoBR/3+SXJZ--
+Thanks,
+
+-- 
+Vasiliy Kulikov
+http://www.openwall.com - bringing security into open computing environments
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
