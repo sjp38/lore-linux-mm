@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 968CB9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:02:38 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5E64D9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:02:43 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 06/10] mm: memcg: remove optimization of keeping the root_mem_cgroup LRU lists empty
-Date: Thu, 29 Sep 2011 23:01:00 +0200
-Message-Id: <1317330064-28893-7-git-send-email-jweiner@redhat.com>
+Subject: [patch 08/10] mm: collect LRU list heads into struct lruvec
+Date: Thu, 29 Sep 2011 23:01:02 +0200
+Message-Id: <1317330064-28893-9-git-send-email-jweiner@redhat.com>
 In-Reply-To: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
 References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,81 +13,237 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-root_mem_cgroup, lacking a configurable limit, was never subject to
-limit reclaim, so the pages charged to it could be kept off its LRU
-lists.  They would be found on the global per-zone LRU lists upon
-physical memory pressure and it made sense to avoid uselessly linking
-them to both lists.
+Having a unified structure with a LRU list set for both global zones
+and per-memcg zones allows to keep that code simple which deals with
+LRU lists and does not care about the container itself.
 
-The global per-zone LRU lists are about to go away on memcg-enabled
-kernels, with all pages being exclusively linked to their respective
-per-memcg LRU lists.  As a result, pages of the root_mem_cgroup must
-also be linked to its LRU lists again.  This is purely about the LRU
-list, root_mem_cgroup is still not charged.
-
-The overhead is temporary until the double-LRU scheme is going away
-completely.
+Once the per-memcg LRU lists directly link struct pages, the isolation
+function and all other list manipulations are shared between the memcg
+case and the global LRU case.
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- mm/memcontrol.c |   12 ++----------
- 1 files changed, 2 insertions(+), 10 deletions(-)
+ include/linux/mm_inline.h |    2 +-
+ include/linux/mmzone.h    |   10 ++++++----
+ mm/memcontrol.c           |   17 +++++++----------
+ mm/page_alloc.c           |    2 +-
+ mm/swap.c                 |   11 +++++------
+ mm/vmscan.c               |   10 +++++-----
+ 6 files changed, 25 insertions(+), 27 deletions(-)
 
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index 8f7d247..e6a7ffe 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -33,7 +33,7 @@ __add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l,
+ static inline void
+ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+ {
+-	__add_page_to_lru_list(zone, page, l, &zone->lru[l].list);
++	__add_page_to_lru_list(zone, page, l, &zone->lruvec.lists[l]);
+ }
+ 
+ static inline void
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1ed4116..37970b9 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -159,6 +159,10 @@ static inline int is_unevictable_lru(enum lru_list l)
+ 	return (l == LRU_UNEVICTABLE);
+ }
+ 
++struct lruvec {
++	struct list_head lists[NR_LRU_LISTS];
++};
++
+ /* Mask used at gathering information at once (see memcontrol.c) */
+ #define LRU_ALL_FILE (BIT(LRU_INACTIVE_FILE) | BIT(LRU_ACTIVE_FILE))
+ #define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
+@@ -358,10 +362,8 @@ struct zone {
+ 	ZONE_PADDING(_pad1_)
+ 
+ 	/* Fields commonly accessed by the page reclaim scanner */
+-	spinlock_t		lru_lock;	
+-	struct zone_lru {
+-		struct list_head list;
+-	} lru[NR_LRU_LISTS];
++	spinlock_t		lru_lock;
++	struct lruvec		lruvec;
+ 
+ 	struct zone_reclaim_stat reclaim_stat;
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 21468e2..8b2af55 100644
+index 8b2af55..36a948b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -958,8 +958,6 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
- 	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
- 	/* huge page split is done under lru_lock. so, we have no races. */
- 	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
--	if (mem_cgroup_is_root(pc->mem_cgroup))
--		return;
- 	VM_BUG_ON(list_empty(&pc->lru));
- 	list_del_init(&pc->lru);
- }
-@@ -984,13 +982,11 @@ void mem_cgroup_rotate_reclaimable_page(struct page *page)
- 		return;
+@@ -132,10 +132,7 @@ struct mem_cgroup_reclaim_iter {
+  * per-zone information in memory controller.
+  */
+ struct mem_cgroup_per_zone {
+-	/*
+-	 * spin_lock to protect the per cgroup LRU
+-	 */
+-	struct list_head	lists[NR_LRU_LISTS];
++	struct lruvec		lruvec;
+ 	unsigned long		count[NR_LRU_LISTS];
  
- 	pc = lookup_page_cgroup(page);
--	/* unused or root page is not rotated. */
-+	/* unused page is not rotated. */
- 	if (!PageCgroupUsed(pc))
- 		return;
+ 	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
+@@ -988,7 +985,7 @@ void mem_cgroup_rotate_reclaimable_page(struct page *page)
  	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
  	smp_rmb();
--	if (mem_cgroup_is_root(pc->mem_cgroup))
--		return;
  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
- 	list_move_tail(&pc->lru, &mz->lists[lru]);
+-	list_move_tail(&pc->lru, &mz->lists[lru]);
++	list_move_tail(&pc->lru, &mz->lruvec.lists[lru]);
  }
-@@ -1004,13 +1000,11 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
- 		return;
  
- 	pc = lookup_page_cgroup(page);
--	/* unused or root page is not rotated. */
-+	/* unused page is not rotated. */
- 	if (!PageCgroupUsed(pc))
- 		return;
+ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
+@@ -1006,7 +1003,7 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
  	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
  	smp_rmb();
--	if (mem_cgroup_is_root(pc->mem_cgroup))
--		return;
  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
- 	list_move(&pc->lru, &mz->lists[lru]);
+-	list_move(&pc->lru, &mz->lists[lru]);
++	list_move(&pc->lru, &mz->lruvec.lists[lru]);
  }
-@@ -1042,8 +1036,6 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+ 
+ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+@@ -1036,7 +1033,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
  	/* huge page split is done under lru_lock. so, we have no races. */
  	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
  	SetPageCgroupAcctLRU(pc);
--	if (mem_cgroup_is_root(pc->mem_cgroup))
--		return;
- 	list_add(&pc->lru, &mz->lists[lru]);
+-	list_add(&pc->lru, &mz->lists[lru]);
++	list_add(&pc->lru, &mz->lruvec.lists[lru]);
  }
  
+ /*
+@@ -1234,7 +1231,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+ 
+ 	BUG_ON(!mem_cont);
+ 	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
+-	src = &mz->lists[lru];
++	src = &mz->lruvec.lists[lru];
+ 
+ 	scan = 0;
+ 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
+@@ -3619,7 +3616,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+ 
+ 	zone = &NODE_DATA(node)->node_zones[zid];
+ 	mz = mem_cgroup_zoneinfo(memcg, node, zid);
+-	list = &mz->lists[lru];
++	list = &mz->lruvec.lists[lru];
+ 
+ 	loop = MEM_CGROUP_ZSTAT(mz, lru);
+ 	/* give some margin against EBUSY etc...*/
+@@ -4715,7 +4712,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+ 		for_each_lru(l)
+-			INIT_LIST_HEAD(&mz->lists[l]);
++			INIT_LIST_HEAD(&mz->lruvec.lists[l]);
+ 		mz->usage_in_excess = 0;
+ 		mz->on_tree = false;
+ 		mz->mem = memcg;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1dba05e..33b25b6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4335,7 +4335,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 		zone_pcp_init(zone);
+ 		for_each_lru(l)
+-			INIT_LIST_HEAD(&zone->lru[l].list);
++			INIT_LIST_HEAD(&zone->lruvec.lists[l]);
+ 		zone->reclaim_stat.recent_rotated[0] = 0;
+ 		zone->reclaim_stat.recent_rotated[1] = 0;
+ 		zone->reclaim_stat.recent_scanned[0] = 0;
+diff --git a/mm/swap.c b/mm/swap.c
+index 3a442f1..66e8292 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -213,7 +213,7 @@ static void pagevec_move_tail_fn(struct page *page, void *arg)
+ 
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		enum lru_list lru = page_lru_base_type(page);
+-		list_move_tail(&page->lru, &zone->lru[lru].list);
++		list_move_tail(&page->lru, &zone->lruvec.lists[lru]);
+ 		mem_cgroup_rotate_reclaimable_page(page);
+ 		(*pgmoved)++;
+ 	}
+@@ -457,7 +457,7 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+ 		 * The page's writeback ends up during pagevec
+ 		 * We moves tha page into tail of inactive.
+ 		 */
+-		list_move_tail(&page->lru, &zone->lru[lru].list);
++		list_move_tail(&page->lru, &zone->lruvec.lists[lru]);
+ 		mem_cgroup_rotate_reclaimable_page(page);
+ 		__count_vm_event(PGROTATED);
+ 	}
+@@ -639,7 +639,6 @@ void lru_add_page_tail(struct zone* zone,
+ 	int active;
+ 	enum lru_list lru;
+ 	const int file = 0;
+-	struct list_head *head;
+ 
+ 	VM_BUG_ON(!PageHead(page));
+ 	VM_BUG_ON(PageCompound(page_tail));
+@@ -659,10 +658,10 @@ void lru_add_page_tail(struct zone* zone,
+ 		}
+ 		update_page_reclaim_stat(zone, page_tail, file, active);
+ 		if (likely(PageLRU(page)))
+-			head = page->lru.prev;
++			__add_page_to_lru_list(zone, page_tail, lru,
++					       page->lru.prev);
+ 		else
+-			head = &zone->lru[lru].list;
+-		__add_page_to_lru_list(zone, page_tail, lru, head);
++			add_page_to_lru_list(zone, page_tail, lru);
+ 	} else {
+ 		SetPageUnevictable(page_tail);
+ 		add_page_to_lru_list(zone, page_tail, LRU_UNEVICTABLE);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f411e7f..3a38080 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1267,8 +1267,8 @@ static unsigned long isolate_pages_global(unsigned long nr,
+ 		lru += LRU_ACTIVE;
+ 	if (file)
+ 		lru += LRU_FILE;
+-	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
+-								mode, file);
++	return isolate_lru_pages(nr, &z->lruvec.lists[lru], dst,
++				 scanned, order, mode, file);
+ }
+ 
+ /*
+@@ -1631,7 +1631,7 @@ static void move_active_pages_to_lru(struct zone *zone,
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 
+-		list_move(&page->lru, &zone->lru[lru].list);
++		list_move(&page->lru, &zone->lruvec.lists[lru]);
+ 		mem_cgroup_add_lru_list(page, lru);
+ 		pgmoved += hpage_nr_pages(page);
+ 
+@@ -3411,7 +3411,7 @@ retry:
+ 		enum lru_list l = page_lru_base_type(page);
+ 
+ 		__dec_zone_state(zone, NR_UNEVICTABLE);
+-		list_move(&page->lru, &zone->lru[l].list);
++		list_move(&page->lru, &zone->lruvec.lists[l]);
+ 		mem_cgroup_move_lists(page, LRU_UNEVICTABLE, l);
+ 		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
+ 		__count_vm_event(UNEVICTABLE_PGRESCUED);
+@@ -3420,7 +3420,7 @@ retry:
+ 		 * rotate unevictable list
+ 		 */
+ 		SetPageUnevictable(page);
+-		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
++		list_move(&page->lru, &zone->lruvec.lists[LRU_UNEVICTABLE]);
+ 		mem_cgroup_rotate_lru_list(page, LRU_UNEVICTABLE);
+ 		if (page_evictable(page, NULL))
+ 			goto retry;
 -- 
 1.7.6.2
 
