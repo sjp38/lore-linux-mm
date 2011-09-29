@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B3C839000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 07:57:17 -0400 (EDT)
-Date: Thu, 29 Sep 2011 19:57:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 03/18] writeback: dirty rate control
-Message-ID: <20110929115712.GA18183@localhost>
-References: <20110904015305.367445271@intel.com>
- <20110904020914.980576896@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6D9BE9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 08:09:01 -0400 (EDT)
+Date: Thu, 29 Sep 2011 14:05:17 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen
+	before deferring
+Message-ID: <20110929120517.GA10587@redhat.com>
+References: <cover.1317110948.git.mhocko@suse.cz> <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz> <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com> <20110928104445.GB15062@tiehlicka.suse.cz> <20110929115105.GE21113@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110904020914.980576896@intel.com>
+In-Reply-To: <20110929115105.GE21113@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-A minor fix to this patch.
+On 09/29, Michal Hocko wrote:
+>
+> --- a/kernel/freezer.c
+> +++ b/kernel/freezer.c
+> @@ -48,6 +48,10 @@ void refrigerator(void)
+>  	current->flags |= PF_FREEZING;
+>  
+>  	for (;;) {
+> +		if (fatal_signal_pending(current)) {
+> +			current->flags &= ~PF_FROZEN;
 
-While testing the fio mmap workload, bdi->dirty_ratelimit is observed
-to be knocked down to 1 and then brought up high in regular intervals.
+We can't do this.
 
-The showed up problem is, it took long delays to bring up
-bdi->dirty_ratelimit due to the round-down problem of the below
-task_ratelimit calculation: when dirty_ratelimit=1 and pos_ratio = 1.5,
-the resulted task_ratelimit will be 1, which fooled stops the logic
-from increasing dirty_ratelimit as long as pos_ratio < 2. The below
-change (from round-down to round-up) can nicely fix this problem.
+If PF_FROZEN was set, we must not modify current->flags, this can
+race with, say, thaw_process().
 
-Thanks,
-Fengguang
----
+OK, we can take task_lock(), but this doesn't close other races.
+Say, a SIGKILL'ed task can do try_to_freeze(). Perhaps we should
+simply call thaw_process() unconditionally, this also clears
+TIF_FREEZE. Or check freezing() || frozen(). Afacis this solves
+the race you described.
 
---- linux-next.orig/mm/page-writeback.c	2011-09-24 15:52:11.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-09-24 15:52:11.000000000 +0800
-@@ -766,6 +766,7 @@ static void bdi_update_dirty_ratelimit(s
- 	 */
- 	task_ratelimit = (u64)dirty_ratelimit *
- 					pos_ratio >> RATELIMIT_CALC_SHIFT;
-+	task_ratelimit++; /* it helps rampup dirty_ratelimit from tiny values */
- 
- 	/*
- 	 * A linear estimation of the "balanced" throttle rate. The theory is,
+But of course this can't help if freeze_task() is called later.
+May be freezable() should check TIF_MEMDIE...
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
