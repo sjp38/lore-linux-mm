@@ -1,39 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B52189000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 16:19:34 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: RFC -- new zone type
-References: <20110928180909.GA7007@labbmf-linux.qualcomm.com>
-Date: Thu, 29 Sep 2011 13:19:32 -0700
-In-Reply-To: <20110928180909.GA7007@labbmf-linux.qualcomm.com> (Larry Bassel's
-	message of "Wed, 28 Sep 2011 11:09:09 -0700")
-Message-ID: <m2aa9nhzjf.fsf@firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA6A9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 16:25:08 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p8TKP5fT027975
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:25:05 -0700
+Received: from qyc1 (qyc1.prod.google.com [10.241.81.129])
+	by hpaq13.eem.corp.google.com with ESMTP id p8TKOP04007614
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:25:03 -0700
+Received: by qyc1 with SMTP id 1so4530114qyc.11
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:25:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20110929164319.GA3509@mgebm.net>
+References: <1317170947-17074-1-git-send-email-walken@google.com>
+	<20110929164319.GA3509@mgebm.net>
+Date: Thu, 29 Sep 2011 13:25:00 -0700
+Message-ID: <CANN689H1G-USQYQrOTb47Hrc7KMjLdxkppYCDKsTUy5WhuRs7w@mail.gmail.com>
+Subject: Re: [PATCH 0/9] V2: idle page tracking / working set estimation
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Larry Bassel <lbassel@codeaurora.org>
-Cc: linux-mm@kvack.org, vgandhi@codeaurora.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
 
-Larry Bassel <lbassel@codeaurora.org> writes:
->
-> It was suggested to me that a new zone type which would be similar
-> to the "movable zone" but is only allowed to contain pages
-> that can be discarded (such as text) could solve this problem,
+On Thu, Sep 29, 2011 at 9:43 AM, Eric B Munson <emunson@mgebm.net> wrote:
+> I have been trying to test these patches since yesterday afternoon. =A0Wh=
+en my
+> machine is idle, they behave fine. =A0I started looking at performance to=
+ make
+> sure they were a big regression by testing kernel builds with the scanner
+> disabled, and then enabled (set to 120 seconds). =A0The scanner disabled =
+builds
+> work fine, but with the scanner enabled the second time I build my kernel=
+ hangs
+> my machine every time. =A0Unfortunately, I do not have any more informati=
+on than
+> that for you at the moment. =A0My next step is to try the same tests in q=
+emu to
+> see if I can get more state information when the kernel hangs.
 
-This may not actually be a win because if the text pages are needed
-afterwards the act of rereading them from disk would likely take longer
-than the copying.
+Could you please send me your .config file ? Also, did you apply the
+patches on top of straight v3.0 and what is your machine like ?
 
-The so you many not get latency before, but after.
+Thanks,
 
-Essentially robbing Peter to pay Paul.
-
-If the goal is to just spread the latency over a longer time
-I'm sure there are better ways to do that than to add a new zone.
-
--Andi
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
