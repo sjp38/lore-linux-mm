@@ -1,97 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 60A0A9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 02:07:48 -0400 (EDT)
-Received: by eye13 with SMTP id 13so191498eye.14
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2011 23:07:46 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E810F9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 03:56:12 -0400 (EDT)
+Date: Thu, 29 Sep 2011 09:55:54 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 03/11] mm: vmscan: distinguish between memcg triggering
+ reclaim and memcg being scanned
+Message-ID: <20110929075554.GA6050@redhat.com>
+References: <1315825048-3437-1-git-send-email-jweiner@redhat.com>
+ <1315825048-3437-4-git-send-email-jweiner@redhat.com>
+ <20110919142955.GG21847@tiehlicka.suse.cz>
+ <20110920085811.GC11489@redhat.com>
+ <20110920091738.GD27675@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20110928180909.GA7007@labbmf-linux.qualcomm.com>
-References: <20110928180909.GA7007@labbmf-linux.qualcomm.com>
-Date: Thu, 29 Sep 2011 11:37:46 +0530
-Message-ID: <CAOFJiu1_HaboUMqtjowA2xKNmGviDE55GUV4OD1vN2hXUf4-kQ@mail.gmail.com>
-Subject: Re: RFC -- new zone type
-From: Sameer Pramod Niphadkar <spniphadkar@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110920091738.GD27675@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Larry Bassel <lbassel@codeaurora.org>
-Cc: linux-mm@kvack.org, vgandhi@codeaurora.org, Xen-devel@lists.xensource.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 28, 2011 at 11:39 PM, Larry Bassel <lbassel@codeaurora.org> wro=
-te:
-> We need to create a large (~100M) contiguous physical memory region
-> which will only be needed occasionally. As this region will
-> use up 10-20% of all of the available memory, we do not want
-> to pre-reserve it at boot time. Instead, we want to create
-> this memory region "on the fly" when asked to by userspace,
-> and do it as quickly as possible, and return it to
-> system use when not needed.
->
-> AFAIK, this sort of operation is currently done using memory
-> compaction (as CMA does for instance).
-> Alternatively, this memory region (if it is in a fixed place)
-> could be created using "logical memory hotremove" and returned
-> to the system using "logical memory hotplug". In either case,
-> the contiguous physical memory would be created via migrating
-> pages from the "movable zone".
->
-> The problem with this approach is that the copying of up to 25000
-> pages may take considerable time (as well as finding destinations
-> for all of the pages if free memory is scarce -- this may
-> even fail, causing the memory region not to be created).
->
-> It was suggested to me that a new zone type which would be similar
-> to the "movable zone" but is only allowed to contain pages
-> that can be discarded (such as text) could solve this problem,
-> so that there is no copying or finding destination pages needed (thus
-> considerably reducing latency).
->
-Is this approach similar to Copy-on-Write being used in most page
-sharing entitlements ? If yes, then it almost depends on the # of
-writes made on the pages.
+On Tue, Sep 20, 2011 at 11:17:38AM +0200, Michal Hocko wrote:
+> On Tue 20-09-11 10:58:11, Johannes Weiner wrote:
+> > On Mon, Sep 19, 2011 at 04:29:55PM +0200, Michal Hocko wrote:
+> > > On Mon 12-09-11 12:57:20, Johannes Weiner wrote:
+> > > > @@ -2390,6 +2413,18 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+> > > >  }
+> > > >  #endif
+> > > >  
+> > > > +static void age_active_anon(struct zone *zone, struct scan_control *sc,
+> > > > +			    int priority)
+> > > > +{
+> > > > +	struct mem_cgroup_zone mz = {
+> > > > +		.mem_cgroup = NULL,
+> > > > +		.zone = zone,
+> > > > +	};
+> > > > +
+> > > > +	if (inactive_anon_is_low(&mz))
+> > > > +		shrink_active_list(SWAP_CLUSTER_MAX, &mz, sc, priority, 0);
+> > > > +}
+> > > > +
+> > > 
+> > > I do not like this very much because we are using a similar construct in
+> > > shrink_mem_cgroup_zone so we are duplicating that code. 
+> > > What about adding age_mem_cgroup_active_anon (something like shrink_zone).
+> > 
+> > I am not sure I follow and I don't see what could be shared between
+> > the zone shrinking and this as there are different exit conditions to
+> > the hierarchy walk.  Can you elaborate?
+> 
+> Sorry for not being clear enough. Maybe it is not very much important
+> but what about something like:
+> 
+> Index: linus_tree/mm/vmscan.c
+> ===================================================================
+> --- linus_tree.orig/mm/vmscan.c	2011-09-20 11:07:57.000000000 +0200
+> +++ linus_tree/mm/vmscan.c	2011-09-20 11:12:53.000000000 +0200
+> @@ -2041,6 +2041,13 @@ static inline bool should_continue_recla
+>  	}
+>  }
+>  
+> +static void age_mem_cgroup_active_anon(struct mem_cgroup_zone *mz,
+> +		struct scan_control *sc, int priority)
+> +{
+> +	if (inactive_anon_is_low(mz))
+> +		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
+> +}
+> +
+>  /*
+>   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+>   */
+> @@ -2090,8 +2097,7 @@ restart:
+>  	 * Even if we did not try to evict anon pages at all, we want to
+>  	 * rebalance the anon lru active/inactive ratio.
+>  	 */
+> -	if (inactive_anon_is_low(mz))
+> -		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
+> +	age_mem_cgroup_active_anon(mz, sc, priority);
+>  
+>  	/* reclaim/compaction might need reclaim to continue */
+>  	if (should_continue_reclaim(mz, nr_reclaimed,
+> @@ -2421,8 +2427,7 @@ static void age_active_anon(struct zone
+>  		.zone = zone,
+>  	};
+>  
+> -	if (inactive_anon_is_low(&mz))
+> -		shrink_active_list(SWAP_CLUSTER_MAX, &mz, sc, priority, 0);
+> +	age_mem_cgroup_active_anon(&mz, sc, priority);
+>  }
 
-> The downside I see is that there may not be anywhere near
-> 25000 such discardable pages, so most of this zone would go unused, and
-> the memory would be "wasted" as in the case where it is pre-reserved.
-> Also, this is not currently supported, so new code would
-> have to be designed and implemented.
->
-> I would appreciate people's comments about:
->
-> 1. Does this type of zone make any sense? It
-> would have to co-exist with the current movable zone type.
- Ideally can't there be a reserved zone created from which all the
-remaining on-the fly zones are shared based on CoW ?
+Ahh, understood.
 
-> 2. How hard would it be to implement this? The new zone type would
-> need to be supported and "discardable" pages steered into this zone.
->
-Most VMs do support ballooning,  CoW and other forms of sharing and
-can provide as basis for any memory management projects.
-
-> 3. Are there better ways of allocating a large memory region
-> with minimal latency that I haven't mentioned here?
->
-Hmm...there are mechanisms as pointed by yourself but they all depend
-on the policy of consolidation, priority and security of operations.
-> Thanks.
->
-> Larry Bassel
->
-> --
-> Sent by an employee of the Qualcomm Innovation Center, Inc.
-> The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum=
-.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+I think it would be an unrelated change, though.  There already are
+two of those constructs, I just move one of them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
