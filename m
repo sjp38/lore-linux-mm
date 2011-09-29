@@ -1,88 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 13B1F9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 07:51:09 -0400 (EDT)
-Date: Thu, 29 Sep 2011 13:51:05 +0200
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CA66C9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 07:54:26 -0400 (EDT)
+Date: Thu, 29 Sep 2011 13:54:19 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen before
- deferring
-Message-ID: <20110929115105.GE21113@tiehlicka.suse.cz>
-References: <cover.1317110948.git.mhocko@suse.cz>
- <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
- <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
- <20110928104445.GB15062@tiehlicka.suse.cz>
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European
+ LinuxCon in Prague
+Message-ID: <20110929115419.GF21113@tiehlicka.suse.cz>
+References: <1316693805.10571.25.camel@dabdike>
+ <20110926131027.GA14964@tiehlicka.suse.cz>
+ <1317147379.9186.19.camel@dabdike.hansenpartnership.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110928104445.GB15062@tiehlicka.suse.cz>
+In-Reply-To: <1317147379.9186.19.camel@dabdike.hansenpartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 28-09-11 12:44:45, Michal Hocko wrote:
-> On Tue 27-09-11 11:35:04, David Rientjes wrote:
-> > On Tue, 27 Sep 2011, Michal Hocko wrote:
+On Tue 27-09-11 13:16:19, James Bottomley wrote:
+> On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
+> > On Thu 22-09-11 12:16:47, James Bottomley wrote:
+> > > Hi All,
 > > 
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 626303b..c419a7e 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -32,6 +32,7 @@
-> > >  #include <linux/mempolicy.h>
-> > >  #include <linux/security.h>
-> > >  #include <linux/ptrace.h>
-> > > +#include <linux/freezer.h>
-> > >  
-> > >  int sysctl_panic_on_oom;
-> > >  int sysctl_oom_kill_allocating_task;
-> > > @@ -451,10 +452,15 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-> > >  				task_pid_nr(q), q->comm);
-> > >  			task_unlock(q);
-> > >  			force_sig(SIGKILL, q);
-> > > +
-> > > +			if (frozen(q))
-> > > +				thaw_process(q);
-> > >  		}
-> > >  
-> > >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> > >  	force_sig(SIGKILL, p);
-> > > +	if (frozen(p))
-> > > +		thaw_process(p);
-> > >  
-> > >  	return 0;
-> > >  }
+> > Hi,
 > > 
-> > Also needs this...
+> > > 
+> > > One of the major work items that came out of the Plumbers conference
+> > > containers and Cgroups meeting was the need to work on memcg:
+> > > 
+> > > http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+> > > 
+> > > (see etherpad and presentations)
+> > > 
+> > > Since almost everyone will be either at KS or LinuxCon, I thought doing
+> > > a small meeting on the Wednesday of Linux Con (so those at KS who might
+> > > not be staying for the whole of LinuxCon could attend) might be a good
+> > > idea.  The object would be to get all the major players to agree on
+> > > who's doing what.  You can see Parallels' direction from the patches
+> > > Glauber has been posting.  Google should shortly be starting work on
+> > > other aspects of the memgc as well.
+> > > 
+> > > As a precursor to the meeting (and actually a requirement to make it
+> > > effective) we need to start posting our preliminary patches and design
+> > > ideas to the mm list (hint, Google people, this means you).
+> > > 
+> > > I think I've got all of the interested parties in the To: field, but I'm
+> > > sending this to the mm list just in case I missed anyone.  If everyone's
+> > > OK with the idea (and enough people are going to be there) I'll get the
+> > > Linux Foundation to find us a room.
 > > 
-> > 
-> > oom: thaw threads if oom killed thread is frozen before deferring
-> > 
-> > If a thread has been oom killed and is frozen, thaw it before returning
-> > to the page allocator.  Otherwise, it can stay frozen indefinitely and
-> > no memory will be freed.
+> > I am not going to be at KS but I am in Prague. I would be happy to meet
+> > as well if it is possible.
 > 
-> OK, I can see the race now:
-> oom_kill_task				refrigerator
->   set_tsk_thread_flag(p, TIF_MEMDIE);
->   force_sig(SIGKILL, p);
->   if (frozen(p))
->   	thaw_process(p)
-> 					  frozen_process();
-> 					  [...]
-> 					  if (!frozen(current))
-> 					  	break;
-> 					  schedule();
-> 
-> select_bad_process
->   [...]
->   if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> 	  return ERR_PTR(-1UL);
-> 
-> So we either have to make sure that TIF_MEMDIE task is not frozen in
-> select_bad_process (your patch) or check for fatal_signal_pending
-> in refrigerator before we schedule and break out of the loop. Maybe the
-> later one is safer? Rafael?
+> Certainly. 
 
-What about this?
----
+OK, then add me as well.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
