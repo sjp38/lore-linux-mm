@@ -1,55 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 116C09000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:29:22 -0400 (EDT)
-Received: by bkbzs2 with SMTP id zs2so1221715bkb.14
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:29:20 -0700 (PDT)
-Date: Thu, 29 Sep 2011 21:28:21 +0400
-From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
-Message-ID: <20110929172821.GA19601@albatros>
-References: <20110927175453.GA3393@albatros>
- <20110927175642.GA3432@albatros>
- <20110927193810.GA5416@albatros>
- <alpine.DEB.2.00.1109271459180.13797@router.home>
- <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
- <20110929161848.GA16348@albatros>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2359000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:50:49 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 29 Sep 2011 13:48:30 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8THlWJJ259560
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:47:32 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8THlVvH008086
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:47:31 -0400
+Message-ID: <4E84AF30.30402@linux.vnet.ibm.com>
+Date: Thu, 29 Sep 2011 12:47:28 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110929161848.GA16348@albatros>
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@gentwo.org>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: gregkh@suse.de, dan.magenheimer@oracle.com, ngupta@vflare.org, cascardo@holoscopio.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
 
-On Thu, Sep 29, 2011 at 20:18 +0400, Vasiliy Kulikov wrote:
-> On Tue, Sep 27, 2011 at 13:33 -0700, David Rientjes wrote:
-> > I'd much rather just convert everything to use MB rather than KB so you 
-> > can't determine things at a page level.  I think that gets us much closer 
-> > to what the patch is intending to restrict.  But I also expect some 
-> > breakage from things that just expect meminfo to be in KB units without 
-> > parsing what the kernel is exporting.
+On 09/07/2011 09:09 AM, Seth Jennings wrote:
 > 
-> I'm not convinced with rounding the information to MBs.  The attacker
-> still may fill slabs with new objects to trigger new slab pages
-> allocations.  He will be able to see when this MB-granularity barrier is
-> overrun thus seeing how many kbs there were before:
+> I did some quick tests with "time" using the same program and the
+> timings are very close (3 run average, little deviation):
 > 
->     old = new - filled_obj_size_sum
+> xvmalloc:
+> zero filled	0m0.852s
+> text (75%)	0m14.415s
 > 
-> As `new' is just increased, it means it is known with KB granularity,
-> not MB.  By counting used slab objects he learns filled_obj_size_sum.
+> xcfmalloc:
+> zero filled	0m0.870s
+> text (75%)	0m15.089s
+> 
+> I suspect that the small decrease in throughput is due to the
+> extra memcpy in xcfmalloc.  However, these timing, more than 
+> anything, demonstrate that the throughput is GREATLY effected
+> by the compressibility of the data.
 
-s/filled_obj_size_sum/old/ of course.
+This is not correct.  I found out today that the reason text
+compressed so much more slowly is because my test program
+was inefficiently filling text filled pages.
 
-> So, rounding gives us nothing, but obscurity.
-> 
-> Thanks,
+With my corrected test program:
+xvmalloc:
+zero filled	0m0.751s
+text (75%)	0m2.273s
 
--- 
-Vasiliy Kulikov
-http://www.openwall.com - bringing security into open computing environments
+It is still slower on less compressible data but not to the
+degree previously stated.
+
+I don't have the xcfmalloc numbers yet, but I expect they are
+almost the same.
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
