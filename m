@@ -1,88 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2277A9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:00:51 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 706389000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:08:52 -0400 (EDT)
+Date: Thu, 29 Sep 2011 09:08:47 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: Question about memory leak detector giving false positive report
+ for net/core/flow.c
+In-Reply-To: <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
+Message-ID: <alpine.DEB.2.00.1109290907450.9382@router.home>
+References: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com> <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <20110926165024.GA21617@e102109-lin.cambridge.arm.com> <1317066395.2796.11.camel@edumazet-laptop>
+ <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Message-ID: <ae99a884-f63b-4258-afea-ca1d6cf5a74c@default>
-Date: Thu, 29 Sep 2011 07:00:22 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V10 0/6] mm: frontswap: overview (and proposal to merge at
- next window)
-References: <20110915213305.GA26317@ca-server1.us.oracle.com>
- <20110928151558.dca1da5e.kamezawa.hiroyu@jp.fujitsu.com>
- <22173398-de03-43ef-abe4-a3f3231dd2e9@default
- 20110929134816.7f29bf46.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110929134816.7f29bf46.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> Sent: Wednesday, September 28, 2011 10:48 PM
->=20
-> On Wed, 28 Sep 2011 07:09:18 -0700 (PDT)
-> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
->=20
-> > > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
-> > > Sent: Wednesday, September 28, 2011 12:16 AM
-> > >
-> > > I'm sorry I couldn't catch following... what happens at hibernation ?
-> > > frontswap is effectively stopped/skipped automatically ? or contents =
-of
-> > > TMEM can be kept after power off and it can be read correctly when
-> > > resume thread reads swap ?
-> > >
-> > > In short: no influence to hibernation ?
-> > > I'm sorry if I misunderstand some.
-> >
-> > Hibernation would need to be handled by the tmem backend (e.g. zcache, =
-Xen
-> > tmem).  In the case of Xen tmem, both save/restore and live migration a=
-re
-> > fully supported.  I'm not sure if zcache works across hibernation; sinc=
-e
-> > all memory is kmalloc'ed, I think it should work fine, but it would be =
-an
-> > interesting experiment.
->=20
-> I'm afraid that users will lose data on memory of frontswap/zcache/tmem
-> by power-off, hibernation. How about adding internal hooks to disable/syn=
-c
-> frontswap itself before hibernation ? difficult ?
+On Wed, 28 Sep 2011, Catalin Marinas wrote:
 
-Hi Kame --
+> I tried this but it's tricky. The problem is that the percpu pointer
+> returned by alloc_percpu() does not directly point to the per-cpu chunks
+> and kmemleak would report most percpu allocations as leaks. So far the
+> workaround is to simply mark the alloc_percpu() objects as never leaking
+> and at least we avoid false positives in other areas. See the patch
+> below (note that you have to increase the CONFIG_KMEMLEAK_EARLY_LOG_SIZE
+> as there are many alloc_percpu() calls before kmemleak is fully
+> initialised):
 
-First, remember that frontswap is currently only enabled by
-specifying a tmem backend as a kernel boot parameter ("zcache"
-or "tmem"), so there is no risk of data loss to the average
-laptop user doing hibernation, even if CONFIG_FRONTSWAP
-and CONFIG_ZCACHE are enabled in their kernel.
-
-The patchset's frontswap_shrink() call can be used to remove
-pages from frontswap so there is one internal hook for this
-already.
-
-I still think hibernation should work fine with zcache
-because all frontswap metadata and data is preserved as part
-of kernel memory.  For poweroff, the normal swapoff will
-"get" all frontswap pages, so no issue there either.
-I do agree that this should be investigated before zcache
-could be moved from staging and certainly before zcache is
-enabled by default by a distro (with no kernel boot parameter).
-If it turns out that zcache needs more hooks to provide finer
-control of frontswap disable/sync, I don't think it will be=20
-difficult but I think those hooks should be designed in the future.
-
-And Xen tmem supports save/restore and live migration
-already so this is not a concern for the Xen tmem backend.
-
-Hope that helps!
-
-Thanks,
-Dan
+Seems that kernel.org is out and so tejon wont be seeing these.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
