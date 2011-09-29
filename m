@@ -1,66 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2359000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:50:49 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 29 Sep 2011 13:48:30 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8THlWJJ259560
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:47:32 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8THlVvH008086
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 13:47:31 -0400
-Message-ID: <4E84AF30.30402@linux.vnet.ibm.com>
-Date: Thu, 29 Sep 2011 12:47:28 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0C29000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 14:00:29 -0400 (EDT)
+Date: Thu, 29 Sep 2011 20:00:21 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen before
+ deferring
+Message-ID: <20110929180021.GA27999@tiehlicka.suse.cz>
+References: <cover.1317110948.git.mhocko@suse.cz>
+ <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
+ <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
+ <20110928104445.GB15062@tiehlicka.suse.cz>
+ <20110929115105.GE21113@tiehlicka.suse.cz>
+ <20110929120517.GA10587@redhat.com>
+ <20110929130204.GG21113@tiehlicka.suse.cz>
+ <20110929163724.GA23773@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110929163724.GA23773@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: gregkh@suse.de, dan.magenheimer@oracle.com, ngupta@vflare.org, cascardo@holoscopio.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/07/2011 09:09 AM, Seth Jennings wrote:
+On Thu 29-09-11 18:37:24, Oleg Nesterov wrote:
+> On 09/29, Michal Hocko wrote:
+> >
+> > On Thu 29-09-11 14:05:17, Oleg Nesterov wrote:
+> >
+> > > But of course this can't help if freeze_task() is called later.
+> > > May be freezable() should check TIF_MEMDIE...
+> >
+> > Wouldn't it be easier to ignore try_to_freeze when fatal signals are
+> > pending in get_signal_to_deliver?
 > 
-> I did some quick tests with "time" using the same program and the
-> timings are very close (3 run average, little deviation):
+> Oh, I don't think so. For what? This doesn't close other races, and
+> in fact the fatal_signal_pending() this patch adds is itself racy,
+> SIGKILL can come in between.
+
+OK, I think I see your point. You mean that oom will send KILL after
+both fatal_signal_pending in refrigerator and signal_pending check in
+schedule, right?
+
 > 
-> xvmalloc:
-> zero filled	0m0.852s
-> text (75%)	0m14.415s
+> > --- a/kernel/freezer.c
+> > +++ b/kernel/freezer.c
+> > @@ -48,6 +48,11 @@ void refrigerator(void)
+> >  	current->flags |= PF_FREEZING;
+> >
+> >  	for (;;) {
+> > +		if (fatal_signal_pending(current)) {
+> > +			if (freezing(current) || frozen(current))
+> > +				thaw_process(current);
 > 
-> xcfmalloc:
-> zero filled	0m0.870s
-> text (75%)	0m15.089s
+> Ah, I didn't mean refrigerator() should check freezing/frozen.
 > 
-> I suspect that the small decrease in throughput is due to the
-> extra memcpy in xcfmalloc.  However, these timing, more than 
-> anything, demonstrate that the throughput is GREATLY effected
-> by the compressibility of the data.
+> I meant, oom_kill can do this before thaw thaw_process(), afaics
+> this should fix the particular race you described (but not others).
 
-This is not correct.  I found out today that the reason text
-compressed so much more slowly is because my test program
-was inefficiently filling text filled pages.
+This is what the follow up fix from David is doing. Check frozen in
+select_bad_process if the task is TIF_MEMDIE and thaw the process.
 
-With my corrected test program:
-xvmalloc:
-zero filled	0m0.751s
-text (75%)	0m2.273s
+And it seems that the David's follow up fix is sufficient so let's leave
+refrigerator alone.
+Or am I still missing something?
 
-It is still slower on less compressible data but not to the
-degree previously stated.
+> 
+> And. It is simply wrong to return from refrigerator() after we set
+> PF_FROZEN, this can fool try_to_freeze_tasks(). Sure, thaw_process()
+> from oom_kill is not nice too, but at least this is the special case,
+> we already have the problem.
+> 
+> Oleg.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I don't have the xcfmalloc numbers yet, but I expect they are
-almost the same.
-
---
-Seth
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
