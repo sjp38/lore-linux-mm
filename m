@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 522749000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:01:50 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 841D79000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 17:02:08 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 02/10] mm: vmscan: distinguish global reclaim from global LRU scanning
-Date: Thu, 29 Sep 2011 23:00:56 +0200
-Message-Id: <1317330064-28893-3-git-send-email-jweiner@redhat.com>
+Subject: [patch 04/10] mm: memcg: per-priority per-zone hierarchy scan generations
+Date: Thu, 29 Sep 2011 23:00:58 +0200
+Message-Id: <1317330064-28893-5-git-send-email-jweiner@redhat.com>
 In-Reply-To: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
 References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,193 +13,197 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The traditional zone reclaim code is scanning the per-zone LRU lists
-during direct reclaim and kswapd, and the per-zone per-memory cgroup
-LRU lists when reclaiming on behalf of a memory cgroup limit.
+Memory cgroup limit reclaim currently picks one memory cgroup out of
+the target hierarchy, remembers it as the last scanned child, and
+reclaims all zones in it with decreasing priority levels.
 
-Subsequent patches will convert the traditional reclaim code to
-reclaim exclusively from the per-memory cgroup LRU lists.  As a
-result, using the predicate for which LRU list is scanned will no
-longer be appropriate to tell global reclaim from limit reclaim.
+The new hierarchy reclaim code will pick memory cgroups from the same
+hierarchy concurrently from different zones and priority levels, it
+becomes necessary that hierarchy roots not only remember the last
+scanned child, but do so for each zone and priority level.
 
-This patch adds a global_reclaim() predicate to tell direct/kswapd
-reclaim from memory cgroup limit reclaim and substitutes it in all
-places where currently scanning_global_lru() is used for that.
+Until now, we reclaimed memcgs like this:
+
+    mem = mem_cgroup_iter(root)
+    for each priority level:
+      for each zone in zonelist:
+        reclaim(mem, zone)
+
+But subsequent patches will move the memcg iteration inside the loop
+over the zones:
+
+    for each priority level:
+      for each zone in zonelist:
+        mem = mem_cgroup_iter(root)
+        reclaim(mem, zone)
+
+And to keep with the original scan order - memcg -> priority -> zone -
+the last scanned memcg has to be remembered per zone and per priority
+level.
+
+Furthermore, global reclaim will be switched to the hierarchy walk as
+well.  Different from limit reclaim, which can just recheck the limit
+after some reclaim progress, its target is to scan all memcgs for the
+desired zone pages, proportional to the memcg size, and so reliably
+detecting a full hierarchy round-trip will become crucial.
+
+Currently, the code relies on one reclaimer encountering the same
+memcg twice, but that is error-prone with concurrent reclaimers.
+Instead, use a generation counter that is increased every time the
+child with the highest ID has been visited, so that reclaimers can
+stop when the generation changes.
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- mm/vmscan.c |   62 +++++++++++++++++++++++++++++++++++-----------------------
- 1 files changed, 37 insertions(+), 25 deletions(-)
+ mm/memcontrol.c |   65 +++++++++++++++++++++++++++++++++++++++---------------
+ 1 files changed, 47 insertions(+), 18 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 71b5616..4bb7f78 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -153,9 +153,25 @@ static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0ba59f6..38d195d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -121,6 +121,13 @@ struct mem_cgroup_stat_cpu {
+ 	unsigned long targets[MEM_CGROUP_NTARGETS];
+ };
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
--#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
-+static bool global_reclaim(struct scan_control *sc)
-+{
-+	return !sc->mem_cgroup;
-+}
++struct mem_cgroup_reclaim_iter {
++	/* css_id of the last scanned hierarchy member */
++	int position;
++	/* scan generation, increased every round-trip */
++	unsigned int generation;
++};
 +
-+static bool scanning_global_lru(struct scan_control *sc)
-+{
-+	return !sc->mem_cgroup;
-+}
- #else
--#define scanning_global_lru(sc)	(1)
-+static bool global_reclaim(struct scan_control *sc)
-+{
-+	return true;
-+}
-+
-+static bool scanning_global_lru(struct scan_control *sc)
-+{
-+	return true;
-+}
- #endif
+ /*
+  * per-zone information in memory controller.
+  */
+@@ -131,6 +138,8 @@ struct mem_cgroup_per_zone {
+ 	struct list_head	lists[NR_LRU_LISTS];
+ 	unsigned long		count[NR_LRU_LISTS];
  
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
-@@ -1011,7 +1027,7 @@ keep_lumpy:
- 	 * back off and wait for congestion to clear because further reclaim
- 	 * will encounter the same problem
++	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
++
+ 	struct zone_reclaim_stat reclaim_stat;
+ 	struct rb_node		tree_node;	/* RB tree node */
+ 	unsigned long long	usage_in_excess;/* Set to the value by which */
+@@ -231,11 +240,6 @@ struct mem_cgroup {
+ 	 * per zone LRU lists.
  	 */
--	if (nr_dirty && nr_dirty == nr_congested && scanning_global_lru(sc))
-+	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
- 		zone_set_flag(zone, ZONE_CONGESTED);
- 
- 	free_page_list(&free_pages);
-@@ -1330,7 +1346,7 @@ static int too_many_isolated(struct zone *zone, int file,
- 	if (current_is_kswapd())
- 		return 0;
- 
--	if (!scanning_global_lru(sc))
-+	if (!global_reclaim(sc))
- 		return 0;
- 
- 	if (file) {
-@@ -1508,6 +1524,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	if (scanning_global_lru(sc)) {
- 		nr_taken = isolate_pages_global(nr_to_scan, &page_list,
- 			&nr_scanned, sc->order, reclaim_mode, zone, 0, file);
-+	} else {
-+		nr_taken = mem_cgroup_isolate_pages(nr_to_scan, &page_list,
-+			&nr_scanned, sc->order, reclaim_mode, zone,
-+			sc->mem_cgroup, 0, file);
-+	}
-+	if (global_reclaim(sc)) {
- 		zone->pages_scanned += nr_scanned;
- 		if (current_is_kswapd())
- 			__count_zone_vm_events(PGSCAN_KSWAPD, zone,
-@@ -1515,14 +1537,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 		else
- 			__count_zone_vm_events(PGSCAN_DIRECT, zone,
- 					       nr_scanned);
--	} else {
--		nr_taken = mem_cgroup_isolate_pages(nr_to_scan, &page_list,
--			&nr_scanned, sc->order, reclaim_mode, zone,
--			sc->mem_cgroup, 0, file);
--		/*
--		 * mem_cgroup_isolate_pages() keeps track of
--		 * scanned pages on its own.
--		 */
- 	}
- 
- 	if (nr_taken == 0) {
-@@ -1647,18 +1661,16 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 						&pgscanned, sc->order,
- 						reclaim_mode, zone,
- 						1, file);
--		zone->pages_scanned += pgscanned;
- 	} else {
- 		nr_taken = mem_cgroup_isolate_pages(nr_pages, &l_hold,
- 						&pgscanned, sc->order,
- 						reclaim_mode, zone,
- 						sc->mem_cgroup, 1, file);
--		/*
--		 * mem_cgroup_isolate_pages() keeps track of
--		 * scanned pages on its own.
--		 */
- 	}
- 
-+	if (global_reclaim(sc))
-+		zone->pages_scanned += pgscanned;
-+
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
- 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-@@ -1828,7 +1840,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 
- static int vmscan_swappiness(struct scan_control *sc)
- {
--	if (scanning_global_lru(sc))
-+	if (global_reclaim(sc))
- 		return vm_swappiness;
- 	return mem_cgroup_swappiness(sc->mem_cgroup);
+ 	struct mem_cgroup_lru_info info;
+-	/*
+-	 * While reclaiming in a hierarchy, we cache the last child we
+-	 * reclaimed from.
+-	 */
+-	int last_scanned_child;
+ 	int last_scanned_node;
+ #if MAX_NUMNODES > 1
+ 	nodemask_t	scan_nodes;
+@@ -781,9 +785,16 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+ 	return memcg;
  }
-@@ -1863,9 +1875,9 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	 * latencies, so it's better to scan a minimum amount there as
- 	 * well.
- 	 */
--	if (scanning_global_lru(sc) && current_is_kswapd())
-+	if (current_is_kswapd())
- 		force_scan = true;
--	if (!scanning_global_lru(sc))
-+	if (!global_reclaim(sc))
- 		force_scan = true;
  
- 	/* If we have no swap space, do not bother scanning anon pages. */
-@@ -1882,7 +1894,7 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
- 		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
+-static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+-					  struct mem_cgroup *prev,
+-					  bool reclaim)
++struct mem_cgroup_reclaim_cookie {
++	struct zone *zone;
++	int priority;
++	unsigned int generation;
++};
++
++static struct mem_cgroup *
++mem_cgroup_iter(struct mem_cgroup *root,
++		struct mem_cgroup *prev,
++		struct mem_cgroup_reclaim_cookie *reclaim)
+ {
+ 	struct mem_cgroup *mem = NULL;
+ 	int id = 0;
+@@ -804,10 +815,20 @@ static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 	}
  
--	if (scanning_global_lru(sc)) {
-+	if (global_reclaim(sc)) {
- 		free  = zone_page_state(zone, NR_FREE_PAGES);
- 		/* If we have very few page cache pages,
- 		   force-scan anon pages. */
-@@ -2109,7 +2121,7 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
- 		 */
--		if (scanning_global_lru(sc)) {
-+		if (global_reclaim(sc)) {
- 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 				continue;
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-@@ -2188,7 +2200,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	get_mems_allowed();
- 	delayacct_freepages_start();
+ 	while (!mem) {
++		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+ 		struct cgroup_subsys_state *css;
  
--	if (scanning_global_lru(sc))
-+	if (global_reclaim(sc))
- 		count_vm_event(ALLOCSTALL);
+-		if (reclaim)
+-			id = root->last_scanned_child;
++		if (reclaim) {
++			int nid = zone_to_nid(reclaim->zone);
++			int zid = zone_idx(reclaim->zone);
++			struct mem_cgroup_per_zone *mz;
++
++			mz = mem_cgroup_zoneinfo(root, nid, zid);
++			iter = &mz->reclaim_iter[reclaim->priority];
++			if (prev && reclaim->generation != iter->generation)
++				return NULL;
++			id = iter->position;
++		}
  
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-@@ -2200,7 +2212,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
- 		 */
--		if (scanning_global_lru(sc)) {
-+		if (global_reclaim(sc)) {
- 			unsigned long lru_pages = 0;
- 			for_each_zone_zonelist(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask)) {
-@@ -2261,7 +2273,7 @@ out:
- 		return 0;
+ 		rcu_read_lock();
+ 		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+@@ -818,8 +839,13 @@ static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 			id = 0;
+ 		rcu_read_unlock();
  
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
--	if (scanning_global_lru(sc) && !all_unreclaimable(zonelist, sc))
-+	if (global_reclaim(sc) && !all_unreclaimable(zonelist, sc))
- 		return 1;
+-		if (reclaim)
+-			root->last_scanned_child = id;
++		if (reclaim) {
++			iter->position = id;
++			if (!css)
++				iter->generation++;
++			else if (!prev && mem)
++				reclaim->generation = iter->generation;
++		}
  
- 	return 0;
+ 		if (prev && !css)
+ 			return NULL;
+@@ -842,14 +868,14 @@ static void mem_cgroup_iter_break(struct mem_cgroup *root,
+  * be used for reference counting.
+  */
+ #define for_each_mem_cgroup_tree(iter, root)		\
+-	for (iter = mem_cgroup_iter(root, NULL, false);	\
++	for (iter = mem_cgroup_iter(root, NULL, NULL);	\
+ 	     iter != NULL;				\
+-	     iter = mem_cgroup_iter(root, iter, false))
++	     iter = mem_cgroup_iter(root, iter, NULL))
+ 
+ #define for_each_mem_cgroup(iter)			\
+-	for (iter = mem_cgroup_iter(NULL, NULL, false);	\
++	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
+ 	     iter != NULL;				\
+-	     iter = mem_cgroup_iter(NULL, iter, false))
++	     iter = mem_cgroup_iter(NULL, iter, NULL))
+ 
+ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+ {
+@@ -1619,6 +1645,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
+ 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+ 	unsigned long excess;
+ 	unsigned long nr_scanned;
++	struct mem_cgroup_reclaim_cookie reclaim = {
++		.zone = zone,
++		.priority = 0,
++	};
+ 
+ 	excess = res_counter_soft_limit_excess(&root_memcg->res) >> PAGE_SHIFT;
+ 
+@@ -1627,7 +1657,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
+ 		noswap = true;
+ 
+ 	while (1) {
+-		victim = mem_cgroup_iter(root_memcg, victim, true);
++		victim = mem_cgroup_iter(root_memcg, victim, &reclaim);
+ 		if (!victim) {
+ 			loop++;
+ 			/*
+@@ -4878,7 +4908,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 		res_counter_init(&memcg->res, NULL);
+ 		res_counter_init(&memcg->memsw, NULL);
+ 	}
+-	memcg->last_scanned_child = 0;
+ 	memcg->last_scanned_node = MAX_NUMNODES;
+ 	INIT_LIST_HEAD(&memcg->oom_notify);
+ 
 -- 
 1.7.6.2
 
