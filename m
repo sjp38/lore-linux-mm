@@ -1,119 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1109000BD
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2011 23:32:07 -0400 (EDT)
-Date: Thu, 29 Sep 2011 11:32:01 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A62099000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 00:11:29 -0400 (EDT)
+Date: Thu, 29 Sep 2011 12:11:24 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 10/18] writeback: dirty position control - bdi reserve
- area
-Message-ID: <20110929033201.GA21722@localhost>
+Subject: Re: [PATCH 00/18] IO-less dirty throttling v11
+Message-ID: <20110929041124.GB21722@localhost>
 References: <20110904015305.367445271@intel.com>
- <20110904020915.942753370@intel.com>
- <1315318179.14232.3.camel@twins>
- <20110907123108.GB6862@localhost>
- <1315822779.26517.23.camel@twins>
- <20110918141705.GB15366@localhost>
- <20110918143721.GA17240@localhost>
- <20110918144751.GA18645@localhost>
- <20110928140205.GA26617@localhost>
- <1317221435.24040.39.camel@twins>
+ <20110928145857.GA15587@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1317221435.24040.39.camel@twins>
+In-Reply-To: <20110928145857.GA15587@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 28, 2011 at 10:50:35PM +0800, Peter Zijlstra wrote:
-> On Wed, 2011-09-28 at 22:02 +0800, Wu Fengguang wrote:
-> 
-> /me attempts to swap back neurons related to writeback
-> 
-> > After lots of experiments, I end up with this bdi reserve point
+Hi Christoph,
+
+On Wed, Sep 28, 2011 at 10:58:57PM +0800, Christoph Hellwig wrote:
+> On Sun, Sep 04, 2011 at 09:53:05AM +0800, Wu Fengguang wrote:
+> > Hi,
 > > 
-> > +       x_intercept = bdi_thresh / 2 + MIN_WRITEBACK_PAGES;
+> > Finally, the complete IO-less balance_dirty_pages(). NFS is observed to perform
+> > better or worse depending on the memory size. Otherwise the added patches can
+> > address all known regressions.
 > > 
-> > together with this chunk to avoid a bdi stuck in bdi_thresh=0 state:
-> > 
-> > @@ -590,6 +590,7 @@ static unsigned long bdi_position_ratio(
-> >          */
-> >         if (unlikely(bdi_thresh > thresh))
-> >                 bdi_thresh = thresh;
-> > +       bdi_thresh = max(bdi_thresh, (limit - dirty) / 8);
-> >         /*
-> >          * scale global setpoint to bdi's:
-> >          *      bdi_setpoint = setpoint * bdi_thresh / thresh
+> >         git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v11
+> > 	(to be updated; currently it contains a pre-release v11)
 > 
-> So you cap bdi_thresh at a minimum of (limit-dirty)/8 which can be
-> pretty close to 0 if we have a spike in dirty or a negative spike in
-> writeout bandwidth (sudden seeks or whatnot).
-
-That's right. However to bring bdi_thresh out of the close-to-zero
-state, it's only required that (limit-dirty)/8 is reasonable large for
-the _majority_ time, which is not a problem for the servers unless
-something goes wrong.
-
+> Fengguang,
 > 
-> > The above changes are good enough to keep reasonable amount of bdi
-> > dirty pages, so the bdi underrun flag ("[PATCH 11/18] block: add bdi
-> > flag to indicate risk of io queue underrun") is dropped.
-> 
-> That sounds like goodness ;-)
+> is there any chance we could start doing just the IO-less
+> balance_dirty_pages, but not all the subtile other changes?  I.e. are
+> the any known issues that make things work than current mainline if we
+> only put in patches 1 to 6?
 
-Yeah!
+Patches 1-6 are the bare IO-less framework, the followed patches are
 
-> > I also tried various bdi freerun patches, however the results are not
-> > satisfactory. Basically the bdi reserve area approach (this patch)
-> > yields noticeably more smooth/resilient behavior than the
-> > freerun/underrun approaches. I noticed that the bdi underrun flag
-> > could lead to sudden surge of dirty pages (especially if not
-> > safeguarded by the dirty_exceeded condition) in the very small
-> > window.. 
-> 
-> OK, so let me try and parse this magic:
-> 
-> +       x_intercept = bdi_thresh / 2 + MIN_WRITEBACK_PAGES;
-> +       if (bdi_dirty < x_intercept) {
-> +               if (bdi_dirty > x_intercept / 8) {
-> +                       pos_ratio *= x_intercept;
-> +                       do_div(pos_ratio, bdi_dirty);
-> +               } else
-> +                       pos_ratio *= 8;
-> +       }
-> 
-> So we set our target some place north of MIN_WRITEBACK_PAGES: if we're
-> short we add a factor of: x_intercept/bdi_dirty. 
-> 
-> Now, since bdi_dirty < x_intercept, this is > 1 and thus we promote more
-> dirties.
+1) tracing for easy debug
+2) regression fixes (eg. under-utilized disk in small memory systems)
+3) improvements
 
-That's right.
+My recent focus is trying to measure and fix the various regressions.
+Up to now the JBOD regressions have been addressed and single disk
+performance also looks good.
 
-> Additionally we don't let the factor get larger than 8 to avoid silly
-> large fluctuations (8 already seems quite generous to me).
+NFS throughputs are observed to drop/rise somehow randomly in
+different cases and cannot be fixed fundamentally with the trivial
+approaches I've experimented.
 
-I actually increased 8 to 128 and still think it safe: for the
-promotion ratio to be 128, bdi_dirty should be around bdi_thresh/2/128
-(or 0.4% bdi_thresh). Whatever large the promotion ratio is, it won't
-be more radical than some bdi freerun threshold.
+3.1.0-rc4-vanilla+  3.1.0-rc4-bgthresh3+  3.1.0-rc4-nfs-smooth+
+------------------  --------------------  ---------------------
 
-In the tests, what the bdi reserve area protect is mainly small memory
-systems (small dirty threshold comparing to writeout bandwidth), where
-an IO completion could bring down bdi_dirty considerably (relatively)
-and we really need to ramp it up fast at the point to feed the disk.
+           3459793   -33.2%      2310900     +2.4%      3543478  NFS-thresh=1G/nfs-10dd-1M-32p-32768M-1024M:10-X
+           3371104   -32.8%      2265584    -13.9%      2902573  NFS-thresh=1G/nfs-1dd-1M-32p-32768M-1024M:10-X
+           2798005   +13.4%      3171975    +21.4%      3395410  NFS-thresh=1G/nfs-2dd-1M-32p-32768M-1024M:10-X
 
-> Now I guess the only problem is when nr_bdi * MIN_WRITEBACK_PAGES ~
-> limit, at which point things go pear shaped.
+           1641479   +13.9%      1869541    +52.7%      2506587  NFS-thresh=100M/nfs-10dd-1M-32p-32768M-100M:10-X
+           3036860   -19.4%      2447633    -32.1%      2063006  NFS-thresh=100M/nfs-1dd-1M-32p-32768M-100M:10-X
+           2050746   +19.8%      2456601    +28.4%      2634044  NFS-thresh=100M/nfs-2dd-1M-32p-32768M-100M:10-X
 
-Yes. In that case the global @dirty will always be drove up to @limit.
-Once @dirty dropped reasonably below, whichever bdi task wakeup first
-will take the chance to fill the gap, which is not fair for bdi's of
-different speed.
+           1042855    +2.7%      1070893     +0.9%      1052112  NFS-thresh=10M/nfs-10dd-1M-32p-32768M-10M:10-X
+           2106794   -41.6%      1231128    -54.6%       957305  NFS-thresh=10M/nfs-1dd-1M-32p-32768M-10M:10-X
+           2034313   -40.4%      1212212    -51.7%       982609  NFS-thresh=10M/nfs-2dd-1M-32p-32768M-10M:10-X
 
-Let me retry the thresh=1M,10M test cases without MIN_WRITEBACK_PAGES.
-Hopefully the removal of it won't impact performance a lot.
+            239379                     0    +10.2%       263894  NFS-thresh=1M/nfs-10dd-1M-32p-32768M-1M:10-X
+            521149   -42.3%       300872    +13.9%       593485  NFS-thresh=1M/nfs-1dd-1M-32p-32768M-1M:10-X
+            564565                     0    -49.6%       284397  NFS-thresh=1M/nfs-2dd-1M-32p-32768M-1M:10-X
+
+> We're getting close to another merge window, and we're still busy
+> trying to figure out all the details of the bandwith estimation.  I
+> think we'd have a much more robust tree if we'd first only merge the
+> infrastructure (IO-less balance_dirty_pages()) and then work on the
+> algorithms separately.
+
+Agreed.  Let me sort out the minimal set of patches that can still
+maintain the vanilla kernel performance, plus the tracing patches.
 
 Thanks,
 Fengguang
