@@ -1,34 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 706389000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:08:52 -0400 (EDT)
-Date: Thu, 29 Sep 2011 09:08:47 -0500 (CDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0D3159000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:12:01 -0400 (EDT)
+Date: Thu, 29 Sep 2011 09:11:54 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: Question about memory leak detector giving false positive report
- for net/core/flow.c
-In-Reply-To: <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
-Message-ID: <alpine.DEB.2.00.1109290907450.9382@router.home>
-References: <CA+v9cxadZzWr35Q9RFzVgk_NZsbZ8PkVLJNxjBAMpargW9Lm4Q@mail.gmail.com> <1317054774.6363.9.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <20110926165024.GA21617@e102109-lin.cambridge.arm.com> <1317066395.2796.11.camel@edumazet-laptop>
- <20110928172342.GH23559@e102109-lin.cambridge.arm.com>
+Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
+In-Reply-To: <30918.1317257024@turing-police.cc.vt.edu>
+Message-ID: <alpine.DEB.2.00.1109290911080.9382@router.home>
+References: <20110927175453.GA3393@albatros> <20110927175642.GA3432@albatros> <20110927193810.GA5416@albatros> <alpine.DEB.2.00.1109271459180.13797@router.home> <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com> <alpine.DEB.2.00.1109271546320.13797@router.home>
+            <1317241905.16137.516.camel@nimitz> <30918.1317257024@turing-police.cc.vt.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Huajun Li <huajun.li.lee@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Valdis.Kletnieks@vt.edu
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segoon@openwall.com>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Wed, 28 Sep 2011, Catalin Marinas wrote:
+On Wed, 28 Sep 2011, Valdis.Kletnieks@vt.edu wrote:
 
-> I tried this but it's tricky. The problem is that the percpu pointer
-> returned by alloc_percpu() does not directly point to the per-cpu chunks
-> and kmemleak would report most percpu allocations as leaks. So far the
-> workaround is to simply mark the alloc_percpu() objects as never leaking
-> and at least we avoid false positives in other areas. See the patch
-> below (note that you have to increase the CONFIG_KMEMLEAK_EARLY_LOG_SIZE
-> as there are many alloc_percpu() calls before kmemleak is fully
-> initialised):
+> > We could also give the imprecise numbers to unprivileged
+> > users and let privileged ones see the page-level ones.
+>
+> That also sounds like a good idea.
 
-Seems that kernel.org is out and so tejon wont be seeing these.
+Uhh... Another source of confusions for the uninitiated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
