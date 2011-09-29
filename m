@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D87639000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 12:44:43 -0400 (EDT)
-Received: by bkbzs2 with SMTP id zs2so1165975bkb.14
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2011 09:44:40 -0700 (PDT)
-Date: Thu, 29 Sep 2011 20:43:41 +0400
-From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: Re: [kernel-hardening] Re: [PATCH 2/2] mm: restrict access to
- /proc/meminfo
-Message-ID: <20110929164341.GA16888@albatros>
-References: <20110927175453.GA3393@albatros>
- <20110927175642.GA3432@albatros>
- <20110927193810.GA5416@albatros>
- <alpine.DEB.2.00.1109271459180.13797@router.home>
- <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
- <20110929161848.GA16348@albatros>
- <1317313836.16137.620.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1317313836.16137.620.camel@nimitz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B3F9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 12:58:44 -0400 (EDT)
+Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
+In-Reply-To: Your message of "Thu, 29 Sep 2011 20:18:48 +0400."
+             <20110929161848.GA16348@albatros>
+From: Valdis.Kletnieks@vt.edu
+References: <20110927175453.GA3393@albatros> <20110927175642.GA3432@albatros> <20110927193810.GA5416@albatros> <alpine.DEB.2.00.1109271459180.13797@router.home> <alpine.DEB.2.00.1109271328151.24402@chino.kir.corp.google.com>
+            <20110929161848.GA16348@albatros>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1317315452_4004P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 29 Sep 2011 12:57:32 -0400
+Message-ID: <23921.1317315452@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Vasiliy Kulikov <segoon@openwall.com>
+Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@gentwo.org>, kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Thu, Sep 29, 2011 at 09:30 -0700, Dave Hansen wrote:
-> On Thu, 2011-09-29 at 20:18 +0400, Vasiliy Kulikov wrote:
-> > I'm not convinced with rounding the information to MBs.  The attacker
-> > still may fill slabs with new objects to trigger new slab pages
-> > allocations.  He will be able to see when this MB-granularity barrier is
-> > overrun thus seeing how many kbs there were before:
-> > 
-> >     old = new - filled_obj_size_sum
-> > 
-> > As `new' is just increased, it means it is known with KB granularity,
-> > not MB.  By counting used slab objects he learns filled_obj_size_sum.
-> > 
-> > So, rounding gives us nothing, but obscurity. 
+--==_Exmh_1317315452_4004P
+Content-Type: text/plain; charset=us-ascii
+
+On Thu, 29 Sep 2011 20:18:48 +0400, Vasiliy Kulikov said:
+
+> As `new' is just increased, it means it is known with KB granularity,
+> not MB.  By counting used slab objects he learns filled_obj_size_sum.
 > 
-> I'll agree that it doesn't fundamentally fix anything.  But, it does
-> make an attack more difficult in the real world.
+> So, rounding gives us nothing, but obscurity.
 
-No, it doesn't.  An attacker is able to simply add/remove objects from
-slab and get the precise numbers.  The only thing it takes some time,
-but the delay is negligible.  It neither eliminates the whole attack
-vector in specific cases nor makes the attacks probabilistic.
+Yes, but if he has an exploit that requires using up (for example) exactly 31
+objects in the slab, he may now know that a new slab got allocated to push it
+over the MB boundary.  So he knows there's exactly one object in that new slab.
 
-
->  There's a reason that
-> real-world attackers are going after slabinfo: it's a fundamentally
-> *BETTER* than meminfo as a tool with which to aim an attack.
-
-Agreed, it gives much more information.
+But now he has to fly blind for the next 30 because the numbers will display
+exactly the same, and he can't correct for somebody else allocating one so he
+needs to only allocate 29...
 
 
->  A
-> MB-rounded meminfo is also fundamentally *BETTER* than a
-> PAGE_SIZE-rounded meminfo.  I find it hard to call this "nothing".
+--==_Exmh_1317315452_4004P
+Content-Type: application/pgp-signature
 
-Could you elaborate?  As I've tried to describe above, an attacker still
-may recover the numbers.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
 
-Thanks,
+iD8DBQFOhKN8cC3lWbTT17ARAg/3AJ9x3uaMuHNlfdBtk8pRkToHP403mACglOOW
+87NfvBJfy887ga+I5IdAQY0=
+=H0IU
+-----END PGP SIGNATURE-----
 
--- 
-Vasiliy Kulikov
-http://www.openwall.com - bringing security into open computing environments
+--==_Exmh_1317315452_4004P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
