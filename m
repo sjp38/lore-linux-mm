@@ -1,68 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 91CCF9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 09:02:09 -0400 (EDT)
-Date: Thu, 29 Sep 2011 15:02:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen before
- deferring
-Message-ID: <20110929130204.GG21113@tiehlicka.suse.cz>
-References: <cover.1317110948.git.mhocko@suse.cz>
- <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
- <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
- <20110928104445.GB15062@tiehlicka.suse.cz>
- <20110929115105.GE21113@tiehlicka.suse.cz>
- <20110929120517.GA10587@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2277A9000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 10:00:51 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <ae99a884-f63b-4258-afea-ca1d6cf5a74c@default>
+Date: Thu, 29 Sep 2011 07:00:22 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V10 0/6] mm: frontswap: overview (and proposal to merge at
+ next window)
+References: <20110915213305.GA26317@ca-server1.us.oracle.com>
+ <20110928151558.dca1da5e.kamezawa.hiroyu@jp.fujitsu.com>
+ <22173398-de03-43ef-abe4-a3f3231dd2e9@default
+ 20110929134816.7f29bf46.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110929134816.7f29bf46.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110929120517.GA10587@redhat.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, matthew@wil.cx, Chris Mason <chris.mason@oracle.com>, sjenning@linux.vnet.ibm.com, jackdachef@gmail.com, cyclonusj@gmail.com, levinsasha928@gmail.com
 
-On Thu 29-09-11 14:05:17, Oleg Nesterov wrote:
-> On 09/29, Michal Hocko wrote:
+> From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> Sent: Wednesday, September 28, 2011 10:48 PM
+>=20
+> On Wed, 28 Sep 2011 07:09:18 -0700 (PDT)
+> Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+>=20
+> > > From: KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]
+> > > Sent: Wednesday, September 28, 2011 12:16 AM
+> > >
+> > > I'm sorry I couldn't catch following... what happens at hibernation ?
+> > > frontswap is effectively stopped/skipped automatically ? or contents =
+of
+> > > TMEM can be kept after power off and it can be read correctly when
+> > > resume thread reads swap ?
+> > >
+> > > In short: no influence to hibernation ?
+> > > I'm sorry if I misunderstand some.
 > >
-> > --- a/kernel/freezer.c
-> > +++ b/kernel/freezer.c
-> > @@ -48,6 +48,10 @@ void refrigerator(void)
-> >  	current->flags |= PF_FREEZING;
-> >  
-> >  	for (;;) {
-> > +		if (fatal_signal_pending(current)) {
-> > +			current->flags &= ~PF_FROZEN;
-> 
-> We can't do this.
-> 
-> If PF_FROZEN was set, we must not modify current->flags, this can
-> race with, say, thaw_process().
+> > Hibernation would need to be handled by the tmem backend (e.g. zcache, =
+Xen
+> > tmem).  In the case of Xen tmem, both save/restore and live migration a=
+re
+> > fully supported.  I'm not sure if zcache works across hibernation; sinc=
+e
+> > all memory is kmalloc'ed, I think it should work fine, but it would be =
+an
+> > interesting experiment.
+>=20
+> I'm afraid that users will lose data on memory of frontswap/zcache/tmem
+> by power-off, hibernation. How about adding internal hooks to disable/syn=
+c
+> frontswap itself before hibernation ? difficult ?
 
-OK, I see.
+Hi Kame --
 
-> 
-> OK, we can take task_lock(), but this doesn't close other races.
-> Say, a SIGKILL'ed task can do try_to_freeze(). Perhaps we should
-> simply call thaw_process() unconditionally, this also clears
-> TIF_FREEZE. 
-> Or check freezing() || frozen(). Afacis this solves
-> the race you described.
+First, remember that frontswap is currently only enabled by
+specifying a tmem backend as a kernel boot parameter ("zcache"
+or "tmem"), so there is no risk of data loss to the average
+laptop user doing hibernation, even if CONFIG_FRONTSWAP
+and CONFIG_ZCACHE are enabled in their kernel.
 
-Sounds reasonable.
+The patchset's frontswap_shrink() call can be used to remove
+pages from frontswap so there is one internal hook for this
+already.
 
-> 
-> But of course this can't help if freeze_task() is called later.
-> May be freezable() should check TIF_MEMDIE...
+I still think hibernation should work fine with zcache
+because all frontswap metadata and data is preserved as part
+of kernel memory.  For poweroff, the normal swapoff will
+"get" all frontswap pages, so no issue there either.
+I do agree that this should be investigated before zcache
+could be moved from staging and certainly before zcache is
+enabled by default by a distro (with no kernel boot parameter).
+If it turns out that zcache needs more hooks to provide finer
+control of frontswap disable/sync, I don't think it will be=20
+difficult but I think those hooks should be designed in the future.
 
-Wouldn't it be easier to ignore try_to_freeze when fatal signals are
-pending in get_signal_to_deliver? This would mean that we wouldn't get
-back to refrigerator just to get out of it.
-What about the patch bellow?
+And Xen tmem supports save/restore and live migration
+already so this is not a concern for the Xen tmem backend.
 
-> 
-> Oleg.
+Hope that helps!
 
-Thanks!
+Thanks,
+Dan
 
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
