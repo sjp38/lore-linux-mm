@@ -1,70 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CA66C9000BD
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 07:54:26 -0400 (EDT)
-Date: Thu, 29 Sep 2011 13:54:19 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European
- LinuxCon in Prague
-Message-ID: <20110929115419.GF21113@tiehlicka.suse.cz>
-References: <1316693805.10571.25.camel@dabdike>
- <20110926131027.GA14964@tiehlicka.suse.cz>
- <1317147379.9186.19.camel@dabdike.hansenpartnership.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B3C839000BD
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2011 07:57:17 -0400 (EDT)
+Date: Thu, 29 Sep 2011 19:57:12 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 03/18] writeback: dirty rate control
+Message-ID: <20110929115712.GA18183@localhost>
+References: <20110904015305.367445271@intel.com>
+ <20110904020914.980576896@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1317147379.9186.19.camel@dabdike.hansenpartnership.com>
+In-Reply-To: <20110904020914.980576896@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 27-09-11 13:16:19, James Bottomley wrote:
-> On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
-> > On Thu 22-09-11 12:16:47, James Bottomley wrote:
-> > > Hi All,
-> > 
-> > Hi,
-> > 
-> > > 
-> > > One of the major work items that came out of the Plumbers conference
-> > > containers and Cgroups meeting was the need to work on memcg:
-> > > 
-> > > http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
-> > > 
-> > > (see etherpad and presentations)
-> > > 
-> > > Since almost everyone will be either at KS or LinuxCon, I thought doing
-> > > a small meeting on the Wednesday of Linux Con (so those at KS who might
-> > > not be staying for the whole of LinuxCon could attend) might be a good
-> > > idea.  The object would be to get all the major players to agree on
-> > > who's doing what.  You can see Parallels' direction from the patches
-> > > Glauber has been posting.  Google should shortly be starting work on
-> > > other aspects of the memgc as well.
-> > > 
-> > > As a precursor to the meeting (and actually a requirement to make it
-> > > effective) we need to start posting our preliminary patches and design
-> > > ideas to the mm list (hint, Google people, this means you).
-> > > 
-> > > I think I've got all of the interested parties in the To: field, but I'm
-> > > sending this to the mm list just in case I missed anyone.  If everyone's
-> > > OK with the idea (and enough people are going to be there) I'll get the
-> > > Linux Foundation to find us a room.
-> > 
-> > I am not going to be at KS but I am in Prague. I would be happy to meet
-> > as well if it is possible.
-> 
-> Certainly. 
+A minor fix to this patch.
 
-OK, then add me as well.
+While testing the fio mmap workload, bdi->dirty_ratelimit is observed
+to be knocked down to 1 and then brought up high in regular intervals.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+The showed up problem is, it took long delays to bring up
+bdi->dirty_ratelimit due to the round-down problem of the below
+task_ratelimit calculation: when dirty_ratelimit=1 and pos_ratio = 1.5,
+the resulted task_ratelimit will be 1, which fooled stops the logic
+from increasing dirty_ratelimit as long as pos_ratio < 2. The below
+change (from round-down to round-up) can nicely fix this problem.
+
+Thanks,
+Fengguang
+---
+
+--- linux-next.orig/mm/page-writeback.c	2011-09-24 15:52:11.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-09-24 15:52:11.000000000 +0800
+@@ -766,6 +766,7 @@ static void bdi_update_dirty_ratelimit(s
+ 	 */
+ 	task_ratelimit = (u64)dirty_ratelimit *
+ 					pos_ratio >> RATELIMIT_CALC_SHIFT;
++	task_ratelimit++; /* it helps rampup dirty_ratelimit from tiny values */
+ 
+ 	/*
+ 	 * A linear estimation of the "balanced" throttle rate. The theory is,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
