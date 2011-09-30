@@ -1,56 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9E6EF9000C8
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 03:18:19 -0400 (EDT)
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 4/5] mm: filemap: pass __GFP_WRITE from grab_cache_page_write_begin()
-Date: Fri, 30 Sep 2011 09:17:23 +0200
-Message-Id: <1317367044-475-5-git-send-email-jweiner@redhat.com>
-In-Reply-To: <1317367044-475-1-git-send-email-jweiner@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D2699000C8
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 03:35:27 -0400 (EDT)
+Received: by iaen33 with SMTP id n33so2526993iae.14
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2011 00:35:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1317367044-475-4-git-send-email-jweiner@redhat.com>
 References: <1317367044-475-1-git-send-email-jweiner@redhat.com>
+	<1317367044-475-4-git-send-email-jweiner@redhat.com>
+Date: Fri, 30 Sep 2011 10:35:25 +0300
+Message-ID: <CAOJsxLFWfH5zDG8ui=yQyOcZY_nXhK6r+ziapLg9Zhmb3ibuWQ@mail.gmail.com>
+Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across zones
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Shaohua Li <shaohua.li@intel.com>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Shaohua Li <shaohua.li@intel.com>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Tell the page allocator that pages allocated through
-grab_cache_page_write_begin() are expected to become dirty soon.
+Hi Johannes!
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/filemap.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
+On Fri, Sep 30, 2011 at 10:17 AM, Johannes Weiner <jweiner@redhat.com> wrot=
+e:
+> But there is a flaw in that we have a zoned page allocator which does
+> not care about the global state but rather the state of individual
+> memory zones. =A0And right now there is nothing that prevents one zone
+> from filling up with dirty pages while other zones are spared, which
+> frequently leads to situations where kswapd, in order to restore the
+> watermark of free pages, does indeed have to write pages from that
+> zone's LRU list. =A0This can interfere so badly with IO from the flusher
+> threads that major filesystems (btrfs, xfs, ext4) mostly ignore write
+> requests from reclaim already, taking away the VM's only possibility
+> to keep such a zone balanced, aside from hoping the flushers will soon
+> clean pages from that zone.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 645a080..cf0352d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2349,8 +2349,11 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
- 					pgoff_t index, unsigned flags)
- {
- 	int status;
-+	gfp_t gfp_mask;
- 	struct page *page;
- 	gfp_t gfp_notmask = 0;
-+
-+	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
- 	if (flags & AOP_FLAG_NOFS)
- 		gfp_notmask = __GFP_FS;
- repeat:
-@@ -2358,7 +2361,7 @@ repeat:
- 	if (page)
- 		goto found;
- 
--	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
-+	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
- 	if (!page)
- 		return NULL;
- 	status = add_to_page_cache_lru(page, mapping, index,
--- 
-1.7.6.2
+The obvious question is: how did you test this? Can you share the results?
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
