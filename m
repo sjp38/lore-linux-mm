@@ -1,58 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A875B9000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 11:34:20 -0400 (EDT)
-Date: Fri, 30 Sep 2011 17:30:36 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen
-	before deferring
-Message-ID: <20110930153036.GA19095@redhat.com>
-References: <cover.1317110948.git.mhocko@suse.cz> <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz> <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com> <20110928104445.GB15062@tiehlicka.suse.cz> <20110929115105.GE21113@tiehlicka.suse.cz> <20110929120517.GA10587@redhat.com> <20110929130204.GG21113@tiehlicka.suse.cz> <20110929163724.GA23773@redhat.com> <20110929180021.GA27999@tiehlicka.suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A1379000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 13:02:02 -0400 (EDT)
+Date: Fri, 30 Sep 2011 10:01:58 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: Re: RFC -- new zone type
+Message-ID: <20110930170158.GC7007@labbmf-linux.qualcomm.com>
+References: <20110928180909.GA7007@labbmf-linux.qualcomm.com>
+ <m2aa9nhzjf.fsf@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110929180021.GA27999@tiehlicka.suse.cz>
+In-Reply-To: <m2aa9nhzjf.fsf@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Larry Bassel <lbassel@codeaurora.org>, linux-mm@kvack.org, vgandhi@codeaurora.org
 
-On 09/29, Michal Hocko wrote:
->
-> On Thu 29-09-11 18:37:24, Oleg Nesterov wrote:
+On 29 Sep 11 13:19, Andi Kleen wrote:
+> Larry Bassel <lbassel@codeaurora.org> writes:
 > >
-> > Oh, I don't think so. For what? This doesn't close other races, and
-> > in fact the fatal_signal_pending() this patch adds is itself racy,
-> > SIGKILL can come in between.
->
-> OK, I think I see your point. You mean that oom will send KILL after
-> both fatal_signal_pending in refrigerator and signal_pending check in
-> schedule, right?
+> > It was suggested to me that a new zone type which would be similar
+> > to the "movable zone" but is only allowed to contain pages
+> > that can be discarded (such as text) could solve this problem,
+> 
+> This may not actually be a win because if the text pages are needed
+> afterwards the act of rereading them from disk would likely take longer
+> than the copying.
 
-No, schedule()->signal_pending_state(TASK_UNINTERRUPTIBLE) doesn't check
-the signals. I simply meant
+Yes, I'm aware of this (they'd actually be coming from flash
+which is even slower, right?).
 
-	if (fatal_signal_pending())
-					// <--- SIGKILL from oom
-		try_to_freeze();
+> 
+> The so you many not get latency before, but after.
+> 
+> Essentially robbing Peter to pay Paul.
 
-> This is what the follow up fix from David is doing. Check frozen in
-> select_bad_process if the task is TIF_MEMDIE and thaw the process.
->
-> And it seems that the David's follow up fix is sufficient so let's leave
-> refrigerator alone.
+Yes, the goal is to create this large contiguous memory
+quickly, even if performance is worse later on for a while.
 
-Agreed, afaics this should fix all races (although I didn't read the
-whole discussion, perhaps I missed something else).
+> 
+> If the goal is to just spread the latency over a longer time
+> I'm sure there are better ways to do that than to add a new zone.
 
-And in this case we do not even need to modify oom_kill_task/etc,
-select_bad_process() will be called again and notice the frozen task
-eventually. Afaics.
+I myself am not an advocate of creating this new zone (because
+I think there may not be a lot of benefit to it for the
+amount of work involved), but I want to solicit people's
+opinions about it and collect suggestions (such as Dan's)
+about alternate approaches that may be better/closer
+to already implemented (I'd likely have to port them
+to ARM as they probably were developed for x86, but I don't
+think that's a problem) that will handle our use case.
 
-Or, as Tejun suggests, we can implement the race-free kill-even-if-frozen
-later.
+I wonder if another reasonable approach might be a combination
+of memory compaction in the background when the machine
+is otherwise idle, combined with occasional killing of
+processes that haven't been used for a long time (this is
+going to be run on an android user environment, android
+likes to leave lots of unused processes running in the
+background).
 
-Oleg.
+> 
+> -Andi
+
+Larry
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
