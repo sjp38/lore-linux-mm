@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 14E5B9000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:44:22 -0400 (EDT)
-Date: Fri, 30 Sep 2011 23:43:41 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <20110930214341.GB5096@redhat.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
- <20110901100650.6d884589.rdunlap@xenotime.net>
- <20110901152650.7a63cb8b@annuminas.surriel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110901152650.7a63cb8b@annuminas.surriel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B065B9000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 18:46:10 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Fri, 30 Sep 2011 18:46:06 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UMk4ME246462
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 18:46:04 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UMk4I9028915
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 19:46:04 -0300
+Subject: Re: [RFCv2][PATCH 1/4] break units out of string_get_size()
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4E8634D3.2080504@zytor.com>
+References: <20110930203219.60D507CB@kernel>  <4E8634D3.2080504@zytor.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 30 Sep 2011 15:46:01 -0700
+Message-ID: <1317422761.16137.669.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, akpm@linux-foundation.org, hughd@google.com, hannes@cmpxchg.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com
 
-On Thu, Sep 01, 2011 at 03:26:50PM -0400, Rik van Riel wrote:
-> Add a userspace visible knob to tell the VM to keep an extra amount
-> of memory free, by increasing the gap between each zone's min and
-> low watermarks.
+On Fri, 2011-09-30 at 14:29 -0700, H. Peter Anvin wrote:
+> On 09/30/2011 01:32 PM, Dave Hansen wrote:
+> > diff -puN lib/string_helpers.c~string_get_size-pow2 lib/string_helpers.c
+> >  
+> > +const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
+> > +			   "EB", "ZB", "YB", NULL};
+> > +const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
+> > +			 "EiB", "ZiB", "YiB", NULL };
 > 
-> This is useful for realtime applications that call system
-> calls and have a bound on the number of allocations that happen
-> in any short time period.  In this application, extra_free_kbytes
-> would be left at an amount equal to or larger than than the
-> maximum number of allocations that happen in any burst.
-> 
-> It may also be useful to reduce the memory use of virtual
-> machines (temporarily?), in a way that does not cause memory
-> fragmentation like ballooning does.
-> 
-> Signed-off-by: Rik van Riel<riel@redhat.com>
+> These names are way too generic to be public symbols.
 
-Acked-by: Johannes Weiner <jweiner@redhat.com>
+Ack, I managed to drop the static when I broke this out for the third
+time. :)
 
-Btw, I wonder if there should be a waking of the kswapds in
-setup_per_zone_wmarks() in general to make sure the new watermarks are
-met.  But that applies to min_free_kbytes as well, so not a
-requirement for this patch.
+> Another thing worth thinking about is whether or not the -B suffix
+> should be part of these arrays.
+
+... or the 'i' for that matter.
+
+I'll give it a go.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
