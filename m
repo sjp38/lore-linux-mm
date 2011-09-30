@@ -1,88 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E0EA29000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:33:08 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 30 Sep 2011 16:32:43 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UKWNHv1568812
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:23 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UKWLnb008772
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:22 -0400
-Subject: [RFCv2][PATCH 2/4] add string_get_size_pow2()
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Fri, 30 Sep 2011 13:32:20 -0700
-References: <20110930203219.60D507CB@kernel>
-In-Reply-To: <20110930203219.60D507CB@kernel>
-Message-Id: <20110930203220.522ECB96@kernel>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6EE9000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:16:32 -0400 (EDT)
+Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
+	by smtp-out.google.com with ESMTP id p8ULGT2i019398
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:16:29 -0700
+Received: from qadz30 (qadz30.prod.google.com [10.224.38.30])
+	by hpaq6.eem.corp.google.com with ESMTP id p8ULG7jj004267
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:16:28 -0700
+Received: by qadz30 with SMTP id z30so854617qad.13
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:16:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110930181914.GA17817@mgebm.net>
+References: <1317170947-17074-1-git-send-email-walken@google.com>
+	<20110929164319.GA3509@mgebm.net>
+	<CANN689H1G-USQYQrOTb47Hrc7KMjLdxkppYCDKsTUy5WhuRs7w@mail.gmail.com>
+	<4186d5662b3fb21af1b45f8a335414d3@mgebm.net>
+	<20110930181914.GA17817@mgebm.net>
+Date: Fri, 30 Sep 2011 14:16:25 -0700
+Message-ID: <CANN689EN8KsBZj_9cABjJoZNou_UegZ8uqB4Lx=uM-B_4aCd7A@mail.gmail.com>
+Subject: Re: [PATCH 0/9] V2: idle page tracking / working set estimation
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com, hpa@zytor.com, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
 
+On Fri, Sep 30, 2011 at 11:19 AM, Eric B Munson <emunson@mgebm.net> wrote:
+> I am able to recreate on a second desktop I have here (same model CPU but=
+ a
+> different MB so I am fairly sure it isn't dying hardware). =A0It looks to=
+ me like
+> a CPU softlocks and it stalls the process active there, so most recently =
+that
+> was XOrg. =A0The machine lets me login via ssh for a few minutes, but thi=
+ngs like
+> ps and cat or /proc files will start to work and give some output but han=
+g.
+> I cannot call reboot, nor can I sync the fs and reboot via SysRq. =A0My n=
+ext step
+> is to setup a netconsole to see if anything comes out in the syslog that =
+I
+> cannot see.
 
-This is a specialized version of string_get_size().
+I haven't had time to try & reproduce locally yet (apologies - things
+have been coming up at me).
 
-It only works on powers-of-two, and only outputs in
-KiB/MiB/etc...  Doing it this way means that we do
-not have to do any division like string_get_size()
-does.
+But a prime suspect would be a bad interaction with
+CONFIG_MEMORY_HOTPLUG, as Kamezama remarked in his reply to patch 4. I
+think this could be the most likely cause of what you're observing.
 
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/include/linux/string_helpers.h |    1 
- linux-2.6.git-dave/lib/string_helpers.c           |   23 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
-
-diff -puN lib/string_helpers.c~string_get_size-pow2-1 lib/string_helpers.c
---- linux-2.6.git/lib/string_helpers.c~string_get_size-pow2-1	2011-09-30 12:10:31.653729703 -0700
-+++ linux-2.6.git-dave/lib/string_helpers.c	2011-09-30 12:40:13.090605408 -0700
-@@ -21,6 +21,29 @@ static const unsigned int divisor[] = {
- 	[STRING_UNITS_2] = 1024,
- };
- 
-+u64 string_get_size_pow2(u64 size, const char **unit_ret)
-+{
-+	int log2;
-+	int unit_index;
-+
-+	if (!size)
-+		log2 = 0;
-+	else
-+		log2 = ilog2(size);
-+
-+	/* KiB is log2=0->9, MiB is 10->19, etc... */
-+	unit_index = log2 / 10;
-+	/* Can not overflow since YiB=2^80 does
-+	 * not fit in a u64. */
-+	*unit_ret = units_2[unit_index];
-+
-+	/* 512 aka 2^9 is the largest integer without
-+	 * overflowing to the next power-of-two, so
-+	 * use %10 to make it max out there */
-+	return (1 << (log2 % 10));
-+}
-+EXPORT_SYMBOL(string_get_size_pow2);
-+
- /**
-  * string_get_size - get the size in the specified units
-  * @size:	The size to be converted
-diff -puN include/linux/string_helpers.h~string_get_size-pow2-1 include/linux/string_helpers.h
---- linux-2.6.git/include/linux/string_helpers.h~string_get_size-pow2-1	2011-09-30 12:40:21.110592191 -0700
-+++ linux-2.6.git-dave/include/linux/string_helpers.h	2011-09-30 12:40:31.186575591 -0700
-@@ -10,6 +10,7 @@ enum string_size_units {
- 	STRING_UNITS_2,		/* use binary powers of 2^10 */
- };
- 
-+u64 string_get_size_pow2(u64 size, const char **unit_ret);
- int string_get_size(u64 size, enum string_size_units units,
- 		    char *buf, int len);
- 
-_
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
