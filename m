@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 664B69000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:23 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8UJulD6006804
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 15:56:47 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UKWLNp226480
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:21 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UKWKYZ018699
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:21 -0400
-Subject: [RFCv2][PATCH 1/4] break units out of string_get_size()
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 81EF69000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:32 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8UKOECQ023049
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:24:14 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UKWPwk068156
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:32:25 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UKWNwv030249
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:32:23 -0600
+Subject: [RFCv2][PATCH 3/4] add seq_print_pow2() function
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Fri, 30 Sep 2011 13:32:19 -0700
-Message-Id: <20110930203219.60D507CB@kernel>
+Date: Fri, 30 Sep 2011 13:32:21 -0700
+References: <20110930203219.60D507CB@kernel>
+In-Reply-To: <20110930203219.60D507CB@kernel>
+Message-Id: <20110930203221.DE0A3B4A@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com, hpa@zytor.com, Dave Hansen <dave@linux.vnet.ibm.com>
 
 
-I would like to use these (well one of them) arrays in
-another function.  Might as well break both versions
-out for consistency.
+In order to get nice, human-readable output, we are going to
+use MiB/KiB, etc... in numa_maps.  Introduce a helper to do
+the conversion from a raw integer over to a string.
+
+I thought about doing this as a new printk() format specifier.
+That would be interesting, but it's hard to argue with this
+since it's so short and sweet.
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/lib/string_helpers.c |   25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ linux-2.6.git-dave/fs/seq_file.c            |   11 +++++++++++
+ linux-2.6.git-dave/include/linux/seq_file.h |    2 ++
+ 2 files changed, 13 insertions(+)
 
-diff -puN lib/string_helpers.c~string_get_size-pow2 lib/string_helpers.c
---- linux-2.6.git/lib/string_helpers.c~string_get_size-pow2	2011-09-30 12:58:43.856800824 -0700
-+++ linux-2.6.git-dave/lib/string_helpers.c	2011-09-30 12:58:43.864800812 -0700
-@@ -8,6 +8,19 @@
- #include <linux/module.h>
- #include <linux/string_helpers.h>
+diff -puN fs/seq_file.c~add-seq_print_size fs/seq_file.c
+--- linux-2.6.git/fs/seq_file.c~add-seq_print_size	2011-09-30 13:00:29.160632197 -0700
++++ linux-2.6.git-dave/fs/seq_file.c	2011-09-30 13:22:57.229978028 -0700
+@@ -386,6 +386,17 @@ int seq_printf(struct seq_file *m, const
+ }
+ EXPORT_SYMBOL(seq_printf);
  
-+const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
-+			   "EB", "ZB", "YB", NULL};
-+const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
-+			 "EiB", "ZiB", "YiB", NULL };
-+static const char **units_str[] = {
-+	[STRING_UNITS_10] =  units_10,
-+	[STRING_UNITS_2] = units_2,
-+};
-+static const unsigned int divisor[] = {
-+	[STRING_UNITS_10] = 1000,
-+	[STRING_UNITS_2] = 1024,
-+};
++/*
++ * Prints output with KiB/MiB/etc... suffixes
++ */
++int seq_print_pow2(struct seq_file *seq, u64 size)
++{
++	u64 shifted_size;
++	char *unit_str;
++	shifted_size = string_get_size_pow2(size, &unit_str);
++	return seq_printf(seq, "%llu%s", shifted_size, unit_str);
++}
 +
  /**
-  * string_get_size - get the size in the specified units
-  * @size:	The size to be converted
-@@ -23,18 +36,6 @@
- int string_get_size(u64 size, const enum string_size_units units,
- 		    char *buf, int len)
- {
--	const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
--				   "EB", "ZB", "YB", NULL};
--	const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
--				 "EiB", "ZiB", "YiB", NULL };
--	const char **units_str[] = {
--		[STRING_UNITS_10] =  units_10,
--		[STRING_UNITS_2] = units_2,
--	};
--	const unsigned int divisor[] = {
--		[STRING_UNITS_10] = 1000,
--		[STRING_UNITS_2] = 1024,
--	};
- 	int i, j;
- 	u64 remainder = 0, sf_cap;
- 	char tmp[8];
+  *	mangle_path -	mangle and copy path to buffer beginning
+  *	@s: buffer start
+diff -puN include/linux/seq_file.h~add-seq_print_size include/linux/seq_file.h
+--- linux-2.6.git/include/linux/seq_file.h~add-seq_print_size	2011-09-30 13:00:29.164632191 -0700
++++ linux-2.6.git-dave/include/linux/seq_file.h	2011-09-30 13:22:43.910000779 -0700
+@@ -3,6 +3,7 @@
+ 
+ #include <linux/types.h>
+ #include <linux/string.h>
++#include <linux/string_helpers.h>
+ #include <linux/mutex.h>
+ #include <linux/cpumask.h>
+ #include <linux/nodemask.h>
+@@ -83,6 +84,7 @@ int seq_escape(struct seq_file *, const 
+ int seq_putc(struct seq_file *m, char c);
+ int seq_puts(struct seq_file *m, const char *s);
+ int seq_write(struct seq_file *seq, const void *data, size_t len);
++int seq_print_pow2(struct seq_file *seq, u64 size);
+ 
+ int seq_printf(struct seq_file *, const char *, ...)
+ 	__attribute__ ((format (printf,2,3)));
 _
 
 --
