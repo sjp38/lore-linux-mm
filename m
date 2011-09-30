@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 44BB79000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:41:07 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 14E5B9000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:44:22 -0400 (EDT)
+Date: Fri, 30 Sep 2011 23:43:41 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <20110930214341.GB5096@redhat.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+ <20110901100650.6d884589.rdunlap@xenotime.net>
+ <20110901152650.7a63cb8b@annuminas.surriel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=UTF-8;
- format=flowed
-Content-Transfer-Encoding: 8bit
-Date: Fri, 30 Sep 2011 17:40:33 -0400
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 0/9] V2: idle page tracking / working set estimation
-In-Reply-To: <CANN689EN8KsBZj_9cABjJoZNou_UegZ8uqB4Lx=uM-B_4aCd7A@mail.gmail.com>
-References: <1317170947-17074-1-git-send-email-walken@google.com>
- <20110929164319.GA3509@mgebm.net>
- <CANN689H1G-USQYQrOTb47Hrc7KMjLdxkppYCDKsTUy5WhuRs7w@mail.gmail.com>
- <4186d5662b3fb21af1b45f8a335414d3@mgebm.net>
- <20110930181914.GA17817@mgebm.net>
- <CANN689EN8KsBZj_9cABjJoZNou_UegZ8uqB4Lx=uM-B_4aCd7A@mail.gmail.com>
-Message-ID: <7bf74fcb33ce31bcc933db6d90b03733@mgebm.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110901152650.7a63cb8b@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Michael Wolf <mjwolf@us.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, akpm@linux-foundation.org, hughd@google.com, hannes@cmpxchg.org
 
- On Fri, 30 Sep 2011 14:16:25 -0700, Michel Lespinasse wrote:
-> On Fri, Sep 30, 2011 at 11:19 AM, Eric B Munson <emunson@mgebm.net> 
-> wrote:
->> I am able to recreate on a second desktop I have here (same model 
->> CPU but a
->> different MB so I am fairly sure it isn't dying hardware). A It looks 
->> to me like
->> a CPU softlocks and it stalls the process active there, so most 
->> recently that
->> was XOrg. A The machine lets me login via ssh for a few minutes, but 
->> things like
->> ps and cat or /proc files will start to work and give some output 
->> but hang.
->> I cannot call reboot, nor can I sync the fs and reboot via SysRq. 
->> A My next step
->> is to setup a netconsole to see if anything comes out in the syslog 
->> that I
->> cannot see.
->
-> I haven't had time to try & reproduce locally yet (apologies - things
-> have been coming up at me).
->
-> But a prime suspect would be a bad interaction with
-> CONFIG_MEMORY_HOTPLUG, as Kamezama remarked in his reply to patch 4. 
-> I
-> think this could be the most likely cause of what you're observing.
+On Thu, Sep 01, 2011 at 03:26:50PM -0400, Rik van Riel wrote:
+> Add a userspace visible knob to tell the VM to keep an extra amount
+> of memory free, by increasing the gap between each zone's min and
+> low watermarks.
+> 
+> This is useful for realtime applications that call system
+> calls and have a bound on the number of allocations that happen
+> in any short time period.  In this application, extra_free_kbytes
+> would be left at an amount equal to or larger than than the
+> maximum number of allocations that happen in any burst.
+> 
+> It may also be useful to reduce the memory use of virtual
+> machines (temporarily?), in a way that does not cause memory
+> fragmentation like ballooning does.
+> 
+> Signed-off-by: Rik van Riel<riel@redhat.com>
 
- I will try disabling Memory Hotplug on Monday and let you know if that 
- helps.
+Acked-by: Johannes Weiner <jweiner@redhat.com>
 
- Eric
+Btw, I wonder if there should be a waking of the kswapds in
+setup_per_zone_wmarks() in general to make sure the new watermarks are
+met.  But that applies to min_free_kbytes as well, so not a
+requirement for this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
