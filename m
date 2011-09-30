@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA789000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 04:04:49 -0400 (EDT)
-Date: Fri, 30 Sep 2011 10:04:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] oom: thaw threads if oom killed thread is frozen before
- deferring
-Message-ID: <20110930080445.GC32134@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1109271133590.17876@chino.kir.corp.google.com>
- <20110928104445.GB15062@tiehlicka.suse.cz>
- <20110929115105.GE21113@tiehlicka.suse.cz>
- <20110929120517.GA10587@redhat.com>
- <20110929130204.GG21113@tiehlicka.suse.cz>
- <20110929163724.GA23773@redhat.com>
- <20110929180021.GA27999@tiehlicka.suse.cz>
- <20110930015148.GD10425@mtj.dyndns.org>
- <20110930074125.GB32134@tiehlicka.suse.cz>
- <20110930074641.GK10425@mtj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110930074641.GK10425@mtj.dyndns.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7C09000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 04:06:08 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E44733EE0C1
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:06:04 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C339F3266C2
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:06:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB5893E6101
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:06:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A0ED1DB8053
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:06:04 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 635FA1DB804E
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 17:06:04 +0900 (JST)
+Date: Fri, 30 Sep 2011 17:05:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 00/10] memcg naturalization -rc4
+Message-Id: <20110930170510.4695b8f0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
+References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <htejun@gmail.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 30-09-11 00:46:41, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, Sep 30, 2011 at 09:41:25AM +0200, Michal Hocko wrote:
-> > > With pending freezer changes, allowing TIF_MEMDIE tasks to exit
-> > > freezer by modifying freezing() shouldn't be difficult, which should
-> > > be race-free and much simpler than diddling with thaw_task().  
-> > 
-> > Will the rework help with the initial problem of unkillable OOM selected
-> > frozen tasks or it will just help with other races that might be present
-> > with the patch? In other words will this work deprecate the 2 patches
-> > sent earlier in this thread?
-> 
-> I think it shouldn't be difficult to allow OOM-killing frozen tasks.
-> That should be good enough, right?
+On Thu, 29 Sep 2011 23:00:54 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-Yes, if you could just force_sig(SIGKILL, p) frozen task then it would
-be ideal because we wouldn't have to call thaw_process from OOM path.
+> Hi,
+> 
+> this is the fourth revision of the memory cgroup naturalization
+> series.
+> 
+> The changes from v3 have mostly been documentation, changelog, and
+> naming fixes based on review feedback:
+> 
+>     o drop conversion of no longer existing zone-wide unevictable
+>       page rescue scanner
+>     o fix return value of mem_cgroup_hierarchical_reclaim() in
+>       limit-shrinking mode (Michal)
+>     o rename @remember to @reclaim in mem_cgroup_iter()
+>     o convert vm_swappiness to global_reclaim() in the
+>       correct patch (Michal)
+>     o rename
+>       struct mem_cgroup_iter_state -> struct mem_cgroup_reclaim_iter
+>       and
+>       struct mem_cgroup_iter -> struct mem_cgroup_reclaim_cookie
+>       (Michal)
+>     o added/amended comments and changelogs based on feedback (Michal, Kame)
+> 
+> Thanks for the review and feedback, guys, it's much appreciated!
+> 
 
-> 
-> > > How urgent is this?  Can we wait for the next merge window?
-> > 
-> > Yes, I think we can wait some more.
-> 
-> I'm still processing rather large backlog.  I'll ping you back once I
-> sort out the pending freezer changes.
+Thank you for your work. Now, I'm ok this series to be tested in -mm.
+Ack. to all.
 
-You were on the CC quite early but it was quite late when I noticed that
-I have accidentally used your kernel.org address. Just for reference the
-original discussion started here: https://lkml.org/lkml/2011/8/23/45 and
-this thread started here:
-http://www.spinics.net/lists/linux-mm/msg24693.html
+Do you have any plan, concerns ?
 
-> 
-> Thanks.
-> 
-> -- 
-> tejun
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
