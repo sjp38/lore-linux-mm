@@ -1,78 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ACBC9000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 04:56:33 -0400 (EDT)
-Date: Fri, 30 Sep 2011 10:55:39 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across zones
-Message-ID: <20110930085539.GD30857@redhat.com>
-References: <1317367044-475-1-git-send-email-jweiner@redhat.com>
- <1317367044-475-4-git-send-email-jweiner@redhat.com>
- <CAOJsxLFWfH5zDG8ui=yQyOcZY_nXhK6r+ziapLg9Zhmb3ibuWQ@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 77A179000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 05:25:32 -0400 (EDT)
+Date: Fri, 30 Sep 2011 11:25:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 04/10] mm: memcg: per-priority per-zone hierarchy scan
+ generations
+Message-ID: <20110930092200.GD32134@tiehlicka.suse.cz>
+References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
+ <1317330064-28893-5-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAOJsxLFWfH5zDG8ui=yQyOcZY_nXhK6r+ziapLg9Zhmb3ibuWQ@mail.gmail.com>
+In-Reply-To: <1317330064-28893-5-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Shaohua Li <shaohua.li@intel.com>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 30, 2011 at 10:35:25AM +0300, Pekka Enberg wrote:
-> Hi Johannes!
+[linux-foundation.org seems to be down, so I have changed Andrew's
+address]
+
+On Thu 29-09-11 23:00:58, Johannes Weiner wrote:
+> Memory cgroup limit reclaim currently picks one memory cgroup out of
+> the target hierarchy, remembers it as the last scanned child, and
+> reclaims all zones in it with decreasing priority levels.
 > 
-> On Fri, Sep 30, 2011 at 10:17 AM, Johannes Weiner <jweiner@redhat.com> wrote:
-> > But there is a flaw in that we have a zoned page allocator which does
-> > not care about the global state but rather the state of individual
-> > memory zones.  And right now there is nothing that prevents one zone
-> > from filling up with dirty pages while other zones are spared, which
-> > frequently leads to situations where kswapd, in order to restore the
-> > watermark of free pages, does indeed have to write pages from that
-> > zone's LRU list.  This can interfere so badly with IO from the flusher
-> > threads that major filesystems (btrfs, xfs, ext4) mostly ignore write
-> > requests from reclaim already, taking away the VM's only possibility
-> > to keep such a zone balanced, aside from hoping the flushers will soon
-> > clean pages from that zone.
+> The new hierarchy reclaim code will pick memory cgroups from the same
+> hierarchy concurrently from different zones and priority levels, it
+> becomes necessary that hierarchy roots not only remember the last
+> scanned child, but do so for each zone and priority level.
 > 
-> The obvious question is: how did you test this? Can you share the results?
+> Until now, we reclaimed memcgs like this:
+> 
+>     mem = mem_cgroup_iter(root)
+>     for each priority level:
+>       for each zone in zonelist:
+>         reclaim(mem, zone)
+> 
+> But subsequent patches will move the memcg iteration inside the loop
+> over the zones:
+> 
+>     for each priority level:
+>       for each zone in zonelist:
+>         mem = mem_cgroup_iter(root)
+>         reclaim(mem, zone)
+> 
+> And to keep with the original scan order - memcg -> priority -> zone -
+> the last scanned memcg has to be remembered per zone and per priority
+> level.
+> 
+> Furthermore, global reclaim will be switched to the hierarchy walk as
+> well.  Different from limit reclaim, which can just recheck the limit
+> after some reclaim progress, its target is to scan all memcgs for the
+> desired zone pages, proportional to the memcg size, and so reliably
+> detecting a full hierarchy round-trip will become crucial.
+> 
+> Currently, the code relies on one reclaimer encountering the same
+> memcg twice, but that is error-prone with concurrent reclaimers.
+> Instead, use a generation counter that is increased every time the
+> child with the highest ID has been visited, so that reclaimers can
+> stop when the generation changes.
 
-Meh, sorry about that, they were in the series introduction the last
-time and I forgot to copy them over.
+Both naming and the patch description is much nicer. Thanks!
 
-I did single-threaded, linear writing to an USB stick as the effect is
-most pronounced with slow backing devices.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-[ The write deferring on ext4 because of delalloc is so extreme that I
-  could trigger it even with simple linear writers on a mediocre
-  rotating disk, though.  I can not access the logfiles right now, but
-  the nr_vmscan_writes went practically away here as well and runtime
-  was unaffected with the patched kernel. ]
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-			Test results
+> ---
+>  mm/memcontrol.c |   65 +++++++++++++++++++++++++++++++++++++++---------------
+>  1 files changed, 47 insertions(+), 18 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 0ba59f6..38d195d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -121,6 +121,13 @@ struct mem_cgroup_stat_cpu {
+>  	unsigned long targets[MEM_CGROUP_NTARGETS];
+>  };
+>  
+> +struct mem_cgroup_reclaim_iter {
+> +	/* css_id of the last scanned hierarchy member */
+> +	int position;
+> +	/* scan generation, increased every round-trip */
+> +	unsigned int generation;
+> +};
+> +
+>  /*
+>   * per-zone information in memory controller.
+>   */
+> @@ -131,6 +138,8 @@ struct mem_cgroup_per_zone {
+>  	struct list_head	lists[NR_LRU_LISTS];
+>  	unsigned long		count[NR_LRU_LISTS];
+>  
+> +	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
+> +
+>  	struct zone_reclaim_stat reclaim_stat;
+>  	struct rb_node		tree_node;	/* RB tree node */
+>  	unsigned long long	usage_in_excess;/* Set to the value by which */
+> @@ -231,11 +240,6 @@ struct mem_cgroup {
+>  	 * per zone LRU lists.
+>  	 */
+>  	struct mem_cgroup_lru_info info;
+> -	/*
+> -	 * While reclaiming in a hierarchy, we cache the last child we
+> -	 * reclaimed from.
+> -	 */
+> -	int last_scanned_child;
+>  	int last_scanned_node;
+>  #if MAX_NUMNODES > 1
+>  	nodemask_t	scan_nodes;
+> @@ -781,9 +785,16 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+>  	return memcg;
+>  }
+>  
+> -static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> -					  struct mem_cgroup *prev,
+> -					  bool reclaim)
+> +struct mem_cgroup_reclaim_cookie {
+> +	struct zone *zone;
+> +	int priority;
+> +	unsigned int generation;
+> +};
+> +
+> +static struct mem_cgroup *
+> +mem_cgroup_iter(struct mem_cgroup *root,
+> +		struct mem_cgroup *prev,
+> +		struct mem_cgroup_reclaim_cookie *reclaim)
+>  {
+>  	struct mem_cgroup *mem = NULL;
+>  	int id = 0;
+> @@ -804,10 +815,20 @@ static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  	}
+>  
+>  	while (!mem) {
+> +		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+>  		struct cgroup_subsys_state *css;
+>  
+> -		if (reclaim)
+> -			id = root->last_scanned_child;
+> +		if (reclaim) {
+> +			int nid = zone_to_nid(reclaim->zone);
+> +			int zid = zone_idx(reclaim->zone);
+> +			struct mem_cgroup_per_zone *mz;
+> +
+> +			mz = mem_cgroup_zoneinfo(root, nid, zid);
+> +			iter = &mz->reclaim_iter[reclaim->priority];
+> +			if (prev && reclaim->generation != iter->generation)
+> +				return NULL;
+> +			id = iter->position;
+> +		}
+>  
+>  		rcu_read_lock();
+>  		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+> @@ -818,8 +839,13 @@ static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  			id = 0;
+>  		rcu_read_unlock();
+>  
+> -		if (reclaim)
+> -			root->last_scanned_child = id;
+> +		if (reclaim) {
+> +			iter->position = id;
+> +			if (!css)
+> +				iter->generation++;
+> +			else if (!prev && mem)
+> +				reclaim->generation = iter->generation;
+> +		}
+>  
+>  		if (prev && !css)
+>  			return NULL;
+> @@ -842,14 +868,14 @@ static void mem_cgroup_iter_break(struct mem_cgroup *root,
+>   * be used for reference counting.
+>   */
+>  #define for_each_mem_cgroup_tree(iter, root)		\
+> -	for (iter = mem_cgroup_iter(root, NULL, false);	\
+> +	for (iter = mem_cgroup_iter(root, NULL, NULL);	\
+>  	     iter != NULL;				\
+> -	     iter = mem_cgroup_iter(root, iter, false))
+> +	     iter = mem_cgroup_iter(root, iter, NULL))
+>  
+>  #define for_each_mem_cgroup(iter)			\
+> -	for (iter = mem_cgroup_iter(NULL, NULL, false);	\
+> +	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
+>  	     iter != NULL;				\
+> -	     iter = mem_cgroup_iter(NULL, iter, false))
+> +	     iter = mem_cgroup_iter(NULL, iter, NULL))
+>  
+>  static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+>  {
+> @@ -1619,6 +1645,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
+>  	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+>  	unsigned long excess;
+>  	unsigned long nr_scanned;
+> +	struct mem_cgroup_reclaim_cookie reclaim = {
+> +		.zone = zone,
+> +		.priority = 0,
+> +	};
+>  
+>  	excess = res_counter_soft_limit_excess(&root_memcg->res) >> PAGE_SHIFT;
+>  
+> @@ -1627,7 +1657,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
+>  		noswap = true;
+>  
+>  	while (1) {
+> -		victim = mem_cgroup_iter(root_memcg, victim, true);
+> +		victim = mem_cgroup_iter(root_memcg, victim, &reclaim);
+>  		if (!victim) {
+>  			loop++;
+>  			/*
+> @@ -4878,7 +4908,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  		res_counter_init(&memcg->res, NULL);
+>  		res_counter_init(&memcg->memsw, NULL);
+>  	}
+> -	memcg->last_scanned_child = 0;
+>  	memcg->last_scanned_node = MAX_NUMNODES;
+>  	INIT_LIST_HEAD(&memcg->oom_notify);
+>  
+> -- 
+> 1.7.6.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-15M DMA + 3246M DMA32 + 504M Normal = 3765M memory
-40% dirty ratio, 10% background ratio
-16G USB thumb drive
-10 runs of dd if=/dev/zero of=disk/zeroes bs=32k count=$((10 << 15))
-
-		seconds			nr_vmscan_write
-		        (stddev)	       min|     median|        max
-xfs
-vanilla:	 549.747( 3.492)	     0.000|      0.000|      0.000
-patched:	 550.996( 3.802)	     0.000|      0.000|      0.000
-
-fuse-ntfs
-vanilla:	1183.094(53.178)	 54349.000|  59341.000|  65163.000
-patched:	 558.049(17.914)	     0.000|      0.000|     43.000
-
-btrfs
-vanilla:	 573.679(14.015)	156657.000| 460178.000| 606926.000
-patched:	 563.365(11.368)	     0.000|      0.000|   1362.000
-
-ext4
-vanilla:	 561.197(15.782)	     0.000|2725438.000|4143837.000
-patched:	 568.806(17.496)	     0.000|      0.000|      0.000
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
