@@ -1,48 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 410FC9000BD
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:16:21 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 30 Sep 2011 16:16:18 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UKFLAt147222
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:15:23 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UKFH9w015178
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 14:15:17 -0600
-Subject: Re: [PATCH 2/2] mm: restrict access to /proc/meminfo
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 664B69000BD
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:23 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p8UJulD6006804
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 15:56:47 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p8UKWLNp226480
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:21 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p8UKWKYZ018699
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2011 16:32:21 -0400
+Subject: [RFCv2][PATCH 1/4] break units out of string_get_size()
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110930130353.0da54517.akpm00@gmail.com>
-References: <20110927175453.GA3393@albatros>
-	 <20110927175642.GA3432@albatros> <20110927193810.GA5416@albatros>
-	 <20110928144614.38591e97.akpm00@gmail.com> <20110930195329.GA2020@albatros>
-	 <20110930130353.0da54517.akpm00@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 30 Sep 2011 13:15:14 -0700
-Message-ID: <1317413714.16137.666.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 30 Sep 2011 13:32:19 -0700
+Message-Id: <20110930203219.60D507CB@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm00@gmail.com>
-Cc: Vasiliy Kulikov <segoon@openwall.com>, kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Kees Cook <kees@ubuntu.com>, Valdis.Kletnieks@vt.edu, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Alan Cox <alan@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com, hpa@zytor.com, Dave Hansen <dave@linux.vnet.ibm.com>
 
-I stuck a printk in there.  It's not exactly called 100x a second, but
-there were 5 distinct users just for me to boot and ssh in:
 
-[    3.130408] meminfo read called by: 'udevd' 1
-[    3.326649] meminfo read called by: 'dhclient-script' 2
-[    4.624943] meminfo read called by: 'klogd' 3
-[    8.008019] meminfo read called by: 'dhclient-script' 4
-[    8.083091] meminfo read called by: 'ps' 5
-[   48.171038] meminfo read called by: 'bash' 6
+I would like to use these (well one of them) arrays in
+another function.  Might as well break both versions
+out for consistency.
 
-Granted, those were likely privileged.  But, that's a good list of
-processes that I would rather not see break.
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
 
--- Dave
+ linux-2.6.git-dave/lib/string_helpers.c |   25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+
+diff -puN lib/string_helpers.c~string_get_size-pow2 lib/string_helpers.c
+--- linux-2.6.git/lib/string_helpers.c~string_get_size-pow2	2011-09-30 12:58:43.856800824 -0700
++++ linux-2.6.git-dave/lib/string_helpers.c	2011-09-30 12:58:43.864800812 -0700
+@@ -8,6 +8,19 @@
+ #include <linux/module.h>
+ #include <linux/string_helpers.h>
+ 
++const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
++			   "EB", "ZB", "YB", NULL};
++const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
++			 "EiB", "ZiB", "YiB", NULL };
++static const char **units_str[] = {
++	[STRING_UNITS_10] =  units_10,
++	[STRING_UNITS_2] = units_2,
++};
++static const unsigned int divisor[] = {
++	[STRING_UNITS_10] = 1000,
++	[STRING_UNITS_2] = 1024,
++};
++
+ /**
+  * string_get_size - get the size in the specified units
+  * @size:	The size to be converted
+@@ -23,18 +36,6 @@
+ int string_get_size(u64 size, const enum string_size_units units,
+ 		    char *buf, int len)
+ {
+-	const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
+-				   "EB", "ZB", "YB", NULL};
+-	const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
+-				 "EiB", "ZiB", "YiB", NULL };
+-	const char **units_str[] = {
+-		[STRING_UNITS_10] =  units_10,
+-		[STRING_UNITS_2] = units_2,
+-	};
+-	const unsigned int divisor[] = {
+-		[STRING_UNITS_10] = 1000,
+-		[STRING_UNITS_2] = 1024,
+-	};
+ 	int i, j;
+ 	u64 remainder = 0, sf_cap;
+ 	char tmp[8];
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
