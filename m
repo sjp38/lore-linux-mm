@@ -1,129 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BEBF9000BD
-	for <linux-mm@kvack.org>; Sat,  1 Oct 2011 02:59:57 -0400 (EDT)
-Received: by iaen33 with SMTP id n33so4182215iae.14
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2011 23:59:53 -0700 (PDT)
-Date: Sat, 1 Oct 2011 15:59:43 +0900
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0BA9000BD
+	for <linux-mm@kvack.org>; Sat,  1 Oct 2011 03:10:12 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so6507593pzk.6
+        for <linux-mm@kvack.org>; Sat, 01 Oct 2011 00:10:11 -0700 (PDT)
+Date: Sat, 1 Oct 2011 16:10:01 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
- lru pages
-Message-ID: <20111001065943.GA6601@barrios-desktop>
-References: <1317108184.29510.200.camel@sli10-conroe>
- <20110928065721.GA15021@barrios-desktop>
- <1317193711.22361.16.camel@sli10-conroe>
- <20110928175750.GA1696@barrios-desktop>
- <1317258891.22361.19.camel@sli10-conroe>
- <20110929091853.GA1865@barrios-desktop>
- <1317348743.22361.29.camel@sli10-conroe>
+Subject: Re: [patch 1/5] mm: exclude reserved pages from dirtyable memory
+Message-ID: <20111001071001.GB6601@barrios-desktop>
+References: <1317367044-475-1-git-send-email-jweiner@redhat.com>
+ <1317367044-475-2-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1317348743.22361.29.camel@sli10-conroe>
+In-Reply-To: <1317367044-475-2-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Shaohua Li <shaohua.li@intel.com>, xfs@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 30, 2011 at 10:12:23AM +0800, Shaohua Li wrote:
-> On Thu, 2011-09-29 at 17:18 +0800, Minchan Kim wrote:
-> > On Thu, Sep 29, 2011 at 09:14:51AM +0800, Shaohua Li wrote:
-> > > On Thu, 2011-09-29 at 01:57 +0800, Minchan Kim wrote:
-> > > > On Wed, Sep 28, 2011 at 03:08:31PM +0800, Shaohua Li wrote:
-> > > > > On Wed, 2011-09-28 at 14:57 +0800, Minchan Kim wrote:
-> > > > > > On Tue, Sep 27, 2011 at 03:23:04PM +0800, Shaohua Li wrote:
-> > > > > > > I saw DMA zone always has ->all_unreclaimable set. The reason is the high zones
-> > > > > > > are big, so zone_watermark_ok/_safe() will always return false with a high
-> > > > > > > classzone_idx for DMA zone, because DMA zone's lowmem_reserve is big for a high
-> > > > > > > classzone_idx. When kswapd runs into DMA zone, it doesn't scan/reclaim any
-> > > > > > > pages(no pages in lru), but mark the zone as all_unreclaimable. This can
-> > > > > > > happen in other low zones too.
-> > > > > > 
-> > > > > > Good catch!
-> > > > > > 
-> > > > > > > This is confusing and can potentially cause oom. Say a low zone has
-> > > > > > > all_unreclaimable when high zone hasn't enough memory. Then allocating
-> > > > > > > some pages in low zone(for example reading blkdev with highmem support),
-> > > > > > > then run into direct reclaim. Since the zone has all_unreclaimable set,
-> > > > > > > direct reclaim might reclaim nothing and an oom reported. If
-> > > > > > > all_unreclaimable is unset, the zone can actually reclaim some pages.
-> > > > > > > If all_unreclaimable is unset, in the inner loop of balance_pgdat we always have
-> > > > > > > all_zones_ok 0 when checking a low zone's watermark. If high zone watermark isn't
-> > > > > > > good, there is no problem. Otherwise, we might loop one more time in the outer
-> > > > > > > loop, but since high zone watermark is ok, the end_zone will be lower, then low
-> > > > > > > zone's watermark check will be ok and the outer loop will break. So looks this
-> > > > > > > doesn't bring any problem.
-> > > > > > 
-> > > > > > I think it would be better to correct zone_reclaimable.
-> > > > > > My point is zone_reclaimable should consider zone->pages_scanned.
-> > > > > > The point of the function is how many pages scanned VS how many pages remained in LRU.
-> > > > > > If reclaimer doesn't scan the zone at all because of no lru pages, it shouldn't tell
-> > > > > > the zone is all_unreclaimable.
-> > > > > actually this is exact my first version of the patch. The problem is if
-> > > > > a zone is true unreclaimable (used by kenrel pages or whatever), we will
-> > > > > have zone->pages_scanned 0 too. I thought we should set
-> > > > > all_unreclaimable in this case.
-> > > > 
-> > > > Let's think the problem again.
-> > > > Fundamental problem is that why the lower zone's lowmem_reserve for higher zone is huge big
-> > > > that might be bigger than the zone's size.
-> > > > I think we need the boundary for limiting lowmem_reseve.
-> > > > So how about this?
-> > > I didn't see a reason why high zone allocation should fallback to low
-> > > zone if high zone is big. Changing the lowmem_reserve can cause the
-> > > fallback. Has any rationale here?
-> > 
-> > I try to think better solution than yours but I got failed. :(
-> > The why I try to avoid your patch is that kswapd is very complicated these days so
-> > I wanted to not add more logic for handling corner cases if we can solve it
-> > other ways. But as I said, but I got failed.
-> > 
-> > It seems that it doesn't make sense that previous my patch that limit lowmem_reserve.
-> > Because we can have higher zone which is very big size so that lowmem_zone[higher_zone] of
-> > low zone could be bigger freely than the lowmem itself size.
-> > It implies the low zone should be not used for higher allocation.
-> > It has no reason to limit it. My brain was broken. :(
-> > 
-> > But I have a question about your patch still.
-> > What happens if DMA zone sets zone->all_unreclaimable with 1?
-> > 
-> > You said as follows,
-> > 
-> > > This is confusing and can potentially cause oom. Say a low zone has
-> > > all_unreclaimable when high zone hasn't enough memory. Then allocating
-> > > some pages in low zone(for example reading blkdev with highmem support),
-> > > then run into direct reclaim. Since the zone has all_unreclaimable set,
-> > 
-> > If low zone has enough pages for allocation, it cannot have entered reclaim.
-> > It means now low zone doesn't have enough free pages for the order allocation.
-> > So it's natural to enter reclaim path.
-> > 
-> > > direct reclaim might reclaim nothing and an oom reported. If
-> > 
-> > It's not correct "nothing". At least, it will do something in DEF_PRIORITY.
-> it does something, but might not reclaim any pages, for example, it
-> starts page write, but page isn't in disk yet in DEF_PRIORITY and it
-> skip further reclaiming in !DEF_PRIORITY.
+On Fri, Sep 30, 2011 at 09:17:20AM +0200, Johannes Weiner wrote:
+> The amount of dirtyable pages should not include the full number of
+> free pages: there is a number of reserved pages that the page
+> allocator and kswapd always try to keep free.
 > 
-> > > all_unreclaimable is unset, the zone can actually reclaim some pages.
-> > 
-> > The reason of this problem is that the zone has no lru page, you said.
-> > Then how could we reclaim some pages in the zone even if the zone's all_unreclaimable is unset?
-> > You expect slab pages?
-> The zone could have lru pages. Let's take an example, allocation from
-> ZONE_HIGHMEM, then kswapd runs, ZONE_NORMAL gets all_unreclaimable set
-> even it has free pages. Then we do write blkdev device, which use
-> ZONE_NORMAL for page cache. Some pages in ZONE_NORMAL are in lru, then
-> we run into direct page reclaim for ZONE_NORMAL. Since all_unreclaimable
-> is set and pages in ZONE_NORMAL lru are dirty, direct reclaim could
-> fail. But I'd agree this is a corner case.
-> Besides when I saw ZONE_DMA has a lot of free pages and
-> all_unreclaimable is set, it's really confusing.
+> The closer (reclaimable pages - dirty pages) is to the number of
+> reserved pages, the more likely it becomes for reclaim to run into
+> dirty pages:
+> 
+>        +----------+ ---
+>        |   anon   |  |
+>        +----------+  |
+>        |          |  |
+>        |          |  -- dirty limit new    -- flusher new
+>        |   file   |  |                     |
+>        |          |  |                     |
+>        |          |  -- dirty limit old    -- flusher old
+>        |          |                        |
+>        +----------+                       --- reclaim
+>        | reserved |
+>        +----------+
+>        |  kernel  |
+>        +----------+
+> 
+> This patch introduces a per-zone dirty reserve that takes both the
+> lowmem reserve as well as the high watermark of the zone into account,
+> and a global sum of those per-zone values that is subtracted from the
+> global amount of dirtyable pages.  The lowmem reserve is unavailable
+> to page cache allocations and kswapd tries to keep the high watermark
+> free.  We don't want to end up in a situation where reclaim has to
+> clean pages in order to balance zones.
+> 
+> Not treating reserved pages as dirtyable on a global level is only a
+> conceptual fix.  In reality, dirty pages are not distributed equally
+> across zones and reclaim runs into dirty pages on a regular basis.
+> 
+> But it is important to get this right before tackling the problem on a
+> per-zone level, where the distance between reclaim and the dirty pages
+> is mostly much smaller in absolute numbers.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Hi Shaohua,
-Sorry for late response and Thanks for your explanation.
-It's valuable to fix, I think.
-How about this?
+-- 
+Kinds regards,
+Minchan Kim
 
-I hope other guys have a interest in the problem.
-Cced them.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
