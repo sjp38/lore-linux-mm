@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 124019000BD
-	for <linux-mm@kvack.org>; Sat,  1 Oct 2011 15:29:20 -0400 (EDT)
-Message-ID: <1317497359.5039.24.camel@Joe-Laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A55C9000BD
+	for <linux-mm@kvack.org>; Sat,  1 Oct 2011 15:33:50 -0400 (EDT)
+Message-ID: <1317497626.22613.1.camel@Joe-Laptop>
 Subject: Re: [RFCv3][PATCH 1/4] replace string_get_size() arrays
 From: Joe Perches <joe@perches.com>
-Date: Sat, 01 Oct 2011 12:29:19 -0700
+Date: Sat, 01 Oct 2011 12:33:46 -0700
 In-Reply-To: <20111001000856.DD623081@kernel>
 References: <20111001000856.DD623081@kernel>
 Content-Type: text/plain; charset="UTF-8"
@@ -35,7 +35,7 @@ trivia
 u64 could be up to ~1.8**19 decimal
 zetta and yotta are not possible or necessary.
 u128 maybe someday, but then other changes
-would be necessary.
+would be necessary too.
 
 > +static char *__units_str(enum string_size_units unit, char *buf, int index)
 > +{
@@ -45,7 +45,7 @@ would be necessary.
 > +	if (index) {
 > +		buf[place++] = byte_units[index];
 
-unbounded index (doesn't matter currently, it will for u128)
+index is unbounded (doesn't matter currently, it will for u128)
 
 > @@ -23,26 +40,19 @@
 >  int string_get_size(u64 size, const enum string_size_units units,
@@ -57,9 +57,9 @@ unbounded index (doesn't matter currently, it will for u128)
 >  	};
 
 static const or it might be better to use
-as that would make the code clearer.
-
 	unsigned int divisor = (string_size_units == STRING_UNITS_2) ? 1024 : 1000;
+as that would make the code clearer in a
+couple of uses of divisor[] later.
 
 > @@ -61,7 +71,7 @@ int string_get_size(u64 size, const enum
 >  	}
@@ -67,6 +67,7 @@ as that would make the code clearer.
 >  	snprintf(buf, len, "%lld%s %s", (unsigned long long)size,
 
 %llu
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
