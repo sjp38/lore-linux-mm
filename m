@@ -1,45 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A6BBA9000BD
-	for <linux-mm@kvack.org>; Sun,  2 Oct 2011 08:55:42 -0400 (EDT)
-From: "Shi, Alex" <alex.shi@intel.com>
-Date: Sun, 2 Oct 2011 20:55:37 +0800
-Subject: RE: [PATCH] slub: remove a minus instruction in get_partial_node
-Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B5FD97584A4@shsmsx502.ccr.corp.intel.com>
-References: <1317290716.4188.1227.camel@debian>
- <alpine.DEB.2.00.1109290917300.9382@router.home>
-In-Reply-To: <alpine.DEB.2.00.1109290917300.9382@router.home>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3065A9000BD
+	for <linux-mm@kvack.org>; Sun,  2 Oct 2011 09:57:10 -0400 (EDT)
+Received: by yxi19 with SMTP id 19so3680744yxi.14
+        for <linux-mm@kvack.org>; Sun, 02 Oct 2011 06:57:08 -0700 (PDT)
 MIME-Version: 1.0
+Date: Sun, 2 Oct 2011 21:57:07 +0800
+Message-ID: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
+Subject: One comment on the __release_region in kernel/resource.c
+From: Wei Yang <weiyang.kernel@gmail.com>
+Content-Type: multipart/alternative; boundary=bcaec519638fe8fa6b04ae513bdc
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 
+--bcaec519638fe8fa6b04ae513bdc
+Content-Type: text/plain; charset=ISO-8859-1
 
+Dear experts,
 
-> -----Original Message-----
-> From: Christoph Lameter [mailto:cl@gentwo.org]
-> Sent: Thursday, September 29, 2011 10:19 PM
-> To: Shi, Alex
-> Cc: Pekka Enberg; linux-mm@kvack.org; Chen, Tim C; Huang, Ying
-> Subject: Re: [PATCH] slub: remove a minus instruction in get_partial_node
->=20
-> On Thu, 29 Sep 2011, Alex,Shi wrote:
->=20
-> > Don't do a minus action in get_partial_node function here, since
-> > it is always zero.
->=20
-> A slab on the partial lists always has objects available. Why would it be
-> zero?
+I am viewing the source code of __release_region() in kernel/resource.c.
+And I have one comment for the performance issue.
 
-Um, my mistaken. The reason should be: if code is here, the slab will be pe=
-r cpu slab.
-It is no chance to be in per cpu partial and no relationship with per cpu p=
-artial. So=20
-no reason to use this value as a criteria for filling per cpu partial.=20
+For example, we have a resource tree like this.
+10-89
+   20-79
+       30-49
+       55-59
+       60-64
+       65-69
+   80-89
+100-279
+
+If the caller wants to release a region of [50,59], the original code will
+execute four times in the for loop in the subtree of 20-79.
+
+After changing the code below, it will execute two times instead.
+
+By using the "git annotate", I see this code is committed by Linus as the
+initial version. So don't get more information about why this code is
+written
+in this way.
+
+Maybe the case I thought will not happen in the real world?
+
+Your comment is warmly welcome. :)
+
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 8461aea..81525b4 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -931,7 +931,7 @@ void __release_region(struct resource *parent,
+resource_size_t start,
+       for (;;) {
+               struct resource *res = *p;
+
+-               if (!res)
++               if (!res || res->start > start)
+                       break;
+               if (res->start <= start && res->end >= end) {
+                       if (!(res->flags & IORESOURCE_BUSY)) {
+
+Wei Yang
+Help You, Help Me
+
+--bcaec519638fe8fa6b04ae513bdc
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Dear experts,<br><div class=3D"gmail_quote"><br>I am viewing the source cod=
+e of __release_region() in kernel/resource.c.<br>And I have one comment for=
+ the performance issue.<br>
+<br>
+For example, we have a resource tree like this.<br>
+10-89<br>
+=A0 =A020-79<br>
+=A0 =A0 =A0 =A030-49<br>
+=A0 =A0 =A0 =A055-59<br>
+=A0 =A0 =A0 =A060-64<br>
+=A0 =A0 =A0 =A065-69<br>
+=A0 =A080-89<br>
+100-279<br>
+<br>
+If the caller wants to release a region of [50,59], the original code will<=
+br>
+execute four times in the for loop in the subtree of 20-79.<br>
+<br>
+After changing the code below, it will execute two times instead.<br>
+<br>
+By using the &quot;git annotate&quot;, I see this code is committed by Linu=
+s as the<br>
+initial version. So don&#39;t get more information about why this code is w=
+ritten<br>
+in this way.<br>
+<br>
+Maybe the case I thought will not happen in the real world?<br>
+<br>
+Your comment is warmly welcome. :)<br>
+<br>
+diff --git a/kernel/resource.c b/kernel/resource.c<br>
+index 8461aea..81525b4 100644<br>
+--- a/kernel/resource.c<br>
++++ b/kernel/resource.c<br>
+@@ -931,7 +931,7 @@ void __release_region(struct resource *parent,<br>
+resource_size_t start,<br>
+=A0 =A0 =A0 =A0for (;;) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct resource *res =3D *p;<br>
+<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res)<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res || res-&gt;start &gt; start)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (res-&gt;start &lt;=3D start &amp;&amp; r=
+es-&gt;end &gt;=3D end) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!(res-&gt;flags &amp; IO=
+RESOURCE_BUSY)) {<br>
+<font color=3D"#888888"><br>
+Wei Yang<br>Help You, Help Me<br>
+<br>
+</font></div><br>
+
+--bcaec519638fe8fa6b04ae513bdc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
