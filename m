@@ -1,125 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3065A9000BD
-	for <linux-mm@kvack.org>; Sun,  2 Oct 2011 09:57:10 -0400 (EDT)
-Received: by yxi19 with SMTP id 19so3680744yxi.14
-        for <linux-mm@kvack.org>; Sun, 02 Oct 2011 06:57:08 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E673C9000BD
+	for <linux-mm@kvack.org>; Sun,  2 Oct 2011 10:58:51 -0400 (EDT)
+Message-ID: <4E887C23.4030600@tilera.com>
+Date: Sun, 2 Oct 2011 10:58:43 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Date: Sun, 2 Oct 2011 21:57:07 +0800
-Message-ID: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
-Subject: One comment on the __release_region in kernel/resource.c
-From: Wei Yang <weiyang.kernel@gmail.com>
-Content-Type: multipart/alternative; boundary=bcaec519638fe8fa6b04ae513bdc
+Subject: Re: [PATCH 0/5] Reduce cross CPU IPI interference
+References: <1316940890-24138-1-git-send-email-gilad@benyossef.com> <4E831A79.1030402@tilera.com> <CAOtvUMdGeBfbLpSqonzLTT6+JUiabDjBG5bpd1_RPykt3x+5Hw@mail.gmail.com>
+In-Reply-To: <CAOtvUMdGeBfbLpSqonzLTT6+JUiabDjBG5bpd1_RPykt3x+5Hw@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
---bcaec519638fe8fa6b04ae513bdc
-Content-Type: text/plain; charset=ISO-8859-1
+On 10/2/2011 4:44 AM, Gilad Ben-Yossef wrote:
+>> We have some code in our tree (not yet
+>> returned to the community) that tries to deal with some sources of interrupt
+>> jitter on tiles that are running isolcpu and want to be 100% in user space.
+> Yes, I think this work will benefit this kind of use case (CPU/user
+> space bound on a dedicated CPU)
+> the most, although other use cases can benefit as well (e.g. power
+> management with idle cores).
+>
+> Btw, do you have any plan to share the patches you mentioned? it could
+> save me a lot of time. Not wanting to
+> re-invent the wheel and all that...
 
-Dear experts,
+I'd like to, but getting the patch put together cleanly is still on my list
+behind a number of other things (glibc community return, kernel catch-up
+with a backlog of less controversial changes, customer crises, enhancements
+targeted to forthcoming releases, etc.; I'm sure you know the drill...)
 
-I am viewing the source code of __release_region() in kernel/resource.c.
-And I have one comment for the performance issue.
+>>> This first version creates an on_each_cpu_mask infrastructure API (derived
+>>> from
+>>> existing arch specific versions in Tile and Arm) and uses it to turn two
+>>> global
+>>> IPI invocation to per CPU group invocations.
+>> The global version looks fine; I would probably make on_each_cpu() an inline
+>> in the !SMP case now that you are (correctly, I suspect) disabling
+>> interrupts when calling the function.
+>>
+> Good point. Will do.
+>
+> I will take this email as an ACK to the tile relevant changes, if that
+> is OK with you.
 
-For example, we have a resource tree like this.
-10-89
-   20-79
-       30-49
-       55-59
-       60-64
-       65-69
-   80-89
-100-279
+Yes, definitely.
 
-If the caller wants to release a region of [50,59], the original code will
-execute four times in the for loop in the subtree of 20-79.
+Acked-by: Chris Metcalf <cmetcalf@tilera.com>
 
-After changing the code below, it will execute two times instead.
-
-By using the "git annotate", I see this code is committed by Linus as the
-initial version. So don't get more information about why this code is
-written
-in this way.
-
-Maybe the case I thought will not happen in the real world?
-
-Your comment is warmly welcome. :)
-
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 8461aea..81525b4 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -931,7 +931,7 @@ void __release_region(struct resource *parent,
-resource_size_t start,
-       for (;;) {
-               struct resource *res = *p;
-
--               if (!res)
-+               if (!res || res->start > start)
-                       break;
-               if (res->start <= start && res->end >= end) {
-                       if (!(res->flags & IORESOURCE_BUSY)) {
-
-Wei Yang
-Help You, Help Me
-
---bcaec519638fe8fa6b04ae513bdc
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-Dear experts,<br><div class=3D"gmail_quote"><br>I am viewing the source cod=
-e of __release_region() in kernel/resource.c.<br>And I have one comment for=
- the performance issue.<br>
-<br>
-For example, we have a resource tree like this.<br>
-10-89<br>
-=A0 =A020-79<br>
-=A0 =A0 =A0 =A030-49<br>
-=A0 =A0 =A0 =A055-59<br>
-=A0 =A0 =A0 =A060-64<br>
-=A0 =A0 =A0 =A065-69<br>
-=A0 =A080-89<br>
-100-279<br>
-<br>
-If the caller wants to release a region of [50,59], the original code will<=
-br>
-execute four times in the for loop in the subtree of 20-79.<br>
-<br>
-After changing the code below, it will execute two times instead.<br>
-<br>
-By using the &quot;git annotate&quot;, I see this code is committed by Linu=
-s as the<br>
-initial version. So don&#39;t get more information about why this code is w=
-ritten<br>
-in this way.<br>
-<br>
-Maybe the case I thought will not happen in the real world?<br>
-<br>
-Your comment is warmly welcome. :)<br>
-<br>
-diff --git a/kernel/resource.c b/kernel/resource.c<br>
-index 8461aea..81525b4 100644<br>
---- a/kernel/resource.c<br>
-+++ b/kernel/resource.c<br>
-@@ -931,7 +931,7 @@ void __release_region(struct resource *parent,<br>
-resource_size_t start,<br>
-=A0 =A0 =A0 =A0for (;;) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct resource *res =3D *p;<br>
-<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res)<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res || res-&gt;start &gt; start)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (res-&gt;start &lt;=3D start &amp;&amp; r=
-es-&gt;end &gt;=3D end) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!(res-&gt;flags &amp; IO=
-RESOURCE_BUSY)) {<br>
-<font color=3D"#888888"><br>
-Wei Yang<br>Help You, Help Me<br>
-<br>
-</font></div><br>
-
---bcaec519638fe8fa6b04ae513bdc--
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
