@@ -1,173 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 11F2D9000C6
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 09:42:08 -0400 (EDT)
-Date: Mon, 3 Oct 2011 15:37:10 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 4/26]   uprobes: Define hooks for
-	mmap/munmap.
-Message-ID: <20111003133710.GA28118@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3599000C6
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 09:45:55 -0400 (EDT)
+Message-Id: <20111003134228.090592370@intel.com>
+Date: Mon, 03 Oct 2011 21:42:28 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 00/11] IO-less dirty throttling v12 
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-fsdevel@vger.kernel.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
 
-On 09/20, Srikar Dronamraju wrote:
->
-> @@ -739,6 +740,10 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  	mm->pmd_huge_pte = NULL;
->  #endif
-> +#ifdef CONFIG_UPROBES
-> +	atomic_set(&mm->mm_uprobes_count,
-> +			atomic_read(&oldmm->mm_uprobes_count));
+Hi,
 
-Hmm. Why this can't race with install_breakpoint/remove_breakpoint
-between _read and _set ?
+This is the minimal IO-less balance_dirty_pages() changes that are expected to
+be regression free (well, except for NFS).
 
-What about VM_DONTCOPY vma's with breakpoints ?
+        git://github.com/fengguang/linux.git dirty-throttling-v12
 
-> -static int match_uprobe(struct uprobe *l, struct uprobe *r)
-> +static int match_uprobe(struct uprobe *l, struct uprobe *r, int *match_inode)
->  {
-> +	/*
-> +	 * if match_inode is non NULL then indicate if the
-> +	 * inode atleast match.
-> +	 */
-> +	if (match_inode)
-> +		*match_inode = 0;
-> +
->  	if (l->inode < r->inode)
->  		return -1;
->  	if (l->inode > r->inode)
->  		return 1;
->  	else {
-> +		if (match_inode)
-> +			*match_inode = 1;
-> +
+Tests results will be posted in a separate email.
 
-It is very possible I missed something, but imho this looks confusing.
+Changes since v11:
 
-This close_match logic is only needed for build_probe_list() and
-dec_mm_uprobes_count(), and both do not actually need the returned
-uprobe.
+- improve bdi reserve area parameters (based on test results)
+- drop bdi underrun flag
+- drop aux bdi control line
+- make bdi->dirty_ratelimit more stable
 
-Instead of complicating match_uprobe() and __find_uprobe(), perhaps
-it makes sense to add "struct rb_node *__find_close_rb_node(inode)" ?
+Changes since v10:
 
-> +static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
->  {
->  	/* Placeholder: Yet to be implemented */
-> +	if (!uprobe->consumers)
-> +		return 0;
+- complete the renames
+- add protections for IO queue underrun
+  - pause time reduction
+  - bdi reserve area
+  - bdi underrun flag
+- more accurate task dirty accounting for
+  - sub-page writes
+  - FS re-dirties
+  - short lived tasks
 
-How it is possible to see ->consumers == NULL?
+Changes since v9:
 
-OK, afaics it _is_ possible, but only because unregister does del_consumer()
-without ->i_mutex, but this is bug afaics (see the previous email).
+- a lot of renames and comment/changelog rework, again
+- seperate out the dirty_ratelimit update policy (as patch 04)
+- add think time compensation
+- add 3 trace events
 
-Another user is mmap_uprobe() and it checks ->consumers != NULL itself (but
-see below).
+Changes since v8:
 
-> +int mmap_uprobe(struct vm_area_struct *vma)
-> +{
-> +	struct list_head tmp_list;
-> +	struct uprobe *uprobe, *u;
-> +	struct inode *inode;
-> +	int ret = 0;
-> +
-> +	if (!valid_vma(vma))
-> +		return ret;	/* Bail-out */
-> +
-> +	inode = igrab(vma->vm_file->f_mapping->host);
-> +	if (!inode)
-> +		return ret;
-> +
-> +	INIT_LIST_HEAD(&tmp_list);
-> +	mutex_lock(&uprobes_mmap_mutex);
-> +	build_probe_list(inode, &tmp_list);
-> +	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-> +		loff_t vaddr;
-> +
-> +		list_del(&uprobe->pending_list);
-> +		if (!ret && uprobe->consumers) {
-> +			vaddr = vma->vm_start + uprobe->offset;
-> +			vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-> +			if (vaddr < vma->vm_start || vaddr >= vma->vm_end)
-> +				continue;
-> +			ret = install_breakpoint(vma->vm_mm, uprobe);
+- a lot of renames and comment/changelog rework
+- use 3rd order polynomial as the global control line (Peter)
+- stabilize dirty_ratelimit by decreasing update step size on small errors
+- limit per-CPU dirtied pages to avoid dirty pages run away on 1k+ tasks (Peter)
 
-So. We are adding the new mapping, we should find all breakpoints this
-file has in the start/end range.
+Thanks a lot to Peter, Vivek, Andrea and Jan for the careful reviews!
 
-We are holding ->mmap_sem... this seems enough to protect against the
-races with register/unregister. Except, what if __register_uprobe()
-fails? In this case __unregister_uprobe() does delete_uprobe() at the
-very end. What if mmap mmap_uprobe() is called right before delete_?
+shortlog:
 
-> +static void dec_mm_uprobes_count(struct vm_area_struct *vma,
-> +		struct inode *inode)
-> +{
-> +	struct uprobe *uprobe;
-> +	struct rb_node *n;
-> +	unsigned long flags;
-> +
-> +	n = uprobes_tree.rb_node;
-> +	spin_lock_irqsave(&uprobes_treelock, flags);
-> +	uprobe = __find_uprobe(inode, 0, &n);
-> +
-> +	/*
-> +	 * If indeed there is a probe for the inode and with offset zero,
-> +	 * then lets release its reference. (ref got thro __find_uprobe)
-> +	 */
-> +	if (uprobe)
-> +		put_uprobe(uprobe);
-> +	for (; n; n = rb_next(n)) {
-> +		loff_t vaddr;
-> +
-> +		uprobe = rb_entry(n, struct uprobe, rb_node);
-> +		if (uprobe->inode != inode)
-> +			break;
-> +		vaddr = vma->vm_start + uprobe->offset;
-> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-> +		if (vaddr < vma->vm_start || vaddr >= vma->vm_end)
-> +			continue;
-> +		atomic_dec(&vma->vm_mm->mm_uprobes_count);
+Wu Fengguang (11):
+      writeback: account per-bdi accumulated dirtied pages
+      writeback: dirty position control
+      writeback: add bg_threshold parameter to __bdi_update_bandwidth()
+      writeback: dirty rate control
+      writeback: stabilize bdi->dirty_ratelimit
+      writeback: per task dirty rate limit
+      writeback: IO-less balance_dirty_pages()
+      writeback: limit max dirty pause time
+      writeback: control dirty pause time
+      writeback: dirty position control - bdi reserve area
+      writeback: per-bdi background threshold
 
-So, this does atomic_dec() for each bp in this vma?
+diffstat:
 
-And the caller is
+ fs/fs-writeback.c                |   19 +-
+ include/linux/backing-dev.h      |   11 +
+ include/linux/sched.h            |    7 +
+ include/linux/writeback.h        |    1 +
+ include/trace/events/writeback.h |   24 --
+ kernel/fork.c                    |    3 +
+ mm/backing-dev.c                 |    4 +
+ mm/page-writeback.c              |  678 +++++++++++++++++++++++++++++---------
+ 8 files changed, 566 insertions(+), 181 deletions(-)
 
-> @@ -1337,6 +1338,9 @@ unsigned long unmap_vmas(struct mmu_gather *tlb,
->  		if (unlikely(is_pfn_mapping(vma)))
->  			untrack_pfn_vma(vma, 0, 0);
->
-> +		if (vma->vm_file)
-> +			munmap_uprobe(vma);
-
-Doesn't look right...
-
-munmap_uprobe() assumes that the whole region goes away. This is
-true in munmap() case afaics, it does __split_vma() if necessary.
-
-But what about truncate() ? In this case this vma is not unmapped,
-but unmap_vmas() is called anyway and [start, end) can be different.
-IOW, unless I missed something (this is very possible) we can do
-more atomic_dec's then needed.
-
-Also, truncate() obviously changes ->i_size. Doesn't this mean
-unregister_uprobe() should return if offset > i_size ? We need to
-free uprobes anyway.
-
-MADV_DONTNEED? It calls unmap_vmas() too. And application can do
-madvise(DONTNEED) in a loop.
-
-Oleg.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
