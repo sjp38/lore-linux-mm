@@ -1,78 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id E0EAB9000C6
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 08:36:57 -0400 (EDT)
-Message-ID: <4E89AC40.6070002@parallels.com>
-Date: Mon, 3 Oct 2011 16:36:16 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AE019000C6
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 08:51:54 -0400 (EDT)
+Date: Mon, 3 Oct 2011 14:46:40 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 3/26]   Uprobes: register/unregister
+	probes.
+Message-ID: <20111003124640.GA25811@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 7/8] Display current tcp memory allocation in kmem
- cgroup
-References: <1317637123-18306-1-git-send-email-glommer@parallels.com> <1317637123-18306-8-git-send-email-glommer@parallels.com> <20111003121446.GD29312@shutemov.name> <4E89A846.1010200@parallels.com> <20111003122511.GA29982@shutemov.name> <4E89AA01.3000803@parallels.com> <20111003123620.GA30018@shutemov.name>
-In-Reply-To: <20111003123620.GA30018@shutemov.name>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, avagin@parallels.com
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 10/03/2011 04:36 PM, Kirill A. Shutemov wrote:
-> On Mon, Oct 03, 2011 at 04:26:41PM +0400, Glauber Costa wrote:
->> On 10/03/2011 04:25 PM, Kirill A. Shutemov wrote:
->>> On Mon, Oct 03, 2011 at 04:19:18PM +0400, Glauber Costa wrote:
->>>> On 10/03/2011 04:14 PM, Kirill A. Shutemov wrote:
->>>>> On Mon, Oct 03, 2011 at 02:18:42PM +0400, Glauber Costa wrote:
->>>>>> This patch introduces kmem.tcp_current_memory file, living in the
->>>>>> kmem_cgroup filesystem. It is a simple read-only file that displays the
->>>>>> amount of kernel memory currently consumed by the cgroup.
->>>>>>
->>>>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
->>>>>> CC: David S. Miller<davem@davemloft.net>
->>>>>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->>>>>> CC: Eric W. Biederman<ebiederm@xmission.com>
->>>>>> ---
->>>>>>     Documentation/cgroups/memory.txt |    1 +
->>>>>>     mm/memcontrol.c                  |   11 +++++++++++
->>>>>>     2 files changed, 12 insertions(+), 0 deletions(-)
->>>>>>
->>>>>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
->>>>>> index 1ffde3e..f5a539d 100644
->>>>>> --- a/Documentation/cgroups/memory.txt
->>>>>> +++ b/Documentation/cgroups/memory.txt
->>>>>> @@ -79,6 +79,7 @@ Brief summary of control files.
->>>>>>      memory.independent_kmem_limit	 # select whether or not kernel memory limits are
->>>>>>     				   independent of user limits
->>>>>>      memory.kmem.tcp.max_memory      # set/show hard limit for tcp buf memory
->>>>>> + memory.kmem.tcp.current_memory  # show current tcp buf memory allocation
->>>>>
->>>>> Both are in pages, right?
->>>>> Shouldn't it be scaled to bytes and named uniform with other memcg file?
->>>>> memory.kmem.tcp.limit_in_bytes/usage_in_bytes.
->>>>>
->>>> You are absolutely correct.
->>>> Since the internal tcp comparison works, I just ended up never noticing
->>>> this.
->>>
->>> Should we have failcnt and max_usage_in_bytes for tcp as well?
->>>
->>
->> Well, we get a fail count from the tracer anyway, so I don't really see
->> a need for that. I see value in having it for the slab allocation
->> itself, but since this only controls the memory pressure framework, I
->> think we can live without it.
->>
->> That said, this is not a strong opinion. I can add it if you'd prefer.
+On 09/20, Srikar Dronamraju wrote:
 >
-> It's good for userspace to have the same set of files for all domains:
->   - memory;
->   - memory.memsw;
->   - memory.kmem;
->   - memory.kmem.tcp;
->   - etc.
-> Userspace can reuse code for handling them in this case.
->
-Fine.
+> +static struct vma_info *__find_next_vma_info(struct list_head *head,
+> +			loff_t offset, struct address_space *mapping,
+> +			struct vma_info *vi)
+> +{
+> +	struct prio_tree_iter iter;
+> +	struct vm_area_struct *vma;
+> +	struct vma_info *tmpvi;
+> +	loff_t vaddr;
+> +	unsigned long pgoff = offset >> PAGE_SHIFT;
+> +	int existing_vma;
+> +
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> +		if (!vma || !valid_vma(vma))
+> +			return NULL;
+
+!vma is not possible.
+
+But I can't understand the !valid_vma(vma) check... We shouldn't return,
+we should ignore this vma and continue, no? Otherwise, I can't see how
+this can work if someone does, say, mmap(PROT_READ).
+
+> +		existing_vma = 0;
+> +		vaddr = vma->vm_start + offset;
+> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+> +		list_for_each_entry(tmpvi, head, probe_list) {
+> +			if (tmpvi->mm == vma->vm_mm && tmpvi->vaddr == vaddr) {
+> +				existing_vma = 1;
+> +				break;
+> +			}
+> +		}
+> +		if (!existing_vma &&
+> +				atomic_inc_not_zero(&vma->vm_mm->mm_users)) {
+
+This looks suspicious. If atomic_inc_not_zero() can fail, iow if we can
+see ->mm_users == 0, then why it is safe to touch this counter/memory?
+How we can know ->mm_count != 0 ?
+
+I _think_ this is probably correct, ->mm_users == 0 means we are racing
+mmput(), ->i_mmap_mutex and the fact we found this vma guarantees that
+mmput() can't pass unlink_file_vma() and thus mmdrop() is not possible.
+May be needs a comment...
+
+> +static struct vma_info *find_next_vma_info(struct list_head *head,
+> +			loff_t offset, struct address_space *mapping)
+> +{
+> +	struct vma_info *vi, *retvi;
+> +	vi = kzalloc(sizeof(struct vma_info), GFP_KERNEL);
+> +	if (!vi)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	INIT_LIST_HEAD(&vi->probe_list);
+
+Looks unneeded.
+
+> +	mutex_lock(&mapping->i_mmap_mutex);
+> +	retvi = __find_next_vma_info(head, offset, mapping, vi);
+> +	mutex_unlock(&mapping->i_mmap_mutex);
+
+It is not clear why we can't race with mmap() after find_next_vma_info()
+returns NULL. I guess this is solved by the next patches.
+
+> +static int __register_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe *uprobe)
+> +{
+> +	struct list_head try_list;
+> +	struct vm_area_struct *vma;
+> +	struct address_space *mapping;
+> +	struct vma_info *vi, *tmpvi;
+> +	struct mm_struct *mm;
+> +	int ret = 0;
+> +
+> +	mapping = inode->i_mapping;
+> +	INIT_LIST_HEAD(&try_list);
+> +	while ((vi = find_next_vma_info(&try_list, offset,
+> +							mapping)) != NULL) {
+> +		if (IS_ERR(vi)) {
+> +			ret = -ENOMEM;
+> +			break;
+> +		}
+> +		mm = vi->mm;
+> +		down_read(&mm->mmap_sem);
+> +		vma = find_vma(mm, (unsigned long) vi->vaddr);
+
+But we can't trust find_vma? The original vma found by find_next_vma_info()
+could go away, at least we should verify vi->vaddr >= vm_start.
+
+And worse, I do not understand how we can trust ->vaddr. Can't we race with
+sys_mremap() ?
+
+> +static void __unregister_uprobe(struct inode *inode, loff_t offset,
+> +						struct uprobe *uprobe)
+> +{
+> +	struct list_head try_list;
+> +	struct address_space *mapping;
+> +	struct vma_info *vi, *tmpvi;
+> +	struct vm_area_struct *vma;
+> +	struct mm_struct *mm;
+> +
+> +	mapping = inode->i_mapping;
+> +	INIT_LIST_HEAD(&try_list);
+> +	while ((vi = find_next_vma_info(&try_list, offset,
+> +							mapping)) != NULL) {
+> +		if (IS_ERR(vi))
+> +			break;
+> +		mm = vi->mm;
+> +		down_read(&mm->mmap_sem);
+> +		vma = find_vma(mm, (unsigned long) vi->vaddr);
+
+Same problems...
+
+> +		if (!vma || !valid_vma(vma)) {
+> +			list_del(&vi->probe_list);
+> +			kfree(vi);
+> +			up_read(&mm->mmap_sem);
+> +			mmput(mm);
+> +			continue;
+> +		}
+
+Not sure about !valid_vma() (and note that __find_next_vma_info does() this
+check too).
+
+Suppose that register_uprobe() succeeds. After that unregister_ should work
+even if user-space does mprotect() which can make valid_vma() == F, right?
+
+> +int register_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe_consumer *consumer)
+> +{
+> +	struct uprobe *uprobe;
+> +	int ret = 0;
+> +
+> +	inode = igrab(inode);
+> +	if (!inode || !consumer || consumer->next)
+> +		return -EINVAL;
+> +
+> +	if (offset > inode->i_size)
+> +		return -EINVAL;
+
+I guess this needs i_size_read().
+
+And every "return" in register/unregister leaks something.
+
+> +
+> +	mutex_lock(&inode->i_mutex);
+> +	uprobe = alloc_uprobe(inode, offset);
+
+Looks like, alloc_uprobe() doesn't need ->i_mutex.
+
+OTOH,
+
+> +void unregister_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe_consumer *consumer)
+> +{
+> +	struct uprobe *uprobe;
+> +
+> +	inode = igrab(inode);
+> +	if (!inode || !consumer)
+> +		return;
+> +
+> +	if (offset > inode->i_size)
+> +		return;
+> +
+> +	uprobe = find_uprobe(inode, offset);
+> +	if (!uprobe)
+> +		return;
+> +
+> +	if (!del_consumer(uprobe, consumer)) {
+> +		put_uprobe(uprobe);
+> +		return;
+> +	}
+> +
+> +	mutex_lock(&inode->i_mutex);
+> +	if (!uprobe->consumers)
+> +		__unregister_uprobe(inode, offset, uprobe);
+
+It seemes that del_consumer() should be done under ->i_mutex. If it
+removes the last consumer, we can race with register_uprobe() which
+takes ->i_mutex before us and does another __register_uprobe(), no?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
