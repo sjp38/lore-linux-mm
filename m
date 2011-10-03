@@ -1,132 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C94C9000F5
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 06:20:21 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 8/8] Disable task moving when using kernel memory accounting
-Date: Mon,  3 Oct 2011 14:18:43 +0400
-Message-Id: <1317637123-18306-9-git-send-email-glommer@parallels.com>
-In-Reply-To: <1317637123-18306-1-git-send-email-glommer@parallels.com>
-References: <1317637123-18306-1-git-send-email-glommer@parallels.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F4C9000F0
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 06:25:47 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 060843EE0B6
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:25:44 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DC1AA45DEB5
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:25:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D61045DEB4
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:25:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E2D51DB8037
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:25:43 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A90E1DB803C
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:25:43 +0900 (JST)
+Date: Mon, 3 Oct 2011 19:24:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: One comment on the __release_region in kernel/resource.c
+Message-Id: <20111003192458.14d198a3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
+References: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, Glauber Costa <glommer@parallels.com>
+To: Wei Yang <weiyang.kernel@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since this code is still experimental, we are leaving the exact
-details of how to move tasks between cgroups when kernel memory
-accounting is used as future work.
+On Sun, 2 Oct 2011 21:57:07 +0800
+Wei Yang <weiyang.kernel@gmail.com> wrote:
 
-For now, we simply disallow movement if there are any pending
-accounted memory.
+> Dear experts,
+> 
+> I am viewing the source code of __release_region() in kernel/resource.c.
+> And I have one comment for the performance issue.
+> 
+> For example, we have a resource tree like this.
+> 10-89
+>    20-79
+>        30-49
+>        55-59
+>        60-64
+>        65-69
+>    80-89
+> 100-279
+> 
+> If the caller wants to release a region of [50,59], the original code will
+> execute four times in the for loop in the subtree of 20-79.
+> 
+> After changing the code below, it will execute two times instead.
+> 
+> By using the "git annotate", I see this code is committed by Linus as the
+> initial version. So don't get more information about why this code is
+> written
+> in this way.
+> 
+> Maybe the case I thought will not happen in the real world?
+> 
+> Your comment is warmly welcome. :)
+> 
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index 8461aea..81525b4 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -931,7 +931,7 @@ void __release_region(struct resource *parent,
+> resource_size_t start,
+>        for (;;) {
+>                struct resource *res = *p;
+> 
+> -               if (!res)
+> +               if (!res || res->start > start)
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/net/tcp.h |    1 +
- mm/memcontrol.c   |   37 ++++++++++++++++++++++---------------
- 2 files changed, 23 insertions(+), 15 deletions(-)
+Hmm ?
+	res->start > end ?
 
-diff --git a/include/net/tcp.h b/include/net/tcp.h
-index 2606713..b47a8e9 100644
---- a/include/net/tcp.h
-+++ b/include/net/tcp.h
-@@ -257,6 +257,7 @@ struct mem_cgroup;
- struct tcp_memcontrol {
- 	/* per-cgroup tcp memory pressure knobs */
- 	int tcp_max_memory;
-+	atomic_t refcnt;
- 	atomic_long_t tcp_memory_allocated;
- 	struct percpu_counter tcp_sockets_allocated;
- 	/* those two are read-mostly, leave them at the end */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3b38d0a..66740d3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -366,28 +366,17 @@ void sock_update_memcg(struct sock *sk)
- 
- 	rcu_read_lock();
- 	sk->sk_cgrp = mem_cgroup_from_task(current);
--
--	/*
--	 * We don't need to protect against anything task-related, because
--	 * we are basically stuck with the sock pointer that won't change,
--	 * even if the task that originated the socket changes cgroups.
--	 *
--	 * What we do have to guarantee, is that the chain leading us to
--	 * the top level won't change under our noses. Incrementing the
--	 * reference count via cgroup_exclude_rmdir guarantees that.
--	 */
--	cgroup_exclude_rmdir(mem_cgroup_css(sk->sk_cgrp));
- 	rcu_read_unlock();
- }
- 
- void sock_release_memcg(struct sock *sk)
- {
--	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(sk->sk_cgrp));
- }
- 
- void memcg_sock_mem_alloc(struct mem_cgroup *mem, struct proto *prot,
- 			  int amt, int *parent_failure)
- {
-+	atomic_inc(&mem->tcp.refcnt);
- 	mem = parent_mem_cgroup(mem);
- 	for (; mem != NULL; mem = parent_mem_cgroup(mem)) {
- 		long alloc;
-@@ -406,9 +395,12 @@ EXPORT_SYMBOL(memcg_sock_mem_alloc);
- 
- void memcg_sock_mem_free(struct mem_cgroup *mem, struct proto *prot, int amt)
- {
--	mem = parent_mem_cgroup(mem);
--	for (; mem != NULL; mem = parent_mem_cgroup(mem))
--		atomic_long_sub(amt, prot->memory_allocated(mem));
-+	struct mem_cgroup *parent;
-+	parent = parent_mem_cgroup(mem);
-+	for (; parent != NULL; parent = parent_mem_cgroup(parent))
-+		atomic_long_sub(amt, prot->memory_allocated(parent));
-+
-+	atomic_dec(&mem->tcp.refcnt);
- }
- EXPORT_SYMBOL(memcg_sock_mem_free);
- 
-@@ -519,6 +511,7 @@ static void tcp_create_cgroup(struct mem_cgroup *cg, struct cgroup_subsys *ss)
- {
- 	cg->tcp.tcp_memory_pressure = 0;
- 	atomic_long_set(&cg->tcp.tcp_memory_allocated, 0);
-+	atomic_set(&cg->tcp.refcnt, 0);
- 	percpu_counter_init(&cg->tcp.tcp_sockets_allocated, 0);
- }
- 
-@@ -5778,6 +5771,12 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
- 	int ret = 0;
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
- 
-+	if (atomic_read(&mem->tcp.refcnt)) {
-+		printk(KERN_WARNING "Can't move tasks between cgroups: "
-+			"Kernel memory held. task: %s\n", p->comm);
-+		return 1;
-+	}
-+
- 	if (mem->move_charge_at_immigrate) {
- 		struct mm_struct *mm;
- 		struct mem_cgroup *from = mem_cgroup_from_task(p);
-@@ -5948,6 +5947,14 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
- 				struct cgroup *cgroup,
- 				struct task_struct *p)
- {
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
-+
-+	if (atomic_read(&mem->tcp.refcnt)) {
-+		printk(KERN_WARNING "Can't move tasks between cgroups: "
-+			"Kernel memory held. task: %s\n", p->comm);
-+		return 1;
-+	}
-+
- 	return 0;
- }
- static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
--- 
-1.7.6
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
