@@ -1,203 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE019000C6
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 08:51:54 -0400 (EDT)
-Date: Mon, 3 Oct 2011 14:46:40 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 3/26]   Uprobes: register/unregister
-	probes.
-Message-ID: <20111003124640.GA25811@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 41CDF9000C6
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 09:30:42 -0400 (EDT)
+Received: by vcbfo14 with SMTP id fo14so3803957vcb.14
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2011 06:30:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
+In-Reply-To: <20111003192458.14d198a3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
+	<20111003192458.14d198a3.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 3 Oct 2011 21:30:06 +0800
+Message-ID: <CADLM8XOaWOd9EaOg-xaepc2JsLgwxuo0BTZg6gfHpCEfwKhTng@mail.gmail.com>
+Subject: Re: One comment on the __release_region in kernel/resource.c
+From: Wei Yang <weiyang.kernel@gmail.com>
+Content-Type: multipart/alternative; boundary=bcaec519638f1b424704ae64f944
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/20, Srikar Dronamraju wrote:
+--bcaec519638f1b424704ae64f944
+Content-Type: text/plain; charset=ISO-8859-1
+
+2011/10/3 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+> On Sun, 2 Oct 2011 21:57:07 +0800
+> Wei Yang <weiyang.kernel@gmail.com> wrote:
 >
-> +static struct vma_info *__find_next_vma_info(struct list_head *head,
-> +			loff_t offset, struct address_space *mapping,
-> +			struct vma_info *vi)
-> +{
-> +	struct prio_tree_iter iter;
-> +	struct vm_area_struct *vma;
-> +	struct vma_info *tmpvi;
-> +	loff_t vaddr;
-> +	unsigned long pgoff = offset >> PAGE_SHIFT;
-> +	int existing_vma;
-> +
-> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-> +		if (!vma || !valid_vma(vma))
-> +			return NULL;
+> > Dear experts,
+> >
+> > I am viewing the source code of __release_region() in kernel/resource.c.
+> > And I have one comment for the performance issue.
+> >
+> > For example, we have a resource tree like this.
+> > 10-89
+> >    20-79
+> >        30-49
+> >        55-59
+> >        60-64
+> >        65-69
+> >    80-89
+> > 100-279
+> >
+> > If the caller wants to release a region of [50,59], the original code
+> will
+> > execute four times in the for loop in the subtree of 20-79.
+> >
+> > After changing the code below, it will execute two times instead.
+> >
+> > By using the "git annotate", I see this code is committed by Linus as the
+> > initial version. So don't get more information about why this code is
+> > written
+> > in this way.
+> >
+> > Maybe the case I thought will not happen in the real world?
+> >
+> > Your comment is warmly welcome. :)
+> >
+> > diff --git a/kernel/resource.c b/kernel/resource.c
+> > index 8461aea..81525b4 100644
+> > --- a/kernel/resource.c
+> > +++ b/kernel/resource.c
+> > @@ -931,7 +931,7 @@ void __release_region(struct resource *parent,
+> > resource_size_t start,
+> >        for (;;) {
+> >                struct resource *res = *p;
+> >
+> > -               if (!res)
+> > +               if (!res || res->start > start)
+>
+> Hmm ?
+>        res->start > end ?
+>
+>  I think res->start > start is fine.
+__release_region will release the exact the region, no overlap.
+So if res->start > start, this means there is no exact region to release.
+The required to release region doesn't exist.
 
-!vma is not possible.
 
-But I can't understand the !valid_vma(vma) check... We shouldn't return,
-we should ignore this vma and continue, no? Otherwise, I can't see how
-this can work if someone does, say, mmap(PROT_READ).
+> Thanks,
+> -Kame
+>
+>
 
-> +		existing_vma = 0;
-> +		vaddr = vma->vm_start + offset;
-> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-> +		list_for_each_entry(tmpvi, head, probe_list) {
-> +			if (tmpvi->mm == vma->vm_mm && tmpvi->vaddr == vaddr) {
-> +				existing_vma = 1;
-> +				break;
-> +			}
-> +		}
-> +		if (!existing_vma &&
-> +				atomic_inc_not_zero(&vma->vm_mm->mm_users)) {
 
-This looks suspicious. If atomic_inc_not_zero() can fail, iow if we can
-see ->mm_users == 0, then why it is safe to touch this counter/memory?
-How we can know ->mm_count != 0 ?
+-- 
+Wei Yang
+Help You, Help Me
 
-I _think_ this is probably correct, ->mm_users == 0 means we are racing
-mmput(), ->i_mmap_mutex and the fact we found this vma guarantees that
-mmput() can't pass unlink_file_vma() and thus mmdrop() is not possible.
-May be needs a comment...
+--bcaec519638f1b424704ae64f944
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> +static struct vma_info *find_next_vma_info(struct list_head *head,
-> +			loff_t offset, struct address_space *mapping)
-> +{
-> +	struct vma_info *vi, *retvi;
-> +	vi = kzalloc(sizeof(struct vma_info), GFP_KERNEL);
-> +	if (!vi)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	INIT_LIST_HEAD(&vi->probe_list);
+<br><br><div class=3D"gmail_quote">2011/10/3 KAMEZAWA Hiroyuki <span dir=3D=
+"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujitsu.com" target=3D"_blan=
+k">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span><br><blockquote class=3D"gm=
+ail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(2=
+04, 204, 204); padding-left: 1ex;">
 
-Looks unneeded.
+<div><div></div><div>On Sun, 2 Oct 2011 21:57:07 +0800<br>
+Wei Yang &lt;<a href=3D"mailto:weiyang.kernel@gmail.com" target=3D"_blank">=
+weiyang.kernel@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; Dear experts,<br>
+&gt;<br>
+&gt; I am viewing the source code of __release_region() in kernel/resource.=
+c.<br>
+&gt; And I have one comment for the performance issue.<br>
+&gt;<br>
+&gt; For example, we have a resource tree like this.<br>
+&gt; 10-89<br>
+&gt; =A0 =A020-79<br>
+&gt; =A0 =A0 =A0 =A030-49<br>
+&gt; =A0 =A0 =A0 =A055-59<br>
+&gt; =A0 =A0 =A0 =A060-64<br>
+&gt; =A0 =A0 =A0 =A065-69<br>
+&gt; =A0 =A080-89<br>
+&gt; 100-279<br>
+&gt;<br>
+&gt; If the caller wants to release a region of [50,59], the original code =
+will<br>
+&gt; execute four times in the for loop in the subtree of 20-79.<br>
+&gt;<br>
+&gt; After changing the code below, it will execute two times instead.<br>
+&gt;<br>
+&gt; By using the &quot;git annotate&quot;, I see this code is committed by=
+ Linus as the<br>
+&gt; initial version. So don&#39;t get more information about why this code=
+ is<br>
+&gt; written<br>
+&gt; in this way.<br>
+&gt;<br>
+&gt; Maybe the case I thought will not happen in the real world?<br>
+&gt;<br>
+&gt; Your comment is warmly welcome. :)<br>
+&gt;<br>
+&gt; diff --git a/kernel/resource.c b/kernel/resource.c<br>
+&gt; index 8461aea..81525b4 100644<br>
+&gt; --- a/kernel/resource.c<br>
+&gt; +++ b/kernel/resource.c<br>
+&gt; @@ -931,7 +931,7 @@ void __release_region(struct resource *parent,<br>
+&gt; resource_size_t start,<br>
+&gt; =A0 =A0 =A0 =A0for (;;) {<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct resource *res =3D *p;<br>
+&gt;<br>
+&gt; - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res)<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!res || res-&gt;start &gt; start)<br=
+>
+<br>
+</div></div>Hmm ?<br>
+ =A0 =A0 =A0 =A0res-&gt;start &gt; end ?<br>
+<br></blockquote><div>=A0I think res-&gt;start &gt; start is fine. <br>__re=
+lease_region will release the exact the region, no overlap.<br>So if res-&g=
+t;start &gt; start, this means there is no exact region to release.<br>The =
+required to release region doesn&#39;t exist.<br>
+<br></div><blockquote class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.=
+8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+<br>
+Thanks,<br>
+-Kame<br>
+<br>
+</blockquote></div><br><br clear=3D"all"><br>-- <br>Wei Yang<br>Help You, H=
+elp Me<br><br>
 
-> +	mutex_lock(&mapping->i_mmap_mutex);
-> +	retvi = __find_next_vma_info(head, offset, mapping, vi);
-> +	mutex_unlock(&mapping->i_mmap_mutex);
-
-It is not clear why we can't race with mmap() after find_next_vma_info()
-returns NULL. I guess this is solved by the next patches.
-
-> +static int __register_uprobe(struct inode *inode, loff_t offset,
-> +				struct uprobe *uprobe)
-> +{
-> +	struct list_head try_list;
-> +	struct vm_area_struct *vma;
-> +	struct address_space *mapping;
-> +	struct vma_info *vi, *tmpvi;
-> +	struct mm_struct *mm;
-> +	int ret = 0;
-> +
-> +	mapping = inode->i_mapping;
-> +	INIT_LIST_HEAD(&try_list);
-> +	while ((vi = find_next_vma_info(&try_list, offset,
-> +							mapping)) != NULL) {
-> +		if (IS_ERR(vi)) {
-> +			ret = -ENOMEM;
-> +			break;
-> +		}
-> +		mm = vi->mm;
-> +		down_read(&mm->mmap_sem);
-> +		vma = find_vma(mm, (unsigned long) vi->vaddr);
-
-But we can't trust find_vma? The original vma found by find_next_vma_info()
-could go away, at least we should verify vi->vaddr >= vm_start.
-
-And worse, I do not understand how we can trust ->vaddr. Can't we race with
-sys_mremap() ?
-
-> +static void __unregister_uprobe(struct inode *inode, loff_t offset,
-> +						struct uprobe *uprobe)
-> +{
-> +	struct list_head try_list;
-> +	struct address_space *mapping;
-> +	struct vma_info *vi, *tmpvi;
-> +	struct vm_area_struct *vma;
-> +	struct mm_struct *mm;
-> +
-> +	mapping = inode->i_mapping;
-> +	INIT_LIST_HEAD(&try_list);
-> +	while ((vi = find_next_vma_info(&try_list, offset,
-> +							mapping)) != NULL) {
-> +		if (IS_ERR(vi))
-> +			break;
-> +		mm = vi->mm;
-> +		down_read(&mm->mmap_sem);
-> +		vma = find_vma(mm, (unsigned long) vi->vaddr);
-
-Same problems...
-
-> +		if (!vma || !valid_vma(vma)) {
-> +			list_del(&vi->probe_list);
-> +			kfree(vi);
-> +			up_read(&mm->mmap_sem);
-> +			mmput(mm);
-> +			continue;
-> +		}
-
-Not sure about !valid_vma() (and note that __find_next_vma_info does() this
-check too).
-
-Suppose that register_uprobe() succeeds. After that unregister_ should work
-even if user-space does mprotect() which can make valid_vma() == F, right?
-
-> +int register_uprobe(struct inode *inode, loff_t offset,
-> +				struct uprobe_consumer *consumer)
-> +{
-> +	struct uprobe *uprobe;
-> +	int ret = 0;
-> +
-> +	inode = igrab(inode);
-> +	if (!inode || !consumer || consumer->next)
-> +		return -EINVAL;
-> +
-> +	if (offset > inode->i_size)
-> +		return -EINVAL;
-
-I guess this needs i_size_read().
-
-And every "return" in register/unregister leaks something.
-
-> +
-> +	mutex_lock(&inode->i_mutex);
-> +	uprobe = alloc_uprobe(inode, offset);
-
-Looks like, alloc_uprobe() doesn't need ->i_mutex.
-
-OTOH,
-
-> +void unregister_uprobe(struct inode *inode, loff_t offset,
-> +				struct uprobe_consumer *consumer)
-> +{
-> +	struct uprobe *uprobe;
-> +
-> +	inode = igrab(inode);
-> +	if (!inode || !consumer)
-> +		return;
-> +
-> +	if (offset > inode->i_size)
-> +		return;
-> +
-> +	uprobe = find_uprobe(inode, offset);
-> +	if (!uprobe)
-> +		return;
-> +
-> +	if (!del_consumer(uprobe, consumer)) {
-> +		put_uprobe(uprobe);
-> +		return;
-> +	}
-> +
-> +	mutex_lock(&inode->i_mutex);
-> +	if (!uprobe->consumers)
-> +		__unregister_uprobe(inode, offset, uprobe);
-
-It seemes that del_consumer() should be done under ->i_mutex. If it
-removes the last consumer, we can race with register_uprobe() which
-takes ->i_mutex before us and does another __register_uprobe(), no?
-
-Oleg.
+--bcaec519638f1b424704ae64f944--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
