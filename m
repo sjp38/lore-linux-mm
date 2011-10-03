@@ -1,30 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C335C9000DF
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 11:21:22 -0400 (EDT)
-Date: Mon, 3 Oct 2011 10:21:18 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: RE: [PATCH] slub Discard slab page only when node partials > minimum
- setting
-In-Reply-To: <6E3BC7F7C9A4BF4286DD4C043110F30B5FD97584A3@shsmsx502.ccr.corp.intel.com>
-Message-ID: <alpine.DEB.2.00.1110031020450.11713@router.home>
-References: <1315188460.31737.5.camel@debian>  <alpine.DEB.2.00.1109061914440.18646@router.home>  <1315357399.31737.49.camel@debian>  <alpine.DEB.2.00.1109062022100.20474@router.home>  <4E671E5C.7010405@cs.helsinki.fi>
- <6E3BC7F7C9A4BF4286DD4C043110F30B5D00DA333C@shsmsx502.ccr.corp.intel.com>  <alpine.DEB.2.00.1109071003240.9406@router.home>  <1315442639.31737.224.camel@debian>  <alpine.DEB.2.00.1109081336320.14787@router.home>  <1315557944.31737.782.camel@debian>
- <1315902583.31737.848.camel@debian>  <CALmdxiMuF6Q0W4ZdvhK5c4fQs8wUjcVGWYGWBjJi7WOfLYX=Gw@mail.gmail.com>  <1316050363.8425.483.camel@debian>  <CALmdxiMrDNDvhAmi88-0-1KBdyTwExZPy3Fh9_5TxB+XhK7vjw@mail.gmail.com>  <1316052031.8425.491.camel@debian>
- <1316765880.4188.34.camel@debian>  <alpine.DEB.2.00.1109231500580.15559@router.home> <1317290032.4188.1223.camel@debian> <alpine.DEB.2.00.1109290927590.9848@router.home> <6E3BC7F7C9A4BF4286DD4C043110F30B5FD97584A3@shsmsx502.ccr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ABB59000DF
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 11:59:28 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p93FNel6007340
+	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 11:23:40 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p93FxLWW223958
+	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 11:59:21 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p93FxKLZ027615
+	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 11:59:21 -0400
+Subject: RE: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <863f8de5-a8e5-427d-a329-e69a5402f88a@default>
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	 <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
+	 <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
+	 <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
+	 <4E72284B.2040907@linux.vnet.ibm.com>
+	 <075c4e4c-a22d-47d1-ae98-31839df6e722@default 4E725109.3010609@linux.vnet.ibm.com>
+	 <863f8de5-a8e5-427d-a329-e69a5402f88a@default>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 03 Oct 2011 08:59:16 -0700
+Message-ID: <1317657556.16137.696.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Alex" <alex.shi@intel.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>, Andi Kleen <ak@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On Sun, 2 Oct 2011, Shi, Alex wrote:
+Hi Dan/Nitin,
 
-> >From my viewpoint, the patch is still helpful on server machines, while no clear
-> regression finding on desktop machine. So it useful.
+I've been reading through Seth's patches a bit and looking over the
+locking in general.  I'm wondering why preempt_disable() is used so
+heavily.  Preempt seems to be disabled for virtually all of zcache's
+operations.  It seems a bit unorthodox, and I guess I'm anticipating the
+future screams of the low-latency folks. :)
 
-Ok. We still have a few weeks it seems before the next merge phase.
+I think long-term it will hurt zcache's ability to move in to other
+code.  Right now, it's pretty limited to being used in conjunction with
+memory reclaim called from kswapd.  Seems like something we ought to add
+to the TODO list before it escapes from staging/.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
