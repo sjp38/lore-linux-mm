@@ -1,156 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 75AE99000C6
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 09:35:19 -0400 (EDT)
-Received: by qyl38 with SMTP id 38so2231485qyl.14
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2011 06:35:17 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 11F2D9000C6
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 09:42:08 -0400 (EDT)
+Date: Mon, 3 Oct 2011 15:37:10 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 4/26]   uprobes: Define hooks for
+	mmap/munmap.
+Message-ID: <20111003133710.GA28118@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMuHMdVuMHjbDkAdrkfTS-ZaYCwN-avihsQyDsOAVFt+PdWqYw@mail.gmail.com>
-References: <CADLM8XNiaxLFRZXs4NKJmoORvED-DV0bNxPF6eHsfnLqtxw09w@mail.gmail.com>
-	<20111003192458.14d198a3.kamezawa.hiroyu@jp.fujitsu.com>
-	<CAMuHMdVuMHjbDkAdrkfTS-ZaYCwN-avihsQyDsOAVFt+PdWqYw@mail.gmail.com>
-Date: Mon, 3 Oct 2011 21:35:17 +0800
-Message-ID: <CADLM8XP09kFhxjMYbxD80+4cS00cm2aWZE1Zvjoby0Afrdz9eQ@mail.gmail.com>
-Subject: Re: One comment on the __release_region in kernel/resource.c
-From: Wei Yang <weiyang.kernel@gmail.com>
-Content-Type: multipart/alternative; boundary=bcaec5395f1ea7319d04ae650b0c
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
---bcaec5395f1ea7319d04ae650b0c
-Content-Type: text/plain; charset=ISO-8859-1
-
-2011/10/3 Geert Uytterhoeven <geert@linux-m68k.org>
-
-> On Mon, Oct 3, 2011 at 12:24, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Sun, 2 Oct 2011 21:57:07 +0800
-> > Wei Yang <weiyang.kernel@gmail.com> wrote:
-> >
-> >> Dear experts,
-> >>
-> >> I am viewing the source code of __release_region() in kernel/resource.c.
-> >> And I have one comment for the performance issue.
-> >>
-> >> For example, we have a resource tree like this.
-> >> 10-89
-> >>    20-79
-> >>        30-49
-> >>        55-59
-> >>        60-64
-> >>        65-69
-> >>    80-89
-> >> 100-279
-> >>
-> >> If the caller wants to release a region of [50,59], the original code
-> will
->                                               ^^^^^^^
-> Do you really mean [50,59]?
+On 09/20, Srikar Dronamraju wrote:
 >
-Yes.
+> @@ -739,6 +740,10 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  	mm->pmd_huge_pte = NULL;
+>  #endif
+> +#ifdef CONFIG_UPROBES
+> +	atomic_set(&mm->mm_uprobes_count,
+> +			atomic_read(&oldmm->mm_uprobes_count));
 
-> I don't think that's allowed, as the tree has [55,59], so you would release
-> a
-> larger region that allocated.
+Hmm. Why this can't race with install_breakpoint/remove_breakpoint
+between _read and _set ?
+
+What about VM_DONTCOPY vma's with breakpoints ?
+
+> -static int match_uprobe(struct uprobe *l, struct uprobe *r)
+> +static int match_uprobe(struct uprobe *l, struct uprobe *r, int *match_inode)
+>  {
+> +	/*
+> +	 * if match_inode is non NULL then indicate if the
+> +	 * inode atleast match.
+> +	 */
+> +	if (match_inode)
+> +		*match_inode = 0;
+> +
+>  	if (l->inode < r->inode)
+>  		return -1;
+>  	if (l->inode > r->inode)
+>  		return 1;
+>  	else {
+> +		if (match_inode)
+> +			*match_inode = 1;
+> +
+
+It is very possible I missed something, but imho this looks confusing.
+
+This close_match logic is only needed for build_probe_list() and
+dec_mm_uprobes_count(), and both do not actually need the returned
+uprobe.
+
+Instead of complicating match_uprobe() and __find_uprobe(), perhaps
+it makes sense to add "struct rb_node *__find_close_rb_node(inode)" ?
+
+> +static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
+>  {
+>  	/* Placeholder: Yet to be implemented */
+> +	if (!uprobe->consumers)
+> +		return 0;
+
+How it is possible to see ->consumers == NULL?
+
+OK, afaics it _is_ possible, but only because unregister does del_consumer()
+without ->i_mutex, but this is bug afaics (see the previous email).
+
+Another user is mmap_uprobe() and it checks ->consumers != NULL itself (but
+see below).
+
+> +int mmap_uprobe(struct vm_area_struct *vma)
+> +{
+> +	struct list_head tmp_list;
+> +	struct uprobe *uprobe, *u;
+> +	struct inode *inode;
+> +	int ret = 0;
+> +
+> +	if (!valid_vma(vma))
+> +		return ret;	/* Bail-out */
+> +
+> +	inode = igrab(vma->vm_file->f_mapping->host);
+> +	if (!inode)
+> +		return ret;
+> +
+> +	INIT_LIST_HEAD(&tmp_list);
+> +	mutex_lock(&uprobes_mmap_mutex);
+> +	build_probe_list(inode, &tmp_list);
+> +	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
+> +		loff_t vaddr;
+> +
+> +		list_del(&uprobe->pending_list);
+> +		if (!ret && uprobe->consumers) {
+> +			vaddr = vma->vm_start + uprobe->offset;
+> +			vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+> +			if (vaddr < vma->vm_start || vaddr >= vma->vm_end)
+> +				continue;
+> +			ret = install_breakpoint(vma->vm_mm, uprobe);
+
+So. We are adding the new mapping, we should find all breakpoints this
+file has in the start/end range.
+
+We are holding ->mmap_sem... this seems enough to protect against the
+races with register/unregister. Except, what if __register_uprobe()
+fails? In this case __unregister_uprobe() does delete_uprobe() at the
+very end. What if mmap mmap_uprobe() is called right before delete_?
+
+> +static void dec_mm_uprobes_count(struct vm_area_struct *vma,
+> +		struct inode *inode)
+> +{
+> +	struct uprobe *uprobe;
+> +	struct rb_node *n;
+> +	unsigned long flags;
+> +
+> +	n = uprobes_tree.rb_node;
+> +	spin_lock_irqsave(&uprobes_treelock, flags);
+> +	uprobe = __find_uprobe(inode, 0, &n);
+> +
+> +	/*
+> +	 * If indeed there is a probe for the inode and with offset zero,
+> +	 * then lets release its reference. (ref got thro __find_uprobe)
+> +	 */
+> +	if (uprobe)
+> +		put_uprobe(uprobe);
+> +	for (; n; n = rb_next(n)) {
+> +		loff_t vaddr;
+> +
+> +		uprobe = rb_entry(n, struct uprobe, rb_node);
+> +		if (uprobe->inode != inode)
+> +			break;
+> +		vaddr = vma->vm_start + uprobe->offset;
+> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+> +		if (vaddr < vma->vm_start || vaddr >= vma->vm_end)
+> +			continue;
+> +		atomic_dec(&vma->vm_mm->mm_uprobes_count);
+
+So, this does atomic_dec() for each bp in this vma?
+
+And the caller is
+
+> @@ -1337,6 +1338,9 @@ unsigned long unmap_vmas(struct mmu_gather *tlb,
+>  		if (unlikely(is_pfn_mapping(vma)))
+>  			untrack_pfn_vma(vma, 0, 0);
 >
-So you mean the case I mentioned will not happen?
-Actually, I believe every developer should pass the resource region which
-has been allocated.
-While if some one made a mistake and pass a region which is not allocated
-before and overlap
-some "BUSY" region?
+> +		if (vma->vm_file)
+> +			munmap_uprobe(vma);
 
+Doesn't look right...
 
->
-> Gr{oetje,eeting}s,
->
->                         Geert
->
-> --
-> Geert Uytterhoeven -- There's lots of Linux beyond ia32 --
-> geert@linux-m68k.org
->
-> In personal conversations with technical people, I call myself a hacker.
-> But
-> when I'm talking to journalists I just say "programmer" or something like
-> that.
->                                 -- Linus Torvalds
->
+munmap_uprobe() assumes that the whole region goes away. This is
+true in munmap() case afaics, it does __split_vma() if necessary.
 
+But what about truncate() ? In this case this vma is not unmapped,
+but unmap_vmas() is called anyway and [start, end) can be different.
+IOW, unless I missed something (this is very possible) we can do
+more atomic_dec's then needed.
 
+Also, truncate() obviously changes ->i_size. Doesn't this mean
+unregister_uprobe() should return if offset > i_size ? We need to
+free uprobes anyway.
 
--- 
-Wei Yang
-Help You, Help Me
+MADV_DONTNEED? It calls unmap_vmas() too. And application can do
+madvise(DONTNEED) in a loop.
 
---bcaec5395f1ea7319d04ae650b0c
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">2011/10/3 Geert Uytterhoeven <span dir=
-=3D"ltr">&lt;<a href=3D"mailto:geert@linux-m68k.org">geert@linux-m68k.org</=
-a>&gt;</span><br><blockquote class=3D"gmail_quote" style=3D"margin: 0pt 0pt=
- 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
-<div class=3D"im">On Mon, Oct 3, 2011 at 12:24, KAMEZAWA Hiroyuki<br>
-&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujitsu.com">kamezawa.hiroyu@jp.fu=
-jitsu.com</a>&gt; wrote:<br>
-&gt; On Sun, 2 Oct 2011 21:57:07 +0800<br>
-&gt; Wei Yang &lt;<a href=3D"mailto:weiyang.kernel@gmail.com">weiyang.kerne=
-l@gmail.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt;&gt; Dear experts,<br>
-&gt;&gt;<br>
-&gt;&gt; I am viewing the source code of __release_region() in kernel/resou=
-rce.c.<br>
-&gt;&gt; And I have one comment for the performance issue.<br>
-&gt;&gt;<br>
-&gt;&gt; For example, we have a resource tree like this.<br>
-&gt;&gt; 10-89<br>
-&gt;&gt; =A0 =A020-79<br>
-&gt;&gt; =A0 =A0 =A0 =A030-49<br>
-&gt;&gt; =A0 =A0 =A0 =A055-59<br>
-&gt;&gt; =A0 =A0 =A0 =A060-64<br>
-&gt;&gt; =A0 =A0 =A0 =A065-69<br>
-&gt;&gt; =A0 =A080-89<br>
-&gt;&gt; 100-279<br>
-&gt;&gt;<br>
-&gt;&gt; If the caller wants to release a region of [50,59], the original c=
-ode will<br>
-</div> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0^^^^^^^<br>
-Do you really mean [50,59]?<br></blockquote><div>Yes. <br></div><blockquote=
- class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left: 1px=
- solid rgb(204, 204, 204); padding-left: 1ex;">
-I don&#39;t think that&#39;s allowed, as the tree has [55,59], so you would=
- release a<br>
-larger region that allocated.<br></blockquote><div>So you mean the case I m=
-entioned will not happen?<br>Actually, I believe every developer should pas=
-s the resource region which has been allocated.<br>While if some one made a=
- mistake and pass a region which is not allocated before and overlap <br>
-some &quot;BUSY&quot; region?<br>=A0 <br></div><blockquote class=3D"gmail_q=
-uote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 2=
-04, 204); padding-left: 1ex;">
-<br>
-Gr{oetje,eeting}s,<br>
-<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 Geert<br>
-<font color=3D"#888888"><br>
---<br>
-Geert Uytterhoeven -- There&#39;s lots of Linux beyond ia32 -- <a href=3D"m=
-ailto:geert@linux-m68k.org">geert@linux-m68k.org</a><br>
-<br>
-In personal conversations with technical people, I call myself a hacker. Bu=
-t<br>
-when I&#39;m talking to journalists I just say &quot;programmer&quot; or so=
-mething like that.<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=A0 =A0=A0 -- Linus =
-Torvalds<br>
-</font></blockquote></div><br><br clear=3D"all"><br>-- <br>Wei Yang<br>Help=
- You, Help Me<br><br>
-
---bcaec5395f1ea7319d04ae650b0c--
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
