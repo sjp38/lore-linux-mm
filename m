@@ -1,88 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 02D9E9000BD
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 06:05:12 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B16C63EE0BC
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 96BE345DE5F
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 747D845DE5D
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 629521DB804C
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D4731DB803A
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
-Date: Mon, 3 Oct 2011 19:04:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 00/10] memcg naturalization -rc4
-Message-Id: <20111003190411.2c8c6b29.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110930093231.GE30857@redhat.com>
-References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
-	<20110930170510.4695b8f0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110930093231.GE30857@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4259000BD
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 06:20:08 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v4 2/8] socket: initial cgroup code.
+Date: Mon,  3 Oct 2011 14:18:37 +0400
+Message-Id: <1317637123-18306-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1317637123-18306-1-git-send-email-glommer@parallels.com>
+References: <1317637123-18306-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, Glauber Costa <glommer@parallels.com>
 
-On Fri, 30 Sep 2011 11:32:31 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
+We aim to control the amount of kernel memory pinned at any
+time by tcp sockets. To lay the foundations for this work,
+this patch adds a pointer to the kmem_cgroup to the socket
+structure.
 
-> On Fri, Sep 30, 2011 at 05:05:10PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 29 Sep 2011 23:00:54 +0200
-> > Thank you for your work. Now, I'm ok this series to be tested in -mm.
-> > Ack. to all.
-> 
-> Thanks!
-> 
-> > Do you have any plan, concerns ?
-> 
-> I would really like to get them into 3.2.  While it's quite intrusive,
-> I stress-tested various scenarios for quite some time - tests that
-> revealed more bugs in the existing memcg code than in my changes - so
-> I don't expect too big surprises.  AFAICS, Google uses these patches
-> internally already and their bug reports early on also helped iron out
-> the most obvious problems.
-> 
-> What I am concerned about is the scalability on setups with thousands
-> of tiny memcgs that go into global reclaim, as this would try to scan
-> pages from all existing memcgs.  There is a mitigating factor in that
-> concurrent reclaimers divide the memcgs to scan among themselves (the
-> shared mem_cgroup_reclaim_iter), and with hundreds or thousands of
-> memcgs, I expect several threads to go into reclaim upon global memory
-> pressure at the same time in the common case.  I don't have the means
-> to test this and I also don't know if such setups exist or are within
-> the realm of sanity that we would like to support, anyway. 
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: David S. Miller <davem@davemloft.net>
+CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Eric W. Biederman <ebiederm@xmission.com>
+---
+ include/linux/memcontrol.h |   15 +++++++++++++++
+ include/net/sock.h         |    2 ++
+ mm/memcontrol.c            |   33 +++++++++++++++++++++++++++++++++
+ net/core/sock.c            |    3 +++
+ 4 files changed, 53 insertions(+), 0 deletions(-)
 
-As far as I hear, some users use hundreds of memcg in a host.
-
-> If this
-> shows up, I think the fix would be as easy as bailing out early from
-> the hierarchy walk, but I would like to cross that bridge when we come
-> to it.
-> 
-> Other than that, I see no reason to hold it off.  Traditional reclaim
-> without memcgs except root_mem_cgroup - what most people care about -
-> is mostly unaffected.  There is a real interest in the series, and
-> maintaining it out-of-tree is a major pain and quite error prone.
-> 
-> What do you think?
-> 
-
-I think this should be merged/tested as soon as possible because this patch
-must be a base for memcg patches which are now being developped.
-
-
-Thanks,
--Kame
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3b535db..2cb9226 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -395,5 +395,20 @@ mem_cgroup_print_bad_page(struct page *page)
+ }
+ #endif
+ 
++#ifdef CONFIG_INET
++struct sock;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++void sock_update_memcg(struct sock *sk);
++void sock_release_memcg(struct sock *sk);
++
++#else
++static inline void sock_update_memcg(struct sock *sk)
++{
++}
++static inline void sock_release_memcg(struct sock *sk)
++{
++}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++#endif /* CONFIG_INET */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 8e4062f..afe1467 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -228,6 +228,7 @@ struct sock_common {
+   *	@sk_security: used by security modules
+   *	@sk_mark: generic packet mark
+   *	@sk_classid: this socket's cgroup classid
++  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup
+   *	@sk_write_pending: a write to stream socket waits to start
+   *	@sk_state_change: callback to indicate change in the state of the sock
+   *	@sk_data_ready: callback to indicate there is data to be processed
+@@ -339,6 +340,7 @@ struct sock {
+ #endif
+ 	__u32			sk_mark;
+ 	u32			sk_classid;
++	struct mem_cgroup	*sk_cgrp;
+ 	void			(*sk_state_change)(struct sock *sk);
+ 	void			(*sk_data_ready)(struct sock *sk, int bytes);
+ 	void			(*sk_write_space)(struct sock *sk);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 8aaf4ce..08a520e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -339,6 +339,39 @@ struct mem_cgroup {
+ 	spinlock_t pcp_counter_lock;
+ };
+ 
++/* Writing them here to avoid exposing memcg's inner layout */
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++#ifdef CONFIG_INET
++#include <net/sock.h>
++
++void sock_update_memcg(struct sock *sk)
++{
++	/* right now a socket spends its whole life in the same cgroup */
++	BUG_ON(sk->sk_cgrp);
++
++	rcu_read_lock();
++	sk->sk_cgrp = mem_cgroup_from_task(current);
++
++	/*
++	 * We don't need to protect against anything task-related, because
++	 * we are basically stuck with the sock pointer that won't change,
++	 * even if the task that originated the socket changes cgroups.
++	 *
++	 * What we do have to guarantee, is that the chain leading us to
++	 * the top level won't change under our noses. Incrementing the
++	 * reference count via cgroup_exclude_rmdir guarantees that.
++	 */
++	cgroup_exclude_rmdir(mem_cgroup_css(sk->sk_cgrp));
++	rcu_read_unlock();
++}
++
++void sock_release_memcg(struct sock *sk)
++{
++	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(sk->sk_cgrp));
++}
++#endif /* CONFIG_INET */
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ /* Stuffs for move charges at task migration. */
+ /*
+  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+diff --git a/net/core/sock.c b/net/core/sock.c
+index bc745d0..5426ba0 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -125,6 +125,7 @@
+ #include <net/xfrm.h>
+ #include <linux/ipsec.h>
+ #include <net/cls_cgroup.h>
++#include <linux/memcontrol.h>
+ 
+ #include <linux/filter.h>
+ 
+@@ -1141,6 +1142,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
+ 		atomic_set(&sk->sk_wmem_alloc, 1);
+ 
+ 		sock_update_classid(sk);
++		sock_update_memcg(sk);
+ 	}
+ 
+ 	return sk;
+@@ -1172,6 +1174,7 @@ static void __sk_free(struct sock *sk)
+ 		put_cred(sk->sk_peer_cred);
+ 	put_pid(sk->sk_peer_pid);
+ 	put_net(sock_net(sk));
++	sock_release_memcg(sk);
+ 	sk_prot_free(sk->sk_prot_creator, sk);
+ }
+ 
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
