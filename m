@@ -1,118 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 552A09000DF
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 12:33:21 -0400 (EDT)
-Date: Mon, 3 Oct 2011 18:29:05 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 5/26]   Uprobes: copy of the original
-	instruction.
-Message-ID: <20111003162905.GA3752@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120057.25326.63780.sendpatchset@srdronam.in.ibm.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 03CC09000DF
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 13:54:28 -0400 (EDT)
+Received: by qadb17 with SMTP id b17so2384820qad.14
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2011 10:54:28 -0700 (PDT)
+Message-ID: <4E89F6D1.6000502@vflare.org>
+Date: Mon, 03 Oct 2011 13:54:25 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110920120057.25326.63780.sendpatchset@srdronam.in.ibm.com>
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>  <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>  <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>  <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>  <4E72284B.2040907@linux.vnet.ibm.com>  <075c4e4c-a22d-47d1-ae98-31839df6e722@default 4E725109.3010609@linux.vnet.ibm.com>  <863f8de5-a8e5-427d-a329-e69a5402f88a@default> <1317657556.16137.696.camel@nimitz>
+In-Reply-To: <1317657556.16137.696.camel@nimitz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On 09/20, Srikar Dronamraju wrote:
->
-> +static int __copy_insn(struct address_space *mapping,
-> +			struct vm_area_struct *vma, char *insn,
-> +			unsigned long nbytes, unsigned long offset)
-> +{
-> +	struct file *filp = vma->vm_file;
-> +	struct page *page;
-> +	void *vaddr;
-> +	unsigned long off1;
-> +	unsigned long idx;
-> +
-> +	if (!filp)
-> +		return -EINVAL;
-> +
-> +	idx = (unsigned long) (offset >> PAGE_CACHE_SHIFT);
-> +	off1 = offset &= ~PAGE_MASK;
-> +
-> +	/*
-> +	 * Ensure that the page that has the original instruction is
-> +	 * populated and in page-cache.
-> +	 */
+Hi Dave,
 
-Hmm. But how we can ensure?
+On 10/03/2011 11:59 AM, Dave Hansen wrote:
 
-> +	page_cache_sync_readahead(mapping, &filp->f_ra, filp, idx, 1);
-
-This schedules the i/o,
-
-> +	page = grab_cache_page(mapping, idx);
-
-This finds/locks the page in the page-cache,
-
-> +	if (!page)
-> +		return -ENOMEM;
-> +
-> +	vaddr = kmap_atomic(page);
-> +	memcpy(insn, vaddr + off1, nbytes);
-
-What if this page is not PageUptodate() ?
-
-Somehow this assumes that the i/o was already completed, I don't
-understand this.
-
-But I am starting to think I simply do not understand this change.
-To the point, I do not underestand why do we need copy_insn() at all.
-We are going to replace this page, can't we save/analyze ->insn later
-when we copy the content of the old page? Most probably I missed
-something simple...
+> 
+> I've been reading through Seth's patches a bit and looking over the
+> locking in general.  I'm wondering why preempt_disable() is used so
+> heavily.  Preempt seems to be disabled for virtually all of zcache's
+> operations.  It seems a bit unorthodox, and I guess I'm anticipating the
+> future screams of the low-latency folks. :)
+> 
+> I think long-term it will hurt zcache's ability to move in to other
+> code.  Right now, it's pretty limited to being used in conjunction with
+> memory reclaim called from kswapd.  Seems like something we ought to add
+> to the TODO list before it escapes from staging/.
+> 
 
 
-> +static struct task_struct *get_mm_owner(struct mm_struct *mm)
-> +{
-> +	struct task_struct *tsk;
-> +
-> +	rcu_read_lock();
-> +	tsk = rcu_dereference(mm->owner);
-> +	if (tsk)
-> +		get_task_struct(tsk);
-> +	rcu_read_unlock();
-> +	return tsk;
-> +}
+I think disabling preemption on the local CPU is the cheapest we can get
+to protect PCPU buffers. We may experiment with, say, multiple buffers
+per CPU, so we end up disabling preemption only in highly improbable
+case of getting preempted just too many times exactly within critical
+section. But before we do all that, we really need to come up with cases
+where zcache induced latency is/can be a problem.
 
-Hmm. Do we really need task_struct?
-
-> -static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
-> +static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
-> +				struct vm_area_struct *vma, loff_t vaddr)
->  {
-> -	/* Placeholder: Yet to be implemented */
-> +	struct task_struct *tsk;
-> +	unsigned long addr;
-> +	int ret = -EINVAL;
-> +
->  	if (!uprobe->consumers)
->  		return 0;
->
-> -	atomic_inc(&mm->mm_uprobes_count);
-> -	return 0;
-> +	tsk = get_mm_owner(mm);
-> +	if (!tsk)	/* task is probably exiting; bail-out */
-> +		return -ESRCH;
-> +
-> +	if (vaddr > TASK_SIZE_OF(tsk))
-> +		goto put_return;
-
-But this should not be possible, no? How it can map this vaddr above
-TASK_SIZE ?
-
-get_user_pages(tsk => NULL) is fine. Why else do we need mm->owner ?
-
-Probably used by the next patches... Say, is_32bit_app(tsk). This
-can use mm->context.ia32_compat (hopefully will be replaced with
-MMF_COMPAT).
-
-Oleg.
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
