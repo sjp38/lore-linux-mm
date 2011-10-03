@@ -1,60 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E673C9000BD
-	for <linux-mm@kvack.org>; Sun,  2 Oct 2011 10:58:51 -0400 (EDT)
-Message-ID: <4E887C23.4030600@tilera.com>
-Date: Sun, 2 Oct 2011 10:58:43 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Reduce cross CPU IPI interference
-References: <1316940890-24138-1-git-send-email-gilad@benyossef.com> <4E831A79.1030402@tilera.com> <CAOtvUMdGeBfbLpSqonzLTT6+JUiabDjBG5bpd1_RPykt3x+5Hw@mail.gmail.com>
-In-Reply-To: <CAOtvUMdGeBfbLpSqonzLTT6+JUiabDjBG5bpd1_RPykt3x+5Hw@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 02D9E9000BD
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 06:05:12 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B16C63EE0BC
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 96BE345DE5F
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 747D845DE5D
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 629521DB804C
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D4731DB803A
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 19:05:08 +0900 (JST)
+Date: Mon, 3 Oct 2011 19:04:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 00/10] memcg naturalization -rc4
+Message-Id: <20111003190411.2c8c6b29.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110930093231.GE30857@redhat.com>
+References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
+	<20110930170510.4695b8f0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110930093231.GE30857@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/2/2011 4:44 AM, Gilad Ben-Yossef wrote:
->> We have some code in our tree (not yet
->> returned to the community) that tries to deal with some sources of interrupt
->> jitter on tiles that are running isolcpu and want to be 100% in user space.
-> Yes, I think this work will benefit this kind of use case (CPU/user
-> space bound on a dedicated CPU)
-> the most, although other use cases can benefit as well (e.g. power
-> management with idle cores).
->
-> Btw, do you have any plan to share the patches you mentioned? it could
-> save me a lot of time. Not wanting to
-> re-invent the wheel and all that...
+On Fri, 30 Sep 2011 11:32:31 +0200
+Johannes Weiner <jweiner@redhat.com> wrote:
 
-I'd like to, but getting the patch put together cleanly is still on my list
-behind a number of other things (glibc community return, kernel catch-up
-with a backlog of less controversial changes, customer crises, enhancements
-targeted to forthcoming releases, etc.; I'm sure you know the drill...)
+> On Fri, Sep 30, 2011 at 05:05:10PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 29 Sep 2011 23:00:54 +0200
+> > Thank you for your work. Now, I'm ok this series to be tested in -mm.
+> > Ack. to all.
+> 
+> Thanks!
+> 
+> > Do you have any plan, concerns ?
+> 
+> I would really like to get them into 3.2.  While it's quite intrusive,
+> I stress-tested various scenarios for quite some time - tests that
+> revealed more bugs in the existing memcg code than in my changes - so
+> I don't expect too big surprises.  AFAICS, Google uses these patches
+> internally already and their bug reports early on also helped iron out
+> the most obvious problems.
+> 
+> What I am concerned about is the scalability on setups with thousands
+> of tiny memcgs that go into global reclaim, as this would try to scan
+> pages from all existing memcgs.  There is a mitigating factor in that
+> concurrent reclaimers divide the memcgs to scan among themselves (the
+> shared mem_cgroup_reclaim_iter), and with hundreds or thousands of
+> memcgs, I expect several threads to go into reclaim upon global memory
+> pressure at the same time in the common case.  I don't have the means
+> to test this and I also don't know if such setups exist or are within
+> the realm of sanity that we would like to support, anyway. 
 
->>> This first version creates an on_each_cpu_mask infrastructure API (derived
->>> from
->>> existing arch specific versions in Tile and Arm) and uses it to turn two
->>> global
->>> IPI invocation to per CPU group invocations.
->> The global version looks fine; I would probably make on_each_cpu() an inline
->> in the !SMP case now that you are (correctly, I suspect) disabling
->> interrupts when calling the function.
->>
-> Good point. Will do.
->
-> I will take this email as an ACK to the tile relevant changes, if that
-> is OK with you.
+As far as I hear, some users use hundreds of memcg in a host.
 
-Yes, definitely.
+> If this
+> shows up, I think the fix would be as easy as bailing out early from
+> the hierarchy walk, but I would like to cross that bridge when we come
+> to it.
+> 
+> Other than that, I see no reason to hold it off.  Traditional reclaim
+> without memcgs except root_mem_cgroup - what most people care about -
+> is mostly unaffected.  There is a real interest in the series, and
+> maintaining it out-of-tree is a major pain and quite error prone.
+> 
+> What do you think?
+> 
 
-Acked-by: Chris Metcalf <cmetcalf@tilera.com>
+I think this should be merged/tested as soon as possible because this patch
+must be a base for memcg patches which are now being developped.
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
