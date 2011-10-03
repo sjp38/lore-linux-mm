@@ -1,64 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7100C9000DF
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 14:23:17 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p93HwsI5029664
-	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 13:58:54 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p93IN3EO213406
-	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 14:23:04 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p93IMwXj004107
-	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 12:22:59 -0600
-Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <4E89F6D1.6000502@vflare.org>
-References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	 <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
-	 <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
-	 <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
-	 <4E72284B.2040907@linux.vnet.ibm.com>
-	 <075c4e4c-a22d-47d1-ae98-31839df6e722@default 4E725109.3010609@linux.vnet.ibm.com>
-	 <863f8de5-a8e5-427d-a329-e69a5402f88a@default>
-	 <1317657556.16137.696.camel@nimitz>  <4E89F6D1.6000502@vflare.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 03 Oct 2011 11:22:34 -0700
-Message-ID: <1317666154.16137.727.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8C89000DF
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2011 16:33:57 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 3 Oct 2011 16:33:44 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p93KVeKn154434
+	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 16:31:57 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p93KVeUN011817
+	for <linux-mm@kvack.org>; Mon, 3 Oct 2011 16:31:40 -0400
+Date: Mon, 3 Oct 2011 13:31:39 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: lockdep recursive locking detected (rcu_kthread / __cache_free)
+Message-ID: <20111003203139.GH2403@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20111003175322.GA26122@sucs.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111003175322.GA26122@sucs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: Sitsofe Wheeler <sitsofe@yahoo.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org
 
-On Mon, 2011-10-03 at 13:54 -0400, Nitin Gupta wrote:
-> I think disabling preemption on the local CPU is the cheapest we can get
-> to protect PCPU buffers. We may experiment with, say, multiple buffers
-> per CPU, so we end up disabling preemption only in highly improbable
-> case of getting preempted just too many times exactly within critical
-> section.
-
-I guess the problem is two-fold: preempt_disable() and
-local_irq_save().  
-
-> static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
->                                 uint32_t index, struct page *page)
-> {
->         struct tmem_pool *pool;
->         int ret = -1;
+On Mon, Oct 03, 2011 at 06:53:22PM +0100, Sitsofe Wheeler wrote:
+> Hi,
 > 
->         BUG_ON(!irqs_disabled());
+> While running 3.1.0-rc8 the following lockdep warning (seemingly related
+> to RCU) was printed as the kernel was starting.
+> 
+> 
+> udev: starting version 151
+> udevd (263): /proc/263/oom_adj is deprecated, please use /proc/263/oom_score_adj instead.
+> 
+> =============================================
+> [ INFO: possible recursive locking detected ]
+> 3.1.0-rc8-dirty #508
+> ---------------------------------------------
+> rcu_kthread/6 is trying to acquire lock:
+>  (&(&parent->list_lock)->rlock){..-...}, at: [<b016fe11>] __cache_free+0x2dd/0x382
+> 
+> but task is already holding lock:
+>  (&(&parent->list_lock)->rlock){..-...}, at: [<b016fe11>] __cache_free+0x2dd/0x382
+> 
+> other info that might help us debug this:
+>  Possible unsafe locking scenario:
+> 
+>        CPU0
+>        ----
+>   lock(&(&parent->list_lock)->rlock);
+>   lock(&(&parent->list_lock)->rlock);
+> 
+>  *** DEADLOCK ***
+> 
+>  May be due to missing lock nesting notation
+> 
+> 1 lock held by rcu_kthread/6:
+>  #0:  (&(&parent->list_lock)->rlock){..-...}, at: [<b016fe11>] __cache_free+0x2dd/0x382
+> 
+> stack backtrace:
+> Pid: 6, comm: rcu_kthread Not tainted 3.1.0-rc8-dirty #508
+> Call Trace:
+>  [<b0144466>] __lock_acquire+0xb90/0xc0e
+>  [<b044c0c2>] ? _raw_spin_unlock_irqrestore+0x2f/0x46
+>  [<b0223ebc>] ? debug_object_active_state+0x94/0xbc
+>  [<b01315af>] ? rcuhead_fixup_activate+0x26/0x4c
+>  [<b01448be>] lock_acquire+0x5b/0x72
+>  [<b016fe11>] ? __cache_free+0x2dd/0x382
+>  [<b044bb22>] _raw_spin_lock+0x25/0x34
+>  [<b016fe11>] ? __cache_free+0x2dd/0x382
+>  [<b016fe11>] __cache_free+0x2dd/0x382
+>  [<b016ff5c>] kmem_cache_free+0x3e/0x5b
+>  [<b0170097>] slab_destroy+0x11e/0x126
+>  [<b0170184>] free_block+0xe5/0x112
+>  [<b016fe54>] __cache_free+0x320/0x382
 
-That tells me "zcache" doesn't work with interrupts on.  It seems like
-awfully high-level code to have interrupts disabled.  The core page
-allocator has some irq-disabling spinlock calls, but that's only really
-because it has to be able to service page allocations from interrupts.
-What's the high-level reason for zcache?
+The first lock was acquired here in an RCU callback.  The later lock that
+lockdep complained about appears to have been acquired from a recursive
+call to __cache_free(), with no help from RCU.  This looks to me like
+one of the issues that arise from the slab allocator using itself to
+allocate slab metadata.
 
-I'll save the discussion about preempt for when Seth posts his patch.
+So the allocator guys (added to CC) need to sort this one out.
 
--- Dave
+							Thanx, Paul
+
+>  [<b01759a1>] ? file_free_rcu+0x32/0x39
+>  [<b016ff5c>] kmem_cache_free+0x3e/0x5b
+>  [<b01759a1>] file_free_rcu+0x32/0x39
+>  [<b014ca68>] rcu_process_callbacks+0x95/0xa8
+>  [<b014cb34>] rcu_kthread+0xb9/0xd2
+>  [<b013356c>] ? wake_up_bit+0x1b/0x1b
+>  [<b014ca7b>] ? rcu_process_callbacks+0xa8/0xa8
+>  [<b0133305>] kthread+0x6c/0x71
+>  [<b0133299>] ? __init_kthread_worker+0x42/0x42
+>  [<b044ce02>] kernel_thread_helper+0x6/0xd
+> 
+> -- 
+> Sitsofe | http://sucs.org/~sits/
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
