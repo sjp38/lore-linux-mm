@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 75818900117
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 02:32:50 -0400 (EDT)
-Message-ID: <4E8AA866.3010509@parallels.com>
-Date: Tue, 4 Oct 2011 10:32:06 +0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F54C900117
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 03:14:31 -0400 (EDT)
+Message-ID: <4E8AB22E.2080007@parallels.com>
+Date: Tue, 4 Oct 2011 11:13:50 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v4 3/8] foundations of per-cgroup memory pressure controlling.
@@ -89,11 +89,11 @@ On 10/04/2011 04:57 AM, KAMEZAWA Hiroyuki wrote:
 >
 > Hmm. why not using res_counter ? for reusing 'unbill' code ?
 >
-Well,
-
-res_counters are slightly more expensive than needed here, since we need 
-to clear interrupts and hold a spinlock. No particular reason besides it.
-
+> Thanks,
+> -Kame
+>
+Well, besides the cost, we'd have atomic_t for !cgroups, and res_counter 
+for cgroups. I think there is value in keeping them the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
