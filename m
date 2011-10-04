@@ -1,151 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B3DE9900117
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 08:19:42 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 76609900146
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 08:19:43 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v5 0/8] per-cgroup tcp buffer pressure settings
-Date: Tue,  4 Oct 2011 16:17:52 +0400
-Message-Id: <1317730680-24352-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v5 2/8] socket: initial cgroup code.
+Date: Tue,  4 Oct 2011 16:17:54 +0400
+Message-Id: <1317730680-24352-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1317730680-24352-1-git-send-email-glommer@parallels.com>
+References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, Glauber Costa <glommer@parallels.com>
 
-[[ v3: merge Kirill's suggestions, + a destroy-related bugfix ]]
-[[ v4: Fix a bug with non-mounted cgroups + disallow task movement ]]
-[[ v5: Compile bug with modular ipv6 + tcp files in bytes ]]
+We aim to control the amount of kernel memory pinned at any
+time by tcp sockets. To lay the foundations for this work,
+this patch adds a pointer to the kmem_cgroup to the socket
+structure.
 
-Kame, Kirill,
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Kirill A. Shutemov<kirill@shutemov.name>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
+CC: David S. Miller <davem@davemloft.net>
+CC: Eric W. Biederman <ebiederm@xmission.com>
+---
+ include/linux/memcontrol.h |   15 +++++++++++++++
+ include/net/sock.h         |    2 ++
+ mm/memcontrol.c            |   36 ++++++++++++++++++++++++++++++++++++
+ net/core/sock.c            |    3 +++
+ 4 files changed, 56 insertions(+), 0 deletions(-)
 
-I am submitting this again merging most of your comments. I've decided to
-leave some of them out:
- * I am not using res_counters for allocated_memory. Besides being more
-   expensive than what we need, to make it work in a nice way, we'd have
-   to change the !cgroup code, including other protocols than tcp. Also,
-   
- * I am not using failcnt and max_usage_in_bytes for it. I believe the value
-   of those lies more in the allocation than in the pressure control. Besides,
-   fail conditions lie mostly outside of the memory cgroup's control. (Actually,
-   a soft_limit makes a lot of sense, and I do plan to introduce it in a follow
-   up series)
-
-If you agree with the above, and there are any other pressing issues, let me
-know and I will address them ASAP. Otherwise, let's discuss it. I'm always open.
-
-All:
-
-This patch introduces per-cgroup tcp buffers limitation. This allows
-sysadmins to specify a maximum amount of kernel memory that
-tcp connections can use at any point in time. TCP is the main interest
-in this work, but extending it to other protocols would be easy.
-
-For this to work, I am hooking it into memcg, after the introdution of
-an extension for tracking and controlling objects in kernel memory.
-Since they are usually not found in page granularity, and are fundamentally
-different from userspace memory (not swappable, can't overcommit), they
-need their special place inside the Memory Controller.
-
-Right now, the kmem extension is quite basic, and just lays down the
-basic infrastucture for the ongoing work.
-
-Although it does not account kernel memory allocated - I preferred to
-keep this series simple and leave accounting to the slab allocations when
-they arrive.
-
-What it does is to piggyback in the memory control mechanism already present in
-/proc/sys/net/ipv4/tcp_mem. There is a soft limit, and a hard limit,
-that will suppress allocation when reached. For each non-root cgroup, however,
-the file kmem.tcp_maxmem will be used to cap those values.
-
-The usage I have in mind here is containers. Each container will
-define its own values for soft and hard limits, but none of them will
-be possibly bigger than the value the box' sysadmin specified from
-the outside.
-
-To test for any performance impacts of this patch, I used netperf's
-TCP_RR benchmark on localhost, so we can have both recv and snd in action.
-For this iteration, I am using the 1% confidence interval as suggested by Rick.
-
-Command line used was ./src/netperf -t TCP_RR -H localhost -i 30,3 -I 99,1 and the
-results: (I haven't re-run this since nothing major changed from last version, nothing
-in core)
-
-Without the patch
-=================
-
-Local /Remote
-Socket Size   Request  Resp.   Elapsed  Trans.
-Send   Recv   Size     Size    Time     Rate
-bytes  Bytes  bytes    bytes   secs.    per sec
-
-16384  87380  1        1       10.00    35356.22
-16384  87380
-
-
-With the patch
-==============
-
-Local /Remote
-Socket Size   Request  Resp.   Elapsed  Trans.
-Send   Recv   Size     Size    Time     Rate
-bytes  Bytes  bytes    bytes   secs.    per sec
-
-16384  87380  1        1       10.00    35399.12 
-16384  87380
-
-The difference is less than 0.5 %
-
-A simple test with a 1000 level nesting yields more or less the same
-difference:
-
-1000 level nesting
-==================
-
-Local /Remote
-Socket Size   Request  Resp.   Elapsed  Trans.
-Send   Recv   Size     Size    Time     Rate
-bytes  Bytes  bytes    bytes   secs.    per sec
-
-16384  87380  1        1       10.00    35304.35   
-16384  87380 
-
-
-
-Glauber Costa (8):
-  Basic kernel memory functionality for the Memory Controller
-  socket: initial cgroup code.
-  foundations of per-cgroup memory pressure controlling.
-  per-cgroup tcp buffers control
-  per-netns ipv4 sysctl_tcp_mem
-  tcp buffer limitation: per-cgroup limit
-  Display current tcp memory allocation in kmem cgroup
-  Disable task moving when using kernel memory accounting
-
- Documentation/cgroups/memory.txt |   38 ++++-
- crypto/af_alg.c                  |    7 +-
- include/linux/memcontrol.h       |   56 ++++++
- include/net/netns/ipv4.h         |    1 +
- include/net/sock.h               |  127 +++++++++++++-
- include/net/tcp.h                |   29 +++-
- include/net/udp.h                |    3 +-
- include/trace/events/sock.h      |   10 +-
- init/Kconfig                     |   14 ++
- mm/memcontrol.c                  |  371 ++++++++++++++++++++++++++++++++++++--
- net/core/sock.c                  |  104 ++++++++---
- net/decnet/af_decnet.c           |   21 ++-
- net/ipv4/proc.c                  |    7 +-
- net/ipv4/sysctl_net_ipv4.c       |   71 +++++++-
- net/ipv4/tcp.c                   |   58 ++++---
- net/ipv4/tcp_input.c             |   12 +-
- net/ipv4/tcp_ipv4.c              |   24 ++-
- net/ipv4/tcp_output.c            |    2 +-
- net/ipv4/tcp_timer.c             |    2 +-
- net/ipv4/udp.c                   |   20 ++-
- net/ipv6/tcp_ipv6.c              |   20 ++-
- net/ipv6/udp.c                   |    4 +-
- net/sctp/socket.c                |   35 +++-
- 23 files changed, 905 insertions(+), 131 deletions(-)
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 343bd76..88aea1b 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -376,5 +376,20 @@ mem_cgroup_print_bad_page(struct page *page)
+ }
+ #endif
+ 
++#ifdef CONFIG_INET
++struct sock;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++void sock_update_memcg(struct sock *sk);
++void sock_release_memcg(struct sock *sk);
++
++#else
++static inline void sock_update_memcg(struct sock *sk)
++{
++}
++static inline void sock_release_memcg(struct sock *sk)
++{
++}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++#endif /* CONFIG_INET */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 8e4062f..afe1467 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -228,6 +228,7 @@ struct sock_common {
+   *	@sk_security: used by security modules
+   *	@sk_mark: generic packet mark
+   *	@sk_classid: this socket's cgroup classid
++  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup
+   *	@sk_write_pending: a write to stream socket waits to start
+   *	@sk_state_change: callback to indicate change in the state of the sock
+   *	@sk_data_ready: callback to indicate there is data to be processed
+@@ -339,6 +340,7 @@ struct sock {
+ #endif
+ 	__u32			sk_mark;
+ 	u32			sk_classid;
++	struct mem_cgroup	*sk_cgrp;
+ 	void			(*sk_state_change)(struct sock *sk);
+ 	void			(*sk_data_ready)(struct sock *sk, int bytes);
+ 	void			(*sk_write_space)(struct sock *sk);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0871e3f..b1dcba9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -296,6 +296,42 @@ struct mem_cgroup {
+ 	spinlock_t pcp_counter_lock;
+ };
+ 
++/* Writing them here to avoid exposing memcg's inner layout */
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++#ifdef CONFIG_INET
++#include <net/sock.h>
++
++void sock_update_memcg(struct sock *sk)
++{
++	/* right now a socket spends its whole life in the same cgroup */
++	if (sk->sk_cgrp) {
++		WARN_ON(1);
++		return;
++	}
++
++	rcu_read_lock();
++	sk->sk_cgrp = mem_cgroup_from_task(current);
++
++	/*
++	 * We don't need to protect against anything task-related, because
++	 * we are basically stuck with the sock pointer that won't change,
++	 * even if the task that originated the socket changes cgroups.
++	 *
++	 * What we do have to guarantee, is that the chain leading us to
++	 * the top level won't change under our noses. Incrementing the
++	 * reference count via cgroup_exclude_rmdir guarantees that.
++	 */
++	cgroup_exclude_rmdir(mem_cgroup_css(sk->sk_cgrp));
++	rcu_read_unlock();
++}
++
++void sock_release_memcg(struct sock *sk)
++{
++	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(sk->sk_cgrp));
++}
++#endif /* CONFIG_INET */
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ /* Stuffs for move charges at task migration. */
+ /*
+  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+diff --git a/net/core/sock.c b/net/core/sock.c
+index bc745d0..5426ba0 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -125,6 +125,7 @@
+ #include <net/xfrm.h>
+ #include <linux/ipsec.h>
+ #include <net/cls_cgroup.h>
++#include <linux/memcontrol.h>
+ 
+ #include <linux/filter.h>
+ 
+@@ -1141,6 +1142,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
+ 		atomic_set(&sk->sk_wmem_alloc, 1);
+ 
+ 		sock_update_classid(sk);
++		sock_update_memcg(sk);
+ 	}
+ 
+ 	return sk;
+@@ -1172,6 +1174,7 @@ static void __sk_free(struct sock *sk)
+ 		put_cred(sk->sk_peer_cred);
+ 	put_pid(sk->sk_peer_pid);
+ 	put_net(sock_net(sk));
++	sock_release_memcg(sk);
+ 	sk_prot_free(sk->sk_prot_creator, sk);
+ }
+ 
 -- 
 1.7.6
 
