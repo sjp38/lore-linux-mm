@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 76609900146
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D7E900117
 	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 08:19:43 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v5 2/8] socket: initial cgroup code.
-Date: Tue,  4 Oct 2011 16:17:54 +0400
-Message-Id: <1317730680-24352-3-git-send-email-glommer@parallels.com>
+Subject: [PATCH v5 6/8] tcp buffer limitation: per-cgroup limit
+Date: Tue,  4 Oct 2011 16:17:58 +0400
+Message-Id: <1317730680-24352-7-git-send-email-glommer@parallels.com>
 In-Reply-To: <1317730680-24352-1-git-send-email-glommer@parallels.com>
 References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,143 +13,247 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, Glauber Costa <glommer@parallels.com>
 
-We aim to control the amount of kernel memory pinned at any
-time by tcp sockets. To lay the foundations for this work,
-this patch adds a pointer to the kmem_cgroup to the socket
-structure.
+This patch uses the "tcp_max_mem" field of the kmem_cgroup to
+effectively control the amount of kernel memory pinned by a cgroup.
+
+We have to make sure that none of the memory pressure thresholds
+specified in the namespace are bigger than the current cgroup.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Kirill A. Shutemov<kirill@shutemov.name>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
 CC: David S. Miller <davem@davemloft.net>
+CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Eric W. Biederman <ebiederm@xmission.com>
 ---
- include/linux/memcontrol.h |   15 +++++++++++++++
- include/net/sock.h         |    2 ++
- mm/memcontrol.c            |   36 ++++++++++++++++++++++++++++++++++++
- net/core/sock.c            |    3 +++
- 4 files changed, 56 insertions(+), 0 deletions(-)
+ Documentation/cgroups/memory.txt |    1 +
+ include/linux/memcontrol.h       |   10 +++++
+ include/net/tcp.h                |    1 +
+ mm/memcontrol.c                  |   80 +++++++++++++++++++++++++++++++++++---
+ net/ipv4/sysctl_net_ipv4.c       |   20 +++++++++
+ 5 files changed, 106 insertions(+), 6 deletions(-)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index bf00cd2..c1db134 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -78,6 +78,7 @@ Brief summary of control files.
+ 
+  memory.independent_kmem_limit	 # select whether or not kernel memory limits are
+ 				   independent of user limits
++ memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+ 
+ 1. History
+ 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 343bd76..88aea1b 100644
+index 50af61d..6191ba1 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -376,5 +376,20 @@ mem_cgroup_print_bad_page(struct page *page)
- }
- #endif
- 
-+#ifdef CONFIG_INET
-+struct sock;
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+void sock_update_memcg(struct sock *sk);
-+void sock_release_memcg(struct sock *sk);
+@@ -395,6 +395,9 @@ int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
+ 		    struct cgroup_subsys *ss);
+ void tcp_destroy_cgroup(struct proto *prot, struct cgroup *cgrp,
+ 			struct cgroup_subsys *ss);
 +
-+#else
-+static inline void sock_update_memcg(struct sock *sk)
++unsigned long tcp_max_memory(struct mem_cgroup *cg);
++void tcp_prot_mem(struct mem_cgroup *cg, long val, int idx);
+ #else
+ /* memcontrol includes sockets.h, that includes memcontrol.h ... */
+ static inline void memcg_sock_mem_alloc(struct mem_cgroup *memcg,
+@@ -420,6 +423,13 @@ static inline void sock_update_memcg(struct sock *sk)
+ static inline void sock_release_memcg(struct sock *sk)
+ {
+ }
++static inline unsigned long tcp_max_memory(struct mem_cgroup *cg)
++{
++	return 0;
++}
++static inline void tcp_prot_mem(struct mem_cgroup *cg, long val, int idx)
 +{
 +}
-+static inline void sock_release_memcg(struct sock *sk)
-+{
-+}
-+#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-+#endif /* CONFIG_INET */
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+ #endif /* CONFIG_INET */
  #endif /* _LINUX_MEMCONTROL_H */
- 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 8e4062f..afe1467 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -228,6 +228,7 @@ struct sock_common {
-   *	@sk_security: used by security modules
-   *	@sk_mark: generic packet mark
-   *	@sk_classid: this socket's cgroup classid
-+  *	@sk_cgrp: this socket's kernel memory (kmem) cgroup
-   *	@sk_write_pending: a write to stream socket waits to start
-   *	@sk_state_change: callback to indicate change in the state of the sock
-   *	@sk_data_ready: callback to indicate there is data to be processed
-@@ -339,6 +340,7 @@ struct sock {
- #endif
- 	__u32			sk_mark;
- 	u32			sk_classid;
-+	struct mem_cgroup	*sk_cgrp;
- 	void			(*sk_state_change)(struct sock *sk);
- 	void			(*sk_data_ready)(struct sock *sk, int bytes);
- 	void			(*sk_write_space)(struct sock *sk);
+diff --git a/include/net/tcp.h b/include/net/tcp.h
+index 04fedf7..716a42e 100644
+--- a/include/net/tcp.h
++++ b/include/net/tcp.h
+@@ -256,6 +256,7 @@ extern int sysctl_tcp_thin_dupack;
+ struct mem_cgroup;
+ struct tcp_memcontrol {
+ 	/* per-cgroup tcp memory pressure knobs */
++	int tcp_max_memory;
+ 	atomic_long_t tcp_memory_allocated;
+ 	struct percpu_counter tcp_sockets_allocated;
+ 	/* those two are read-mostly, leave them at the end */
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0871e3f..b1dcba9 100644
+index 39e575e..6fb14bb 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -296,6 +296,42 @@ struct mem_cgroup {
- 	spinlock_t pcp_counter_lock;
+@@ -304,6 +304,13 @@ struct mem_cgroup {
  };
  
-+/* Writing them here to avoid exposing memcg's inner layout */
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+#ifdef CONFIG_INET
-+#include <net/sock.h>
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
 +
-+void sock_update_memcg(struct sock *sk)
++static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 +{
-+	/* right now a socket spends its whole life in the same cgroup */
-+	if (sk->sk_cgrp) {
-+		WARN_ON(1);
-+		return;
-+	}
++	return (memcg == root_mem_cgroup);
++}
 +
-+	rcu_read_lock();
-+	sk->sk_cgrp = mem_cgroup_from_task(current);
++static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ /* Writing them here to avoid exposing memcg's inner layout */
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+ #ifdef CONFIG_INET
+@@ -424,6 +431,48 @@ struct percpu_counter *sockets_allocated_tcp(struct mem_cgroup *memcg)
+ }
+ EXPORT_SYMBOL(sockets_allocated_tcp);
+ 
++static int tcp_write_limit(struct cgroup *cgrp, struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
++	struct net *net = current->nsproxy->net_ns;
++	int i;
++
++	if (parent && parent->use_hierarchy)
++		return -EINVAL;
 +
 +	/*
-+	 * We don't need to protect against anything task-related, because
-+	 * we are basically stuck with the sock pointer that won't change,
-+	 * even if the task that originated the socket changes cgroups.
-+	 *
-+	 * What we do have to guarantee, is that the chain leading us to
-+	 * the top level won't change under our noses. Incrementing the
-+	 * reference count via cgroup_exclude_rmdir guarantees that.
-+	 */
-+	cgroup_exclude_rmdir(mem_cgroup_css(sk->sk_cgrp));
-+	rcu_read_unlock();
++	 * We can't allow more memory than our parents. Since this
++	 * will be tested for all calls, by induction, there is no need
++	 * to test any parent other than our own
++	 * */
++	val >>= PAGE_SHIFT;
++	if (parent && (val > parent->tcp.tcp_max_memory))
++		val = parent->tcp.tcp_max_memory;
++
++	memcg->tcp.tcp_max_memory = val; 
++
++	for (i = 0; i < 3; i++)
++		memcg->tcp.tcp_prot_mem[i]  = min_t(long, val,
++					     net->ipv4.sysctl_tcp_mem[i]);
++
++	return 0;
 +}
 +
-+void sock_release_memcg(struct sock *sk)
++static u64 tcp_read_limit(struct cgroup *cgrp, struct cftype *cft)
 +{
-+	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(sk->sk_cgrp));
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	return memcg->tcp.tcp_max_memory << PAGE_SHIFT;
 +}
-+#endif /* CONFIG_INET */
-+#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
 +
- /* Stuffs for move charges at task migration. */
- /*
-  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
-diff --git a/net/core/sock.c b/net/core/sock.c
-index bc745d0..5426ba0 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -125,6 +125,7 @@
- #include <net/xfrm.h>
- #include <linux/ipsec.h>
- #include <net/cls_cgroup.h>
-+#include <linux/memcontrol.h>
++static struct cftype tcp_files[] = {
++	{
++		.name = "kmem.tcp.limit_in_bytes",
++		.write_u64 = tcp_write_limit,
++		.read_u64 = tcp_read_limit,
++	},
++};
++
+ static void tcp_create_cgroup(struct mem_cgroup *cg, struct cgroup_subsys *ss)
+ {
+ 	cg->tcp.tcp_memory_pressure = 0;
+@@ -435,6 +484,7 @@ int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
+ 		    struct cgroup_subsys *ss)
+ {
+ 	struct mem_cgroup *cg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup *parent = parent_mem_cgroup(cg);
+ 	struct net *net = current->nsproxy->net_ns;
+ 	/*
+ 	 * We need to initialize it at populate, not create time.
+@@ -445,6 +495,20 @@ int tcp_init_cgroup(struct proto *prot, struct cgroup *cgrp,
+ 	cg->tcp.tcp_prot_mem[1] = net->ipv4.sysctl_tcp_mem[1];
+ 	cg->tcp.tcp_prot_mem[2] = net->ipv4.sysctl_tcp_mem[2];
  
- #include <linux/filter.h>
- 
-@@ -1141,6 +1142,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
- 		atomic_set(&sk->sk_wmem_alloc, 1);
- 
- 		sock_update_classid(sk);
-+		sock_update_memcg(sk);
- 	}
- 
- 	return sk;
-@@ -1172,6 +1174,7 @@ static void __sk_free(struct sock *sk)
- 		put_cred(sk->sk_peer_cred);
- 	put_pid(sk->sk_peer_pid);
- 	put_net(sock_net(sk));
-+	sock_release_memcg(sk);
- 	sk_prot_free(sk->sk_prot_creator, sk);
++
++	if (parent && parent->use_hierarchy)
++		cg->tcp.tcp_max_memory = parent->tcp.tcp_max_memory;
++	else {
++		unsigned long limit;
++		limit = nr_free_buffer_pages() / 8;
++		limit = max(limit, 128UL);
++		cg->tcp.tcp_max_memory = limit * 2;
++	}
++
++
++	if (!mem_cgroup_is_root(cg))
++		return cgroup_add_files(cgrp, ss, tcp_files,
++					ARRAY_SIZE(tcp_files));
+ 	return 0;
  }
+ EXPORT_SYMBOL(tcp_init_cgroup);
+@@ -457,6 +521,16 @@ void tcp_destroy_cgroup(struct proto *prot, struct cgroup *cgrp,
+ 	percpu_counter_destroy(&cg->tcp.tcp_sockets_allocated);
+ }
+ EXPORT_SYMBOL(tcp_destroy_cgroup);
++
++unsigned long tcp_max_memory(struct mem_cgroup *memcg)
++{
++	return memcg->tcp.tcp_max_memory;
++}
++
++void tcp_prot_mem(struct mem_cgroup *memcg, long val, int idx)
++{
++	memcg->tcp.tcp_prot_mem[idx] = val;
++}
+ #endif /* CONFIG_INET */
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
  
+@@ -1035,12 +1109,6 @@ static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
+ #define for_each_mem_cgroup_all(iter) \
+ 	for_each_mem_cgroup_tree_cond(iter, NULL, true)
+ 
+-
+-static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+-{
+-	return (mem == root_mem_cgroup);
+-}
+-
+ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+ {
+ 	struct mem_cgroup *mem;
+diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
+index bbd67ab..cdc35f6 100644
+--- a/net/ipv4/sysctl_net_ipv4.c
++++ b/net/ipv4/sysctl_net_ipv4.c
+@@ -14,6 +14,7 @@
+ #include <linux/init.h>
+ #include <linux/slab.h>
+ #include <linux/nsproxy.h>
++#include <linux/memcontrol.h>
+ #include <linux/swap.h>
+ #include <net/snmp.h>
+ #include <net/icmp.h>
+@@ -182,6 +183,10 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
+ 	int ret;
+ 	unsigned long vec[3];
+ 	struct net *net = current->nsproxy->net_ns;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	int i;
++	struct mem_cgroup *cg;
++#endif
+ 
+ 	ctl_table tmp = {
+ 		.data = &vec,
+@@ -198,6 +203,21 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
+ 	if (ret)
+ 		return ret;
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	rcu_read_lock();
++	cg = mem_cgroup_from_task(current);
++	for (i = 0; i < 3; i++)
++		if (vec[i] > tcp_max_memory(cg)) {
++			rcu_read_unlock();
++			return -EINVAL;
++		}
++
++	tcp_prot_mem(cg, vec[0], 0);
++	tcp_prot_mem(cg, vec[1], 1);
++	tcp_prot_mem(cg, vec[2], 2);
++	rcu_read_unlock();
++#endif
++
+ 	net->ipv4.sysctl_tcp_mem[0] = vec[0];
+ 	net->ipv4.sysctl_tcp_mem[1] = vec[1];
+ 	net->ipv4.sysctl_tcp_mem[2] = vec[2];
 -- 
 1.7.6
 
