@@ -1,52 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 52CAB94006D
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 11:10:43 -0400 (EDT)
-Subject: Re: lockdep recursive locking detected (rcu_kthread / __cache_free)
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 04 Oct 2011 17:09:50 +0200
-In-Reply-To: <alpine.DEB.2.00.1110040948230.8522@router.home>
-References: <20111003175322.GA26122@sucs.org>
-	  <20111003203139.GH2403@linux.vnet.ibm.com>
-	  <alpine.DEB.2.00.1110031540560.11713@router.home>
-	  <20111003214739.GK2403@linux.vnet.ibm.com>
-	  <alpine.DEB.2.00.1110040916330.8522@router.home>
-	 <1317739225.32543.9.camel@twins>
-	 <alpine.DEB.2.00.1110040948230.8522@router.home>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F27900149
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 15:37:49 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 4 Oct 2011 15:36:48 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p94JZm0f110624
+	for <linux-mm@kvack.org>; Tue, 4 Oct 2011 15:35:48 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p94JZlud004522
+	for <linux-mm@kvack.org>; Tue, 4 Oct 2011 16:35:48 -0300
+Subject: Re: [RFCv3][PATCH 1/4] replace string_get_size() arrays
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1317497626.22613.1.camel@Joe-Laptop>
+References: <20111001000856.DD623081@kernel>
+	 <1317497626.22613.1.camel@Joe-Laptop>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317740991.32543.19.camel@twins>
+Date: Tue, 04 Oct 2011 12:35:42 -0700
+Message-ID: <1317756942.7842.38.camel@nimitz>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Sitsofe Wheeler <sitsofe@yahoo.com>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com, hpa@zytor.com
 
-On Tue, 2011-10-04 at 09:50 -0500, Christoph Lameter wrote:
-> On Tue, 4 Oct 2011, Peter Zijlstra wrote:
->=20
-> > It could of course be I got confused and broke stuff instead, could
-> > someone who knows slab (I guess that's either Pekka, Christoph or David=
-)
-> > stare at those patches?
->=20
-> Why is the loop in init_lock_keys only running over kmalloc caches and no=
-t
-> over all slab caches?
+On Sat, 2011-10-01 at 12:33 -0700, Joe Perches wrote:
+> On Fri, 2011-09-30 at 17:08 -0700, Dave Hansen wrote:
+> > Instead of explicitly storing the entire string for each
+> > possible units, just store the thing that varies: the
+> > first character.
+> 
+> trivia
 
-A little digging brings us to: 056c62418cc639bf2fe962c6a6ee56054b838bc7
-which seems to have introduced that.
+I'm not sure what you mean by that.
 
->  It seems that this has to be especially applied to
-> regular slab caches because those are the ones that mostly have off slab
-> structures. So modify init_lock_keys to run over all slab caches?
+> > diff -puN lib/string_helpers.c~string_get_size-pow2 lib/string_helpers.c
+> > --- linux-2.6.git/lib/string_helpers.c~string_get_size-pow2	2011-09-30 16:50:31.628981352 -0700
+> > +++ linux-2.6.git-dave/lib/string_helpers.c	2011-09-30 17:04:02.211607364 -0700
+> > @@ -8,6 +8,23 @@
+> >  #include <linux/module.h>
+> >  #include <linux/string_helpers.h>
+> >  
+> > +static const char byte_units[] = "_KMGTPEZY";
+> 
+> u64 could be up to ~1.8**19 decimal
+> zetta and yotta are not possible or necessary.
+> u128 maybe someday, but then other changes
+> would be necessary too.
 
-That sounds about right, worth a try. Also over new caches, the above
-reverenced commit removes a hook from kmem_cache_init() which we really
-need I suppose.
+Right, but we're only handling u64.
 
-I'll try and compose a patch if nobody beats me to it, but need to run
-an errand first.
+> > +static char *__units_str(enum string_size_units unit, char *buf, int index)
+> > +{
+> > +	int place = 0;
+> > +
+> > +	/* index=0 is plain 'B' with no other unit */
+> > +	if (index) {
+> > +		buf[place++] = byte_units[index];
+> 
+> index is unbounded (doesn't matter currently, it will for u128)
+
+It's bound by the division or the log2 at least.  You do have to know
+what you're passing in to __units_str, just like you had to know what
+you were indexing with in to units_2[] and units_10[].
+
+Is there something else you'd like to see done here?  We can
+bounds-check index, but that seems a bit unnecessary since it's static
+and the two callers are visible on the same page of code.
+
+> > @@ -23,26 +40,19 @@
+> >  int string_get_size(u64 size, const enum string_size_units units,
+> >  		    char *buf, int len)
+> []
+> >  	const unsigned int divisor[] = {
+> >  		[STRING_UNITS_10] = 1000,
+> >  		[STRING_UNITS_2] = 1024,
+> >  	};
+> 
+> static const or it might be better to use
+> 	unsigned int divisor = (string_size_units == STRING_UNITS_2) ? 1024 : 1000;
+> as that would make the code clearer in a
+> couple of uses of divisor[] later.
+> 
+> > @@ -61,7 +71,7 @@ int string_get_size(u64 size, const enum
+> >  	}
+> >  
+> >  	snprintf(buf, len, "%lld%s %s", (unsigned long long)size,
+> 
+> %llu
+
+These two are about existing code, and not really necessary for this
+set.  They'd make good follow-on patches, though.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
