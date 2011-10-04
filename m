@@ -1,73 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CA159900117
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 03:47:42 -0400 (EDT)
-Date: Tue, 4 Oct 2011 09:47:23 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 00/10] memcg naturalization -rc4
-Message-ID: <20111004074723.GA13681@redhat.com>
-References: <1317330064-28893-1-git-send-email-jweiner@redhat.com>
- <20111003161149.bc458294.akpm00@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 16110900117
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 05:11:26 -0400 (EDT)
+Message-ID: <4E8ACD6E.3090208@parallels.com>
+Date: Tue, 4 Oct 2011 13:10:06 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111003161149.bc458294.akpm00@gmail.com>
+Subject: Re: [PATCH v4 7/8] Display current tcp memory allocation in kmem
+ cgroup
+References: <1317637123-18306-1-git-send-email-glommer@parallels.com> <1317637123-18306-8-git-send-email-glommer@parallels.com> <20111003121446.GD29312@shutemov.name> <4E89A846.1010200@parallels.com> <20111003122511.GA29982@shutemov.name> <4E89AA01.3000803@parallels.com> <20111003123620.GA30018@shutemov.name>
+In-Reply-To: <20111003123620.GA30018@shutemov.name>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm00@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, avagin@parallels.com
 
-On Mon, Oct 03, 2011 at 04:11:49PM -0700, Andrew Morton wrote:
-> On Thu, 29 Sep 2011 23:00:54 +0200
-> Johannes Weiner <jweiner@redhat.com> wrote:
-> 
-> > this is the fourth revision of the memory cgroup naturalization
-> > series.
-> 
-> The patchset removes 20 lines from include/linux/*.h and removes
-> exactly zero lines from mm/*.c.  Freaky.
+On 10/03/2011 04:36 PM, Kirill A. Shutemov wrote:
+> On Mon, Oct 03, 2011 at 04:26:41PM +0400, Glauber Costa wrote:
+>> On 10/03/2011 04:25 PM, Kirill A. Shutemov wrote:
+>>> On Mon, Oct 03, 2011 at 04:19:18PM +0400, Glauber Costa wrote:
+>>>> On 10/03/2011 04:14 PM, Kirill A. Shutemov wrote:
+>>>>> On Mon, Oct 03, 2011 at 02:18:42PM +0400, Glauber Costa wrote:
+>>>>>> This patch introduces kmem.tcp_current_memory file, living in the
+>>>>>> kmem_cgroup filesystem. It is a simple read-only file that displays the
+>>>>>> amount of kernel memory currently consumed by the cgroup.
+>>>>>>
+>>>>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>>>>>> CC: David S. Miller<davem@davemloft.net>
+>>>>>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
+>>>>>> CC: Eric W. Biederman<ebiederm@xmission.com>
+>>>>>> ---
+>>>>>>     Documentation/cgroups/memory.txt |    1 +
+>>>>>>     mm/memcontrol.c                  |   11 +++++++++++
+>>>>>>     2 files changed, 12 insertions(+), 0 deletions(-)
+>>>>>>
+>>>>>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+>>>>>> index 1ffde3e..f5a539d 100644
+>>>>>> --- a/Documentation/cgroups/memory.txt
+>>>>>> +++ b/Documentation/cgroups/memory.txt
+>>>>>> @@ -79,6 +79,7 @@ Brief summary of control files.
+>>>>>>      memory.independent_kmem_limit	 # select whether or not kernel memory limits are
+>>>>>>     				   independent of user limits
+>>>>>>      memory.kmem.tcp.max_memory      # set/show hard limit for tcp buf memory
+>>>>>> + memory.kmem.tcp.current_memory  # show current tcp buf memory allocation
+>>>>>
+>>>>> Both are in pages, right?
+>>>>> Shouldn't it be scaled to bytes and named uniform with other memcg file?
+>>>>> memory.kmem.tcp.limit_in_bytes/usage_in_bytes.
+>>>>>
+>>>> You are absolutely correct.
+>>>> Since the internal tcp comparison works, I just ended up never noticing
+>>>> this.
+>>>
+>>> Should we have failcnt and max_usage_in_bytes for tcp as well?
+>>>
+>>
+>> Well, we get a fail count from the tracer anyway, so I don't really see
+>> a need for that. I see value in having it for the slab allocation
+>> itself, but since this only controls the memory pressure framework, I
+>> think we can live without it.
+>>
+>> That said, this is not a strong opinion. I can add it if you'd prefer.
+>
+> It's good for userspace to have the same set of files for all domains:
+>   - memory;
+>   - memory.memsw;
+>   - memory.kmem;
+>   - memory.kmem.tcp;
+>   - etc.
+> Userspace can reuse code for handling them in this case.
+>
+Ok. Back on this.
 
-It adds 42 lines more comments than it deletes.
+Not all domains have all files anyway.
 
-The diffstat looked better when this series included the soft limit
-reclaim rework, which depends on global reclaim doing hierarchy walks.
-I plan to do this next, it deletes ~500 lines.
+max_usage seems to be a property of the main memcg, not of its domains.
+failcnt is present on memsw, and on that only. The problem here, is that 
+this can fail ( and usually will ) in codepaths outside the memory
+controller. (see net/core/sock.c:__sk_mem_schedule)
 
-> If we were ever brave/stupid emough to make
-> CONFIG_CGROUP_MEM_RES_CTLR=y unconditional, how much could we simplify
-> mm/?
+Also, max_usage makes sense for kernel memory as a whole, but I don't 
+think it makes sense here as we're only controlling a specific pressure 
+condition.
 
-There will always be a remaining part that is only of interest to
-people with memory cgroups, but that doesn't mean we can't shrink this
-part to an adequate size.
-
-> We are adding bits of overhead to the  CONFIG_CGROUP_MEM_RES_CTLR=n case
-> all over the place.  This patchset actually decreases the size of allnoconfig
-> mm/built-in.o by 1/700th.
-
-Most of the memcg code should be completely optimized away with =n,
-except for some on-stack data structures that have a struct mem_cgroup
-pointer.
-
-In the meantime, major distros started to =y per default and people
-are complaining that memcg functions show up in the profiles of their
-non-memcg workload.  This one worries me more.
-
-> A "struct mem_cgroup" sometimes gets called "mem", sometimes "memcg",
-> sometimes "mem_cont".  Any more candidates?  Is there any logic to
-> this?
-
-I used memcg throughout except for two patches that I fixed up.  I
-don't think there is any reason to keep them different, so I'll send a
-fix to rename the remaining ones to memcg.
-
-> Anyway...  it all looks pretty sensible to me, but the timing (at
-> -rc8!) is terrible.  Please keep this material maintained for -rc1, OK?
-
-Thanks, and yeah, the timing is ambitious, I hoped that the deferred
-release and merge window could make it possible.
-
-I'll keep it uptodate.
+So in a nutshell: I'd like to leave this alone, and add 
+kmem.max_usage_in_bytes and kmem.failcnt to the to soon-to-land-here 
+slab accounting patches. (Where the actual allocation happens)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
