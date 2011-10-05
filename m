@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ACCF6B005A
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 15:19:34 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p95JJTpB029329
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:19:31 -0700
-Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
-	by hpaq12.eem.corp.google.com with ESMTP id p95JIuMq009973
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5966B005D
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 15:24:35 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p95JORm8025890
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:24:28 -0700
+Received: from vwe42 (vwe42.prod.google.com [10.241.18.42])
+	by wpaz24.hot.corp.google.com with ESMTP id p95JOQBL013679
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:19:27 -0700
-Received: by pzk36 with SMTP id 36so5521423pzk.7
-        for <linux-mm@kvack.org>; Wed, 05 Oct 2011 12:19:27 -0700 (PDT)
-Date: Wed, 5 Oct 2011 12:19:25 -0700 (PDT)
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:24:26 -0700
+Received: by vwe42 with SMTP id 42so2307187vwe.34
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2011 12:24:26 -0700 (PDT)
+Date: Wed, 5 Oct 2011 12:24:24 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [RFCv3][PATCH 4/4] show page size in /proc/$pid/numa_maps
-In-Reply-To: <1317804891.2473.26.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Message-ID: <alpine.DEB.2.00.1110051213280.23587@chino.kir.corp.google.com>
-References: <20111001000856.DD623081@kernel> <20111001000900.BD9248B8@kernel> <alpine.DEB.2.00.1110042344250.16359@chino.kir.corp.google.com> <1317798564.3099.12.camel@edumazet-laptop> <alpine.DEB.2.00.1110050012490.18906@chino.kir.corp.google.com>
- <1317804891.2473.26.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+In-Reply-To: <1317832083.2473.58.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Message-ID: <alpine.DEB.2.00.1110051219370.23587@chino.kir.corp.google.com>
+References: <20111001000856.DD623081@kernel> <20111001000900.BD9248B8@kernel> <alpine.DEB.2.00.1110042344250.16359@chino.kir.corp.google.com> <1317798564.3099.12.camel@edumazet-laptop> <1317828155.7842.73.camel@nimitz>
+ <1317832083.2473.58.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,35 +27,24 @@ Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger
 
 On Wed, 5 Oct 2011, Eric Dumazet wrote:
 
-> > Why on earth do we want to convert a byte value into a string so a script 
-> > can convert it the other way around?  Do you have a hard time parsing 
-> > 4096, 2097152, and 1073741824 to be 4K, 2M, and 1G respectively?  
+> > How does it break old scripts?
+> > 
 > 
-> Yes I do. I dont have in my head all possible 2^X values, but K, M, G,
-> T : thats ok (less neurons needed)
+> Old scripts just parse numa_maps, and on typical machines where
+> hugepages are not used, they dont have to care about page size.
+> They assume pages are 4KB.
 > 
-> You focus on current x86_64 hardware.
-> 
-> Some arches have lot of different choices. (powerpc has 64K, 16M, 16GB
-> pages)
-> 
-> In 10 years, you'll have pagesize=549755813888, or maybe
-> pagesize=8589934592
-> 
-> I pretty much prefer pagesize=512GB and pagesize=8TB
-> 
-> This is consistent with usual conventions and practice.
+> Adding a new word (pagesize=...) might break them, but personally I dont
+> care.
 > 
 
-I'm indifferent whether it's displayed in bytes (so a script could do 
-pagesize * anon, for example, and find the exact amount of anonymous 
-memory for that vma without needing smaps) or in KB like /proc/pid/smaps, 
-grep Hugepagesize /proc/meminfo, and ls /sys/kernel/mm/hugepages.
-
-In other words, pagesize= in /proc/pid/numa_maps is the least of your 
-worries if you're serious about this: you would have already struggled 
-with smaps, meminfo, and the sysfs interface for reserving the hugepages 
-in the first place.
+If your script is only parsing numa_maps, then Dave's effort is actually 
+allowing them to be fixed rather than breaking them.  We could silently 
+continue to export the page counts without specifying the size (hugetlb 
+pages are counted in their true hugepage size, THP pages are counted in 
+PAGE_SIZE units), but then a script would always be broken unless they use 
+smaps as well.  Dave's addition of pagesize allows numa_maps to stand on 
+its own and actually be useful when hugepages are used.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
