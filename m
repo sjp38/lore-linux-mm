@@ -1,55 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AC2E9400BF
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 12:30:17 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p95G60Sd018041
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:06:00 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p95GU0p81564860
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 12:30:00 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p95GTtOl006599
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 10:29:56 -0600
-Date: Wed, 5 Oct 2011 21:42:39 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 8/26]   x86: analyze instruction and
- determine fixups.
-Message-ID: <20111005161239.GA28250@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120127.25326.71509.sendpatchset@srdronam.in.ibm.com>
- <20111005154838.GA31953@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CD4FD9400BF
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 12:34:38 -0400 (EDT)
+Date: Wed, 5 Oct 2011 18:29:46 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 10/26]   x86: Set instruction pointer.
+Message-ID: <20111005162946.GA1366@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120148.25326.96997.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111005154838.GA31953@redhat.com>
+In-Reply-To: <20110920120148.25326.96997.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Oleg Nesterov <oleg@redhat.com> [2011-10-05 17:48:38]:
+On 09/20, Srikar Dronamraju wrote:
+>
+> --- a/arch/x86/include/asm/uprobes.h
+> +++ b/arch/x86/include/asm/uprobes.h
+> @@ -39,4 +39,5 @@ struct uprobe_arch_info {};
+>  #endif
+>  struct uprobe;
+>  extern int analyze_insn(struct task_struct *tsk, struct uprobe *uprobe);
+> +extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
 
-> On 09/20, Srikar Dronamraju wrote:
-> >
-> > --- a/arch/x86/Kconfig
-> > +++ b/arch/x86/Kconfig
-> > @@ -250,6 +250,9 @@ config ARCH_CPU_PROBE_RELEASE
-> >  	def_bool y
-> >  	depends on HOTPLUG_CPU
-> >
-> > +config ARCH_SUPPORTS_UPROBES
-> > +	def_bool y
-> > +
-> 
-> It seems you should also change the INSTRUCTION_DECODER entry.
+Well, this is minor, but we already have instruction_pointer_set().
 
-Okay will do.
-
--- 
-Thanks and Regards
-Srikar
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
