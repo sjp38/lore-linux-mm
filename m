@@ -1,106 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8118D900149
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 20:31:37 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 808A53EE0CB
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E73045DE54
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B82945DE55
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 270F91DB8057
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D62B41DB804D
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:32 +0900 (JST)
-Date: Wed, 5 Oct 2011 09:29:54 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v5 0/8] per-cgroup tcp buffer pressure settings
-Message-Id: <20111005092954.718a0c29.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1317730680-24352-1-git-send-email-glommer@parallels.com>
-References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 32EB7900149
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 21:03:16 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <77608af6-a747-47f6-81ac-e1379f75fd65@default>
+Date: Tue, 4 Oct 2011 18:03:00 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
+ <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
+ <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
+ <4E72284B.2040907@linux.vnet.ibm.com>
+ <075c4e4c-a22d-47d1-ae98-31839df6e722@default>
+ <4E725109.3010609@linux.vnet.ibm.com>
+ <863f8de5-a8e5-427d-a329-e69a5402f88a@default>
+ <1317657556.16137.696.camel@nimitz> <4E89F6D1.6000502@vflare.org
+ 1317666154.16137.727.camel@nimitz>
+In-Reply-To: <1317666154.16137.727.camel@nimitz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On Tue,  4 Oct 2011 16:17:52 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+> Sent: Monday, October 03, 2011 12:23 PM
+> To: Nitin Gupta
+> Cc: Dan Magenheimer; Seth Jennings; Greg KH; gregkh@suse.de; devel@driver=
+dev.osuosl.org;
+> cascardo@holoscopio.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org=
+; brking@linux.vnet.ibm.com;
+> rcj@linux.vnet.ibm.com
+> Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+>=20
+> On Mon, 2011-10-03 at 13:54 -0400, Nitin Gupta wrote:
+> > I think disabling preemption on the local CPU is the cheapest we can ge=
+t
+> > to protect PCPU buffers. We may experiment with, say, multiple buffers
+> > per CPU, so we end up disabling preemption only in highly improbable
+> > case of getting preempted just too many times exactly within critical
+> > section.
+>=20
+> I guess the problem is two-fold: preempt_disable() and
+> local_irq_save().
+>=20
+> > static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oi=
+dp,
+> >                                 uint32_t index, struct page *page)
+> > {
+> >         struct tmem_pool *pool;
+> >         int ret =3D -1;
+> >
+> >         BUG_ON(!irqs_disabled());
+>=20
+> That tells me "zcache" doesn't work with interrupts on.  It seems like
+> awfully high-level code to have interrupts disabled.  The core page
+> allocator has some irq-disabling spinlock calls, but that's only really
+> because it has to be able to service page allocations from interrupts.
+> What's the high-level reason for zcache?
+>=20
+> I'll save the discussion about preempt for when Seth posts his patch.
 
-> [[ v3: merge Kirill's suggestions, + a destroy-related bugfix ]]
-> [[ v4: Fix a bug with non-mounted cgroups + disallow task movement ]]
-> [[ v5: Compile bug with modular ipv6 + tcp files in bytes ]]
-> 
-> Kame, Kirill,
-> 
-> I am submitting this again merging most of your comments. I've decided to
-> leave some of them out:
->  * I am not using res_counters for allocated_memory. Besides being more
->    expensive than what we need, to make it work in a nice way, we'd have
->    to change the !cgroup code, including other protocols than tcp. Also,
->    
->  * I am not using failcnt and max_usage_in_bytes for it. I believe the value
->    of those lies more in the allocation than in the pressure control. Besides,
->    fail conditions lie mostly outside of the memory cgroup's control. (Actually,
->    a soft_limit makes a lot of sense, and I do plan to introduce it in a follow
->    up series)
-> 
-> If you agree with the above, and there are any other pressing issues, let me
-> know and I will address them ASAP. Otherwise, let's discuss it. I'm always open.
-> 
+I completely agree that the irq/softirq/preempt states should be
+re-examined and, where possible, improved before zcache moves
+out of staging.
 
-I'm not familar with reuqirements of users. So, I appreciate your choices.
-What I adivse you here is taking a deep breath. Making new version every day
-is not good for reviewing process ;)
-(It's now -rc8 and merge will not be so quick, anyway.)
+Actually, I think cleancache_put is called from a point in the kernel
+where irqs are disabled.  I believe it is unsafe to call a routine
+sometimes with irqs disabled and sometimes with irqs enabled?
+I think some points of call to cleancache_flush may also have
+irqs disabled.
 
-At this stage, my concern is view of interfaces and documenation, and future plans.
+IIRC, much of the zcache code has preemption disabled because
+it is unsafe for a page fault to occur when zcache is running,
+since the page fault may cause a (recursive) call into zcache
+and possibly recursively take a lock.
 
-Let me give  a try explanation by myself. (Correct me ;)
-I added some questions but I'm sorry you've already answered.
+Anyway, some of the atomicity constraints in the code are
+definitely required, but there are very likely some constraints
+that are overzealous and can be removed.  For now, I'd rather
+have the longer interrupt latency with code that works than
+have developers experimenting with zcache and see lockups. :-}
 
-New interfaces are 5 files. All files exists only for non-root memory cgroup.
-
-1. memory.independent_kmem_limit
-2. memory.kmem.usage_in_bytes
-3. memory.kmem.limit_in_bytes
-4. memory.kmem.tcp.limit_in_bytes
-5. memory.kmem.tcp.usage_in_bytes
-
-* memory.independent_kmem_limit
- If 1, kmem_limit_in_bytes/kmem_usage_in_bytes works.
- If 0, kmem_limit_in_bytes/kmem_usage_in_bytes doesn't work and all kmem
-    usages are controlled under memory.limit_in_bytes.
-
-Question:
- - What happens when parent/chidlren cgroup has different indepedent_kmem_limit ?
- - What happens at creating a new cgroup with use_hierarchy==1.
-
-* memory.kmem_limit_in_bytes/memory.kmem.tcp.limit_in_bytes
-
- Both files works independently for _Now_. And memory.kmem_usage_in_bytes and
- memory.kmem_tcp.usage_in_bytes has no relationships.
-
- In future plan, kmem.usage_in_bytes should includes tcp.kmem_usage_in_bytes.
- And kmem.limit_in_bytes should be the limiation of sum of all kmem.xxxx.limit_in_bytes.
-
-Question:
- - Why this integration is difficult ?
-   Can't tcp-limit-code borrows some amount of charges in batch from kmem_limit 
-   and use it ?
- 
- - Don't you need a stat file to indicate "tcp memory pressure works!" ?
-   It can be obtained already ?
-
-Thanks,
--Kame
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
