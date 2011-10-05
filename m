@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B17EF9400BF
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 12:24:05 -0400 (EDT)
-Date: Wed, 5 Oct 2011 18:19:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 9/26]   Uprobes: Background page
-	replacement.
-Message-ID: <20111005161914.GA903@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120137.25326.72005.sendpatchset@srdronam.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110920120137.25326.72005.sendpatchset@srdronam.in.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A739400BF
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 12:27:52 -0400 (EDT)
+Received: by wyf22 with SMTP id 22so2522523wyf.14
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2011 09:27:49 -0700 (PDT)
+Subject: Re: [RFCv3][PATCH 4/4] show page size in /proc/$pid/numa_maps
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <1317828155.7842.73.camel@nimitz>
+References: <20111001000856.DD623081@kernel>
+	 <20111001000900.BD9248B8@kernel>
+	 <alpine.DEB.2.00.1110042344250.16359@chino.kir.corp.google.com>
+	 <1317798564.3099.12.camel@edumazet-laptop>
+	 <1317828155.7842.73.camel@nimitz>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 05 Oct 2011 18:28:03 +0200
+Message-ID: <1317832083.2473.58.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, James.Bottomley@hansenpartnership.com, hpa@zytor.com
 
-On 09/20, Srikar Dronamraju wrote:
->
-> +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-> +						uprobe_opcode_t *opcode)
-> +{
-> +	struct vm_area_struct *vma;
-> +	struct page *page;
-> +	void *vaddr_new;
-> +	int ret;
-> +
-> +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-> +	if (ret <= 0)
-> +		return ret;
-> +	ret = -EINVAL;
-> +
-> +	/*
-> +	 * We are interested in text pages only. Our pages of interest
-> +	 * should be mapped for read and execute only. We desist from
-> +	 * adding probes in write mapped pages since the breakpoints
-> +	 * might end up in the file copy.
-> +	 */
-> +	if (!valid_vma(vma))
-> +		goto put_out;
+Le mercredi 05 octobre 2011 A  08:22 -0700, Dave Hansen a A(C)crit :
+> On Wed, 2011-10-05 at 09:09 +0200, Eric Dumazet wrote:
+> > By the way, "pagesize=4KiB" are just noise if you ask me, thats the
+> > default PAGE_SIZE. This also breaks old scripts :)
+> 
+> How does it break old scripts?
+> 
 
-Another case when valid_vma() looks suspicious. We are going to restore
-the original instruction. We shouldn't fail (at least we shouldn't "leak"
-->mm_uprobes_count) if ->vm_flags was changed between register_uprobe()
-and unregister_uprobe().
+Old scripts just parse numa_maps, and on typical machines where
+hugepages are not used, they dont have to care about page size.
+They assume pages are 4KB.
 
-Oleg.
+Adding a new word (pagesize=...) might break them, but personally I dont
+care.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
