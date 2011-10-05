@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 10B8C900149
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 11:16:42 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 00/11] IO-less dirty throttling v12
-References: <20111003134228.090592370@intel.com>
-	<20111004195206.GG28306@redhat.com>
-Date: Wed, 05 Oct 2011 08:16:41 -0700
-In-Reply-To: <20111004195206.GG28306@redhat.com> (Vivek Goyal's message of
-	"Tue, 4 Oct 2011 15:52:06 -0400")
-Message-ID: <m2ipo34gfa.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 672F29400BF
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 11:29:04 -0400 (EDT)
+Received: from /spool/local
+	by us.ibm.com with XMail ESMTP
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 5 Oct 2011 11:24:14 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p95FMqiC088794
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 11:22:53 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p95FMlxq026811
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 11:22:48 -0400
+Subject: Re: [RFCv3][PATCH 4/4] show page size in /proc/$pid/numa_maps
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1317798564.3099.12.camel@edumazet-laptop>
+References: <20111001000856.DD623081@kernel>
+	 <20111001000900.BD9248B8@kernel>
+	 <alpine.DEB.2.00.1110042344250.16359@chino.kir.corp.google.com>
+	 <1317798564.3099.12.camel@edumazet-laptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 05 Oct 2011 08:22:35 -0700
+Message-ID: <1317828155.7842.73.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, James.Bottomley@hansenpartnership.com, hpa@zytor.com
 
-Vivek Goyal <vgoyal@redhat.com> writes:
->
-> Will it make sense to break down this work in two patch series. First
-> push IO less balance dirty pages and then all the complicated pieces
-> of ratelimits.
+On Wed, 2011-10-05 at 09:09 +0200, Eric Dumazet wrote:
+> By the way, "pagesize=4KiB" are just noise if you ask me, thats the
+> default PAGE_SIZE. This also breaks old scripts :)
 
-I would be wary against too much refactoring of well tested patchkits.
-I've seen too many cases where this can add nasty and subtle bugs,
-given that our unit test coverage is usually relatively poor.
+How does it break old scripts?
 
-For example the infamous "absolute path names became twice as slow" 
-bug was very likely introduced in such a refactoring of a large VFS
-patchkit.
-
-While it's generally good to make things easier for reviewers too much
-of a good thing can be quite bad.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
