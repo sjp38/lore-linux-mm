@@ -1,143 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A62900149
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:12:19 -0400 (EDT)
-Subject: Re: [PATCH] mm, arch: Complete pagefault_disable abstraction
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 05 Oct 2011 15:12:14 +0200
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317820334.6766.23.camel@twins>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5F9DA900149
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:56:24 -0400 (EDT)
+Date: Wed, 5 Oct 2011 21:56:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/11] IO-less dirty throttling v12
+Message-ID: <20111005135615.GA16438@localhost>
+References: <20111003134228.090592370@intel.com>
+ <20111004195206.GG28306@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111004195206.GG28306@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-For those with a strong stomach, here's what we do with kmap_atomic:
+On Wed, Oct 05, 2011 at 03:52:06AM +0800, Vivek Goyal wrote:
+> On Mon, Oct 03, 2011 at 09:42:28PM +0800, Wu Fengguang wrote:
+> > Hi,
+> > 
+> > This is the minimal IO-less balance_dirty_pages() changes that are expected to
+> > be regression free (well, except for NFS).
+> > 
+> >         git://github.com/fengguang/linux.git dirty-throttling-v12
+> > 
+> > Tests results will be posted in a separate email.
+> 
+> Looks like we are solving two problems.
+> 
+> - IO less balance_dirty_pages()
+> - Throttling based on ratelimit instead of based on number of dirty pages.
+> 
+> The second piece is the one which has complicated calculations for
+> calculating the global/bdi rates and logic for stablizing the rates etc.
+> 
+> IIUC, second piece is primarily needed for better latencies for writers.
 
----
-Subject: mm, rt: kmap_atomic scheduling
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 28 Jul 2011 10:43:51 +0200
+Well, yes. The bdi->dirty_ratelimit estimation turns out to be the
+most confusing part of the patchset... Other than the complexities,
+the algorithm does work pretty well in the tests (except for small
+memory cases, in which case its estimation accuracy no longer matters).
 
-In fact, with migrate_disable() existing one could play games with
-kmap_atomic. You could save/restore the kmap_atomic slots on context
-switch (if there are any in use of course), this should be esp easy now
-that we have a kmap_atomic stack.
+Note that the bdi->dirty_ratelimit thing, even when goes wrong, is
+very unlikely to cause large regressions. The known regressions mostly
+originate from the nature of IO-less.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-[dvhart@linux.intel.com: build fix]
-Link: http://lkml.kernel.org/r/1311842631.5890.208.camel@twins
----
- arch/x86/kernel/process_32.c |   36 ++++++++++++++++++++++++++++++++++++
- include/linux/sched.h        |    5 +++++
- mm/memory.c                  |    2 ++
- 3 files changed, 43 insertions(+)
+> Will it make sense to break down this work in two patch series. First
+> push IO less balance dirty pages and then all the complicated pieces
+> of ratelimits.
+> 
+> ratelimit allowed you to come up with sleep time for the process. Without
+> that I think you shall have to fall back to what Jan Kar had done, 
+> calculation based on number of pages.
 
-Index: linux-2.6/arch/x86/kernel/process_32.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/arch/x86/kernel/process_32.c
-+++ linux-2.6/arch/x86/kernel/process_32.c
-@@ -38,6 +38,7 @@
- #include <linux/uaccess.h>
- #include <linux/io.h>
- #include <linux/kdebug.h>
-+#include <linux/highmem.h>
-=20
- #include <asm/pgtable.h>
- #include <asm/system.h>
-@@ -346,6 +347,41 @@ __switch_to(struct task_struct *prev_p,=20
- 		     task_thread_info(next_p)->flags & _TIF_WORK_CTXSW_NEXT))
- 		__switch_to_xtra(prev_p, next_p, tss);
-=20
-+#if defined CONFIG_PREEMPT_RT_FULL && defined CONFIG_HIGHMEM
-+	/*
-+	 * Save @prev's kmap_atomic stack
-+	 */
-+	prev_p->kmap_idx =3D __this_cpu_read(__kmap_atomic_idx);
-+	if (unlikely(prev_p->kmap_idx)) {
-+		int i;
-+
-+		for (i =3D 0; i < prev_p->kmap_idx; i++) {
-+			int idx =3D i + KM_TYPE_NR * smp_processor_id();
-+
-+			pte_t *ptep =3D kmap_pte - idx;
-+			prev_p->kmap_pte[i] =3D *ptep;
-+			kpte_clear_flush(ptep, __fix_to_virt(FIX_KMAP_BEGIN + idx));
-+		}
-+
-+		__this_cpu_write(__kmap_atomic_idx, 0);
-+	}
-+
-+	/*
-+	 * Restore @next_p's kmap_atomic stack
-+	 */
-+	if (unlikely(next_p->kmap_idx)) {
-+		int i;
-+
-+		__this_cpu_write(__kmap_atomic_idx, next_p->kmap_idx);
-+
-+		for (i =3D 0; i < next_p->kmap_idx; i++) {
-+			int idx =3D i + KM_TYPE_NR * smp_processor_id();
-+
-+			set_pte(kmap_pte - idx, next_p->kmap_pte[i]);
-+		}
-+	}
-+#endif
-+
- 	/* If we're going to preload the fpu context, make sure clts
- 	   is run while we're batching the cpu state updates. */
- 	if (preload_fpu)
-Index: linux-2.6/include/linux/sched.h
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/include/linux/sched.h
-+++ linux-2.6/include/linux/sched.h
-@@ -63,6 +63,7 @@ struct sched_param {
- #include <linux/nodemask.h>
- #include <linux/mm_types.h>
-=20
-+#include <asm/kmap_types.h>
- #include <asm/system.h>
- #include <asm/page.h>
- #include <asm/ptrace.h>
-@@ -1594,6 +1595,10 @@ struct task_struct {
- 	struct rcu_head put_rcu;
- 	int softirq_nestcnt;
- #endif
-+#if defined CONFIG_PREEMPT_RT_FULL && defined CONFIG_HIGHMEM
-+	int kmap_idx;
-+	pte_t kmap_pte[KM_TYPE_NR];
-+#endif
- };
-=20
- #ifdef CONFIG_PREEMPT_RT_FULL
-Index: linux-2.6/mm/memory.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -3431,6 +3431,7 @@ unlock:
- #ifdef CONFIG_PREEMPT_RT_FULL
- void pagefault_disable(void)
- {
-+	migrate_disable();
- 	current->pagefault_disabled++;
- 	/*
- 	 * make sure to have issued the store before a pagefault
-@@ -3448,6 +3449,7 @@ void pagefault_enable(void)
- 	 */
- 	barrier();
- 	current->pagefault_disabled--;
-+	migrate_enable();
- }
- EXPORT_SYMBOL_GPL(pagefault_enable);
- #endif
+If dropping all the smoothness considerations, the minimal
+implementation would be close to this patch:
+
+        [PATCH 05/35] writeback: IO-less balance_dirty_pages()
+        http://www.spinics.net/lists/linux-mm/msg12880.html
+
+However the experiences were, it may lead to much worse latencies than
+the vanilla one in JBOD cases. This is because vanilla kernel has the
+option to break out of the loop when written enough pages, however the
+IO-less balance_dirty_pages() will just wait until the dirty pages
+drop below the (rushed high) bdi threshold, which could take long time.
+
+Another question is, the IO-less balance_dirty_pages() is basically
+
+        on every N pages dirtied, sleep for M jiffies
+
+In current patchset, we get the desired N with formula
+
+        N = bdi->dirty_ratelimit / desired_M
+
+When dirty_ratelimit is not available, it would be a problem to
+estimate the adequate N that works well for various workloads.
+
+And to avoid regressions, patches 8,9,10,11 (maybe updated form) will
+still be necessary. And a complete rerun of all the test cases and to
+fix up any possible new regressions.
+
+Overall it may cost too much (if possible at all, considering the two
+problems listed above) to try out the above steps. The main intention
+being "whether we can introduce the dirty_ratelimit complexities later".
+Considering that the complexity itself is not likely causing problems
+other than lose of smoothness, it looks beneficial to test the ready
+made code earlier in production environments, rather than to take lots
+of efforts to strip them out and test new code, only to add them back
+in some future release.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
