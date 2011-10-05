@@ -1,148 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F916900149
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:10:29 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A62900149
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:12:19 -0400 (EDT)
 Subject: Re: [PATCH] mm, arch: Complete pagefault_disable abstraction
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 05 Oct 2011 15:10:24 +0200
+Date: Wed, 05 Oct 2011 15:12:14 +0200
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Message-ID: <1317820224.6766.21.camel@twins>
+Message-ID: <1317820334.6766.23.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 
-
-For reference, here's the -rt patch that goes on top:
+For those with a strong stomach, here's what we do with kmap_atomic:
 
 ---
-Subject: rt: Preemptable pagefault_disable()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed Oct 05 14:20:57 CEST 2011
+Subject: mm, rt: kmap_atomic scheduling
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 28 Jul 2011 10:43:51 +0200
 
-Implement a preemptable pagefault_disable() by keeping a per-task
-pagefault_disabled counter.
-
-This allows disabling of the pagefault handler (and thus avoiding the
-recursive fault/mmap_sem issues) without disabling preemption.
+In fact, with migrate_disable() existing one could play games with
+kmap_atomic. You could save/restore the kmap_atomic slots on context
+switch (if there are any in use of course), this should be esp easy now
+that we have a kmap_atomic stack.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+[dvhart@linux.intel.com: build fix]
+Link: http://lkml.kernel.org/r/1311842631.5890.208.camel@twins
 ---
- include/linux/sched.h   |    9 ++++++++-
- include/linux/uaccess.h |    5 +++++
- kernel/fork.c           |    3 +++
- mm/memory.c             |   24 ++++++++++++++++++++++++
- 4 files changed, 40 insertions(+), 1 deletion(-)
+ arch/x86/kernel/process_32.c |   36 ++++++++++++++++++++++++++++++++++++
+ include/linux/sched.h        |    5 +++++
+ mm/memory.c                  |    2 ++
+ 3 files changed, 43 insertions(+)
 
-Index: linux-2.6/include/linux/uaccess.h
+Index: linux-2.6/arch/x86/kernel/process_32.c
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/include/linux/uaccess.h
-+++ linux-2.6/include/linux/uaccess.h
-@@ -4,6 +4,7 @@
- #include <linux/preempt.h>
- #include <asm/uaccess.h>
+--- linux-2.6.orig/arch/x86/kernel/process_32.c
++++ linux-2.6/arch/x86/kernel/process_32.c
+@@ -38,6 +38,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/io.h>
+ #include <linux/kdebug.h>
++#include <linux/highmem.h>
 =20
-+#ifndef CONFIG_PREEMPT_RT_FULL
- /*
-  * These routines enable/disable the pagefault handler in that
-  * it will not take any locks and go straight to the fixup table.
-@@ -37,6 +38,10 @@ static inline void pagefault_enable(void
- 	barrier();
- 	preempt_check_resched();
- }
-+#else
-+extern void pagefault_disable(void);
-+extern void pagefault_enable(void);
-+#endif
+ #include <asm/pgtable.h>
+ #include <asm/system.h>
+@@ -346,6 +347,41 @@ __switch_to(struct task_struct *prev_p,=20
+ 		     task_thread_info(next_p)->flags & _TIF_WORK_CTXSW_NEXT))
+ 		__switch_to_xtra(prev_p, next_p, tss);
 =20
- #ifndef ARCH_HAS_NOCACHE_UACCESS
-=20
-Index: linux-2.6/kernel/fork.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/kernel/fork.c
-+++ linux-2.6/kernel/fork.c
-@@ -1200,6 +1200,9 @@ static struct task_struct *copy_process(
- 	p->hardirq_context =3D 0;
- 	p->softirq_context =3D 0;
- #endif
-+#ifdef CONFIG_PREEMPT_RT_FULL
-+	p->pagefault_disabled =3D 0;
-+#endif
- #ifdef CONFIG_LOCKDEP
- 	p->lockdep_depth =3D 0; /* no locks held yet */
- 	p->curr_chain_key =3D 0;
-Index: linux-2.6/mm/memory.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -3436,6 +3436,30 @@ int handle_pte_fault(struct mm_struct *m
- 	return 0;
- }
-=20
-+#ifdef CONFIG_PREEMPT_RT_FULL
-+void pagefault_disable(void)
-+{
-+	current->pagefault_disabled++;
++#if defined CONFIG_PREEMPT_RT_FULL && defined CONFIG_HIGHMEM
 +	/*
-+	 * make sure to have issued the store before a pagefault
-+	 * can hit.
++	 * Save @prev's kmap_atomic stack
 +	 */
-+	barrier();
-+}
-+EXPORT_SYMBOL_GPL(pagefault_disable);
++	prev_p->kmap_idx =3D __this_cpu_read(__kmap_atomic_idx);
++	if (unlikely(prev_p->kmap_idx)) {
++		int i;
 +
-+void pagefault_enable(void)
-+{
++		for (i =3D 0; i < prev_p->kmap_idx; i++) {
++			int idx =3D i + KM_TYPE_NR * smp_processor_id();
++
++			pte_t *ptep =3D kmap_pte - idx;
++			prev_p->kmap_pte[i] =3D *ptep;
++			kpte_clear_flush(ptep, __fix_to_virt(FIX_KMAP_BEGIN + idx));
++		}
++
++		__this_cpu_write(__kmap_atomic_idx, 0);
++	}
++
 +	/*
-+	 * make sure to issue those last loads/stores before enabling
-+	 * the pagefault handler again.
++	 * Restore @next_p's kmap_atomic stack
 +	 */
-+	barrier();
-+	current->pagefault_disabled--;
-+}
-+EXPORT_SYMBOL_GPL(pagefault_enable);
++	if (unlikely(next_p->kmap_idx)) {
++		int i;
++
++		__this_cpu_write(__kmap_atomic_idx, next_p->kmap_idx);
++
++		for (i =3D 0; i < next_p->kmap_idx; i++) {
++			int idx =3D i + KM_TYPE_NR * smp_processor_id();
++
++			set_pte(kmap_pte - idx, next_p->kmap_pte[i]);
++		}
++	}
 +#endif
 +
- /*
-  * By the time we get here, we already hold the mm semaphore
-  */
+ 	/* If we're going to preload the fpu context, make sure clts
+ 	   is run while we're batching the cpu state updates. */
+ 	if (preload_fpu)
 Index: linux-2.6/include/linux/sched.h
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
 --- linux-2.6.orig/include/linux/sched.h
 +++ linux-2.6/include/linux/sched.h
-@@ -1434,6 +1434,9 @@ struct task_struct {
- 	/* mutex deadlock detection */
- 	struct mutex_waiter *blocked_on;
+@@ -63,6 +63,7 @@ struct sched_param {
+ #include <linux/nodemask.h>
+ #include <linux/mm_types.h>
+=20
++#include <asm/kmap_types.h>
+ #include <asm/system.h>
+ #include <asm/page.h>
+ #include <asm/ptrace.h>
+@@ -1594,6 +1595,10 @@ struct task_struct {
+ 	struct rcu_head put_rcu;
+ 	int softirq_nestcnt;
  #endif
-+#ifdef CONFIG_PREEMPT_RT_FULL
-+	int pagefault_disabled;
++#if defined CONFIG_PREEMPT_RT_FULL && defined CONFIG_HIGHMEM
++	int kmap_idx;
++	pte_t kmap_pte[KM_TYPE_NR];
 +#endif
- #ifdef CONFIG_TRACE_IRQFLAGS
- 	unsigned int irq_events;
- 	unsigned long hardirq_enable_ip;
-@@ -1578,7 +1581,11 @@ struct task_struct {
+ };
 =20
- static inline bool pagefault_disabled(void)
+ #ifdef CONFIG_PREEMPT_RT_FULL
+Index: linux-2.6/mm/memory.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -3431,6 +3431,7 @@ unlock:
+ #ifdef CONFIG_PREEMPT_RT_FULL
+ void pagefault_disable(void)
  {
--	return in_atomic();
-+	return in_atomic()
-+#ifdef CONFIG_PREEMPT_RT_FULL
-+		|| current->pagefault_disabled
-+#endif
-+		;
++	migrate_disable();
+ 	current->pagefault_disabled++;
+ 	/*
+ 	 * make sure to have issued the store before a pagefault
+@@ -3448,6 +3449,7 @@ void pagefault_enable(void)
+ 	 */
+ 	barrier();
+ 	current->pagefault_disabled--;
++	migrate_enable();
  }
-=20
- /*
+ EXPORT_SYMBOL_GPL(pagefault_enable);
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
