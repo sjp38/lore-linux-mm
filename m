@@ -1,47 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E94900149
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 04:54:39 -0400 (EDT)
-Received: by bkbzs2 with SMTP id zs2so2285628bkb.14
-        for <linux-mm@kvack.org>; Wed, 05 Oct 2011 01:54:36 -0700 (PDT)
-Subject: Re: [RFCv3][PATCH 4/4] show page size in /proc/$pid/numa_maps
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 004EE900149
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 04:57:58 -0400 (EDT)
+Received: by bkbzs2 with SMTP id zs2so2289339bkb.14
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2011 01:57:56 -0700 (PDT)
+Subject: Re: [PATCH v5 6/8] tcp buffer limitation: per-cgroup limit
 From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1110050012490.18906@chino.kir.corp.google.com>
-References: <20111001000856.DD623081@kernel>
-	 <20111001000900.BD9248B8@kernel>
-	 <alpine.DEB.2.00.1110042344250.16359@chino.kir.corp.google.com>
-	 <1317798564.3099.12.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1110050012490.18906@chino.kir.corp.google.com>
+In-Reply-To: <4E8C1064.3030902@parallels.com>
+References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
+	 <1317730680-24352-7-git-send-email-glommer@parallels.com>
+	 <1317732535.2440.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <4E8C1064.3030902@parallels.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 05 Oct 2011 10:54:51 +0200
-Message-ID: <1317804891.2473.26.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Date: Wed, 05 Oct 2011 10:58:10 +0200
+Message-ID: <1317805090.2473.28.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, James.Bottomley@hansenpartnership.com, hpa@zytor.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
 
-Le mercredi 05 octobre 2011 A  00:23 -0700, David Rientjes a A(C)crit :
+Le mercredi 05 octobre 2011 A  12:08 +0400, Glauber Costa a A(C)crit :
+> On 10/04/2011 04:48 PM, Eric Dumazet wrote:
 
-> Why on earth do we want to convert a byte value into a string so a script 
-> can convert it the other way around?  Do you have a hard time parsing 
-> 4096, 2097152, and 1073741824 to be 4K, 2M, and 1G respectively?  
+> > 2) Could you add const qualifiers when possible to your pointers ?
+> 
+> Well, I'll go over the patches again and see where I can add them.
+> Any specific place site you're concerned about?
 
-Yes I do. I dont have in my head all possible 2^X values, but K, M, G,
-T : thats ok (less neurons needed)
+Everywhere its possible : 
 
-You focus on current x86_64 hardware.
-
-Some arches have lot of different choices. (powerpc has 64K, 16M, 16GB
-pages)
-
-In 10 years, you'll have pagesize=549755813888, or maybe
-pagesize=8589934592
-
-I pretty much prefer pagesize=512GB and pagesize=8TB
-
-This is consistent with usual conventions and practice.
+It helps reader to instantly knows if a function is about to change some
+part of the object or only read it, without reading function body.
 
 
 
