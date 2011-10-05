@@ -1,52 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 01CA0900149
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 17:19:03 -0400 (EDT)
-Message-ID: <1317763133.20800.4.camel@Joe-Laptop>
-Subject: Re: [RFCv3][PATCH 1/4] replace string_get_size() arrays
-From: Joe Perches <joe@perches.com>
-Date: Tue, 04 Oct 2011 14:18:53 -0700
-In-Reply-To: <1317761466.7842.41.camel@nimitz>
-References: <20111001000856.DD623081@kernel>
-	 <1317497626.22613.1.camel@Joe-Laptop> <1317756942.7842.38.camel@nimitz>
-	 <1317760957.18210.15.camel@Joe-Laptop> <1317761466.7842.41.camel@nimitz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8118D900149
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2011 20:31:37 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 808A53EE0CB
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E73045DE54
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B82945DE55
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 270F91DB8057
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D62B41DB804D
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:31:32 +0900 (JST)
+Date: Wed, 5 Oct 2011 09:29:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 0/8] per-cgroup tcp buffer pressure settings
+Message-Id: <20111005092954.718a0c29.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1317730680-24352-1-git-send-email-glommer@parallels.com>
+References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, James.Bottomley@HansenPartnership.com, hpa@zytor.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
 
-On Tue, 2011-10-04 at 13:51 -0700, Dave Hansen wrote:
-> On Tue, 2011-10-04 at 13:42 -0700, Joe Perches wrote:
-> > > Right, but we're only handling u64.
-> > So the declaration should be:
-> >         static const char byte_units[] = " KMGTPE";
-> I guess that's worth a comment.  But that first character doesn't get
-> used.  There were two alternatives:
-> 	static const char byte_units[] = "_KMGTPE";
+On Tue,  4 Oct 2011 16:17:52 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-or
-	static const char byte_units[] = { 0, 'K', 'M', 'G', 'T', 'P', 'E' };
-
-and use ARRAY_SIZE(byte_units) not strlen(byte_units)
-for array size maximum.
-
-> or something along the lines of:
-> +	static const char byte_units[] = "KMGTPE";
-> ...
-> +	index--;
-> +       /* index=-1 is plain 'B' with no other unit */
-> +       if (index >= 0) {
+> [[ v3: merge Kirill's suggestions, + a destroy-related bugfix ]]
+> [[ v4: Fix a bug with non-mounted cgroups + disallow task movement ]]
+> [[ v5: Compile bug with modular ipv6 + tcp files in bytes ]]
 > 
-> We don't ever _actually_ look at the space (or underscore).  I figured
-> the _ was nicer since it would be _obvious_ if it ever got printed out
-> somehow.  
+> Kame, Kirill,
+> 
+> I am submitting this again merging most of your comments. I've decided to
+> leave some of them out:
+>  * I am not using res_counters for allocated_memory. Besides being more
+>    expensive than what we need, to make it work in a nice way, we'd have
+>    to change the !cgroup code, including other protocols than tcp. Also,
+>    
+>  * I am not using failcnt and max_usage_in_bytes for it. I believe the value
+>    of those lies more in the allocation than in the pressure control. Besides,
+>    fail conditions lie mostly outside of the memory cgroup's control. (Actually,
+>    a soft_limit makes a lot of sense, and I do plan to introduce it in a follow
+>    up series)
+> 
+> If you agree with the above, and there are any other pressing issues, let me
+> know and I will address them ASAP. Otherwise, let's discuss it. I'm always open.
+> 
 
-shrug.  It's all the same stuff.
+I'm not familar with reuqirements of users. So, I appreciate your choices.
+What I adivse you here is taking a deep breath. Making new version every day
+is not good for reviewing process ;)
+(It's now -rc8 and merge will not be so quick, anyway.)
 
-cheers, Joe
+At this stage, my concern is view of interfaces and documenation, and future plans.
+
+Let me give  a try explanation by myself. (Correct me ;)
+I added some questions but I'm sorry you've already answered.
+
+New interfaces are 5 files. All files exists only for non-root memory cgroup.
+
+1. memory.independent_kmem_limit
+2. memory.kmem.usage_in_bytes
+3. memory.kmem.limit_in_bytes
+4. memory.kmem.tcp.limit_in_bytes
+5. memory.kmem.tcp.usage_in_bytes
+
+* memory.independent_kmem_limit
+ If 1, kmem_limit_in_bytes/kmem_usage_in_bytes works.
+ If 0, kmem_limit_in_bytes/kmem_usage_in_bytes doesn't work and all kmem
+    usages are controlled under memory.limit_in_bytes.
+
+Question:
+ - What happens when parent/chidlren cgroup has different indepedent_kmem_limit ?
+ - What happens at creating a new cgroup with use_hierarchy==1.
+
+* memory.kmem_limit_in_bytes/memory.kmem.tcp.limit_in_bytes
+
+ Both files works independently for _Now_. And memory.kmem_usage_in_bytes and
+ memory.kmem_tcp.usage_in_bytes has no relationships.
+
+ In future plan, kmem.usage_in_bytes should includes tcp.kmem_usage_in_bytes.
+ And kmem.limit_in_bytes should be the limiation of sum of all kmem.xxxx.limit_in_bytes.
+
+Question:
+ - Why this integration is difficult ?
+   Can't tcp-limit-code borrows some amount of charges in batch from kmem_limit 
+   and use it ?
+ 
+ - Don't you need a stat file to indicate "tcp memory pressure works!" ?
+   It can be obtained already ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
