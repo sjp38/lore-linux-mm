@@ -1,154 +1,460 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 27CB6900149
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 07:10:04 -0400 (EDT)
-Received: from /spool/local
-	by us.ibm.com with XMail ESMTP
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 5 Oct 2011 07:10:02 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p95B9vKa214150
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 07:09:59 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p95B9t9Z018221
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2011 08:09:57 -0300
-Date: Wed, 5 Oct 2011 16:22:43 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 5/26]   Uprobes: copy of the original
- instruction.
-Message-ID: <20111005105243.GA806@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120057.25326.63780.sendpatchset@srdronam.in.ibm.com>
- <20111003162905.GA3752@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111003162905.GA3752@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A9590900149
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2011 09:09:35 -0400 (EDT)
+Subject: [PATCH] mm, arch: Complete pagefault_disable abstraction
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Wed, 05 Oct 2011 15:09:29 +0200
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1317820169.6766.20.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 
-* Oleg Nesterov <oleg@redhat.com> [2011-10-03 18:29:05]:
+Subject: mm, arch: Complete pagefault_disable abstraction
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Wed Oct 05 14:22:37 CEST 2011
 
-> On 09/20, Srikar Dronamraju wrote:
-> >
-> > +static int __copy_insn(struct address_space *mapping,
-> > +			struct vm_area_struct *vma, char *insn,
-> > +			unsigned long nbytes, unsigned long offset)
-> > +{
-> > +	struct file *filp = vma->vm_file;
-> > +	struct page *page;
-> > +	void *vaddr;
-> > +	unsigned long off1;
-> > +	unsigned long idx;
-> > +
-> > +	if (!filp)
-> > +		return -EINVAL;
-> > +
-> > +	idx = (unsigned long) (offset >> PAGE_CACHE_SHIFT);
-> > +	off1 = offset &= ~PAGE_MASK;
-> > +
-> > +	/*
-> > +	 * Ensure that the page that has the original instruction is
-> > +	 * populated and in page-cache.
-> > +	 */
-> 
-> Hmm. But how we can ensure?
+Currently we already have pagefault_{disable,enable}() but they're
+nothing more than a glorified preempt_{disable,enable}().
 
+For -rt we want to make pagefault_disable() regions preemptible and
+for that we need to complete the abstraction, replace the current
+in_atomic() tests that are relevant to pagefault_disable() usage with
+pagefault_disabled().
 
-> 
-> > +	page_cache_sync_readahead(mapping, &filp->f_ra, filp, idx, 1);
-> 
-> This schedules the i/o,
-> 
-> > +	page = grab_cache_page(mapping, idx);
-> 
-> This finds/locks the page in the page-cache,
-> 
-> > +	if (!page)
-> > +		return -ENOMEM;
-> > +
-> > +	vaddr = kmap_atomic(page);
-> > +	memcpy(insn, vaddr + off1, nbytes);
-> 
-> What if this page is not PageUptodate() ?
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ arch/alpha/mm/fault.c      |    2 +-
+ arch/arm/mm/fault.c        |    2 +-
+ arch/avr32/mm/fault.c      |    2 +-
+ arch/cris/mm/fault.c       |    2 +-
+ arch/frv/mm/fault.c        |    2 +-
+ arch/ia64/mm/fault.c       |    2 +-
+ arch/m32r/mm/fault.c       |    2 +-
+ arch/m68k/mm/fault.c       |    2 +-
+ arch/microblaze/mm/fault.c |    2 +-
+ arch/mips/mm/fault.c       |    2 +-
+ arch/mn10300/mm/fault.c    |    2 +-
+ arch/parisc/mm/fault.c     |    2 +-
+ arch/powerpc/mm/fault.c    |    2 +-
+ arch/s390/mm/fault.c       |    6 ++++--
+ arch/score/mm/fault.c      |    2 +-
+ arch/sh/mm/fault_32.c      |    2 +-
+ arch/sparc/mm/fault_32.c   |    4 ++--
+ arch/sparc/mm/fault_64.c   |    2 +-
+ arch/tile/mm/fault.c       |    2 +-
+ arch/um/kernel/trap.c      |    2 +-
+ arch/unicore32/mm/fault.c  |    2 +-
+ arch/x86/mm/fault.c        |    2 +-
+ arch/xtensa/mm/fault.c     |    2 +-
+ include/linux/sched.h      |    6 ++++++
+ mm/filemap.c               |    2 +-
+ 25 files changed, 34 insertions(+), 26 deletions(-)
 
-Since we do a synchronous read ahead, I thought the page would be 
-populated and upto date. 
-
-would these two lines after grab_cache_page help?
-
-	if (!PageUptodate(page)) 
-		mapping->a_ops->readpage(filp, page);
-
-
-> 
-> Somehow this assumes that the i/o was already completed, I don't
-> understand this.
-> 
-> But I am starting to think I simply do not understand this change.
-> To the point, I do not underestand why do we need copy_insn() at all.
-> We are going to replace this page, can't we save/analyze ->insn later
-> when we copy the content of the old page? Most probably I missed
-> something simple...
-> 
-> 
-> > +static struct task_struct *get_mm_owner(struct mm_struct *mm)
-> > +{
-> > +	struct task_struct *tsk;
-> > +
-> > +	rcu_read_lock();
-> > +	tsk = rcu_dereference(mm->owner);
-> > +	if (tsk)
-> > +		get_task_struct(tsk);
-> > +	rcu_read_unlock();
-> > +	return tsk;
-> > +}
-> 
-> Hmm. Do we really need task_struct?
-> 
-> > -static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
-> > +static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
-> > +				struct vm_area_struct *vma, loff_t vaddr)
-> >  {
-> > -	/* Placeholder: Yet to be implemented */
-> > +	struct task_struct *tsk;
-> > +	unsigned long addr;
-> > +	int ret = -EINVAL;
-> > +
-> >  	if (!uprobe->consumers)
-> >  		return 0;
-> >
-> > -	atomic_inc(&mm->mm_uprobes_count);
-> > -	return 0;
-> > +	tsk = get_mm_owner(mm);
-> > +	if (!tsk)	/* task is probably exiting; bail-out */
-> > +		return -ESRCH;
-> > +
-> > +	if (vaddr > TASK_SIZE_OF(tsk))
-> > +		goto put_return;
-> 
-> But this should not be possible, no? How it can map this vaddr above
-> TASK_SIZE ?
-> 
-> get_user_pages(tsk => NULL) is fine. Why else do we need mm->owner ?
-
-> 
-> Probably used by the next patches... Say, is_32bit_app(tsk). This
-> can use mm->context.ia32_compat (hopefully will be replaced with
-> MMF_COMPAT).
-> 
-
-We used the tsk struct for checking if the application was 32 bit and
-for calling get_user_pages. Since we can pass NULL to get_user_pages and
-since we can use mm->context.ia32_compat or MMF_COMPAT, I will remove
-get_mm_owner, that way we dont need to be dependent on CONFIG_MM_OWNER.
-
--- 
-Thanks and Regards
-Srikar
+Index: linux-2.6/arch/alpha/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/alpha/mm/fault.c
++++ linux-2.6/arch/alpha/mm/fault.c
+@@ -107,7 +107,7 @@ do_page_fault(unsigned long address, uns
+=20
+ 	/* If we're in an interrupt context, or have no user context,
+ 	   we must not take the fault.  */
+-	if (!mm || in_atomic())
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ #ifdef CONFIG_ALPHA_LARGE_VMALLOC
+Index: linux-2.6/arch/arm/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/arm/mm/fault.c
++++ linux-2.6/arch/arm/mm/fault.c
+@@ -293,7 +293,7 @@ do_page_fault(unsigned long addr, unsign
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	/*
+Index: linux-2.6/arch/avr32/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/avr32/mm/fault.c
++++ linux-2.6/arch/avr32/mm/fault.c
+@@ -81,7 +81,7 @@ asmlinkage void do_page_fault(unsigned l
+ 	 * If we're in an interrupt or have no user context, we must
+ 	 * not take the fault...
+ 	 */
+-	if (in_atomic() || !mm || regs->sr & SYSREG_BIT(GM))
++	if (!mm || regs->sr & SYSREG_BIT(GM) || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	local_irq_enable();
+Index: linux-2.6/arch/cris/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/cris/mm/fault.c
++++ linux-2.6/arch/cris/mm/fault.c
+@@ -111,7 +111,7 @@ do_page_fault(unsigned long address, str
+ 	 * user context, we must not take the fault.
+ 	 */
+=20
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/frv/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/frv/mm/fault.c
++++ linux-2.6/arch/frv/mm/fault.c
+@@ -79,7 +79,7 @@ asmlinkage void do_page_fault(int datamm
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/ia64/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/ia64/mm/fault.c
++++ linux-2.6/arch/ia64/mm/fault.c
+@@ -89,7 +89,7 @@ ia64_do_page_fault (unsigned long addres
+ 	/*
+ 	 * If we're in an interrupt or have no user context, we must not take the=
+ fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ #ifdef CONFIG_VIRTUAL_MEM_MAP
+Index: linux-2.6/arch/m32r/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/m32r/mm/fault.c
++++ linux-2.6/arch/m32r/mm/fault.c
+@@ -115,7 +115,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	 * If we're in an interrupt or have no user context or are running in an
+ 	 * atomic region then we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto bad_area_nosemaphore;
+=20
+ 	/* When running in the kernel we expect faults to occur only to
+Index: linux-2.6/arch/m68k/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/m68k/mm/fault.c
++++ linux-2.6/arch/m68k/mm/fault.c
+@@ -85,7 +85,7 @@ int do_page_fault(struct pt_regs *regs,
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/microblaze/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/microblaze/mm/fault.c
++++ linux-2.6/arch/microblaze/mm/fault.c
+@@ -107,7 +107,7 @@ void do_page_fault(struct pt_regs *regs,
+ 	if ((error_code & 0x13) =3D=3D 0x13 || (error_code & 0x11) =3D=3D 0x11)
+ 		is_write =3D 0;
+=20
+-	if (unlikely(in_atomic() || !mm)) {
++	if (unlikely(!mm || pagefault_disabled())) {
+ 		if (kernel_mode(regs))
+ 			goto bad_area_nosemaphore;
+=20
+Index: linux-2.6/arch/mips/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/mips/mm/fault.c
++++ linux-2.6/arch/mips/mm/fault.c
+@@ -88,7 +88,7 @@ asmlinkage void __kprobes do_page_fault(
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto bad_area_nosemaphore;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/mn10300/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/mn10300/mm/fault.c
++++ linux-2.6/arch/mn10300/mm/fault.c
+@@ -168,7 +168,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/parisc/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/parisc/mm/fault.c
++++ linux-2.6/arch/parisc/mm/fault.c
+@@ -176,7 +176,7 @@ void do_page_fault(struct pt_regs *regs,
+ 	unsigned long acc_type;
+ 	int fault;
+=20
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/powerpc/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/powerpc/mm/fault.c
++++ linux-2.6/arch/powerpc/mm/fault.c
+@@ -162,7 +162,7 @@ int __kprobes do_page_fault(struct pt_re
+ 	}
+ #endif
+=20
+-	if (in_atomic() || mm =3D=3D NULL) {
++	if (!mm || pagefault_disabled()) {
+ 		if (!user_mode(regs))
+ 			return SIGSEGV;
+ 		/* in_atomic() in user mode is really bad,
+Index: linux-2.6/arch/s390/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/s390/mm/fault.c
++++ linux-2.6/arch/s390/mm/fault.c
+@@ -295,7 +295,8 @@ static inline int do_exception(struct pt
+ 	 * user context.
+ 	 */
+ 	fault =3D VM_FAULT_BADCONTEXT;
+-	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
++	if (unlikely(!user_space_fault(trans_exc_code) ||
++		     !mm || pagefault_disabled()))
+ 		goto out;
+=20
+ 	address =3D trans_exc_code & __FAIL_ADDR_MASK;
+@@ -426,7 +427,8 @@ void __kprobes do_asce_exception(struct
+ 	struct mm_struct *mm =3D current->mm;
+ 	struct vm_area_struct *vma;
+=20
+-	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
++	if (unlikely(!user_space_fault(trans_exc_code) ||
++		     !mm || pagefault_disabled()))
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/score/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/score/mm/fault.c
++++ linux-2.6/arch/score/mm/fault.c
+@@ -72,7 +72,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	* If we're in an interrupt or have no user
+ 	* context, we must not take the fault..
+ 	*/
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto bad_area_nosemaphore;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/sh/mm/fault_32.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/sh/mm/fault_32.c
++++ linux-2.6/arch/sh/mm/fault_32.c
+@@ -166,7 +166,7 @@ asmlinkage void __kprobes do_page_fault(
+ 	 * If we're in an interrupt, have no user context or are running
+ 	 * in an atomic region then we must not take the fault:
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/sparc/mm/fault_32.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/sparc/mm/fault_32.c
++++ linux-2.6/arch/sparc/mm/fault_32.c
+@@ -248,8 +248,8 @@ asmlinkage void do_sparc_fault(struct pt
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-        if (in_atomic() || !mm)
+-                goto no_context;
++	if (!mm || pagefault_disabled())
++		goto no_context;
+=20
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+=20
+Index: linux-2.6/arch/sparc/mm/fault_64.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/sparc/mm/fault_64.c
++++ linux-2.6/arch/sparc/mm/fault_64.c
+@@ -322,7 +322,7 @@ asmlinkage void __kprobes do_sparc64_fau
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto intr_or_no_mm;
+=20
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+Index: linux-2.6/arch/tile/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/tile/mm/fault.c
++++ linux-2.6/arch/tile/mm/fault.c
+@@ -346,7 +346,7 @@ static int handle_page_fault(struct pt_r
+ 	 * If we're in an interrupt, have no user context or are running in an
+ 	 * atomic region then we must not take the fault.
+ 	 */
+-	if (in_atomic() || !mm) {
++	if (!mm || pagefault_disabled()) {
+ 		vma =3D NULL;  /* happy compiler */
+ 		goto bad_area_nosemaphore;
+ 	}
+Index: linux-2.6/arch/um/kernel/trap.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/um/kernel/trap.c
++++ linux-2.6/arch/um/kernel/trap.c
+@@ -37,7 +37,7 @@ int handle_page_fault(unsigned long addr
+ 	 * If the fault was during atomic operation, don't take the fault, just
+ 	 * fail.
+ 	 */
+-	if (in_atomic())
++	if (!mm || pagefault_disabled())
+ 		goto out_nosemaphore;
+=20
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/unicore32/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/unicore32/mm/fault.c
++++ linux-2.6/arch/unicore32/mm/fault.c
+@@ -225,7 +225,7 @@ static int do_pf(unsigned long addr, uns
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm)
++	if (!mm || pagefault_disabled())
+ 		goto no_context;
+=20
+ 	/*
+Index: linux-2.6/arch/x86/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/x86/mm/fault.c
++++ linux-2.6/arch/x86/mm/fault.c
+@@ -1084,7 +1084,7 @@ do_page_fault(struct pt_regs *regs, unsi
+ 	 * If we're in an interrupt, have no user context or are running
+ 	 * in an atomic region then we must not take the fault:
+ 	 */
+-	if (unlikely(in_atomic() || !mm)) {
++	if (unlikely(!mm || pagefault_disabled())) {
+ 		bad_area_nosemaphore(regs, error_code, address);
+ 		return;
+ 	}
+Index: linux-2.6/arch/xtensa/mm/fault.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/arch/xtensa/mm/fault.c
++++ linux-2.6/arch/xtensa/mm/fault.c
+@@ -57,7 +57,7 @@ void do_page_fault(struct pt_regs *regs)
+ 	/* If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_atomic() || !mm) {
++	if (!mm || pagefault_disabled()) {
+ 		bad_page_fault(regs, address, SIGSEGV);
+ 		return;
+ 	}
+Index: linux-2.6/include/linux/sched.h
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/include/linux/sched.h
++++ linux-2.6/include/linux/sched.h
+@@ -91,6 +91,7 @@ struct sched_param {
+ #include <linux/latencytop.h>
+ #include <linux/cred.h>
+ #include <linux/llist.h>
++#include <linux/hardirq.h>
+=20
+ #include <asm/processor.h>
+=20
+@@ -1575,6 +1576,11 @@ struct task_struct {
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+ #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
+=20
++static inline bool pagefault_disabled(void)
++{
++	return in_atomic();
++}
++
+ /*
+  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
+  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH
+Index: linux-2.6/mm/filemap.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -2061,7 +2061,7 @@ size_t iov_iter_copy_from_user_atomic(st
+ 	char *kaddr;
+ 	size_t copied;
+=20
+-	BUG_ON(!in_atomic());
++	BUG_ON(!pagefault_disabled());
+ 	kaddr =3D kmap_atomic(page, KM_USER0);
+ 	if (likely(i->nr_segs =3D=3D 1)) {
+ 		int left;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
