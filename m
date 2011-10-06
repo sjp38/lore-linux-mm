@@ -1,168 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B30C6B025B
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 03:10:09 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p966YK7k007630
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 02:34:20 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9678qbF3244214
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 03:08:52 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9678oMW026551
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 03:08:52 -0400
-Date: Thu, 6 Oct 2011 12:21:25 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AABC96B025C
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 03:10:54 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p966tfac023748
+	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 02:55:41 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p967AqMJ263842
+	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 03:10:52 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p967AowP001004
+	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 01:10:52 -0600
+Date: Thu, 6 Oct 2011 12:23:26 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 3/26]   Uprobes: register/unregister
- probes.
-Message-ID: <20111006065125.GC17591@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 9/26]   Uprobes: Background page
+ replacement.
+Message-ID: <20111006065326.GD17591@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120022.25326.35868.sendpatchset@srdronam.in.ibm.com>
- <20111003124640.GA25811@redhat.com>
- <20111005170420.GB28250@linux.vnet.ibm.com>
- <20111005185008.GA8107@redhat.com>
+ <20110920120137.25326.72005.sendpatchset@srdronam.in.ibm.com>
+ <20111005161914.GA903@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20111005185008.GA8107@redhat.com>
+In-Reply-To: <20111005161914.GA903@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
 Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-* Oleg Nesterov <oleg@redhat.com> [2011-10-05 20:50:08]:
+* Oleg Nesterov <oleg@redhat.com> [2011-10-05 18:19:14]:
 
-> On 10/05, Srikar Dronamraju wrote:
+> On 09/20, Srikar Dronamraju wrote:
 > >
-> > Agree. Infact I encountered this problem last week and had fixed it.
-> > In mycase, I had mapped the file read and write while trying to insert
-> > probes.
-> > The changed code looks like this
-> >
-> > 	if (!vma)
-> > 		return NULL;
+> > +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
+> > +						uprobe_opcode_t *opcode)
+> > +{
+> > +	struct vm_area_struct *vma;
+> > +	struct page *page;
+> > +	void *vaddr_new;
+> > +	int ret;
+> > +
+> > +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
+> > +	if (ret <= 0)
+> > +		return ret;
+> > +	ret = -EINVAL;
+> > +
+> > +	/*
+> > +	 * We are interested in text pages only. Our pages of interest
+> > +	 * should be mapped for read and execute only. We desist from
+> > +	 * adding probes in write mapped pages since the breakpoints
+> > +	 * might end up in the file copy.
+> > +	 */
+> > +	if (!valid_vma(vma))
+> > +		goto put_out;
 > 
-> This is unneeded, vma_prio_tree_foreach() stops when vma_prio_tree_next()
-> returns NULL. IOW, you can never see vma == NULL.
-
-Agree.
-
-> 
-> > 	if (!valid_vma(vma))
-> > 		continue;
-> 
-> Yes.
-> 
-> > > > +	mutex_lock(&inode->i_mutex);
-> > > > +	uprobe = alloc_uprobe(inode, offset);
-> > >
-> > > Looks like, alloc_uprobe() doesn't need ->i_mutex.
-> >
-> >
-> > Actually this was pointed out by you in the last review.
-> > https://lkml.org/lkml/2011/7/24/91
-> 
-> OOPS ;) may be deserves a comment...
-
-will add a comment.
-
-> 
-> > > > +void unregister_uprobe(struct inode *inode, loff_t offset,
-> > > > +				struct uprobe_consumer *consumer)
-> > > > +{
-> > > > +	struct uprobe *uprobe;
-> > > > +
-> > > > +	inode = igrab(inode);
-> > > > +	if (!inode || !consumer)
-> > > > +		return;
-> > > > +
-> > > > +	if (offset > inode->i_size)
-> > > > +		return;
-> > > > +
-> > > > +	uprobe = find_uprobe(inode, offset);
-> > > > +	if (!uprobe)
-> > > > +		return;
-> > > > +
-> > > > +	if (!del_consumer(uprobe, consumer)) {
-> > > > +		put_uprobe(uprobe);
-> > > > +		return;
-> > > > +	}
-> > > > +
-> > > > +	mutex_lock(&inode->i_mutex);
-> > > > +	if (!uprobe->consumers)
-> > > > +		__unregister_uprobe(inode, offset, uprobe);
-> > >
-> > > It seemes that del_consumer() should be done under ->i_mutex. If it
-> > > removes the last consumer, we can race with register_uprobe() which
-> > > takes ->i_mutex before us and does another __register_uprobe(), no?
-> >
-> > We should still be okay, because we check for the consumers before we
-> > do the actual unregister in form of __unregister_uprobe.
-> > since the consumer is again added by the time we get the lock, we dont
-> > do the actual unregistration and go as if del_consumer deleted one
-> > consumer but not the last.
-> 
-> Yes, but I meant in this case register_uprobe() does the unnecessary
-> __register_uprobe() because it sees ->consumers == NULL (add_consumer()
-> returns NULL).
-
-yes we might be doing an unnecessary __register_uprobe() but because it
-raced with unregister_uprobe() and got the lock, we would avoid doing a 
-__unregister_uprobe().  
-
-However I am okay to move the lock before del_consumer(). Please let me
-know how you prefer this.
-
-> 
-> I guess this is probably harmless because of is_bkpt_insn/-EEXIST
-> logic, but still.
+> Another case when valid_vma() looks suspicious. We are going to restore
+> the original instruction. We shouldn't fail (at least we shouldn't "leak"
+> ->mm_uprobes_count) if ->vm_flags was changed between register_uprobe()
+> and unregister_uprobe().
 > 
 
 Agree.
-
-> 
-> Btw. __register_uprobe() does
-> 
-> 		ret = install_breakpoint(mm, uprobe, vma, vi->vaddr);
-> 		if (ret && (ret != -ESRCH || ret != -EEXIST)) {
-> 			up_read(&mm->mmap_sem);
-> 			mmput(mm);
-> 			break;
-> 		}
-> 		ret = 0;
-> 		up_read(&mm->mmap_sem);
-> 		mmput(mm);
-> 
-> Yes, this is cosmetic, but why do we duplicate up_read/mmput ?
-> 
-> Up to you, but
-> 
-> 		ret = install_breakpoint(mm, uprobe, vma, vi->vaddr);
-> 		up_read(&mm->mmap_sem);
-> 		mmput(mm);
-> 
-> 		if (ret) {
-> 			if (ret != -ESRCH && ret != -EEXIST)
-> 				break;
-> 			ret = 0;
-> 		}
-> 
-> Looks a bit simpler.
-
-Okay, will do.
-
-> 
-> Oh, wait. I just noticed that the original code does
-> 
-> 	(ret != -ESRCH || ret != -EEXIST)
-> 
-> this expression is always true ;)
-
-Right, will correct this.
-> 
-> Oleg.
-> 
 
 -- 
 Thanks and Regards
