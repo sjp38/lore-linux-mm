@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EBA796B029C
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:28:14 -0400 (EDT)
-Message-ID: <4E8DD5E8.7060806@parallels.com>
-Date: Thu, 06 Oct 2011 20:23:04 +0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C9BBC6B029E
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:28:37 -0400 (EDT)
+Message-ID: <4E8DD600.7070700@parallels.com>
+Date: Thu, 06 Oct 2011 20:23:28 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/5] slab: Tossing bits around
+Subject: [PATCH 2/5] slab_id: Generic slab ID infrastructure
 References: <4E8DD5B9.4060905@parallels.com>
 In-Reply-To: <4E8DD5B9.4060905@parallels.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -16,145 +16,122 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 Cc: Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-This is the preparation patch, that just moves the sl[au]b code
-around making the further patching simpler.
+The idea of how to generate and ID for an arbitrary slab object is simple:
+
+- The ID is 128 bits
+- The upper 64 bits are slab ID
+- The lower 64 bits are object index withing a slab (yes, it's too many,
+  but is done for simplicity - not to deal with 96-bit numbers)
+- The slab ID is the 48-bit per-cpu monotonic counter mixed with 16-bit
+  cpuid. Even if being incremented 1M times per second the first part
+  will stay uniqe for 200+ years. The cpuid is required to make values
+  picked on two cpus differ.
 
 Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
 ---
- mm/slab.c |   28 ++++++++++++++++++----------
- mm/slub.c |   26 +++++++++++++++-----------
- 2 files changed, 33 insertions(+), 21 deletions(-)
+ include/linux/slab.h |   17 +++++++++++++++++
+ init/Kconfig         |    9 +++++++++
+ mm/Makefile          |    1 +
+ mm/slab_obj_ids.c    |   25 +++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+), 0 deletions(-)
+ create mode 100644 mm/slab_obj_ids.c
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 6d90a09..81a2063 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -538,7 +538,7 @@ static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
-  *   reciprocal_divide(offset, cache->reciprocal_buffer_size)
-  */
- static inline unsigned int obj_to_index(const struct kmem_cache *cache,
--					const struct slab *slab, void *obj)
-+					const struct slab *slab, const void *obj)
- {
- 	u32 offset = (obj - slab->s_mem);
- 	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
-@@ -2178,6 +2178,15 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
- 	return 0;
- }
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 573c809..ae9c735 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -23,6 +23,7 @@
+ #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
+ #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
+ #define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
++#define SLAB_WANT_OBJIDS	0x00080000UL	/* Want GENERIC_OBJECT_IDS-friendly slabs */
+ /*
+  * SLAB_DESTROY_BY_RCU - **WARNING** READ THIS!
+  *
+@@ -162,6 +163,22 @@ void kfree(const void *);
+ void kzfree(const void *);
+ size_t ksize(const void *);
  
-+static inline size_t __slab_size(int nr_objs, unsigned long flags)
++#ifdef CONFIG_SLAB_OBJECT_IDS
++void __slab_pick_id(u64 *s_id);
++static inline void __slab_get_id(u64 *id, u64 s_id, u64 o_id)
 +{
-+	size_t ret;
-+
-+	ret = sizeof(struct slab) + nr_objs * sizeof(kmem_bufctl_t);
-+
-+	return ret;
++	id[0] = o_id;
++	id[1] = s_id;
 +}
 +
- /**
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-@@ -2406,8 +2415,8 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		cachep = NULL;
- 		goto oops;
- 	}
--	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
--			  + sizeof(struct slab), align);
-+
-+	slab_size = ALIGN(__slab_size(cachep->num, flags), align);
- 
- 	/*
- 	 * If the slab has been placed off-slab, and we have enough space then
-@@ -2420,8 +2429,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 
- 	if (flags & CFLGS_OFF_SLAB) {
- 		/* really off slab. No need for manual alignment */
--		slab_size =
--		    cachep->num * sizeof(kmem_bufctl_t) + sizeof(struct slab);
-+		slab_size = __slab_size(cachep->num, flags);
- 
- #ifdef CONFIG_PAGE_POISONING
- 		/* If we're going to use the generic kernel_map_pages()
-@@ -2690,6 +2698,11 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
- 
-+static inline kmem_bufctl_t *slab_bufctl(struct slab *slabp)
++void k_object_id(const void *, u64 *id);
++#else
++static inline void k_object_id(const void *x, u64 *id)
 +{
-+	return (kmem_bufctl_t *) (slabp + 1);
++	id[0] = id[1] = 0;
 +}
++#endif
 +
  /*
-  * Get the memory for a slab management obj.
-  * For a slab cache when the slab descriptor is off-slab, slab descriptors
-@@ -2733,11 +2746,6 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
- 	return slabp;
- }
+  * Allocator specific definitions. These are mainly used to establish optimized
+  * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
+diff --git a/init/Kconfig b/init/Kconfig
+index d627783..4c1c0e6 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1200,6 +1200,15 @@ config SLUB_DEBUG
+ 	  SLUB sysfs support. /sys/slab will not exist and there will be
+ 	  no support for cache validation etc.
  
--static inline kmem_bufctl_t *slab_bufctl(struct slab *slabp)
--{
--	return (kmem_bufctl_t *) (slabp + 1);
--}
--
- static void cache_init_objs(struct kmem_cache *cachep,
- 			    struct slab *slabp)
- {
-diff --git a/mm/slub.c b/mm/slub.c
-index 7c54fe8..ab9d6fc 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1414,6 +1414,18 @@ static void setup_object(struct kmem_cache *s, struct page *page,
- 		s->ctor(object);
- }
- 
-+#define need_reserve_slab_rcu						\
-+	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
++config SLAB_OBJECT_IDS
++	default y
++	bool "Enable slab kernel object ID infrastructure"
++	depends on !SLOB
++	help
++	  This option provides an infrastructure for calculating ID-s of
++	  slab/slub objects. These ID-s are not based on the object location
++	  in memory and thus can be shown to the userspace.
 +
-+static inline void *slab_reserved_space(struct kmem_cache *s, struct page *page, int size)
+ config COMPAT_BRK
+ 	bool "Disable heap randomization"
+ 	default y
+diff --git a/mm/Makefile b/mm/Makefile
+index 836e416..fb65080 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -50,3 +50,4 @@ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
++obj-$(CONFIG_SLAB_OBJECT_IDS) += slab_obj_ids.o
+diff --git a/mm/slab_obj_ids.c b/mm/slab_obj_ids.c
+new file mode 100644
+index 0000000..87d1693
+--- /dev/null
++++ b/mm/slab_obj_ids.c
+@@ -0,0 +1,25 @@
++#include <linux/percpu.h>
++
++#define SLUB_ID_CPU_SHIFT	16
++static DEFINE_PER_CPU(u64, slub_ids);
++
++void __slab_pick_id(u64 *s_id)
 +{
-+	int order = compound_order(page);
-+	int offset = (PAGE_SIZE << order) - s->reserved;
++	int cpu;
++	u64 id;
 +
-+	VM_BUG_ON(s->reserved < size);
-+	return page_address(page) + offset;
++	/*
++	 * The idea behind this all is very simple:
++	 *
++	 * The ID is the 48-bit per-cpu monotonic counter mixed with 16-bit cpuid.
++	 * Even if being incremented 1M times per second the first part will stay
++	 * uniqe for 200+ years. The cpuid is required to make values picked on
++	 * two cpus differ.
++	 */
++
++	cpu = get_cpu();
++	id = ++per_cpu(slub_ids, cpu);
++	WARN_ON_ONCE(id >> (64 - SLUB_ID_CPU_SHIFT) != 0);
++	*s_id = (id << SLUB_ID_CPU_SHIFT) | cpu;
++	put_cpu();
 +}
-+
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
- 	struct page *page;
-@@ -1481,9 +1493,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	__free_pages(page, order);
- }
- 
--#define need_reserve_slab_rcu						\
--	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
--
- static void rcu_free_slab(struct rcu_head *h)
- {
- 	struct page *page;
-@@ -1501,18 +1510,13 @@ static void free_slab(struct kmem_cache *s, struct page *page)
- 	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
- 		struct rcu_head *head;
- 
--		if (need_reserve_slab_rcu) {
--			int order = compound_order(page);
--			int offset = (PAGE_SIZE << order) - s->reserved;
--
--			VM_BUG_ON(s->reserved != sizeof(*head));
--			head = page_address(page) + offset;
--		} else {
-+		if (need_reserve_slab_rcu)
-+			head = slab_reserved_space(s, page, sizeof(struct rcu_head));
-+		else
- 			/*
- 			 * RCU free overloads the RCU head over the LRU
- 			 */
- 			head = (void *)&page->lru;
--		}
- 
- 		call_rcu(head, rcu_free_slab);
- 	} else
 -- 
 1.5.5.6
 
