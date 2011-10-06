@@ -1,71 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AABC96B025C
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 03:10:54 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p966tfac023748
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 02:55:41 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p967AqMJ263842
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 03:10:52 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p967AowP001004
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2011 01:10:52 -0600
-Date: Thu, 6 Oct 2011 12:23:26 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 9/26]   Uprobes: Background page
- replacement.
-Message-ID: <20111006065326.GD17591@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120137.25326.72005.sendpatchset@srdronam.in.ibm.com>
- <20111005161914.GA903@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8E6E76B0258
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 04:39:37 -0400 (EDT)
+Message-ID: <4E8D6923.7080404@parallels.com>
+Date: Thu, 6 Oct 2011 12:38:59 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111005161914.GA903@redhat.com>
+Subject: Re: [PATCH v5 6/8] tcp buffer limitation: per-cgroup limit
+References: <1317730680-24352-1-git-send-email-glommer@parallels.com>  <1317730680-24352-7-git-send-email-glommer@parallels.com>  <1317732535.2440.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <4E8C1064.3030902@parallels.com> <1317805090.2473.28.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+In-Reply-To: <1317805090.2473.28.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
 
-* Oleg Nesterov <oleg@redhat.com> [2011-10-05 18:19:14]:
+On 10/05/2011 12:58 PM, Eric Dumazet wrote:
+> Le mercredi 05 octobre 2011 =C3=A0 12:08 +0400, Glauber Costa a =C3=A9cri=
+t :
+>> On 10/04/2011 04:48 PM, Eric Dumazet wrote:
+>
+>>> 2) Could you add const qualifiers when possible to your pointers ?
+>>
+>> Well, I'll go over the patches again and see where I can add them.
+>> Any specific place site you're concerned about?
+>
+> Everywhere its possible :
+>
+> It helps reader to instantly knows if a function is about to change some
+> part of the object or only read it, without reading function body.
+Sure it does.
 
-> On 09/20, Srikar Dronamraju wrote:
-> >
-> > +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-> > +						uprobe_opcode_t *opcode)
-> > +{
-> > +	struct vm_area_struct *vma;
-> > +	struct page *page;
-> > +	void *vaddr_new;
-> > +	int ret;
-> > +
-> > +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-> > +	if (ret <= 0)
-> > +		return ret;
-> > +	ret = -EINVAL;
-> > +
-> > +	/*
-> > +	 * We are interested in text pages only. Our pages of interest
-> > +	 * should be mapped for read and execute only. We desist from
-> > +	 * adding probes in write mapped pages since the breakpoints
-> > +	 * might end up in the file copy.
-> > +	 */
-> > +	if (!valid_vma(vma))
-> > +		goto put_out;
-> 
-> Another case when valid_vma() looks suspicious. We are going to restore
-> the original instruction. We shouldn't fail (at least we shouldn't "leak"
-> ->mm_uprobes_count) if ->vm_flags was changed between register_uprobe()
-> and unregister_uprobe().
-> 
+So, give me your opinion on this:
 
-Agree.
+most of the acessors inside struct sock do not modify the pointers,
+but return an address of an element inside it (that can later on be
+modified by the caller.
 
--- 
-Thanks and Regards
-Srikar
+I think it is fine for the purpose of clarity, but to avoid warnings we=20
+end up having to do stuff like this:
+
++#define CONSTCG(m) ((struct mem_cgroup *)(m))
++long *tcp_sysctl_mem(const struct mem_cgroup *memcg)
++{
++       return CONSTCG(memcg)->tcp.tcp_prot_mem;
++}
+
+Is it acceptable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
