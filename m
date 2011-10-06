@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A64F96B02A0
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:29:05 -0400 (EDT)
-Message-ID: <4E8DD61B.5050009@parallels.com>
-Date: Thu, 06 Oct 2011 20:23:55 +0400
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BAC66B02A2
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:29:29 -0400 (EDT)
+Message-ID: <4E8DD633.6060303@parallels.com>
+Date: Thu, 06 Oct 2011 20:24:19 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/5] slab_id: Slab support for IDs
+Subject: [PATCH 4/5] slab_id: Slub support for IDs
 References: <4E8DD5B9.4060905@parallels.com>
 In-Reply-To: <4E8DD5B9.4060905@parallels.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -16,79 +16,122 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 Cc: Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Just place the slab ID generation into proper places of slab.c
+Just place the slab ID generation in proper places of slub code.
 
-The slab ID value is stored right after the bufctl array.
+The slub ID value is stored on the page->mapping field for 64-bit
+kernel and at the end of the page itself for 32-bit ones. It's
+stored on the same place where the slab rcu would be stored (the
+need_reserve_slab_rcu functionality).
 
 Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
 ---
- mm/slab.c |   38 ++++++++++++++++++++++++++++++++++++++
- 1 files changed, 38 insertions(+), 0 deletions(-)
+ mm/slub.c |   71 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 71 insertions(+), 0 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 81a2063..f87eb25 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2183,6 +2183,10 @@ static inline size_t __slab_size(int nr_objs, unsigned long flags)
- 	size_t ret;
- 
- 	ret = sizeof(struct slab) + nr_objs * sizeof(kmem_bufctl_t);
-+#ifdef CONFIG_SLAB_OBJECT_IDS
-+	if (flags & SLAB_WANT_OBJIDS)
-+		ret += sizeof(u64);
-+#endif
- 
- 	return ret;
- }
-@@ -2703,6 +2707,39 @@ static inline kmem_bufctl_t *slab_bufctl(struct slab *slabp)
- 	return (kmem_bufctl_t *) (slabp + 1);
+diff --git a/mm/slub.c b/mm/slub.c
+index ab9d6fc..398877a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1426,6 +1426,69 @@ static inline void *slab_reserved_space(struct kmem_cache *s, struct page *page,
+ 	return page_address(page) + offset;
  }
  
 +#ifdef CONFIG_SLAB_OBJECT_IDS
-+static void slab_pick_id(struct kmem_cache *c, struct slab *s)
++#define need_reserve_slab_id						\
++	(sizeof(((struct page *)NULL)->mapping) < sizeof(u64))
++
++static inline u64 *slub_id_location(struct kmem_cache *s, struct page *page)
 +{
-+	if (c->flags & SLAB_WANT_OBJIDS)
-+		__slab_pick_id((u64 *)(slab_bufctl(s) + c->num));
++	if (!(s->flags & SLAB_WANT_OBJIDS))
++		return NULL;
++
++	if (need_reserve_slab_id)
++		return slab_reserved_space(s, page, sizeof(u64));
++	else
++		return (u64 *)&page->mapping;
++}
++
++static void slub_pick_id(struct kmem_cache *s, struct page *page)
++{
++	u64 *s_id;
++
++	s_id = slub_id_location(s, page);
++	if (s_id != NULL)
++		__slab_pick_id(s_id);
++}
++
++static void slub_put_id(struct kmem_cache *s, struct page *p)
++{
++	/* Make buddy allocator freeing checks happy */
++	if ((!need_reserve_slab_id) && (s->flags & SLAB_WANT_OBJIDS))
++		p->mapping = NULL;
 +}
 +
 +void k_object_id(const void *x, u64 *id)
 +{
-+	struct page *p;
-+	struct kmem_cache *c;
-+	struct slab *s;
++	struct page *page;
++	u64 *s_id;
 +
 +	id[0] = id[1] = 0;
 +
 +	if (x == NULL)
 +		return;
 +
-+	p = virt_to_head_page(x);
-+	c = page_get_cache(p);
-+	if (!(c->flags & SLAB_WANT_OBJIDS))
++	page = virt_to_head_page(x);
++	if (unlikely(!PageSlab(page)))
 +		return;
 +
-+	s = page_get_slab(p);
-+	__slab_get_id(id, *(u64 *)(slab_bufctl(s) + c->num),
-+			obj_to_index(c, s, x));
++	s_id = slub_id_location(page->slab, page);
++	if (s_id == NULL)
++		return;
++
++	__slab_get_id(id, *s_id,
++			slab_index((void *)x, page->slab, page_address(page)));
 +}
 +#else
-+static inline void slab_pick_id(struct kmem_cache *c, struct slab *s)
++#define need_reserve_slab_id	0
++static inline void slub_pick_id(struct page *page)
++{
++}
++
++static inline void slub_put_id(struct kmem_cache *s, struct page *p)
 +{
 +}
 +#endif
 +
- /*
-  * Get the memory for a slab management obj.
-  * For a slab cache when the slab descriptor is off-slab, slab descriptors
-@@ -2743,6 +2780,7 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
- 	slabp->s_mem = objp + colour_off;
- 	slabp->nodeid = nodeid;
- 	slabp->free = 0;
-+	slab_pick_id(cachep, slabp);
- 	return slabp;
+ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ {
+ 	struct page *page;
+@@ -1461,6 +1524,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	page->freelist = start;
+ 	page->inuse = 0;
+ 	page->frozen = 1;
++	slub_pick_id(s, page);
+ out:
+ 	return page;
  }
+@@ -1470,6 +1534,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	int order = compound_order(page);
+ 	int pages = 1 << order;
  
++	slub_put_id(s, page);
+ 	if (kmem_cache_debug(s)) {
+ 		void *p;
+ 
+@@ -2889,6 +2954,12 @@ static int kmem_cache_open(struct kmem_cache *s,
+ 
+ 	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
+ 		s->reserved = sizeof(struct rcu_head);
++	if (need_reserve_slab_id && (s->flags & SLAB_WANT_OBJIDS))
++		/*
++		 * The id is required for alive objects only, thus it's
++		 * safe to put this in the same place with the rcu head
++		 */
++		s->reserved = max_t(int, s->reserved, sizeof(u64));
+ 
+ 	if (!calculate_sizes(s, -1))
+ 		goto error;
 -- 
 1.5.5.6
 
