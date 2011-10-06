@@ -1,53 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E6E76B0258
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 04:39:37 -0400 (EDT)
-Message-ID: <4E8D6923.7080404@parallels.com>
-Date: Thu, 6 Oct 2011 12:38:59 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AA306B025F
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 04:46:11 -0400 (EDT)
+Date: Thu, 6 Oct 2011 11:46:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 7/8] Display current tcp memory allocation in kmem
+ cgroup
+Message-ID: <20111006084609.GA28820@shutemov.name>
+References: <1317637123-18306-1-git-send-email-glommer@parallels.com>
+ <1317637123-18306-8-git-send-email-glommer@parallels.com>
+ <20111003121446.GD29312@shutemov.name>
+ <4E89A846.1010200@parallels.com>
+ <20111003122511.GA29982@shutemov.name>
+ <4E89AA01.3000803@parallels.com>
+ <20111003123620.GA30018@shutemov.name>
+ <4E8ACD6E.3090208@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 6/8] tcp buffer limitation: per-cgroup limit
-References: <1317730680-24352-1-git-send-email-glommer@parallels.com>  <1317730680-24352-7-git-send-email-glommer@parallels.com>  <1317732535.2440.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <4E8C1064.3030902@parallels.com> <1317805090.2473.28.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-In-Reply-To: <1317805090.2473.28.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E8ACD6E.3090208@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, avagin@parallels.com
 
-On 10/05/2011 12:58 PM, Eric Dumazet wrote:
-> Le mercredi 05 octobre 2011 =C3=A0 12:08 +0400, Glauber Costa a =C3=A9cri=
-t :
->> On 10/04/2011 04:48 PM, Eric Dumazet wrote:
->
->>> 2) Could you add const qualifiers when possible to your pointers ?
->>
->> Well, I'll go over the patches again and see where I can add them.
->> Any specific place site you're concerned about?
->
-> Everywhere its possible :
->
-> It helps reader to instantly knows if a function is about to change some
-> part of the object or only read it, without reading function body.
-Sure it does.
+On Tue, Oct 04, 2011 at 01:10:06PM +0400, Glauber Costa wrote:
+> On 10/03/2011 04:36 PM, Kirill A. Shutemov wrote:
+> > On Mon, Oct 03, 2011 at 04:26:41PM +0400, Glauber Costa wrote:
+> >> On 10/03/2011 04:25 PM, Kirill A. Shutemov wrote:
+> >>> On Mon, Oct 03, 2011 at 04:19:18PM +0400, Glauber Costa wrote:
+> >>>> On 10/03/2011 04:14 PM, Kirill A. Shutemov wrote:
+> >>>>> On Mon, Oct 03, 2011 at 02:18:42PM +0400, Glauber Costa wrote:
+> >>>>>> This patch introduces kmem.tcp_current_memory file, living in the
+> >>>>>> kmem_cgroup filesystem. It is a simple read-only file that displays the
+> >>>>>> amount of kernel memory currently consumed by the cgroup.
+> >>>>>>
+> >>>>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+> >>>>>> CC: David S. Miller<davem@davemloft.net>
+> >>>>>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
+> >>>>>> CC: Eric W. Biederman<ebiederm@xmission.com>
+> >>>>>> ---
+> >>>>>>     Documentation/cgroups/memory.txt |    1 +
+> >>>>>>     mm/memcontrol.c                  |   11 +++++++++++
+> >>>>>>     2 files changed, 12 insertions(+), 0 deletions(-)
+> >>>>>>
+> >>>>>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> >>>>>> index 1ffde3e..f5a539d 100644
+> >>>>>> --- a/Documentation/cgroups/memory.txt
+> >>>>>> +++ b/Documentation/cgroups/memory.txt
+> >>>>>> @@ -79,6 +79,7 @@ Brief summary of control files.
+> >>>>>>      memory.independent_kmem_limit	 # select whether or not kernel memory limits are
+> >>>>>>     				   independent of user limits
+> >>>>>>      memory.kmem.tcp.max_memory      # set/show hard limit for tcp buf memory
+> >>>>>> + memory.kmem.tcp.current_memory  # show current tcp buf memory allocation
+> >>>>>
+> >>>>> Both are in pages, right?
+> >>>>> Shouldn't it be scaled to bytes and named uniform with other memcg file?
+> >>>>> memory.kmem.tcp.limit_in_bytes/usage_in_bytes.
+> >>>>>
+> >>>> You are absolutely correct.
+> >>>> Since the internal tcp comparison works, I just ended up never noticing
+> >>>> this.
+> >>>
+> >>> Should we have failcnt and max_usage_in_bytes for tcp as well?
+> >>>
+> >>
+> >> Well, we get a fail count from the tracer anyway, so I don't really see
+> >> a need for that. I see value in having it for the slab allocation
+> >> itself, but since this only controls the memory pressure framework, I
+> >> think we can live without it.
+> >>
+> >> That said, this is not a strong opinion. I can add it if you'd prefer.
+> >
+> > It's good for userspace to have the same set of files for all domains:
+> >   - memory;
+> >   - memory.memsw;
+> >   - memory.kmem;
+> >   - memory.kmem.tcp;
+> >   - etc.
+> > Userspace can reuse code for handling them in this case.
+> >
+> Ok. Back on this.
+> 
+> Not all domains have all files anyway.
 
-So, give me your opinion on this:
+$ ls -l *.{failcnt,limit_in_bytes,max_usage_in_bytes,usage_in_bytes}
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.failcnt
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.limit_in_bytes
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.max_usage_in_bytes
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.memsw.failcnt
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.memsw.limit_in_bytes
+-rw-r--r-- 1 root root 0 Oct  6 11:34 memory.memsw.max_usage_in_bytes
+-r--r--r-- 1 root root 0 Oct  6 11:34 memory.memsw.usage_in_bytes
+-r--r--r-- 1 root root 0 Oct  6 11:34 memory.usage_in_bytes
 
-most of the acessors inside struct sock do not modify the pointers,
-but return an address of an element inside it (that can later on be
-modified by the caller.
+Hm?..
 
-I think it is fine for the purpose of clarity, but to avoid warnings we=20
-end up having to do stuff like this:
+> max_usage seems to be a property of the main memcg, not of its domains.
+> failcnt is present on memsw, and on that only. The problem here, is that 
+> this can fail ( and usually will ) in codepaths outside the memory
+> controller. (see net/core/sock.c:__sk_mem_schedule)
 
-+#define CONSTCG(m) ((struct mem_cgroup *)(m))
-+long *tcp_sysctl_mem(const struct mem_cgroup *memcg)
-+{
-+       return CONSTCG(memcg)->tcp.tcp_prot_mem;
-+}
++1 reason to use res_counter. It provides all data needed for this files.
+ 
+> Also, max_usage makes sense for kernel memory as a whole, but I don't 
+> think it makes sense here as we're only controlling a specific pressure 
+> condition.
 
-Is it acceptable?
+max_usage is reasonable for everything you can limit. It allows you to
+track if limit is set appropriate.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
