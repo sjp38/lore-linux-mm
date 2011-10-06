@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 06FAF6B002D
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 17:54:49 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so8675954pzk.6
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2011 14:54:47 -0700 (PDT)
-Date: Thu, 6 Oct 2011 14:54:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] Fix compaction about mlocked pages
-Message-Id: <20111006145445.ed8d6dbb.akpm@linux-foundation.org>
-In-Reply-To: <cover.1321112552.git.minchan.kim@gmail.com>
-References: <cover.1321112552.git.minchan.kim@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 762436B002D
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 19:03:51 -0400 (EDT)
+Date: Thu, 6 Oct 2011 16:03:48 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: Re: [Xen-devel] Re: RFC -- new zone type
+Message-ID: <20111006230348.GF7007@labbmf-linux.qualcomm.com>
+References: <20110928180909.GA7007@labbmf-linux.qualcomm.comCAOFJiu1_HaboUMqtjowA2xKNmGviDE55GUV4OD1vN2hXUf4-kQ@mail.gmail.com>
+ <c2d9add1-0095-4319-8936-db1b156559bf@default20111005165643.GE7007@labbmf-linux.qualcomm.com>
+ <cc1256f9-4808-4d74-a321-6a3ec129cc05@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cc1256f9-4808-4d74-a321-6a3ec129cc05@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Larry Bassel <lbassel@codeaurora.org>, linux-mm@kvack.org, Xen-devel@lists.xensource.com
 
-On Sun, 13 Nov 2011 01:37:40 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+Thanks for your answers to my questions. I have one more:
 
-> This patch's goal is to enable mlocked page migration.
-> The compaction can migrate mlocked page to get a contiguous memory unlike lumpy.
-> 
+Will there be any problem if the memory I want to be
+transcendent is highmem (i.e. doesn't have any permanent
+virtual<->physical mapping)?
 
-This patch series appears to be a resend of stuff I already have.
+Thanks.
 
-Given the various concerns which were voiced during review of
-mm-compaction-compact-unevictable-pages.patch and the uncertainty of
-the overall usefulness of the feature, I'm inclined to drop
+Larry
 
-mm-compaction-compact-unevictable-pages.patch
-mm-compaction-compact-unevictable-pages-checkpatch-fixes.patch
-mm-compaction-accounting-fix.patch
-
-for now, OK?
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
