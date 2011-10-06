@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id EA7D06B0277
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 08:42:08 -0400 (EDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 460C46B0279
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 08:42:10 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/14] mm: Micro-optimise slab to avoid a function call
-Date: Thu,  6 Oct 2011 13:41:47 +0100
-Message-Id: <1317904910-14095-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 12/14] nbd: Set SOCK_MEMALLOC for access to PFMEMALLOC reserves
+Date: Thu,  6 Oct 2011 13:41:48 +0100
+Message-Id: <1317904910-14095-13-git-send-email-mgorman@suse.de>
 In-Reply-To: <1317904910-14095-1-git-send-email-mgorman@suse.de>
 References: <1317904910-14095-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,76 +13,58 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Getting and putting objects in SLAB currently requires a function call
-but the bulk of the work is related to PFMEMALLOC reserves which are
-only consumed when network-backed storage is critical. Use an inline
-function to determine if the function call is required.
+Set SOCK_MEMALLOC on the NBD socket to allow access to PFMEMALLOC
+reserves so pages backed by NBD, particularly if swap related, can
+be cleaned to prevent the machine being deadlocked. It is still
+possible that the PFMEMALLOC reserves get depleted resulting in
+deadlock but this can be resolved by the administrator by increasing
+min_free_kbytes.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/slab.c |   28 ++++++++++++++++++++++++++--
- 1 files changed, 26 insertions(+), 2 deletions(-)
+ drivers/block/nbd.c |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 25f69ec..31276f9 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -117,6 +117,8 @@
- #include	<linux/memory.h>
- #include	<linux/prefetch.h>
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index f533f33..ca7cd81 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -156,6 +156,7 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
+ 	struct msghdr msg;
+ 	struct kvec iov;
+ 	sigset_t blocked, oldset;
++	unsigned long pflags = current->flags;
  
-+#include	<net/sock.h>
-+
- #include	<asm/cacheflush.h>
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
-@@ -985,7 +987,7 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
- 	ac->pfmemalloc = false;
+ 	if (unlikely(!sock)) {
+ 		printk(KERN_ERR "%s: Attempted %s on closed socket in sock_xmit\n",
+@@ -168,8 +169,9 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
+ 	siginitsetinv(&blocked, sigmask(SIGKILL));
+ 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
+ 
++	current->flags |= PF_MEMALLOC;
+ 	do {
+-		sock->sk->sk_allocation = GFP_NOIO;
++		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
+ 		iov.iov_base = buf;
+ 		iov.iov_len = size;
+ 		msg.msg_name = NULL;
+@@ -215,6 +217,7 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
+ 	} while (size > 0);
+ 
+ 	sigprocmask(SIG_SETMASK, &oldset, NULL);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ 
+ 	return result;
  }
+@@ -405,6 +408,8 @@ static int nbd_do_it(struct nbd_device *lo)
  
--static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 						gfp_t flags, bool force_refill)
- {
- 	int i;
-@@ -1032,7 +1034,20 @@ static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 	return objp;
- }
+ 	BUG_ON(lo->magic != LO_MAGIC);
  
--static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static inline void *ac_get_obj(struct kmem_cache *cachep,
-+			struct array_cache *ac, gfp_t flags, bool force_refill)
-+{
-+	void *objp;
++	sk_set_memalloc(lo->sock->sk);
 +
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_get_obj(cachep, ac, flags, force_refill);
-+	else
-+		objp = ac->entry[--ac->avail];
-+
-+	return objp;
-+}
-+
-+static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 								void *objp)
- {
- 	struct slab *slabp;
-@@ -1045,6 +1060,15 @@ static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 			set_obj_pfmemalloc(&objp);
- 	}
- 
-+	return objp;
-+}
-+
-+static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+								void *objp)
-+{
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_put_obj(cachep, ac, objp);
-+
- 	ac->entry[ac->avail++] = objp;
- }
- 
+ 	lo->pid = current->pid;
+ 	ret = sysfs_create_file(&disk_to_dev(lo->disk)->kobj, &pid_attr.attr);
+ 	if (ret) {
 -- 
 1.7.3.4
 
