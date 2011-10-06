@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BAC66B02A2
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:29:29 -0400 (EDT)
-Message-ID: <4E8DD633.6060303@parallels.com>
-Date: Thu, 06 Oct 2011 20:24:19 +0400
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AABE6B02A4
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2011 12:29:56 -0400 (EDT)
+Message-ID: <4E8DD64D.2010107@parallels.com>
+Date: Thu, 06 Oct 2011 20:24:45 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/5] slab_id: Slub support for IDs
+Subject: [PATCH 5/5] slab_id: Show the task's mm ID in proc
 References: <4E8DD5B9.4060905@parallels.com>
 In-Reply-To: <4E8DD5B9.4060905@parallels.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -16,122 +16,95 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 Cc: Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Just place the slab ID generation in proper places of slub code.
-
-The slub ID value is stored on the page->mapping field for 64-bit
-kernel and at the end of the page itself for 32-bit ones. It's
-stored on the same place where the slab rcu would be stored (the
-need_reserve_slab_rcu functionality).
+This is just an example of how to use the slab IDs infrastructure.
 
 Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
 ---
- mm/slub.c |   71 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 71 insertions(+), 0 deletions(-)
+ fs/proc/array.c    |   17 +++++++++++++++++
+ fs/proc/base.c     |    6 ++++++
+ fs/proc/internal.h |    2 ++
+ kernel/fork.c      |    2 +-
+ 4 files changed, 26 insertions(+), 1 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index ab9d6fc..398877a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1426,6 +1426,69 @@ static inline void *slab_reserved_space(struct kmem_cache *s, struct page *page,
- 	return page_address(page) + offset;
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index 3a1dafd..77eb2ba 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -357,6 +357,23 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 	return 0;
  }
  
 +#ifdef CONFIG_SLAB_OBJECT_IDS
-+#define need_reserve_slab_id						\
-+	(sizeof(((struct page *)NULL)->mapping) < sizeof(u64))
-+
-+static inline u64 *slub_id_location(struct kmem_cache *s, struct page *page)
++int proc_pid_objects(struct seq_file *m, struct pid_namespace *ns,
++		struct pid *pid, struct task_struct *task)
 +{
-+	if (!(s->flags & SLAB_WANT_OBJIDS))
-+		return NULL;
++	u64 id[2];
 +
-+	if (need_reserve_slab_id)
-+		return slab_reserved_space(s, page, sizeof(u64));
-+	else
-+		return (u64 *)&page->mapping;
-+}
++	task_lock(task);
 +
-+static void slub_pick_id(struct kmem_cache *s, struct page *page)
-+{
-+	u64 *s_id;
++	k_object_id(task->mm, id);
++	seq_printf(m, "mm: %016Lx%016Lx\n", id[0], id[1]);
 +
-+	s_id = slub_id_location(s, page);
-+	if (s_id != NULL)
-+		__slab_pick_id(s_id);
-+}
++	task_unlock(task);
 +
-+static void slub_put_id(struct kmem_cache *s, struct page *p)
-+{
-+	/* Make buddy allocator freeing checks happy */
-+	if ((!need_reserve_slab_id) && (s->flags & SLAB_WANT_OBJIDS))
-+		p->mapping = NULL;
-+}
-+
-+void k_object_id(const void *x, u64 *id)
-+{
-+	struct page *page;
-+	u64 *s_id;
-+
-+	id[0] = id[1] = 0;
-+
-+	if (x == NULL)
-+		return;
-+
-+	page = virt_to_head_page(x);
-+	if (unlikely(!PageSlab(page)))
-+		return;
-+
-+	s_id = slub_id_location(page->slab, page);
-+	if (s_id == NULL)
-+		return;
-+
-+	__slab_get_id(id, *s_id,
-+			slab_index((void *)x, page->slab, page_address(page)));
-+}
-+#else
-+#define need_reserve_slab_id	0
-+static inline void slub_pick_id(struct page *page)
-+{
-+}
-+
-+static inline void slub_put_id(struct kmem_cache *s, struct page *p)
-+{
++	return 0;
 +}
 +#endif
 +
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
+ 			struct pid *pid, struct task_struct *task, int whole)
  {
- 	struct page *page;
-@@ -1461,6 +1524,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	page->freelist = start;
- 	page->inuse = 0;
- 	page->frozen = 1;
-+	slub_pick_id(s, page);
- out:
- 	return page;
- }
-@@ -1470,6 +1534,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	int order = compound_order(page);
- 	int pages = 1 << order;
- 
-+	slub_put_id(s, page);
- 	if (kmem_cache_debug(s)) {
- 		void *p;
- 
-@@ -2889,6 +2954,12 @@ static int kmem_cache_open(struct kmem_cache *s,
- 
- 	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
- 		s->reserved = sizeof(struct rcu_head);
-+	if (need_reserve_slab_id && (s->flags & SLAB_WANT_OBJIDS))
-+		/*
-+		 * The id is required for alive objects only, thus it's
-+		 * safe to put this in the same place with the rcu head
-+		 */
-+		s->reserved = max_t(int, s->reserved, sizeof(u64));
- 
- 	if (!calculate_sizes(s, -1))
- 		goto error;
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 5eb0206..4ffc31c 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -2792,6 +2792,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+ #endif
+ 	REG("environ",    S_IRUSR, proc_environ_operations),
+ 	INF("auxv",       S_IRUSR, proc_pid_auxv),
++#ifdef CONFIG_SLAB_OBJECT_IDS
++	ONE("objects",    S_IRUGO, proc_pid_objects),
++#endif
+ 	ONE("status",     S_IRUGO, proc_pid_status),
+ 	ONE("personality", S_IRUGO, proc_pid_personality),
+ 	INF("limits",	  S_IRUGO, proc_pid_limits),
+@@ -3141,6 +3144,9 @@ static const struct pid_entry tid_base_stuff[] = {
+ 	DIR("ns",	 S_IRUSR|S_IXUGO, proc_ns_dir_inode_operations, proc_ns_dir_operations),
+ 	REG("environ",   S_IRUSR, proc_environ_operations),
+ 	INF("auxv",      S_IRUSR, proc_pid_auxv),
++#ifdef CONFIG_SLAB_OBJECT_IDS
++	ONE("objects",    S_IRUGO, proc_pid_objects),
++#endif
+ 	ONE("status",    S_IRUGO, proc_pid_status),
+ 	ONE("personality", S_IRUGO, proc_pid_personality),
+ 	INF("limits",	 S_IRUGO, proc_pid_limits),
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index 7838e5c..ac19d98 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -49,6 +49,8 @@ extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
+ 				struct pid *pid, struct task_struct *task);
+ extern int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 				struct pid *pid, struct task_struct *task);
++extern int proc_pid_objects(struct seq_file *m, struct pid_namespace *ns,
++				struct pid *pid, struct task_struct *task);
+ extern int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
+ 				struct pid *pid, struct task_struct *task);
+ extern loff_t mem_lseek(struct file *file, loff_t offset, int orig);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 8e6b6f4..853e96e 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1597,7 +1597,7 @@ void __init proc_caches_init(void)
+ 	 */
+ 	mm_cachep = kmem_cache_create("mm_struct",
+ 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
+-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK, NULL);
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_WANT_OBJIDS, NULL);
+ 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC);
+ 	mmap_init();
+ 	nsproxy_cache_init();
 -- 
 1.5.5.6
 
