@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 738146B002E
+	by kanga.kvack.org (Postfix) with ESMTP id 559F96B002D
 	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 11:17:28 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/2] mm: vmscan: Limit direct reclaim for higher order allocations
-Date: Fri,  7 Oct 2011 16:17:22 +0100
-Message-Id: <1318000643-27996-2-git-send-email-mgorman@suse.de>
-In-Reply-To: <1318000643-27996-1-git-send-email-mgorman@suse.de>
-References: <1318000643-27996-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 0/2] Avoid excessive reclaim due to THP
+Date: Fri,  7 Oct 2011 16:17:21 +0100
+Message-Id: <1318000643-27996-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org
 Cc: Josh Boyer <jwboyer@redhat.com>, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Rik van Riel <riel@redhat.com>
+The thread "[PATCH v2 -mm] limit direct reclaim for higher order
+allocations" went silent so this is an attempt to kick it awake again
+to close it.
 
-When suffering from memory fragmentation due to unfreeable pages,
-THP page faults will repeatedly try to compact memory.  Due to the
-unfreeable pages, compaction fails.
+Rik noticed that there was too much memory free on his machine when
+THP was running and there is at least one bug report out there that
+implies that reclaim due to khugepaged is causing stalls.
 
-Needless to say, at that point page reclaim also fails to create
-free contiguous 2MB areas.  However, that doesn't stop the current
-code from trying, over and over again, and freeing a minimum of 4MB
-(2UL << sc->order pages) at every single invocation.
+In Rik's case, he posted a patch that fixed his
+problem. The user on the RH bug reported that a patch from
+https://lkml.org/lkml/2011/7/26/103 fixed his problem. However, in many
+cases, these patches are complimentary except that Rik's is tidier.
 
-This resulted in my 12GB system having 2-3GB free memory, a
-corresponding amount of used swap and very sluggish response times.
+Patch 1 of this series is a patch from Rik that limits the amount
+of direct reclaim that occurs as a result of THP. Specifically,
+if compaction can go ahead in a zone or is deferred for a zonelist,
+then reclaim will stop as it is unlikely freeing more pages will help.
 
-This can be avoided by having the direct reclaim code not reclaim from
-zones that already have plenty of free memory available for compaction.
+Patch 2 notes that even if patch 1 stops reclaiming, the caller
+of shrink_zones will still shrink slabs and scan at the next
+priority.  This is unnecessary and wasteful so the patch causes
+do_try_to_free_pages() to abort reclaim if shrink_zones() returned
+early.
 
-If compaction still fails due to unmovable memory, doing additional
-reclaim will only hurt the system, not help.
+Rik, can you retest with your case just to be sure? Josh, will you
+ask the reporter of RH#735946 to retest with these patches to ensure
+their problem really gets fixed upstream?
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+I tested it myself and it appears to behave as expected. Performance
+of benchmarks like STREAM that benefit from THP are unchanged
+as expected. When running with a basic workload that created a
+large anonymous mapping and read it multiple times followed by
+writing it multiple times, there are fewer pages direct reclaimed.
+Critically, memory utilisation is higher with these patches applied
+as predicted. In the vanilla kernel, I can see a few spikes where an
+excessive amount of memory memory was reclaimed that is not present
+with the patches applied.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b55699c..3817fa9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2066,6 +2066,16 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 				continue;
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;	/* Let kswapd poll it */
-+			if (COMPACTION_BUILD) {
-+				/*
-+				 * If we already have plenty of memory free
-+				 * for compaction, don't free any more.
-+				 */
-+				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-+					(compaction_suitable(zone, sc->order) ||
-+					 compaction_deferred(zone)))
-+					continue;
-+			}
- 			/*
- 			 * This steals pages from memory cgroups over softlimit
- 			 * and returns the number of reclaimed pages and
+Are there any objections to these being merged?
+
+ mm/vmscan.c |   26 ++++++++++++++++++++++++--
+ 1 files changed, 24 insertions(+), 2 deletions(-)
+
 -- 
 1.7.3.4
 
