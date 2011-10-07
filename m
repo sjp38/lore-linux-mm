@@ -1,66 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 81DCA6B002D
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 16:24:23 -0400 (EDT)
-Date: Fri, 7 Oct 2011 21:24:17 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm: Abort reclaim/compaction if compaction can
- proceed
-Message-ID: <20111007202417.GD6418@suse.de>
-References: <1318000643-27996-1-git-send-email-mgorman@suse.de>
- <1318000643-27996-3-git-send-email-mgorman@suse.de>
- <4E8F5BEA.3040502@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D78726B002D
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 16:32:16 -0400 (EDT)
+Date: Fri, 7 Oct 2011 15:32:13 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: mm: Do not drain pagevecs for mlockall(MCL_FUTURE)
+Message-ID: <alpine.DEB.2.00.1110071529110.15540@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E8F5BEA.3040502@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, Josh Boyer <jwboyer@redhat.com>, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-On Fri, Oct 07, 2011 at 04:07:06PM -0400, Rik van Riel wrote:
-> On 10/07/2011 11:17 AM, Mel Gorman wrote:
-> >If compaction can proceed, shrink_zones() stops doing any work but
-> >the callers still shrink_slab(), raises the priority and potentially
-> >sleeps.  This patch aborts direct reclaim/compaction entirely if
-> >compaction can proceed.
-> >
-> >Signed-off-by: Mel Gorman<mgorman@suse.de>
-> 
-> This patch makes sense to me, but I have not tested it like
-> the first one.
-> 
+MCL_FUTURE does not move pages between lru list and draining the LRU per
+cpu pagevecs is a nasty activity. Avoid doing it unecessarily.
 
-Do if you can.
+Signed-off-by: Christoph Lameter <cl@gentwo.org>
 
-> Mel, have you tested this patch?
 
-Yes.
+---
+ mm/mlock.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-> Did you see any changed
-> behaviour vs. just the first patch?
-> 
+Index: linux-2.6/mm/mlock.c
+===================================================================
+--- linux-2.6.orig/mm/mlock.c	2011-10-07 14:57:52.000000000 -0500
++++ linux-2.6/mm/mlock.c	2011-10-07 15:01:06.000000000 -0500
+@@ -549,7 +549,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ 	if (!can_do_mlock())
+ 		goto out;
 
-It's marginal and could be confirmation bias on my part. Basically,
-there is noise when this path is being exercised but there were fewer
-slabs scanned.  However, I don't know what the variances are and
-whether the reduction was within the noise or not but it makes sense
-that it would scan less.  If I profiled carefully, I might be able
-to show that a few additional cycles are spent raising the priority
-but it would be marginal.
+-	lru_add_drain_all();	/* flush pagevec */
++	if (flags & MCL_CURRENT)
++		lru_add_drain_all();	/* flush pagevec */
 
-While patch 1 is very clear, patch 2 depends on reviewers deciding it
-"makes sense".
-
-> Having said that, I'm pretty sure the patch is ok :)
-> 
-
-Care to ack?
-
--- 
-Mel Gorman
-SUSE Labs
+ 	down_write(&current->mm->mmap_sem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
