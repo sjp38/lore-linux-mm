@@ -1,59 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 278AF6B0033
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 04:32:10 -0400 (EDT)
-Message-ID: <4E8EB8F7.4090208@parallels.com>
-Date: Fri, 07 Oct 2011 12:31:51 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] slab_id: Generic slab ID infrastructure
-References: <4E8DD5B9.4060905@parallels.com> <4E8DD600.7070700@parallels.com> <4E8EB802.8020201@parallels.com>
-In-Reply-To: <4E8EB802.8020201@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6477F6B002F
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 04:55:59 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BA2FD3EE0B5
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 17:55:55 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A130A45DEB7
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 17:55:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EBE945DE9E
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 17:55:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 70A8E1DB8037
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 17:55:55 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DD231DB803C
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 17:55:55 +0900 (JST)
+Date: Fri, 7 Oct 2011 17:55:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 0/8] per-cgroup tcp buffer pressure settings
+Message-Id: <20111007175500.ca280fc6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4E8EB634.9090208@parallels.com>
+References: <1317730680-24352-1-git-send-email-glommer@parallels.com>
+	<20111005092954.718a0c29.kamezawa.hiroyu@jp.fujitsu.com>
+	<4E8C067E.6040203@parallels.com>
+	<20111007170522.624fab3d.kamezawa.hiroyu@jp.fujitsu.com>
+	<4E8EB634.9090208@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "devel@openvz.org" <devel@openvz.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
 
-On 10/07/2011 12:27 PM, Glauber Costa wrote:
-> Hi Pavel,
+On Fri, 7 Oct 2011 12:20:04 +0400
+Glauber Costa <glommer@parallels.com> wrote:
+
+> >
+> >> So what I really mean here with "will integrate later", is that I think
+> >> that we'd be better off tracking the allocations themselves at the slab
+> >> level.
+> >>
+> >>>      Can't tcp-limit-code borrows some amount of charges in batch from kmem_limit
+> >>>      and use it ?
+> >> Sorry, I don't know what exactly do you mean. Can you clarify?
+> >>
+> > Now, tcp-usage is independent from kmem-usage.
+> >
+> > My idea is
+> >
+> >    1. when you account tcp usage, charge kmem, too.
 > 
-> On 10/06/2011 08:23 PM, Pavel Emelyanov wrote:
->> The idea of how to generate and ID for an arbitrary slab object is simple:
->>
->> - The ID is 128 bits
->> - The upper 64 bits are slab ID
->> - The lower 64 bits are object index withing a slab (yes, it's too many,
->>    but is done for simplicity - not to deal with 96-bit numbers)
->> - The slab ID is the 48-bit per-cpu monotonic counter mixed with 16-bit
->>    cpuid. Even if being incremented 1M times per second the first part
->>    will stay uniqe for 200+ years. The cpuid is required to make values
->>    picked on two cpus differ.
+> Absolutely.
+> >    Now, your work is
+> >       a) tcp use new xxxx bytes.
+> >       b) account it to tcp.uage and check tcp limit
+> >
+> >    To ingegrate kmem,
+> >       a) tcp use new xxxx bytes.
+> >       b) account it to tcp.usage and check tcp limit
+> >       c) account it to kmem.usage
+> >
+> > ? 2 counters may be slow ?
 > 
-> So why can't we just use tighter numbers, and leave some reserved fields 
-> instead ?
-
-Well, we have to save the ID on the slab and for 64-bit kernel we can already
-use the 64-bit mapping field. For 32-bit kernels 32-bit value is not enough as
-it can overlap in several days (like 32bit jiffies do) which is not enough.
-
-> Having ids in the objects of the slab may prove useful in the future for
-> other uses as well.
+> Well, the way I see it, 1 counter is slow already =)
+> I honestly think we need some optimizations here. But
+> that is a side issue.
 > 
-> For instance, concurrent to that, we're trying to figure out ways to 
-> have per-cgroup pages/objects accounted in the memory controller.
+> To begin with: The new patchset that I intend to spin
+> today or Monday, depending on my progress, uses res_counters,
+> as you and Kirill requested.
 > 
-> The most up2date proposals create an entire kmem cache for each cgroup,
-> thus trivially guaranteeing uniqueness. It however, leads to fragmentation.
-> Having the objects to be IDed and being cgroup part of this id, could
-> help us achieve the same goal with less fragmentation.
+> So what makes res_counters slow IMHO, is two things:
+> 
+> 1) interrupts are always disabled.
+> 2) All is done under a lock.
+> 
+> Now, we are starting to have resources that are billed to multiple
+> counters. One simple way to work around it, is to have child counters
+> that has to be accounted for as well everytime a resource is counted.
+> 
+> Like this:
+> 
+> 1) tcp has kmem as child. When we bill to tcp, we bill to kmem as well.
+>     For protocols that do memory pressure, we then don't bill kmem from
+>     the slab.
+> 2) When kmem_independent_account is set to 0, kmem has mem as child.
+> 
 
-That's good point! I can extend the patches to provide the space reservation
-infrastructure for slabs.
+Seems reasonable.
 
-Thanks,
-Pavel
+
+> >
+> >
+> >>>    - Don't you need a stat file to indicate "tcp memory pressure works!" ?
+> >>>      It can be obtained already ?
+> >>
+> >> Not 100 % clear as well. We can query the amount of buffer used, and the
+> >> amount of buffer allowed. What else do we need?
+> >>
+> >
+> > IIUC, we can see the fact tcp.usage is near to tcp.limit but never can see it
+> > got memory pressure and how many numbers of failure happens.
+> > I'm sorry if I don't read codes correctly.
+> 
+> IIUC, With res_counters being used, we get at least failcnt for free, right?
+> 
+
+Right. you can get failcnt and max_usage and can have soft_limit base
+implemenation at the same time.
+
+Thank you.
+-Kame
+
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
