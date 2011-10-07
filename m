@@ -1,112 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 87C696B002D
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 05:07:53 -0400 (EDT)
-Date: Fri, 7 Oct 2011 11:07:41 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH v2 -mm] limit direct reclaim for higher order allocations
-Message-ID: <20111007090741.GB2608@redhat.com>
-References: <20110927105246.164e2fc7@annuminas.surriel.com>
- <20110927160648.GA16878@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110927160648.GA16878@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 738146B002E
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 11:17:28 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/2] mm: vmscan: Limit direct reclaim for higher order allocations
+Date: Fri,  7 Oct 2011 16:17:22 +0100
+Message-Id: <1318000643-27996-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1318000643-27996-1-git-send-email-mgorman@suse.de>
+References: <1318000643-27996-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, aarcange@redhat.com
+To: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org
+Cc: Josh Boyer <jwboyer@redhat.com>, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 27, 2011 at 06:06:48PM +0200, Johannes Weiner wrote:
-> On Tue, Sep 27, 2011 at 10:52:46AM -0400, Rik van Riel wrote:
-> > When suffering from memory fragmentation due to unfreeable pages,
-> > THP page faults will repeatedly try to compact memory.  Due to
-> > the unfreeable pages, compaction fails.
-> > 
-> > Needless to say, at that point page reclaim also fails to create
-> > free contiguous 2MB areas.  However, that doesn't stop the current
-> > code from trying, over and over again, and freeing a minimum of
-> > 4MB (2UL << sc->order pages) at every single invocation.
-> > 
-> > This resulted in my 12GB system having 2-3GB free memory, a
-> > corresponding amount of used swap and very sluggish response times.
-> > 
-> > This can be avoided by having the direct reclaim code not reclaim
-> > from zones that already have plenty of free memory available for
-> > compaction.
-> > 
-> > If compaction still fails due to unmovable memory, doing additional
-> > reclaim will only hurt the system, not help.
-> > 
-> > Signed-off-by: Rik van Riel <riel@redhat.com>
-> > 
-> > ---
-> > -v2: shrink_zones now uses the same thresholds as used by compaction itself,
-> >      not only is this conceptually nicer, it also results in kswapd doing
-> >      some actual work; before all the page freeing work was done by THP
-> >      allocators, I seem to see fewer application stalls after this change.
-> > 
-> >  mm/vmscan.c |   10 ++++++++++
-> >  1 files changed, 10 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index b7719ec..117eb4d 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2083,6 +2083,16 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
-> >  				continue;
-> >  			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-> >  				continue;	/* Let kswapd poll it */
-> > +			if (COMPACTION_BUILD) {
-> > +				/*
-> > +				 * If we already have plenty of memory free
-> > +				 * for compaction, don't free any more.
-> > +				 */
-> > +				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-> > +					(compaction_suitable(zone, sc->order) ||
-> > +					 compaction_deferred(zone)))
-> > +					continue;
-> > +			}
-> 
-> I don't think the comment is complete in combination with the check
-> for order > PAGE_ALLOC_COSTLY_ORDER, as compaction is invoked for all
-> non-zero orders.
-> 
-> But the traditional behaviour does less harm if the orders are small
-> and your problem was triggered by THP allocations, so I agree with the
-> code itself.
+From: Rik van Riel <riel@redhat.com>
 
-FWIW, an incremental patch to explain the order check.  What do you
-think?
+When suffering from memory fragmentation due to unfreeable pages,
+THP page faults will repeatedly try to compact memory.  Due to the
+unfreeable pages, compaction fails.
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Needless to say, at that point page reclaim also fails to create
+free contiguous 2MB areas.  However, that doesn't stop the current
+code from trying, over and over again, and freeing a minimum of 4MB
+(2UL << sc->order pages) at every single invocation.
+
+This resulted in my 12GB system having 2-3GB free memory, a
+corresponding amount of used swap and very sluggish response times.
+
+This can be avoided by having the direct reclaim code not reclaim from
+zones that already have plenty of free memory available for compaction.
+
+If compaction still fails due to unmovable memory, doing additional
+reclaim will only hurt the system, not help.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   10 ++++++++--
- 1 files changed, 8 insertions(+), 2 deletions(-)
+ mm/vmscan.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3817fa9..930085a 100644
+index b55699c..3817fa9 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2068,8 +2068,14 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
+@@ -2066,6 +2066,16 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
+ 				continue;
+ 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
  				continue;	/* Let kswapd poll it */
- 			if (COMPACTION_BUILD) {
- 				/*
--				 * If we already have plenty of memory free
--				 * for compaction, don't free any more.
-+				 * If we already have plenty of memory
-+				 * free for compaction, don't free any
-+				 * more.  Even though compaction is
-+				 * invoked for any non-zero order,
-+				 * only frequent costly order
-+				 * reclamation is disruptive enough to
-+				 * become a noticable problem, like
-+				 * transparent huge page allocations.
- 				 */
- 				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
- 					(compaction_suitable(zone, sc->order) ||
++			if (COMPACTION_BUILD) {
++				/*
++				 * If we already have plenty of memory free
++				 * for compaction, don't free any more.
++				 */
++				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
++					(compaction_suitable(zone, sc->order) ||
++					 compaction_deferred(zone)))
++					continue;
++			}
+ 			/*
+ 			 * This steals pages from memory cgroups over softlimit
+ 			 * and returns the number of reclaimed pages and
 -- 
-1.7.6.4
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
