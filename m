@@ -1,60 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 963786B002D
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 12:27:25 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv16 0/9] Contiguous Memory Allocator
-Date: Fri, 7 Oct 2011 18:27:06 +0200
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 909166B002D
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 13:02:58 -0400 (EDT)
+Date: Fri, 7 Oct 2011 18:58:28 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
+	thread is singlestepping.
+Message-ID: <20111007165828.GA32319@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com> <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201110071827.06366.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111006054710.GB17591@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thursday 06 October 2011, Marek Szyprowski wrote:
-> Once again I decided to post an updated version of the Contiguous Memory
-> Allocator patches.
-> 
-> This version provides mainly a bugfix for a very rare issue that might
-> have changed migration type of the CMA page blocks resulting in dropping
-> CMA features from the affected page block and causing memory allocation
-> to fail. Also the issue reported by Dave Hansen has been fixed.
-> 
-> This version also introduces basic support for x86 architecture, what
-> allows wide testing on KVM/QEMU emulators and all common x86 boxes. I
-> hope this will result in wider testing, comments and easier merging to
-> mainline.
+On 10/06, Srikar Dronamraju wrote:
+>
+> The patch (that I sent out as part of v5 patchset) uses per task
+> pending sigqueue and start queueing the signals when the task
+> singlesteps. After completion of singlestep, walks thro the pending
+> signals.
 
-Hi Marek,
+Yes, I see. Doesn't look very nice ;)
 
-I think we need to finally get this into linux-next now, to get some
-broader testing. Having the x86 patch definitely helps here becauses
-it potentially exposes the code to many more testers.
+> But I was thinking if I should block signals instead of queueing them in
+> a different sigqueue. So Idea is to block signals just before the task
+> enables singlestep and unblock after task disables singlestep.
 
-IMHO it would be good to merge the entire series into 3.2, since
-the ARM portion fixes an important bug (double mapping of memory
-ranges with conflicting attributes) that we've lived with for far
-too long, but it really depends on how everyone sees the risk
-for regressions here. If something breaks in unfixable ways before
-the 3.2 release, we can always revert the patches and have another
-try later.
+Agreed, this looks much, much better. In both cases the task is current,
+it is safe to change ->blocked.
 
-It's also not clear how we should merge it. Ideally the first bunch
-would go through linux-mm, and the architecture specific patches
-through the respective architecture trees, but there is an obvious
-inderdependency between these sets.
+But please avoid sigprocmask(), we have set_current_blocked().
 
-Russell, Andrew, are you both comfortable with putting the entire
-set into linux-mm to solve this? Do you see this as 3.2 or rather
-as 3.3 material?
-
-	Arnd
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
