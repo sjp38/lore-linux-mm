@@ -1,185 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 953B06B002F
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 04:20:41 -0400 (EDT)
-Message-ID: <4E8EB634.9090208@parallels.com>
-Date: Fri, 7 Oct 2011 12:20:04 +0400
+	by kanga.kvack.org (Postfix) with ESMTP id CA7376B0030
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 04:28:22 -0400 (EDT)
+Message-ID: <4E8EB802.8020201@parallels.com>
+Date: Fri, 7 Oct 2011 12:27:46 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 0/8] per-cgroup tcp buffer pressure settings
-References: <1317730680-24352-1-git-send-email-glommer@parallels.com> <20111005092954.718a0c29.kamezawa.hiroyu@jp.fujitsu.com> <4E8C067E.6040203@parallels.com> <20111007170522.624fab3d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111007170522.624fab3d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] slab_id: Generic slab ID infrastructure
+References: <4E8DD5B9.4060905@parallels.com> <4E8DD600.7070700@parallels.com>
+In-Reply-To: <4E8DD600.7070700@parallels.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On 10/07/2011 12:05 PM, KAMEZAWA Hiroyuki wrote:
->
->
-> Sorry for lazy answer.
-Hi Kame,
+Hi Pavel,
 
-Now matter how hard you try, you'll never be as lazy as I am. So that's 
-okay.
+On 10/06/2011 08:23 PM, Pavel Emelyanov wrote:
+> The idea of how to generate and ID for an arbitrary slab object is simple:
+>
+> - The ID is 128 bits
+> - The upper 64 bits are slab ID
+> - The lower 64 bits are object index withing a slab (yes, it's too many,
+>    but is done for simplicity - not to deal with 96-bit numbers)
+> - The slab ID is the 48-bit per-cpu monotonic counter mixed with 16-bit
+>    cpuid. Even if being incremented 1M times per second the first part
+>    will stay uniqe for 200+ years. The cpuid is required to make values
+>    picked on two cpus differ.
 
->
-> On Wed, 5 Oct 2011 11:25:50 +0400
-> Glauber Costa<glommer@parallels.com>  wrote:
->
->> On 10/05/2011 04:29 AM, KAMEZAWA Hiroyuki wrote:
->>> On Tue,  4 Oct 2011 16:17:52 +0400
->>> Glauber Costa<glommer@parallels.com>   wrote:
->>>
->
->>> At this stage, my concern is view of interfaces and documenation, and future plans.
->>
->> Okay. I will try to address them as well as I can.
->>
->>> * memory.independent_kmem_limit
->>>    If 1, kmem_limit_in_bytes/kmem_usage_in_bytes works.
->>>    If 0, kmem_limit_in_bytes/kmem_usage_in_bytes doesn't work and all kmem
->>>       usages are controlled under memory.limit_in_bytes.
->>
->> Correct. For the questions below, I won't even look at the code not to
->> get misguided. Let's settle on the desired behavior, and everything that
->> deviates from it, is a bug.
->>
->>> Question:
->>>    - What happens when parent/chidlren cgroup has different indepedent_kmem_limit ?
->> I think it should be forbidden. It was raised by Kirill before, and
->> IIRC, he specifically requested it to be. (Okay: Saying it now, makes me
->> realizes that the child can have set it to 1 while parent was 1. But
->> then parent sets it to 0... I don't think I am handling this case).
->>
->
-> ok, please put it into TODO list ;)
+So why can't we just use tighter numbers, and leave some reserved fields 
+instead ?
 
-Done.
+Having ids in the objects of the slab may prove useful in the future for
+other uses as well.
+
+For instance, concurrent to that, we're trying to figure out ways to 
+have per-cgroup pages/objects accounted in the memory controller.
+
+The most up2date proposals create an entire kmem cache for each cgroup,
+thus trivially guaranteeing uniqueness. It however, leads to fragmentation.
+Having the objects to be IDed and being cgroup part of this id, could
+help us achieve the same goal with less fragmentation.
 
 >
+> Signed-off-by: Pavel Emelyanov<xemul@parallels.com>
 >
->>>    In future plan, kmem.usage_in_bytes should includes tcp.kmem_usage_in_bytes.
->>>    And kmem.limit_in_bytes should be the limiation of sum of all kmem.xxxx.limit_in_bytes.
->>
->> I am not sure there will be others xxx.limit_in_bytes. (see below)
->>
+> ---
+>   include/linux/slab.h |   17 +++++++++++++++++
+>   init/Kconfig         |    9 +++++++++
+>   mm/Makefile          |    1 +
+>   mm/slab_obj_ids.c    |   25 +++++++++++++++++++++++++
+>   4 files changed, 52 insertions(+), 0 deletions(-)
+>   create mode 100644 mm/slab_obj_ids.c
 >
-> ok.
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 573c809..ae9c735 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -23,6 +23,7 @@
+>   #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
+>   #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
+>   #define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
+> +#define SLAB_WANT_OBJIDS	0x00080000UL	/* Want GENERIC_OBJECT_IDS-friendly slabs */
+>   /*
+>    * SLAB_DESTROY_BY_RCU - **WARNING** READ THIS!
+>    *
+> @@ -162,6 +163,22 @@ void kfree(const void *);
+>   void kzfree(const void *);
+>   size_t ksize(const void *);
 >
+> +#ifdef CONFIG_SLAB_OBJECT_IDS
+> +void __slab_pick_id(u64 *s_id);
+> +static inline void __slab_get_id(u64 *id, u64 s_id, u64 o_id)
+> +{
+> +	id[0] = o_id;
+> +	id[1] = s_id;
+> +}
+> +
+> +void k_object_id(const void *, u64 *id);
+> +#else
+> +static inline void k_object_id(const void *x, u64 *id)
+> +{
+> +	id[0] = id[1] = 0;
+> +}
+> +#endif
+> +
+>   /*
+>    * Allocator specific definitions. These are mainly used to establish optimized
+>    * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
+> diff --git a/init/Kconfig b/init/Kconfig
+> index d627783..4c1c0e6 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1200,6 +1200,15 @@ config SLUB_DEBUG
+>   	  SLUB sysfs support. /sys/slab will not exist and there will be
+>   	  no support for cache validation etc.
 >
->>>
->>> Question:
->>>    - Why this integration is difficult ?
->> It is not that it is difficult.
->> What happens is that there are two things taking place here:
->> One of them is allocation.
->> The other, is tcp-specific pressure thresholds. Bear with me with the
->> following example code: (from sk_stream_alloc_skb, net/ipv4/tcp.c)
->>
->> 1:      skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
->>           if (skb) {
->> 3:              if (sk_wmem_schedule(sk, skb->truesize)) {
->>                           /*
->>                            * Make sure that we have exactly size bytes
->>                            * available to the caller, no more, no less.
->>                            */
->>                           skb_reserve(skb, skb_tailroom(skb) - size);
->>                           return skb;
->>                   }
->>                   __kfree_skb(skb);
->>           } else {
->>                   sk->sk_prot->enter_memory_pressure(sk);
->>                   sk_stream_moderate_sndbuf(sk);
->>           }
->>
->> In line 1, an allocation takes place. This allocs memory from the skbuff
->> slab cache.
->> But then, pressure thresholds are applied in 3. If it fails, we drop the
->> memory buffer even if the allocation succeeded.
->>
->
-> Sure.
->
->
->> So this patchset, as I've stated already, cares about pressure
->> conditions only. It is enough to guarantee that no more memory will be
->> pinned that we specified, because we'll free the allocation in case
->> pressure is reached.
->>
->> There is work in progress from guys at google (and I have my very own
->> PoCs as well), to include all slab allocations in kmem.usage_in_bytes.
->>
->
-> ok.
->
->
->> So what I really mean here with "will integrate later", is that I think
->> that we'd be better off tracking the allocations themselves at the slab
->> level.
->>
->>>      Can't tcp-limit-code borrows some amount of charges in batch from kmem_limit
->>>      and use it ?
->> Sorry, I don't know what exactly do you mean. Can you clarify?
->>
-> Now, tcp-usage is independent from kmem-usage.
->
-> My idea is
->
->    1. when you account tcp usage, charge kmem, too.
-
-Absolutely.
->    Now, your work is
->       a) tcp use new xxxx bytes.
->       b) account it to tcp.uage and check tcp limit
->
->    To ingegrate kmem,
->       a) tcp use new xxxx bytes.
->       b) account it to tcp.usage and check tcp limit
->       c) account it to kmem.usage
->
-> ? 2 counters may be slow ?
-
-Well, the way I see it, 1 counter is slow already =)
-I honestly think we need some optimizations here. But
-that is a side issue.
-
-To begin with: The new patchset that I intend to spin
-today or Monday, depending on my progress, uses res_counters,
-as you and Kirill requested.
-
-So what makes res_counters slow IMHO, is two things:
-
-1) interrupts are always disabled.
-2) All is done under a lock.
-
-Now, we are starting to have resources that are billed to multiple
-counters. One simple way to work around it, is to have child counters
-that has to be accounted for as well everytime a resource is counted.
-
-Like this:
-
-1) tcp has kmem as child. When we bill to tcp, we bill to kmem as well.
-    For protocols that do memory pressure, we then don't bill kmem from
-    the slab.
-2) When kmem_independent_account is set to 0, kmem has mem as child.
-
->
->
->>>    - Don't you need a stat file to indicate "tcp memory pressure works!" ?
->>>      It can be obtained already ?
->>
->> Not 100 % clear as well. We can query the amount of buffer used, and the
->> amount of buffer allowed. What else do we need?
->>
->
-> IIUC, we can see the fact tcp.usage is near to tcp.limit but never can see it
-> got memory pressure and how many numbers of failure happens.
-> I'm sorry if I don't read codes correctly.
-
-IIUC, With res_counters being used, we get at least failcnt for free, right?
+> +config SLAB_OBJECT_IDS
+> +	default y
+> +	bool "Enable slab kernel object ID infrastructure"
+> +	depends on !SLOB
+> +	help
+> +	  This option provides an infrastructure for calculating ID-s of
+> +	  slab/slub objects. These ID-s are not based on the object location
+> +	  in memory and thus can be shown to the userspace.
+> +
+>   config COMPAT_BRK
+>   	bool "Disable heap randomization"
+>   	default y
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 836e416..fb65080 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -50,3 +50,4 @@ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+>   obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+>   obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+>   obj-$(CONFIG_CLEANCACHE) += cleancache.o
+> +obj-$(CONFIG_SLAB_OBJECT_IDS) += slab_obj_ids.o
+> diff --git a/mm/slab_obj_ids.c b/mm/slab_obj_ids.c
+> new file mode 100644
+> index 0000000..87d1693
+> --- /dev/null
+> +++ b/mm/slab_obj_ids.c
+> @@ -0,0 +1,25 @@
+> +#include<linux/percpu.h>
+> +
+> +#define SLUB_ID_CPU_SHIFT	16
+> +static DEFINE_PER_CPU(u64, slub_ids);
+> +
+> +void __slab_pick_id(u64 *s_id)
+> +{
+> +	int cpu;
+> +	u64 id;
+> +
+> +	/*
+> +	 * The idea behind this all is very simple:
+> +	 *
+> +	 * The ID is the 48-bit per-cpu monotonic counter mixed with 16-bit cpuid.
+> +	 * Even if being incremented 1M times per second the first part will stay
+> +	 * uniqe for 200+ years. The cpuid is required to make values picked on
+> +	 * two cpus differ.
+> +	 */
+> +
+> +	cpu = get_cpu();
+> +	id = ++per_cpu(slub_ids, cpu);
+> +	WARN_ON_ONCE(id>>  (64 - SLUB_ID_CPU_SHIFT) != 0);
+> +	*s_id = (id<<  SLUB_ID_CPU_SHIFT) | cpu;
+> +	put_cpu();
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
