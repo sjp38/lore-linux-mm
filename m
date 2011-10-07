@@ -1,93 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 324D36B002D
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 11:18:34 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/2] mm: Abort reclaim/compaction if compaction can proceed
-Date: Fri,  7 Oct 2011 16:17:23 +0100
-Message-Id: <1318000643-27996-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1318000643-27996-1-git-send-email-mgorman@suse.de>
-References: <1318000643-27996-1-git-send-email-mgorman@suse.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F69F6B002D
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 11:23:48 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <4d0a5da4-00de-40dd-8d75-8ed6e3d0831c@default>
+Date: Fri, 7 Oct 2011 08:23:38 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [Xen-devel] Re: RFC -- new zone type
+References: <20110928180909.GA7007@labbmf-linux.qualcomm.comCAOFJiu1_HaboUMqtjowA2xKNmGviDE55GUV4OD1vN2hXUf4-kQ@mail.gmail.com>
+ <c2d9add1-0095-4319-8936-db1b156559bf@default20111005165643.GE7007@labbmf-linux.qualcomm.com>
+ <cc1256f9-4808-4d74-a321-6a3ec129cc05@default
+ 20111006230348.GF7007@labbmf-linux.qualcomm.com>
+In-Reply-To: <20111006230348.GF7007@labbmf-linux.qualcomm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org
-Cc: Josh Boyer <jwboyer@redhat.com>, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Larry Bassel <lbassel@codeaurora.org>
+Cc: linux-mm@kvack.org, Xen-devel@lists.xensource.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-If compaction can proceed, shrink_zones() stops doing any work but
-the callers still shrink_slab(), raises the priority and potentially
-sleeps.  This patch aborts direct reclaim/compaction entirely if
-compaction can proceed.
+> From: Larry Bassel [mailto:lbassel@codeaurora.org]
+> Sent: Thursday, October 06, 2011 5:04 PM
+> To: Dan Magenheimer
+> Cc: Larry Bassel; linux-mm@kvack.org; Xen-devel@lists.xensource.com
+> Subject: Re: [Xen-devel] Re: RFC -- new zone type
+>=20
+> Thanks for your answers to my questions. I have one more:
+>=20
+> Will there be any problem if the memory I want to be
+> transcendent is highmem (i.e. doesn't have any permanent
+> virtual<->physical mapping)?
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |   20 ++++++++++++++++----
- 1 files changed, 16 insertions(+), 4 deletions(-)
+Hi Larry --
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3817fa9..522f205 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2044,14 +2044,19 @@ restart:
-  *
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-+ *
-+ * This function returns true if a zone is being reclaimed for a costly
-+ * high-order allocation and compaction is either ready to begin or deferred.
-+ * This indicates to the caller that it should retry the allocation or fail.
-  */
--static void shrink_zones(int priority, struct zonelist *zonelist,
-+static bool shrink_zones(int priority, struct zonelist *zonelist,
- 					struct scan_control *sc)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
- 	unsigned long nr_soft_reclaimed;
- 	unsigned long nr_soft_scanned;
-+	bool should_abort_reclaim = false;
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
-@@ -2069,12 +2074,15 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 			if (COMPACTION_BUILD) {
- 				/*
- 				 * If we already have plenty of memory free
--				 * for compaction, don't free any more.
-+				 * for compaction in this zone , don't free any
-+				 * more.
- 				 */
- 				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
- 					(compaction_suitable(zone, sc->order) ||
--					 compaction_deferred(zone)))
-+					 compaction_deferred(zone))) {
-+					should_abort_reclaim = true;
- 					continue;
-+				}
- 			}
- 			/*
- 			 * This steals pages from memory cgroups over softlimit
-@@ -2093,6 +2101,8 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 
- 		shrink_zone(priority, zone, sc);
- 	}
-+
-+	return should_abort_reclaim;
- }
- 
- static bool zone_reclaimable(struct zone *zone)
-@@ -2157,7 +2167,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token(sc->mem_cgroup);
--		shrink_zones(priority, zonelist, sc);
-+		if (shrink_zones(priority, zonelist, sc))
-+			break;
-+
- 		/*
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
--- 
-1.7.3.4
+I have to admit I am not an expert with highmem things.
+Seth Jennings (cc'ed) fixed highmem for zcache with
+a patch, so I assume that there shouldn't be a problem
+for your code.
+
+Dan
+
+P.S. Seth, google for the subject if needed... there is
+not a single email thread I can easily point you to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
