@@ -1,41 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 909166B002D
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 13:02:58 -0400 (EDT)
-Date: Fri, 7 Oct 2011 18:58:28 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
-	thread is singlestepping.
-Message-ID: <20111007165828.GA32319@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com> <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5CEFD6B002E
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2011 13:03:47 -0400 (EDT)
+Date: Fri, 7 Oct 2011 12:03:43 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH 0/5] Slab objects identifiers
+In-Reply-To: <4E8DD5B9.4060905@parallels.com>
+Message-ID: <alpine.DEB.2.00.1110071159540.11042@router.home>
+References: <4E8DD5B9.4060905@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111006054710.GB17591@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 10/06, Srikar Dronamraju wrote:
+On Thu, 6 Oct 2011, Pavel Emelyanov wrote:
+
+> While doing the checkpoint-restore in the userspace we need to determine
+> whether various kernel objects (like mm_struct-s of file_struct-s) are shared
+> between tasks and restore this state.
 >
-> The patch (that I sent out as part of v5 patchset) uses per task
-> pending sigqueue and start queueing the signals when the task
-> singlesteps. After completion of singlestep, walks thro the pending
-> signals.
+> The 2nd step can for now be solved by using respective CLONE_XXX flags and
+> the unshare syscall, while there's currently no ways for solving the 1st one.
+>
+> One of the ways for checking whether two tasks share e.g. an mm_struct is to
+> provide some mm_struct ID of a task to its proc file. The best from the
+> performance point of view ID is the object address in the kernel, but showing
+> them to the userspace is not good for performance reasons. Thus the ID should
+> not be calculated based on the object address.
 
-Yes, I see. Doesn't look very nice ;)
-
-> But I was thinking if I should block signals instead of queueing them in
-> a different sigqueue. So Idea is to block signals just before the task
-> enables singlestep and unblock after task disables singlestep.
-
-Agreed, this looks much, much better. In both cases the task is current,
-it is safe to change ->blocked.
-
-But please avoid sigprocmask(), we have set_current_blocked().
-
-Oleg.
+If two tasks share an mm_struct then the mm_struct pointer (task->mm) will
+point to the same address. Objects are already uniquely identified by
+their address. If you store the physical address with the object content
+when transferring then you can verify that they share the mm_struct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
