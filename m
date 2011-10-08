@@ -1,133 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CA11B6B002D
-	for <linux-mm@kvack.org>; Sat,  8 Oct 2011 01:50:57 -0400 (EDT)
-Subject: [patch v2]vmscan: correctly detect GFP_ATOMIC allocation failure
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1318044928.22361.41.camel@sli10-conroe>
-References: <1317108187.29510.201.camel@sli10-conroe>
-	 <20110927112810.GA3897@tiehlicka.suse.cz>
-	 <1317170933.22361.5.camel@sli10-conroe>
-	 <20110928092751.GA15062@tiehlicka.suse.cz>
-	 <1318043674.22361.38.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1110072014040.13992@chino.kir.corp.google.com>
-	 <1318044928.22361.41.camel@sli10-conroe>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 08 Oct 2011 13:56:52 +0800
-Message-ID: <1318053412.22361.51.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id EC4036B002C
+	for <linux-mm@kvack.org>; Sat,  8 Oct 2011 03:23:38 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so5607564wwi.26
+        for <linux-mm@kvack.org>; Sat, 08 Oct 2011 00:23:35 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com> <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Sat, 8 Oct 2011 03:23:15 -0400
+Message-ID: <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com>
+Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
+ before deferring
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, MinchanKim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On Sat, 2011-10-08 at 11:35 +0800, Shaohua Li wrote:
-> On Sat, 2011-10-08 at 11:19 +0800, David Rientjes wrote:
-> > On Sat, 8 Oct 2011, Shaohua Li wrote:
-> > 
-> > > has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
-> > > failure risk. For a high end_zone, if any zone below or equal to it has min
-> > > matermark ok, we have no risk. But current logic is any zone has min watermark
-> > > not ok, then we have risk. This is wrong to me.
-> > > 
-> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > > ---
-> > >  mm/vmscan.c |    7 ++++---
-> > >  1 file changed, 4 insertions(+), 3 deletions(-)
-> > > 
-> > > Index: linux/mm/vmscan.c
-> > > ===================================================================
-> > > --- linux.orig/mm/vmscan.c	2011-09-27 15:09:29.000000000 +0800
-> > > +++ linux/mm/vmscan.c	2011-09-27 15:14:45.000000000 +0800
-> > > @@ -2463,7 +2463,7 @@ loop_again:
-> > >  
-> > >  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> > >  		unsigned long lru_pages = 0;
-> > > -		int has_under_min_watermark_zone = 0;
-> > > +		int has_under_min_watermark_zone = 1;
-> > 
-> > bool
-> > 
-> > >  
-> > >  		/* The swap token gets in the way of swapout... */
-> > >  		if (!priority)
-> > > @@ -2594,9 +2594,10 @@ loop_again:
-> > >  				 * means that we have a GFP_ATOMIC allocation
-> > >  				 * failure risk. Hurry up!
-> > >  				 */
-> > > -				if (!zone_watermark_ok_safe(zone, order,
-> > > +				if (has_under_min_watermark_zone &&
-> > > +					    zone_watermark_ok_safe(zone, order,
-> > >  					    min_wmark_pages(zone), end_zone, 0))
-> > > -					has_under_min_watermark_zone = 1;
-> > > +					has_under_min_watermark_zone = 0;
-> > >  			} else {
-> > >  				/*
-> > >  				 * If a zone reaches its high watermark,
-> > 
-> > Ignore checking the min watermark for a moment and consider if all zones 
-> > are above the high watermark (a situation where kswapd does not need to 
-> > do aggressive reclaim), then has_under_min_watermark_zone doesn't get 
-> > cleared and never actually stalls on congestion_wait().  Notice this is 
-> > congestion_wait() and not wait_iff_congested(), so the clearing of 
-> > ZONE_CONGESTED doesn't prevent this.
-> if all zones are above the high watermark, we will have i < 0 when
-> detecting the highest imbalanced zone, and the whole loop will end
-> without run into congestion_wait().
-> or I can add a clearing has_under_min_watermark_zone in the else block
-> to be safe.
-Subject: vmscan: correctly detect GFP_ATOMIC allocation failure -v2
+2011/10/7 David Rientjes <rientjes@google.com>:
+> If a thread has been oom killed and is frozen, thaw it before returning
+> to the page allocator. =A0Otherwise, it can stay frozen indefinitely and
+> no memory will be freed.
+>
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+> =A0v2: adds the missing header file include, the resend patch was based o=
+n a
+> =A0 =A0 previous patch from Michal that is no longer needed if this is
+> =A0 =A0 applied.
 
-has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
-failure risk. For a high end_zone, if any zone below or equal to it has min
-matermark ok, we have no risk. But current logic is any zone has min watermark
-not ok, then we have risk. This is wrong to me.
-
-v2: use bool and clear has_under_min_watermark_zone for zone with watermark ok
-as suggested by David Rientjes.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
----
- mm/vmscan.c |    8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-Index: linux/mm/vmscan.c
-===================================================================
---- linux.orig/mm/vmscan.c	2011-10-08 13:31:49.000000000 +0800
-+++ linux/mm/vmscan.c	2011-10-08 13:32:27.000000000 +0800
-@@ -2463,7 +2463,7 @@ loop_again:
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		unsigned long lru_pages = 0;
--		int has_under_min_watermark_zone = 0;
-+		bool has_under_min_watermark_zone = true;
- 
- 		/* The swap token gets in the way of swapout... */
- 		if (!priority)
-@@ -2594,9 +2594,10 @@ loop_again:
- 				 * means that we have a GFP_ATOMIC allocation
- 				 * failure risk. Hurry up!
- 				 */
--				if (!zone_watermark_ok_safe(zone, order,
-+				if (has_under_min_watermark_zone &&
-+					    zone_watermark_ok_safe(zone, order,
- 					    min_wmark_pages(zone), end_zone, 0))
--					has_under_min_watermark_zone = 1;
-+					has_under_min_watermark_zone = false;
- 			} else {
- 				/*
- 				 * If a zone reaches its high watermark,
-@@ -2608,6 +2609,7 @@ loop_again:
- 				zone_clear_flag(zone, ZONE_CONGESTED);
- 				if (i <= *classzone_idx)
- 					balanced += zone->present_pages;
-+				has_under_min_watermark_zone = false;
- 			}
- 
- 		}
-
-
+Looks ok to me.
+Michal, do you agree this patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
