@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 398146B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 12:27:34 -0400 (EDT)
-Subject: Re: [PATCH 1/9] mm: add a "struct subpage" type containing a page,
- offset and length
-From: Ian Campbell <Ian.Campbell@citrix.com>
-Date: Mon, 10 Oct 2011 17:27:07 +0100
-In-Reply-To: <1318245101-16890-1-git-send-email-ian.campbell@citrix.com>
-References: <1318245076.21903.408.camel@zakaz.uk.xensource.com>
-	 <1318245101-16890-1-git-send-email-ian.campbell@citrix.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Message-ID: <1318264027.21903.470.camel@zakaz.uk.xensource.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D83ED6B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 13:11:45 -0400 (EDT)
+Date: Mon, 10 Oct 2011 12:11:42 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: RE: [PATCH] slub: remove a minus instruction in get_partial_node
+In-Reply-To: <1318042113.27949.97.camel@debian>
+Message-ID: <alpine.DEB.2.00.1110101210110.16264@router.home>
+References: <1317290716.4188.1227.camel@debian>  <alpine.DEB.2.00.1109290917300.9382@router.home>  <6E3BC7F7C9A4BF4286DD4C043110F30B5FD97584A4@shsmsx502.ccr.corp.intel.com>  <alpine.DEB.2.00.1110030854270.9611@router.home>
+ <1318042113.27949.97.camel@debian>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph
- Hellwig <hch@infradead.org>
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
 
-(reposting including LKML to catch other potential users)
+On Sat, 8 Oct 2011, Alex,Shi wrote:
 
-Is this structure of any use to unify other instances of a similar
-tuple, e.g. biovec, pagefrag etc?
+> On Mon, 2011-10-03 at 21:55 +0800, Christoph Lameter wrote:
+> > On Sun, 2 Oct 2011, Shi, Alex wrote:
+> >
+> > > > A slab on the partial lists always has objects available. Why would it be
+> > > > zero?
+> > >
+> > > Um, my mistaken. The reason should be: if code is here, the slab will be per cpu slab.
+> > > It is no chance to be in per cpu partial and no relationship with per cpu partial. So
+> > > no reason to use this value as a criteria for filling per cpu partial.
+> >
+> > I am not sure I understand you. The point of the code is to count the
+> > objects available in the per cpu partial pages so that we can limit the
+> > number of pages we fetch from the per node partial list.
+>
+> Maybe my understanding is incorrect for PCP. :)
+> What I thought is: when object == null, the page we got from node
+> partial list will be added into cpu slab. It has no chance to become per
+> cpu partial page. And it has no relationship with further per cpu
+> partial count checking. Since even 'available > cpu_partial/2', it
+> doesn't mean per cpu partial objects number > cpu_partial/2.
 
-Ian.
+acquire_slab should not return NULL unless something seriously goes wrong.
+I think we can remove the]
 
-On Mon, 2011-10-10 at 12:11 +0100, Ian Campbell wrote:
-> A few network drivers currently use skb_frag_struct for this purpose but I have
-> patches which add additional fields and semantics there which these other uses
-> do not want.
-> 
-> A structure for reference sub-page regions seems like a generally useful thing
-> so do so instead of adding a network subsystem specific structure.
-> 
-> Signed-off-by: Ian Campbell <ian.campbell@citrix.com>
-> Cc: linux-mm@kvack.org
-> ---
->  include/linux/mm_types.h |   11 +++++++++++
->  1 files changed, 11 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 774b895..dc1d103 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -135,6 +135,17 @@ struct page {
->  #endif
->  ;
->  
-> +struct subpage {
-> +	struct page *page;
-> +#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-> +	__u32 page_offset;
-> +	__u32 size;
-> +#else
-> +	__u16 page_offset;
-> +	__u16 size;
-> +#endif
-> +};
-> +
->  typedef unsigned long __nocast vm_flags_t;
->  
->  /*
+	if (!t)
 
+statement to avoid futher confusion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
