@@ -1,78 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id F14FA6B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:27:31 -0400 (EDT)
-Subject: Re: [PATCH 1/9] mm: add a "struct subpage" type containing a page,
- offset and length
-From: Ian Campbell <Ian.Campbell@citrix.com>
-Date: Mon, 10 Oct 2011 13:27:00 +0100
-In-Reply-To: <1318245101-16890-1-git-send-email-ian.campbell@citrix.com>
-References: <1318245076.21903.408.camel@zakaz.uk.xensource.com>
-	 <1318245101-16890-1-git-send-email-ian.campbell@citrix.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Message-ID: <1318249620.21903.416.camel@zakaz.uk.xensource.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9246B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:27 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9ACT47U020599
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:29:04 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9ACiNRe831566
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:23 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9ACiLB4010638
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:22 -0400
+Date: Mon, 10 Oct 2011 17:55:56 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
+ thread is singlestepping.
+Message-ID: <20111010122556.GB16268@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com>
+ <1317128626.15383.61.camel@twins>
+ <20110927131213.GE3685@linux.vnet.ibm.com>
+ <20111005180139.GA5704@redhat.com>
+ <20111006054710.GB17591@linux.vnet.ibm.com>
+ <20111007165828.GA32319@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20111007165828.GA32319@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 2011-10-10 at 12:11 +0100, Ian Campbell wrote:
-
-> Cc: linux-mm@kvack.org
-> ---
->  include/linux/mm_types.h |   11 +++++++++++
->  1 files changed, 11 insertions(+), 0 deletions(-)
-
-get_maintainers.pl didn't pick up on this CC. Since mm_types.h was split
-out of mm.h does the following make sense? Not sure if mm_*.h (or just
-mm_inline.hm?) also makes sense.
-
-8<--------------------------
-
-Subject: MAINTAINER: mm subsystem includes mm_types.h
-
-Signed-off-by: Ian Campbell <ian.campbell@citrix.com>
-
-diff --git a/MAINTAINERS b/MAINTAINERS
-index ae8820e..f10a7ea 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -4212,6 +4212,7 @@ L:	linux-mm@kvack.org
- W:	http://www.linux-mm.org
- S:	Maintained
- F:	include/linux/mm.h
-+F:	include/linux/mm_types.h
- F:	mm/
- 
- MEMORY RESOURCE CONTROLLER
-
+* Oleg Nesterov <oleg@redhat.com> [2011-10-07 18:58:28]:
 
 > 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 774b895..dc1d103 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -135,6 +135,17 @@ struct page {
->  #endif
->  ;
->  
-> +struct subpage {
-> +	struct page *page;
-> +#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-> +	__u32 page_offset;
-> +	__u32 size;
-> +#else
-> +	__u16 page_offset;
-> +	__u16 size;
-> +#endif
-> +};
-> +
->  typedef unsigned long __nocast vm_flags_t;
->  
->  /*
+> Agreed, this looks much, much better. In both cases the task is current,
+> it is safe to change ->blocked.
+> 
+> But please avoid sigprocmask(), we have set_current_blocked().
 
+Sure, I will use set_current_blocked().
+
+While we are here, do you suggest I re-use current->saved_sigmask and
+hence use set_restore_sigmask() while resetting the sigmask?
+
+I see saved_sigmask being used just before task sleeps and restored when
+task is scheduled back. So I dont see a case where using saved_sigmask
+in uprobes could conflict with its current usage.
+
+However if you prefer we use a different sigmask to save and restore, I
+can make it part of the utask structure.
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
