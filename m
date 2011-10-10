@@ -1,57 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D9246B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:27 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9ACT47U020599
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:29:04 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9ACiNRe831566
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:23 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9ACiLB4010638
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:44:22 -0400
-Date: Mon, 10 Oct 2011 17:55:56 +0530
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6B36B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:49:38 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9ACgbkE020390
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 06:42:37 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9ACnUii154664
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 06:49:30 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9ACnSKx023502
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 06:49:30 -0600
+Date: Mon, 10 Oct 2011 18:01:02 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
- thread is singlestepping.
-Message-ID: <20111010122556.GB16268@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 4/26]   uprobes: Define hooks for
+ mmap/munmap.
+Message-ID: <20111010123102.GC16268@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com>
- <1317128626.15383.61.camel@twins>
- <20110927131213.GE3685@linux.vnet.ibm.com>
- <20111005180139.GA5704@redhat.com>
- <20111006054710.GB17591@linux.vnet.ibm.com>
- <20111007165828.GA32319@redhat.com>
+ <20110920120040.25326.63549.sendpatchset@srdronam.in.ibm.com>
+ <20111003133710.GA28118@redhat.com>
+ <20111006110531.GE17591@linux.vnet.ibm.com>
+ <20111007173623.GC32319@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20111007165828.GA32319@redhat.com>
+In-Reply-To: <20111007173623.GC32319@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Oleg Nesterov <oleg@redhat.com> [2011-10-07 18:58:28]:
+> > >
+> > > So. We are adding the new mapping, we should find all breakpoints this
+> > > file has in the start/end range.
+> > >
+> > > We are holding ->mmap_sem... this seems enough to protect against the
+> > > races with register/unregister. Except, what if __register_uprobe()
+> > > fails? In this case __unregister_uprobe() does delete_uprobe() at the
+> > > very end. What if mmap mmap_uprobe() is called right before delete_?
+> > >
+> >
+> > Because consumers would be NULL before _unregister_uprobe kicks in, we
+> > shouldnt have a problem here.
+> 
+> Hmm. But it is not NULL.
+> 
+> Once again, I didn't mean unregister_uprobe(). I meant register_uprobe().
+> In this case, if __register_uprobe() fails, we are doing __unregister
+> but uprobe->consumer != NULL.
+
+Oh Okay, I missed setting uprobe->consumer = NULL once __register_uprobe
+fails.
+I shall go ahead and set uprobe->consumer = NULL; (the other option is
+calling del_consumer() but I dont see a need for calling this.) just
+before calling __unregister_uprobe() if and only if __register_uprobe
+fails.
 
 > 
-> Agreed, this looks much, much better. In both cases the task is current,
-> it is safe to change ->blocked.
+> Just suppose that the caller of register_uprobe() gets a (long) preemption
+> right before __unregister_uprobe()->delete_uprobe(). What if mmap() is
+> called at this time?
 > 
-> But please avoid sigprocmask(), we have set_current_blocked().
+> > Am I missing something?
+> 
+> May be you, may be me. Please recheck ;)
 
-Sure, I will use set_current_blocked().
+Rechecked and found the issue. Thanks.
 
-While we are here, do you suggest I re-use current->saved_sigmask and
-hence use set_restore_sigmask() while resetting the sigmask?
+> 
+> > I think this would be taken care of if we move the munmap_uprobe() hook
+> > from unmap_vmas to unlink_file_vma().
+> 
+> Probably yes, we should rely on prio_tree locking/changes.
+> 
+> > The other thing that I need to investigate a bit more is if I have
+> > handle all cases of mremap correctly.
+> 
+> Yes. May be mmap_uprobe() should be "closer" to vma_prio_tree_add/insert
+> too, but I am not sure.
 
-I see saved_sigmask being used just before task sleeps and restored when
-task is scheduled back. So I dont see a case where using saved_sigmask
-in uprobes could conflict with its current usage.
+Okay, that seems like a good idea.
 
-However if you prefer we use a different sigmask to save and restore, I
-can make it part of the utask structure.
+> 
+> Oleg.
+> 
 
 -- 
 Thanks and Regards
