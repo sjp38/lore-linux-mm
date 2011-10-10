@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D5FCE6B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 18:56:47 -0400 (EDT)
-Received: by ggdk5 with SMTP id k5so6697278ggd.14
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 15:56:45 -0700 (PDT)
-Date: Mon, 10 Oct 2011 15:56:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv16 0/9] Contiguous Memory Allocator
-Message-Id: <20111010155642.38df59af.akpm@linux-foundation.org>
-In-Reply-To: <201110071827.06366.arnd@arndb.de>
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
-	<201110071827.06366.arnd@arndb.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 927A56B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 19:24:22 -0400 (EDT)
+Date: Mon, 10 Oct 2011 16:24:03 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH] mm: memory hotplug: Check if pages are correctly
+ reserved on a per-section basis
+Message-ID: <20111010232403.GA30513@kroah.com>
+References: <20111010071119.GE6418@suse.de>
+ <20111010150038.ac161977.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111010150038.ac161977.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, nfont@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 7 Oct 2011 18:27:06 +0200
-Arnd Bergmann <arnd@arndb.de> wrote:
-
-> On Thursday 06 October 2011, Marek Szyprowski wrote:
-> > Once again I decided to post an updated version of the Contiguous Memory
-> > Allocator patches.
+On Mon, Oct 10, 2011 at 03:00:38PM -0700, Andrew Morton wrote:
+> On Mon, 10 Oct 2011 08:11:19 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > It is expected that memory being brought online is PageReserved
+> > similar to what happens when the page allocator is being brought up.
+> > Memory is onlined in "memory blocks" which consist of one or more
+> > sections. Unfortunately, the code that verifies PageReserved is
+> > currently assuming that the memmap backing all these pages is virtually
+> > contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
+> > As a result, memory hot-add is failing on !VMEMMAP configurations
+> > with the message;
 > > 
-> > This version provides mainly a bugfix for a very rare issue that might
-> > have changed migration type of the CMA page blocks resulting in dropping
-> > CMA features from the affected page block and causing memory allocation
-> > to fail. Also the issue reported by Dave Hansen has been fixed.
+> > kernel: section number XXX page number 256 not reserved, was it already online?
 > > 
-> > This version also introduces basic support for x86 architecture, what
-> > allows wide testing on KVM/QEMU emulators and all common x86 boxes. I
-> > hope this will result in wider testing, comments and easier merging to
-> > mainline.
+> > This patch updates the PageReserved check to lookup struct page once
+> > per section to guarantee the correct struct page is being checked.
+> > 
 > 
-> Hi Marek,
-> 
-> I think we need to finally get this into linux-next now, to get some
-> broader testing. Having the x86 patch definitely helps here becauses
-> it potentially exposes the code to many more testers.
-> 
-> IMHO it would be good to merge the entire series into 3.2, since
-> the ARM portion fixes an important bug (double mapping of memory
-> ranges with conflicting attributes) that we've lived with for far
-> too long, but it really depends on how everyone sees the risk
-> for regressions here. If something breaks in unfixable ways before
-> the 3.2 release, we can always revert the patches and have another
-> try later.
-> 
-> It's also not clear how we should merge it. Ideally the first bunch
-> would go through linux-mm, and the architecture specific patches
-> through the respective architecture trees, but there is an obvious
-> inderdependency between these sets.
-> 
-> Russell, Andrew, are you both comfortable with putting the entire
-> set into linux-mm to solve this? Do you see this as 3.2 or rather
-> as 3.3 material?
-> 
+> Nathan's earlier version of this patch is already in linux-next, via
+> Greg.  We should drop the old version and get the new one merged
+> instead.
 
-Russell's going to hate me, but...
+Ok, care to send me what exactly needs to be reverted and what needs to
+be added?
 
-I do know that he had substantial objections to at least earlier
-versions of this, and he is a guy who knows of what he speaks.
+thanks,
 
-So I would want to get a nod from rmk on this work before proceeding. 
-If that nod isn't available then let's please identify the issues and
-see what we can do about them.
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
