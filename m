@@ -1,77 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 848A46B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:02:20 -0400 (EDT)
-Received: by mail-gy0-f181.google.com with SMTP id 10so6231167gyd.12
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 05:02:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CADMYwHzZWTgSEwr9gMJrK2mZgC2WiiGC9Pp6saZGx=PY-N=ueg@mail.gmail.com>
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
-	<201110071827.06366.arnd@arndb.de>
-	<CADMYwHzZWTgSEwr9gMJrK2mZgC2WiiGC9Pp6saZGx=PY-N=ueg@mail.gmail.com>
-Date: Mon, 10 Oct 2011 07:02:17 -0500
-Message-ID: <CAO8GWq=zzXzPcWfuPFRi1jx7pgReL82-K2xFPS1TGekvEiQecQ@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
-From: "Clark, Rob" <rob@ti.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E96F26B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 08:08:16 -0400 (EDT)
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by casper.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1RDEeU-0000Wk-JC
+	for linux-mm@kvack.org; Mon, 10 Oct 2011 12:08:14 +0000
+Subject: Re: [PATCH 00/11] IO-less dirty throttling v12
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20111003134228.090592370@intel.com>
+References: <20111003134228.090592370@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 10 Oct 2011 14:14:06 +0200
+Message-ID: <1318248846.14400.21.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ohad Ben-Cohen <ohad@wizery.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 10, 2011 at 1:58 AM, Ohad Ben-Cohen <ohad@wizery.com> wrote:
-> On Fri, Oct 7, 2011 at 6:27 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->> IMHO it would be good to merge the entire series into 3.2, since
->> the ARM portion fixes an important bug (double mapping of memory
->> ranges with conflicting attributes) that we've lived with for far
->> too long, but it really depends on how everyone sees the risk
->> for regressions here. If something breaks in unfixable ways before
->> the 3.2 release, we can always revert the patches and have another
->> try later.
->
-> I didn't thoroughly review the patches, but I did try them out (to be
-> precise, I tried v15) on an OMAP4 PandaBoard, and really liked the
-> result.
->
-> The interfaces seem clean and convenient and things seem to work (I
-> used a private CMA pool with rpmsg and remoteproc, but also noticed
-> that several other drivers were utilizing the global pool). And with
-> this in hand we can finally ditch the old reserve+ioremap approach.
->
-> So from a user perspective, I sure do hope this patch set gets into
-> 3.2; hopefully we can just fix anything that would show up during the
-> 3.2 cycle.
->
-> Marek, Michal (and everyone involved!), thanks so much for pushing
-> this! Judging from the history of this patch set and the areas that it
-> touches (and from the number of LWN articles ;) it looks like a
-> considerable feat.
->
-> FWIW, feel free to add my
->
-> Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
+On Mon, 2011-10-03 at 21:42 +0800, Wu Fengguang wrote:
+> This is the minimal IO-less balance_dirty_pages() changes that are expected to
+> be regression free (well, except for NFS).
 
-Marek, I guess I forgot to mention earlier, but I've been using CMA
-for a couple of weeks now with omapdrm driver, so you can also add my:
+I can't seem to get around reviewing these patches in detail, but fwiw
+I'm fine with pushing fwd with this set (plus a possible NFS fix).
 
-Tested-by: Rob Clark <rob@ti.com>
+I don't see a reason to strip it down even further.
 
-BR,
--R
+So I guess that's:
 
-> (small and optional comment: I think it'd be nice if
-> dma_declare_contiguous would fail if called too late, otherwise users
-> of that misconfigured device will end up using the global pool without
-> easily knowing that something went wrong)
->
-> Thanks,
-> Ohad.
->
-> _______________________________________________
-> Linaro-mm-sig mailing list
-> Linaro-mm-sig@lists.linaro.org
-> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
->
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
