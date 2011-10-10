@@ -1,210 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BCA1D6B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 09:12:01 -0400 (EDT)
-Date: Mon, 10 Oct 2011 21:11:54 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 2/2] nfs: scale writeback threshold proportional to
- dirty threshold
-Message-ID: <20111010131154.GB16847@localhost>
-References: <20111003134228.090592370@intel.com>
- <1318248846.14400.21.camel@laptop>
- <20111010130722.GA11387@localhost>
- <20111010131051.GA16847@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111010131051.GA16847@localhost>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 1446B6B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 09:59:11 -0400 (EDT)
+Received: by vcbfo14 with SMTP id fo14so6350093vcb.14
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 06:59:08 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [RFC PATCH] mm: thp: make swap configurable
+Date: Mon, 10 Oct 2011 21:58:06 +0800
+Message-Id: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: aarcange@redhat.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, Bob Liu <lliubbo@gmail.com>
 
-nfs_congestion_kb is to control the max allowed writeback and in-commit
-pages. It's not reasonable for them to outnumber dirty and to-commit
-pages. So each of them should not take more than 1/4 dirty threshold.
+Currently THP do swap by default, user has no control of it.
+But some applications are swap sensitive, this patch add a boot param
+and sys file to make it configurable.
 
-Considering that nfs_init_writepagecache() is called on fresh boot,
-at the time dirty_thresh is much higher than the real dirty limit after
-lots of user space memory consumptions, use 1/8 instead.
-
-We might update nfs_congestion_kb when global dirty limit is changed
-at runtime, but whatever, do it simple first.
-
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
- fs/nfs/write.c      |   52 ++++++++++++++++++++++++++++--------------
- mm/page-writeback.c |    6 ++++
- 2 files changed, 41 insertions(+), 17 deletions(-)
+ Documentation/vm/transhuge.txt |    9 +++++++++
+ include/linux/huge_mm.h        |    5 +++++
+ mm/huge_memory.c               |   26 ++++++++++++++++++++++++++
+ mm/swap_state.c                |   10 ++++++----
+ 4 files changed, 46 insertions(+), 4 deletions(-)
 
---- linux-next.orig/fs/nfs/write.c	2011-10-09 21:36:22.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2011-10-10 21:05:07.000000000 +0800
-@@ -1775,61 +1775,79 @@ int nfs_migrate_page(struct address_spac
- 	set_page_private(newpage, (unsigned long)req);
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
- 	spin_unlock(&mapping->host->i_lock);
- 	page_cache_release(page);
- out_unlock:
- 	nfs_clear_page_tag_locked(req);
- out:
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index 29bdf62..1c7d8e9 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -116,6 +116,12 @@ echo always >/sys/kernel/mm/transparent_hugepage/defrag
+ echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
+ echo never >/sys/kernel/mm/transparent_hugepage/defrag
+ 
++Swap for Transparent Hugepage default is enabled, you can disable it
++by:
++echo 1 > /sys/kernel/mm/transparent_hugepage/disable_swap
++and reenable by:
++echo 0 > /sys/kernel/mm/transparent_hugepage/disable_swap
++
+ khugepaged will be automatically started when
+ transparent_hugepage/enabled is set to "always" or "madvise, and it'll
+ be automatically shutdown if it's set to "never".
+@@ -159,6 +165,9 @@ Support by passing the parameter "transparent_hugepage=always" or
+ "transparent_hugepage=madvise" or "transparent_hugepage=never"
+ (without "") to the kernel command line.
+ 
++You can disable swap for Transparent Hugepage by passing parameter
++"disable_transparent_hugepage_swap".
++
+ == Need of application restart ==
+ 
+ The transparent_hugepage/enabled values only affect future
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 48c32eb..229ef7b 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -31,6 +31,7 @@ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
++	TRANSPARENT_HUGEPAGE_SWAP_DISABLE_FLAG,
+ #ifdef CONFIG_DEBUG_VM
+ 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
+ #endif
+@@ -65,6 +66,9 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ 	 (transparent_hugepage_flags &					\
+ 	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG) &&		\
+ 	  (__vma)->vm_flags & VM_HUGEPAGE))
++#define transparent_hugepage_swap_disable()				\
++	(transparent_hugepage_flags &					\
++	 (1<<TRANSPARENT_HUGEPAGE_SWAP_DISABLE_FLAG))
+ #ifdef CONFIG_DEBUG_VM
+ #define transparent_hugepage_debug_cow()				\
+ 	(transparent_hugepage_flags &					\
+@@ -148,6 +152,7 @@ static inline struct page *compound_trans_head(struct page *page)
+ #define hpage_nr_pages(x) 1
+ 
+ #define transparent_hugepage_enabled(__vma) 0
++#define transparent_hugepage_swap_disable() 0
+ 
+ #define transparent_hugepage_flags 0UL
+ static inline int split_huge_page(struct page *page)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index e2d1587..31aba4b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -293,6 +293,22 @@ static ssize_t defrag_store(struct kobject *kobj,
+ static struct kobj_attribute defrag_attr =
+ 	__ATTR(defrag, 0644, defrag_show, defrag_store);
+ 
++static ssize_t disable_swap_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return single_flag_show(kobj, attr, buf,
++				TRANSPARENT_HUGEPAGE_SWAP_DISABLE_FLAG);
++}
++static ssize_t disable_swap_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	return single_flag_store(kobj, attr, buf, count,
++				TRANSPARENT_HUGEPAGE_SWAP_DISABLE_FLAG);
++}
++static struct kobj_attribute swap_attr =
++	__ATTR(disable_swap, 0644, disable_swap_show, disable_swap_store);
++
+ #ifdef CONFIG_DEBUG_VM
+ static ssize_t debug_cow_show(struct kobject *kobj,
+ 				struct kobj_attribute *attr, char *buf)
+@@ -314,6 +330,7 @@ static struct kobj_attribute debug_cow_attr =
+ static struct attribute *hugepage_attr[] = {
+ 	&enabled_attr.attr,
+ 	&defrag_attr.attr,
++	&swap_attr.attr,
+ #ifdef CONFIG_DEBUG_VM
+ 	&debug_cow_attr.attr,
+ #endif
+@@ -1408,6 +1425,15 @@ out:
  	return ret;
  }
- #endif
  
--int __init nfs_init_writepagecache(void)
-+void nfs_update_congestion_thresh(void)
- {
--	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
--					     sizeof(struct nfs_write_data),
--					     0, SLAB_HWCACHE_ALIGN,
--					     NULL);
--	if (nfs_wdata_cachep == NULL)
--		return -ENOMEM;
--
--	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
--						     nfs_wdata_cachep);
--	if (nfs_wdata_mempool == NULL)
--		return -ENOMEM;
--
--	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
--						      nfs_wdata_cachep);
--	if (nfs_commit_mempool == NULL)
--		return -ENOMEM;
-+	unsigned long background_thresh;
-+	unsigned long dirty_thresh;
++static __init int disable_transparent_hugepage_swap(char *str)
++{
++	set_bit(TRANSPARENT_HUGEPAGE_SWAP_DISABLE_FLAG, &transparent_hugepage_flags);
++	printk(KERN_INFO "disable swap for transparent hugepage.\n");
++
++	return 0;
++}
++early_param("disable_transparent_hugepage_swap", disable_transparent_hugepage_swap);
++
+ #define VM_NO_THP (VM_SPECIAL|VM_INSERTPAGE|VM_MIXEDMAP|VM_SAO| \
+ 		   VM_HUGETLB|VM_SHARED|VM_MAYSHARE)
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 4668046..3dfc4be 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -18,6 +18,7 @@
+ #include <linux/backing-dev.h>
+ #include <linux/pagevec.h>
+ #include <linux/migrate.h>
++#include <linux/mm_inline.h>
+ #include <linux/page_cgroup.h>
+ 
+ #include <asm/pgtable.h>
+@@ -155,10 +156,11 @@ int add_to_swap(struct page *page)
+ 		return 0;
+ 
+ 	if (unlikely(PageTransHuge(page)))
+-		if (unlikely(split_huge_page(page))) {
+-			swapcache_free(entry, NULL);
+-			return 0;
+-		}
++		if(!transparent_hugepage_swap_disable())
++			if (unlikely(split_huge_page(page))) {
++				swapcache_free(entry, NULL);
++				return 0;
++			}
  
  	/*
- 	 * NFS congestion size, scale with available memory.
- 	 *
- 	 *  64MB:    8192k
- 	 * 128MB:   11585k
- 	 * 256MB:   16384k
- 	 * 512MB:   23170k
- 	 *   1GB:   32768k
- 	 *   2GB:   46340k
- 	 *   4GB:   65536k
- 	 *   8GB:   92681k
- 	 *  16GB:  131072k
- 	 *
- 	 * This allows larger machines to have larger/more transfers.
- 	 * Limit the default to 256M
- 	 */
- 	nfs_congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
- 	if (nfs_congestion_kb > 256*1024)
- 		nfs_congestion_kb = 256*1024;
- 
-+	/*
-+	 * Limit to 1/8 dirty threshold, so that writeback+in_commit pages
-+	 * won't overnumber dirty+to_commit pages.
-+	 */
-+	global_dirty_limits(&background_thresh, &dirty_thresh);
-+	dirty_thresh <<= PAGE_SHIFT - 10;
-+
-+	if (nfs_congestion_kb > dirty_thresh / 8)
-+		nfs_congestion_kb = dirty_thresh / 8;
-+}
-+
-+int __init nfs_init_writepagecache(void)
-+{
-+	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-+					     sizeof(struct nfs_write_data),
-+					     0, SLAB_HWCACHE_ALIGN,
-+					     NULL);
-+	if (nfs_wdata_cachep == NULL)
-+		return -ENOMEM;
-+
-+	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
-+						     nfs_wdata_cachep);
-+	if (nfs_wdata_mempool == NULL)
-+		return -ENOMEM;
-+
-+	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
-+						      nfs_wdata_cachep);
-+	if (nfs_commit_mempool == NULL)
-+		return -ENOMEM;
-+
-+	nfs_update_congestion_thresh();
-+
- 	return 0;
- }
- 
- void nfs_destroy_writepagecache(void)
- {
- 	mempool_destroy(nfs_commit_mempool);
- 	mempool_destroy(nfs_wdata_mempool);
- 	kmem_cache_destroy(nfs_wdata_cachep);
- }
- 
---- linux-next.orig/mm/page-writeback.c	2011-10-09 21:36:06.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-10-10 21:05:07.000000000 +0800
-@@ -138,34 +138,39 @@ static struct prop_descriptor vm_dirties
- static int calc_period_shift(void)
- {
- 	unsigned long dirty_total;
- 
- 	if (vm_dirty_bytes)
- 		dirty_total = vm_dirty_bytes / PAGE_SIZE;
- 	else
- 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
- 				100;
- 	return 2 + ilog2(dirty_total - 1);
- }
- 
-+void __weak nfs_update_congestion_thresh(void)
-+{
-+}
-+
- /*
-  * update the period when the dirty threshold changes.
-  */
- static void update_completion_period(void)
- {
- 	int shift = calc_period_shift();
- 	prop_change_shift(&vm_completions, shift);
- 	prop_change_shift(&vm_dirties, shift);
- 
- 	writeback_set_ratelimit();
-+	nfs_update_congestion_thresh();
- }
- 
- int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
- 		loff_t *ppos)
- {
- 	int ret;
- 
- 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
- 	if (ret == 0 && write)
- 		dirty_background_bytes = 0;
- 	return ret;
-@@ -438,24 +443,25 @@ unsigned long bdi_dirty_limit(struct bac
- 	bdi_writeout_fraction(bdi, &numerator, &denominator);
- 
- 	bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
- 	bdi_dirty *= numerator;
- 	do_div(bdi_dirty, denominator);
- 
- 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
- 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
- 		bdi_dirty = dirty * bdi->max_ratio / 100;
- 
- 	return bdi_dirty;
- }
-+EXPORT_SYMBOL_GPL(global_dirty_limits);
- 
- /*
-  * Dirty position control.
-  *
-  * (o) global/bdi setpoints
-  *
-  * We want the dirty pages be balanced around the global/bdi setpoints.
-  * When the number of dirty pages is higher/lower than the setpoint, the
-  * dirty position control ratio (and hence task dirty ratelimit) will be
-  * decreased/increased to bring the dirty pages back to the setpoint.
-  *
-  *     pos_ratio = 1 << RATELIMIT_CALC_SHIFT
+ 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
