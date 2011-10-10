@@ -1,129 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A48D16B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 14:30:12 -0400 (EDT)
-Date: Mon, 10 Oct 2011 20:25:35 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
-	thread is singlestepping.
-Message-ID: <20111010182535.GA6934@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com> <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com> <20111007165828.GA32319@redhat.com> <20111010122556.GB16268@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111010122556.GB16268@linux.vnet.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A3826B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 14:52:19 -0400 (EDT)
+Received: by ggdk5 with SMTP id k5so6438242ggd.14
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 11:52:17 -0700 (PDT)
+Subject: Re: [PATCH 0/9] skb fragment API: convert network drivers (part V)
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20111010.142040.2267571270586671416.davem@davemloft.net>
+References: <1318245076.21903.408.camel@zakaz.uk.xensource.com>
+	 <20111010.142040.2267571270586671416.davem@davemloft.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 10 Oct 2011 20:52:11 +0200
+Message-ID: <1318272731.2567.4.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Miller <davem@davemloft.net>
+Cc: Ian.Campbell@citrix.com, netdev@vger.kernel.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-On 10/10, Srikar Dronamraju wrote:
->
-> While we are here, do you suggest I re-use current->saved_sigmask and
-> hence use set_restore_sigmask() while resetting the sigmask?
->
-> I see saved_sigmask being used just before task sleeps and restored when
-> task is scheduled back. So I dont see a case where using saved_sigmask
-> in uprobes could conflict with its current usage.
+Le lundi 10 octobre 2011 A  14:20 -0400, David Miller a A(C)crit :
+> From: Ian Campbell <Ian.Campbell@citrix.com>
+> Date: Mon, 10 Oct 2011 12:11:16 +0100
+> 
+> > I think "struct subpage" is a generally useful tuple I added to a
+> > central location (mm_types.h) rather than somewhere networking or driver
+> > specific but I can trivially move if preferred.
+> 
+> I'm fine with the patch series, but this generic datastructure
+> addition needs some feedback first.
 
-Yes, I think this is possible, and probably you do not even need
-set_restore_sigmask().
+I was planning to send a patch to abstract frag->size manipulation and
+ease upcoming truesize certification work.
 
-But. There are some problems with this approach too.
+static inline int skb_frag_size(const skb_frag_t *frag)
+{
+	return frag->size;
+}
 
-Firstly, even if you block all signals, there are other reasons for
-TIF_SIGPENDING which you can't control. For example, the task can be
-frozen or it can stop in UTASK_SSTEP state. Not good, if we have
-enough threads, this can lead to the "soft" deadlock. Say, a group
-stop can never finish because a thread sleeps in xol_wait_event()
-"forever".
+static inline void skb_frag_size_set(skb_frag_t *frag, int size)
+{
+	frag->size = size;
+}
 
-Another problem is that it is not possible to block the "implicit"
-SIGKILL sent by exec/exit_group/etc. This mean the task can exit
-without sstep_complete/xol_free_insn_slot/etc. Mostly this is fine,
-we have free_uprobe_utask()->xol_free_insn_slot(). But in theory
-this can deadlock afaics. Suppose that the coredumping is in progress,
-the killed UTASK_SSTEP task hangs in exit_mm() waiting for other
-threads. If we have enough threads like this, we can deadlock with
-another thread sleeping in xol_wait_event().
+static inline void skb_frag_size_add(skb_frag_t *frag, int size)
+{
+	frag->size += size;
+}
 
-This can be fixed, we can move free_uprobe_utask() from
-put_task_struct() to mm_release(). Btw, imho this makes sense anyway,
-why should a zombie thread abuse a slot?
+static inline void skb_frag_size_sub(skb_frag_t *frag, int size)
+{
+	frag->size -= size;
+}
 
-However the first problem looks nasty, even if it is not very serious.
-And, otoh, it doesn't look right to block SIGKILL, the task can loop
-forever executing the xol insn (see below).
+Is it OK if I send a single patch right now ?
 
-
-
-What do you think about the patch below? On top of 25/26, uncompiled,
-untested. With this patch the task simply refuses to react to
-TIF_SIGPENDING until sstep_complete().
-
-This relies on the fact that do_notify_resume() calls
-uprobe_notify_resume() before do_signal(), I guess this is safe because
-we have other reasons for this order.
-
-And, unless I missed something, this makes
-free_uprobe_utask()->xol_free_insn_slot() unnecessary.
+I am asking because it might clash a bit with Ian work.
 
 
+ drivers/atm/eni.c                                    |    2 
+ drivers/infiniband/hw/amso1100/c2.c                  |    4 
+ drivers/infiniband/hw/nes/nes_nic.c                  |   10 -
+ drivers/infiniband/ulp/ipoib/ipoib_cm.c              |    2 
+ drivers/infiniband/ulp/ipoib/ipoib_ib.c              |   18 +-
+ drivers/net/ethernet/3com/3c59x.c                    |    6 
+ drivers/net/ethernet/3com/typhoon.c                  |    6 
+ drivers/net/ethernet/adaptec/starfire.c              |    8 -
+ drivers/net/ethernet/aeroflex/greth.c                |    8 -
+ drivers/net/ethernet/alteon/acenic.c                 |   10 -
+ drivers/net/ethernet/atheros/atl1c/atl1c_main.c      |    2 
+ drivers/net/ethernet/atheros/atl1e/atl1e_main.c      |    6 
+ drivers/net/ethernet/atheros/atlx/atl1.c             |   12 -
+ drivers/net/ethernet/broadcom/bnx2.c                 |   12 -
+ drivers/net/ethernet/broadcom/bnx2x/bnx2x_cmn.c      |   14 -
+ drivers/net/ethernet/broadcom/tg3.c                  |    8 -
+ drivers/net/ethernet/brocade/bna/bnad.c              |    6 
+ drivers/net/ethernet/chelsio/cxgb/sge.c              |   10 -
+ drivers/net/ethernet/chelsio/cxgb3/sge.c             |   12 -
+ drivers/net/ethernet/chelsio/cxgb4/sge.c             |   26 +--
+ drivers/net/ethernet/chelsio/cxgb4vf/sge.c           |   26 +--
+ drivers/net/ethernet/cisco/enic/enic_main.c          |   12 -
+ drivers/net/ethernet/emulex/benet/be_main.c          |   18 +-
+ drivers/net/ethernet/ibm/ehea/ehea_main.c            |    8 -
+ drivers/net/ethernet/ibm/emac/core.c                 |    2 
+ drivers/net/ethernet/ibm/ibmveth.c                   |    6 
+ drivers/net/ethernet/intel/e1000/e1000_main.c        |    6 
+ drivers/net/ethernet/intel/e1000e/netdev.c           |    6 
+ drivers/net/ethernet/intel/igb/igb_main.c            |    2 
+ drivers/net/ethernet/intel/igbvf/netdev.c            |    4 
+ drivers/net/ethernet/intel/ixgb/ixgb_main.c          |    4 
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c        |    4 
+ drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c    |    6 
+ drivers/net/ethernet/jme.c                           |    4 
+ drivers/net/ethernet/marvell/mv643xx_eth.c           |    9 -
+ drivers/net/ethernet/marvell/skge.c                  |    8 -
+ drivers/net/ethernet/marvell/sky2.c                  |   16 +-
+ drivers/net/ethernet/mellanox/mlx4/en_rx.c           |   14 -
+ drivers/net/ethernet/mellanox/mlx4/en_tx.c           |   12 -
+ drivers/net/ethernet/micrel/ksz884x.c                |    2 
+ drivers/net/ethernet/myricom/myri10ge/myri10ge.c     |   14 -
+ drivers/net/ethernet/natsemi/ns83820.c               |    4 
+ drivers/net/ethernet/neterion/s2io.c                 |   12 -
+ drivers/net/ethernet/neterion/vxge/vxge-main.c       |   12 -
+ drivers/net/ethernet/nvidia/forcedeth.c              |   18 +-
+ drivers/net/ethernet/pasemi/pasemi_mac.c             |    8 -
+ drivers/net/ethernet/qlogic/netxen/netxen_nic_main.c |    6 
+ drivers/net/ethernet/qlogic/qla3xxx.c                |    6 
+ drivers/net/ethernet/qlogic/qlcnic/qlcnic_main.c     |    6 
+ drivers/net/ethernet/qlogic/qlge/qlge_main.c         |    6 
+ drivers/net/ethernet/realtek/8139cp.c                |    4 
+ drivers/net/ethernet/realtek/r8169.c                 |    4 
+ drivers/net/ethernet/sfc/rx.c                        |    2 
+ drivers/net/ethernet/sfc/tx.c                        |    8 -
+ drivers/net/ethernet/stmicro/stmmac/stmmac_main.c    |    4 
+ drivers/net/ethernet/sun/cassini.c                   |    8 -
+ drivers/net/ethernet/sun/niu.c                       |    6 
+ drivers/net/ethernet/sun/sungem.c                    |    4 
+ drivers/net/ethernet/sun/sunhme.c                    |    4 
+ drivers/net/ethernet/tehuti/tehuti.c                 |    6 
+ drivers/net/ethernet/tile/tilepro.c                  |    2 
+ drivers/net/ethernet/tundra/tsi108_eth.c             |    6 
+ drivers/net/ethernet/via/via-velocity.c              |    6 
+ drivers/net/ethernet/xilinx/ll_temac_main.c          |    4 
+ drivers/net/virtio_net.c                             |    8 -
+ drivers/net/vmxnet3/vmxnet3_drv.c                    |   12 -
+ drivers/net/xen-netback/netback.c                    |    4 
+ drivers/net/xen-netfront.c                           |    4 
+ drivers/scsi/cxgbi/libcxgbi.c                        |   10 -
+ drivers/scsi/fcoe/fcoe_transport.c                   |    2 
+ drivers/staging/hv/netvsc_drv.c                      |    4 
+ include/linux/skbuff.h                               |   28 +++
+ net/appletalk/ddp.c                                  |    5 
+ net/core/datagram.c                                  |   16 +-
+ net/core/dev.c                                       |    6 
+ net/core/pktgen.c                                    |   12 -
+ net/core/skbuff.c                                    |   72 +++++-----
+ net/core/user_dma.c                                  |    4 
+ net/ipv4/inet_lro.c                                  |    8 -
+ net/ipv4/ip_fragment.c                               |    4 
+ net/ipv4/ip_output.c                                 |    6 
+ net/ipv4/tcp.c                                       |    9 -
+ net/ipv4/tcp_output.c                                |    8 -
+ net/ipv6/ip6_output.c                                |    5 
+ net/ipv6/netfilter/nf_conntrack_reasm.c              |    4 
+ net/ipv6/reassembly.c                                |    4 
+ net/xfrm/xfrm_ipcomp.c                               |    2 
+ 87 files changed, 389 insertions(+), 359 deletions(-)
 
-HOWEVER! I simply do not know what should we do if the probed insn
-is something like asm("1:; jmp 1b;"). IIUC, in this sstep_complete()
-never returns true. The patch also adds the fatal_signal_pending()
-check to make this task killlable, but the problem is: whatever we do,
-I do not think it is correct to disable/delay the signals in this case.
-With any approach.
-
-What do you think? Maybe we should simply disallow to probe such insns?
-
-Once again, the change in sstep_complete() is "off-topic", this is
-another problem we should solve somehow.
-
-Oleg.
-
---- x/kernel/signal.c
-+++ x/kernel/signal.c
-@@ -2141,6 +2141,15 @@ int get_signal_to_deliver(siginfo_t *inf
- 	struct signal_struct *signal = current->signal;
- 	int signr;
- 
-+#ifdef CONFIG_UPROBES
-+	if (unlikely(current->utask &&
-+			current->utask->state != UTASK_RUNNING)) {
-+		WARN_ON_ONCE(current->utask->state != UTASK_SSTEP);
-+		clear_thread_flag(TIF_SIGPENDING);
-+		return 0;
-+	}
-+#endif
-+
- relock:
- 	/*
- 	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
---- x/kernel/uprobes.c
-+++ x/kernel/uprobes.c
-@@ -1331,7 +1331,8 @@ static bool sstep_complete(struct uprobe
- 	 * If we have executed out of line, Instruction pointer
- 	 * cannot be same as virtual address of XOL slot.
- 	 */
--	if (vaddr == current->utask->xol_vaddr)
-+	if (vaddr == current->utask->xol_vaddr &&
-+			!__fatal_signal_pending(current))
- 		return false;
- 	post_xol(uprobe, regs);
- 	return true;
-@@ -1390,8 +1391,7 @@ void uprobe_notify_resume(struct pt_regs
- 			utask->state = UTASK_RUNNING;
- 			user_disable_single_step(current);
- 			xol_free_insn_slot(current);
--
--			/* TODO Stop queueing signals. */
-+			recalc_sigpending();
- 		}
- 	}
- 	return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
