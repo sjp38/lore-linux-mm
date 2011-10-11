@@ -1,43 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E729C6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:30:34 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p9BNUVDJ020126
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:31 -0700
-Received: from qadc14 (qadc14.prod.google.com [10.224.32.142])
-	by hpaq12.eem.corp.google.com with ESMTP id p9BNTvRl013055
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 064426B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:36:42 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p9BNacNb015093
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:36:39 -0700
+Received: from vcbfl17 (vcbfl17.prod.google.com [10.220.204.81])
+	by wpaz37.hot.corp.google.com with ESMTP id p9BNYKNx007440
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:30 -0700
-Received: by qadc14 with SMTP id c14so336792qad.10
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:30 -0700 (PDT)
-Date: Tue, 11 Oct 2011 16:30:26 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:36:32 -0700
+Received: by vcbfl17 with SMTP id fl17so12256vcb.7
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:36:32 -0700 (PDT)
+Date: Tue, 11 Oct 2011 16:36:28 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch resend] oom: thaw threads if oom killed thread is frozen
+Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
  before deferring
-In-Reply-To: <20111011191603.GA12751@redhat.com>
-Message-ID: <alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com> <20111011191603.GA12751@redhat.com>
+In-Reply-To: <20111011063336.GA23284@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com> <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com> <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com> <20111011063336.GA23284@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>
 
-On Tue, 11 Oct 2011, Oleg Nesterov wrote:
+On Tue, 11 Oct 2011, Michal Hocko wrote:
 
-> David. Could you also resend you patches which remove the (imho really
-> annoying) mm->oom_disable_count? Feel free to add my ack or reviewed-by.
+> The patch looks good but we still need other 2 patches
+> (http://comments.gmane.org/gmane.linux.kernel.mm/68578), right?
 > 
 
-As far as I know (I can't confirm because userweb.kernel.org is still 
-down), oom-remove-oom_disable_count.patch is still in the -mm tree.  It 
-was merged September 2 so I believe it's 3.2 material.
+For the lguest patch, Rusty is the maintainer and has already acked the 
+patch, so I think it should be merged through him.  I don't see a need for 
+the second patch since we'll now detect frozen oom killed tasks on retry 
+and don't need to kill them directly when oom killed (it just adds 
+additional, unnecessary code).
 
-Andrew, please add Oleg's reviewed-by to that patch (in addition to the 
-reported-by which already exists) if it's still merged.  Otherwise, please 
-let me know and I'll resend it.
+> Anyway, I thought that we agreed on the other approach suggested by
+> Tejun (make frozen tasks oom killable without thawing). Even in that
+> case we want the first patch
+> (http://permalink.gmane.org/gmane.linux.kernel.mm/68576).
+
+If that's possible, then we can just add Tejun to add a follow-up patch to 
+remove the thaw directly in the oom killer.  I'm thinking that won't be 
+possible for 3.2, though, so I don't know why we'd remove 
+oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch 
+from -mm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
