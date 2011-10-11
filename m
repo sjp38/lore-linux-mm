@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 46DBC6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:01:53 -0400 (EDT)
-Date: Tue, 11 Oct 2011 23:01:42 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC PATCH] mm: thp: make swap configurable
-Message-ID: <20111011210142.GC29866@redhat.com>
-References: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
- <20111010141851.GC17335@redhat.com>
- <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A35B36B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:04:59 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p9BL4tHA023851
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:55 -0700
+Received: from qap1 (qap1.prod.google.com [10.224.4.1])
+	by wpaz21.hot.corp.google.com with ESMTP id p9BL3MLD003445
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:54 -0700
+Received: by qap1 with SMTP id 1so31620qap.0
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:49 -0700 (PDT)
+Date: Tue, 11 Oct 2011 14:04:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com>
+Message-ID: <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-Hi Bob,
+On Tue, 11 Oct 2011, Satoru Moriya wrote:
 
-On Tue, Oct 11, 2011 at 05:24:26PM +0800, Bob Liu wrote:
-> Thanks for your reply.
+> > I also
+> > think that it will cause regressions on other cpu intensive workloads 
+> > that don't require this extra freed memory because it works as a 
+> > global heuristic and is not tied to any specific application.
 > 
-> Yes, mlock() can do it but it will require a lot of changes in every
-> user application.
-> If some of the applications are hugh and complicated(even not opensource), it's
-> hard to modify them.
-> Add this patch can make things simple and thp more flexible.
+> It's yes and no. It may cause regressions on the workloads due to
+> less amount of available memory. But it may improve the workloads'
+> performance because they can avoid direct reclaim due to extra
+> free memory.
 > 
-> For using swapoff -a, it will disable swap for 4k normal pages.
-> 
-> A simple use case is like this:
-> a lot of swap sensitive apps run on a machine, it will use thp so we
-> need to disable swap.
-> But  this apps are hugh and complicated, it's hard to modify them by mlock().
-> 
-> In addition, there are also some normal and not swap sensitive apps
-> which don't use thp run on
-> the same machine, we can still reclaim their memory by swap when lack
-> of memory.
 
-I'm not convinced. If you need to disable swap selectively to certain
-apps but you can't modify them I'd suggest to add a
-mlock-equal-privileged prctl(PR_SWAP_ENABLE/DISABLE) that applies to
-all anonymous memory and tmpfs. Probably not to filebacked memory in
-case MAP_SHARED is used for all I/O. This seems too limited, it may
-happen to work well for a specific application but it's not generic
-enough. Another user could have a binary application with a ton of
-tmpfs shared memory that he can't modify (MAP_SHARED on /dev/zero for
-example) and he wants to mlock it but he can't. Or maybe another user
-has an application with <2M anonymous memory scattered in the middle
-of MAP_SHARED segments (so that can't be mapped by THP because of
-strict hardware limits) and he wants it to remain locked in ram too
-and not be swapped out for that specific app. So I prefer a solution
-that threats all anonymous memory and tmpfs memory equal (the only two
-entities in the kernel that will be paged out to swap). Or at the very
-least all anonymous memory equal... so it remains transparent as much
-as possible :).
+There's only a memory-availability regression if background reclaim is 
+actually triggered in the first place, i.e. extra_free_kbytes doesn't 
+affect the watermarks themselves when reclaim is started but rather causes 
+it to, when set, reclaim more memory than otherwise.
+
+That's not really what I was referring to; I was referring to cpu 
+intensive workloads that now incur a regression because kswapd is now 
+doing more work (potentially a significant amount of work since 
+extra_free_kbytes is unbounded) on shared machines.  These applications 
+may not be allocating memory at all and now they incur a performance 
+penalty because kswapd is taking away one of their cores.
+
+In other words, I think it's a fine solution if you're running a single 
+application with very bursty memory allocations so you need to reclaim 
+more memory when low, but that solution is troublesome if it comes at 
+the penalty of other applications and that's a direct consequence of it 
+being a global tunable.  I'd much rather identify memory allocations in 
+the kernel that causing the pain here and mitigate it by (i) attempting to 
+sanely rate limit those allocations, (ii) preallocate at least a partial 
+amount of those allocations ahead of time so avoid significant reclaim 
+all at one, or (iii) annotate memory allocations with such potential so 
+that the page allocator can add this reclaim bonus itself only in these 
+conditions.
+
+> Of course if one doesn't need extra free memory, one can turn it
+> off. I think we can add this feature to cgroup if we want to set
+> it for any specific process or process group. (Before that we
+> need to implement min_free_kbytes for cgroup and the implementation
+> of extra free kbytes strongly depends on it.)
+> 
+
+That would allow you to only reclaim additional memory when certain 
+applications tirgger it, but it's not actually a solution since another 
+task can hit a zone's low watermark and kick kswapd and then the bursty 
+memory allocations happen immediately following that and doesn't actually 
+do anything because kswapd was already running.  So I disagree, as I did 
+when per-cgroup watermark tunables were proposed, that watermarks should 
+be changed for a subset of applications unless you guarantee memory 
+isolation such that that subset of applications has exclusive access to 
+the memory zones being tuned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
