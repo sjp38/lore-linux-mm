@@ -1,115 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6375A6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:08:07 -0400 (EDT)
-Received: by vcbfo14 with SMTP id fo14so7299016vcb.14
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:08:05 -0700 (PDT)
-Date: Tue, 11 Oct 2011 18:07:56 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
- lru pages
-Message-ID: <20111011090756.GA16202@barrios-desktop>
-References: <20110929091853.GA1865@barrios-desktop>
- <1317348743.22361.29.camel@sli10-conroe>
- <20111001065943.GA6601@barrios-desktop>
- <1318043391.22361.34.camel@sli10-conroe>
- <20111008043232.GA7615@barrios-desktop>
- <1318052901.22361.49.camel@sli10-conroe>
- <20111008093531.GA8679@barrios-desktop>
- <1318140488.22361.63.camel@sli10-conroe>
- <20111009074558.GA23003@barrios-desktop>
- <20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 618676B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:24:27 -0400 (EDT)
+Received: by qyk27 with SMTP id 27so6931673qyk.14
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:24:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111010141851.GC17335@redhat.com>
+References: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
+	<20111010141851.GC17335@redhat.com>
+Date: Tue, 11 Oct 2011 17:24:26 +0800
+Message-ID: <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: thp: make swap configurable
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com
 
-Hi Kame,
+Hi Andrea
 
-On Tue, Oct 11, 2011 at 05:09:41PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Sun, 9 Oct 2011 16:45:58 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
-> > hanks for your careful review.
-> > I will send a formal version.
-> > 
-> > From 49078e0ebccae371b04930ae76dfd5ba158032ca Mon Sep 17 00:00:00 2001
-> > From: Minchan Kim <minchan.kim@gmail.com>
-> > Date: Sun, 9 Oct 2011 16:38:40 +0900
-> > Subject: [PATCH] vmscan: judge zone's all_unreclaimable carefully
-> > 
-> > Shaohua Li reported all_unreclaimable of DMA zone is always set
-> > because the system has a big memory HIGH zone so that lowmem_reserve[HIGH]
-> > could be a big.
-> > 
-> > It could be a problem as follows
-> > 
-> > Assumption :
-> > 1. The system has a big high memory so that lowmem_reserve[HIGH] of DMA zone would be big.
-> > 2. HIGH/NORMAL zone are full but DMA zone has enough free pages.
-> > 
-> > Scenario
-> > 1. A request to allocate a page in HIGH zone.
-> > 2. HIGH/NORMAL zone already consumes lots of pages so that it would be fall-backed to DMA zone.
-> > 3. In DMA zone, allocator got failed, too becuase lowmem_reserve[HIGH] is very big so that it wakes up kswapd
-> > 4. kswapd would call shrink_zone while it see DMA zone since DMA zone's lowmem_reserve[HIGHMEM]
-> >    would be big so that it couldn't meet zone_watermark_ok_safe(high_wmark_pages(zone) + balance_gap,
-> >    *end_zone*)
-> > 5. DMA zone doesn't meet stop condition(nr_slab != 0, !zone_reclaimable) because the zone has small lru pages
-> >    and it doesn't have slab pages so that kswapd would set all_unreclaimable of the zone to *1* easily.
-> > 6. B request to allocate many pages in NORMAL zone but NORMAL zone has no free pages
-> >    so that it would be fall-backed to DMA zone.
-> > 7. DMA zone would allocates many pages for NORMAL zone because lowmem_reserve[NORMAL] is small.
-> >    These pages are used by application(ie, it menas LRU pages. Yes. Now DMA zone could have many reclaimable pages)
-> > 8. C request to allocate a page in NORMAL zone but he got failed because DMA zone doesn't have enough free pages.
-> >    (Most of pages in DMA zone are consumed by B)
-> > 9. Kswapd try to reclaim lru pages in DMA zone but got failed because all_unreclaimable of the zone is 1. Otherwise,
-> >    it could reclaim many pages which are used by B.
-> > 
-> > Of coures, we can do something in DEF_PRIORITY but it couldn't do enough because it can't raise
-> > synchronus reclaim in direct reclaim path if the zone has many dirty pages
-> > so that the process is killed by OOM.
-> > 
-> > The principal problem is caused by step 8.
-> > In step 8, we increased # of lru size very much but still the zone->all_unreclaimable is 1.
-> > If we increase lru size, it is valuable to try reclaiming again.
-> > The rationale is that we reset all_unreclaimable to 0 even if we free just a one page.
-> > 
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Cc: Johannes Weiner <jweiner@redhat.com>
-> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Reported-by: Shaohua Li <shaohua.li@intel.com>
-> > Reviewed-by: Shaohua Li <shaohua.li@intel.com>
-> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> 
-> Hmm, catching changes of page usage in a zone ?
+On Mon, Oct 10, 2011 at 10:18 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hi Bob,
+>
+> On Mon, Oct 10, 2011 at 09:58:06PM +0800, Bob Liu wrote:
+>> Currently THP do swap by default, user has no control of it.
+>> But some applications are swap sensitive, this patch add a boot param
+>> and sys file to make it configurable.
+>
+> Why don't you use mlock or swapoff -a? I doubt we want to handle THP
+> pages differently from regular pages with regard to swap or anything
+> else, the value is to behave as close as possible to regular
+> pages. What you want you can already achieve by other means I think.
+>
 
-Not exactly.
-It does catch only lru page increasement of zone.
+Thanks for your reply.
 
-> And this will allow to catch swap_on() and make a zone reclaimable
-> even if no page usage changes. right ?
+Yes, mlock() can do it but it will require a lot of changes in every
+user application.
+If some of the applications are hugh and complicated(even not opensource), it's
+hard to modify them.
+Add this patch can make things simple and thp more flexible.
 
-It's not in the patch but I think it could be a another patch.
-Could you post it if you really need it?
+For using swapoff -a, it will disable swap for 4k normal pages.
 
-> 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+A simple use case is like this:
+a lot of swap sensitive apps run on a machine, it will use thp so we
+need to disable swap.
+But  this apps are hugh and complicated, it's hard to modify them by mlock().
 
-Thanks, Kame.
-
-> 
-> 
+In addition, there are also some normal and not swap sensitive apps
+which don't use thp run on
+the same machine, we can still reclaim their memory by swap when lack
+of memory.
 
 -- 
-Kinds regards,
-Minchan Kim
+Thanks,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
