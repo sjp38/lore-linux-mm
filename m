@@ -1,186 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 905416B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:27:56 -0400 (EDT)
-Date: Tue, 11 Oct 2011 08:27:48 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: memory hotplug: Check if pages are correctly
- reserved on a per-section basis
-Message-ID: <20111011072406.GA2503@suse.de>
-References: <20111010071119.GE6418@suse.de>
- <20111010150038.ac161977.akpm@linux-foundation.org>
- <20111010232403.GA30513@kroah.com>
- <20111010162813.7a470ae4.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id E38B96B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:34:35 -0400 (EDT)
+Message-ID: <4E93F088.60006@stericsson.com>
+Date: Tue, 11 Oct 2011 09:30:16 +0200
+From: Maxime Coquelin <maxime.coquelin-nonst@stericsson.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20111010162813.7a470ae4.akpm@linux-foundation.org>
+Subject: Re: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com> <4E92E003.4060901@stericsson.com> <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
+In-Reply-To: <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg KH <greg@kroah.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, nfont@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, rientjes@google.com
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, "benjamin.gaignard@linaro.org" <benjamin.gaignard@linaro.org>, Ludovic BARRE <ludovic.barre@stericsson.com>, "vincent.guittot@linaro.org" <vincent.guittot@linaro.org>
 
-On Mon, Oct 10, 2011 at 04:28:13PM -0700, Andrew Morton wrote:
-> On Mon, 10 Oct 2011 16:24:03 -0700
-> Greg KH <greg@kroah.com> wrote:
-> 
-> > On Mon, Oct 10, 2011 at 03:00:38PM -0700, Andrew Morton wrote:
-> > > On Mon, 10 Oct 2011 08:11:19 +0100
-> > > Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > > It is expected that memory being brought online is PageReserved
-> > > > similar to what happens when the page allocator is being brought up.
-> > > > Memory is onlined in "memory blocks" which consist of one or more
-> > > > sections. Unfortunately, the code that verifies PageReserved is
-> > > > currently assuming that the memmap backing all these pages is virtually
-> > > > contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
-> > > > As a result, memory hot-add is failing on !VMEMMAP configurations
-> > > > with the message;
-> > > > 
-> > > > kernel: section number XXX page number 256 not reserved, was it already online?
-> > > > 
-> > > > This patch updates the PageReserved check to lookup struct page once
-> > > > per section to guarantee the correct struct page is being checked.
-> > > > 
-> > > 
-> > > Nathan's earlier version of this patch is already in linux-next, via
-> > > Greg.  We should drop the old version and get the new one merged
-> > > instead.
-> > 
-> > Ok, care to send me what exactly needs to be reverted and what needs to
-> > be added?
-> 
-> Drop
-> 
-> commit 54f23eb7ba7619de85d8edca6e5336bc33072dbd
-> Author: Nathan Fontenot <nfont@austin.ibm.com>
-> Date:   Mon Sep 26 10:22:33 2011 -0500
-> 
->     memory hotplug: Correct page reservation checking
-> 
-> and replace it with start-of-this-thread.
-> 
-> That's assuming that Mel's update passes Nathan's review and testing :)
+On 10/11/2011 09:17 AM, Marek Szyprowski wrote:
+> On Monday, October 10, 2011 2:08 PM Maxime Coquelin wrote:
+>
+>       During our stress tests, we encountered some problems :
+>
+>       1) Contiguous allocation lockup:
+>           When system RAM is full of Anon pages, if we try to allocate a
+> contiguous buffer greater than the min_free value, we face a
+> dma_alloc_from_contiguous lockup.
+>           The expected result would be dma_alloc_from_contiguous() to fail.
+>           The problem is reproduced systematically on our side.
+> Thanks for the report. Do you use Android's lowmemorykiller? I haven't
+> tested CMA on Android kernel yet. I have no idea how it will interfere
+> with Android patches.
+>
 
-It passed review and testing with IBM based on a SUSE bug. I thought
-Nathan's patch had been lost as it was posted to linuxppc-dev instead
-of linux-mm. This rework was to improve the changelog and readability.
+The software used for this test (v16) is a generic 3.0 Kernel and a 
+minimal filesystem using Busybox.
 
-David correctly pointed out a bug that passed testing because it was
-still checking one page per section. As long as that page was reserved,
-memory hot-add would go ahead. Here is a corrected version.
+With v15 patchset, I also tested it with Android.
+IIRC, sometimes the lowmemorykiller succeed to get free space and the 
+contiguous allocation succeed, sometimes we faced  the lockup.
 
-Thanks
+>>       2) Contiguous allocation fail:
+>>           We have developed a small driver and a shell script to
+>> allocate/release contiguous buffers.
+>>           Sometimes, dma_alloc_from_contiguous() fails to allocate the
+>> contiguous buffer (about once every 30 runs).
+>>           We have 270MB Memory passed to the kernel in our configuration,
+>> and the CMA pool is 90MB large.
+>>           In this setup, the overall memory is either free or full of
+>> reclaimable pages.
+> Yeah. We also did such stress tests recently and faced this issue. I've
+> spent some time investigating it but I have no solution yet.
+>
+> The problem is caused by a page, which is put in the CMA area. This page
+> is movable, but it's address space provides no 'migratepage' method. In
+> such case mm subsystem uses fallback_migrate_page() function. Sadly this
+> function only returns -EAGAIN. The migration loops a few times over it
+> and fails causing the fail in the allocation procedure.
+>
+> We are investing now which kernel code created/allocated such problematic
+> pages and how to add real migration support for them.
+>
 
-==== CUT HERE ====
-mm: memory hotplug: Check if pages are correctly reserved on a per-section basis
+Ok, thanks for pointing this out.
 
-It is expected that memory being brought online is PageReserved
-similar to what happens when the page allocator is being brought up.
-Memory is onlined in "memory blocks" which consist of one or more
-sections. Unfortunately, the code that verifies PageReserved is
-currently assuming that the memmap backing all these pages is virtually
-contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
-As a result, memory hot-add is failing on those configurations with
-the message;
+Regards,
+Maxime
 
-kernel: section number XXX page number 256 not reserved, was it already online?
-
-This patch updates the PageReserved check to lookup struct page once
-per section to guarantee the correct struct page is being checked.
-
-[Check pages within sections properly: rientjes@google.com]
-[original patch by: nfont@linux.vnet.ibm.com]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- drivers/base/memory.c |   58 +++++++++++++++++++++++++++++++++---------------
- 1 files changed, 40 insertions(+), 18 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 2840ed4..ffb69cd 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -224,13 +224,48 @@ int memory_isolate_notify(unsigned long val, void *v)
- }
- 
- /*
-+ * The probe routines leave the pages reserved, just as the bootmem code does.
-+ * Make sure they're still that way.
-+ */
-+static bool pages_correctly_reserved(unsigned long start_pfn,
-+					unsigned long nr_pages)
-+{
-+	int i, j;
-+	struct page *page;
-+	unsigned long pfn = start_pfn;
-+
-+	/*
-+	 * memmap between sections is not contiguous except with
-+	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
-+	 * and assume memmap is contiguous within each section
-+	 */
-+	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
-+		if (WARN_ON_ONCE(!pfn_valid(pfn)))
-+			return false;
-+		page = pfn_to_page(pfn);
-+
-+		for (j = 0; j < PAGES_PER_SECTION; j++) {
-+			if (PageReserved(page + j))
-+				continue;
-+
-+			printk(KERN_WARNING "section number %ld page number %d "
-+				"not reserved, was it already online?\n",
-+				pfn_to_section_nr(pfn), j);
-+
-+			return false;
-+		}
-+	}
-+
-+	return true;
-+}
-+
-+/*
-  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
- memory_block_action(unsigned long phys_index, unsigned long action)
- {
--	int i;
- 	unsigned long start_pfn, start_paddr;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
- 	struct page *first_page;
-@@ -238,26 +273,13 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 
- 	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
- 
--	/*
--	 * The probe routines leave the pages reserved, just
--	 * as the bootmem code does.  Make sure they're still
--	 * that way.
--	 */
--	if (action == MEM_ONLINE) {
--		for (i = 0; i < nr_pages; i++) {
--			if (PageReserved(first_page+i))
--				continue;
--
--			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online?\n",
--				phys_index, i);
--			return -EBUSY;
--		}
--	}
--
- 	switch (action) {
- 		case MEM_ONLINE:
- 			start_pfn = page_to_pfn(first_page);
-+
-+			if (!pages_correctly_reserved(start_pfn, nr_pages))
-+				return -EBUSY;
-+
- 			ret = online_pages(start_pfn, nr_pages);
- 			break;
- 		case MEM_OFFLINE:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
