@@ -1,162 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DDED76B002C
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 19:50:02 -0400 (EDT)
-Received: by ggdk5 with SMTP id k5so6747074ggd.14
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 16:50:01 -0700 (PDT)
-Date: Mon, 10 Oct 2011 16:41:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: memory hotplug: Check if pages are correctly
- reserved on a per-section basis
-Message-Id: <20111010164152.5485fbaf.akpm@linux-foundation.org>
-In-Reply-To: <20111010233531.GA7234@kroah.com>
-References: <20111010071119.GE6418@suse.de>
-	<20111010150038.ac161977.akpm@linux-foundation.org>
-	<20111010232403.GA30513@kroah.com>
-	<20111010162813.7a470ae4.akpm@linux-foundation.org>
-	<20111010233531.GA7234@kroah.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 35EB96B002C
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 22:35:18 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p9B2ZFVP008795
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 19:35:15 -0700
+Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
+	by wpaz5.hot.corp.google.com with ESMTP id p9B2UIfE024304
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2011 19:35:14 -0700
+Received: by qyk2 with SMTP id 2so9336224qyk.5
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 19:35:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CANsGZ6Y-s8myrSZTyPNry0e29QczE2es6be0O1i0ro=zuz9hmA@mail.gmail.com>
+References: <1316693805.10571.25.camel@dabdike>
+	<20110926131027.GA14964@tiehlicka.suse.cz>
+	<1317147379.9186.19.camel@dabdike.hansenpartnership.com>
+	<20110929115419.GF21113@tiehlicka.suse.cz>
+	<CANsGZ6Y-s8myrSZTyPNry0e29QczE2es6be0O1i0ro=zuz9hmA@mail.gmail.com>
+Date: Mon, 10 Oct 2011 19:35:11 -0700
+Message-ID: <CALWz4iw0HLtjkQPy7FRGyi4Ocm7+gtRujJWU_bWHbYK9fUSv5A@mail.gmail.com>
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
+ in Prague
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, nfont@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, Paul Turner <pjt@google.com>, Tim Hockin <thockin@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
 
-On Mon, 10 Oct 2011 16:35:31 -0700
-Greg KH <greg@kroah.com> wrote:
+On Thu, Sep 29, 2011 at 2:30 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Thu, Sep 29, 2011 at 4:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>> On Tue 27-09-11 13:16:19, James Bottomley wrote:
+>> > On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
+>> > > On Thu 22-09-11 12:16:47, James Bottomley wrote:
+>> > > > Hi All,
+>> > >
+>> > > Hi,
+>> > >
+>> > > >
+>> > > > One of the major work items that came out of the Plumbers conferen=
+ce
+>> > > > containers and Cgroups meeting was the need to work on memcg:
+>> > > >
+>> > > > http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/=
+105
+>> > > >
+>> > > > (see etherpad and presentations)
+>> > > >
+>> > > > Since almost everyone will be either at KS or LinuxCon, I thought =
+doing
+>> > > > a small meeting on the Wednesday of Linux Con (so those at KS who =
+might
+>> > > > not be staying for the whole of LinuxCon could attend) might be a =
+good
+>> > > > idea. =A0The object would be to get all the major players to agree=
+ on
+>> > > > who's doing what. =A0You can see Parallels' direction from the pat=
+ches
+>> > > > Glauber has been posting. =A0Google should shortly be starting wor=
+k on
+>> > > > other aspects of the memgc as well.
+>> > > >
+>> > > > As a precursor to the meeting (and actually a requirement to make =
+it
+>> > > > effective) we need to start posting our preliminary patches and de=
+sign
+>> > > > ideas to the mm list (hint, Google people, this means you).
+>> > > >
+>> > > > I think I've got all of the interested parties in the To: field, b=
+ut I'm
+>> > > > sending this to the mm list just in case I missed anyone. =A0If ev=
+eryone's
+>> > > > OK with the idea (and enough people are going to be there) I'll ge=
+t the
+>> > > > Linux Foundation to find us a room.
+>> > >
+>> > > I am not going to be at KS but I am in Prague. I would be happy to m=
+eet
+>> > > as well if it is possible.
+>> >
+>> > Certainly.
+>>
+>> OK, then add me as well.
+>
+> Please include Ying Han and Hugh Dickins; but regrettably, scheduling
+> issues will prevent Greg Thelen from attending.
 
-> > > Ok, care to send me what exactly needs to be reverted and what needs to
-> > > be added?
-> > 
-> > Drop
-> > 
-> > commit 54f23eb7ba7619de85d8edca6e5336bc33072dbd
-> > Author: Nathan Fontenot <nfont@austin.ibm.com>
-> > Date:   Mon Sep 26 10:22:33 2011 -0500
-> > 
-> >     memory hotplug: Correct page reservation checking
-> > 
-> > and replace it with start-of-this-thread.
-> > 
-> > That's assuming that Mel's update passes Nathan's review and testing :)
-> 
-> Ok, I'll wait for that review and testing, and then can someone send me
-> the patch at the start-of-this-thread as I no longer seem to be able to
-> find it :(
+Thank you Hugh. I will be in KS as well as the memcg meeting. Sorry
+for the late reply due to OOO in the past few weeks.
 
-It sounds like your new email setup is working as well as mine :(
+James,
 
+Thank you so much for organizing this and please keep us informed when
+the detailed schedule is out :)
 
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: memory hotplug: Check if pages are correctly reserved on
+Thanks
 
-It is expected that memory being brought online is PageReserved
-similar to what happens when the page allocator is being brought up.
-Memory is onlined in "memory blocks" which consist of one or more
-sections. Unfortunately, the code that verifies PageReserved is
-currently assuming that the memmap backing all these pages is virtually
-contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
-As a result, memory hot-add is failing on !VMEMMAP configurations
-with the message;
-
-kernel: section number XXX page number 256 not reserved, was it already online?
-
-This patch updates the PageReserved check to lookup struct page once
-per section to guarantee the correct struct page is being checked.
-
-[original patch by: nfont@linux.vnet.ibm.com]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- drivers/base/memory.c |   58 +++++++++++++++++++++++++++++++++---------------
- 1 files changed, 40 insertions(+), 18 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 2840ed4..ffb69cd 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -224,13 +224,48 @@ int memory_isolate_notify(unsigned long val, void *v)
- }
- 
- /*
-+ * The probe routines leave the pages reserved, just as the bootmem code does.
-+ * Make sure they're still that way.
-+ */
-+static bool pages_correctly_reserved(unsigned long start_pfn,
-+					unsigned long nr_pages)
-+{
-+	int i, j;
-+	struct page *page;
-+	unsigned long pfn = start_pfn;
-+
-+	/*
-+	 * memmap between sections is not contiguous except with
-+	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
-+	 * and assume memmap is contiguous within each section
-+	 */
-+	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
-+		if (WARN_ON_ONCE(!pfn_valid(pfn)))
-+			return false;
-+		page = pfn_to_page(pfn);
-+
-+		for (j = 0; j < PAGES_PER_SECTION; j++) {
-+			if (PageReserved(page + i))
-+				continue;
-+
-+			printk(KERN_WARNING "section number %ld page number %d "
-+				"not reserved, was it already online?\n",
-+				pfn_to_section_nr(pfn), j);
-+
-+			return false;
-+		}
-+	}
-+
-+	return true;
-+}
-+
-+/*
-  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
- memory_block_action(unsigned long phys_index, unsigned long action)
- {
--	int i;
- 	unsigned long start_pfn, start_paddr;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
- 	struct page *first_page;
-@@ -238,26 +273,13 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 
- 	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
- 
--	/*
--	 * The probe routines leave the pages reserved, just
--	 * as the bootmem code does.  Make sure they're still
--	 * that way.
--	 */
--	if (action == MEM_ONLINE) {
--		for (i = 0; i < nr_pages; i++) {
--			if (PageReserved(first_page+i))
--				continue;
--
--			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online?\n",
--				phys_index, i);
--			return -EBUSY;
--		}
--	}
--
- 	switch (action) {
- 		case MEM_ONLINE:
- 			start_pfn = page_to_pfn(first_page);
-+
-+			if (!pages_correctly_reserved(start_pfn, nr_pages))
-+				return -EBUSY;
-+
- 			ret = online_pages(start_pfn, nr_pages);
- 			break;
- 		case MEM_OFFLINE:
-
+--Ying
+--Ying
+>
+> Thanks,
+> Hugh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
