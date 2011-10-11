@@ -1,243 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B7FF6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:54:11 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so20375118pzk.6
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2011 23:54:08 -0700 (PDT)
-Date: Tue, 11 Oct 2011 15:54:01 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch v2]vmscan: correctly detect GFP_ATOMIC allocation failure
-Message-ID: <20111011065401.GA4415@barrios-desktop>
-References: <1318044928.22361.41.camel@sli10-conroe>
- <1318053412.22361.51.camel@sli10-conroe>
- <20111008102531.GC8679@barrios-desktop>
- <1318139591.22361.56.camel@sli10-conroe>
- <20111009080156.GB23003@barrios-desktop>
- <1318148271.22361.67.camel@sli10-conroe>
- <20111009151035.GA1679@barrios-desktop>
- <1318231693.22361.75.camel@sli10-conroe>
- <20111010154250.GA1791@barrios-desktop>
- <1318311010.22361.95.camel@sli10-conroe>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1318311010.22361.95.camel@sli10-conroe>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A5D816B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:58:10 -0400 (EDT)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LSW00K7J3CVKO@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 11 Oct 2011 07:58:07 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LSW00I8O3CVTT@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 11 Oct 2011 07:58:07 +0100 (BST)
+Date: Tue, 11 Oct 2011 08:57:56 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv16 0/9] Contiguous Memory Allocator
+In-reply-to: <20111010155642.38df59af.akpm@linux-foundation.org>
+Message-id: <00af01cc87e3$1b05e980$5111bc80$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+ <201110071827.06366.arnd@arndb.de>
+ <20111010155642.38df59af.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>
+To: 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>
 
-On Tue, Oct 11, 2011 at 01:30:10PM +0800, Shaohua Li wrote:
-> On Mon, 2011-10-10 at 23:42 +0800, Minchan Kim wrote:
-> > On Mon, Oct 10, 2011 at 03:28:13PM +0800, Shaohua Li wrote:
-> > > On Sun, 2011-10-09 at 23:10 +0800, Minchan Kim wrote:
-> > > > On Sun, Oct 09, 2011 at 04:17:51PM +0800, Shaohua Li wrote:
-> > > > > On Sun, 2011-10-09 at 16:01 +0800, Minchan Kim wrote:
-> > > > > > On Sun, Oct 09, 2011 at 01:53:11PM +0800, Shaohua Li wrote:
-> > > > > > > On Sat, 2011-10-08 at 18:25 +0800, Minchan Kim wrote:
-> > > > > > > > On Sat, Oct 08, 2011 at 01:56:52PM +0800, Shaohua Li wrote:
-> > > > > > > > > On Sat, 2011-10-08 at 11:35 +0800, Shaohua Li wrote:
-> > > > > > > > > > On Sat, 2011-10-08 at 11:19 +0800, David Rientjes wrote:
-> > > > > > > > > > > On Sat, 8 Oct 2011, Shaohua Li wrote:
-> > > > > > > > > > > 
-> > > > > > > > > > > > has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
-> > > > > > > > > > > > failure risk. For a high end_zone, if any zone below or equal to it has min
-> > > > > > > > > > > > matermark ok, we have no risk. But current logic is any zone has min watermark
-> > > > > > > > > > > > not ok, then we have risk. This is wrong to me.
-> > > > > > > > > > > > 
-> > > > > > > > > > > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > > > > > > > > > > > ---
-> > > > > > > > > > > >  mm/vmscan.c |    7 ++++---
-> > > > > > > > > > > >  1 file changed, 4 insertions(+), 3 deletions(-)
-> > > > > > > > > > > > 
-> > > > > > > > > > > > Index: linux/mm/vmscan.c
-> > > > > > > > > > > > ===================================================================
-> > > > > > > > > > > > --- linux.orig/mm/vmscan.c	2011-09-27 15:09:29.000000000 +0800
-> > > > > > > > > > > > +++ linux/mm/vmscan.c	2011-09-27 15:14:45.000000000 +0800
-> > > > > > > > > > > > @@ -2463,7 +2463,7 @@ loop_again:
-> > > > > > > > > > > >  
-> > > > > > > > > > > >  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> > > > > > > > > > > >  		unsigned long lru_pages = 0;
-> > > > > > > > > > > > -		int has_under_min_watermark_zone = 0;
-> > > > > > > > > > > > +		int has_under_min_watermark_zone = 1;
-> > > > > > > > > > > 
-> > > > > > > > > > > bool
-> > > > > > > > > > > 
-> > > > > > > > > > > >  
-> > > > > > > > > > > >  		/* The swap token gets in the way of swapout... */
-> > > > > > > > > > > >  		if (!priority)
-> > > > > > > > > > > > @@ -2594,9 +2594,10 @@ loop_again:
-> > > > > > > > > > > >  				 * means that we have a GFP_ATOMIC allocation
-> > > > > > > > > > > >  				 * failure risk. Hurry up!
-> > > > > > > > > > > >  				 */
-> > > > > > > > > > > > -				if (!zone_watermark_ok_safe(zone, order,
-> > > > > > > > > > > > +				if (has_under_min_watermark_zone &&
-> > > > > > > > > > > > +					    zone_watermark_ok_safe(zone, order,
-> > > > > > > > > > > >  					    min_wmark_pages(zone), end_zone, 0))
-> > > > > > > > > > > > -					has_under_min_watermark_zone = 1;
-> > > > > > > > > > > > +					has_under_min_watermark_zone = 0;
-> > > > > > > > > > > >  			} else {
-> > > > > > > > > > > >  				/*
-> > > > > > > > > > > >  				 * If a zone reaches its high watermark,
-> > > > > > > > > > > 
-> > > > > > > > > > > Ignore checking the min watermark for a moment and consider if all zones 
-> > > > > > > > > > > are above the high watermark (a situation where kswapd does not need to 
-> > > > > > > > > > > do aggressive reclaim), then has_under_min_watermark_zone doesn't get 
-> > > > > > > > > > > cleared and never actually stalls on congestion_wait().  Notice this is 
-> > > > > > > > > > > congestion_wait() and not wait_iff_congested(), so the clearing of 
-> > > > > > > > > > > ZONE_CONGESTED doesn't prevent this.
-> > > > > > > > > > if all zones are above the high watermark, we will have i < 0 when
-> > > > > > > > > > detecting the highest imbalanced zone, and the whole loop will end
-> > > > > > > > > > without run into congestion_wait().
-> > > > > > > > > > or I can add a clearing has_under_min_watermark_zone in the else block
-> > > > > > > > > > to be safe.
-> > > > > > > > > Subject: vmscan: correctly detect GFP_ATOMIC allocation failure -v2
-> > > > > > > > > 
-> > > > > > > > > has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
-> > > > > > > > > failure risk. For a high end_zone, if any zone below or equal to it has min
-> > > > > > > > > matermark ok, we have no risk. But current logic is any zone has min watermark
-> > > > > > > > > not ok, then we have risk. This is wrong to me.
-> > > > > > > > 
-> > > > > > > > I think it's not a right or wrong problem but a policy stuff.
-> > > > > > > > If we are going to start busy reclaiming for atomic allocation
-> > > > > > > > after we see all lower zones' min water mark pages are already consumed
-> > > > > > > > It could make you go through long latency and is likely to fail atomic allocation
-> > > > > > > > stream(Because, there is nothing to do for aotmic allocation fail in direct reclaim
-> > > > > > > > so kswapd should always do best effort for it)
-> > > > > > > > 
-> > > > > > > > I don't mean you are wrong but we are very careful about this
-> > > > > > > > and at least need some experiments with atomic allocaion stream, I think.
-> > > > > > > yes. this is a policy problem. I just don't want the kswapd keep running
-> > > > > > > even there is no immediate risk of atomic allocation fail.
-> > > > > > > One problem here is end_zone could be high, and low zone always doesn't
-> > > > > > > meet min watermark. So kswapd keeps running without a wait and builds
-> > > > > > > big priority.
-> > > > > > 
-> > > > > > It could be but I think it's a mistake of admin if he handles such rare system.
-> > > > > > Couldn't he lower the reserved pages for highmem?
-> > > > > not because admin changes reserved pages. we still have the
-> > > > > zone->lowmem_reserve[] issue for zone_watermark_ok here.
-> > > > 
-> > > > Sorry I couldn't understand your point.
-> > > > I mean if min watermark is too high, you could lower min_free_kbytes.
-> > > > If reserved pages is too high, you could handle lowmem_reserve_ratio.
-> > > > Could we solve the problem with those knobs?
-> > > I mean a system with default setting. Changing the knobs might solve the
-> > > problem, but few people know it, so not a right solution.
-> > 
-> > We couldn't cover whole cases so that we should focus on common case.
-> > That's why we need knobs.
-> > Do you think your case is general one we should handle it by default?
-> > If you really think, we have to fix watermark setting logic rathe than kswapd.
-> it's pretty common a system has big high zone and small low zone these
-> days. Why current watermark setting is wrong?
+Hello,
 
-You said as follows,
+On Tuesday, October 11, 2011 12:57 AM Andrew Morton wrote:
 
-> > > > > > > One problem here is end_zone could be high, and low zone always doesn't
-> > > > > > > meet min watermark. So kswapd keeps running without a wait and builds
-
-You should have said not "meet min watermark" but "meet min_watermak + reserved pages[HIGH_ZONE]"
-for the clearness. Sorry for misleading your statement. Now I got realized your intention.
-
->  
-> > > > In addition, kswapd could easily set all_unreclaimable of the zone in your example.
-> > > > Then, kswapd should just peek the zone once in a while if the zone is all_unreclaimable.
-> > > > It should be no problem in CPU overhead.
-> > > even the low zone has all_unreclaimable, the high zone will be scanned
-> > > again with low priority (because its high watermark might not be ok, but
-> > > min watermark is ok), and does not do congestion_wait. This will make a
-> > 
-> > As you said, high zone is below high watermark so it's natural since it's
-> > one of kswapd goal. Why it doesn't sleep is that one zone of zonelists is
-> > below min_watmark. So it's natural in current policy, too.
-> there are two cases one zone is below min_watermark.
-> 1. the zone is below min_watermark for allocation in the zone. in this
-> case we need hurry up.
-> 2. the zone is below min_watermark for allocation from high zone. we
-> don't really need hurry up if other zone is above min_watermark.
-> Since low zone need to reserve pages for high zone, the second case
-> could be common.
-
-You mean "lowmem_reserve"?
-It means opposite. It is a mechanism to defend using of lowmem pages from high zone allocation
-because it could be fatal to allow process pages to be allocated from low zone.
-Also, We could set each ratio for reserved pages of zones.
-How could we make sure lower zones have enough free pages for higher zone?
-
-> Yes, keeping kswapd running in this case can reduce the chance
-> GFP_ATOMIC failure. But my patch will not cause immediate failure
-> because there is still some zones which are above min_watermark and can
-> meet the GFP_ATOMIC allocation. And keeping kswapd running has some
-
-True. It was why I said "I don't mean you are wrong but we are very careful about this."
-Normally, it could handle but might fail on sudden peak of atomic allocation stream.
-Recently, we have suffered from many reporting of GFP_AOTMIC allocation than olded.
-So I would like to be very careful and that's why I suggest we need at least some experiment.
-Through it, Andrew could make final call.
-
-> drawbacks:
-> 1. cpu overhead
-> 2. extend isolate window size, so trash working set.
-> Considering DMA zone, we almost always have DMA zone min_watermark not
-> ok for any allocation from high zone. So we will always have such
-> drawbacks.
-
-I agree with you in that it's a problem.
-I think the real solution is to remove the zone from allocation fallback list in such case
-because the lower zone could never meet any allocation for the higher zone.
-But it makes code rather complicated as we have to consider admin who can change
-reserved pages anytime.
-So how about this?
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8913374..f71ed2f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2693,8 +2693,16 @@ loop_again:
-                                 * failure risk. Hurry up!
-                                 */
-                                if (!zone_watermark_ok_safe(zone, order,
--                                           min_wmark_pages(zone), end_zone, 0))
--                                       has_under_min_watermark_zone = 1;
-+                                           min_wmark_pages(zone), end_zone, 0)) {
-+                                       /*
-+                                        * In case of big reserved page for higher zone,
-+                                        * it is pointless to try reclaimaing pages quickly
-+                                        * because it could never meet the requirement.
-+                                        */
-+                                       if (zone->present_pages >
-+                                               min_wmark_pages(zone) + zone->lowmem_reserve[end_zone])
-+                                               has_under_min_watermark_zone = 1;
-+                               }
-                        } else {
-                                /*
-                                 * If a zone reaches its high watermark,
-
-Even, we could apply this at starting of the loop so that we can avoid unnecessary scanning st the beginning.
-In that case, we have to apply zone->lowmem_reserve[end_zone] only because we have to consider NO_WATERMARK alloc case.
-
+> On Fri, 7 Oct 2011 18:27:06 +0200 Arnd Bergmann <arnd@arndb.de> wrote:
 > 
-> Or is something below better? we can avoid the big reserved pages
-> accounting to the min_wmark_pages for low zone. if high zone is under
-> min_wmark, kswapd will not sleep.
->                                if (!zone_watermark_ok_safe(zone, order,
-> -                                            min_wmark_pages(zone), end_zone, 0))
-> +                                            min_wmark_pages(zone), 0, 0))
->                                         has_under_min_watermark_zone = 1;
-
-I think it's not a good idea since page allocator always considers classzone_idx.
-So although we fix kswapd issue through your changes, page allocator still can't allocate memory
-and wakes up kswapd, again.
-
+> > On Thursday 06 October 2011, Marek Szyprowski wrote:
+> > > Once again I decided to post an updated version of the Contiguous Memory
+> > > Allocator patches.
+> > >
+> > > This version provides mainly a bugfix for a very rare issue that might
+> > > have changed migration type of the CMA page blocks resulting in dropping
+> > > CMA features from the affected page block and causing memory allocation
+> > > to fail. Also the issue reported by Dave Hansen has been fixed.
+> > >
+> > > This version also introduces basic support for x86 architecture, what
+> > > allows wide testing on KVM/QEMU emulators and all common x86 boxes. I
+> > > hope this will result in wider testing, comments and easier merging to
+> > > mainline.
+> >
+> > Hi Marek,
+> >
+> > I think we need to finally get this into linux-next now, to get some
+> > broader testing. Having the x86 patch definitely helps here becauses
+> > it potentially exposes the code to many more testers.
+> >
+> > IMHO it would be good to merge the entire series into 3.2, since
+> > the ARM portion fixes an important bug (double mapping of memory
+> > ranges with conflicting attributes) that we've lived with for far
+> > too long, but it really depends on how everyone sees the risk
+> > for regressions here. If something breaks in unfixable ways before
+> > the 3.2 release, we can always revert the patches and have another
+> > try later.
+> >
+> > It's also not clear how we should merge it. Ideally the first bunch
+> > would go through linux-mm, and the architecture specific patches
+> > through the respective architecture trees, but there is an obvious
+> > inderdependency between these sets.
+> >
+> > Russell, Andrew, are you both comfortable with putting the entire
+> > set into linux-mm to solve this? Do you see this as 3.2 or rather
+> > as 3.3 material?
+> >
 > 
-> Thanks,
-> Shaohua
+> Russell's going to hate me, but...
 > 
+> I do know that he had substantial objections to at least earlier
+> versions of this, and he is a guy who knows of what he speaks.
 
+I've did my best to fix these issues. I'm still waiting for comments...
+
+Best regards
 -- 
-Kinds regards,
-Minchan Kim
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
