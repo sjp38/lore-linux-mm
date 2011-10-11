@@ -1,70 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 894176B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:54:51 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so1295pzk.6
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 13:54:49 -0700 (PDT)
-Date: Tue, 11 Oct 2011 13:54:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-Id: <20111011135445.f580749b.akpm@linux-foundation.org>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-	<20110901100650.6d884589.rdunlap@xenotime.net>
-	<20110901152650.7a63cb8b@annuminas.surriel.com>
-	<alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
-	<20111010153723.6397924f.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
-	<20111011125419.2702b5dc.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DBC6B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:01:53 -0400 (EDT)
+Date: Tue, 11 Oct 2011 23:01:42 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH] mm: thp: make swap configurable
+Message-ID: <20111011210142.GC29866@redhat.com>
+References: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
+ <20111010141851.GC17335@redhat.com>
+ <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com
 
-On Tue, 11 Oct 2011 16:23:22 -0400
-Satoru Moriya <satoru.moriya@hds.com> wrote:
+Hi Bob,
 
-> On 10/11/2011 03:55 PM, Andrew Morton wrote:
-> > On Tue, 11 Oct 2011 15:32:11 -0400
-> > Satoru Moriya <satoru.moriya@hds.com> wrote:
-> > 
-> >> On 10/10/2011 06:37 PM, Andrew Morton wrote:
-> >>> On Fri, 7 Oct 2011 20:08:19 -0700 (PDT) David Rientjes 
-> >>> <rientjes@google.com> wrote:
-> >>>
-> >>>> On Thu, 1 Sep 2011, Rik van Riel wrote:
-> >>
-> >> Actually page allocator decreases min watermark to 3/4 * min 
-> >> watermark for rt-task. But in our case some applications create a lot 
-> >> of processes and if all of them are rt-task, the amount of watermark
-> >> bonus(1/4 * min watermark) is not enough.
-> >>
-> >> If we can tune the amount of bonus, it may be fine. But that is 
-> >> almost all same as extra free kbytes.
-> > 
-> > This situation is detectable at runtime.  If realtime tasks are being 
-> > stalled in the page allocator then start to increase the free-page 
-> > reserves.  A little control system.
+On Tue, Oct 11, 2011 at 05:24:26PM +0800, Bob Liu wrote:
+> Thanks for your reply.
 > 
-> Detecting at runtime is too late for some latency critical systems.
-> At that system, we must avoid a stall before it happens.
+> Yes, mlock() can do it but it will require a lot of changes in every
+> user application.
+> If some of the applications are hugh and complicated(even not opensource), it's
+> hard to modify them.
+> Add this patch can make things simple and thp more flexible.
+> 
+> For using swapoff -a, it will disable swap for 4k normal pages.
+> 
+> A simple use case is like this:
+> a lot of swap sensitive apps run on a machine, it will use thp so we
+> need to disable swap.
+> But  this apps are hugh and complicated, it's hard to modify them by mlock().
+> 
+> In addition, there are also some normal and not swap sensitive apps
+> which don't use thp run on
+> the same machine, we can still reclaim their memory by swap when lack
+> of memory.
 
-It's pretty darn obvious that the kernel can easily see the situation
-developing before it happens.  By comparing a few integers.
-
-Look, please don't go bending over backwards like this to defend a bad
-patch.  It's a bad patch!  It would be better not to have to merge it. 
-Let's do something better.
-
-> Also, if we increase the free-page reserves a.k.a min_free_kbytes,
-> the possibility of direct reclaim on other workloads increases.
-> I think it's a bad side effect.
-
-extra_free_kbytes has the same side-effect.
+I'm not convinced. If you need to disable swap selectively to certain
+apps but you can't modify them I'd suggest to add a
+mlock-equal-privileged prctl(PR_SWAP_ENABLE/DISABLE) that applies to
+all anonymous memory and tmpfs. Probably not to filebacked memory in
+case MAP_SHARED is used for all I/O. This seems too limited, it may
+happen to work well for a specific application but it's not generic
+enough. Another user could have a binary application with a ton of
+tmpfs shared memory that he can't modify (MAP_SHARED on /dev/zero for
+example) and he wants to mlock it but he can't. Or maybe another user
+has an application with <2M anonymous memory scattered in the middle
+of MAP_SHARED segments (so that can't be mapped by THP because of
+strict hardware limits) and he wants it to remain locked in ram too
+and not be swapped out for that specific app. So I prefer a solution
+that threats all anonymous memory and tmpfs memory equal (the only two
+entities in the kernel that will be paged out to swap). Or at the very
+least all anonymous memory equal... so it remains transparent as much
+as possible :).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
