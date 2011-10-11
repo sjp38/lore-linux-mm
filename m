@@ -1,130 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 707376B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:30:48 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 662E23EE0AE
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4621845DF4B
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BDC545DF47
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BE721DB8045
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CBA201DB8040
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:42 +0900 (JST)
-Date: Tue, 11 Oct 2011 18:29:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2D06B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:37:09 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so20650462pzk.6
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:37:07 -0700 (PDT)
+Date: Tue, 11 Oct 2011 18:36:55 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
 Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
  lru pages
-Message-Id: <20111011182948.82525d89.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111011090756.GA16202@barrios-desktop>
-References: <20110929091853.GA1865@barrios-desktop>
-	<1317348743.22361.29.camel@sli10-conroe>
-	<20111001065943.GA6601@barrios-desktop>
-	<1318043391.22361.34.camel@sli10-conroe>
-	<20111008043232.GA7615@barrios-desktop>
-	<1318052901.22361.49.camel@sli10-conroe>
-	<20111008093531.GA8679@barrios-desktop>
-	<1318140488.22361.63.camel@sli10-conroe>
-	<20111009074558.GA23003@barrios-desktop>
-	<20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111011090756.GA16202@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20111011093655.GA16425@barrios-desktop>
+References: <20111001065943.GA6601@barrios-desktop>
+ <1318043391.22361.34.camel@sli10-conroe>
+ <20111008043232.GA7615@barrios-desktop>
+ <1318052901.22361.49.camel@sli10-conroe>
+ <20111008093531.GA8679@barrios-desktop>
+ <1318140488.22361.63.camel@sli10-conroe>
+ <20111009074558.GA23003@barrios-desktop>
+ <20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111011090756.GA16202@barrios-desktop>
+ <20111011182948.82525d89.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111011182948.82525d89.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, 11 Oct 2011 18:07:56 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-
-> Hi Kame,
+On Tue, Oct 11, 2011 at 06:29:48PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 11 Oct 2011 18:07:56 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
 > 
-> On Tue, Oct 11, 2011 at 05:09:41PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Sun, 9 Oct 2011 16:45:58 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> > > hanks for your careful review.
-> > > I will send a formal version.
-> > > 
-> > > From 49078e0ebccae371b04930ae76dfd5ba158032ca Mon Sep 17 00:00:00 2001
-> > > From: Minchan Kim <minchan.kim@gmail.com>
-> > > Date: Sun, 9 Oct 2011 16:38:40 +0900
-> > > Subject: [PATCH] vmscan: judge zone's all_unreclaimable carefully
-> > > 
-> > > Shaohua Li reported all_unreclaimable of DMA zone is always set
-> > > because the system has a big memory HIGH zone so that lowmem_reserve[HIGH]
-> > > could be a big.
-> > > 
-> > > It could be a problem as follows
-> > > 
-> > > Assumption :
-> > > 1. The system has a big high memory so that lowmem_reserve[HIGH] of DMA zone would be big.
-> > > 2. HIGH/NORMAL zone are full but DMA zone has enough free pages.
-> > > 
-> > > Scenario
-> > > 1. A request to allocate a page in HIGH zone.
-> > > 2. HIGH/NORMAL zone already consumes lots of pages so that it would be fall-backed to DMA zone.
-> > > 3. In DMA zone, allocator got failed, too becuase lowmem_reserve[HIGH] is very big so that it wakes up kswapd
-> > > 4. kswapd would call shrink_zone while it see DMA zone since DMA zone's lowmem_reserve[HIGHMEM]
-> > >    would be big so that it couldn't meet zone_watermark_ok_safe(high_wmark_pages(zone) + balance_gap,
-> > >    *end_zone*)
-> > > 5. DMA zone doesn't meet stop condition(nr_slab != 0, !zone_reclaimable) because the zone has small lru pages
-> > >    and it doesn't have slab pages so that kswapd would set all_unreclaimable of the zone to *1* easily.
-> > > 6. B request to allocate many pages in NORMAL zone but NORMAL zone has no free pages
-> > >    so that it would be fall-backed to DMA zone.
-> > > 7. DMA zone would allocates many pages for NORMAL zone because lowmem_reserve[NORMAL] is small.
-> > >    These pages are used by application(ie, it menas LRU pages. Yes. Now DMA zone could have many reclaimable pages)
-> > > 8. C request to allocate a page in NORMAL zone but he got failed because DMA zone doesn't have enough free pages.
-> > >    (Most of pages in DMA zone are consumed by B)
-> > > 9. Kswapd try to reclaim lru pages in DMA zone but got failed because all_unreclaimable of the zone is 1. Otherwise,
-> > >    it could reclaim many pages which are used by B.
-> > > 
-> > > Of coures, we can do something in DEF_PRIORITY but it couldn't do enough because it can't raise
-> > > synchronus reclaim in direct reclaim path if the zone has many dirty pages
-> > > so that the process is killed by OOM.
-> > > 
-> > > The principal problem is caused by step 8.
-> > > In step 8, we increased # of lru size very much but still the zone->all_unreclaimable is 1.
-> > > If we increase lru size, it is valuable to try reclaiming again.
-> > > The rationale is that we reset all_unreclaimable to 0 even if we free just a one page.
-> > > 
-> > > Cc: Mel Gorman <mel@csn.ul.ie>
-> > > Cc: Rik van Riel <riel@redhat.com>
-> > > Cc: Michal Hocko <mhocko@suse.cz>
-> > > Cc: Johannes Weiner <jweiner@redhat.com>
-> > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Reported-by: Shaohua Li <shaohua.li@intel.com>
-> > > Reviewed-by: Shaohua Li <shaohua.li@intel.com>
-> > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > Hi Kame,
 > > 
-> > Hmm, catching changes of page usage in a zone ?
+> > On Tue, Oct 11, 2011 at 05:09:41PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Sun, 9 Oct 2011 16:45:58 +0900
+> > > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > > > hanks for your careful review.
+> > > > I will send a formal version.
+> > > > 
+> > > > From 49078e0ebccae371b04930ae76dfd5ba158032ca Mon Sep 17 00:00:00 2001
+> > > > From: Minchan Kim <minchan.kim@gmail.com>
+> > > > Date: Sun, 9 Oct 2011 16:38:40 +0900
+> > > > Subject: [PATCH] vmscan: judge zone's all_unreclaimable carefully
+> > > > 
+> > > > Shaohua Li reported all_unreclaimable of DMA zone is always set
+> > > > because the system has a big memory HIGH zone so that lowmem_reserve[HIGH]
+> > > > could be a big.
+> > > > 
+> > > > It could be a problem as follows
+> > > > 
+> > > > Assumption :
+> > > > 1. The system has a big high memory so that lowmem_reserve[HIGH] of DMA zone would be big.
+> > > > 2. HIGH/NORMAL zone are full but DMA zone has enough free pages.
+> > > > 
+> > > > Scenario
+> > > > 1. A request to allocate a page in HIGH zone.
+> > > > 2. HIGH/NORMAL zone already consumes lots of pages so that it would be fall-backed to DMA zone.
+> > > > 3. In DMA zone, allocator got failed, too becuase lowmem_reserve[HIGH] is very big so that it wakes up kswapd
+> > > > 4. kswapd would call shrink_zone while it see DMA zone since DMA zone's lowmem_reserve[HIGHMEM]
+> > > >    would be big so that it couldn't meet zone_watermark_ok_safe(high_wmark_pages(zone) + balance_gap,
+> > > >    *end_zone*)
+> > > > 5. DMA zone doesn't meet stop condition(nr_slab != 0, !zone_reclaimable) because the zone has small lru pages
+> > > >    and it doesn't have slab pages so that kswapd would set all_unreclaimable of the zone to *1* easily.
+> > > > 6. B request to allocate many pages in NORMAL zone but NORMAL zone has no free pages
+> > > >    so that it would be fall-backed to DMA zone.
+> > > > 7. DMA zone would allocates many pages for NORMAL zone because lowmem_reserve[NORMAL] is small.
+> > > >    These pages are used by application(ie, it menas LRU pages. Yes. Now DMA zone could have many reclaimable pages)
+> > > > 8. C request to allocate a page in NORMAL zone but he got failed because DMA zone doesn't have enough free pages.
+> > > >    (Most of pages in DMA zone are consumed by B)
+> > > > 9. Kswapd try to reclaim lru pages in DMA zone but got failed because all_unreclaimable of the zone is 1. Otherwise,
+> > > >    it could reclaim many pages which are used by B.
+> > > > 
+> > > > Of coures, we can do something in DEF_PRIORITY but it couldn't do enough because it can't raise
+> > > > synchronus reclaim in direct reclaim path if the zone has many dirty pages
+> > > > so that the process is killed by OOM.
+> > > > 
+> > > > The principal problem is caused by step 8.
+> > > > In step 8, we increased # of lru size very much but still the zone->all_unreclaimable is 1.
+> > > > If we increase lru size, it is valuable to try reclaiming again.
+> > > > The rationale is that we reset all_unreclaimable to 0 even if we free just a one page.
+> > > > 
+> > > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > > Cc: Rik van Riel <riel@redhat.com>
+> > > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > > Cc: Johannes Weiner <jweiner@redhat.com>
+> > > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > Reported-by: Shaohua Li <shaohua.li@intel.com>
+> > > > Reviewed-by: Shaohua Li <shaohua.li@intel.com>
+> > > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > > 
+> > > Hmm, catching changes of page usage in a zone ?
+> > 
+> > Not exactly.
+> > It does catch only lru page increasement of zone.
+> > 
+> Sure.
 > 
-> Not exactly.
-> It does catch only lru page increasement of zone.
-> 
-Sure.
+> > > And this will allow to catch swap_on() and make a zone reclaimable
+> > > even if no page usage changes. right ?
+> > 
+> > It's not in the patch but I think it could be a another patch.
+> > Could you post it if you really need it?
+> > 
+> What I mean is "zone_reclaimable_pages() take swappable or not
+> into account for anon pages. So, it's already covered."
 
-> > And this will allow to catch swap_on() and make a zone reclaimable
-> > even if no page usage changes. right ?
-> 
-> It's not in the patch but I think it could be a another patch.
-> Could you post it if you really need it?
-> 
-What I mean is "zone_reclaimable_pages() take swappable or not
-into account for anon pages. So, it's already covered."
+Got it. I thought you're saying swap on race as follows,
+When VM decides the zone is all_unreclimable, sudden any user
+could do swap_on. From now on, we could reclaim anon pages so we have to
+reset all_unreclaimable.
 
-I have no requirements.
+Anyway, it's a idea. if anyone think we should handle it, feel free to post.
+But I am sure.
 
-Thanks,
--Kame
+> 
+> I have no requirements.
+> 
+> Thanks,
+> -Kame
+> 
+
+-- 
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
