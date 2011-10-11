@@ -1,65 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 424BE6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:39:22 -0400 (EDT)
-Received: by gya6 with SMTP id 6so156884gya.14
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:39:19 -0700 (PDT)
-Date: Tue, 11 Oct 2011 16:39:14 -0700
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 575276B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:41:39 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so283807pzk.6
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:41:36 -0700 (PDT)
+Date: Tue, 11 Oct 2011 16:41:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch resend] oom: thaw threads if oom killed thread is frozen
  before deferring
-Message-ID: <20111011233914.GC6281@google.com>
+Message-Id: <20111011164132.16e504a8.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
- <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com>
- <20111011063336.GA23284@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
+	<20111011191603.GA12751@redhat.com>
+	<alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org
+Cc: Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-Hello,
+On Tue, 11 Oct 2011 16:30:26 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-On Tue, Oct 11, 2011 at 04:36:28PM -0700, David Rientjes wrote:
-> On Tue, 11 Oct 2011, Michal Hocko wrote:
+> On Tue, 11 Oct 2011, Oleg Nesterov wrote:
 > 
-> > The patch looks good but we still need other 2 patches
-> > (http://comments.gmane.org/gmane.linux.kernel.mm/68578), right?
+> > David. Could you also resend you patches which remove the (imho really
+> > annoying) mm->oom_disable_count? Feel free to add my ack or reviewed-by.
 > > 
 > 
-> For the lguest patch, Rusty is the maintainer and has already acked the 
-> patch, so I think it should be merged through him.  I don't see a need for 
-> the second patch since we'll now detect frozen oom killed tasks on retry 
-> and don't need to kill them directly when oom killed (it just adds 
-> additional, unnecessary code).
-> 
-> > Anyway, I thought that we agreed on the other approach suggested by
-> > Tejun (make frozen tasks oom killable without thawing). Even in that
-> > case we want the first patch
-> > (http://permalink.gmane.org/gmane.linux.kernel.mm/68576).
-> 
-> If that's possible, then we can just add Tejun to add a follow-up patch to 
-> remove the thaw directly in the oom killer.  I'm thinking that won't be 
-> possible for 3.2, though, so I don't know why we'd remove 
-> oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch 
-> from -mm?
+> As far as I know (I can't confirm because userweb.kernel.org is still 
+> down), oom-remove-oom_disable_count.patch is still in the -mm tree.  It 
+> was merged September 2 so I believe it's 3.2 material.
 
-Yeah, it's a bit unclear.  All (or at least most) patches which were
-necessary for this patch was queued in Rafael's tree before korg went
-belly up and then we both lost track of the tree and I need to
-regenerate the tree and ask Rafael to pull again.  I think the merge
-window is already too close, so please go ahead with the acked fix.
-Let's clean it up during the next devel cycle.
+yup.  It's in linux-next too.
 
-Thank you.
+> Andrew, please add Oleg's reviewed-by to that patch (in addition to the 
+> reported-by which already exists) if it's still merged.
 
--- 
-tejun
+Done, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
