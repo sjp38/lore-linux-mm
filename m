@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2BC146B002F
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 13:28:45 -0400 (EDT)
-Date: Tue, 11 Oct 2011 19:24:22 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
-	thread is singlestepping.
-Message-ID: <20111011172422.GA7878@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com> <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com> <20111007165828.GA32319@redhat.com> <20111010122556.GB16268@linux.vnet.ibm.com> <20111010182535.GA6934@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111010182535.GA6934@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F69B6B002F
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 13:43:52 -0400 (EDT)
+Message-ID: <1318355030.8896.12.camel@Joe-Laptop>
+Subject: Re: [PATCH] treewide: Use __printf not
+ __attribute__((format(printf,...)))
+From: Joe Perches <joe@perches.com>
+Date: Tue, 11 Oct 2011 10:43:50 -0700
+In-Reply-To: <20111011172208.GA3633@shutemov.name>
+References: 
+	<5a0bef0143ed2b3176917fdc0ddd6a47f4c79391.1314303846.git.joe@perches.com>
+	 <20110825165006.af771ef7.akpm@linux-foundation.org>
+	 <1314316801.19476.6.camel@Joe-Laptop>
+	 <20110825170534.0d425c75.akpm@linux-foundation.org>
+	 <1314319088.19476.17.camel@Joe-Laptop>
+	 <20110825180734.9beae279.akpm@linux-foundation.org>
+	 <1314327338.19476.30.camel@Joe-Laptop>
+	 <20111011172208.GA3633@shutemov.name>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <trivial@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org
 
-On 10/10, Oleg Nesterov wrote:
->
-> HOWEVER! I simply do not know what should we do if the probed insn
-> is something like asm("1:; jmp 1b;"). IIUC, in this sstep_complete()
-> never returns true. The patch also adds the fatal_signal_pending()
-> check to make this task killlable, but the problem is: whatever we do,
-> I do not think it is correct to disable/delay the signals in this case.
-> With any approach.
->
-> What do you think? Maybe we should simply disallow to probe such insns?
+On Tue, 2011-10-11 at 20:22 +0300, Kirill A. Shutemov wrote:
+> On Thu, Aug 25, 2011 at 07:55:37PM -0700, Joe Perches wrote:
+> > Standardize the style for compiler based printf format verification.
+> > Standardized the location of __printf too.
+> > Done via script and a little typing.
+> > $ grep -rPl --include=*.[ch] -w "__attribute__" * | \
+> >   grep -vP "^(tools|scripts|include/linux/compiler-gcc.h)" | \
+> >   xargs perl -n -i -e 'local $/; while (<>) { s/\b__attribute__\s*\(\s*\(\s*format\s*\(\s*printf\s*,\s*(.+)\s*,\s*(.+)\s*\)\s*\)\s*\)/__printf($1, $2)/g ; print; }'
+> > Completely untested...
+> This patch breaks ARCH=um (linux-next-20111011):
 
-Or. Could you explain why we can't simply remove the
-"if (vaddr == current->utask->xol_vaddr)" check from sstep_complete() ?
+Hi Kirill, thanks for reporting this.
 
-In some sense, imho this looks more correct for "rep" or jmp/call self.
-The task will trap again on the same (original) address, and
-handler_chain() will be called to notify the consumers.
+I think it breaks almost all the the arches with modifications.
 
-But. I am really, really ignorant in this area, I am almost sure this
-is not that simple.
+> In file included from /home/kas/git/public/linux-next/arch/um/os-Linux/aio.c:17:0:
+> /home/kas/git/public/linux-next/arch/um/include/shared/user.h:26:17: error: expected declaration specifiers or a??...a?? before numeric constant
 
-Oleg.
+Hey Andrew, I think _all_ of the arch/... changes
+except arch/frv and arch/s390 should be reverted.
+
+Andrew, I don't know if you saw this:
+https://lkml.org/lkml/2011/9/28/324
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
