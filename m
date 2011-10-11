@@ -1,85 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 494256B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:51:09 -0400 (EDT)
-Message-ID: <4E93F55E.6030800@parallels.com>
-Date: Tue, 11 Oct 2011 11:50:54 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Slab objects identifiers
-References: <4E8DD5B9.4060905@parallels.com> <20111010185909.GD16723@count0.beaverton.ibm.com>
-In-Reply-To: <20111010185909.GD16723@count0.beaverton.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C35226B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 04:10:49 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CB32C3EE0C0
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:10:44 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7991645DE87
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:10:44 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6014B45DE85
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:10:44 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F0531DB8047
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:10:44 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 03FA51DB803C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:10:44 +0900 (JST)
+Date: Tue, 11 Oct 2011 17:09:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
+ lru pages
+Message-Id: <20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111009074558.GA23003@barrios-desktop>
+References: <20110928175750.GA1696@barrios-desktop>
+	<1317258891.22361.19.camel@sli10-conroe>
+	<20110929091853.GA1865@barrios-desktop>
+	<1317348743.22361.29.camel@sli10-conroe>
+	<20111001065943.GA6601@barrios-desktop>
+	<1318043391.22361.34.camel@sli10-conroe>
+	<20111008043232.GA7615@barrios-desktop>
+	<1318052901.22361.49.camel@sli10-conroe>
+	<20111008093531.GA8679@barrios-desktop>
+	<1318140488.22361.63.camel@sli10-conroe>
+	<20111009074558.GA23003@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On 10/10/2011 10:59 PM, Matt Helsley wrote:
-> On Thu, Oct 06, 2011 at 08:22:17PM +0400, Pavel Emelyanov wrote:
-
-Matt, thanks for the reply! Please, see my comments below.
-
->> Hi.
->>
->>
->> While doing the checkpoint-restore in the userspace we need to determine
->> whether various kernel objects (like mm_struct-s of file_struct-s) are shared
->> between tasks and restore this state.
->> The 2nd step can for now be solved by using respective CLONE_XXX flags and
->> the unshare syscall, while there's currently no ways for solving the 1st one.
->>
->> One of the ways for checking whether two tasks share e.g. an mm_struct is to
->> provide some mm_struct ID of a task to its proc file. The best from the
->> performance point of view ID is the object address in the kernel, but showing
->> them to the userspace is not good for performance reasons. Thus the ID should
->> not be calculated based on the object address.
->>
->> The proposal is to have the ID for slab objects as the mixture of two things -
->> the number of an object on the slub and the ID of a slab, which is calculated
->> simply by getting a monotonic 64 bit number at the slab allocation time which
->> gives us 200+ years of stable work (see comment in the patch #2) :)
+On Sun, 9 Oct 2011 16:45:58 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
+> hanks for your careful review.
+> I will send a formal version.
 > 
-> This just strikes me as the wrong approach. Userspace should not need to know
-> the structures the kernel is using to implement the sharing that's possible
-> with the clone flags. The userspace interface should be framed such that the
-> kernel is not exporting the relationship between these structures so much as
-> the relationship between the tasks which those structures reflect.
-> Perhaps you could write the interface so that it shows the clone flags
-> one would use to re-create the child task from the parent instead of
-> trying to output these ids.
-
-Well, another API would also work for us, I just propose this one as one of the 
-approaches.
-
-Your proposal with showing CLONE flags sounds very promising, but how can it handle
-the case when a task shares it's e.g. mm_struct with some other task which is not his
-parent? Like if we create the chain of 3 tasks all with the shared mm_struct and then
-the middle one calls execve unsharing one (I saw MySQL doing this). Besides "reparenting
-to init" and the unshare syscall may create more interesting objects sharing mosaic and 
-thus we need the API which is as generic as "do these two tasks share an mm?".
-
-Looking a little bit forward, if the same API can answer a question "does this *group*
-of tasks sharing one mm_struct share it with someone else?" this would also be very
-helpful.
-
-> Also, putting this in slab seems like a poor choice -- isn't instrumenting
-> the allocator rather invasive? 
-
-Well, the payload in my patches is not intrusive - it just adds the code, not tosses
-the existing one.
-
-> Especialy when we're talking about a handful of structs in comparison to everything
-> else the allocators handle?
-
-I did this functionality so that it doesn't affect those kmem caches that we don't need
-to provide us the IDs at all.
-
-> Cheers,
-> 	-Matt Helsley
-> .
+> From 49078e0ebccae371b04930ae76dfd5ba158032ca Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan.kim@gmail.com>
+> Date: Sun, 9 Oct 2011 16:38:40 +0900
+> Subject: [PATCH] vmscan: judge zone's all_unreclaimable carefully
 > 
+> Shaohua Li reported all_unreclaimable of DMA zone is always set
+> because the system has a big memory HIGH zone so that lowmem_reserve[HIGH]
+> could be a big.
+> 
+> It could be a problem as follows
+> 
+> Assumption :
+> 1. The system has a big high memory so that lowmem_reserve[HIGH] of DMA zone would be big.
+> 2. HIGH/NORMAL zone are full but DMA zone has enough free pages.
+> 
+> Scenario
+> 1. A request to allocate a page in HIGH zone.
+> 2. HIGH/NORMAL zone already consumes lots of pages so that it would be fall-backed to DMA zone.
+> 3. In DMA zone, allocator got failed, too becuase lowmem_reserve[HIGH] is very big so that it wakes up kswapd
+> 4. kswapd would call shrink_zone while it see DMA zone since DMA zone's lowmem_reserve[HIGHMEM]
+>    would be big so that it couldn't meet zone_watermark_ok_safe(high_wmark_pages(zone) + balance_gap,
+>    *end_zone*)
+> 5. DMA zone doesn't meet stop condition(nr_slab != 0, !zone_reclaimable) because the zone has small lru pages
+>    and it doesn't have slab pages so that kswapd would set all_unreclaimable of the zone to *1* easily.
+> 6. B request to allocate many pages in NORMAL zone but NORMAL zone has no free pages
+>    so that it would be fall-backed to DMA zone.
+> 7. DMA zone would allocates many pages for NORMAL zone because lowmem_reserve[NORMAL] is small.
+>    These pages are used by application(ie, it menas LRU pages. Yes. Now DMA zone could have many reclaimable pages)
+> 8. C request to allocate a page in NORMAL zone but he got failed because DMA zone doesn't have enough free pages.
+>    (Most of pages in DMA zone are consumed by B)
+> 9. Kswapd try to reclaim lru pages in DMA zone but got failed because all_unreclaimable of the zone is 1. Otherwise,
+>    it could reclaim many pages which are used by B.
+> 
+> Of coures, we can do something in DEF_PRIORITY but it couldn't do enough because it can't raise
+> synchronus reclaim in direct reclaim path if the zone has many dirty pages
+> so that the process is killed by OOM.
+> 
+> The principal problem is caused by step 8.
+> In step 8, we increased # of lru size very much but still the zone->all_unreclaimable is 1.
+> If we increase lru size, it is valuable to try reclaiming again.
+> The rationale is that we reset all_unreclaimable to 0 even if we free just a one page.
+> 
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Johannes Weiner <jweiner@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Reported-by: Shaohua Li <shaohua.li@intel.com>
+> Reviewed-by: Shaohua Li <shaohua.li@intel.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+
+Hmm, catching changes of page usage in a zone ?
+And this will allow to catch swap_on() and make a zone reclaimable
+even if no page usage changes. right ?
+
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
