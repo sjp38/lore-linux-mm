@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 58E9A6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 09:06:02 -0400 (EDT)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LSW00HSVKDY2D@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 11 Oct 2011 14:05:58 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LSW00INDKDYVN@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 11 Oct 2011 14:05:58 +0100 (BST)
-Date: Tue, 11 Oct 2011 15:05:47 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
-In-reply-to: <4E9427B6.8050306@stericsson.com>
-Message-id: <00cb01cc8816$7e474600$7ad5d200$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <4E92E003.4060901@stericsson.com>
- <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
- <4E93F088.60006@stericsson.com>
- <00b301cc8803$93b5b3e0$bb211ba0$%szyprowski@samsung.com>
- <4E9427B6.8050306@stericsson.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 61EAF6B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 09:40:42 -0400 (EDT)
+Message-ID: <4E944750.8080604@redhat.com>
+Date: Tue, 11 Oct 2011 09:40:32 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH] mm: thp: make swap configurable
+References: <1318255086-7393-1-git-send-email-lliubbo@gmail.com> <20111010141851.GC17335@redhat.com> <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+In-Reply-To: <CAA_GA1cC=6e6+bFp7on+BtmBp4qgfiyjSzvJQ23F41LobnzNfA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Maxime Coquelin' <maxime.coquelin-nonst@stericsson.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, benjamin.gaignard@linaro.org, 'Ludovic BARRE' <ludovic.barre@stericsson.com>, vincent.guittot@linaro.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org
 
-Hello,
+On 10/11/2011 05:24 AM, Bob Liu wrote:
 
-On Tuesday, October 11, 2011 1:26 PM Maxime Coquelin wrote:
+> Yes, mlock() can do it but it will require a lot of changes in every
+> user application.
+> If some of the applications are hugh and complicated(even not opensource), it's
+> hard to modify them.
+> Add this patch can make things simple and thp more flexible.
+>
+> For using swapoff -a, it will disable swap for 4k normal pages.
+>
+> A simple use case is like this:
+> a lot of swap sensitive apps run on a machine, it will use thp so we
+> need to disable swap.
+> But  this apps are hugh and complicated, it's hard to modify them by mlock().
+>
+> In addition, there are also some normal and not swap sensitive apps
+> which don't use thp run on
+> the same machine, we can still reclaim their memory by swap when lack
+> of memory.
 
-> On 10/11/2011 12:50 PM, Marek Szyprowski wrote:
-> > Hello,
-> >
-> > On Tuesday, October 11, 2011 9:30 AM Maxime Coquelin wrote:
-> >
-> >> On 10/11/2011 09:17 AM, Marek Szyprowski wrote:
-> >>> On Monday, October 10, 2011 2:08 PM Maxime Coquelin wrote:
-> >>>
-> >>>        During our stress tests, we encountered some problems :
-> >>>
-> >>>        1) Contiguous allocation lockup:
-> >>>            When system RAM is full of Anon pages, if we try to allocate a
-> >>> contiguous buffer greater than the min_free value, we face a
-> >>> dma_alloc_from_contiguous lockup.
-> >>>            The expected result would be dma_alloc_from_contiguous() to fail.
-> >>>            The problem is reproduced systematically on our side.
-> >>> Thanks for the report. Do you use Android's lowmemorykiller? I haven't
-> >>> tested CMA on Android kernel yet. I have no idea how it will interfere
-> >>> with Android patches.
-> >>>
-> >> The software used for this test (v16) is a generic 3.0 Kernel and a
-> >> minimal filesystem using Busybox.
-> > I'm really surprised. Could you elaborate a bit how to trigger this issue?
-> 
-> At system startup, I drop caches (sync && echo 3 >
-> /proc/sys/vm/drop_caches) and check how much memory is free.
-> For example, in my case, only 15MB is used on the 270MB available on the
-> system, so I got 255MB of free memory. Note that the min_free is 4MB in
-> my case.
-> In userspace, I allocate 230MB using malloc(), the free memory is now 25MB.
-> Finaly, I ask for a contiguous allocation of 64MB using CMA, the result
-> is a lockup in dma_alloc_from_contiguous().
+The normal applications could end up getting transparent
+huge pages automatically, which would also disable swap
+for them.
 
-Thanks for hint. I've managed to reproduce this issue. I will post fix asap.
+At that point, you could run out of memory, because you
+disabled swap for 2MB pages.
 
-> > I've did several tests and I never get a lockup. Allocation failed from time
-> > to time though.
-> When it succeed, what is the behaviour on your side? Is the OOM triggered?
+How do you plan to avoid that?
 
-OOM was never triggered.
-
-Best regards
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
