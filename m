@@ -1,83 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A5D816B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 02:58:10 -0400 (EDT)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B26A16B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:17:54 -0400 (EDT)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LSW00K7J3CVKO@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 11 Oct 2011 07:58:07 +0100 (BST)
+ with ESMTP id <0LSW00MFU49RG9@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 11 Oct 2011 08:17:51 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LSW00I8O3CVTT@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 11 Oct 2011 07:58:07 +0100 (BST)
-Date: Tue, 11 Oct 2011 08:57:56 +0200
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LSW0018L49QKH@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 11 Oct 2011 08:17:51 +0100 (BST)
+Date: Tue, 11 Oct 2011 09:17:40 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv16 0/9] Contiguous Memory Allocator
-In-reply-to: <20111010155642.38df59af.akpm@linux-foundation.org>
-Message-id: <00af01cc87e3$1b05e980$5111bc80$%szyprowski@samsung.com>
+Subject: RE: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
+In-reply-to: <4E92E003.4060901@stericsson.com>
+Message-id: <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii
 Content-language: pl
 Content-transfer-encoding: 7BIT
 References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <201110071827.06366.arnd@arndb.de>
- <20111010155642.38df59af.akpm@linux-foundation.org>
+ <4E92E003.4060901@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>
+To: 'Maxime Coquelin' <maxime.coquelin-nonst@stericsson.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, benjamin.gaignard@linaro.org, 'frq09524' <ludovic.barre@stericsson.com>, vincent.guittot@linaro.org
+
 
 Hello,
 
-On Tuesday, October 11, 2011 12:57 AM Andrew Morton wrote:
+On Monday, October 10, 2011 2:08 PM Maxime Coquelin wrote:
 
-> On Fri, 7 Oct 2011 18:27:06 +0200 Arnd Bergmann <arnd@arndb.de> wrote:
+> On 10/06/2011 03:54 PM, Marek Szyprowski wrote:
+> > Welcome everyone again,
+> >
+> > Once again I decided to post an updated version of the Contiguous Memory
+> > Allocator patches.
+> >
+> > This version provides mainly a bugfix for a very rare issue that might
+> > have changed migration type of the CMA page blocks resulting in dropping
+> > CMA features from the affected page block and causing memory allocation
+> > to fail. Also the issue reported by Dave Hansen has been fixed.
+> >
+> > This version also introduces basic support for x86 architecture, what
+> > allows wide testing on KVM/QEMU emulators and all common x86 boxes. I
+> > hope this will result in wider testing, comments and easier merging to
+> > mainline.
+> >
+> > I've also dropped an examplary patch for s5p-fimc platform device
+> > private memory declaration and added the one from real life. CMA device
+> > private memory regions are defined for s5p-mfc device to let it allocate
+> > buffers from two memory banks.
+> >
+> > ARM integration code has not been changed since last version, it
+> > provides implementation of all the ideas that has been discussed during
 > 
-> > On Thursday 06 October 2011, Marek Szyprowski wrote:
-> > > Once again I decided to post an updated version of the Contiguous Memory
-> > > Allocator patches.
-> > >
-> > > This version provides mainly a bugfix for a very rare issue that might
-> > > have changed migration type of the CMA page blocks resulting in dropping
-> > > CMA features from the affected page block and causing memory allocation
-> > > to fail. Also the issue reported by Dave Hansen has been fixed.
-> > >
-> > > This version also introduces basic support for x86 architecture, what
-> > > allows wide testing on KVM/QEMU emulators and all common x86 boxes. I
-> > > hope this will result in wider testing, comments and easier merging to
-> > > mainline.
-> >
-> > Hi Marek,
-> >
-> > I think we need to finally get this into linux-next now, to get some
-> > broader testing. Having the x86 patch definitely helps here becauses
-> > it potentially exposes the code to many more testers.
-> >
-> > IMHO it would be good to merge the entire series into 3.2, since
-> > the ARM portion fixes an important bug (double mapping of memory
-> > ranges with conflicting attributes) that we've lived with for far
-> > too long, but it really depends on how everyone sees the risk
-> > for regressions here. If something breaks in unfixable ways before
-> > the 3.2 release, we can always revert the patches and have another
-> > try later.
-> >
-> > It's also not clear how we should merge it. Ideally the first bunch
-> > would go through linux-mm, and the architecture specific patches
-> > through the respective architecture trees, but there is an obvious
-> > inderdependency between these sets.
-> >
-> > Russell, Andrew, are you both comfortable with putting the entire
-> > set into linux-mm to solve this? Do you see this as 3.2 or rather
-> > as 3.3 material?
-> >
+> Hello Marek,
 > 
-> Russell's going to hate me, but...
+>      We are currently testing CMA (v16) on Snowball platform.
+>      This feature is very promising, thanks for pushing it!
 > 
-> I do know that he had substantial objections to at least earlier
-> versions of this, and he is a guy who knows of what he speaks.
+>      During our stress tests, we encountered some problems :
+> 
+>      1) Contiguous allocation lockup:
+>          When system RAM is full of Anon pages, if we try to allocate a
+> contiguous buffer greater than the min_free value, we face a
+> dma_alloc_from_contiguous lockup.
+>          The expected result would be dma_alloc_from_contiguous() to fail.
+>          The problem is reproduced systematically on our side.
 
-I've did my best to fix these issues. I'm still waiting for comments...
+Thanks for the report. Do you use Android's lowmemorykiller? I haven't 
+tested CMA on Android kernel yet. I have no idea how it will interfere 
+with Android patches.
+
+> 
+>      2) Contiguous allocation fail:
+>          We have developed a small driver and a shell script to
+> allocate/release contiguous buffers.
+>          Sometimes, dma_alloc_from_contiguous() fails to allocate the
+> contiguous buffer (about once every 30 runs).
+>          We have 270MB Memory passed to the kernel in our configuration,
+> and the CMA pool is 90MB large.
+>          In this setup, the overall memory is either free or full of
+> reclaimable pages.
+
+Yeah. We also did such stress tests recently and faced this issue. I've
+spent some time investigating it but I have no solution yet. 
+
+The problem is caused by a page, which is put in the CMA area. This page 
+is movable, but it's address space provides no 'migratepage' method. In
+such case mm subsystem uses fallback_migrate_page() function. Sadly this
+function only returns -EAGAIN. The migration loops a few times over it
+and fails causing the fail in the allocation procedure.
+
+We are investing now which kernel code created/allocated such problematic
+pages and how to add real migration support for them.
+
+>      For now, we didn't had time to investigate further theses problems.
+>      Have you already faced this kind of issues?
+>      Could someone testing CMA on other boards confirm/infirm theses
+> problems?
 
 Best regards
 -- 
