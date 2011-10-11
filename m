@@ -1,63 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CF3846B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:47:06 -0400 (EDT)
-Subject: RE: [PATCH] slub: remove a minus instruction in get_partial_node
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1110101210110.16264@router.home>
-References: <1317290716.4188.1227.camel@debian>
-	 <alpine.DEB.2.00.1109290917300.9382@router.home>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B5FD97584A4@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1110030854270.9611@router.home>
-	 <1318042113.27949.97.camel@debian>
-	 <alpine.DEB.2.00.1110101210110.16264@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 11 Oct 2011 17:50:52 +0800
-Message-ID: <1318326652.27949.725.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A33566B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 06:50:38 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LSW009NBE4AW630@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 11 Oct 2011 11:50:34 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LSW0049CE49U6@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 11 Oct 2011 11:50:34 +0100 (BST)
+Date: Tue, 11 Oct 2011 12:50:23 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
+In-reply-to: <4E93F088.60006@stericsson.com>
+Message-id: <00b301cc8803$93b5b3e0$bb211ba0$%szyprowski@samsung.com>
+Content-language: pl
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+ <4E92E003.4060901@stericsson.com>
+ <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
+ <4E93F088.60006@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: 'Maxime Coquelin' <maxime.coquelin-nonst@stericsson.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, benjamin.gaignard@linaro.org, 'Ludovic BARRE' <ludovic.barre@stericsson.com>, vincent.guittot@linaro.org
 
-On Tue, 2011-10-11 at 01:11 +0800, Christoph Lameter wrote:
-> On Sat, 8 Oct 2011, Alex,Shi wrote:
-> 
-> > On Mon, 2011-10-03 at 21:55 +0800, Christoph Lameter wrote:
-> > > On Sun, 2 Oct 2011, Shi, Alex wrote:
-> > >
-> > > > > A slab on the partial lists always has objects available. Why would it be
-> > > > > zero?
-> > > >
-> > > > Um, my mistaken. The reason should be: if code is here, the slab will be per cpu slab.
-> > > > It is no chance to be in per cpu partial and no relationship with per cpu partial. So
-> > > > no reason to use this value as a criteria for filling per cpu partial.
-> > >
-> > > I am not sure I understand you. The point of the code is to count the
-> > > objects available in the per cpu partial pages so that we can limit the
-> > > number of pages we fetch from the per node partial list.
+Hello,
+
+On Tuesday, October 11, 2011 9:30 AM Maxime Coquelin wrote:
+
+> On 10/11/2011 09:17 AM, Marek Szyprowski wrote:
+> > On Monday, October 10, 2011 2:08 PM Maxime Coquelin wrote:
 > >
-> > Maybe my understanding is incorrect for PCP. :)
-> > What I thought is: when object == null, the page we got from node
-> > partial list will be added into cpu slab. It has no chance to become per
-> > cpu partial page. And it has no relationship with further per cpu
-> > partial count checking. Since even 'available > cpu_partial/2', it
-> > doesn't mean per cpu partial objects number > cpu_partial/2.
+> >       During our stress tests, we encountered some problems :
+> >
+> >       1) Contiguous allocation lockup:
+> >           When system RAM is full of Anon pages, if we try to allocate a
+> > contiguous buffer greater than the min_free value, we face a
+> > dma_alloc_from_contiguous lockup.
+> >           The expected result would be dma_alloc_from_contiguous() to fail.
+> >           The problem is reproduced systematically on our side.
+> > Thanks for the report. Do you use Android's lowmemorykiller? I haven't
+> > tested CMA on Android kernel yet. I have no idea how it will interfere
+> > with Android patches.
+> >
 > 
-> acquire_slab should not return NULL unless something seriously goes wrong.
-> I think we can remove the]
+> The software used for this test (v16) is a generic 3.0 Kernel and a
+> minimal filesystem using Busybox.
+
+I'm really surprised. Could you elaborate a bit how to trigger this issue?
+I've did several tests and I never get a lockup. Allocation failed from time
+to time though.
+
+> With v15 patchset, I also tested it with Android.
+> IIRC, sometimes the lowmemorykiller succeed to get free space and the
+> contiguous allocation succeed, sometimes we faced  the lockup.
 > 
-> 	if (!t)
+> >>       2) Contiguous allocation fail:
+> >>           We have developed a small driver and a shell script to
+> >> allocate/release contiguous buffers.
+> >>           Sometimes, dma_alloc_from_contiguous() fails to allocate the
+> >> contiguous buffer (about once every 30 runs).
+> >>           We have 270MB Memory passed to the kernel in our configuration,
+> >> and the CMA pool is 90MB large.
+> >>           In this setup, the overall memory is either free or full of
+> >> reclaimable pages.
+> > Yeah. We also did such stress tests recently and faced this issue. I've
+> > spent some time investigating it but I have no solution yet.
+> >
+> > The problem is caused by a page, which is put in the CMA area. This page
+> > is movable, but it's address space provides no 'migratepage' method. In
+> > such case mm subsystem uses fallback_migrate_page() function. Sadly this
+> > function only returns -EAGAIN. The migration loops a few times over it
+> > and fails causing the fail in the allocation procedure.
+> >
+> > We are investing now which kernel code created/allocated such problematic
+
+s/investing/investigating
+
+> > pages and how to add real migration support for them.
+> >
 > 
-> statement to avoid futher confusion?
+> Ok, thanks for pointing this out.
 
-That is another story. 
+We found this issue very recently. I'm still surprised that we did not notice 
+it during system testing.
 
-Wondering if a page freeing by discard_slab impact this or not. I don't
-fully understand the slub page alloc/free now, may study this later. :) 
-
-
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
