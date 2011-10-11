@@ -1,83 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A35B36B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 17:04:59 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p9BL4tHA023851
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:55 -0700
-Received: from qap1 (qap1.prod.google.com [10.224.4.1])
-	by wpaz21.hot.corp.google.com with ESMTP id p9BL3MLD003445
+	by kanga.kvack.org (Postfix) with ESMTP id 4E64D6B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:22:55 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p9BNMjwi009708
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700
+Received: from vcbfk1 (vcbfk1.prod.google.com [10.220.204.1])
+	by wpaz9.hot.corp.google.com with ESMTP id p9BNKSMZ027835
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:54 -0700
-Received: by qap1 with SMTP id 1so31620qap.0
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:04:49 -0700 (PDT)
-Date: Tue, 11 Oct 2011 14:04:45 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700
+Received: by vcbfk1 with SMTP id fk1so227315vcb.6
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700 (PDT)
+Date: Tue, 11 Oct 2011 16:22:41 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com>
-Message-ID: <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com>
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
+Message-ID: <alpine.DEB.2.00.1110111612120.5236@chino.kir.corp.google.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Satoru Moriya <satoru.moriya@hds.com>, Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
 On Tue, 11 Oct 2011, Satoru Moriya wrote:
 
-> > I also
-> > think that it will cause regressions on other cpu intensive workloads 
-> > that don't require this extra freed memory because it works as a 
-> > global heuristic and is not tied to any specific application.
-> 
-> It's yes and no. It may cause regressions on the workloads due to
-> less amount of available memory. But it may improve the workloads'
-> performance because they can avoid direct reclaim due to extra
-> free memory.
+> Actually page allocator decreases min watermark to 3/4 * min watermark
+> for rt-task. But in our case some applications create a lot of
+> processes and if all of them are rt-task, the amount of watermark
+> bonus(1/4 * min watermark) is not enough.
 > 
 
-There's only a memory-availability regression if background reclaim is 
-actually triggered in the first place, i.e. extra_free_kbytes doesn't 
-affect the watermarks themselves when reclaim is started but rather causes 
-it to, when set, reclaim more memory than otherwise.
+Right, if you can exhaust (1/4 * min_wmark) of memory quickly enough, 
+you'll still have latency issues.
 
-That's not really what I was referring to; I was referring to cpu 
-intensive workloads that now incur a regression because kswapd is now 
-doing more work (potentially a significant amount of work since 
-extra_free_kbytes is unbounded) on shared machines.  These applications 
-may not be allocating memory at all and now they incur a performance 
-penalty because kswapd is taking away one of their cores.
-
-In other words, I think it's a fine solution if you're running a single 
-application with very bursty memory allocations so you need to reclaim 
-more memory when low, but that solution is troublesome if it comes at 
-the penalty of other applications and that's a direct consequence of it 
-being a global tunable.  I'd much rather identify memory allocations in 
-the kernel that causing the pain here and mitigate it by (i) attempting to 
-sanely rate limit those allocations, (ii) preallocate at least a partial 
-amount of those allocations ahead of time so avoid significant reclaim 
-all at one, or (iii) annotate memory allocations with such potential so 
-that the page allocator can add this reclaim bonus itself only in these 
-conditions.
-
-> Of course if one doesn't need extra free memory, one can turn it
-> off. I think we can add this feature to cgroup if we want to set
-> it for any specific process or process group. (Before that we
-> need to implement min_free_kbytes for cgroup and the implementation
-> of extra free kbytes strongly depends on it.)
+> If we can tune the amount of bonus, it may be fine. But that is
+> almost all same as extra free kbytes.
 > 
 
-That would allow you to only reclaim additional memory when certain 
-applications tirgger it, but it's not actually a solution since another 
-task can hit a zone's low watermark and kick kswapd and then the bursty 
-memory allocations happen immediately following that and doesn't actually 
-do anything because kswapd was already running.  So I disagree, as I did 
-when per-cgroup watermark tunables were proposed, that watermarks should 
-be changed for a subset of applications unless you guarantee memory 
-isolation such that that subset of applications has exclusive access to 
-the memory zones being tuned.
+I don't know if your test case is the only thing that Rik is looking at, 
+but if so, then that statement makes me believe that this patch is 
+definitely in the wrong direction, so NACK on it until additional 
+information is presented.  The reasoning is simple: if tuning the bonus 
+given to rt-tasks in the page allocator itself would fix the issue, then 
+we can certainly add logic specifically for rt-tasks that can reclaim more 
+aggressively without needing any tunable from userspace (and _certainly_ 
+not a global tunable that affects every application!).
+
+> > Does there exist anything like a test case which demonstrates the need 
+> > for this feature?
+> 
+> Unfortunately I don't have a real test case but just simple one.
+> And in my simple test case, I can avoid direct reclaim if we set
+> workload as rt-task.
+> 
+> The simple test case I used is following:
+> http://marc.info/?l=linux-mm&m=131605773321672&w=2
+> 
+
+I tried proposing one of Con's patches from his BFS scheduler ("mm: adjust 
+kswapd nice level for high priority page") about 1 1/2 years ago that I 
+recall and believe may significantly help your test case.  The thread is 
+at http://marc.info/?t=126743860700002.  (There's a lot of interesting 
+things in Con's patchset that can be pulled into the VM, this isn't the 
+only one.)
+
+The patch wasn't merged back then because we wanted a test case that was 
+specifically fixed by this issue, and it may be that we have just found 
+one.  If you could try it out without any extra_free_kbytes, I think we 
+may be able to help your situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
