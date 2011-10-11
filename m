@@ -1,249 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C34596B0030
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:25:01 -0400 (EDT)
-From: Sumit Semwal <sumit.semwal@ti.com>
-Subject: [RFC 2/2] dma-buf: Documentation for buffer sharing framework
-Date: Tue, 11 Oct 2011 14:53:53 +0530
-Message-ID: <1318325033-32688-3-git-send-email-sumit.semwal@ti.com>
-In-Reply-To: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
-References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 707376B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:30:48 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 662E23EE0AE
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4621845DF4B
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BDC545DF47
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BE721DB8045
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CBA201DB8040
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 18:30:42 +0900 (JST)
+Date: Tue, 11 Oct 2011 18:29:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 1/2]vmscan: correct all_unreclaimable for zone without
+ lru pages
+Message-Id: <20111011182948.82525d89.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111011090756.GA16202@barrios-desktop>
+References: <20110929091853.GA1865@barrios-desktop>
+	<1317348743.22361.29.camel@sli10-conroe>
+	<20111001065943.GA6601@barrios-desktop>
+	<1318043391.22361.34.camel@sli10-conroe>
+	<20111008043232.GA7615@barrios-desktop>
+	<1318052901.22361.49.camel@sli10-conroe>
+	<20111008093531.GA8679@barrios-desktop>
+	<1318140488.22361.63.camel@sli10-conroe>
+	<20111009074558.GA23003@barrios-desktop>
+	<20111011170941.ba7accce.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111011090756.GA16202@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org
-Cc: linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@ti.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Add documentation for dma buffer sharing framework, explaining the
-various operations, members and API of the dma buffer sharing
-framework.
+On Tue, 11 Oct 2011 18:07:56 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
----
- Documentation/dma-buf-sharing.txt |  210 +++++++++++++++++++++++++++++++++++++
- 1 files changed, 210 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/dma-buf-sharing.txt
+> Hi Kame,
+> 
+> On Tue, Oct 11, 2011 at 05:09:41PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Sun, 9 Oct 2011 16:45:58 +0900
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > > hanks for your careful review.
+> > > I will send a formal version.
+> > > 
+> > > From 49078e0ebccae371b04930ae76dfd5ba158032ca Mon Sep 17 00:00:00 2001
+> > > From: Minchan Kim <minchan.kim@gmail.com>
+> > > Date: Sun, 9 Oct 2011 16:38:40 +0900
+> > > Subject: [PATCH] vmscan: judge zone's all_unreclaimable carefully
+> > > 
+> > > Shaohua Li reported all_unreclaimable of DMA zone is always set
+> > > because the system has a big memory HIGH zone so that lowmem_reserve[HIGH]
+> > > could be a big.
+> > > 
+> > > It could be a problem as follows
+> > > 
+> > > Assumption :
+> > > 1. The system has a big high memory so that lowmem_reserve[HIGH] of DMA zone would be big.
+> > > 2. HIGH/NORMAL zone are full but DMA zone has enough free pages.
+> > > 
+> > > Scenario
+> > > 1. A request to allocate a page in HIGH zone.
+> > > 2. HIGH/NORMAL zone already consumes lots of pages so that it would be fall-backed to DMA zone.
+> > > 3. In DMA zone, allocator got failed, too becuase lowmem_reserve[HIGH] is very big so that it wakes up kswapd
+> > > 4. kswapd would call shrink_zone while it see DMA zone since DMA zone's lowmem_reserve[HIGHMEM]
+> > >    would be big so that it couldn't meet zone_watermark_ok_safe(high_wmark_pages(zone) + balance_gap,
+> > >    *end_zone*)
+> > > 5. DMA zone doesn't meet stop condition(nr_slab != 0, !zone_reclaimable) because the zone has small lru pages
+> > >    and it doesn't have slab pages so that kswapd would set all_unreclaimable of the zone to *1* easily.
+> > > 6. B request to allocate many pages in NORMAL zone but NORMAL zone has no free pages
+> > >    so that it would be fall-backed to DMA zone.
+> > > 7. DMA zone would allocates many pages for NORMAL zone because lowmem_reserve[NORMAL] is small.
+> > >    These pages are used by application(ie, it menas LRU pages. Yes. Now DMA zone could have many reclaimable pages)
+> > > 8. C request to allocate a page in NORMAL zone but he got failed because DMA zone doesn't have enough free pages.
+> > >    (Most of pages in DMA zone are consumed by B)
+> > > 9. Kswapd try to reclaim lru pages in DMA zone but got failed because all_unreclaimable of the zone is 1. Otherwise,
+> > >    it could reclaim many pages which are used by B.
+> > > 
+> > > Of coures, we can do something in DEF_PRIORITY but it couldn't do enough because it can't raise
+> > > synchronus reclaim in direct reclaim path if the zone has many dirty pages
+> > > so that the process is killed by OOM.
+> > > 
+> > > The principal problem is caused by step 8.
+> > > In step 8, we increased # of lru size very much but still the zone->all_unreclaimable is 1.
+> > > If we increase lru size, it is valuable to try reclaiming again.
+> > > The rationale is that we reset all_unreclaimable to 0 even if we free just a one page.
+> > > 
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > Cc: Johannes Weiner <jweiner@redhat.com>
+> > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Reported-by: Shaohua Li <shaohua.li@intel.com>
+> > > Reviewed-by: Shaohua Li <shaohua.li@intel.com>
+> > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > 
+> > Hmm, catching changes of page usage in a zone ?
+> 
+> Not exactly.
+> It does catch only lru page increasement of zone.
+> 
+Sure.
 
-diff --git a/Documentation/dma-buf-sharing.txt b/Documentation/dma-buf-sharing.txt
-new file mode 100644
-index 0000000..4da6644
---- /dev/null
-+++ b/Documentation/dma-buf-sharing.txt
-@@ -0,0 +1,210 @@
-+                    DMA Buffer Sharing API Guide
-+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+
-+                            Sumit Semwal
-+                <sumit dot semwal at linaro dot org>
-+                 <sumit dot semwal at ti dot com>
-+
-+This document serves as a guide to device-driver writers on what is the dma-buf
-+buffer sharing API, how to use it for exporting and using shared buffers.
-+
-+Any device driver which wishes to be a part of dma buffer sharing, can do so as
-+either the 'exporter' of buffers, or the 'user' of buffers.
-+
-+Say a driver A wants to use buffers created by driver B, then we call B as the
-+exporter, and B as buffer-user.
-+
-+The exporter
-+- implements and manages operations[1] for the buffer
-+- allows other users to share the buffer by using dma_buf sharing APIs,
-+- manages the details of buffer allocation,
-+- decides about the actual backing storage where this allocation happens,
-+- takes care of any migration of scatterlist - for all (shared) users of this
-+   buffer,
-+- optionally, provides mmap capability for drivers that need it.
-+
-+The buffer-user
-+- is one of (many) sharing users of the buffer.
-+- doesn't need to worry about how the buffer is allocated, or where.
-+- needs a mechanism to get access to the scatterlist that makes up this buffer
-+   in memory, mapped into its own address space, so it can access the same area
-+   of memory.
-+
-+
-+The dma_buf buffer sharing API usage contains the following steps:
-+
-+1. Exporter announces that it wishes to export a buffer
-+2. Userspace gets the file descriptor associated with the exported buffer, and
-+   passes it around to potential buffer-users based on use case
-+3. Each buffer-user 'connects' itself to the buffer
-+4. When needed, buffer-user requests access to the buffer from exporter
-+5. When finished with its use, the buffer-user notifies end-of-dma to exporter
-+6. when buffer-user is done using this buffer completely, it 'disconnects'
-+   itself from the buffer.
-+
-+
-+1. Exporter's announcement of buffer export
-+
-+   The buffer exporter announces its wish to export a buffer. In this, it
-+   connects its own private buffer data, provides implementation for operations
-+   that can be performed on the exported dma_buf, and flags for the file
-+   associated with this buffer.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-+                                int flags)
-+
-+   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
-+   pointer to the same. It also associates an anon file with this buffer, so it
-+   can be exported. On failure to allocate the dma_buf object, it returns NULL.
-+
-+2. Userspace gets a handle to pass around to potential buffer-users
-+
-+   Userspace entity requests for a file-descriptor (fd) which is a handle to the
-+   anon file associated with the buffer. It can then share the fd with other
-+   drivers and/or processes.
-+
-+   Interface:
-+      int dma_buf_fd(struct dma_buf *dmabuf)
-+
-+   This API installs an fd for the anon file associated with this buffer;
-+   returns either 'fd', or error.
-+
-+3. Each buffer-user 'connects' itself to the buffer
-+
-+   Each buffer-user now gets a reference to the buffer, using the fd passed to
-+   it.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_get(int fd)
-+
-+   This API will return a reference to the dma_buf, and increment refcount for
-+   it.
-+
-+   After this, the buffer-user needs to attach its device with the buffer, which
-+   helps the exporter to know of device buffer constraints.
-+
-+   Interface:
-+      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+                                                struct device *dev)
-+
-+   This API returns reference to an attachment structure, which is then used
-+   for scatterlist operations. It will optionally call the 'attach' dma_buf
-+   operation, if provided by the exporter.
-+
-+   The dma-buf sharing framework does the book-keeping bits related to keeping
-+   the list of all attachments to a buffer.
-+
-+Till this stage, the buffer-exporter has the option to choose not to actually
-+allocate the backing storage for this buffer, but wait for the first buffer-user
-+to request use of buffer for allocation.
-+
-+
-+4. When needed, buffer-user requests access to the buffer
-+
-+   Whenever a buffer-user wants to use the buffer for any dma, it asks for
-+   access to the buffer using dma_buf->ops->get_scatterlist operation. Atleast
-+   one attach to the buffer should have happened before get_scatterlist can be
-+   called.
-+
-+   Interface: [member of struct dma_buf_ops]
-+      struct scatterlist * (*get_scatterlist)(struct dma_buf_attachment *,
-+                                                enum dma_data_direction,
-+                                                int* nents);
-+
-+   It is one of the buffer operations that must be implemented by the exporter.
-+   It should return the scatterlist for this buffer, mapped into caller's address
-+   space.
-+
-+   If this is being called for the first time, the exporter can now choose to
-+   scan through the list of attachments for this buffer, collate the requirements
-+   of the attached devices, and choose an appropriate backing storage for the
-+   buffer.
-+
-+   Based on enum dma_data_direction, it might be possible to have multiple users
-+   accessing at the same time (for reading, maybe), or any other kind of sharing
-+   that the exporter might wish to make available to buffer-users.
-+
-+
-+5. When finished, the buffer-user notifies end-of-dma to exporter
-+
-+   Once the dma for the current buffer-user is over, it signals 'end-of-dma' to
-+   the exporter using the dma_buf->ops->put_scatterlist() operation.
-+
-+   Interface:
-+      void (*put_scatterlist)(struct dma_buf_attachment *, struct scatterlist *,
-+                              int nents);
-+
-+   put_scatterlist signifies the end-of-dma for the attachment provided.
-+
-+
-+6. when buffer-user is done using this buffer, it 'disconnects' itself from the
-+   buffer.
-+
-+   After the buffer-user has no more interest in using this buffer, it should
-+   disconnect itself from the buffer:
-+
-+   - it first detaches itself from the buffer.
-+
-+   Interface:
-+      void dma_buf_detach(struct dma_buf *dmabuf,
-+                          struct dma_buf_attachment *dmabuf_attach);
-+
-+   This API removes the attachment from the list in dmabuf, and optionally calls
-+   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
-+
-+   - Then, the buffer-user returns the buffer reference to exporter.
-+
-+   Interface:
-+     void dma_buf_put(struct dma_buf *dmabuf);
-+
-+   This API then reduces the refcount for this buffer.
-+
-+   If, as a result of this call, the refcount becomes 0, the 'release' file
-+   operation related to this fd is called. It calls the dmabuf->ops->release()
-+   operation in turn, and frees the memory allocated for dmabuf when exported.
-+
-+NOTES:
-+- Importance of attach-detach and {get,put}_scatterlist operation pairs
-+   The attach-detach calls allow the exporter to figure out backing-storage
-+   constraints for the currently-interested devices. This allows preferential
-+   allocation, and/or migration of pages across different types of storage
-+   available, if possible.
-+
-+   Bracketing of dma access with {get,put}_scatterlist operations is essential
-+   to allow just-in-time backing of storage, and migration mid-way through a
-+   use-case.
-+
-+- Migration of backing storage if needed
-+   After
-+   - atleast one get_scatterlist has happened,
-+   - and the backing storage has been allocated for this buffer,
-+   If another new buffer-user intends to attach itself to this buffer, it might
-+   be allowed, if possible for the exporter.
-+
-+   In case it is allowed by the exporter:
-+    if the new buffer-user has stricter 'backing-storage constraints', and the
-+    exporter can handle these constraints, the exporter can just stall on the
-+    get_scatterlist till all outstanding access is completed (as signalled by
-+    put_scatterlist).
-+    Once all ongoing access is completed, the exporter could potentially move
-+    the buffer to the stricter backing-storage, and then allow further
-+    {get,put}_scatterlist operations from any buffer-user from the migrated
-+    backing-storage.
-+
-+   If the exporter cannot fulfill the backing-storage constraints of the new
-+   buffer-user device as requested, dma_buf_attach() would return an error to
-+   denote non-compatibility of the new buffer-sharing request with the current
-+   buffer.
-+
-+   If the exporter chooses not to allow an attach() operation once a
-+   get_scatterlist has been called, it simply returns an error.
-+
-+- mmap file operation
-+   An mmap() file operation is provided for the fd associated with the buffer.
-+   If the exporter defines an mmap operation, the mmap() fop calls this to allow
-+   mmap for devices that might need it; if not, it returns an error.
-+
-+References:
-+[1] struct dma_buf_ops in include/linux/dma-buf.h
-+[2] All interfaces mentioned above defined in include/linux/dma-buf.h
--- 
-1.7.4.1
+> > And this will allow to catch swap_on() and make a zone reclaimable
+> > even if no page usage changes. right ?
+> 
+> It's not in the patch but I think it could be a another patch.
+> Could you post it if you really need it?
+> 
+What I mean is "zone_reclaimable_pages() take swappable or not
+into account for anon pages. So, it's already covered."
+
+I have no requirements.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
