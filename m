@@ -1,71 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E38B96B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:34:35 -0400 (EDT)
-Message-ID: <4E93F088.60006@stericsson.com>
-Date: Tue, 11 Oct 2011 09:30:16 +0200
-From: Maxime Coquelin <maxime.coquelin-nonst@stericsson.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 494256B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 03:51:09 -0400 (EDT)
+Message-ID: <4E93F55E.6030800@parallels.com>
+Date: Tue, 11 Oct 2011 11:50:54 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [Linaro-mm-sig] [PATCHv16 0/9] Contiguous Memory Allocator
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com> <4E92E003.4060901@stericsson.com> <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
-In-Reply-To: <00b001cc87e5$dc818cc0$9584a640$%szyprowski@samsung.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH 0/5] Slab objects identifiers
+References: <4E8DD5B9.4060905@parallels.com> <20111010185909.GD16723@count0.beaverton.ibm.com>
+In-Reply-To: <20111010185909.GD16723@count0.beaverton.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, "benjamin.gaignard@linaro.org" <benjamin.gaignard@linaro.org>, Ludovic BARRE <ludovic.barre@stericsson.com>, "vincent.guittot@linaro.org" <vincent.guittot@linaro.org>
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 10/11/2011 09:17 AM, Marek Szyprowski wrote:
-> On Monday, October 10, 2011 2:08 PM Maxime Coquelin wrote:
->
->       During our stress tests, we encountered some problems :
->
->       1) Contiguous allocation lockup:
->           When system RAM is full of Anon pages, if we try to allocate a
-> contiguous buffer greater than the min_free value, we face a
-> dma_alloc_from_contiguous lockup.
->           The expected result would be dma_alloc_from_contiguous() to fail.
->           The problem is reproduced systematically on our side.
-> Thanks for the report. Do you use Android's lowmemorykiller? I haven't
-> tested CMA on Android kernel yet. I have no idea how it will interfere
-> with Android patches.
->
+On 10/10/2011 10:59 PM, Matt Helsley wrote:
+> On Thu, Oct 06, 2011 at 08:22:17PM +0400, Pavel Emelyanov wrote:
 
-The software used for this test (v16) is a generic 3.0 Kernel and a 
-minimal filesystem using Busybox.
+Matt, thanks for the reply! Please, see my comments below.
 
-With v15 patchset, I also tested it with Android.
-IIRC, sometimes the lowmemorykiller succeed to get free space and the 
-contiguous allocation succeed, sometimes we faced  the lockup.
+>> Hi.
+>>
+>>
+>> While doing the checkpoint-restore in the userspace we need to determine
+>> whether various kernel objects (like mm_struct-s of file_struct-s) are shared
+>> between tasks and restore this state.
+>> The 2nd step can for now be solved by using respective CLONE_XXX flags and
+>> the unshare syscall, while there's currently no ways for solving the 1st one.
+>>
+>> One of the ways for checking whether two tasks share e.g. an mm_struct is to
+>> provide some mm_struct ID of a task to its proc file. The best from the
+>> performance point of view ID is the object address in the kernel, but showing
+>> them to the userspace is not good for performance reasons. Thus the ID should
+>> not be calculated based on the object address.
+>>
+>> The proposal is to have the ID for slab objects as the mixture of two things -
+>> the number of an object on the slub and the ID of a slab, which is calculated
+>> simply by getting a monotonic 64 bit number at the slab allocation time which
+>> gives us 200+ years of stable work (see comment in the patch #2) :)
+> 
+> This just strikes me as the wrong approach. Userspace should not need to know
+> the structures the kernel is using to implement the sharing that's possible
+> with the clone flags. The userspace interface should be framed such that the
+> kernel is not exporting the relationship between these structures so much as
+> the relationship between the tasks which those structures reflect.
+> Perhaps you could write the interface so that it shows the clone flags
+> one would use to re-create the child task from the parent instead of
+> trying to output these ids.
 
->>       2) Contiguous allocation fail:
->>           We have developed a small driver and a shell script to
->> allocate/release contiguous buffers.
->>           Sometimes, dma_alloc_from_contiguous() fails to allocate the
->> contiguous buffer (about once every 30 runs).
->>           We have 270MB Memory passed to the kernel in our configuration,
->> and the CMA pool is 90MB large.
->>           In this setup, the overall memory is either free or full of
->> reclaimable pages.
-> Yeah. We also did such stress tests recently and faced this issue. I've
-> spent some time investigating it but I have no solution yet.
->
-> The problem is caused by a page, which is put in the CMA area. This page
-> is movable, but it's address space provides no 'migratepage' method. In
-> such case mm subsystem uses fallback_migrate_page() function. Sadly this
-> function only returns -EAGAIN. The migration loops a few times over it
-> and fails causing the fail in the allocation procedure.
->
-> We are investing now which kernel code created/allocated such problematic
-> pages and how to add real migration support for them.
->
+Well, another API would also work for us, I just propose this one as one of the 
+approaches.
 
-Ok, thanks for pointing this out.
+Your proposal with showing CLONE flags sounds very promising, but how can it handle
+the case when a task shares it's e.g. mm_struct with some other task which is not his
+parent? Like if we create the chain of 3 tasks all with the shared mm_struct and then
+the middle one calls execve unsharing one (I saw MySQL doing this). Besides "reparenting
+to init" and the unshare syscall may create more interesting objects sharing mosaic and 
+thus we need the API which is as generic as "do these two tasks share an mm?".
 
-Regards,
-Maxime
+Looking a little bit forward, if the same API can answer a question "does this *group*
+of tasks sharing one mm_struct share it with someone else?" this would also be very
+helpful.
 
+> Also, putting this in slab seems like a poor choice -- isn't instrumenting
+> the allocator rather invasive? 
+
+Well, the payload in my patches is not intrusive - it just adds the code, not tosses
+the existing one.
+
+> Especialy when we're talking about a handful of structs in comparison to everything
+> else the allocators handle?
+
+I did this functionality so that it doesn't affect those kmem caches that we don't need
+to provide us the IDs at all.
+
+> Cheers,
+> 	-Matt Helsley
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
