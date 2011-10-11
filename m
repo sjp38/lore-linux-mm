@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 2285E6B002E
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:24:56 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C34596B0030
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 05:25:01 -0400 (EDT)
 From: Sumit Semwal <sumit.semwal@ti.com>
-Subject: [RFC 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Tue, 11 Oct 2011 14:53:52 +0530
-Message-ID: <1318325033-32688-2-git-send-email-sumit.semwal@ti.com>
+Subject: [RFC 2/2] dma-buf: Documentation for buffer sharing framework
+Date: Tue, 11 Oct 2011 14:53:53 +0530
+Message-ID: <1318325033-32688-3-git-send-email-sumit.semwal@ti.com>
 In-Reply-To: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
 References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
 MIME-Version: 1.0
@@ -15,505 +15,233 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org
 Cc: linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@ti.com>, Sumit Semwal <sumit.semwal@linaro.org>
 
-This is the first step in defining a dma buffer sharing mechanism.
-
-A new buffer object dma_buf is added, with operations and API to allow easy
-sharing of this buffer object across devices.
-
-The framework allows:
-- a new buffer-object to be created with fixed size.
-- different devices to 'attach' themselves to this buffer, to facilitate
-  backing storage negotiation, using dma_buf_attach() API.
-- association of a file pointer with each user-buffer and associated
-   allocator-defined operations on that buffer. This operation is called the
-   'export' operation.
-- this exported buffer-object to be shared with the other entity by asking for
-   its 'file-descriptor (fd)', and sharing the fd across.
-- a received fd to get the buffer object back, where it can be accessed using
-   the associated exporter-defined operations.
-- the exporter and user to share the scatterlist using get_scatterlist and
-   put_scatterlist operations.
-
-Atleast one 'attach()' call is required to be made prior to calling the
-get_scatterlist() operation.
-
-Couple of building blocks in get_scatterlist() are added to ease introduction
-of sync'ing across exporter and users, and late allocation by the exporter.
-
-mmap() file operation is provided for the associated 'fd', as wrapper over the
-optional allocator defined mmap(), to be used by devices that might need one.
-
-More details are there in the documentation patch.
-
-This is based on design suggestions from many people at the mini-summits[1],
-most notably from Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
-Daniel Vetter <daniel@ffwll.ch>.
-
-The implementation is inspired from proof-of-concept patch-set from
-Tomasz Stanislawski <t.stanislaws@samsung.com>, who demonstrated buffer sharing
-between two v4l2 devices. [2]
-
-[1]: https://wiki.linaro.org/OfficeofCTO/MemoryManagement
-[2]: http://lwn.net/Articles/454389
+Add documentation for dma buffer sharing framework, explaining the
+various operations, members and API of the dma buffer sharing
+framework.
 
 Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
 Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
 ---
- drivers/base/Kconfig    |   10 ++
- drivers/base/Makefile   |    1 +
- drivers/base/dma-buf.c  |  242 +++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/dma-buf.h |  162 +++++++++++++++++++++++++++++++
- 4 files changed, 415 insertions(+), 0 deletions(-)
- create mode 100644 drivers/base/dma-buf.c
- create mode 100644 include/linux/dma-buf.h
+ Documentation/dma-buf-sharing.txt |  210 +++++++++++++++++++++++++++++++++++++
+ 1 files changed, 210 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/dma-buf-sharing.txt
 
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 21cf46f..07d8095 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -174,4 +174,14 @@ config SYS_HYPERVISOR
- 
- source "drivers/base/regmap/Kconfig"
- 
-+config DMA_SHARED_BUFFER
-+	bool "Buffer framework to be shared between drivers"
-+	default n
-+	depends on ANON_INODES
-+	help
-+	  This option enables the framework for buffer-sharing between
-+	  multiple drivers. A buffer is associated with a file using driver
-+	  APIs extension; the file's descriptor can then be passed on to other
-+	  driver.
-+
- endmenu
-diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-index 99a375a..d0df046 100644
---- a/drivers/base/Makefile
-+++ b/drivers/base/Makefile
-@@ -8,6 +8,7 @@ obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
- obj-y			+= power/
- obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
- obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-+obj-$(CONFIG_DMA_SHARED_BUFFER) += dma-buf.o
- obj-$(CONFIG_ISA)	+= isa.o
- obj-$(CONFIG_FW_LOADER)	+= firmware_class.o
- obj-$(CONFIG_NUMA)	+= node.o
-diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+diff --git a/Documentation/dma-buf-sharing.txt b/Documentation/dma-buf-sharing.txt
 new file mode 100644
-index 0000000..58c51a0
+index 0000000..4da6644
 --- /dev/null
-+++ b/drivers/base/dma-buf.c
-@@ -0,0 +1,242 @@
-+/*
-+ * Framework for buffer objects that can be shared across devices/subsystems.
-+ *
-+ * Copyright(C) 2011 Linaro Limited. All rights reserved.
-+ * Author: Sumit Semwal <sumit.semwal@ti.com>
-+ *
-+ * Many thanks to linaro-mm-sig list, and specially
-+ * Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
-+ * Daniel Vetter <daniel@ffwll.ch> for their support in creation and
-+ * refining of this idea.
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License version 2 as published by
-+ * the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful, but WITHOUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-+ * more details.
-+ *
-+ * You should have received a copy of the GNU General Public License along with
-+ * this program.  If not, see <http://www.gnu.org/licenses/>.
-+ */
++++ b/Documentation/dma-buf-sharing.txt
+@@ -0,0 +1,210 @@
++                    DMA Buffer Sharing API Guide
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +
-+#include <linux/fs.h>
-+#include <linux/slab.h>
-+#include <linux/dma-buf.h>
-+#include <linux/anon_inodes.h>
++                            Sumit Semwal
++                <sumit dot semwal at linaro dot org>
++                 <sumit dot semwal at ti dot com>
 +
-+static inline int is_dma_buf_file(struct file *);
++This document serves as a guide to device-driver writers on what is the dma-buf
++buffer sharing API, how to use it for exporting and using shared buffers.
 +
-+static int dma_buf_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	struct dma_buf *dmabuf;
++Any device driver which wishes to be a part of dma buffer sharing, can do so as
++either the 'exporter' of buffers, or the 'user' of buffers.
 +
-+	if (!is_dma_buf_file(file))
-+		return -EINVAL;
++Say a driver A wants to use buffers created by driver B, then we call B as the
++exporter, and B as buffer-user.
 +
-+	dmabuf = file->private_data;
++The exporter
++- implements and manages operations[1] for the buffer
++- allows other users to share the buffer by using dma_buf sharing APIs,
++- manages the details of buffer allocation,
++- decides about the actual backing storage where this allocation happens,
++- takes care of any migration of scatterlist - for all (shared) users of this
++   buffer,
++- optionally, provides mmap capability for drivers that need it.
 +
-+	if (!dmabuf->ops->mmap)
-+		return -EINVAL;
-+
-+	return dmabuf->ops->mmap(dmabuf, vma);
-+}
-+
-+static int dma_buf_release(struct inode *inode, struct file *file)
-+{
-+	struct dma_buf *dmabuf;
-+
-+	if (!is_dma_buf_file(file))
-+		return -EINVAL;
-+
-+	dmabuf = file->private_data;
-+
-+	dmabuf->ops->release(dmabuf);
-+	kfree(dmabuf);
-+	return 0;
-+}
-+
-+static const struct file_operations dma_buf_fops = {
-+	.mmap		= dma_buf_mmap,
-+	.release	= dma_buf_release,
-+};
-+
-+/*
-+ * is_dma_buf_file - Check if struct file* is associated with dma_buf
-+ */
-+static inline int is_dma_buf_file(struct file *file)
-+{
-+	return file->f_op == &dma_buf_fops;
-+}
-+
-+/**
-+ * dma_buf_export - Creates a new dma_buf, and associates an anon file
-+ * with this buffer,so it can be exported.
-+ * Also connect the allocator specific data and ops to the buffer.
-+ *
-+ * @priv:	[in]	Attach private data of allocator to this buffer
-+ * @ops:	[in]	Attach allocator-defined dma buf ops to the new buffer.
-+ * @flags:	[in]	mode flags for the file.
-+ *
-+ * Returns, on success, a newly created dma_buf object, which wraps the
-+ * supplied private data and operations for dma_buf_ops. On failure to
-+ * allocate the dma_buf object, it can return NULL.
-+ *
-+ */
-+struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-+				int flags)
-+{
-+	struct dma_buf *dmabuf;
-+	struct file *file;
-+
-+	BUG_ON(!priv || !ops);
-+
-+	dmabuf = kzalloc(sizeof(struct dma_buf), GFP_KERNEL);
-+	if (dmabuf == NULL)
-+		return dmabuf;
-+
-+	dmabuf->priv = priv;
-+	dmabuf->ops = ops;
-+
-+	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
-+
-+	dmabuf->file = file;
-+
-+	mutex_init(&dmabuf->lock);
-+	INIT_LIST_HEAD(&dmabuf->attachments);
-+
-+	return dmabuf;
-+}
-+EXPORT_SYMBOL(dma_buf_export);
++The buffer-user
++- is one of (many) sharing users of the buffer.
++- doesn't need to worry about how the buffer is allocated, or where.
++- needs a mechanism to get access to the scatterlist that makes up this buffer
++   in memory, mapped into its own address space, so it can access the same area
++   of memory.
 +
 +
-+/**
-+ * dma_buf_fd - returns a file descriptor for the given dma_buf
-+ * @dmabuf:	[in]	pointer to dma_buf for which fd is required.
-+ *
-+ * On success, returns an associated 'fd'. Else, returns error.
-+ */
-+int dma_buf_fd(struct dma_buf *dmabuf)
-+{
-+	int error, fd;
++The dma_buf buffer sharing API usage contains the following steps:
 +
-+	if (!dmabuf->file)
-+		return -EINVAL;
++1. Exporter announces that it wishes to export a buffer
++2. Userspace gets the file descriptor associated with the exported buffer, and
++   passes it around to potential buffer-users based on use case
++3. Each buffer-user 'connects' itself to the buffer
++4. When needed, buffer-user requests access to the buffer from exporter
++5. When finished with its use, the buffer-user notifies end-of-dma to exporter
++6. when buffer-user is done using this buffer completely, it 'disconnects'
++   itself from the buffer.
 +
-+	error = get_unused_fd_flags(0);
-+	if (error < 0)
-+		return error;
-+	fd = error;
 +
-+	fd_install(fd, dmabuf->file);
++1. Exporter's announcement of buffer export
 +
-+	return fd;
-+}
-+EXPORT_SYMBOL(dma_buf_fd);
++   The buffer exporter announces its wish to export a buffer. In this, it
++   connects its own private buffer data, provides implementation for operations
++   that can be performed on the exported dma_buf, and flags for the file
++   associated with this buffer.
 +
-+/**
-+ * dma_buf_get - returns the dma_buf structure related to an fd
-+ * @fd:	[in]	fd associated with the dma_buf to be returned
-+ *
-+ * On success, returns the dma_buf structure associated with an fd; uses
-+ * file's refcounting done by fget to increase refcount. returns ERR_PTR
-+ * otherwise.
-+ */
-+struct dma_buf *dma_buf_get(int fd)
-+{
-+	struct file *file;
++   Interface:
++      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
++                                int flags)
 +
-+	file = fget(fd);
++   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
++   pointer to the same. It also associates an anon file with this buffer, so it
++   can be exported. On failure to allocate the dma_buf object, it returns NULL.
 +
-+	if (!file)
-+		return ERR_PTR(-EBADF);
++2. Userspace gets a handle to pass around to potential buffer-users
 +
-+	if (!is_dma_buf_file(file)) {
-+		fput(file);
-+		return ERR_PTR(-EINVAL);
-+	}
++   Userspace entity requests for a file-descriptor (fd) which is a handle to the
++   anon file associated with the buffer. It can then share the fd with other
++   drivers and/or processes.
 +
-+	return file->private_data;
-+}
-+EXPORT_SYMBOL(dma_buf_get);
++   Interface:
++      int dma_buf_fd(struct dma_buf *dmabuf)
 +
-+/**
-+ * dma_buf_put - decreases refcount of the buffer
-+ * @dmabuf:	[in]	buffer to reduce refcount of
-+ *
-+ * Uses file's refcounting done implicitly by fput()
-+ */
-+void dma_buf_put(struct dma_buf *dmabuf)
-+{
-+	BUG_ON(!dmabuf->file);
++   This API installs an fd for the anon file associated with this buffer;
++   returns either 'fd', or error.
 +
-+	fput(dmabuf->file);
++3. Each buffer-user 'connects' itself to the buffer
 +
-+	return;
-+}
-+EXPORT_SYMBOL(dma_buf_put);
++   Each buffer-user now gets a reference to the buffer, using the fd passed to
++   it.
 +
-+/**
-+ * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
-+ * calls attach() of dma_buf_ops to allow device-specific attach functionality
-+ * @dmabuf:	[in]	buffer to attach device to.
-+ * @dev:	[in]	device to be attached.
-+ *
-+ * Returns struct dma_buf_attachment * for this attachment; may return NULL.
-+ *
-+ */
-+struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+						struct device *dev)
-+{
-+	struct dma_buf_attachment *attach;
-+	int ret;
++   Interface:
++      struct dma_buf *dma_buf_get(int fd)
 +
-+	BUG_ON(!dmabuf || !dev);
++   This API will return a reference to the dma_buf, and increment refcount for
++   it.
 +
-+	mutex_lock(&dmabuf->lock);
++   After this, the buffer-user needs to attach its device with the buffer, which
++   helps the exporter to know of device buffer constraints.
 +
-+	attach = kzalloc(sizeof(struct dma_buf_attachment), GFP_KERNEL);
-+	if (attach == NULL)
-+		goto err_alloc;
++   Interface:
++      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
++                                                struct device *dev)
 +
-+	attach->dev = dev;
-+	if (dmabuf->ops->attach) {
-+		ret = dmabuf->ops->attach(dmabuf, dev, attach);
-+		if (!ret)
-+			goto err_attach;
-+	}
-+	list_add(&attach->node, &dmabuf->attachments);
++   This API returns reference to an attachment structure, which is then used
++   for scatterlist operations. It will optionally call the 'attach' dma_buf
++   operation, if provided by the exporter.
 +
-+err_alloc:
-+	mutex_unlock(&dmabuf->lock);
-+	return attach;
-+err_attach:
-+	kfree(attach);
-+	mutex_unlock(&dmabuf->lock);
-+	return ERR_PTR(ret);
-+}
-+EXPORT_SYMBOL(dma_buf_attach);
++   The dma-buf sharing framework does the book-keeping bits related to keeping
++   the list of all attachments to a buffer.
 +
-+/**
-+ * dma_buf_detach - Remove the given attachment from dmabuf's attachments list;
-+ * optionally calls detach() of dma_buf_ops for device-specific detach
-+ * @dmabuf:	[in]	buffer to detach from.
-+ * @attach:	[in]	attachment to be detached; is free'd after this call.
-+ *
-+ */
-+void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
-+{
-+	BUG_ON(!dmabuf || !attach);
++Till this stage, the buffer-exporter has the option to choose not to actually
++allocate the backing storage for this buffer, but wait for the first buffer-user
++to request use of buffer for allocation.
 +
-+	mutex_lock(&dmabuf->lock);
-+	list_del(&attach->node);
-+	if (dmabuf->ops->detach)
-+		dmabuf->ops->detach(dmabuf, attach);
 +
-+	kfree(attach);
-+	mutex_unlock(&dmabuf->lock);
-+	return;
-+}
-+EXPORT_SYMBOL(dma_buf_detach);
-diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
-new file mode 100644
-index 0000000..5bdf16a
---- /dev/null
-+++ b/include/linux/dma-buf.h
-@@ -0,0 +1,162 @@
-+/*
-+ * Header file for dma buffer sharing framework.
-+ *
-+ * Copyright(C) 2011 Linaro Limited. All rights reserved.
-+ * Author: Sumit Semwal <sumit.semwal@ti.com>
-+ *
-+ * Many thanks to linaro-mm-sig list, and specially
-+ * Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
-+ * Daniel Vetter <daniel@ffwll.ch> for their support in creation and
-+ * refining of this idea.
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License version 2 as published by
-+ * the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful, but WITHOUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-+ * more details.
-+ *
-+ * You should have received a copy of the GNU General Public License along with
-+ * this program.  If not, see <http://www.gnu.org/licenses/>.
-+ */
-+#ifndef __DMA_BUF_H__
-+#define __DMA_BUF_H__
++4. When needed, buffer-user requests access to the buffer
 +
-+#include <linux/file.h>
-+#include <linux/err.h>
-+#include <linux/device.h>
-+#include <linux/scatterlist.h>
-+#include <linux/list.h>
-+#include <linux/dma-mapping.h>
++   Whenever a buffer-user wants to use the buffer for any dma, it asks for
++   access to the buffer using dma_buf->ops->get_scatterlist operation. Atleast
++   one attach to the buffer should have happened before get_scatterlist can be
++   called.
 +
-+struct dma_buf;
++   Interface: [member of struct dma_buf_ops]
++      struct scatterlist * (*get_scatterlist)(struct dma_buf_attachment *,
++                                                enum dma_data_direction,
++                                                int* nents);
 +
-+/**
-+ * struct dma_buf_attachment - holds device-buffer attachment data
-+ * @dmabuf: buffer for this attachment.
-+ * @dev: device attached to the buffer.
-+ * @node: list_head to allow manipulation of list of dma_buf_attachment.
-+ * @priv: exporter-specific attachment data.
-+ */
-+struct dma_buf_attachment {
-+	struct dma_buf *dmabuf;
-+	struct device *dev;
-+	struct list_head node;
-+	void *priv;
-+};
++   It is one of the buffer operations that must be implemented by the exporter.
++   It should return the scatterlist for this buffer, mapped into caller's address
++   space.
 +
-+/**
-+ * struct dma_buf_ops - operations possible on struct dma_buf
-+ * @create: creates a struct dma_buf of a fixed size. Actual allocation
-+ *	    does not happen here.
-+ * @attach: allows different devices to 'attach' themselves to the given
-+ *	    buffer. It might return -EBUSY to signal that backing storage
-+ *	    is already allocated and incompatible with the requirements
-+ *	    of requesting device. [optional]
-+ * @detach: detach a given device from this buffer. [optional]
-+ * @get_scatterlist: returns list of scatter pages allocated, increases
-+ *		     usecount of the buffer. Requires atleast one attach to be
-+ *		     called before. Returned sg list should already be mapped
-+ *		     into _device_ address space.
-+ * @put_scatterlist: decreases usecount of buffer, might deallocate scatter
-+ *		     pages.
-+ * @mmap: memory map this buffer - optional.
-+ * @release: release this buffer; to be called after the last dma_buf_put.
-+ * @sync_sg_for_cpu: sync the sg list for cpu.
-+ * @sync_sg_for_device: synch the sg list for device.
-+ */
-+struct dma_buf_ops {
-+	int (*attach)(struct dma_buf *, struct device *,
-+			struct dma_buf_attachment *);
++   If this is being called for the first time, the exporter can now choose to
++   scan through the list of attachments for this buffer, collate the requirements
++   of the attached devices, and choose an appropriate backing storage for the
++   buffer.
 +
-+	void (*detach)(struct dma_buf *, struct dma_buf_attachment *);
++   Based on enum dma_data_direction, it might be possible to have multiple users
++   accessing at the same time (for reading, maybe), or any other kind of sharing
++   that the exporter might wish to make available to buffer-users.
 +
-+	/* For {get,put}_scatterlist below, any specific buffer attributes
-+	 * required should get added to device_dma_parameters accessible
-+	 * via dev->dma_params.
-+	 */
-+	struct scatterlist * (*get_scatterlist)(struct dma_buf_attachment *,
-+						enum dma_data_direction,
-+						int *nents);
-+	void (*put_scatterlist)(struct dma_buf_attachment *,
-+						struct scatterlist *,
-+						int nents);
-+	/* TODO: Add interruptible and interruptible_timeout versions */
 +
-+	/* allow mmap optionally for devices that need it */
-+	int (*mmap)(struct dma_buf *, struct vm_area_struct *);
-+	/* after final dma_buf_put() */
-+	void (*release)(struct dma_buf *);
++5. When finished, the buffer-user notifies end-of-dma to exporter
 +
-+	/* allow allocator to take care of cache ops */
-+	void (*sync_sg_for_cpu) (struct dma_buf *, struct device *);
-+	void (*sync_sg_for_device)(struct dma_buf *, struct device *);
-+};
++   Once the dma for the current buffer-user is over, it signals 'end-of-dma' to
++   the exporter using the dma_buf->ops->put_scatterlist() operation.
 +
-+/**
-+ * struct dma_buf - shared buffer object
-+ * @file: file pointer used for sharing buffers across, and for refcounting.
-+ * @attachments: list of dma_buf_attachment that denotes all devices attached.
-+ * @ops: dma_buf_ops associated with this buffer object
-+ * @priv: user specific private data
-+ */
-+struct dma_buf {
-+	size_t size;
-+	struct file *file;
-+	struct list_head attachments;
-+	const struct dma_buf_ops *ops;
-+	/* mutex to serialize list manipulation and other ops */
-+	struct mutex lock;
-+	void *priv;
-+};
++   Interface:
++      void (*put_scatterlist)(struct dma_buf_attachment *, struct scatterlist *,
++                              int nents);
 +
-+#ifdef CONFIG_DMA_SHARED_BUFFER
-+struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+							struct device *dev);
-+void dma_buf_detach(struct dma_buf *dmabuf,
-+				struct dma_buf_attachment *dmabuf_attach);
-+struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops, int flags);
-+int dma_buf_fd(struct dma_buf *dmabuf);
-+struct dma_buf *dma_buf_get(int fd);
-+void dma_buf_put(struct dma_buf *dmabuf);
++   put_scatterlist signifies the end-of-dma for the attachment provided.
 +
-+#else
 +
-+static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+							struct device *dev)
-+{
-+	return ERR_PTR(-ENODEV);
-+}
++6. when buffer-user is done using this buffer, it 'disconnects' itself from the
++   buffer.
 +
-+static inline void dma_buf_detach(struct dma_buf *dmabuf,
-+				  struct dma_buf_attachment *dmabuf_attach)
-+{
-+	return;
-+}
++   After the buffer-user has no more interest in using this buffer, it should
++   disconnect itself from the buffer:
 +
-+static inline struct dma_buf *dma_buf_export(void *priv,
-+						struct dma_buf_ops *ops,
-+						int flags)
-+{
-+	return ERR_PTR(-ENODEV);
-+}
++   - it first detaches itself from the buffer.
 +
-+static inline int dma_buf_fd(struct dma_buf *dmabuf)
-+{
-+	return -ENODEV;
-+}
++   Interface:
++      void dma_buf_detach(struct dma_buf *dmabuf,
++                          struct dma_buf_attachment *dmabuf_attach);
 +
-+static inline struct dma_buf *dma_buf_get(int fd)
-+{
-+	return ERR_PTR(-ENODEV);
-+}
++   This API removes the attachment from the list in dmabuf, and optionally calls
++   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
 +
-+static inline void dma_buf_put(struct dma_buf *dmabuf)
-+{
-+	return;
-+}
-+#endif /* CONFIG_DMA_SHARED_BUFFER */
++   - Then, the buffer-user returns the buffer reference to exporter.
 +
-+#endif /* __DMA_BUF_H__ */
++   Interface:
++     void dma_buf_put(struct dma_buf *dmabuf);
++
++   This API then reduces the refcount for this buffer.
++
++   If, as a result of this call, the refcount becomes 0, the 'release' file
++   operation related to this fd is called. It calls the dmabuf->ops->release()
++   operation in turn, and frees the memory allocated for dmabuf when exported.
++
++NOTES:
++- Importance of attach-detach and {get,put}_scatterlist operation pairs
++   The attach-detach calls allow the exporter to figure out backing-storage
++   constraints for the currently-interested devices. This allows preferential
++   allocation, and/or migration of pages across different types of storage
++   available, if possible.
++
++   Bracketing of dma access with {get,put}_scatterlist operations is essential
++   to allow just-in-time backing of storage, and migration mid-way through a
++   use-case.
++
++- Migration of backing storage if needed
++   After
++   - atleast one get_scatterlist has happened,
++   - and the backing storage has been allocated for this buffer,
++   If another new buffer-user intends to attach itself to this buffer, it might
++   be allowed, if possible for the exporter.
++
++   In case it is allowed by the exporter:
++    if the new buffer-user has stricter 'backing-storage constraints', and the
++    exporter can handle these constraints, the exporter can just stall on the
++    get_scatterlist till all outstanding access is completed (as signalled by
++    put_scatterlist).
++    Once all ongoing access is completed, the exporter could potentially move
++    the buffer to the stricter backing-storage, and then allow further
++    {get,put}_scatterlist operations from any buffer-user from the migrated
++    backing-storage.
++
++   If the exporter cannot fulfill the backing-storage constraints of the new
++   buffer-user device as requested, dma_buf_attach() would return an error to
++   denote non-compatibility of the new buffer-sharing request with the current
++   buffer.
++
++   If the exporter chooses not to allow an attach() operation once a
++   get_scatterlist has been called, it simply returns an error.
++
++- mmap file operation
++   An mmap() file operation is provided for the fd associated with the buffer.
++   If the exporter defines an mmap operation, the mmap() fop calls this to allow
++   mmap for devices that might need it; if not, it returns an error.
++
++References:
++[1] struct dma_buf_ops in include/linux/dma-buf.h
++[2] All interfaces mentioned above defined in include/linux/dma-buf.h
 -- 
 1.7.4.1
 
