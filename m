@@ -1,76 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E64D6B002C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:22:55 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p9BNMjwi009708
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700
-Received: from vcbfk1 (vcbfk1.prod.google.com [10.220.204.1])
-	by wpaz9.hot.corp.google.com with ESMTP id p9BNKSMZ027835
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E729C6B002C
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 19:30:34 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p9BNUVDJ020126
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:31 -0700
+Received: from qadc14 (qadc14.prod.google.com [10.224.32.142])
+	by hpaq12.eem.corp.google.com with ESMTP id p9BNTvRl013055
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700
-Received: by vcbfk1 with SMTP id fk1so227315vcb.6
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:22:45 -0700 (PDT)
-Date: Tue, 11 Oct 2011 16:22:41 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:30 -0700
+Received: by qadc14 with SMTP id c14so336792qad.10
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2011 16:30:30 -0700 (PDT)
+Date: Tue, 11 Oct 2011 16:30:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
-Message-ID: <alpine.DEB.2.00.1110111612120.5236@chino.kir.corp.google.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
+Subject: Re: [patch resend] oom: thaw threads if oom killed thread is frozen
+ before deferring
+In-Reply-To: <20111011191603.GA12751@redhat.com>
+Message-ID: <alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com> <20111011191603.GA12751@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>, Con Kolivas <kernel@kolivas.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On Tue, 11 Oct 2011, Satoru Moriya wrote:
+On Tue, 11 Oct 2011, Oleg Nesterov wrote:
 
-> Actually page allocator decreases min watermark to 3/4 * min watermark
-> for rt-task. But in our case some applications create a lot of
-> processes and if all of them are rt-task, the amount of watermark
-> bonus(1/4 * min watermark) is not enough.
+> David. Could you also resend you patches which remove the (imho really
+> annoying) mm->oom_disable_count? Feel free to add my ack or reviewed-by.
 > 
 
-Right, if you can exhaust (1/4 * min_wmark) of memory quickly enough, 
-you'll still have latency issues.
+As far as I know (I can't confirm because userweb.kernel.org is still 
+down), oom-remove-oom_disable_count.patch is still in the -mm tree.  It 
+was merged September 2 so I believe it's 3.2 material.
 
-> If we can tune the amount of bonus, it may be fine. But that is
-> almost all same as extra free kbytes.
-> 
-
-I don't know if your test case is the only thing that Rik is looking at, 
-but if so, then that statement makes me believe that this patch is 
-definitely in the wrong direction, so NACK on it until additional 
-information is presented.  The reasoning is simple: if tuning the bonus 
-given to rt-tasks in the page allocator itself would fix the issue, then 
-we can certainly add logic specifically for rt-tasks that can reclaim more 
-aggressively without needing any tunable from userspace (and _certainly_ 
-not a global tunable that affects every application!).
-
-> > Does there exist anything like a test case which demonstrates the need 
-> > for this feature?
-> 
-> Unfortunately I don't have a real test case but just simple one.
-> And in my simple test case, I can avoid direct reclaim if we set
-> workload as rt-task.
-> 
-> The simple test case I used is following:
-> http://marc.info/?l=linux-mm&m=131605773321672&w=2
-> 
-
-I tried proposing one of Con's patches from his BFS scheduler ("mm: adjust 
-kswapd nice level for high priority page") about 1 1/2 years ago that I 
-recall and believe may significantly help your test case.  The thread is 
-at http://marc.info/?t=126743860700002.  (There's a lot of interesting 
-things in Con's patchset that can be pulled into the VM, this isn't the 
-only one.)
-
-The patch wasn't merged back then because we wanted a test case that was 
-specifically fixed by this issue, and it may be that we have just found 
-one.  If you could try it out without any extra_free_kbytes, I think we 
-may be able to help your situation.
+Andrew, please add Oleg's reviewed-by to that patch (in addition to the 
+reported-by which already exists) if it's still merged.  Otherwise, please 
+let me know and I'll resend it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
