@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A5096B002D
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 13:57:51 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9BHfhKa009711
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 11:41:43 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9BHvR3d136398
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 11:57:28 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9BHvNbY028033
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 11:57:26 -0600
-Date: Tue, 11 Oct 2011 23:08:40 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
- thread is singlestepping.
-Message-ID: <20111011173840.GE16268@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com>
- <1317128626.15383.61.camel@twins>
- <20110927131213.GE3685@linux.vnet.ibm.com>
- <20111005180139.GA5704@redhat.com>
- <20111006054710.GB17591@linux.vnet.ibm.com>
- <20111007165828.GA32319@redhat.com>
- <20111010122556.GB16268@linux.vnet.ibm.com>
- <20111010182535.GA6934@redhat.com>
- <20111011172422.GA7878@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C68F6B002D
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2011 14:13:56 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Tue, 11 Oct 2011 11:13:31 -0700
+Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
+ mapper for DMA-mapping
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
+ <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
+ <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
+ <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
+In-Reply-To: <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111011172422.GA7878@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 'Laura Abbott' <lauraa@codeaurora.org>
 
-> > HOWEVER! I simply do not know what should we do if the probed insn
-> > is something like asm("1:; jmp 1b;"). IIUC, in this sstep_complete()
-> > never returns true. The patch also adds the fatal_signal_pending()
-> > check to make this task killlable, but the problem is: whatever we do,
-> > I do not think it is correct to disable/delay the signals in this case.
-> > With any approach.
-> >
-> > What do you think? Maybe we should simply disallow to probe such insns?
-> 
-> Or. Could you explain why we can't simply remove the
-> "if (vaddr == current->utask->xol_vaddr)" check from sstep_complete() ?
+Marek,
 
+>It looks that You have simplified arm_iommu_map_sg() function too much.=20
+>The main advantage of the iommu is to map scattered memory pages into=20
+>contiguous dma address space. DMA-mapping is allowed to merge consecutive
+>entries in the scatter list if hardware supports that.
+>http://article.gmane.org/gmane.linux.kernel/1128416
 
-Yes, we could remove the check and rely on just the DIE_DEBUG to say
-that singlestep has occurred. This was mostly needed when we were not
-handling signals on singlestep.
+I would update arm_iommu_map_sg() back to coalesce the sg list.
 
-> In some sense, imho this looks more correct for "rep" or jmp/call self.
-> The task will trap again on the same (original) address, and
-> handler_chain() will be called to notify the consumers.
-> 
-> But. I am really, really ignorant in this area, I am almost sure this
-> is not that simple.
-> 
+>I'm not sure if mmc drivers are aware of coalescing the SG entries togethe=
+r.
+>If not the code must be updated to use dma_sg_len() and the dma entries
+>number returned from dma_map_sg() call.
 
-Thats being modest.
+MMC drivers seem to be aware of coalescing the SG entries together as they =
+are using dma_sg_len().
 
--- 
-Thanks and Regards
-Srikar
+Let me test and update the patch.
+
+--
+nvpublic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
