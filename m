@@ -1,107 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 48A336B0033
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 00:43:40 -0400 (EDT)
-Date: Wed, 12 Oct 2011 15:43:17 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
- quota update.
-Message-ID: <20111012044317.GA31436@drongo>
-References: <4E4EB603.8090305@cray.com>
- <20110819145109.dcd5dac6.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110819145109.dcd5dac6.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E22706B0035
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 01:49:48 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LSX009N9UUXTRA0@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 12 Oct 2011 06:49:45 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LSX002RRUUXTJ@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 12 Oct 2011 06:49:45 +0100 (BST)
+Date: Wed, 12 Oct 2011 07:49:34 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
+ mapper for DMA-mapping
+In-reply-to: <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
+Message-id: <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
+Content-language: pl
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
+ <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
+ <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
+ <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrew Barry <abarry@cray.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Gibson <david@gibson.dropbear.id.au>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Hastings <abh@cray.com>
+To: 'Krishna Reddy' <vdumpa@nvidia.com>
+Cc: linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
 
-On Fri, Aug 19, 2011 at 02:51:09PM -0700, Andrew Morton wrote:
-> 
-> OK.  This sounds screwed up.  If a device driver is currently using a
-> page from a hugetlbfs file then the unmount shouldn't have succeeded in
-> the first place!
-> 
-> Or is it the case that the device driver got a reference to the page by
-> other means, bypassing hugetlbfs?  And there's undesirable/incorrect
-> interaction between the non-hugetlbfs operation and hugetlbfs?
-> 
-> Or something else?
-> 
-> <starts reading the mailing list>
-> 
-> OK, important missing information from the above is that the driver got
-> at this page via get_user_pages() and happened to stumble across a
-> hugetlbfs page.  So it's indeed an incorrect interaction between a
-> non-hugetlbfs operation and hugetlbfs.
-> 
-> What's different about hugetlbfs?  Why don't other filesystems hit this?
+Hello,
 
-What's different about hugetlbfs, as I understand it, is that the
-"quota" mechanism is there to restrict memory usage, rather than disk
-usage.
+On Wednesday, October 12, 2011 3:35 AM Krishna Reddy wrote:
 
-> <investigates further>
+> >>It looks that You have simplified arm_iommu_map_sg() function too much.
+> >>The main advantage of the iommu is to map scattered memory pages into
+> >>contiguous dma address space. DMA-mapping is allowed to merge consecutive
+> >>entries in the scatter list if hardware supports that.
+> >>http://article.gmane.org/gmane.linux.kernel/1128416
+> >I would update arm_iommu_map_sg() back to coalesce the sg list.
+> >>MMC drivers seem to be aware of coalescing the SG entries together as they are using
+> dma_sg_len().
 > 
-> OK so the incorrect interaction happened in free_huge_page(), which is
-> called via the compound page destructor (this dtor is "what's different
-> about hugetlbfs").   What is incorrect about this is
-> 
-> a) that we're doing fs operations in response to a
->    get_user_pages()/put_page() operation which has *nothing* to do with
->    filesystems!
+> I have updated the arm_iommu_map_sg() back to coalesce and fixed the issues with it. During
+> testing, I found out that mmc host driver doesn't support buffers bigger than 64K. To get the
+> device working, I had to break the sg entries coalesce when dma_length is about to go beyond
+> 64KB. Looks like Mmc host driver(sdhci.c) need to be fixed to handle buffers bigger than 64KB.
+> Should the clients be forced to handle bigger buffers or is there any better way to handle
+> these kind of issues?
 
-The hugetlbfs quota thing is more like an RSS limit than a disk
-quota.  Perhaps the "quota" name is misleading.
+There is struct device_dma_parameters *dma_parms member of struct device. You can specify
+maximum segment size for the dma_map_sg function. This will of course complicate this function
+even more...
 
-I assume we update RSS counts for ordinary pages when allocating and
-freeing pages?
-
-> b) that we continue to try to do that fs operation against an fs
->    which was unmounted and freed three days ago. duh.
-> 
-> 
-> So I hereby pronounce that
-> 
-> a) It was wrong to manipulate hugetlbfs quotas within
->    free_huge_page().  Because free_huge_page() is a low-level
->    page-management function which shouldn't know about one of its
->    specific clients (in this case, hugetlbfs).
-> 
->    In fact it's wrong for there to be *any* mention of hugetlbfs
->    within hugetlb.c.
-> 
-> b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
->    Mel, Adam, Dave, at least...
-> 
-> c) The proper fix here is to get that hugetlbfs quota code out of
->    free_huge_page() and do it all where it belongs: within hugetlbfs
->    code.
-
-That doesn't sound right to me, if we need to limit usage of huge
-memory pages in memory, rather than back out on the "filesystem".
-An ordinary filesystem doesn't worry about memory consumption, it
-worries about how its blocks of backing store are allocated.
-Hugetlbfs is unusual here in that the "backing store" and the memory
-pages that get mapped into userspace are one and the same thing.
-
-> Regular filesystems don't need to diddle quota counts within
-> page_cache_release().  Why should hugetlbfs need to?
-
-In a regular filesystem you can reclaim a block of backing store, and
-thus decrement a quota count, while there might still be a page of
-memory in use that contains its old contents.  That's problematic with
-hugetlbfs.
-
-In the meantime we have a user-triggerable kernel crash.  As far as I
-can see, if we did what you suggest, we would end up with a situation
-where we could run out of huge pages even though everyone was within
-quota.  Which is arguably better than a kernel crash, but still less
-than ideal.  What do you suggest?
-
-Paul.
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
