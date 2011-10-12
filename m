@@ -1,47 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 74ED06B0073
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 06:00:11 -0400 (EDT)
-Date: Wed, 12 Oct 2011 05:59:53 -0400
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [RFC PATCH] mm: thp: make swap configurable
-Message-ID: <20111012095953.GB3160@redhat.com>
-References: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1318255086-7393-1-git-send-email-lliubbo@gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A5CBB6B0075
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 07:09:11 -0400 (EDT)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LSY00FD39N990@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 12 Oct 2011 12:09:09 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LSY00LBA9N8NZ@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 12 Oct 2011 12:09:09 +0100 (BST)
+Date: Wed, 12 Oct 2011 13:08:55 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH] fixup: mm: alloc_contig_range: increase min_free_kbytes during
+ allocation
+In-reply-to: <4E93F088.60006@stericsson.com>
+Message-id: <1318417735-9199-1-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <4E93F088.60006@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: aarcange@redhat.com, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com
+To: Maxime Coquelin <maxime.coquelin-nonst@stericsson.com>
+Cc: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-media@vger.kernel.org'" <linux-media@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, "benjamin.gaignard@linaro.org" <benjamin.gaignard@linaro.org>, Ludovic BARRE <ludovic.barre@stericsson.com>, "vincent.guittot@linaro.org" <vincent.guittot@linaro.org>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Mon, Oct 10, 2011 at 09:58:06PM +0800, Bob Liu wrote:
-> Currently THP do swap by default, user has no control of it.
-> But some applications are swap sensitive, this patch add a boot param
-> and sys file to make it configurable.
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+---
+ mm/page_alloc.c |   15 ++++++++++++---
+ 1 files changed, 12 insertions(+), 3 deletions(-)
 
-What's special about THP compared to regular-sized anon pages?
+Hello Maxime,
 
-> @@ -155,10 +156,11 @@ int add_to_swap(struct page *page)
->  		return 0;
->  
->  	if (unlikely(PageTransHuge(page)))
-> -		if (unlikely(split_huge_page(page))) {
-> -			swapcache_free(entry, NULL);
-> -			return 0;
-> -		}
-> +		if(!transparent_hugepage_swap_disable())
-> +			if (unlikely(split_huge_page(page))) {
-> +				swapcache_free(entry, NULL);
-> +				return 0;
-> +			}
->  
->  	/*
->  	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+Please check if this patch fixes your lockup issue. It is a bit cruel,
+but it looks that in case of real low-memory situation page allocation
+is very complex task which usually ends in waiting for the io/fs and
+free pages that really don't arrive at all.
 
-That will just prevent the splitting and then add the huge page to the
-swap cache, for which it is not prepared.
+Best regards
+--
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 055aa4c..45473e9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5872,6 +5872,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 		       gfp_t flags, unsigned migratetype)
+ {
+ 	unsigned long outer_start, outer_end;
++	unsigned int count = end - start;
+ 	int ret;
+ 
+ 	/*
+@@ -5900,7 +5901,10 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	ret = __start_isolate_page_range(pfn_to_maxpage(start),
+ 					 pfn_to_maxpage_up(end), migratetype);
+ 	if (ret)
+-		goto done;
++		return ret;
++
++	min_free_kbytes += count * PAGE_SIZE / 1024;
++	setup_per_zone_wmarks();
+ 
+ 	ret = __alloc_contig_migrate_range(start, end);
+ 	if (ret)
+@@ -5922,8 +5926,10 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	ret = 0;
+ 	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
+-		if (WARN_ON(++ret >= MAX_ORDER))
+-			return -EINVAL;
++		if (WARN_ON(++ret >= MAX_ORDER)) {
++			ret = -EINVAL;
++			goto done;
++		}
+ 
+ 	outer_start = start & (~0UL << ret);
+ 	outer_end   = alloc_contig_freed_pages(outer_start, end, flags);
+@@ -5936,6 +5942,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	ret = 0;
+ done:
++	min_free_kbytes -= count * PAGE_SIZE / 1024;
++	setup_per_zone_wmarks();
++
+ 	__undo_isolate_page_range(pfn_to_maxpage(start), pfn_to_maxpage_up(end),
+ 				  migratetype);
+ 	return ret;
+-- 
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
