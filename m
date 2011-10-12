@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 55DA06B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 13:51:54 -0400 (EDT)
-Date: Wed, 12 Oct 2011 19:51:48 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm/huge_memory: Clean up typo when copying user highpage
-Message-ID: <20111012175148.GA27460@redhat.com>
-References: <CAJd=RBBuwmcV8srUyPGnKUp=RPKvsSd+4BbLrh--aHFGC5s7+g@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBBuwmcV8srUyPGnKUp=RPKvsSd+4BbLrh--aHFGC5s7+g@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD546B002D
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:01:22 -0400 (EDT)
+Received: by qadb17 with SMTP id b17so1170662qad.14
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 12:01:20 -0700 (PDT)
+Date: Wed, 12 Oct 2011 12:01:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
+ __vm_enough_memory
+Message-Id: <20111012120118.e948f40a.akpm@linux-foundation.org>
+In-Reply-To: <20111012160202.GA18666@sgi.com>
+References: <20111012160202.GA18666@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Wed, Oct 12, 2011 at 10:39:36PM +0800, Hillf Danton wrote:
-> Hi Andrea
+On Wed, 12 Oct 2011 11:02:02 -0500
+Dimitri Sivanich <sivanich@sgi.com> wrote:
+
+> Tmpfs I/O throughput testing on UV systems has shown writeback contention
+> between multiple writer threads (even when each thread writes to a separate
+> tmpfs mount point).
 > 
-> When copying user highpage, the PAGE_SHIFT in the third parameter is a typo,
-> I think, and is replaced with PAGE_SIZE.
-
-That looks correct. I wonder how it was not noticed yet. Because it
-can't go out of bound, it didn't risk to crash the kernel and it didn't
-not risk to expose random data to the cowing task. So it shouldn't
-have security implications as far as I can tell, but the app could
-malfunction and crash (userland corruption only).
-
-I grepped for other PAGE_SHIFT and PAGE_SIZE in the same file and
-there seem to be no more of these... Pretty hard for this to go
-unnoticed too, I guess the cows aren't as frequent enough to be
-capable of triggering compaction failures. I added a
-/sys/kernel/mm/transparent_hugepage/debug_cow exactly to catch bugs
-like this very one, I guess nobody enabled debug_cow = 1 long
-enough... If only I would have tested debug_cow = 1 with 0x00 0x01
-0x02 0x03 for the whole 2M I should have noticed it...
-
-> When configuring transparent hugepage, it depends on x86 and MMU.
-> Would you please tippoint why other archs with MMU, say MIPS, are masked out?
-
-Because nobody implemented it yet? Some archs may not make it in
-hardware too, depends if you can mix large and small pages in the same
-vma, then yes the arch could make it by adjusting the pmd size right
-in the software pmd_t so that it matches an hardware soft-tlb filled
-hash.
-
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
+> A large part of this is caused by cacheline contention reading the vm_stat
+> array in the __vm_enough_memory check.
 > 
-> --- a/mm/huge_memory.c	Sat Aug 13 11:45:14 2011
-> +++ b/mm/huge_memory.c	Wed Oct 12 22:26:15 2011
-> @@ -829,7 +829,7 @@ static int do_huge_pmd_wp_page_fallback(
+> The attached test patch illustrates a possible avenue for improvement in this
+> area.  By locally caching the values read from vm_stat (and refreshing the
+> values after 2 seconds), I was able to improve tmpfs writeback performance from
+> ~300 MB/sec to ~700 MB/sec with 120 threads writing data simultaneously to
+> files on separate tmpfs mount points (tested on 3.1.0-rc9).
 > 
->  	for (i = 0; i < HPAGE_PMD_NR; i++) {
->  		copy_user_highpage(pages[i], page + i,
-> -				   haddr + PAGE_SHIFT*i, vma);
-> +				   haddr + PAGE_SIZE * i, vma);
->  		__SetPageUptodate(pages[i]);
->  		cond_resched();
->  	}
+> Note that this patch is simply to illustrate the gains that can be made here.
+> What I'm looking for is some guidance on an acceptable way to accomplish the
+> task of reducing contention in this area, either by caching these values in a
+> way similar to the attached patch, or by some other mechanism if this is
+> unacceptable.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Yes, the global vm_stat[] array is a problem - I'm surprised it's hung
+around for this long.  Altering the sysctl_overcommit_memory mode will
+hide the problem, but that's no good.
+
+I think we've discussed switching vm_stat[] to a contention-avoiding
+counter scheme.  Simply using <percpu_counter.h> would be the simplest
+approach.  They'll introduce inaccuracies but hopefully any problems
+from that will be minor for the global page counters.
+
+otoh, I think we've been round this loop before and I don't recall why
+nothing happened.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
