@@ -1,30 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C73B6B002E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 10:57:07 -0400 (EDT)
-Date: Wed, 12 Oct 2011 10:57:01 -0400
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA406B002E
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 10:58:21 -0400 (EDT)
+Date: Wed, 12 Oct 2011 10:57:49 -0400
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH 2/2] mm: Abort reclaim/compaction if compaction can
- proceed
-Message-ID: <20111012145701.GA6478@redhat.com>
-References: <1318000643-27996-1-git-send-email-mgorman@suse.de>
- <1318000643-27996-3-git-send-email-mgorman@suse.de>
+Subject: Re: mm: Do not drain pagevecs for mlockall(MCL_FUTURE)
+Message-ID: <20111012145748.GB6478@redhat.com>
+References: <alpine.DEB.2.00.1110071529110.15540@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1318000643-27996-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <alpine.DEB.2.00.1110071529110.15540@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, Josh Boyer <jwboyer@redhat.com>, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-On Fri, Oct 07, 2011 at 04:17:23PM +0100, Mel Gorman wrote:
-> If compaction can proceed, shrink_zones() stops doing any work but
-> the callers still shrink_slab(), raises the priority and potentially
-> sleeps.  This patch aborts direct reclaim/compaction entirely if
-> compaction can proceed.
+On Fri, Oct 07, 2011 at 03:32:13PM -0500, Christoph Lameter wrote:
+> MCL_FUTURE does not move pages between lru list and draining the LRU per
+> cpu pagevecs is a nasty activity. Avoid doing it unecessarily.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Christoph Lameter <cl@gentwo.org>
 
 Acked-by: Johannes Weiner <jweiner@redhat.com>
 
