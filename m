@@ -1,60 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 26CA46B002E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:58:49 -0400 (EDT)
-Message-ID: <4E95F167.5050709@redhat.com>
-Date: Wed, 12 Oct 2011 15:58:31 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 83AB76B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 16:04:00 -0400 (EDT)
+Date: Wed, 12 Oct 2011 21:59:35 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
+	thread is singlestepping.
+Message-ID: <20111012195935.GA12269@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20110920120517.25326.57657.sendpatchset@srdronam.in.ibm.com> <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com> <20111007165828.GA32319@redhat.com> <20111010122556.GB16268@linux.vnet.ibm.com> <20111010182535.GA6934@redhat.com> <20111011172603.GD16268@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <20111011125419.2702b5dc.akpm@linux-foundation.org> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com> <20111011135445.f580749b.akpm@linux-foundation.org> <4E95917D.3080507@redhat.com> <20111012122018.690bdf28.akpm@linux-foundation.org>
-In-Reply-To: <20111012122018.690bdf28.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111011172603.GD16268@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/12/2011 03:20 PM, Andrew Morton wrote:
-> On Wed, 12 Oct 2011 09:09:17 -0400
-> Rik van Riel<riel@redhat.com>  wrote:
-
->> The problem is that we may be dealing with bursts, not steady
->> states of allocations.  Without knowing the size of a burst,
->> we have no idea when we should wake up kswapd to get enough
->> memory freed ahead of the application's allocations.
+On 10/11, Srikar Dronamraju wrote:
 >
-> That problem remains with this patch - it just takes a larger burst.
+> --- a/kernel/uprobes.c
+> +++ b/kernel/uprobes.c
+> @@ -1366,6 +1366,26 @@ static bool sstep_complete(struct uprobe *uprobe, struct pt_regs *regs)
+>  }
 >
-> Unless the admin somehow manages to configure the tunable large enough
-> to cover the largest burst, and there aren't other applications
-> allocating memory during that burst, and the time between bursts is
-> sufficient for kswapd to be able to sufficiently replenish free-page
-> reserves.  All of which sounds rather unlikely.
+>  /*
+> + * While we are handling breakpoint / singlestep, ensure that a
+> + * SIGTRAP is not delivered to the task.
+> + */
+> +static void __clear_trap_flag(void)
+> +{
+> +	sigdelset(&current->pending.signal, SIGTRAP);
+> +	sigdelset(&current->signal->shared_pending.signal, SIGTRAP);
+> +}
+> +
+> +static void clear_trap_flag(void)
+> +{
+> +	if (!test_and_clear_thread_flag(TIF_SIGPENDING))
+> +		return;
+> +
+> +	spin_lock_irq(&current->sighand->siglock);
+> +	__clear_trap_flag();
+> +	spin_unlock_irq(&current->sighand->siglock);
+> +}
 
-It depends on the system. For a setup which is packed to
-the brim with workloads, this patch is not likely to help.
-On the other hand, on a system that is packed to the brim
-with workloads, you are unlikely to get low latencies anyway.
+And this is called before and after the step.
 
-For situations where people really care about low latencies,
-I imagine having dedicated hardware for a workload is not at
-all unusual, and the patch works for that.
+Confused... For what? What makes SIGTRAP special? Where does this
+signal come from? If you meant do_debug() this seems impossible,
+uprobe_exception_notify(DIE_DEBUG) returns NOTIFY_STOP.
 
->>> Look, please don't go bending over backwards like this to defend a bad
->>> patch.  It's a bad patch!  It would be better not to have to merge it.
->>> Let's do something better.
->>
->> I would love it if we could come up with something better,
->> and have thought about it a lot.
->>
->> However, so far we do not seem to have an alternative yet :(
->
-> Do we actually have a real-world application which is hurting from
-> this?
+I certainly missed something.
 
-Satoru-san?
+> @@ -1401,13 +1422,18 @@ void uprobe_notify_resume(struct pt_regs *regs)
+>  			if (!utask)
+>  				goto cleanup_ret;
+>  		}
+> -		/* TODO Start queueing signals. */
+>  		utask->active_uprobe = u;
+>  		handler_chain(u, regs);
+>  		utask->state = UTASK_SSTEP;
+> -		if (!pre_ssout(u, regs, probept))
+> +		if (!pre_ssout(u, regs, probept)) {
+> +			sigfillset(&masksigs);
+> +			sigdelsetmask(&masksigs,
+> +					sigmask(SIGKILL)|sigmask(SIGSTOP));
+> +			current->saved_sigmask = current->blocked;
+> +			set_current_blocked(&masksigs);
+
+OK, we already discussed the problems with this approach.
+
+> +			clear_trap_flag();
+
+In any case unneeded, we already blocked SIGTRAP.
+
+> @@ -1418,8 +1444,8 @@ void uprobe_notify_resume(struct pt_regs *regs)
+>  			utask->state = UTASK_RUNNING;
+>  			user_disable_single_step(current);
+>  			xol_free_insn_slot(current);
+> -
+> -			/* TODO Stop queueing signals. */
+> +			clear_trap_flag();
+
+This is what I can't understand.
+
+> +			set_restore_sigmask();
+
+No, this is not right. If we have a pending signal, the signal handler
+will run with the almost-all-blocked mask we set before.
+
+And this is overkill anyway, you could simply do
+set_current_blocked(&current->saved_sigmask).
+
+->saved_sigmask is only used when we return from syscall, so uprobes
+can (ab)use it safely.
+
+> @@ -1433,7 +1459,7 @@ void uprobe_notify_resume(struct pt_regs *regs)
+>  		put_uprobe(u);
+>  		set_instruction_pointer(regs, probept);
+>  	} else
+> -		/*TODO Return SIGTRAP signal */
+> +		send_sig(SIGTRAP, current, 0);
+
+This change looks "offtopic" to the problems we are discussing.
+
+Or I missed something and this is connected to the clear_trap_flag()
+somehow?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
