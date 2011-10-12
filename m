@@ -1,56 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE056B003B
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 02:58:48 -0400 (EDT)
-Date: Wed, 12 Oct 2011 08:58:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
- before deferring
-Message-ID: <20111012065845.GD31570@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
- <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com>
- <20111011063336.GA23284@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
- <20111012065026.GA31570@tiehlicka.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A74EA6B0047
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 03:02:58 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Wed, 12 Oct 2011 00:02:34 -0700
+Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
+ mapper for DMA-mapping
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E3722519C65@HQMAIL04.nvidia.com>
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
+ <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
+ <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
+ <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
+ <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
+In-Reply-To: <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111012065026.GA31570@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed 12-10-11 08:50:26, Michal Hocko wrote:
-> On Tue 11-10-11 16:36:28, David Rientjes wrote:
-> > On Tue, 11 Oct 2011, Michal Hocko wrote:
-> > 
-> > > The patch looks good but we still need other 2 patches
-> > > (http://comments.gmane.org/gmane.linux.kernel.mm/68578), right?
-> > > 
-> > 
-> > For the lguest patch, Rusty is the maintainer and has already acked the 
-> > patch, so I think it should be merged through him.  I don't see a need for 
-> > the second patch since we'll now detect frozen oom killed tasks on retry 
-> > and don't need to kill them directly when oom killed (it just adds 
-> > additional, unnecessary code).
-> 
-> OK, my understanding was that we need both patches, but you are right,
-> the later one should be sufficient.
+> >>It looks that You have simplified arm_iommu_map_sg() function too much.
+> >>The main advantage of the iommu is to map scattered memory pages into
+> >>contiguous dma address space. DMA-mapping is allowed to merge consecuti=
+ve
+> >>entries in the scatter list if hardware supports that.
+> >>http://article.gmane.org/gmane.linux.kernel/1128416
+> >I would update arm_iommu_map_sg() back to coalesce the sg list.
+> >>MMC drivers seem to be aware of coalescing the SG entries together as t=
+hey are using
+> dma_sg_len().
+>=20
+> I have updated the arm_iommu_map_sg() back to coalesce and fixed the issu=
+es with it. During
+> testing, I found out that mmc host driver doesn't support buffers bigger =
+than 64K. To get the
+> device working, I had to break the sg entries coalesce when dma_length is=
+ about to go beyond
+> 64KB. Looks like Mmc host driver(sdhci.c) need to be fixed to handle buff=
+ers bigger than 64KB.
+> Should the clients be forced to handle bigger buffers or is there any bet=
+ter way to handle
+> these kind of issues?
 
-Ahh and I forgot to add:
-Acked-by: Michal Hocko <mhocko@suse.cz>
+>There is struct device_dma_parameters *dma_parms member of struct device. =
+You can specify
+>maximum segment size for the dma_map_sg function. This will of course comp=
+licate this function
+>even more...
 
-If it matters.
+dma_get_max_seg_size() seem to take care of this issue already. This return=
+s default max_seg_size as 64K unless device has defined its own size.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+
+Best regards
+--=20
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
