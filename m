@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 697906B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 17:09:18 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Wed, 12 Oct 2011 17:08:57 -0400
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB516D055@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-	<20110901100650.6d884589.rdunlap@xenotime.net>
-	<20110901152650.7a63cb8b@annuminas.surriel.com>
-	<alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
-	<20111010153723.6397924f.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
-	<20111011125419.2702b5dc.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
- <20111011135445.f580749b.akpm@linux-foundation.org>
-In-Reply-To: <20111011135445.f580749b.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 398026B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 18:20:33 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <372657c9-02c3-4a9d-a283-86e655db8916@default>
+Date: Wed, 12 Oct 2011 15:20:19 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [Xen-devel] Re: RFC -- new zone type
+References: <20110928180909.GA7007@labbmf-linux.qualcomm.comCAOFJiu1_HaboUMqtjowA2xKNmGviDE55GUV4OD1vN2hXUf4-kQ@mail.gmail.com>
+ <c2d9add1-0095-4319-8936-db1b156559bf@default20111005165643.GE7007@labbmf-linux.qualcomm.com>
+ <cc1256f9-4808-4d74-a321-6a3ec129cc05@default20111006230348.GF7007@labbmf-linux.qualcomm.com>
+ <4d0a5da4-00de-40dd-8d75-8ed6e3d0831c@default>
+ <4E8F2242.3030406@linux.vnet.ibm.com
+ 20111007171958.GG7007@labbmf-linux.qualcomm.com>
+In-Reply-To: <20111007171958.GG7007@labbmf-linux.qualcomm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Larry Bassel <lbassel@codeaurora.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Xen-devel@lists.xensource.com
 
-On 10/11/2011 04:54 PM, Andrew Morton wrote:
-> On Tue, 11 Oct 2011 16:23:22 -0400
-> Satoru Moriya <satoru.moriya@hds.com> wrote:
->
->> Also, if we increase the free-page reserves a.k.a min_free_kbytes,=20
->> the possibility of direct reclaim on other workloads increases.
->> I think it's a bad side effect.
+> From: Larry Bassel [mailto:lbassel@codeaurora.org]
 >=20
-> extra_free_kbytes has the same side-effect.
+> As this area must be very large and contiguous, I can't use kmalloc or si=
+milar
+> allocation APIs -- I imagine I'll carve it out early in boot with
+> memblock_remove() -- luckily this area is of fixed size. If this memory
+> were in ZONE_HIGHMEM, I'd just have to use kmap to get a temporary mappin=
+g
+> to use when the page is copied to or from "normal" system memory (or am
+> I missing something here?). Whether this area is in highmem or not, I ima=
+gine
+> I'll need to write an allocator to allocate/free pages from the "dual-pur=
+pose"
+> memory when it is cleancache.
 
-I don't think so. If we make low watermark bigger to increase
-free-page reserves by extra_free_kbytes, the possibility of
-direct reclaim on other workload does not increase directly
-because min watermark is not changed.=20
-Of course, as David pointed out, other workloads may incur
-a regression because kswapd uses more cpu time.
+Yep.  It would also be very nice if you could allocate the
+metadata (tmem data structures) from the same "dual-purpose"
+memory as then all of the data structures can simply be discarded
+when you need the memory for the "big-100MB-block" purpose.
+Zeroing a single pointer would be enough to "free" all
+data and metadata.
 
-Thanks,
-Satoru
+Sadly I don't think this will work when the dual-purpose memory
+is in highmem... you will need to walk the metadata and
+free it all up when you free the cleancache pages.
+=20
+> > I did write a patch a while back that allows xvmalloc to use highmem
+> > pages in it's storage pool.  Although, from looking at the history of t=
+his
+> > conversation, you'd be writing a different backend for tmem and not usi=
+ng
+> > zcache anyway.
+>=20
+> We're going to want a backend which is (at least to a
+> first approximation) a simplification of zcache
+> -- no compression and no frontswap is needed.
+> Possibly we'll start with zcache and remove things we don't need.
+
+Agree that's your best bet.  Let us know how it goes, especially if
+you eventually plan for the driver to be submitted upstream.
+
+> > Currently the tmem code is in the zcache driver.  However, if there are
+> > going to be other backends designed for it, we may need to move it into=
+ its
+> > own module so it can be shared.
+
+I think the longterm home for tmem.c/tmem.h should be in the "lib"
+subdirectory of the linux tree, but it will require another driver
+or two to use it before the linux maintainers will consider that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
