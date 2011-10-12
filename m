@@ -1,155 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1A46B002E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 03:59:16 -0400 (EDT)
-Received: by qyk27 with SMTP id 27so470917qyk.14
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 00:59:14 -0700 (PDT)
-Date: Wed, 12 Oct 2011 16:59:06 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch v2]vmscan: correctly detect GFP_ATOMIC allocation failure
-Message-ID: <20111012075906.GB1866@barrios-desktop>
-References: <20111008102531.GC8679@barrios-desktop>
- <1318139591.22361.56.camel@sli10-conroe>
- <20111009080156.GB23003@barrios-desktop>
- <1318148271.22361.67.camel@sli10-conroe>
- <20111009151035.GA1679@barrios-desktop>
- <1318231693.22361.75.camel@sli10-conroe>
- <20111010154250.GA1791@barrios-desktop>
- <1318311010.22361.95.camel@sli10-conroe>
- <20111011065401.GA4415@barrios-desktop>
- <1318387739.22361.109.camel@sli10-conroe>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id EA3EF6B005C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 04:19:56 -0400 (EDT)
+Received: from mailer (213.65.94.224) by smtp-gw21.han.skanova.net (8.5.133)
+        id 4E79D82C00AEDCFE for linux-mm@kvack.org; Wed, 12 Oct 2011 10:19:54 +0200
+Received: from quad.localnet (quad.mlab.se [172.24.1.70])
+	by mailer (8.14.4/8.14.4) with ESMTP id p9C8O2fF002669
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 10:24:03 +0200
+From: Hans Schillstrom <hans@schillstrom.com>
+Subject: possible slab deadlock while doing ifenslave
+Date: Wed, 12 Oct 2011 10:19:52 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1318387739.22361.109.camel@sli10-conroe>
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201110121019.53100.hans@schillstrom.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 
-On Wed, Oct 12, 2011 at 10:48:59AM +0800, Shaohua Li wrote:
- > > there are two cases one zone is below min_watermark.
-> > > 1. the zone is below min_watermark for allocation in the zone. in this
-> > > case we need hurry up.
-> > > 2. the zone is below min_watermark for allocation from high zone. we
-> > > don't really need hurry up if other zone is above min_watermark.
-> > > Since low zone need to reserve pages for high zone, the second case
-> > > could be common.
-> > 
-> > You mean "lowmem_reserve"?
-> > It means opposite. It is a mechanism to defend using of lowmem pages from high zone allocation
-> > because it could be fatal to allow process pages to be allocated from low zone.
-> > Also, We could set each ratio for reserved pages of zones.
-> > How could we make sure lower zones have enough free pages for higher zone?
-> lowmem_reserve causes the problem, but it's not a fault of
-> lowmem_reserve. I'm thinking changing it.
-> 
-> > > Yes, keeping kswapd running in this case can reduce the chance
-> > > GFP_ATOMIC failure. But my patch will not cause immediate failure
-> > > because there is still some zones which are above min_watermark and can
-> > > meet the GFP_ATOMIC allocation. And keeping kswapd running has some
-> > 
-> > True. It was why I said "I don't mean you are wrong but we are very careful about this."
-> > Normally, it could handle but might fail on sudden peak of atomic allocation stream.
-> > Recently, we have suffered from many reporting of GFP_AOTMIC allocation than olded.
-> > So I would like to be very careful and that's why I suggest we need at least some experiment.
-> > Through it, Andrew could make final call.
-> sure.
-> 
-> > > drawbacks:
-> > > 1. cpu overhead
-> > > 2. extend isolate window size, so trash working set.
-> > > Considering DMA zone, we almost always have DMA zone min_watermark not
-> > > ok for any allocation from high zone. So we will always have such
-> > > drawbacks.
-> > 
-> > I agree with you in that it's a problem.
-> > I think the real solution is to remove the zone from allocation fallback list in such case
-> > because the lower zone could never meet any allocation for the higher zone.
-> > But it makes code rather complicated as we have to consider admin who can change
-> > reserved pages anytime.
-> Not worthy the complication.
-> 
-> > So how about this?
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 8913374..f71ed2f 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2693,8 +2693,16 @@ loop_again:
-> >                                  * failure risk. Hurry up!
-> >                                  */
-> >                                 if (!zone_watermark_ok_safe(zone, order,
-> > -                                           min_wmark_pages(zone), end_zone, 0))
-> > -                                       has_under_min_watermark_zone = 1;
-> > +                                           min_wmark_pages(zone), end_zone, 0)) {
-> > +                                       /*
-> > +                                        * In case of big reserved page for higher zone,
-> > +                                        * it is pointless to try reclaimaing pages quickly
-> > +                                        * because it could never meet the requirement.
-> > +                                        */
-> > +                                       if (zone->present_pages >
-> > +                                               min_wmark_pages(zone) + zone->lowmem_reserve[end_zone])
-> > +                                               has_under_min_watermark_zone = 1;
-> > +                               }
-> >                         } else {
-> >                                 /*
-> >                                  * If a zone reaches its high watermark,
-> This looks like a workaround just for DMA zone. present_pages could be
-> bigger than min_mwark+lowmem_reserve. And We still suffered from the
-> issue, for example, a DMA32 zone with some pages allocated for DMA, or a
-> zone which has some lru pages, but still much smaller than high zone.
+Hello,
+I got this when I was testing a VLAN patch i.e. using Dave Millers net-next from today.
+When doing this on a single core i686 I got the warning every time,
+however ifenslave is not hanging it's just a warning
+Have not been testing this on a multicore jet.
 
-Right. I thought about it but couldn't have a good idea for it. :(
+There is no warnings with a 3.0.4 kernel.
 
-> 
-> > Even, we could apply this at starting of the loop so that we can avoid unnecessary scanning st the beginning.
-> > In that case, we have to apply zone->lowmem_reserve[end_zone] only because we have to consider NO_WATERMARK alloc case.
-> yes, we can do this to avoid unnecessary scan. but DMA zone hasn't lru
-> pages, so not sure how big the benefit is here.
+Is this a known warning ?
 
-At least, we can prevent has_under_min_watermark_zone from set.
-But it still have a problem you pointed out earlier.
+~ # ifenslave bond0 eth1 eth2
 
-> 
-> > > Or is something below better? we can avoid the big reserved pages
-> > > accounting to the min_wmark_pages for low zone. if high zone is under
-> > > min_wmark, kswapd will not sleep.
-> > >                                if (!zone_watermark_ok_safe(zone, order,
-> > > -                                            min_wmark_pages(zone), end_zone, 0))
-> > > +                                            min_wmark_pages(zone), 0, 0))
-> > >                                         has_under_min_watermark_zone = 1;
-> > 
-> > I think it's not a good idea since page allocator always considers classzone_idx.
-> > So although we fix kswapd issue through your changes, page allocator still can't allocate memory
-> > and wakes up kswapd, again.
-> why kswapd will be waked up again? The high zone itself still has
-> min_wark+low_reserve ok for the allocation(classzone_idx 0 means
-> checking the low_reserve for allocation from the zone itself), so the
-> allocation can be met.
+=============================================
+[ INFO: possible recursive locking detected ]
+3.1.0-rc9+ #3
+---------------------------------------------
+ifenslave/749 is trying to acquire lock:
+ (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
 
-You're absolutely right.
-I got confused. Sorry about that.
+but task is already holding lock:
+ (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
 
-I like this than your old version.
-That's because it could rush if one of zonelist is consumed as below min_watermak.
-It could mitigate GFP_ALLOC fail than yours old version but still would be higher than now.
-So, we need the number.
+other info that might help us debug this:
+ Possible unsafe locking scenario:
 
-Could you repost this as formal patch with good comment and number?
-Personally, I like description based on scenario with kind step-by-step.
-Feel free to use my description in my patch if you want.
+       CPU0
+       ----
+  lock(&(&parent->list_lock)->rlock);
+  lock(&(&parent->list_lock)->rlock);
 
-Thanks for patient discussion in spite of my irregular reply, Shaohua.
+ *** DEADLOCK ***
 
-> 
-> Thanks,
-> Shaohua
-> 
+ May be due to missing lock nesting notation
+
+2 locks held by ifenslave/749:
+ #0:  (rtnl_mutex){+.+.+.}, at: [<c1321884>] rtnl_lock+0x14/0x20
+ #1:  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
+
+stack backtrace:
+Pid: 749, comm: ifenslave Not tainted 3.1.0-rc9+ #3
+Call Trace:
+ [<c1421e14>] ? printk+0x2d/0x2f
+ [<c1076a01>] __lock_acquire+0xdc1/0x18d0
+ [<c1077ae2>] lock_acquire+0x82/0x1b0
+ [<c14234a0>] ? cache_flusharray+0x41/0xdb
+ [<c14291ec>] ? _raw_spin_unlock+0x2c/0x50
+ [<c14289e2>] _raw_spin_lock+0x42/0x50
+ [<c14234a0>] ? cache_flusharray+0x41/0xdb
+ [<c14234a0>] cache_flusharray+0x41/0xdb
+ [<c10fc378>] kmem_cache_free+0xa8/0x190
+ [<c10fc56b>] slab_destroy+0x10b/0x140
+ [<c10fc727>] free_block+0x187/0x1d0
+ [<c14234e7>] cache_flusharray+0x88/0xdb
+ [<c10fcc5e>] kfree+0x10e/0x220
+ [<f815543d>] ? rtl8169_rx_clear+0x6d/0xa0 [r8169]
+ [<c10fcc36>] ? kfree+0xe6/0x220
+ [<f815543d>] ? rtl8169_rx_clear+0x6d/0xa0 [r8169]
+ [<f815543d>] rtl8169_rx_clear+0x6d/0xa0 [r8169]
+ [<f81563a0>] rtl8169_close+0x110/0x230 [r8169]
+ [<c1311bd9>] __dev_close_many+0x69/0xb0
+ [<c1045737>] ? local_bh_enable_ip+0x67/0xd0
+ [<c1311c44>] __dev_close+0x24/0x40
+ [<c13159a2>] __dev_change_flags+0x82/0x150
+ [<c1321884>] ? rtnl_lock+0x14/0x20
+ [<c1315b11>] dev_change_flags+0x21/0x60
+ [<c1394140>] devinet_ioctl+0x5a0/0x710
+ [<c13950cd>] inet_ioctl+0x8d/0xb0
+ [<c12fd69f>] sock_ioctl+0x5f/0x270
+ [<c12fd640>] ? sock_fasync+0xd0/0xd0
+ [<c11180a6>] do_vfs_ioctl+0x86/0x5a0
+ [<c106575b>] ? up_read+0x1b/0x30
+ [<c102532b>] ? do_page_fault+0x18b/0x3c0
+ [<c1108a67>] ? fget_light+0x167/0x2f0
+ [<c130046c>] ? sys_socketcall+0x5c/0x2a0
+ [<c11185f2>] sys_ioctl+0x32/0x60
+ [<c1429f50>] sysenter_do_call+0x12/0x36
+
 
 -- 
-Kinds regards,
-Minchan Kim
+Regards
+Hans Schillstrom <hans@schillstrom.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
