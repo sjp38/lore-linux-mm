@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D7A46B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 16:42:28 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so955570pzk.6
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 13:42:25 -0700 (PDT)
-Date: Wed, 12 Oct 2011 13:42:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/huge_memory: Clean up typo when copying user
- highpage
-Message-Id: <20111012134224.786191ac.akpm@linux-foundation.org>
-In-Reply-To: <20111012175148.GA27460@redhat.com>
-References: <CAJd=RBBuwmcV8srUyPGnKUp=RPKvsSd+4BbLrh--aHFGC5s7+g@mail.gmail.com>
-	<20111012175148.GA27460@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 697906B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 17:09:18 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Wed, 12 Oct 2011 17:08:57 -0400
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB516D055@USINDEVS02.corp.hds.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+	<20110901100650.6d884589.rdunlap@xenotime.net>
+	<20110901152650.7a63cb8b@annuminas.surriel.com>
+	<alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
+	<20111010153723.6397924f.akpm@linux-foundation.org>
+	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
+	<20111011125419.2702b5dc.akpm@linux-foundation.org>
+	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
+ <20111011135445.f580749b.akpm@linux-foundation.org>
+In-Reply-To: <20111011135445.f580749b.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hillf Danton <dhillf@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Wed, 12 Oct 2011 19:51:48 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+On 10/11/2011 04:54 PM, Andrew Morton wrote:
+> On Tue, 11 Oct 2011 16:23:22 -0400
+> Satoru Moriya <satoru.moriya@hds.com> wrote:
+>
+>> Also, if we increase the free-page reserves a.k.a min_free_kbytes,=20
+>> the possibility of direct reclaim on other workloads increases.
+>> I think it's a bad side effect.
+>=20
+> extra_free_kbytes has the same side-effect.
 
-> On Wed, Oct 12, 2011 at 10:39:36PM +0800, Hillf Danton wrote:
-> > Hi Andrea
-> > 
-> > When copying user highpage, the PAGE_SHIFT in the third parameter is a typo,
-> > I think, and is replaced with PAGE_SIZE.
-> 
-> That looks correct. I wonder how it was not noticed yet. Because it
-> can't go out of bound, it didn't risk to crash the kernel and it didn't
-> not risk to expose random data to the cowing task. So it shouldn't
-> have security implications as far as I can tell, but the app could
-> malfunction and crash (userland corruption only).
+I don't think so. If we make low watermark bigger to increase
+free-page reserves by extra_free_kbytes, the possibility of
+direct reclaim on other workload does not increase directly
+because min watermark is not changed.=20
+Of course, as David pointed out, other workloads may incur
+a regression because kswapd uses more cpu time.
 
-Which architectures care about the copy_user_page() `vaddr' argument? 
-mips, perhaps?  I suspect the intersection between those architectures
-and archs-which-implement-hugepages is the empty set.
+Thanks,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
