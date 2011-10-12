@@ -1,53 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E03EB6B0170
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 09:14:05 -0400 (EDT)
-Message-ID: <4E959292.9060301@redhat.com>
-Date: Wed, 12 Oct 2011 09:13:54 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CCE556B0172
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 09:28:47 -0400 (EDT)
+Received: by bkbzs2 with SMTP id zs2so68363bkb.14
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 06:28:44 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPM=9tzHOa5Dbe=SQz+AURMMbio4L7qoS8kUT3Ek0+HdtkrH4g@mail.gmail.com>
+References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
+	<1318325033-32688-2-git-send-email-sumit.semwal@ti.com>
+	<CAPM=9tzHOa5Dbe=SQz+AURMMbio4L7qoS8kUT3Ek0+HdtkrH4g@mail.gmail.com>
+Date: Wed, 12 Oct 2011 08:28:44 -0500
+Message-ID: <CAF6AEGs6kkGp85NoNVuq5W9i=WE86V8wvAtKydX=D3bQOc+6Pw@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC 1/2] dma-buf: Introduce dma buffer sharing mechanism
+From: Rob Clark <robdclark@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Dave Airlie <airlied@gmail.com>
+Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, daniel@ffwll.ch
 
-On 10/11/2011 05:04 PM, David Rientjes wrote:
+On Wed, Oct 12, 2011 at 7:41 AM, Dave Airlie <airlied@gmail.com> wrote:
+> On Tue, Oct 11, 2011 at 10:23 AM, Sumit Semwal <sumit.semwal@ti.com> wrot=
+e:
+>> This is the first step in defining a dma buffer sharing mechanism.
+>>
+>> A new buffer object dma_buf is added, with operations and API to allow e=
+asy
+>> sharing of this buffer object across devices.
+>>
+>> The framework allows:
+>> - a new buffer-object to be created with fixed size.
+>> - different devices to 'attach' themselves to this buffer, to facilitate
+>> =A0backing storage negotiation, using dma_buf_attach() API.
+>> - association of a file pointer with each user-buffer and associated
+>> =A0 allocator-defined operations on that buffer. This operation is calle=
+d the
+>> =A0 'export' operation.
+>> - this exported buffer-object to be shared with the other entity by aski=
+ng for
+>> =A0 its 'file-descriptor (fd)', and sharing the fd across.
+>> - a received fd to get the buffer object back, where it can be accessed =
+using
+>> =A0 the associated exporter-defined operations.
+>> - the exporter and user to share the scatterlist using get_scatterlist a=
+nd
+>> =A0 put_scatterlist operations.
+>>
+>> Atleast one 'attach()' call is required to be made prior to calling the
+>> get_scatterlist() operation.
+>>
+>> Couple of building blocks in get_scatterlist() are added to ease introdu=
+ction
+>> of sync'ing across exporter and users, and late allocation by the export=
+er.
+>>
+>> mmap() file operation is provided for the associated 'fd', as wrapper ov=
+er the
+>> optional allocator defined mmap(), to be used by devices that might need=
+ one.
+>
+> Why is this needed? it really doesn't make sense to be mmaping objects
+> independent of some front-end like drm or v4l.
 
-> In other words, I think it's a fine solution if you're running a single
-> application with very bursty memory allocations so you need to reclaim
-> more memory when low, but that solution is troublesome if it comes at
-> the penalty of other applications and that's a direct consequence of it
-> being a global tunable.  I'd much rather identify memory allocations in
-> the kernel that causing the pain here and mitigate it by (i) attempting to
-> sanely rate limit those allocations,
+well, the mmap is actually implemented by the buffer allocator
+(v4l/drm).. although not sure if this was the point
 
-Rate limiting just increases the problem from what it was
-before the patch was introduced, because the entire purpose
-is to reduce allocation latencies by tasks with low latency
-requirements.
+> how will you know what contents are in them, how will you synchronise
+> access. Unless someone has a hard use-case for this I'd say we drop it
+> until someone does.
 
-> (ii) preallocate at least a partial
-> amount of those allocations ahead of time so avoid significant reclaim
-> all at one,
+The intent was that this is for well defined formats.. ie. it would
+need to be a format that both v4l and drm understood in the first
+place for sharing to make sense at all..
 
-Unless I'm mistaken, isn't this functionally equivalent to
-increasing the size of the free memory pool?
+Anyways, the basic reason is to handle random edge cases where you
+need sw access to the buffer.  For example, you are decoding video and
+pull out a frame to generate a thumbnail w/ a sw jpeg encoder..
 
-> or (iii) annotate memory allocations with such potential so
-> that the page allocator can add this reclaim bonus itself only in these
-> conditions.
+On gstreamer 0.11 branch, for example, there is already a map/unmap
+virtual method on the gst buffer for sw access (ie. same purpose as
+PrepareAccess/FinishAccess in EXA).  The idea w/ dmabuf mmap() support
+is that we could implement support to mmap()/munmap() before/after sw
+access.
 
-I am not sure what you are proposing here.
+With this current scheme, synchronization could be handled in
+dmabufops->mmap() and vm_ops->close()..  it is perhaps a bit heavy to
+require mmap/munmap for each sw access, but I suppose this isn't
+really for the high-performance use case.  It is just so that some
+random bit of sw that gets passed a dmabuf handle without knowing who
+allocated it can have sw access if really needed.
 
-How would this scheme work?
+BR,
+-R
 
--- 
-All rights reversed
+> Dave.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-media" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
