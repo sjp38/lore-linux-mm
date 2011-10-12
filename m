@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 320616B002E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 10:39:39 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so108314wwi.26
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 07:39:36 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9F1046B002E
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 10:44:47 -0400 (EDT)
+Date: Wed, 12 Oct 2011 16:40:48 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch resend] oom: thaw threads if oom killed thread is
+	frozen before deferring
+Message-ID: <20111012144047.GB30223@redhat.com>
+References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com> <20111011191603.GA12751@redhat.com> <alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Date: Wed, 12 Oct 2011 22:39:36 +0800
-Message-ID: <CAJd=RBBuwmcV8srUyPGnKUp=RPKvsSd+4BbLrh--aHFGC5s7+g@mail.gmail.com>
-Subject: [PATCH] mm/huge_memory: Clean up typo when copying user highpage
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1110111628200.5236@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-Hi Andrea
+On 10/11, David Rientjes wrote:
+>
+> On Tue, 11 Oct 2011, Oleg Nesterov wrote:
+>
+> > David. Could you also resend you patches which remove the (imho really
+> > annoying) mm->oom_disable_count? Feel free to add my ack or reviewed-by.
+> >
+>
+> As far as I know (I can't confirm because userweb.kernel.org is still
+> down), oom-remove-oom_disable_count.patch is still in the -mm tree.  It
+> was merged September 2 so I believe it's 3.2 material.
 
-When copying user highpage, the PAGE_SHIFT in the third parameter is a typo,
-I think, and is replaced with PAGE_SIZE.
+Ah, great. Somehow I thought it was missed.
 
-When configuring transparent hugepage, it depends on x86 and MMU.
-Would you please tippoint why other archs with MMU, say MIPS, are masked out?
+Thanks David,
 
-Thanks
-
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
-
---- a/mm/huge_memory.c	Sat Aug 13 11:45:14 2011
-+++ b/mm/huge_memory.c	Wed Oct 12 22:26:15 2011
-@@ -829,7 +829,7 @@ static int do_huge_pmd_wp_page_fallback(
-
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		copy_user_highpage(pages[i], page + i,
--				   haddr + PAGE_SHIFT*i, vma);
-+				   haddr + PAGE_SIZE * i, vma);
- 		__SetPageUptodate(pages[i]);
- 		cond_resched();
- 	}
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
