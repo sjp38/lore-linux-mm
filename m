@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9F16B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 16:35:58 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p9CKZtVh026722
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 13:35:55 -0700
-Received: from pzd13 (pzd13.prod.google.com [10.243.17.205])
-	by hpaq2.eem.corp.google.com with ESMTP id p9CKUrU0009471
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 13:35:53 -0700
-Received: by pzd13 with SMTP id 13so1436130pzd.3
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 13:35:53 -0700 (PDT)
-Date: Wed, 12 Oct 2011 13:35:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: possible slab deadlock while doing ifenslave
-In-Reply-To: <201110121019.53100.hans@schillstrom.com>
-Message-ID: <alpine.DEB.2.00.1110121333560.7646@chino.kir.corp.google.com>
-References: <201110121019.53100.hans@schillstrom.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7956B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 16:39:26 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <3e84809b-a45d-4980-b342-c2d671f87f79@default>
+Date: Wed, 12 Oct 2011 13:39:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
+References: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hans Schillstrom <hans@schillstrom.com>
-Cc: linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de
+Cc: cascardo@holoscopio.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
 
-On Wed, 12 Oct 2011, Hans Schillstrom wrote:
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
+>=20
+> zcache_do_preload() currently does a spin_trylock() on the
+> zcache_direct_reclaim_lock. Holding this lock intends to prevent
+> shrink_zcache_memory() from evicting zbud pages as a result
+> of a preload.
+>
+> However, it also prevents two threads from
+> executing zcache_do_preload() at the same time.  The first
+> thread will obtain the lock and the second thread's spin_trylock()
+> will fail (an aborted preload) causing the page to be either lost
+> (cleancache) or pushed out to the swap device (frontswap). It
+> also doesn't ensure that the call to shrink_zcache_memory() is
+> on the same thread as the call to zcache_do_preload().
 
-> Hello,
-> I got this when I was testing a VLAN patch i.e. using Dave Millers net-next from today.
-> When doing this on a single core i686 I got the warning every time,
-> however ifenslave is not hanging it's just a warning
-> Have not been testing this on a multicore jet.
-> 
-> There is no warnings with a 3.0.4 kernel.
-> 
-> Is this a known warning ?
-> 
-> ~ # ifenslave bond0 eth1 eth2
-> 
-> =============================================
-> [ INFO: possible recursive locking detected ]
-> 3.1.0-rc9+ #3
-> ---------------------------------------------
-> ifenslave/749 is trying to acquire lock:
->  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
-> 
-> but task is already holding lock:
->  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
-> 
+Yes, this looks to be leftover code from early in kztmem/zcache
+development.  Good analysis.
+=20
+> Additional, there is no need for this mechanism because all
+> zcache_do_preload() calls that come down from cleancache already
+> have PF_MEMALLOC set in the process flags which prevents
+> direct reclaim in the memory manager. If the zcache_do_preload()
 
-Hmm, the only candidate that I can see that may have caused this is 
-83835b3d9aec ("slab, lockdep: Annotate slab -> rcu -> debug_object -> 
-slab").  Could you try reverting that patch in your local tree and seeing 
-if it helps?
+Might it be worthwhile to add a BUG/ASSERT for the presence
+of PF_MEMALLOC, or at least a comment in the code?
+
+> call is done from the frontswap path, we _want_ reclaim to be
+> done (which it isn't right now).
+>=20
+> This patch removes the zcache_direct_reclaim_lock and related
+> statistics in zcache.
+>=20
+> Based on v3.1-rc8
+>=20
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+
+With added code/comment per above...
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
