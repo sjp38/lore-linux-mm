@@ -1,60 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D64E56B0037
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 02:50:31 -0400 (EDT)
-Date: Wed, 12 Oct 2011 08:50:26 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 381F16B0039
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 02:55:09 -0400 (EDT)
+Date: Wed, 12 Oct 2011 08:55:04 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
- before deferring
-Message-ID: <20111012065026.GA31570@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
- <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com>
- <20111011063336.GA23284@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/2] lguest: move process freezing before pending signals
+ check
+Message-ID: <20111012065504.GC31570@tiehlicka.suse.cz>
+References: <cover.1317110948.git.mhocko@suse.cz>
+ <e213ea00900cba783f228eb4234ad929a05d4359.1317110948.git.mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
+In-Reply-To: <e213ea00900cba783f228eb4234ad929a05d4359.1317110948.git.mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue 11-10-11 16:36:28, David Rientjes wrote:
-> On Tue, 11 Oct 2011, Michal Hocko wrote:
-> 
-> > The patch looks good but we still need other 2 patches
-> > (http://comments.gmane.org/gmane.linux.kernel.mm/68578), right?
-> > 
-> 
-> For the lguest patch, Rusty is the maintainer and has already acked the 
-> patch, so I think it should be merged through him.  I don't see a need for 
-> the second patch since we'll now detect frozen oom killed tasks on retry 
-> and don't need to kill them directly when oom killed (it just adds 
-> additional, unnecessary code).
-
-OK, my understanding was that we need both patches, but you are right,
-the later one should be sufficient.
-
-> 
-> > Anyway, I thought that we agreed on the other approach suggested by
-> > Tejun (make frozen tasks oom killable without thawing). Even in that
-> > case we want the first patch
-> > (http://permalink.gmane.org/gmane.linux.kernel.mm/68576).
-> 
-> If that's possible, then we can just add Tejun to add a follow-up patch to 
-> remove the thaw directly in the oom killer.  
-
-OK
-
-> I'm thinking that won't be possible for 3.2, though, so I don't know why we'd
-> remove oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch
-> from -mm?
-
-No need for that then.
+Hi Rusty,
+what is the current state of this patch? Are you planning to push it for
+3.2?
 
 Thanks
+
+On Tue 27-09-11 08:56:03, Michal Hocko wrote:
+> run_guest tries to freeze the current process after it has handled
+> pending interrupts and before it calls lguest_arch_run_guest.
+> This doesn't work nicely if the task has been killed while being frozen
+> and when we want to handle that signal as soon as possible.
+> Let's move try_to_freeze before we check for pending signal so that we
+> can get out of the loop as soon as possible.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: Rusty Russell <rusty@rustcorp.com.au>
+> ---
+>  drivers/lguest/core.c |   14 +++++++-------
+>  1 files changed, 7 insertions(+), 7 deletions(-)
+> 
+> diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
+> index 2535933..e7dda91 100644
+> --- a/drivers/lguest/core.c
+> +++ b/drivers/lguest/core.c
+> @@ -232,6 +232,13 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+>  			}
+>  		}
+>  
+> +		/*
+> +		 * All long-lived kernel loops need to check with this horrible
+> +		 * thing called the freezer.  If the Host is trying to suspend,
+> +		 * it stops us.
+> +		 */
+> +		try_to_freeze();
+> +
+>  		/* Check for signals */
+>  		if (signal_pending(current))
+>  			return -ERESTARTSYS;
+> @@ -246,13 +253,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
+>  			try_deliver_interrupt(cpu, irq, more);
+>  
+>  		/*
+> -		 * All long-lived kernel loops need to check with this horrible
+> -		 * thing called the freezer.  If the Host is trying to suspend,
+> -		 * it stops us.
+> -		 */
+> -		try_to_freeze();
+> -
+> -		/*
+>  		 * Just make absolutely sure the Guest is still alive.  One of
+>  		 * those hypercalls could have been fatal, for example.
+>  		 */
+> -- 
+> 1.7.5.4
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
