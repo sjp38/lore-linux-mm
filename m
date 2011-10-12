@@ -1,154 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C95B66B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:09 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9CJPgT4029166
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:25:42 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9CJf7x3118758
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:07 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9CJf6ME007495
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:07 -0400
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
-Date: Wed, 12 Oct 2011 14:41:00 -0500
-Message-Id: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B404E6B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:57:56 -0400 (EDT)
+Date: Wed, 12 Oct 2011 14:57:53 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
+ __vm_enough_memory
+In-Reply-To: <20111012120118.e948f40a.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1110121452220.31218@router.home>
+References: <20111012160202.GA18666@sgi.com> <20111012120118.e948f40a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@suse.de
-Cc: cascardo@holoscopio.com, dan.magenheimer@oracle.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dimitri Sivanich <sivanich@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-zcache_do_preload() currently does a spin_trylock() on the
-zcache_direct_reclaim_lock. Holding this lock intends to prevent
-shrink_zcache_memory() from evicting zbud pages as a result
-of a preload.
+On Wed, 12 Oct 2011, Andrew Morton wrote:
 
-However, it also prevents two threads from
-executing zcache_do_preload() at the same time.  The first
-thread will obtain the lock and the second thread's spin_trylock()
-will fail (an aborted preload) causing the page to be either lost
-(cleancache) or pushed out to the swap device (frontswap). It
-also doesn't ensure that the call to shrink_zcache_memory() is
-on the same thread as the call to zcache_do_preload().
+> > Note that this patch is simply to illustrate the gains that can be made here.
+> > What I'm looking for is some guidance on an acceptable way to accomplish the
+> > task of reducing contention in this area, either by caching these values in a
+> > way similar to the attached patch, or by some other mechanism if this is
+> > unacceptable.
+>
+> Yes, the global vm_stat[] array is a problem - I'm surprised it's hung
+> around for this long.  Altering the sysctl_overcommit_memory mode will
+> hide the problem, but that's no good.
 
-Additional, there is no need for this mechanism because all
-zcache_do_preload() calls that come down from cleancache already
-have PF_MEMALLOC set in the process flags which prevents
-direct reclaim in the memory manager. If the zcache_do_preload()
-call is done from the frontswap path, we _want_ reclaim to be
-done (which it isn't right now).
+The global vm_stat array is keeping the state for the zone. It would be
+even more expensive to calculate this at every point where we need such
+data.
 
-This patch removes the zcache_direct_reclaim_lock and related
-statistics in zcache.
+> I think we've discussed switching vm_stat[] to a contention-avoiding
+> counter scheme.  Simply using <percpu_counter.h> would be the simplest
+> approach.  They'll introduce inaccuracies but hopefully any problems
+> from that will be minor for the global page counters.
 
-Based on v3.1-rc8
+We already have a contention avoiding scheme for counter updates in
+vmstat.c. The problem here is that vm_stat is frequently read. Updates
+from other cpus that fold counter updates in a deferred way into the
+global statistics cause cacheline eviction. The updates occur too frequent
+in this load.
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
- drivers/staging/zcache/zcache-main.c |   31 ++++---------------------------
- 1 files changed, 4 insertions(+), 27 deletions(-)
+> otoh, I think we've been round this loop before and I don't recall why
+> nothing happened.
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 462fbc2..a61b267 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -962,15 +962,6 @@ out:
- static unsigned long zcache_failed_get_free_pages;
- static unsigned long zcache_failed_alloc;
- static unsigned long zcache_put_to_flush;
--static unsigned long zcache_aborted_preload;
--static unsigned long zcache_aborted_shrink;
--
--/*
-- * Ensure that memory allocation requests in zcache don't result
-- * in direct reclaim requests via the shrinker, which would cause
-- * an infinite loop.  Maybe a GFP flag would be better?
-- */
--static DEFINE_SPINLOCK(zcache_direct_reclaim_lock);
- 
- /*
-  * for now, used named slabs so can easily track usage; later can
-@@ -1009,10 +1000,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 		goto out;
- 	if (unlikely(zcache_obj_cache == NULL))
- 		goto out;
--	if (!spin_trylock(&zcache_direct_reclaim_lock)) {
--		zcache_aborted_preload++;
--		goto out;
--	}
- 	preempt_disable();
- 	kp = &__get_cpu_var(zcache_preloads);
- 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
-@@ -1021,7 +1008,7 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 				ZCACHE_GFP_MASK);
- 		if (unlikely(objnode == NULL)) {
- 			zcache_failed_alloc++;
--			goto unlock_out;
-+			goto out;
- 		}
- 		preempt_disable();
- 		kp = &__get_cpu_var(zcache_preloads);
-@@ -1034,13 +1021,13 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
- 	if (unlikely(obj == NULL)) {
- 		zcache_failed_alloc++;
--		goto unlock_out;
-+		goto out;
- 	}
- 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
- 	if (unlikely(page == NULL)) {
- 		zcache_failed_get_free_pages++;
- 		kmem_cache_free(zcache_obj_cache, obj);
--		goto unlock_out;
-+		goto out;
- 	}
- 	preempt_disable();
- 	kp = &__get_cpu_var(zcache_preloads);
-@@ -1053,8 +1040,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 	else
- 		free_page((unsigned long)page);
- 	ret = 0;
--unlock_out:
--	spin_unlock(&zcache_direct_reclaim_lock);
- out:
- 	return ret;
- }
-@@ -1423,8 +1408,6 @@ ZCACHE_SYSFS_RO(evicted_buddied_pages);
- ZCACHE_SYSFS_RO(failed_get_free_pages);
- ZCACHE_SYSFS_RO(failed_alloc);
- ZCACHE_SYSFS_RO(put_to_flush);
--ZCACHE_SYSFS_RO(aborted_preload);
--ZCACHE_SYSFS_RO(aborted_shrink);
- ZCACHE_SYSFS_RO(compress_poor);
- ZCACHE_SYSFS_RO(mean_compress_poor);
- ZCACHE_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
-@@ -1466,8 +1449,6 @@ static struct attribute *zcache_attrs[] = {
- 	&zcache_failed_get_free_pages_attr.attr,
- 	&zcache_failed_alloc_attr.attr,
- 	&zcache_put_to_flush_attr.attr,
--	&zcache_aborted_preload_attr.attr,
--	&zcache_aborted_shrink_attr.attr,
- 	&zcache_zbud_unbuddied_list_counts_attr.attr,
- 	&zcache_zbud_cumul_chunk_counts_attr.attr,
- 	&zcache_zv_curr_dist_counts_attr.attr,
-@@ -1507,11 +1488,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
- 		if (!(gfp_mask & __GFP_FS))
- 			/* does this case really need to be skipped? */
- 			goto out;
--		if (spin_trylock(&zcache_direct_reclaim_lock)) {
--			zbud_evict_pages(nr);
--			spin_unlock(&zcache_direct_reclaim_lock);
--		} else
--			zcache_aborted_shrink++;
-+		zbud_evict_pages(nr);
- 	}
- 	ret = (int)atomic_read(&zcache_zbud_curr_raw_pages);
- out:
--- 
-1.7.4.1
+The update behavior can be tuned using /proc/sys/vm/stat_interval.
+Increase the interval to reduce the folding into the global counter (set
+maybe to 10?). This will reduce contention. The other approach is to
+increase the allowed delta per zone if frequent updates occur via the
+overflow checks in vmstat.c. See calculate_*_threshold there.
+
+Note that the deltas are current reduced for memory pressure situations
+(after recent patches by Mel). This will cause a significant increase in
+vm_stat cacheline contention compared to earlier kernels.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
