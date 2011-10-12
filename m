@@ -1,63 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BF94F6B002C
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:39:08 -0400 (EDT)
-Date: Wed, 12 Oct 2011 21:34:17 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v5 3.1.0-rc4-tip 26/26]   uprobes: queue signals while
-	thread is singlestepping.
-Message-ID: <20111012193417.GA11004@redhat.com>
-References: <1317128626.15383.61.camel@twins> <20110927131213.GE3685@linux.vnet.ibm.com> <20111005180139.GA5704@redhat.com> <20111006054710.GB17591@linux.vnet.ibm.com> <20111007165828.GA32319@redhat.com> <20111010122556.GB16268@linux.vnet.ibm.com> <20111010182535.GA6934@redhat.com> <20111011172603.GD16268@linux.vnet.ibm.com> <20111011185653.GA10215@redhat.com> <20111012120112.GB11831@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111012120112.GB11831@linux.vnet.ibm.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C95B66B002C
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:09 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9CJPgT4029166
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:25:42 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9CJf7x3118758
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:07 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9CJf6ME007495
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 15:41:07 -0400
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
+Date: Wed, 12 Oct 2011 14:41:00 -0500
+Message-Id: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: gregkh@suse.de
+Cc: cascardo@holoscopio.com, dan.magenheimer@oracle.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On 10/12, Srikar Dronamraju wrote:
->
-> I think we should be okay if the test exits in UTASK_SSTEP state.
+zcache_do_preload() currently does a spin_trylock() on the
+zcache_direct_reclaim_lock. Holding this lock intends to prevent
+shrink_zcache_memory() from evicting zbud pages as a result
+of a preload.
 
-Yes, and afaics we can't avoid this case, at least currently.
+However, it also prevents two threads from
+executing zcache_do_preload() at the same time.  The first
+thread will obtain the lock and the second thread's spin_trylock()
+will fail (an aborted preload) causing the page to be either lost
+(cleancache) or pushed out to the swap device (frontswap). It
+also doesn't ensure that the call to shrink_zcache_memory() is
+on the same thread as the call to zcache_do_preload().
 
-But we should move free_uprobe_utask() to mm_release(), or somewhere
-else before mm->core_state check in exit_mm().
+Additional, there is no need for this mechanism because all
+zcache_do_preload() calls that come down from cleancache already
+have PF_MEMALLOC set in the process flags which prevents
+direct reclaim in the memory manager. If the zcache_do_preload()
+call is done from the frontswap path, we _want_ reclaim to be
+done (which it isn't right now).
 
-My main concern is stop/freeze in UTASK_SSTEP state. If nothing else,
-debugger can attach to the stopped task and disable the stepping. Or
-SIGKILL, it should work in this case.
+This patch removes the zcache_direct_reclaim_lock and related
+statistics in zcache.
 
-> > Great. I'll think a bit more and send you the "final" version tomorrow.
-> > Assuming we can change sstep_complete() as we discussed, it doesn't need
-> > fatal_signal_pending().
->
-> Okay.
+Based on v3.1-rc8
 
-Sorry. I was busy today. Tomorrow ;)
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |   31 ++++---------------------------
+ 1 files changed, 4 insertions(+), 27 deletions(-)
 
-> > HOWEVER. There is yet another problem. Another thread can, say, unmap()
-> > xol_vma. In this case we should ensure that the task can't fault in an
-> > endless loop.
->
-> Hmm should we add a check in unmap() to see if the vma that we are
-> trying to unmap is the xol_vma and if so return?
-
-Oh, I am not sure. You know, I _think_ that perhaps we should do something
-diferent in the long term. In particular, this xol page should not have
-vma at all. This way we shouldn't worry about unmap/remap/mprotect.
-But even if this is possible (I am not really sure), I do not think we
-should do this right now.
-
-> Our assumption has been that once an xol_vma has been created, it should
-> be around till the process gets killed.
-
-Yes, I see. But afaics this assumption is currently wrong. This means
-that we should ensure the evil application can't exploit this fact.
-
-Oleg.
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 462fbc2..a61b267 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -962,15 +962,6 @@ out:
+ static unsigned long zcache_failed_get_free_pages;
+ static unsigned long zcache_failed_alloc;
+ static unsigned long zcache_put_to_flush;
+-static unsigned long zcache_aborted_preload;
+-static unsigned long zcache_aborted_shrink;
+-
+-/*
+- * Ensure that memory allocation requests in zcache don't result
+- * in direct reclaim requests via the shrinker, which would cause
+- * an infinite loop.  Maybe a GFP flag would be better?
+- */
+-static DEFINE_SPINLOCK(zcache_direct_reclaim_lock);
+ 
+ /*
+  * for now, used named slabs so can easily track usage; later can
+@@ -1009,10 +1000,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
+ 		goto out;
+ 	if (unlikely(zcache_obj_cache == NULL))
+ 		goto out;
+-	if (!spin_trylock(&zcache_direct_reclaim_lock)) {
+-		zcache_aborted_preload++;
+-		goto out;
+-	}
+ 	preempt_disable();
+ 	kp = &__get_cpu_var(zcache_preloads);
+ 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
+@@ -1021,7 +1008,7 @@ static int zcache_do_preload(struct tmem_pool *pool)
+ 				ZCACHE_GFP_MASK);
+ 		if (unlikely(objnode == NULL)) {
+ 			zcache_failed_alloc++;
+-			goto unlock_out;
++			goto out;
+ 		}
+ 		preempt_disable();
+ 		kp = &__get_cpu_var(zcache_preloads);
+@@ -1034,13 +1021,13 @@ static int zcache_do_preload(struct tmem_pool *pool)
+ 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
+ 	if (unlikely(obj == NULL)) {
+ 		zcache_failed_alloc++;
+-		goto unlock_out;
++		goto out;
+ 	}
+ 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
+ 	if (unlikely(page == NULL)) {
+ 		zcache_failed_get_free_pages++;
+ 		kmem_cache_free(zcache_obj_cache, obj);
+-		goto unlock_out;
++		goto out;
+ 	}
+ 	preempt_disable();
+ 	kp = &__get_cpu_var(zcache_preloads);
+@@ -1053,8 +1040,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
+ 	else
+ 		free_page((unsigned long)page);
+ 	ret = 0;
+-unlock_out:
+-	spin_unlock(&zcache_direct_reclaim_lock);
+ out:
+ 	return ret;
+ }
+@@ -1423,8 +1408,6 @@ ZCACHE_SYSFS_RO(evicted_buddied_pages);
+ ZCACHE_SYSFS_RO(failed_get_free_pages);
+ ZCACHE_SYSFS_RO(failed_alloc);
+ ZCACHE_SYSFS_RO(put_to_flush);
+-ZCACHE_SYSFS_RO(aborted_preload);
+-ZCACHE_SYSFS_RO(aborted_shrink);
+ ZCACHE_SYSFS_RO(compress_poor);
+ ZCACHE_SYSFS_RO(mean_compress_poor);
+ ZCACHE_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
+@@ -1466,8 +1449,6 @@ static struct attribute *zcache_attrs[] = {
+ 	&zcache_failed_get_free_pages_attr.attr,
+ 	&zcache_failed_alloc_attr.attr,
+ 	&zcache_put_to_flush_attr.attr,
+-	&zcache_aborted_preload_attr.attr,
+-	&zcache_aborted_shrink_attr.attr,
+ 	&zcache_zbud_unbuddied_list_counts_attr.attr,
+ 	&zcache_zbud_cumul_chunk_counts_attr.attr,
+ 	&zcache_zv_curr_dist_counts_attr.attr,
+@@ -1507,11 +1488,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 		if (!(gfp_mask & __GFP_FS))
+ 			/* does this case really need to be skipped? */
+ 			goto out;
+-		if (spin_trylock(&zcache_direct_reclaim_lock)) {
+-			zbud_evict_pages(nr);
+-			spin_unlock(&zcache_direct_reclaim_lock);
+-		} else
+-			zcache_aborted_shrink++;
++		zbud_evict_pages(nr);
+ 	}
+ 	ret = (int)atomic_read(&zcache_zbud_curr_raw_pages);
+ out:
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
