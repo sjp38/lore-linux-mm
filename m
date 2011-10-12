@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E22706B0035
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 01:49:48 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LSX009N9UUXTRA0@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 12 Oct 2011 06:49:45 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LSX002RRUUXTJ@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 12 Oct 2011 06:49:45 +0100 (BST)
-Date: Wed, 12 Oct 2011 07:49:34 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
- mapper for DMA-mapping
-In-reply-to: <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
-Message-id: <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
-Content-language: pl
-References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
- <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
- <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
- <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
- <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
- <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D64E56B0037
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2011 02:50:31 -0400 (EDT)
+Date: Wed, 12 Oct 2011 08:50:26 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2] oom: thaw threads if oom killed thread is frozen
+ before deferring
+Message-ID: <20111012065026.GA31570@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1110071954040.13992@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1110071958200.13992@chino.kir.corp.google.com>
+ <CAHGf_=rQN35sM6SLLz9NrgSooKhmsVhR2msEY3jxnLSj+SAcXQ@mail.gmail.com>
+ <20111011063336.GA23284@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1110111633160.5236@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Krishna Reddy' <vdumpa@nvidia.com>
-Cc: linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>
 
-Hello,
-
-On Wednesday, October 12, 2011 3:35 AM Krishna Reddy wrote:
-
-> >>It looks that You have simplified arm_iommu_map_sg() function too much.
-> >>The main advantage of the iommu is to map scattered memory pages into
-> >>contiguous dma address space. DMA-mapping is allowed to merge consecutive
-> >>entries in the scatter list if hardware supports that.
-> >>http://article.gmane.org/gmane.linux.kernel/1128416
-> >I would update arm_iommu_map_sg() back to coalesce the sg list.
-> >>MMC drivers seem to be aware of coalescing the SG entries together as they are using
-> dma_sg_len().
+On Tue 11-10-11 16:36:28, David Rientjes wrote:
+> On Tue, 11 Oct 2011, Michal Hocko wrote:
 > 
-> I have updated the arm_iommu_map_sg() back to coalesce and fixed the issues with it. During
-> testing, I found out that mmc host driver doesn't support buffers bigger than 64K. To get the
-> device working, I had to break the sg entries coalesce when dma_length is about to go beyond
-> 64KB. Looks like Mmc host driver(sdhci.c) need to be fixed to handle buffers bigger than 64KB.
-> Should the clients be forced to handle bigger buffers or is there any better way to handle
-> these kind of issues?
+> > The patch looks good but we still need other 2 patches
+> > (http://comments.gmane.org/gmane.linux.kernel.mm/68578), right?
+> > 
+> 
+> For the lguest patch, Rusty is the maintainer and has already acked the 
+> patch, so I think it should be merged through him.  I don't see a need for 
+> the second patch since we'll now detect frozen oom killed tasks on retry 
+> and don't need to kill them directly when oom killed (it just adds 
+> additional, unnecessary code).
 
-There is struct device_dma_parameters *dma_parms member of struct device. You can specify
-maximum segment size for the dma_map_sg function. This will of course complicate this function
-even more...
+OK, my understanding was that we need both patches, but you are right,
+the later one should be sufficient.
 
-Best regards
+> 
+> > Anyway, I thought that we agreed on the other approach suggested by
+> > Tejun (make frozen tasks oom killable without thawing). Even in that
+> > case we want the first patch
+> > (http://permalink.gmane.org/gmane.linux.kernel.mm/68576).
+> 
+> If that's possible, then we can just add Tejun to add a follow-up patch to 
+> remove the thaw directly in the oom killer.  
+
+OK
+
+> I'm thinking that won't be possible for 3.2, though, so I don't know why we'd
+> remove oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch
+> from -mm?
+
+No need for that then.
+
+Thanks
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
