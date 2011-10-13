@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 682E56B003B
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:09:05 -0400 (EDT)
-Date: Thu, 13 Oct 2011 16:08:54 -0400 (EDT)
-Message-Id: <20111013.160854.1765661520007592071.davem@davemloft.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 072896B0047
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:12:30 -0400 (EDT)
+Date: Thu, 13 Oct 2011 16:12:21 -0400 (EDT)
+Message-Id: <20111013.161221.1969725742975317077.davem@davemloft.net>
 Subject: Re: [PATCH v7 0/8] Request for inclusion: tcp memory buffers
 From: David Miller <davem@davemloft.net>
 In-Reply-To: <4E9744A6.5010101@parallels.com>
@@ -21,18 +21,29 @@ Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, lizf@cn.fujitsu.com
 From: Glauber Costa <glommer@parallels.com>
 Date: Fri, 14 Oct 2011 00:05:58 +0400
 
-> On 10/14/2011 12:00 AM, David Miller wrote:
->> That imposes a new non-trivial cost, in fast paths, even when people
->> do not use your feature.
-> Well, there is a cost, but all past submissions included round trip
-> benchmarks.
-> In none of them I could see any significant slowdown.
+> Also, I kind of dispute the affirmation that !cgroup will encompass
+> the majority of users, since cgroups is being enabled by default by
+> most vendors. All systemd based systems use it extensively, for
+> instance.
 
-Did you try millions of sockets doing all kinds of different accesses?
+I will definitely advise people against this, since the cost of having
+this on by default is absolutely non-trivial.
 
-Did you check the nanosecond latency of operations over loopback so
-that the real cost of you change can be isolated and thus measured
-properly?
+People keep asking every few releases "where the heck has my performance
+gone" and it's because of creeping features like this.  This socket
+cgroup feature is a prime example of where that kind of stuff comes
+from.
+
+I really get irritated when people go "oh, it's just one indirect
+function call" and "oh, it's just one more pointer in struct sock"
+
+We work really hard to _remove_ elements from structures and make them
+smaller, and to remove expensive operations from the fast paths.
+
+It might take someone weeks if not months to find a way to make a
+patch which compensates for the extra overhead your patches are adding.
+
+And I don't think you fully appreciate that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
