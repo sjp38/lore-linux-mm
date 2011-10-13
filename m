@@ -1,53 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 670F36B016F
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:50:36 -0400 (EDT)
-Received: by vcbfk1 with SMTP id fk1so655739vcb.14
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 13:50:35 -0700 (PDT)
-Date: Thu, 13 Oct 2011 13:50:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
- __vm_enough_memory
-Message-Id: <20111013135032.7c2c54cd.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1110131052300.18473@router.home>
-References: <20111012160202.GA18666@sgi.com>
-	<20111012120118.e948f40a.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1110121452220.31218@router.home>
-	<20111013152355.GB6966@sgi.com>
-	<alpine.DEB.2.00.1110131052300.18473@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 741F56B0171
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:53:00 -0400 (EDT)
+Date: Thu, 13 Oct 2011 16:51:48 -0400 (EDT)
+Message-Id: <20111013.165148.64222593458932960.davem@davemloft.net>
+Subject: Re: [PATCH] mm: add a "struct page_frag" type containing a page,
+ offset and length
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <alpine.DEB.2.00.1110131348310.24853@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1110131327470.24853@chino.kir.corp.google.com>
+	<20111013.163708.1319779926961023813.davem@davemloft.net>
+	<alpine.DEB.2.00.1110131348310.24853@chino.kir.corp.google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Dimitri Sivanich <sivanich@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: rientjes@google.com
+Cc: akpm@linux-foundation.org, ian.campbell@citrix.com, linux-kernel@vger.kernel.org, hch@infradead.org, jaxboe@fusionio.com, linux-mm@kvack.org
 
-On Thu, 13 Oct 2011 10:54:30 -0500 (CDT)
-Christoph Lameter <cl@gentwo.org> wrote:
+From: David Rientjes <rientjes@google.com>
+Date: Thu, 13 Oct 2011 13:49:35 -0700 (PDT)
 
-> On Thu, 13 Oct 2011, Dimitri Sivanich wrote:
+> On Thu, 13 Oct 2011, David Miller wrote:
 > 
-> > > increase the allowed delta per zone if frequent updates occur via the
-> > > overflow checks in vmstat.c. See calculate_*_threshold there.
-> >
-> > I tried changing the threshold in both directions, with slower throughput in
-> > both cases.
+>> >> A few network drivers currently use skb_frag_struct for this purpose but I have
+>> >> patches which add additional fields and semantics there which these other uses
+>> >> do not want.
+>> >> 
+>> > 
+>> > Is this patch a part of a larger series that actually uses 
+>> > struct page_frag?  Probably a good idea to post them so we know it doesn't 
+>> > just lie there dormant.
+>> 
+>> See:
+>> 
+>> http://patchwork.ozlabs.org/patch/118693/
+>> http://patchwork.ozlabs.org/patch/118694/
+>> http://patchwork.ozlabs.org/patch/118695/
+>> http://patchwork.ozlabs.org/patch/118700/
+>> http://patchwork.ozlabs.org/patch/118696/
+>> http://patchwork.ozlabs.org/patch/118699/
+>> 
+>> This is a replacement for patch #1 in that series.
+>> 
 > 
-> If that is the case check for the vm_stat cacheline being shared with
-> another hot kernel variable variable. Maybe that causes cacheline
-> eviction.
+> Ok, let's add Andrew to the thread so this can go through -mm in 
+> preparation for that series.
 
-yup.  `nm -n vmlinux'.
-
-> If there are no updates occurring for a while (due to increased deltas
-> and/or vmstat updates) then the vm_stat cacheline should be able to stay
-> in shared mode in multiple processors and the performance should increase.
-> 
-
-We could cacheline align vm_stat[].  But the thing is pretty small - we
-couild put each entry in its own cacheline.
-
+It doesn't usually work like that, net-next is usually one of the first
+trees that Stephen pulls into -next, so this kind of simple dependency should
+go into my tree if the -mm developers give it an ACK and are OK with it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
