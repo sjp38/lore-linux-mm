@@ -1,52 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4858E6B002C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 02:01:20 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 18DB73EE081
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:01:17 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E48FF45DE7A
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:01:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D022745DE61
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:01:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C361DB803C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:01:16 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C3161DB802C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:01:16 +0900 (JST)
-Date: Thu, 13 Oct 2011 15:00:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 8/8] Disable task moving when using kernel memory
- accounting
-Message-Id: <20111013150021.0899b3ab.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1318242268-2234-9-git-send-email-glommer@parallels.com>
-References: <1318242268-2234-1-git-send-email-glommer@parallels.com>
-	<1318242268-2234-9-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E474E6B002C
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 03:12:22 -0400 (EDT)
+Received: by vws16 with SMTP id 16so1715635vws.14
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 00:12:21 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4E92C6FA.2050609@parallels.com>
+References: <4E8DD5B9.4060905@parallels.com>
+	<alpine.DEB.2.00.1110071159540.11042@router.home>
+	<4E92C6FA.2050609@parallels.com>
+Date: Thu, 13 Oct 2011 10:12:20 +0300
+Message-ID: <CAOJsxLGctbXuXNuCWukH6LayZkuKH=aTx1L7uk87gVbVOJ_MKg@mail.gmail.com>
+Subject: Re: [PATCH 0/5] Slab objects identifiers
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Christoph Lameter <cl@gentwo.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 10 Oct 2011 14:24:28 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+On Mon, Oct 10, 2011 at 1:20 PM, Pavel Emelyanov <xemul@parallels.com> wrote:
+>> If two tasks share an mm_struct then the mm_struct pointer (task->mm) will
+>> point to the same address. Objects are already uniquely identified by
+>> their address.
+>
+> Yes of course, but ...
+>
+>> If you store the physical address with the object content
+>> when transferring then you can verify that they share the mm_struct.
+>
+> ... are we all OK with showing kernel addresses to the userspace? I thought the %pK
+> format was invented specially to handle such leaks.
 
-> Since this code is still experimental, we are leaving the exact
-> details of how to move tasks between cgroups when kernel memory
-> accounting is used as future work.
-> 
-> For now, we simply disallow movement if there are any pending
-> accounted memory.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+I don't think it's worth it to try to hide kernel addresses for
+checkpoint/restart.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> If we are, then (as I said in the first letter) we should just show them and forget
+> this set. If we're not - we should invent smth more straightforward and this set is
+> an attempt for doing this.
+
+Does this ID thing need to happen in the slab layer?
+
+                              Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
