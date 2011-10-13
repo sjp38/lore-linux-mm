@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9FEE16B0034
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 04:20:12 -0400 (EDT)
-From: Hans Schillstrom <hans@schillstrom.com>
-Subject: Re: possible slab deadlock while doing ifenslave
-Date: Thu, 13 Oct 2011 10:19:58 +0200
-References: <201110121019.53100.hans@schillstrom.com> <alpine.DEB.2.00.1110121333560.7646@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1110121333560.7646@chino.kir.corp.google.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id ED32E6B0037
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 04:26:26 -0400 (EDT)
+Message-ID: <4E96A091.4000705@parallels.com>
+Date: Thu, 13 Oct 2011 12:25:53 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH v6 3/8] foundations of per-cgroup memory pressure controlling.
+References: <1318242268-2234-1-git-send-email-glommer@parallels.com> <1318242268-2234-4-git-send-email-glommer@parallels.com> <20111013145353.161009ea.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111013145353.161009ea.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201110131019.58397.hans@schillstrom.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
 
-On Wednesday, October 12, 2011 22:35:51 David Rientjes wrote:
-> On Wed, 12 Oct 2011, Hans Schillstrom wrote:
-> 
-> > Hello,
-> > I got this when I was testing a VLAN patch i.e. using Dave Millers net-next from today.
-> > When doing this on a single core i686 I got the warning every time,
-> > however ifenslave is not hanging it's just a warning
-> > Have not been testing this on a multicore jet.
-> > 
-> > There is no warnings with a 3.0.4 kernel.
-> > 
-> > Is this a known warning ?
-> > 
-> > ~ # ifenslave bond0 eth1 eth2
-> > 
-> > =============================================
-> > [ INFO: possible recursive locking detected ]
-> > 3.1.0-rc9+ #3
-> > ---------------------------------------------
-> > ifenslave/749 is trying to acquire lock:
-> >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
-> > 
-> > but task is already holding lock:
-> >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
-> > 
-> 
-> Hmm, the only candidate that I can see that may have caused this is 
-> 83835b3d9aec ("slab, lockdep: Annotate slab -> rcu -> debug_object -> 
-> slab").  Could you try reverting that patch in your local tree and seeing 
-> if it helps?
-> 
+On 10/13/2011 09:53 AM, KAMEZAWA Hiroyuki wrote:
+> On Mon, 10 Oct 2011 14:24:23 +0400
+> Glauber Costa<glommer@parallels.com>  wrote:
+>
+>> This patch converts struct sock fields memory_pressure,
+>> memory_allocated, sockets_allocated, and sysctl_mem (now prot_mem)
+>> to function pointers, receiving a struct mem_cgroup parameter.
+>>
+>> enter_memory_pressure is kept the same, since all its callers
+>> have socket a context, and the kmem_cgroup can be derived from
+>> the socket itself.
+>>
+>> To keep things working, the patch convert all users of those fields
+>> to use acessor functions.
+>>
+>> In my benchmarks I didn't see a significant performance difference
+>> with this patch applied compared to a baseline (around 1 % diff, thus
+>> inside error margin).
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>> CC: David S. Miller<davem@davemloft.net>
+>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Eric W. Biederman<ebiederm@xmission.com>
+>
+> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> a nitpick.
+>
+>
+>>   #ifdef CONFIG_INET
+>> +enum {
+>> +	UNDER_LIMIT,
+>> +	OVER_LIMIT,
+>> +};
+>> +
+>
+> It may be better to move this to res_counter.h or memcontrol.h
+>
+Sorry Kame,
 
-That was not our candidate ...
-i.e. same results
+It is in memcontrol.h already. What exactly do you mean here ?
 
-Thanks
-Hans
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
