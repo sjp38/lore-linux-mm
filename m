@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 769846B0033
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9FEE16B0034
 	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 04:20:12 -0400 (EDT)
-Message-ID: <4E969F19.4010802@parallels.com>
-Date: Thu, 13 Oct 2011 12:19:37 +0400
-From: Glauber Costa <glommer@parallels.com>
+From: Hans Schillstrom <hans@schillstrom.com>
+Subject: Re: possible slab deadlock while doing ifenslave
+Date: Thu, 13 Oct 2011 10:19:58 +0200
+References: <201110121019.53100.hans@schillstrom.com> <alpine.DEB.2.00.1110121333560.7646@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1110121333560.7646@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 1/8] Basic kernel memory functionality for the Memory
- Controller
-References: <1318242268-2234-1-git-send-email-glommer@parallels.com> <1318242268-2234-2-git-send-email-glommer@parallels.com> <CAHH2K0awiPZZ9EJLyZy_p_ehf0-waQ-vGUAhAZEpdCMnYqKidA@mail.gmail.com>
-In-Reply-To: <CAHH2K0awiPZZ9EJLyZy_p_ehf0-waQ-vGUAhAZEpdCMnYqKidA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201110131019.58397.hans@schillstrom.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org
 
-On 10/13/2011 11:18 AM, Greg Thelen wrote:
-> On Mon, Oct 10, 2011 at 3:24 AM, Glauber Costa<glommer@parallels.com>  wrote:
->> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
->> index 06eb6d9..bf00cd2 100644
->> --- a/Documentation/cgroups/memory.txt
->> +++ b/Documentation/cgroups/memory.txt
-> ...
->> @@ -255,6 +262,31 @@ When oom event notifier is registered, event will be delivered.
->>    per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
->>    zone->lru_lock, it has no lock of its own.
->>
->> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
->> +
->> + With the Kernel memory extension, the Memory Controller is able to limit
->
-> Extra leading space before 'With'.
->
->> +the amount of kernel memory used by the system. Kernel memory is fundamentally
->> +different than user memory, since it can't be swapped out, which makes it
->> +possible to DoS the system by consuming too much of this precious resource.
->> +Kernel memory limits are not imposed for the root cgroup.
->> +
->> +Memory limits as specified by the standard Memory Controller may or may not
->> +take kernel memory into consideration. This is achieved through the file
->> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
->
-> s/Value/value/
->
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 3508777..d25c5cb 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
-> ...
->> +static int kmem_limit_independent_write(struct cgroup *cont, struct cftype *cft,
->> +                                       u64 val)
->> +{
->> +       cgroup_lock();
->> +       mem_cgroup_from_cont(cont)->kmem_independent_accounting = !!val;
->> +       cgroup_unlock();
->
-> I do not think cgroup_lock,unlock are needed here.  The cont and
-> associated cgroup should be guaranteed by the caller to be valid.
-> Does this lock provide some other synchronization?
-Yeah, I think I was being overcautious.
+On Wednesday, October 12, 2011 22:35:51 David Rientjes wrote:
+> On Wed, 12 Oct 2011, Hans Schillstrom wrote:
+> 
+> > Hello,
+> > I got this when I was testing a VLAN patch i.e. using Dave Millers net-next from today.
+> > When doing this on a single core i686 I got the warning every time,
+> > however ifenslave is not hanging it's just a warning
+> > Have not been testing this on a multicore jet.
+> > 
+> > There is no warnings with a 3.0.4 kernel.
+> > 
+> > Is this a known warning ?
+> > 
+> > ~ # ifenslave bond0 eth1 eth2
+> > 
+> > =============================================
+> > [ INFO: possible recursive locking detected ]
+> > 3.1.0-rc9+ #3
+> > ---------------------------------------------
+> > ifenslave/749 is trying to acquire lock:
+> >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
+> > 
+> > but task is already holding lock:
+> >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
+> > 
+> 
+> Hmm, the only candidate that I can see that may have caused this is 
+> 83835b3d9aec ("slab, lockdep: Annotate slab -> rcu -> debug_object -> 
+> slab").  Could you try reverting that patch in your local tree and seeing 
+> if it helps?
+> 
 
-With the following comments addressed, can I add your Reviewed-by to 
-this one ?
+That was not our candidate ...
+i.e. same results
+
+Thanks
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
