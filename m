@@ -1,35 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DFA766B0179
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 17:03:01 -0400 (EDT)
-Date: Thu, 13 Oct 2011 16:02:58 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
- __vm_enough_memory
-In-Reply-To: <20111013135032.7c2c54cd.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1110131602020.26553@router.home>
-References: <20111012160202.GA18666@sgi.com> <20111012120118.e948f40a.akpm@linux-foundation.org> <alpine.DEB.2.00.1110121452220.31218@router.home> <20111013152355.GB6966@sgi.com> <alpine.DEB.2.00.1110131052300.18473@router.home>
- <20111013135032.7c2c54cd.akpm@linux-foundation.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6563A6B017B
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 17:12:19 -0400 (EDT)
+Message-ID: <4E97541F.9050805@redhat.com>
+Date: Thu, 13 Oct 2011 17:11:59 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
+References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110111612120.5236@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516D459@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110131337580.24853@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1110131337580.24853@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dimitri Sivanich <sivanich@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: David Rientjes <rientjes@google.com>
+Cc: Satoru Moriya <satoru.moriya@hds.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Thu, 13 Oct 2011, Andrew Morton wrote:
+On 10/13/2011 04:48 PM, David Rientjes wrote:
 
-> > If there are no updates occurring for a while (due to increased deltas
-> > and/or vmstat updates) then the vm_stat cacheline should be able to stay
-> > in shared mode in multiple processors and the performance should increase.
-> >
->
-> We could cacheline align vm_stat[].  But the thing is pretty small - we
-> couild put each entry in its own cacheline.
+> We'll never know the future and how much memory a latency-sensitive
+> application will require 100ms from now.  The only thing that we can do is
+> (i) identify the latency-sensitive app, (ii) reclaim more aggressively for
+> them, and (iii) reclaim additional memory in preparation for another
 
-Which in turn would increase the cache footprint of some key kernel
-functions (because they need multiple vm_stat entries) and cause eviction
-of other cachelines that then reduce overall system performance again.
+This is why I proposed a watermark solution.
+
+> burst.  At some point, though, userspace needs to be responsible to not
+> allocate enormous amounts of memory all at once and there's room for
+> mitigation there too to preallocate ahead of what you actually need.
+
+Userspace cannot be responsible, for the simple reason that
+the allocations might be done in the kernel.
+
+Think about an mlocked realtime program handling network
+packets. Memory is allocated when packets come in, and when
+the program calls sys_send(), which causes packets to get
+sent.
+
+I don't see how we can make userspace responsible for
+kernel-side allocations.
+
+I did not propose the extra_free_kbytes patch because I
+like it, or out of laziness, but because I truly have not
+come up with a better solution.
+
+So far, neither this thread (which is unfortunate).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
