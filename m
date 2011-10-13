@@ -1,162 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 96DBF6B016A
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:43:50 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 13 Oct 2011 14:43:40 -0600
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9DKgAjB188132
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:42:10 -0600
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9DKg9tQ012750
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:42:09 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH v2] staging: zcache: remove zcache_direct_reclaim_lock
-Date: Thu, 13 Oct 2011 15:42:03 -0500
-Message-Id: <1318538523-3976-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E156B016B
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 16:48:21 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id p9DKmGj2004572
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 13:48:17 -0700
+Received: from pzk34 (pzk34.prod.google.com [10.243.19.162])
+	by wpaz29.hot.corp.google.com with ESMTP id p9DKjUdH009991
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 13:48:15 -0700
+Received: by pzk34 with SMTP id 34so4986397pzk.10
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 13:48:15 -0700 (PDT)
+Date: Thu, 13 Oct 2011 13:48:13 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB516D459@USINDEVS02.corp.hds.com>
+Message-ID: <alpine.DEB.2.00.1110131337580.24853@chino.kir.corp.google.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110111612120.5236@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516D459@USINDEVS02.corp.hds.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@suse.de
-Cc: cascardo@holoscopio.com, dan.magenheimer@oracle.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-zcache_do_preload() currently does a spin_trylock() on the
-zcache_direct_reclaim_lock. Holding this lock intends to prevent
-shrink_zcache_memory() from evicting zbud pages as a result
-of a preload.
+On Thu, 13 Oct 2011, Satoru Moriya wrote:
 
-However, it also prevents two threads from
-executing zcache_do_preload() at the same time.  The first
-thread will obtain the lock and the second thread's spin_trylock()
-will fail (an aborted preload) causing the page to be either lost
-(cleancache) or pushed out to the swap device (frontswap). It
-also doesn't ensure that the call to shrink_zcache_memory() is
-on the same thread as the call to zcache_do_preload().
+> My test case is just a simple one (maybe too simple), and I tried
+> to demonstrate following issues that current kernel has with it.
+> 
+> 1. Current kernel uses free memory as pagecache.
+> 2. Applications may allocate memory burstly and when it happens
+>    they may get a latency issue because there are not enough free
+>    memory. Also the amount of required memory is wide-ranging.
 
-Additional, there is no need for this mechanism because all
-zcache_do_preload() calls that come down from cleancache already
-have PF_MEMALLOC set in the process flags which prevents
-direct reclaim in the memory manager. If the zcache_do_preload()
-call is done from the frontswap path, we _want_ reclaim to be
-done (which it isn't right now).
+This is what the per-zone watermarks are intended to address and I 
+understand that it's not doing a good enough job for your particular 
+workloads.  I'm trying to find a solution that mitigates that for all 
+threads that allocate faster than the kernel can reclaim, realtime or 
+otherwise, without requiring the admin to set those watermarks himself, 
+which is really what extra_free_kbytes is eventually leading to.
 
-This patch removes the zcache_direct_reclaim_lock and related
-statistics in zcache.
+> 3. Some users would like to control the amount of free memory
+>    to avoid the situation above.
 
-Based on v3.1-rc8
+The only possible way to do that is with min_free_kbytes right now and 
+that would increase the amount of memory that realtime threads have 
+exclusive access to.  Let's try not to add additional tunables so that 
+admins need to find their own optimal watermarks for every kernel release.  
+I see no reason why we can't add logic for rt-threads triggering reclaim 
+to either reclaim faster (Con's patch) or more memory than normal (an 
+ALLOC_HARDER type bonus in the reclaim path to reclaim 1.25 * high_wmark, 
+for example).  We've had a rt-thread bonus in the page allocator for a 
+long time, I'm not saying we don't need more elsewhere.
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
----
- drivers/staging/zcache/zcache-main.c |   33 ++++++---------------------------
- 1 files changed, 6 insertions(+), 27 deletions(-)
+> 4. User can't setup the amount of free memory explicitly.
+>    From user's point of view, the amount of free memory is the delta
+>    between high watermark - min watermark because below min watermark
+>    user applications incur a penalty (direct reclaim). The width of
+>    delta depends on min_free_kbytes, actually min watermark / 2, and
+>    so if we want to make free memory bigger, we must make
+>    min_free_kbytes bigger. It's not a intuitive and it introduces
+>    another problem that is possibility of direct reclaim is increased.
+> 
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 462fbc2..995523f 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -962,15 +962,6 @@ out:
- static unsigned long zcache_failed_get_free_pages;
- static unsigned long zcache_failed_alloc;
- static unsigned long zcache_put_to_flush;
--static unsigned long zcache_aborted_preload;
--static unsigned long zcache_aborted_shrink;
--
--/*
-- * Ensure that memory allocation requests in zcache don't result
-- * in direct reclaim requests via the shrinker, which would cause
-- * an infinite loop.  Maybe a GFP flag would be better?
-- */
--static DEFINE_SPINLOCK(zcache_direct_reclaim_lock);
- 
- /*
-  * for now, used named slabs so can easily track usage; later can
-@@ -1005,14 +996,12 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 	void *page;
- 	int ret = -ENOMEM;
- 
-+	/* ensure no recursion due to direct reclaim */
-+	BUG_ON(is_ephemeral(pool) && !(current->flags & PF_MEMALLOC));
- 	if (unlikely(zcache_objnode_cache == NULL))
- 		goto out;
- 	if (unlikely(zcache_obj_cache == NULL))
- 		goto out;
--	if (!spin_trylock(&zcache_direct_reclaim_lock)) {
--		zcache_aborted_preload++;
--		goto out;
--	}
- 	preempt_disable();
- 	kp = &__get_cpu_var(zcache_preloads);
- 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
-@@ -1021,7 +1010,7 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 				ZCACHE_GFP_MASK);
- 		if (unlikely(objnode == NULL)) {
- 			zcache_failed_alloc++;
--			goto unlock_out;
-+			goto out;
- 		}
- 		preempt_disable();
- 		kp = &__get_cpu_var(zcache_preloads);
-@@ -1034,13 +1023,13 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
- 	if (unlikely(obj == NULL)) {
- 		zcache_failed_alloc++;
--		goto unlock_out;
-+		goto out;
- 	}
- 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
- 	if (unlikely(page == NULL)) {
- 		zcache_failed_get_free_pages++;
- 		kmem_cache_free(zcache_obj_cache, obj);
--		goto unlock_out;
-+		goto out;
- 	}
- 	preempt_disable();
- 	kp = &__get_cpu_var(zcache_preloads);
-@@ -1053,8 +1042,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
- 	else
- 		free_page((unsigned long)page);
- 	ret = 0;
--unlock_out:
--	spin_unlock(&zcache_direct_reclaim_lock);
- out:
- 	return ret;
- }
-@@ -1423,8 +1410,6 @@ ZCACHE_SYSFS_RO(evicted_buddied_pages);
- ZCACHE_SYSFS_RO(failed_get_free_pages);
- ZCACHE_SYSFS_RO(failed_alloc);
- ZCACHE_SYSFS_RO(put_to_flush);
--ZCACHE_SYSFS_RO(aborted_preload);
--ZCACHE_SYSFS_RO(aborted_shrink);
- ZCACHE_SYSFS_RO(compress_poor);
- ZCACHE_SYSFS_RO(mean_compress_poor);
- ZCACHE_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
-@@ -1466,8 +1451,6 @@ static struct attribute *zcache_attrs[] = {
- 	&zcache_failed_get_free_pages_attr.attr,
- 	&zcache_failed_alloc_attr.attr,
- 	&zcache_put_to_flush_attr.attr,
--	&zcache_aborted_preload_attr.attr,
--	&zcache_aborted_shrink_attr.attr,
- 	&zcache_zbud_unbuddied_list_counts_attr.attr,
- 	&zcache_zbud_cumul_chunk_counts_attr.attr,
- 	&zcache_zv_curr_dist_counts_attr.attr,
-@@ -1507,11 +1490,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
- 		if (!(gfp_mask & __GFP_FS))
- 			/* does this case really need to be skipped? */
- 			goto out;
--		if (spin_trylock(&zcache_direct_reclaim_lock)) {
--			zbud_evict_pages(nr);
--			spin_unlock(&zcache_direct_reclaim_lock);
--		} else
--			zcache_aborted_shrink++;
-+		zbud_evict_pages(nr);
- 	}
- 	ret = (int)atomic_read(&zcache_zbud_curr_raw_pages);
- out:
--- 
-1.7.4.1
+So you're saying that we need to increase the space between high_wmark and 
+min_wmark anytime that min_free_kbytes changes?  That certainly may be 
+true and would hopefully mitigate direct reclaim becoming too intrusive 
+for your workload.
+
+We _really_ don't want to cause regressions for others, though, which 
+extra_free_kbytes can easily do for cpu-intensive workloads if nothing is 
+currently requiring that extra burst of memory (and occurs because 
+extra_free_kbytes is a global tunable and not tied to any specific 
+application [like testing for rt_task()] that we can identify when 
+reclaiming).
+
+> But my concern described above is still alive because whether
+> latency issue happen or not depends on how heavily workloads
+> allocate memory at a short time. Of cource we can say same
+> things for extra_free_kbytes, but we can change it and test
+> an effect easily.
+> 
+
+We'll never know the future and how much memory a latency-sensitive 
+application will require 100ms from now.  The only thing that we can do is 
+(i) identify the latency-sensitive app, (ii) reclaim more aggressively for 
+them, and (iii) reclaim additional memory in preparation for another 
+burst.  At some point, though, userspace needs to be responsible to not 
+allocate enormous amounts of memory all at once and there's room for 
+mitigation there too to preallocate ahead of what you actually need.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
