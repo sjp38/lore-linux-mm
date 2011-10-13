@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FB026B0180
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 17:24:38 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so3969337pzk.6
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:24:36 -0700 (PDT)
-Date: Thu, 13 Oct 2011 14:24:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
- __vm_enough_memory
-Message-Id: <20111013142434.4d05cbdc.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1110131602020.26553@router.home>
-References: <20111012160202.GA18666@sgi.com>
-	<20111012120118.e948f40a.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1110121452220.31218@router.home>
-	<20111013152355.GB6966@sgi.com>
-	<alpine.DEB.2.00.1110131052300.18473@router.home>
-	<20111013135032.7c2c54cd.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1110131602020.26553@router.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0142F6B0182
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 18:03:10 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p9DM34Fu005716
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:03:04 -0700
+Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
+	by wpaz17.hot.corp.google.com with ESMTP id p9DLvT9H009384
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:03:03 -0700
+Received: by pzk33 with SMTP id 33so5119813pzk.0
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 15:02:58 -0700 (PDT)
+Date: Thu, 13 Oct 2011 15:02:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
+In-Reply-To: <4E97541F.9050805@redhat.com>
+Message-ID: <alpine.DEB.2.00.1110131501490.24853@chino.kir.corp.google.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110111612120.5236@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516D459@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110131337580.24853@chino.kir.corp.google.com>
+ <4E97541F.9050805@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Dimitri Sivanich <sivanich@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: Satoru Moriya <satoru.moriya@hds.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Thu, 13 Oct 2011 16:02:58 -0500 (CDT)
-Christoph Lameter <cl@gentwo.org> wrote:
+On Thu, 13 Oct 2011, Rik van Riel wrote:
 
-> On Thu, 13 Oct 2011, Andrew Morton wrote:
+> Userspace cannot be responsible, for the simple reason that
+> the allocations might be done in the kernel.
 > 
-> > > If there are no updates occurring for a while (due to increased deltas
-> > > and/or vmstat updates) then the vm_stat cacheline should be able to stay
-> > > in shared mode in multiple processors and the performance should increase.
-> > >
-> >
-> > We could cacheline align vm_stat[].  But the thing is pretty small - we
-> > couild put each entry in its own cacheline.
+> Think about an mlocked realtime program handling network
+> packets. Memory is allocated when packets come in, and when
+> the program calls sys_send(), which causes packets to get
+> sent.
 > 
-> Which in turn would increase the cache footprint of some key kernel
-> functions (because they need multiple vm_stat entries) and cause eviction
-> of other cachelines that then reduce overall system performance again.
+> I don't see how we can make userspace responsible for
+> kernel-side allocations.
+> 
 
-Sure, but we gain performance by not having different CPUs treading on
-each other when they update different vmstat fields.  Sometimes one
-effect will win and other times the other effect will win.  Some
-engineering is needed..
+All of this is what Minchan was proposing by allowing a mempool of kernel 
+memory to be preallocated and managed by the memory controller.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
