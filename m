@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 058246B002C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 01:45:29 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 827743EE0C8
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:45:25 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F37A45DE87
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:45:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 49CB045DE61
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:45:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B4931DB803A
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:45:25 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E245C1DB803C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 14:45:24 +0900 (JST)
-Date: Thu, 13 Oct 2011 14:44:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 1/8] Basic kernel memory functionality for the Memory
- Controller
-Message-Id: <20111013144430.636ee7e2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1318242268-2234-2-git-send-email-glommer@parallels.com>
-References: <1318242268-2234-1-git-send-email-glommer@parallels.com>
-	<1318242268-2234-2-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0F16B002C
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 01:48:14 -0400 (EDT)
+Date: Thu, 13 Oct 2011 07:48:09 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] lguest: move process freezing before pending signals
+ check
+Message-ID: <20111013054809.GB467@tiehlicka.suse.cz>
+References: <cover.1317110948.git.mhocko@suse.cz>
+ <e213ea00900cba783f228eb4234ad929a05d4359.1317110948.git.mhocko@suse.cz>
+ <20111012065504.GC31570@tiehlicka.suse.cz>
+ <87lispepbg.fsf@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87lispepbg.fsf@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 10 Oct 2011 14:24:21 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+On Thu 13-10-11 10:27:07, Rusty Russell wrote:
+> On Wed, 12 Oct 2011 08:55:04 +0200, Michal Hocko <mhocko@suse.cz> wrote:
+> > Hi Rusty,
+> > what is the current state of this patch? Are you planning to push it for
+> > 3.2?
+> 
+> Oh.  Having acked it, I assumed you'd push.  But I've put it in my queue
+> now.
 
-> This patch lays down the foundation for the kernel memory component
-> of the Memory Controller.
-> 
-> As of today, I am only laying down the following files:
-> 
->  * memory.independent_kmem_limit
->  * memory.kmem.limit_in_bytes (currently ignored)
->  * memory.kmem.usage_in_bytes (always zero)
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
-> CC: Paul Menage <paul@paulmenage.org>
-> CC: Greg Thelen <gthelen@google.com>
+Thanks
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Thanks,
+> Rusty.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
