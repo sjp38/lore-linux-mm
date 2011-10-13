@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB306B002C
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 00:35:54 -0400 (EDT)
-Message-ID: <4E966564.5030902@redhat.com>
-Date: Thu, 13 Oct 2011 00:13:24 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A736B002C
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 00:48:33 -0400 (EDT)
+Received: by mail-yw0-f52.google.com with SMTP id 31so1023112ywp.39
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2011 21:48:30 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH -v2 -mm] add extra free kbytes tunable
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com> <4E959292.9060301@redhat.com> <alpine.DEB.2.00.1110121316590.7646@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1110121316590.7646@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4E9614FA.20108@xenotime.net>
+References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
+ <1318325033-32688-3-git-send-email-sumit.semwal@ti.com> <4E9614FA.20108@xenotime.net>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Thu, 13 Oct 2011 10:18:10 +0530
+Message-ID: <CAB2ybb8RTdUt8w2T74KH=hJoe9_tV41Ua_Z4x4kWa64OpXOe+A@mail.gmail.com>
+Subject: Re: [RFC 2/2] dma-buf: Documentation for buffer sharing framework
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>
 
-On 10/12/2011 04:21 PM, David Rientjes wrote:
-> On Wed, 12 Oct 2011, Rik van Riel wrote:
->
->> How would this scheme work?
+Hi Randy,
+On Thu, Oct 13, 2011 at 4:00 AM, Randy Dunlap <rdunlap@xenotime.net> wrote:
+> On 10/11/2011 02:23 AM, Sumit Semwal wrote:
+>> Add documentation for dma buffer sharing framework, explaining the
+>> various operations, members and API of the dma buffer sharing
+>> framework.
 >>
+>> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+>> Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
+>> ---
+>> =A0Documentation/dma-buf-sharing.txt | =A0210 ++++++++++++++++++++++++++=
++++++++++++
+<snip>
+>> + =A0 =A0if the new buffer-user has stricter 'backing-storage constraint=
+s', and the
+>> + =A0 =A0exporter can handle these constraints, the exporter can just st=
+all on the
+>> + =A0 =A0get_scatterlist till all outstanding access is completed (as si=
+gnalled by
 >
-> I suggested a patch from BFS that would raise kswapd to the same priority
-> of the task that triggered it (not completely up to rt, but the highest
-> possible in that case) and I'm waiting to hear if that helps for Satoru's
-> test case before looking at alternatives.  We could also extend the patch
-> to raise the priority of an already running kswapd if a higher priority
-> task calls into the page allocator's slowpath.
-
-This has the distinct benefit of making kswapd most active right
-at the same time the application is most active, which returns
-us to your first objection to the extra free kbytes patch (apps
-will suffer from kswapd cpu use).
-
-Furthermore, I am not sure that giving kswapd more CPU time is
-going to help, because kswapd could be stuck on some lock, held
-by a lower priority (or sleeping) context.
-
-I agree that the BFS patch would be worth a try, and would be
-very pleasantly surprised if it worked, but I am not very
-optimistic about it...
-
--- 
-All rights reversed
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 until
+>
+Thanks for your review; I will update all these in the next version.
+>> + =A0 =A0put_scatterlist).
+>> + =A0 =A0Once all ongoing access is completed, the exporter could potent=
+ially move
+>> + =A0 =A0the buffer to the stricter backing-storage, and then allow furt=
+her
+>> + =A0 =A0{get,put}_scatterlist operations from any buffer-user from the =
+migrated
+>> + =A0 =A0backing-storage.
+>> +
+>> + =A0 If the exporter cannot fulfill the backing-storage constraints of =
+the new
+>> + =A0 buffer-user device as requested, dma_buf_attach() would return an =
+error to
+>> + =A0 denote non-compatibility of the new buffer-sharing request with th=
+e current
+>> + =A0 buffer.
+>> +
+>> + =A0 If the exporter chooses not to allow an attach() operation once a
+>> + =A0 get_scatterlist has been called, it simply returns an error.
+>> +
+>> +- mmap file operation
+>> + =A0 An mmap() file operation is provided for the fd associated with th=
+e buffer.
+>> + =A0 If the exporter defines an mmap operation, the mmap() fop calls th=
+is to allow
+>> + =A0 mmap for devices that might need it; if not, it returns an error.
+>> +
+>> +References:
+>> +[1] struct dma_buf_ops in include/linux/dma-buf.h
+>> +[2] All interfaces mentioned above defined in include/linux/dma-buf.h
+>
+>
+> --
+> ~Randy
+> *** Remember to use Documentation/SubmitChecklist when testing your code =
+***
+>
+Best regards,
+~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
