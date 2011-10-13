@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AE4106B002F
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 08:23:53 -0400 (EDT)
-Message-ID: <4E96D852.9060507@parallels.com>
-Date: Thu, 13 Oct 2011 16:23:46 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D14C6B002C
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 08:52:27 -0400 (EDT)
+Received: by wyi40 with SMTP id 40so2377902wyi.14
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 05:52:23 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Slab objects identifiers
-References: <4E8DD5B9.4060905@parallels.com>	<alpine.DEB.2.00.1110071159540.11042@router.home>	<4E92C6FA.2050609@parallels.com>	<CAOJsxLGctbXuXNuCWukH6LayZkuKH=aTx1L7uk87gVbVOJ_MKg@mail.gmail.com>	<4E96CAC3.3040402@parallels.com> <CAOJsxLFKPyzr48z8Z-c4za6tcZjjTgDXxSkr32aracfF7VrPEw@mail.gmail.com>
-In-Reply-To: <CAOJsxLFKPyzr48z8Z-c4za6tcZjjTgDXxSkr32aracfF7VrPEw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 13 Oct 2011 20:52:22 +0800
+Message-ID: <CAJd=RBALaNJ680JzCP8KUaDO80dM+9_AK5yW9SSVoUD0G1Cxzw@mail.gmail.com>
+Subject: [PATCH] mm/huge_memory: Clean up typo when updating mmu cache
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@gentwo.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Glauber Costa <glommer@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
->>> Does this ID thing need to happen in the slab layer?
->>
->> Not necessarily, of course, but if we're going to show some identifier of an object
->> we have 2 choices - either we generate this ID independently (with e.g. IDA), but
->> this is slow, or we use some knowledge of an object as a bunch of bytes in memory.
->> These slab IDs thing is an attempt to implement the 2nd approach.
-> 
-> Why is the first approach slow? I fully agree that unique IDs are probably the
-> way to go here but why don't you just add a new member to struct mm_struct and
-> initialize it in mm_alloc() and mm_dup()?
+Hi Andrea
 
-For several reasons:
+There are three cases of update_mmu_cache() in the file, and the case in
+function collapse_huge_page() has a typo, namely the last parameter used,
+which is corrected based on the other two cases.
 
-1. I will need the same for fdtable, fs, files (the struct file can be shared by two
-   different fdtables), namespaces, etc and try to make it more generic.
-2. IDA allocation for mm will slowdown the fork() (for other objects - other operations).
-3. My trick with increasing percpu will require 64-bit field on each object which is
-   probably acceptable for mm_struct, but is critical for struct file and fs_struct, as
-   they are already quite small.
+Due to the define of update_mmu_cache by X86, the only arch that implements
+THP currently, the change here has no really crystal point, but one or two
+minutes of efforts could be saved for those archs that are likely to support
+THP in future.
 
->> The question I'm trying to answer with this is - do task A and task B have their mm
->> shared or not? Showing an ID answers one. Maybe there exists another way, but I haven't
->> invented it yet and decided to send this set out for discussion (the "release early"
->> idiom). If slab maintainers say "no, we don't accept this at all ever", then of course
->> I'll have to think further, but if the concept is suitable, but needs some refinement -
->> let's do it.
-> 
-> Oh, I much appreciate that you sent this early. I'm not completely against doing
-> this in the slab layer but I need much more convincing. I expect most distros to
-> enable checkpoint/restart so this ID mechanism is going to be default
-> on for slab.
-> 
->                             Pekka
-> .
-> 
+Thanks
+
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
+
+--- a/mm/huge_memory.c	Sat Aug 13 11:45:14 2011
++++ b/mm/huge_memory.c	Thu Oct 13 20:07:29 2011
+@@ -1906,7 +1906,7 @@ static void collapse_huge_page(struct mm
+ 	BUG_ON(!pmd_none(*pmd));
+ 	page_add_new_anon_rmap(new_page, vma, address);
+ 	set_pmd_at(mm, address, pmd, _pmd);
+-	update_mmu_cache(vma, address, entry);
++	update_mmu_cache(vma, address, _pmd);
+ 	prepare_pmd_huge_pte(pgtable, mm);
+ 	mm->nr_ptes--;
+ 	spin_unlock(&mm->page_table_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
