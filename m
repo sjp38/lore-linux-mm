@@ -1,113 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id CBE306B01A1
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 03:45:23 -0400 (EDT)
-Message-ID: <4E97E86B.8070608@parallels.com>
-Date: Fri, 14 Oct 2011 11:44:43 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
- in Prague
-References: <1316693805.10571.25.camel@dabdike> <20110926131027.GA14964@tiehlicka.suse.cz> <1317147379.9186.19.camel@dabdike.hansenpartnership.com> <20110929115419.GF21113@tiehlicka.suse.cz> <CANsGZ6Y-s8myrSZTyPNry0e29QczE2es6be0O1i0ro=zuz9hmA@mail.gmail.com> <CALWz4iw0HLtjkQPy7FRGyi4Ocm7+gtRujJWU_bWHbYK9fUSv5A@mail.gmail.com> <1318428864.3027.10.camel@dabdike.int.hansenpartnership.com> <CALWz4iwOA3AgSDoiVSHBGc81SLNBPu=yy2GF1hwU_9xDhvpfSg@mail.gmail.com> <1318539490.3018.58.camel@dabdike.int.hansenpartnership.com> <CALWz4izo0W9D7N5fh+hC_hTkR32_1kBH4FvUQL8S++k=wG8R0w@mail.gmail.com>
-In-Reply-To: <CALWz4izo0W9D7N5fh+hC_hTkR32_1kBH4FvUQL8S++k=wG8R0w@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id D9D316B01A2
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 05:14:42 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LT10046ITOGDC20@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 14 Oct 2011 10:14:40 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LT100AHJTOFYM@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 14 Oct 2011 10:14:40 +0100 (BST)
+Date: Fri, 14 Oct 2011 11:14:25 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [Linaro-mm-sig] [PATCH 8/9] ARM: integrate CMA with DMA-mapping
+ subsystem
+In-reply-to: <4E97BB8E.3060204@gmail.com>
+Message-id: <013701cc8a51$ab1a3fb0$014ebf10$%szyprowski@samsung.com>
+Content-language: pl
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+ <1317909290-29832-10-git-send-email-m.szyprowski@samsung.com>
+ <4E97BB8E.3060204@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Hugh Dickins <hughd@google.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, Paul Turner <pjt@google.com>, Tim Hockin <thockin@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
+To: 'Subash Patel' <subashrp@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 10/14/2011 02:13 AM, Ying Han wrote:
-> On Thu, Oct 13, 2011 at 1:58 PM, James Bottomley
-> <James.Bottomley@hansenpartnership.com>  wrote:
->> On Thu, 2011-10-13 at 13:54 -0700, Ying Han wrote:
->>> On Wed, Oct 12, 2011 at 7:14 AM, James Bottomley
->>> <James.Bottomley@hansenpartnership.com>  wrote:
->>>> On Mon, 2011-10-10 at 19:35 -0700, Ying Han wrote:
->>>>> On Thu, Sep 29, 2011 at 2:30 PM, Hugh Dickins<hughd@google.com>  wrote:
->>>>>> On Thu, Sep 29, 2011 at 4:54 AM, Michal Hocko<mhocko@suse.cz>  wrote:
->>>>>>> On Tue 27-09-11 13:16:19, James Bottomley wrote:
->>>>>>>> On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
->>>>>>>>> On Thu 22-09-11 12:16:47, James Bottomley wrote:
->>>>>>>>>> Hi All,
->>>>>>>>>
->>>>>>>>> Hi,
->>>>>>>>>
->>>>>>>>>>
->>>>>>>>>> One of the major work items that came out of the Plumbers conference
->>>>>>>>>> containers and Cgroups meeting was the need to work on memcg:
->>>>>>>>>>
->>>>>>>>>> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
->>>>>>>>>>
->>>>>>>>>> (see etherpad and presentations)
->>>>>>>>>>
->>>>>>>>>> Since almost everyone will be either at KS or LinuxCon, I thought doing
->>>>>>>>>> a small meeting on the Wednesday of Linux Con (so those at KS who might
->>>>>>>>>> not be staying for the whole of LinuxCon could attend) might be a good
->>>>>>>>>> idea.  The object would be to get all the major players to agree on
->>>>>>>>>> who's doing what.  You can see Parallels' direction from the patches
->>>>>>>>>> Glauber has been posting.  Google should shortly be starting work on
->>>>>>>>>> other aspects of the memgc as well.
->>>>>>>>>>
->>>>>>>>>> As a precursor to the meeting (and actually a requirement to make it
->>>>>>>>>> effective) we need to start posting our preliminary patches and design
->>>>>>>>>> ideas to the mm list (hint, Google people, this means you).
->>>>>>>>>>
->>>>>>>>>> I think I've got all of the interested parties in the To: field, but I'm
->>>>>>>>>> sending this to the mm list just in case I missed anyone.  If everyone's
->>>>>>>>>> OK with the idea (and enough people are going to be there) I'll get the
->>>>>>>>>> Linux Foundation to find us a room.
->>>>>>>>>
->>>>>>>>> I am not going to be at KS but I am in Prague. I would be happy to meet
->>>>>>>>> as well if it is possible.
->>>>>>>>
->>>>>>>> Certainly.
->>>>>>>
->>>>>>> OK, then add me as well.
->>>>>>
->>>>>> Please include Ying Han and Hugh Dickins; but regrettably, scheduling
->>>>>> issues will prevent Greg Thelen from attending.
->>>>>
->>>>> Thank you Hugh. I will be in KS as well as the memcg meeting. Sorry
->>>>> for the late reply due to OOO in the past few weeks.
->>>>>
->>>>> James,
->>>>>
->>>>> Thank you so much for organizing this and please keep us informed when
->>>>> the detailed schedule is out :)
->>>>
->>>> We're a bit blocked on this.  We have some proposals, particularly in
->>>> the area of shrinkers, but we know you have patches in this area which
->>>> we haven't seen ... can you post the google memgc patches just for
->>>> reference (they don't have to be final, or even highly polished) just so
->>>> we have a common base to work from?
->>>
->>> sorry for getting back late.
->>>
->>> We are preparing the patches and should be able to send out before the
->>> summit. The patchset itself does the kernel slab accounting in memcg,
->>> and something we would like to discuss in the memcg meeting in
->>> Wednesday as well.
->>
->> Perfect, thanks.  This meshes well because we're trying to recast the
->> Dentry cache patch in terms of slab accounting and we need to make sure
->> our two patches are consistent.
->
-> I assume the dentry cache patch is the "[PATCH v3 0/4] Per-container
-> dcache limitation "?
->
-> Also, I am not sure where to get more information of the proposals
-> being sent so far for the meeting, and it would be helpful for us to
-> look through them before the day. Sorry if i missed it somewhere in
-> linux-mm :)
-There were many discussions with no conclusions so far.
+Hello,
 
-My current approach was briefly explained in:
+On Friday, October 14, 2011 6:33 AM Subash Patel wrote:
 
-http://www.spinics.net/lists/linux-mm/msg25340.html
+> Hi Marek,
+> 
+> As informed to you in private over IRC, below piece of code broke during
+> booting EXYNOS4:SMDKV310 with ZONE_DMA enabled.
 
-(What does glommer think about kmem cgroup ?)
-In this particular context, glommer being me.
+Right, I missed the fact that ZONE_DMA can be enabled but the machine does not
+provide specific zone size. I will fix this in the next version. Thanks for 
+pointing this bug!
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
