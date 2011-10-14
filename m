@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EDEDA6B0170
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 18:46:44 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p9EMkeKg014218
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 15:46:40 -0700
-Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
-	by wpaz13.hot.corp.google.com with ESMTP id p9EMY1sU001523
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 15:46:38 -0700
-Received: by pzk5 with SMTP id 5so9169058pzk.9
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2011 15:46:38 -0700 (PDT)
-Date: Fri, 14 Oct 2011 15:46:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747AC@USINDEVS02.corp.hds.com>
-Message-ID: <alpine.DEB.2.00.1110141536520.21305@chino.kir.corp.google.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <20111011125419.2702b5dc.akpm@linux-foundation.org> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com> <20111011135445.f580749b.akpm@linux-foundation.org>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516D055@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110121537380.16286@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB516D0EA@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1110121654120.30123@chino.kir.corp.google.com>
- <20111013143501.a59efa5c.kamezawa.hiroyu@jp.fujitsu.com>,<alpine.DEB.2.00.1110131351270.24853@chino.kir.corp.google.com> <65795E11DBF1E645A09CEC7EAEE94B9CB4F747AC@USINDEVS02.corp.hds.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 293596B0173
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 19:19:57 -0400 (EDT)
+Received: by ywe9 with SMTP id 9so3624381ywe.14
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2011 16:19:55 -0700 (PDT)
+Date: Fri, 14 Oct 2011 16:19:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv16 0/9] Contiguous Memory Allocator
+Message-Id: <20111014161951.5b4bb327.akpm@linux-foundation.org>
+In-Reply-To: <201110111552.04615.arnd@arndb.de>
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+	<201110071827.06366.arnd@arndb.de>
+	<20111010155642.38df59af.akpm@linux-foundation.org>
+	<201110111552.04615.arnd@arndb.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Paul McKenney <paul.mckenney@linaro.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <jweiner@redhat.com>
 
-On Fri, 14 Oct 2011, Satoru Moriya wrote:
+On Tue, 11 Oct 2011 15:52:04 +0200
+Arnd Bergmann <arnd@arndb.de> wrote:
 
-> > Satoru was specifically talking about the VM using free memory for 
-> > pagecache,
+> On Tuesday 11 October 2011, Andrew Morton wrote:
+> > Russell's going to hate me, but...
+> > 
+> > I do know that he had substantial objections to at least earlier
+> > versions of this, and he is a guy who knows of what he speaks.
+> > 
+> > So I would want to get a nod from rmk on this work before proceeding. 
+> > If that nod isn't available then let's please identify the issues and
+> > see what we can do about them.
 > 
-> Yes, because we can't stop increasing pagecache and it 
-> occupies RAM where some people want to keep free for bursty
-> memory requirement. Usually it works fine but sometimes like
-> my test case doesn't work well.
+> I'm pretty sure that Russell's concerns were almost entirely about the
+> ARM specific parts, which were extremely hard to figure out. The
+> most important technical concern back in July was that the patch
+> series at the time did not address the problem of conflicting pte
+> flags when we remap memory as uncached on ARMv6. He had a patch
+> to address this problem that was supposed to get merged in 3.1
+> and would have conflicted with the CMA patch set.
 > 
-> > so doing echo echo 1 > /proc/sys/vm/drop_caches can mitigate 
-> > that almost immediately.  
+> Things have changed a lot since then. Russell had to revert his
+> own patch because he found regressions using it on older machines.
+> However, the current CMA on ARM patch AFAICT reliably fixes this
+> problem now and does not cause the same regression on older machines.
+> The solution used now is the one we agreed on after sitting together
+> for a few hours with Russell, Marek, Paul McKenney and myself.
 > 
-> I know it and some admins use that kind of tuning. But is it
-> proper way? Should we exec the script like above periodically?
-> I believe that we should use it for debug only.
+> If there are still concerns over the ARM specific portion of
+> the patch series, I'm very confident that we can resolve these
+> now (I was much less so before that meeting).
 > 
+> What I would really want to hear from you is your opinion on
+> the architecture independent stuff. Obviously, ARM is the
+> most important consumer of the patch set, but I think the
+> code has its merit on other architectures as well and most of
+> them (maybe not parisc) should be about as simple as the x86
+> one that Marek posted now with v16.
 
-Agreed, this was in response to the suggestion for adding a mem_shrink() 
-syscall, which would require the same periodic calls or knowledge of the 
-application prior to the bursty memory allocations.  I bring up 
-drop_caches just to illustrate that it is effectively the same thing for 
-the entire address space when pressured by pagecache.  So I don't think 
-that syscall would actually help for your scenario.
+Having an x86 implementation is good.  It would also be good to get
+some x86 drivers using CMA asap, so the thing gets some runtime testing
+from the masses.  Can we think of anything we can do here?
 
-> > If there were a change to increase the space significantly between the 
-> > high and min watermark when min_free_kbytes changes, that would fix the 
-> > problem. 
-> 
-> Right. But min_free_kbytes changes both thresholds, foregroud reclaim
-> and background reclaim. I'd like to configure them separately like
-> dirty_bytes and dirty_background_bytes for flexibility.
-> 
-
-The point I'm trying to make is that if kswapd can be made aware that it 
-was kicked by a rt_task() in the page allocator, the same criteria we use 
-for ALLOC_HARDER today, or a rt_task() subsequently enters the page 
-allocator slowpath while kswapd is running, then not only can we increase 
-the scheduling priority of kswapd but it is also possible to reclaim above 
-the high watermark for an extra bonus.  I believe we can find a sane 
-middle ground that requires no userspace tunable where a _single_ realtime 
-application cannot allocate memory faster than kswapd with very high 
-priority and reclaiming above the high watermark, whether that's a factor 
-of 1.25 or not.
-
-> > The problem is two-fold: that comes at a penalty for systems 
-> > or workloads that don't need to reclaim the additional memory, and it's 
-> > not clear how much space should exist between those watermarks.
-> 
-> The required size depends on a system architacture such as kernel,
-> applications, storage etc. and so admin who care the whole system
-> should configure it based on tests by his own risk.
-> 
-
-Doing that comes at a penalty for other workloads that are running on the 
-same system, which is the problem with a global tunable that doesn't 
-discriminate on an allocator's priority (the min -> high watermarks for 
-reclaim do well except for rt-threads, as evidenced by this thread).
+Regarding the core MM changes: Mel's the man for migration and
+compaction.  I wouldn't want to proceed until he (and perferably
+Johannes) have spent some quality time with the code.  I'm not seeing
+their reviewed-by's of acked-by's and I don't have a good recollection
+of their involvement?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
