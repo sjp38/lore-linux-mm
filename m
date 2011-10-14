@@ -1,51 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D316B01A2
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 05:14:42 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LT10046ITOGDC20@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 14 Oct 2011 10:14:40 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LT100AHJTOFYM@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 14 Oct 2011 10:14:40 +0100 (BST)
-Date: Fri, 14 Oct 2011 11:14:25 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 8/9] ARM: integrate CMA with DMA-mapping
- subsystem
-In-reply-to: <4E97BB8E.3060204@gmail.com>
-Message-id: <013701cc8a51$ab1a3fb0$014ebf10$%szyprowski@samsung.com>
-Content-language: pl
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <1317909290-29832-10-git-send-email-m.szyprowski@samsung.com>
- <4E97BB8E.3060204@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DCA46B01A4
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 05:17:57 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p9E9HprB001932
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:17:54 -0700
+Received: from pzk6 (pzk6.prod.google.com [10.243.19.134])
+	by wpaz17.hot.corp.google.com with ESMTP id p9E9Hnbn017823
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:17:50 -0700
+Received: by pzk6 with SMTP id 6so1135426pzk.11
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:17:49 -0700 (PDT)
+Date: Fri, 14 Oct 2011 02:17:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: add a "struct page_frag" type containing a page,
+ offset and length
+In-Reply-To: <4E97D9E4.4090202@kernel.dk>
+Message-ID: <alpine.DEB.2.00.1110140215380.21487@chino.kir.corp.google.com>
+References: <1318500176-10728-1-git-send-email-ian.campbell@citrix.com> <4E97D9E4.4090202@kernel.dk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Subash Patel' <subashrp@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Ian Campbell <ian.campbell@citrix.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 
-Hello,
+On Fri, 14 Oct 2011, Jens Axboe wrote:
 
-On Friday, October 14, 2011 6:33 AM Subash Patel wrote:
-
-> Hi Marek,
+> Looks good to me, I can switch struct bio_vec over to this once it's in.
 > 
-> As informed to you in private over IRC, below piece of code broke during
-> booting EXYNOS4:SMDKV310 with ZONE_DMA enabled.
 
-Right, I missed the fact that ZONE_DMA can be enabled but the machine does not
-provide specific zone size. I will fix this in the next version. Thanks for 
-pointing this bug!
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Looks like it could also be embedded within struct pipe_buffer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
