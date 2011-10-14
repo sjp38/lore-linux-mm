@@ -1,56 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3278C6B0198
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 01:33:15 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 14 Oct 2011 01:32:08 -0400
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747AA@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
-	<20110901100650.6d884589.rdunlap@xenotime.net>
-	<20110901152650.7a63cb8b@annuminas.surriel.com>
-	<alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
-	<20111010153723.6397924f.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
-	<20111011125419.2702b5dc.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
-	<20111011135445.f580749b.akpm@linux-foundation.org>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516D055@USINDEVS02.corp.hds.com>
-	<alpine.DEB.2.00.1110121537380.16286@chino.kir.corp.google.com>
-	<65795E11DBF1E645A09CEC7EAEE94B9CB516D0EA@USINDEVS02.corp.hds.com>
-	<alpine.DEB.2.00.1110121654120.30123@chino.kir.corp.google.com>,<20111013143501.a59efa5c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111013143501.a59efa5c.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id AFF3B6B019A
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:31:33 -0400 (EDT)
+From: Hans Schillstrom <hans@schillstrom.com>
+Subject: Re: possible slab deadlock while doing ifenslave
+Date: Fri, 14 Oct 2011 08:30:47 +0200
+References: <201110121019.53100.hans@schillstrom.com> <201110131019.58397.hans@schillstrom.com> <alpine.DEB.2.00.1110131557090.10968@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1110131557090.10968@chino.kir.corp.google.com>
 MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201110140830.48368.hans@schillstrom.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@gentwo.org>, Ingo Molnar <mingo@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Sitsofe Wheeler <sitsofe@yahoo.com>, linux-mm@kvack.org
 
-On 10/13/2011 01:35 AM, KAMEZAWA Hiroyuki wrote:
->=20
-> I don't read full story but....how about adding a new syscall like
->=20
-> =3D=3D
-> sys_mem_shrink(int nid, int nr_scan_pages, int flags)
->=20
-> This system call scans LRU of specified nodes and free pages on LRU.
-> This scan nr_scan_pages in LRU and returns the number of successfully
-> freed pages.
-> =3D=3D
->=20
-> Then, running this progam in SCHED_IDLE, a user can make free pages while
-> the system is idle. If running in the highest priority, a user can keep
-> free pages as he want. If a user run this under a memcg, user can free
-> pages in a memcg.=20
 
-This is interesting. We can make userspace kswapd as we like with
-this syscall. But it seems harder to be accepted...
+On Friday, October 14, 2011 01:03:40 David Rientjes wrote:
+> On Thu, 13 Oct 2011, Hans Schillstrom wrote:
+> 
+> > > > Hello,
+> > > > I got this when I was testing a VLAN patch i.e. using Dave Millers net-next from today.
+> > > > When doing this on a single core i686 I got the warning every time,
+> > > > however ifenslave is not hanging it's just a warning
+> > > > Have not been testing this on a multicore jet.
+> > > > 
+> > > > There is no warnings with a 3.0.4 kernel.
+> > > > 
+> > > > Is this a known warning ?
+> > > > 
+> > > > ~ # ifenslave bond0 eth1 eth2
+> > > > 
+> > > > =============================================
+> > > > [ INFO: possible recursive locking detected ]
+> > > > 3.1.0-rc9+ #3
+> > > > ---------------------------------------------
+> > > > ifenslave/749 is trying to acquire lock:
+> > > >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
+> > > > 
+> > > > but task is already holding lock:
+> > > >  (&(&parent->list_lock)->rlock){-.-...}, at: [<c14234a0>] cache_flusharray+0x41/0xdb
+> > > > 
+> > > 
+> > > Hmm, the only candidate that I can see that may have caused this is 
+> > > 83835b3d9aec ("slab, lockdep: Annotate slab -> rcu -> debug_object -> 
+> > > slab").  Could you try reverting that patch in your local tree and seeing 
+> > > if it helps?
+> > > 
+> > 
+> > That was not our candidate ...
+> > i.e. same results
+> > 
+> 
+> Ok, I think this may be related to what Sitsofe reported in the "lockdep 
+> recursive locking detected" thread on LKML (see 
+> http://marc.info/?l=linux-kernel&m=131805699106560).
+> 
+> Peter and Christoph hypothesized that 056c62418cc6 ("slab: fix lockdep 
+> warnings") may not have had full coverage when setting lockdep classes for 
+> kmem_list3 locks that may be called inside of each other because of 
+> off-slab metadata.
+> 
+> I think it's safe to say there is no deadlock possibility here or we would 
+> have seen it since 2006 and this is just a matter of lockdep annotation 
+> that needs to be done.  So don't worry too much about the warning even 
+> though I know it's annoying and it suppresses future lockdep output (even 
+> more annoying!).
 
-Regards,
-Satoru=
+I have not seen any deadlock, and so far I've got hundreds of this warnings.
+
+> 
+> I'm not sure if there's a patch to address that yet, I think one was in 
+> the works.  If not, I'll take a look at rewriting that lockdep annotation.
+> 
+
+If you want me to do some more testing, I keep the setup for a couple of month.
+
+Thanks
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
