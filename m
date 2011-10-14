@@ -1,63 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 975A16B019D
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:56:07 -0400 (EDT)
-Subject: Re: [PATCH] mm: add a "struct page_frag" type containing a page,
- offset and length
-From: Ian Campbell <Ian.Campbell@citrix.com>
-In-Reply-To: <20111013142201.355f9afc.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1110131327470.24853@chino.kir.corp.google.com>
-	 <20111013.163708.1319779926961023813.davem@davemloft.net>
-	 <alpine.DEB.2.00.1110131348310.24853@chino.kir.corp.google.com>
-	 <20111013.165148.64222593458932960.davem@davemloft.net>
-	 <20111013142201.355f9afc.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Fri, 14 Oct 2011 07:56:02 +0100
-Message-ID: <1318575363.11016.8.camel@dagon.hellion.org.uk>
+	by kanga.kvack.org (Postfix) with ESMTP id CBE306B01A1
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 03:45:23 -0400 (EDT)
+Message-ID: <4E97E86B.8070608@parallels.com>
+Date: Fri, 14 Oct 2011 11:44:43 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
+Subject: Re: Proposed memcg meeting at October Kernel Summit/European LinuxCon
+ in Prague
+References: <1316693805.10571.25.camel@dabdike> <20110926131027.GA14964@tiehlicka.suse.cz> <1317147379.9186.19.camel@dabdike.hansenpartnership.com> <20110929115419.GF21113@tiehlicka.suse.cz> <CANsGZ6Y-s8myrSZTyPNry0e29QczE2es6be0O1i0ro=zuz9hmA@mail.gmail.com> <CALWz4iw0HLtjkQPy7FRGyi4Ocm7+gtRujJWU_bWHbYK9fUSv5A@mail.gmail.com> <1318428864.3027.10.camel@dabdike.int.hansenpartnership.com> <CALWz4iwOA3AgSDoiVSHBGc81SLNBPu=yy2GF1hwU_9xDhvpfSg@mail.gmail.com> <1318539490.3018.58.camel@dabdike.int.hansenpartnership.com> <CALWz4izo0W9D7N5fh+hC_hTkR32_1kBH4FvUQL8S++k=wG8R0w@mail.gmail.com>
+In-Reply-To: <CALWz4izo0W9D7N5fh+hC_hTkR32_1kBH4FvUQL8S++k=wG8R0w@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, "rientjes@google.com" <rientjes@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "jaxboe@fusionio.com" <jaxboe@fusionio.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ying Han <yinghan@google.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Hugh Dickins <hughd@google.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, Paul Turner <pjt@google.com>, Tim Hockin <thockin@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
 
-On Thu, 2011-10-13 at 22:22 +0100, Andrew Morton wrote:
-> Looks OK to me.  I'm surprised we don't already have such a thing.
-> 
-> Review comments:
-> 
-> 
-> > +struct page_frag {
-> > +	struct page *page;
-> > +#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-> 
-> It does add risk that people will add compile warnings and bugs by
-> failing to consider or test the other case.
+On 10/14/2011 02:13 AM, Ying Han wrote:
+> On Thu, Oct 13, 2011 at 1:58 PM, James Bottomley
+> <James.Bottomley@hansenpartnership.com>  wrote:
+>> On Thu, 2011-10-13 at 13:54 -0700, Ying Han wrote:
+>>> On Wed, Oct 12, 2011 at 7:14 AM, James Bottomley
+>>> <James.Bottomley@hansenpartnership.com>  wrote:
+>>>> On Mon, 2011-10-10 at 19:35 -0700, Ying Han wrote:
+>>>>> On Thu, Sep 29, 2011 at 2:30 PM, Hugh Dickins<hughd@google.com>  wrote:
+>>>>>> On Thu, Sep 29, 2011 at 4:54 AM, Michal Hocko<mhocko@suse.cz>  wrote:
+>>>>>>> On Tue 27-09-11 13:16:19, James Bottomley wrote:
+>>>>>>>> On Mon, 2011-09-26 at 15:10 +0200, Michal Hocko wrote:
+>>>>>>>>> On Thu 22-09-11 12:16:47, James Bottomley wrote:
+>>>>>>>>>> Hi All,
+>>>>>>>>>
+>>>>>>>>> Hi,
+>>>>>>>>>
+>>>>>>>>>>
+>>>>>>>>>> One of the major work items that came out of the Plumbers conference
+>>>>>>>>>> containers and Cgroups meeting was the need to work on memcg:
+>>>>>>>>>>
+>>>>>>>>>> http://www.linuxplumbersconf.org/2011/ocw/events/LPC2011MC/tracks/105
+>>>>>>>>>>
+>>>>>>>>>> (see etherpad and presentations)
+>>>>>>>>>>
+>>>>>>>>>> Since almost everyone will be either at KS or LinuxCon, I thought doing
+>>>>>>>>>> a small meeting on the Wednesday of Linux Con (so those at KS who might
+>>>>>>>>>> not be staying for the whole of LinuxCon could attend) might be a good
+>>>>>>>>>> idea.  The object would be to get all the major players to agree on
+>>>>>>>>>> who's doing what.  You can see Parallels' direction from the patches
+>>>>>>>>>> Glauber has been posting.  Google should shortly be starting work on
+>>>>>>>>>> other aspects of the memgc as well.
+>>>>>>>>>>
+>>>>>>>>>> As a precursor to the meeting (and actually a requirement to make it
+>>>>>>>>>> effective) we need to start posting our preliminary patches and design
+>>>>>>>>>> ideas to the mm list (hint, Google people, this means you).
+>>>>>>>>>>
+>>>>>>>>>> I think I've got all of the interested parties in the To: field, but I'm
+>>>>>>>>>> sending this to the mm list just in case I missed anyone.  If everyone's
+>>>>>>>>>> OK with the idea (and enough people are going to be there) I'll get the
+>>>>>>>>>> Linux Foundation to find us a room.
+>>>>>>>>>
+>>>>>>>>> I am not going to be at KS but I am in Prague. I would be happy to meet
+>>>>>>>>> as well if it is possible.
+>>>>>>>>
+>>>>>>>> Certainly.
+>>>>>>>
+>>>>>>> OK, then add me as well.
+>>>>>>
+>>>>>> Please include Ying Han and Hugh Dickins; but regrettably, scheduling
+>>>>>> issues will prevent Greg Thelen from attending.
+>>>>>
+>>>>> Thank you Hugh. I will be in KS as well as the memcg meeting. Sorry
+>>>>> for the late reply due to OOO in the past few weeks.
+>>>>>
+>>>>> James,
+>>>>>
+>>>>> Thank you so much for organizing this and please keep us informed when
+>>>>> the detailed schedule is out :)
+>>>>
+>>>> We're a bit blocked on this.  We have some proposals, particularly in
+>>>> the area of shrinkers, but we know you have patches in this area which
+>>>> we haven't seen ... can you post the google memgc patches just for
+>>>> reference (they don't have to be final, or even highly polished) just so
+>>>> we have a common base to work from?
+>>>
+>>> sorry for getting back late.
+>>>
+>>> We are preparing the patches and should be able to send out before the
+>>> summit. The patchset itself does the kernel slab accounting in memcg,
+>>> and something we would like to discuss in the memcg meeting in
+>>> Wednesday as well.
+>>
+>> Perfect, thanks.  This meshes well because we're trying to recast the
+>> Dentry cache patch in terms of slab accounting and we need to make sure
+>> our two patches are consistent.
 >
-> We could reduce that risk by doing
-> 
->    #if (PAGE_SIZE >= 65536)
-> 
-> but then the 32-bit version would hardly ever be tested at all.
+> I assume the dentry cache patch is the "[PATCH v3 0/4] Per-container
+> dcache limitation "?
+>
+> Also, I am not sure where to get more information of the proposals
+> being sent so far for the meeting, and it would be helpful for us to
+> look through them before the day. Sorry if i missed it somewhere in
+> linux-mm :)
+There were many discussions with no conclusions so far.
 
-Indeed. The first variant has the benefit that most 32-bit arches will
-test one case and most 64-bit ones the other.
+My current approach was briefly explained in:
 
-Perhaps the need to keep this struct small is not so acute as it is for
-the skb_frag_t I nicked it from and just using __u32 unconditionally is
-sufficient?
+http://www.spinics.net/lists/linux-mm/msg25340.html
 
-> 
-> > +	__u32 page_offset;
-> 
-> I suggest this be called simply "offset".
-
-ACK.
-
-Thanks,
-
-Ian.
-
+(What does glommer think about kmem cgroup ?)
+In this particular context, glommer being me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
