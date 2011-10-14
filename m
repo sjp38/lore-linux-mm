@@ -1,36 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AAE516B019C
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:42:56 -0400 (EDT)
-Message-ID: <4E97D9E4.4090202@kernel.dk>
-Date: Fri, 14 Oct 2011 08:42:44 +0200
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 975A16B019D
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 02:56:07 -0400 (EDT)
 Subject: Re: [PATCH] mm: add a "struct page_frag" type containing a page,
  offset and length
-References: <1318500176-10728-1-git-send-email-ian.campbell@citrix.com>
-In-Reply-To: <1318500176-10728-1-git-send-email-ian.campbell@citrix.com>
-Content-Type: text/plain; charset=ISO-8859-1
+From: Ian Campbell <Ian.Campbell@citrix.com>
+In-Reply-To: <20111013142201.355f9afc.akpm@linux-foundation.org>
+References: <alpine.DEB.2.00.1110131327470.24853@chino.kir.corp.google.com>
+	 <20111013.163708.1319779926961023813.davem@davemloft.net>
+	 <alpine.DEB.2.00.1110131348310.24853@chino.kir.corp.google.com>
+	 <20111013.165148.64222593458932960.davem@davemloft.net>
+	 <20111013142201.355f9afc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 14 Oct 2011 07:56:02 +0100
+Message-ID: <1318575363.11016.8.camel@dagon.hellion.org.uk>
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Campbell <ian.campbell@citrix.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, "rientjes@google.com" <rientjes@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "jaxboe@fusionio.com" <jaxboe@fusionio.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 2011-10-13 12:02, Ian Campbell wrote:
-> A few network drivers currently use skb_frag_struct for this purpose but I have
-> patches which add additional fields and semantics there which these other uses
-> do not want.
+On Thu, 2011-10-13 at 22:22 +0100, Andrew Morton wrote:
+> Looks OK to me.  I'm surprised we don't already have such a thing.
 > 
-> A structure for reference sub-page regions seems like a generally useful thing
-> so do so instead of adding a network subsystem specific structure.
+> Review comments:
+> 
+> 
+> > +struct page_frag {
+> > +	struct page *page;
+> > +#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+> 
+> It does add risk that people will add compile warnings and bugs by
+> failing to consider or test the other case.
+>
+> We could reduce that risk by doing
+> 
+>    #if (PAGE_SIZE >= 65536)
+> 
+> but then the 32-bit version would hardly ever be tested at all.
 
-Looks good to me, I can switch struct bio_vec over to this once it's in.
+Indeed. The first variant has the benefit that most 32-bit arches will
+test one case and most 64-bit ones the other.
 
-Acked-by: Jens Axboe <axboe@kernel.dk>
+Perhaps the need to keep this struct small is not so acute as it is for
+the skb_frag_t I nicked it from and just using __u32 unconditionally is
+sufficient?
 
--- 
-Jens Axboe
+> 
+> > +	__u32 page_offset;
+> 
+> I suggest this be called simply "offset".
+
+ACK.
+
+Thanks,
+
+Ian.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
