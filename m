@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2A36B0190
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2011 22:56:23 -0400 (EDT)
-Subject: Re: [PATCH v7 0/8] Request for inclusion: tcp memory buffers
-In-Reply-To: Your message of "Fri, 14 Oct 2011 00:05:58 +0400."
-             <4E9744A6.5010101@parallels.com>
-From: Valdis.Kletnieks@vt.edu
-References: <1318511382-31051-1-git-send-email-glommer@parallels.com> <20111013.160031.605700447623532119.davem@davemloft.net>
-            <4E9744A6.5010101@parallels.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1318560959_28908P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BFFD6B0192
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 00:33:28 -0400 (EDT)
+Received: by gyf3 with SMTP id 3so755458gyf.14
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2011 21:33:26 -0700 (PDT)
+Message-ID: <4E97BB8E.3060204@gmail.com>
+Date: Fri, 14 Oct 2011 10:03:18 +0530
+From: Subash Patel <subashrp@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [Linaro-mm-sig] [PATCH 8/9] ARM: integrate CMA with DMA-mapping
+ subsystem
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com> <1317909290-29832-10-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1317909290-29832-10-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Thu, 13 Oct 2011 22:55:59 -0400
-Message-ID: <60642.1318560959@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
---==_Exmh_1318560959_28908P
-Content-Type: text/plain; charset=us-ascii
+Hi Marek,
 
-On Fri, 14 Oct 2011 00:05:58 +0400, Glauber Costa said:
-> On 10/14/2011 12:00 AM, David Miller wrote:
+As informed to you in private over IRC, below piece of code broke during 
+booting EXYNOS4:SMDKV310 with ZONE_DMA enabled.
 
-> > Make this evaluate into exactly the same exact code stream we have
-> > now when the memory cgroup feature is not in use, which will be the
-> > majority of users.
-> 
-> What exactly do you mean by "not in use" ? Not compiled in or not 
-> actively being exercised ? If you mean the later, I appreciate tips on 
-> how to achieve it.
-> 
-> Also, I kind of dispute the affirmation that !cgroup will encompass
-> the majority of users, since cgroups is being enabled by default by
-> most vendors. All systemd based systems use it extensively, for instance.
 
-Yes, systemd requires a kernel that includes cgroups.  However, systemd does
-*not* require the memory cgroup feature.  As a practical matter, if your patch
-doesn't generate equivalent code for the "have cgroups, but no memory cgroup"
-situation, it's a non-starter.
-
---==_Exmh_1318560959_28908P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFOl6S/cC3lWbTT17ARArxnAKDanOuIMQXHrs/wd4CYgmiG8QsllQCeN/MT
-xx+W0iVP/IssCSI12NSp7yI=
-=czOf
------END PGP SIGNATURE-----
-
---==_Exmh_1318560959_28908P--
+On 10/06/2011 07:24 PM, Marek Szyprowski wrote:
+...
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> index fbdd12e..9c27fbd 100644
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -21,6 +21,7 @@
+>   #include<linux/gfp.h>
+>   #include<linux/memblock.h>
+>   #include<linux/sort.h>
+> +#include<linux/dma-contiguous.h>
+>
+>   #include<asm/mach-types.h>
+>   #include<asm/prom.h>
+> @@ -371,6 +372,13 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
+>   	if (mdesc->reserve)
+>   		mdesc->reserve();
+>
+> +	/* reserve memory for DMA contigouos allocations */
+> +#ifdef CONFIG_ZONE_DMA
+> +	dma_contiguous_reserve(PHYS_OFFSET + mdesc->dma_zone_size - 1);
+> +#else
+> +	dma_contiguous_reserve(0);
+> +#endif
+> +
+>   	memblock_analyze();
+>   	memblock_dump_all();
+>   }
+Regards,
+Subash
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
