@@ -1,133 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2ACD66B0037
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 12:16:06 -0400 (EDT)
-Date: Fri, 14 Oct 2011 11:16:03 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
- __vm_enough_memory
-Message-ID: <20111014161603.GA30561@sgi.com>
-References: <alpine.DEB.2.00.1110131052300.18473@router.home>
- <20111013135032.7c2c54cd.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1110131602020.26553@router.home>
- <20111013142434.4d05cbdc.akpm@linux-foundation.org>
- <20111014122506.GB26737@sgi.com>
- <20111014135055.GA28592@sgi.com>
- <alpine.DEB.2.00.1110140856420.6411@router.home>
- <20111014141921.GC28592@sgi.com>
- <alpine.DEB.2.00.1110140932530.6411@router.home>
- <alpine.DEB.2.00.1110140958550.6411@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A24956B0035
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 12:40:40 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p9EGOXL3013205
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 10:24:33 -0600
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9EGdEun121414
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 10:39:15 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9EGdESe014919
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 10:39:14 -0600
+Message-ID: <4E9865B0.1080100@linux.vnet.ibm.com>
+Date: Fri, 14 Oct 2011 11:39:12 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1110140958550.6411@router.home>
+Subject: Re: [PATCH v2] staging: zcache: remove zcache_direct_reclaim_lock
+References: <1318538523-3976-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1318538523-3976-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: gregkh@suse.de
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, cascardo@holoscopio.com, dan.magenheimer@oracle.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
 
-On Fri, Oct 14, 2011 at 10:18:24AM -0500, Christoph Lameter wrote:
-> Also the whole thing could be optimized by concentrating updates to the
-> vm_stat array at one point in time. If any local per cpu differential
-> overflows then update all the counters in the same cacheline for which we have per cpu
-> differentials.
-> 
-> That will defer another acquisition of the cacheline for the next delta
-> overflowing. After an update all the per cpu differentials would be zero.
-> 
-> This could be added to zone_page_state_add....
-> 
-> 
-> Something like this patch? (Restriction of the updates to the same
-> cacheline missing. Just does everything and the zone_page_state may need
-> uninlining now)
+Adding the BUG_ON() (where it was crashing) is unnecessary.
+The initial version of this patch is correct.
 
-This patch doesn't have much, if any, effect, at least in the 46 writer thread
-case (NR_VM_EVENT_ITEMS-->NR_VM_ZONE_STAT_ITEMS allowed it to boot :) ).
-I applied this with the change to align vm_stat.
+Resuming the conversation on that thread.
 
-So far cache alignment of vm_data and increasing ZVC delta has the greatest
-effect.
-
+On 10/13/2011 03:42 PM, Seth Jennings wrote:
+> zcache_do_preload() currently does a spin_trylock() on the
+> zcache_direct_reclaim_lock. Holding this lock intends to prevent
+> shrink_zcache_memory() from evicting zbud pages as a result
+> of a preload.
 > 
+> However, it also prevents two threads from
+> executing zcache_do_preload() at the same time.  The first
+> thread will obtain the lock and the second thread's spin_trylock()
+> will fail (an aborted preload) causing the page to be either lost
+> (cleancache) or pushed out to the swap device (frontswap). It
+> also doesn't ensure that the call to shrink_zcache_memory() is
+> on the same thread as the call to zcache_do_preload().
+> 
+> Additional, there is no need for this mechanism because all
+> zcache_do_preload() calls that come down from cleancache already
+> have PF_MEMALLOC set in the process flags which prevents
+> direct reclaim in the memory manager. If the zcache_do_preload()
+> call is done from the frontswap path, we _want_ reclaim to be
+> done (which it isn't right now).
+> 
+> This patch removes the zcache_direct_reclaim_lock and related
+> statistics in zcache.
+> 
+> Based on v3.1-rc8
+> 
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 > ---
->  include/linux/vmstat.h |   19 ++++++++++++++++---
->  mm/vmstat.c            |   10 ++++------
->  2 files changed, 20 insertions(+), 9 deletions(-)
+>  drivers/staging/zcache/zcache-main.c |   33 ++++++---------------------------
+>  1 files changed, 6 insertions(+), 27 deletions(-)
 > 
-> Index: linux-2.6/include/linux/vmstat.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/vmstat.h	2011-10-14 09:58:03.000000000 -0500
-> +++ linux-2.6/include/linux/vmstat.h	2011-10-14 10:08:00.000000000 -0500
-> @@ -90,10 +90,23 @@ static inline void vm_events_fold_cpu(in
->  extern atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
+> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+> index 462fbc2..995523f 100644
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
+> @@ -962,15 +962,6 @@ out:
+>  static unsigned long zcache_failed_get_free_pages;
+>  static unsigned long zcache_failed_alloc;
+>  static unsigned long zcache_put_to_flush;
+> -static unsigned long zcache_aborted_preload;
+> -static unsigned long zcache_aborted_shrink;
+> -
+> -/*
+> - * Ensure that memory allocation requests in zcache don't result
+> - * in direct reclaim requests via the shrinker, which would cause
+> - * an infinite loop.  Maybe a GFP flag would be better?
+> - */
+> -static DEFINE_SPINLOCK(zcache_direct_reclaim_lock);
 > 
->  static inline void zone_page_state_add(long x, struct zone *zone,
-> -				 enum zone_stat_item item)
-> +				 enum zone_stat_item item, s8 new_value)
->  {
-> -	atomic_long_add(x, &zone->vm_stat[item]);
-> -	atomic_long_add(x, &vm_stat[item]);
-> +	enum zone_stat_item i;
-> +
-> +	for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
-> +		long y;
-> +
-> +		if (i == item)
-> +			y = this_cpu_xchg(zone->pageset->vm_stat_diff[i], new_value) + x;
-> +		else
-> +			y = this_cpu_xchg(zone->pageset->vm_stat_diff[i], 0);
-> +
-> +		if (y) {
-> +			atomic_long_add(y, &zone->vm_stat[item]);
-> +			atomic_long_add(y, &vm_stat[item]);
-> +		}
-> +	}
->  }
+>  /*
+>   * for now, used named slabs so can easily track usage; later can
+> @@ -1005,14 +996,12 @@ static int zcache_do_preload(struct tmem_pool *pool)
+>  	void *page;
+>  	int ret = -ENOMEM;
 > 
->  static inline unsigned long global_page_state(enum zone_stat_item item)
-> Index: linux-2.6/mm/vmstat.c
-> ===================================================================
-> --- linux-2.6.orig/mm/vmstat.c	2011-10-14 10:04:20.000000000 -0500
-> +++ linux-2.6/mm/vmstat.c	2011-10-14 10:08:39.000000000 -0500
-> @@ -221,7 +221,7 @@ void __mod_zone_page_state(struct zone *
->  	t = __this_cpu_read(pcp->stat_threshold);
-> 
->  	if (unlikely(x > t || x < -t)) {
-> -		zone_page_state_add(x, zone, item);
-> +		zone_page_state_add(x, zone, item, 0);
->  		x = 0;
+> +	/* ensure no recursion due to direct reclaim */
+> +	BUG_ON(is_ephemeral(pool) && !(current->flags & PF_MEMALLOC));
+>  	if (unlikely(zcache_objnode_cache == NULL))
+>  		goto out;
+>  	if (unlikely(zcache_obj_cache == NULL))
+>  		goto out;
+> -	if (!spin_trylock(&zcache_direct_reclaim_lock)) {
+> -		zcache_aborted_preload++;
+> -		goto out;
+> -	}
+>  	preempt_disable();
+>  	kp = &__get_cpu_var(zcache_preloads);
+>  	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
+> @@ -1021,7 +1010,7 @@ static int zcache_do_preload(struct tmem_pool *pool)
+>  				ZCACHE_GFP_MASK);
+>  		if (unlikely(objnode == NULL)) {
+>  			zcache_failed_alloc++;
+> -			goto unlock_out;
+> +			goto out;
+>  		}
+>  		preempt_disable();
+>  		kp = &__get_cpu_var(zcache_preloads);
+> @@ -1034,13 +1023,13 @@ static int zcache_do_preload(struct tmem_pool *pool)
+>  	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
+>  	if (unlikely(obj == NULL)) {
+>  		zcache_failed_alloc++;
+> -		goto unlock_out;
+> +		goto out;
 >  	}
->  	__this_cpu_write(*p, x);
-> @@ -262,8 +262,7 @@ void __inc_zone_state(struct zone *zone,
->  	if (unlikely(v > t)) {
->  		s8 overstep = t >> 1;
-> 
-> -		zone_page_state_add(v + overstep, zone, item);
-> -		__this_cpu_write(*p, -overstep);
-> +		zone_page_state_add(v + overstep, zone, item, -overstep);
+>  	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
+>  	if (unlikely(page == NULL)) {
+>  		zcache_failed_get_free_pages++;
+>  		kmem_cache_free(zcache_obj_cache, obj);
+> -		goto unlock_out;
+> +		goto out;
 >  	}
+>  	preempt_disable();
+>  	kp = &__get_cpu_var(zcache_preloads);
+> @@ -1053,8 +1042,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
+>  	else
+>  		free_page((unsigned long)page);
+>  	ret = 0;
+> -unlock_out:
+> -	spin_unlock(&zcache_direct_reclaim_lock);
+>  out:
+>  	return ret;
 >  }
-> 
-> @@ -284,8 +283,7 @@ void __dec_zone_state(struct zone *zone,
->  	if (unlikely(v < - t)) {
->  		s8 overstep = t >> 1;
-> 
-> -		zone_page_state_add(v - overstep, zone, item);
-> -		__this_cpu_write(*p, overstep);
-> +		zone_page_state_add(v - overstep, zone, item, overstep);
+> @@ -1423,8 +1410,6 @@ ZCACHE_SYSFS_RO(evicted_buddied_pages);
+>  ZCACHE_SYSFS_RO(failed_get_free_pages);
+>  ZCACHE_SYSFS_RO(failed_alloc);
+>  ZCACHE_SYSFS_RO(put_to_flush);
+> -ZCACHE_SYSFS_RO(aborted_preload);
+> -ZCACHE_SYSFS_RO(aborted_shrink);
+>  ZCACHE_SYSFS_RO(compress_poor);
+>  ZCACHE_SYSFS_RO(mean_compress_poor);
+>  ZCACHE_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
+> @@ -1466,8 +1451,6 @@ static struct attribute *zcache_attrs[] = {
+>  	&zcache_failed_get_free_pages_attr.attr,
+>  	&zcache_failed_alloc_attr.attr,
+>  	&zcache_put_to_flush_attr.attr,
+> -	&zcache_aborted_preload_attr.attr,
+> -	&zcache_aborted_shrink_attr.attr,
+>  	&zcache_zbud_unbuddied_list_counts_attr.attr,
+>  	&zcache_zbud_cumul_chunk_counts_attr.attr,
+>  	&zcache_zv_curr_dist_counts_attr.attr,
+> @@ -1507,11 +1490,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+>  		if (!(gfp_mask & __GFP_FS))
+>  			/* does this case really need to be skipped? */
+>  			goto out;
+> -		if (spin_trylock(&zcache_direct_reclaim_lock)) {
+> -			zbud_evict_pages(nr);
+> -			spin_unlock(&zcache_direct_reclaim_lock);
+> -		} else
+> -			zcache_aborted_shrink++;
+> +		zbud_evict_pages(nr);
 >  	}
->  }
-> 
-> @@ -343,7 +341,7 @@ static inline void mod_state(struct zone
->  	} while (this_cpu_cmpxchg(*p, o, n) != o);
-> 
->  	if (z)
-> -		zone_page_state_add(z, zone, item);
-> +		zone_page_state_add(z, zone, item, 0);
->  }
-> 
->  void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+>  	ret = (int)atomic_read(&zcache_zbud_curr_raw_pages);
+>  out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
