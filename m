@@ -1,47 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D09CF6B002C
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2011 10:25:39 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv16 0/9] Contiguous Memory Allocator
-Date: Sat, 15 Oct 2011 16:24:45 +0200
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com> <201110111552.04615.arnd@arndb.de> <20111014161951.5b4bb327.akpm@linux-foundation.org>
-In-Reply-To: <20111014161951.5b4bb327.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 419586B002C
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2011 15:05:00 -0400 (EDT)
+Date: Sat, 15 Oct 2011 21:00:37 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 1/X] uprobes: write_opcode: the new page needs PG_uptodate
+Message-ID: <20111015190037.GB30243@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201110151624.47336.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111015190007.GA30243@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul McKenney <paul.mckenney@linaro.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <jweiner@redhat.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Saturday 15 October 2011, Andrew Morton wrote:
-> 
-> On Tue, 11 Oct 2011 15:52:04 +0200
-> Arnd Bergmann <arnd@arndb.de> wrote:
-> > What I would really want to hear from you is your opinion on
-> > the architecture independent stuff. Obviously, ARM is the
-> > most important consumer of the patch set, but I think the
-> > code has its merit on other architectures as well and most of
-> > them (maybe not parisc) should be about as simple as the x86
-> > one that Marek posted now with v16.
-> 
-> Having an x86 implementation is good.  It would also be good to get
-> some x86 drivers using CMA asap, so the thing gets some runtime testing
-> from the masses.  Can we think of anything we can do here?
+write_opcode()->__replace_page() installs the new anonymous page,
+this new_page is PageSwapBacked() and it can be swapped out.
 
-With the current implementation, all drivers that use dma_alloc_coherent
-automatically use CMA, there is no need to modify any driver. On
-the other hand, nothing on x86 currently actually requires this feature
-(otherwise it would be broken already), making it hard to test the
-actual migration path.
+However it forgets to do SetPageUptodate(), fix write_opcode().
 
-The best test I can think of would be a network benchmark under memory
-pressure, preferrably one that use large jumbo frames (64KB).
+For example, this is needed if do_swap_page() finds that orginial
+page in the the swap cache (and doesn't try to read it back), in
+this case it returns VM_FAULT_SIGBUS.
+---
+ kernel/uprobes.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-	Arnd
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 3928bcc..52b20c8 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -200,6 +200,8 @@ static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
+ 		goto put_out;
+ 	}
+ 
++	__SetPageUptodate(new_page);
++
+ 	/*
+ 	 * lock page will serialize against do_wp_page()'s
+ 	 * PageAnon() handling
+-- 
+1.5.5.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
