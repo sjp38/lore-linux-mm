@@ -1,77 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A6C6B0184
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 20:39:05 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E11CE6B0186
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2011 20:39:06 -0400 (EDT)
 From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Subject: [RFC] [PATCH 4/4] memcg: Document kernel memory accounting.
-Date: Fri, 14 Oct 2011 17:38:30 -0700
-Message-Id: <1318639110-27714-5-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1318639110-27714-4-git-send-email-ssouhlal@FreeBSD.org>
+Subject: [RFC] [PATCH 1/4] memcg: Kernel memory accounting infrastructure.
+Date: Fri, 14 Oct 2011 17:38:27 -0700
+Message-Id: <1318639110-27714-2-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1318639110-27714-1-git-send-email-ssouhlal@FreeBSD.org>
 References: <1318639110-27714-1-git-send-email-ssouhlal@FreeBSD.org>
- <1318639110-27714-2-git-send-email-ssouhlal@FreeBSD.org>
- <1318639110-27714-3-git-send-email-ssouhlal@FreeBSD.org>
- <1318639110-27714-4-git-send-email-ssouhlal@FreeBSD.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: glommer@parallels.com
 Cc: gthelen@google.com, yinghan@google.com, kamezawa.hiroyu@jp.fujitsu.com, jbottomley@parallels.com, suleiman@google.com, linux-mm@kvack.org, Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
+Enabled with CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY.
+
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- Documentation/cgroups/memory.txt |   33 ++++++++++++++++++++++++++++++++-
- 1 files changed, 32 insertions(+), 1 deletions(-)
+ init/Kconfig    |    8 ++++
+ mm/memcontrol.c |  110 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 117 insertions(+), 1 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 06eb6d9..277cf25 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -220,7 +220,37 @@ caches are dropped. But as mentioned above, global LRU can do swapout memory
- from it for sanity of the system's memory management state. You can't forbid
- it by cgroup.
+diff --git a/init/Kconfig b/init/Kconfig
+index d627783..d9ce229 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -690,6 +690,14 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+ 	  select this option (if, for some reason, they need to disable it
+ 	  then swapaccount=0 does the trick).
  
--2.5 Reclaim
-+2.5 Kernel Memory
++config CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++	bool "Memory Resource Controller kernel memory tracking"
++	depends on CGROUP_MEM_RES_CTLR
++	help
++	  This option enables the tracking of kernel memory by the
++	  Memory Resource Controller.
++	  Enabling it might have performance impacts.
 +
-+A cgroup's kernel memory is accounted into its memory.usage_in_bytes and
-+is also shown in memory.stat as kernel_memory. Kernel memory does not get
-+counted towards the root cgroup's memory.usage_in_bytes, but still
-+appears in its kernel_memory.
-+
-+Upon cgroup deletion, all the remaining kernel memory gets moved to the
-+root cgroup.
-+
-+An accounted kernel memory allocation may trigger reclaim in that cgroup,
-+and may also OOM.
-+
-+Currently only slab memory allocated without __GFP_NOACCOUNT and
-+__GFP_NOFAIL gets accounted to the current process' cgroup.
-+
-+2.5.1 Slab
-+
-+Slab gets accounted on a per-page basis, which is done by using per-cgroup
-+kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
-+time a specific kmem_cache gets used by a cgroup.
-+
-+Slab memory that cannot be attributed to a cgroup gets charged to the root
-+cgroup.
-+
-+A per-cgroup kmem_cache is named like the original, with the cgroup's name
-+in parethesis.
-+When a kmem_cache gets migrated to the root cgroup, "dead" is appended to
-+its name, to indicated that it is not going to be used for new allocations.
-+
-+2.6 Reclaim
+ config CGROUP_PERF
+ 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
+ 	depends on PERF_EVENTS && CGROUPS
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3508777..52b18ed 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -58,6 +58,10 @@ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+ struct mem_cgroup *root_mem_cgroup __read_mostly;
  
- Each cgroup maintains a per cgroup LRU which has the same structure as
- global VM. When a cgroup goes over its limit, we first try
-@@ -396,6 +426,7 @@ active_anon	- # of bytes of anonymous and swap cache memory on active
- inactive_file	- # of bytes of file-backed memory on inactive LRU list.
- active_file	- # of bytes of file-backed memory on active LRU list.
- unevictable	- # of bytes of memory that cannot be reclaimed (mlocked etc).
-+kernel_memory   - # of bytes of kernel memory.
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++atomic64_t pre_memcg_kmem_bytes;	/* kmem usage before memcg is enabled */
++#endif
++
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+ int do_swap_account __read_mostly;
+@@ -285,6 +289,11 @@ struct mem_cgroup {
+ 	 */
+ 	struct mem_cgroup_stat_cpu nocpu_base;
+ 	spinlock_t pcp_counter_lock;
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++	atomic64_t kmem_bypassed;
++	atomic64_t kmem_bytes;
++#endif
+ };
  
- # status considering hierarchy (see memory.use_hierarchy settings)
+ /* Stuffs for move charges at task migration. */
+@@ -366,6 +375,8 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ static void drain_all_stock_async(struct mem_cgroup *mem);
++static void memcg_kmem_move(struct mem_cgroup *memcg);
++static void memcg_kmem_init(struct mem_cgroup *memcg);
  
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+@@ -3714,6 +3725,7 @@ move_account:
+ 		/* This is for making all *used* pages to be on LRU. */
+ 		lru_add_drain_all();
+ 		drain_all_stock_sync(mem);
++		memcg_kmem_move(mem);
+ 		ret = 0;
+ 		mem_cgroup_start_move(mem);
+ 		for_each_node_state(node, N_HIGH_MEMORY) {
+@@ -3749,6 +3761,7 @@ try_to_free:
+ 	}
+ 	/* we call try-to-free pages for make this cgroup empty */
+ 	lru_add_drain_all();
++	memcg_kmem_move(mem);
+ 	/* try to free all pages in this cgroup */
+ 	shrink = 1;
+ 	while (nr_retries && mem->res.usage > 0) {
+@@ -4032,6 +4045,7 @@ enum {
+ 	MCS_INACTIVE_FILE,
+ 	MCS_ACTIVE_FILE,
+ 	MCS_UNEVICTABLE,
++	MCS_KMEM,
+ 	NR_MCS_STAT,
+ };
+ 
+@@ -4055,7 +4069,8 @@ struct {
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+ 	{"active_file", "total_active_file"},
+-	{"unevictable", "total_unevictable"}
++	{"unevictable", "total_unevictable"},
++	{"kernel_memory", "total_kernel_memory"}
+ };
+ 
+ 
+@@ -4095,6 +4110,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
+ 	val = mem_cgroup_nr_lru_pages(mem, BIT(LRU_UNEVICTABLE));
+ 	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++	s->stat[MCS_KMEM] += atomic64_read(&mem->kmem_bytes);
++#endif
+ }
+ 
+ static void
+@@ -4930,6 +4949,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	mem->last_scanned_child = 0;
+ 	mem->last_scanned_node = MAX_NUMNODES;
+ 	INIT_LIST_HEAD(&mem->oom_notify);
++	memcg_kmem_init(mem);
+ 
+ 	if (parent)
+ 		mem->swappiness = mem_cgroup_swappiness(parent);
+@@ -4956,6 +4976,10 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++	BUG_ON(atomic64_read(&mem->kmem_bytes) != 0);
++#endif
++
+ 	mem_cgroup_put(mem);
+ }
+ 
+@@ -5505,3 +5529,87 @@ static int __init enable_swap_account(char *s)
+ __setup("swapaccount=", enable_swap_account);
+ 
+ #endif
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY
++static void
++memcg_account_kmem(struct mem_cgroup *memcg, long long delta, bool bypassed)
++{
++	if (bypassed && memcg && memcg != root_mem_cgroup) {
++		atomic64_add(delta, &memcg->kmem_bypassed);
++		memcg = NULL;
++	}
++
++	if (memcg)
++		atomic64_add(delta, &memcg->kmem_bytes);
++	else if (root_mem_cgroup != NULL)
++		atomic64_add(delta, &root_mem_cgroup->kmem_bytes);
++	else
++		atomic64_add(delta, &pre_memcg_kmem_bytes);
++}
++
++static void
++memcg_unaccount_kmem(struct mem_cgroup *memcg, long long delta)
++{
++	if (memcg) {
++		long long bypassed = atomic64_read(&memcg->kmem_bypassed);
++		if (bypassed > 0) {
++			if (bypassed > delta)
++				bypassed = delta;
++			do {
++				memcg_unaccount_kmem(NULL, bypassed);
++				delta -= bypassed;
++				bypassed = atomic64_sub_return(bypassed,
++						&memcg->kmem_bypassed);
++			} while (bypassed < 0);	/* might have raced */
++		}
++	}
++
++	if (memcg)
++		atomic64_sub(delta, &memcg->kmem_bytes);
++	else if (root_mem_cgroup != NULL)
++		atomic64_sub(delta, &root_mem_cgroup->kmem_bytes);
++	else
++		atomic64_sub(delta, &pre_memcg_kmem_bytes);
++
++	if (memcg && memcg != root_mem_cgroup)
++		res_counter_uncharge(&memcg->res, delta);
++}
++
++static void
++memcg_kmem_init(struct mem_cgroup *memcg)
++{
++	if (memcg == root_mem_cgroup) {
++		long kmem_bytes;
++
++		kmem_bytes = atomic64_xchg(&pre_memcg_kmem_bytes, 0);
++		atomic64_set(&memcg->kmem_bytes, kmem_bytes);
++	} else
++		atomic64_set(&memcg->kmem_bytes, 0);
++	atomic64_set(&memcg->kmem_bypassed, 0);
++}
++
++static void
++memcg_kmem_move(struct mem_cgroup *memcg)
++{
++	long kmem_bytes;
++
++	atomic64_set(&memcg->kmem_bypassed, 0);
++	kmem_bytes = atomic64_xchg(&memcg->kmem_bytes, 0);
++	res_counter_uncharge(&memcg->res, kmem_bytes);
++	/*
++	 * Currently we don't need to do a charge after this, since we are
++	 * only moving to the root.
++	 */
++	atomic64_add(kmem_bytes, &root_mem_cgroup->kmem_bytes);
++}
++#else /* CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY */
++static void
++memcg_kmem_init(struct mem_cgroup *memcg)
++{
++}
++
++static void
++memcg_kmem_move(struct mem_cgroup *memcg)
++{
++}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KERNEL_MEMORY */
 -- 
 1.7.3.1
 
