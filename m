@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F3FA36B002F
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2011 15:05:11 -0400 (EDT)
-Date: Sat, 15 Oct 2011 21:00:57 +0200
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ABA66B0030
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2011 15:05:31 -0400 (EDT)
+Date: Sat, 15 Oct 2011 21:01:13 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 2/X] uprobes: write_opcode() needs put_page(new_page)
-	unconditionally
-Message-ID: <20111015190057.GC30243@redhat.com>
+Subject: [PATCH 3/X] uprobes: xol_add_vma: fix ->uprobes_xol_area
+	initialization
+Message-ID: <20111015190113.GD30243@redhat.com>
 References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -17,65 +17,104 @@ List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-Every write_opcode()->__replace_page() leaks the new page on success.
+xol_add_vma() can race with another thread which sets ->uprobes_xol_area,
+in this case we can't rely on per-thread task_lock() and we should unmap
+xol_vma.
 
-We have the reference after alloc_page_vma(), then __replace_page()
-does another get_page() for the new mapping, we need put_page(new_page)
-in any case.
+Move the setting of mm->uprobes_xol_area into xol_add_vma(), it has to
+take mmap_sem for writing anyway, this also simplifies the code.
 
-Alternatively we could remove __replace_page()->get_page() but it is
-better to change write_opcode(). This way it is simpler to unify the
-code with ksm.c:replace_page() and we can simplify the error handling
-in write_opcode(), the patch simply adds a single page_cache_release()
-under "unlock_out" label.
+Change xol_add_vma() to do do_munmap() if it fails after do_mmap_pgoff().
 ---
- kernel/uprobes.c |   15 +++++----------
- 1 files changed, 5 insertions(+), 10 deletions(-)
+ kernel/uprobes.c |   34 ++++++++++++++++------------------
+ 1 files changed, 16 insertions(+), 18 deletions(-)
 
 diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 52b20c8..fd9c8e3 100644
+index fd9c8e3..6fe2b20 100644
 --- a/kernel/uprobes.c
 +++ b/kernel/uprobes.c
-@@ -193,15 +193,12 @@ static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
- 	if (vaddr != (unsigned long) addr)
- 		goto put_out;
+@@ -1049,18 +1049,18 @@ static int xol_add_vma(struct uprobes_xol_area *area)
+ 	struct vm_area_struct *vma;
+ 	struct mm_struct *mm;
+ 	unsigned long addr;
+-	int ret = -ENOMEM;
++	int ret;
  
--	/* Allocate a page */
+ 	mm = get_task_mm(current);
+ 	if (!mm)
+ 		return -ESRCH;
+ 
+ 	down_write(&mm->mmap_sem);
+-	if (mm->uprobes_xol_area) {
+-		ret = -EALREADY;
++	ret = -EALREADY;
++	if (mm->uprobes_xol_area)
+ 		goto fail;
+-	}
+ 
 +	ret = -ENOMEM;
- 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
--	if (!new_page) {
--		ret = -ENOMEM;
-+	if (!new_page)
- 		goto put_out;
--	}
- 
- 	__SetPageUptodate(new_page);
--
  	/*
- 	 * lock page will serialize against do_wp_page()'s
- 	 * PageAnon() handling
-@@ -220,18 +217,16 @@ static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
- 	kunmap_atomic(vaddr_old);
+ 	 * Find the end of the top mapping and skip a page.
+ 	 * If there is no space for PAGE_SIZE above
+@@ -1078,15 +1078,19 @@ static int xol_add_vma(struct uprobes_xol_area *area)
  
- 	ret = anon_vma_prepare(vma);
--	if (ret) {
--		page_cache_release(new_page);
-+	if (ret)
- 		goto unlock_out;
+ 	if (addr & ~PAGE_MASK)
+ 		goto fail;
+-	vma = find_vma(mm, addr);
+ 
++	vma = find_vma(mm, addr);
+ 	/* Don't expand vma on mremap(). */
+ 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTCOPY;
+ 	area->vaddr = vma->vm_start;
+ 	if (get_user_pages(current, mm, area->vaddr, 1, 1, 1, &area->page,
+-				&vma) > 0)
+-		ret = 0;
++				&vma) != 1) {
++		do_munmap(mm, addr, PAGE_SIZE);
++		goto fail;
++	}
+ 
++	mm->uprobes_xol_area = area;
++	ret = 0;
+ fail:
+ 	up_write(&mm->mmap_sem);
+ 	mmput(mm);
+@@ -1102,7 +1106,7 @@ fail:
+  */
+ static struct uprobes_xol_area *xol_alloc_area(void)
+ {
+-	struct uprobes_xol_area *area = NULL;
++	struct uprobes_xol_area *area;
+ 
+ 	area = kzalloc(sizeof(*area), GFP_KERNEL);
+ 	if (unlikely(!area))
+@@ -1110,22 +1114,16 @@ static struct uprobes_xol_area *xol_alloc_area(void)
+ 
+ 	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
+ 								GFP_KERNEL);
+-
+ 	if (!area->bitmap)
+ 		goto fail;
+ 
+ 	init_waitqueue_head(&area->wq);
+ 	spin_lock_init(&area->slot_lock);
+-	if (!xol_add_vma(area) && !current->mm->uprobes_xol_area) {
+-		task_lock(current);
+-		if (!current->mm->uprobes_xol_area) {
+-			current->mm->uprobes_xol_area = area;
+-			task_unlock(current);
+-			return area;
+-		}
+-		task_unlock(current);
 -	}
  
- 	lock_page(new_page);
- 	ret = __replace_page(vma, old_page, new_page);
- 	unlock_page(new_page);
--	if (ret != 0)
--		page_cache_release(new_page);
++	if (xol_add_vma(area))
++		goto fail;
 +
- unlock_out:
- 	unlock_page(old_page);
-+	page_cache_release(new_page);
- 
- put_out:
- 	put_page(old_page); /* we did a get_page in the beginning */
++	return area;
+ fail:
+ 	kfree(area->bitmap);
+ 	kfree(area);
 -- 
 1.5.5.1
 
