@@ -1,49 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 419586B002C
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BC0EC6B002F
 	for <linux-mm@kvack.org>; Sat, 15 Oct 2011 15:05:00 -0400 (EDT)
-Date: Sat, 15 Oct 2011 21:00:37 +0200
+Date: Sat, 15 Oct 2011 21:00:07 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 1/X] uprobes: write_opcode: the new page needs PG_uptodate
-Message-ID: <20111015190037.GB30243@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com>
+Subject: [PATCH 0/X] (Was:  Uprobes patchset with perf probe support)
+Message-ID: <20111015190007.GA30243@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111015190007.GA30243@redhat.com>
+In-Reply-To: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-write_opcode()->__replace_page() installs the new anonymous page,
-this new_page is PageSwapBacked() and it can be swapped out.
+Hello.
 
-However it forgets to do SetPageUptodate(), fix write_opcode().
+I was trying to make the signal patches we discussed, but I have
+noticed other problems.
 
-For example, this is needed if do_swap_page() finds that orginial
-page in the the swap cache (and doesn't try to read it back), in
-this case it returns VM_FAULT_SIGBUS.
----
- kernel/uprobes.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Please see the suggested initial fixes, more to come. Of course
+there were not tested ;) Please review.
 
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 3928bcc..52b20c8 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -200,6 +200,8 @@ static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
- 		goto put_out;
- 	}
- 
-+	__SetPageUptodate(new_page);
-+
- 	/*
- 	 * lock page will serialize against do_wp_page()'s
- 	 * PageAnon() handling
--- 
-1.5.5.1
+And. It it not that I suggest to add this series, just it is much
+simpler to me to write the patch with the changelog to explain
+what I mean.
 
+IOW, if you agree with these fixes, please incorporate them into
+the next version. Feel free to redo.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
