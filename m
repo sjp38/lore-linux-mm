@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB1556B002E
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 16:38:00 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 361836B0030
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 16:38:01 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 4/4] powerpc: gup_hugepte() support THP based tail recounting
-Date: Sun, 16 Oct 2011 22:37:05 +0200
-Message-Id: <1318797426-26600-5-git-send-email-aarcange@redhat.com>
+Subject: thp: gup_fast ppc tail refcounting [was Re: [PATCH] thp: tail page refcounting fix #6]
+Date: Sun, 16 Oct 2011 22:37:01 +0200
+Message-Id: <1318797426-26600-1-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1316793432.9084.47.camel@twins>
 References: <1316793432.9084.47.camel@twins>
 Sender: owner-linux-mm@kvack.org
@@ -13,68 +13,37 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Up to this point the code assumed old refcounting for hugepages
-(pre-thp). This updates the code directly to the thp mapcount tail page
-refcounting.
+Hi everyone,
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+so I reviewed the ppc gup_fast hugetlbfs code a bit, fixed the
+longstanding memory corrupting bugs (could trigger if mmremap
+functions run under gup_fast) and I fixed the code that was supposed
+to make it work with thp introduction in 2.6.38 and more recently with
+the tail refcounting race fixes in -mm. This is incremental with the
+thp refcoutning race fixes merged in -mm.
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 78b14ab..a618ef0 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -385,12 +385,23 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 	return NULL;
- }
- 
-+static inline void get_huge_page_tail(struct page *page)
-+{
-+	/*
-+	 * __split_huge_page_refcount() cannot run
-+	 * from under us.
-+	 */
-+	VM_BUG_ON(page_mapcount(page) < 0);
-+	VM_BUG_ON(atomic_read(&page->_count) != 0);
-+	atomic_inc(&page->_mapcount);
-+}
-+
- static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
- 		       unsigned long end, int write, struct page **pages, int *nr)
- {
- 	unsigned long mask;
- 	unsigned long pte_end;
--	struct page *head, *page;
-+	struct page *head, *page, *tail;
- 	pte_t pte;
- 	int refs;
- 
-@@ -413,6 +424,7 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
- 	head = pte_page(pte);
- 
- 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
-+	tail = page;
- 	do {
- 		VM_BUG_ON(compound_head(page) != head);
- 		pages[*nr] = page;
-@@ -431,6 +443,16 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
- 		*nr -= refs;
- 		while (refs--)
- 			put_page(head);
-+	} else {
-+		/*
-+		 * Any tail page need their mapcount reference taken
-+		 * before we return.
-+		 */
-+		while (refs--) {
-+			if (PageTail(tail))
-+				get_huge_page_tail(tail);
-+			tail++;
-+		}
- 	}
- 
- 	return 1;
--- 
-1.7.3.4
+To me those rollbacking if the pte changed that ppc is doing looks
+unnecessary, the speculative access also looks unnecessary (there is
+no way the page_count of the head or regular pages can be zero
+there). x86 doesn't do any specualtive refcounting and it won't care
+if the pte changed (we know the page can't go away from under us
+because irqs are disabled). If tlb flushing code works on ppc like x86
+there should be no need of that.
+
+However I didn't remove those two rollback conditions, in theory it
+shouldn't hurt (well not anymore, after fixing the two corrupting
+bugs...). I just tried to make the minimal changes required because I
+didn't test it. It'd be nice if ppc users could test it with O_DIRECT
+on top of hugetlbfs and report if this works. I build-tested it
+though, so it should build just fine at least.
+
+s390x should be the only other arch that needs revisiting to make
+gup_fast + hugetlbfs to work properly. I'll do that next.
+
+[PATCH 1/4] powerpc: remove superfluous PageTail checks on the pte gup_fast
+[PATCH 2/4] powerpc: get_hugepte() don't put_page() the wrong page
+[PATCH 3/4] powerpc: gup_hugepte() avoid to free the head page too many times
+[PATCH 4/4] powerpc: gup_hugepte() support THP based tail recounting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
