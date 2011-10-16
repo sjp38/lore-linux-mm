@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E936B0031
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 16:38:01 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 084766B002C
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 16:40:53 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: [PATCH 3/4] powerpc: gup_hugepte() avoid to free the head page too many times
-Date: Sun, 16 Oct 2011 22:37:04 +0200
-Message-Id: <1318797426-26600-4-git-send-email-aarcange@redhat.com>
+Date: Sun, 16 Oct 2011 22:40:38 +0200
+Message-Id: <1318797639-26962-4-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1316793432.9084.47.camel@twins>
 References: <1316793432.9084.47.camel@twins>
 Sender: owner-linux-mm@kvack.org
