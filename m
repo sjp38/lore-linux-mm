@@ -1,101 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1F56B002C
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 18:38:09 -0400 (EDT)
-Received: by wyg34 with SMTP id 34so1794668wyg.14
-        for <linux-mm@kvack.org>; Sun, 16 Oct 2011 15:38:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
-References: <201110122012.33767.pluto@agmk.net> <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 16 Oct 2011 15:37:46 -0700
-Message-ID: <CA+55aFyTif3k0-wb+1zS8b+hKT13pL0T_qtVzAz2HW5U9=yoMg@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C11E6B002C
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 19:54:58 -0400 (EDT)
+Date: Mon, 17 Oct 2011 01:54:42 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20111016235442.GB25266@redhat.com>
+References: <201110122012.33767.pluto@agmk.net>
+ <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
+ <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+Cc: Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-What's the status of this thing? Is it stable/3.1 material? Do we have
-ack/nak's for it? Anybody?
-
-                               Linus
-
-On Thu, Oct 13, 2011 at 4:16 PM, Hugh Dickins <hughd@google.com> wrote:
->
-> [PATCH] mm: add anon_vma locking to mremap move
->
-> I don't usually pay much attention to the stale "? " addresses in
-> stack backtraces, but this lucky report from Pawel Sikora hints that
-> mremap's move_ptes() has inadequate locking against page migration.
->
-> =A03.0 BUG_ON(!PageLocked(p)) in migration_entry_to_page():
-> =A0kernel BUG at include/linux/swapops.h:105!
-> =A0RIP: 0010:[<ffffffff81127b76>] =A0[<ffffffff81127b76>]
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 migration_entry_wait+0x156/0x=
-160
-> =A0[<ffffffff811016a1>] handle_pte_fault+0xae1/0xaf0
-> =A0[<ffffffff810feee2>] ? __pte_alloc+0x42/0x120
-> =A0[<ffffffff8112c26b>] ? do_huge_pmd_anonymous_page+0xab/0x310
-> =A0[<ffffffff81102a31>] handle_mm_fault+0x181/0x310
-> =A0[<ffffffff81106097>] ? vma_adjust+0x537/0x570
-> =A0[<ffffffff81424bed>] do_page_fault+0x11d/0x4e0
-> =A0[<ffffffff81109a05>] ? do_mremap+0x2d5/0x570
-> =A0[<ffffffff81421d5f>] page_fault+0x1f/0x30
->
+On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
 > mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
 > and pagetable locks, were good enough before page migration (with its
 > requirement that every migration entry be found) came in; and enough
-> while migration always held mmap_sem. =A0But not enough nowadays, when
+> while migration always held mmap_sem.  But not enough nowadays, when
 > there's memory hotremove and compaction: anon_vma lock is also needed,
 > to make sure a migration entry is not dodging around behind our back.
->
+
+For things like migrate and split_huge_page, the anon_vma layer must
+guarantee the page is reachable by rmap walk at all times regardless
+if it's at the old or new address.
+
+This shall be guaranteed by the copy_vma called by move_vma well
+before move_page_tables/move_ptes can run.
+
+copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
+into the anon_vma chains structures (vma_link does that). That before
+any pte can be moved.
+
+Because we keep two vmas mapped on both src and dst range, with
+different vma->vm_pgoff that is valid for the page (the page doesn't
+change its page->index) the page should always find _all_ its pte at
+any given time.
+
+There may be other variables at play like the order of insertion in
+the anon_vma chain matches our direction of copy and removal of the
+old pte. But I think the double locking of the PT lock should make the
+order in the anon_vma chain absolutely irrelevant (the rmap_walk
+obviously takes the PT lock too), and furthermore likely the
+anon_vma_chain insertion is favorable (the dst vma is inserted last
+and checked last). But it shouldn't matter.
+
+Another thing could be the copy_vma vma_merge branch succeeding
+(returning not NULL) but I doubt we risk to fall into that one. For
+the rmap_walk to be always working on both the src and dst
+vma->vma_pgoff the pgoff must be different so we can't possibly be ok
+if there's just 1 vma covering the whole range. I exclude this could
+be the case because the pgoff passed to copy_vma is different than the
+vma->vm_pgoff given to copy_vma, so vma_merge can't possibly succeed.
+
+Yet another point to investigate is the point where we teardown the
+old vma and we leave the new vma generated by copy_vma
+established. That's apparently taken care of by do_munmap in move_vma
+so that shall be safe too as munmap is safe in the first place.
+
+Overall I don't think this patch is needed and it seems a noop.
+
 > It appears that Mel's a8bef8ff6ea1 "mm: migration: avoid race between
 > shift_arg_pages() and rmap_walk() during migration by not migrating
 > temporary stacks" was actually a workaround for this in the special
 > common case of exec's use of move_pagetables(); and we should probably
 > now remove that VM_STACK_INCOMPLETE_SETUP stuff as a separate cleanup.
->
-> Reported-by: Pawel Sikora <pluto@agmk.net>
-> Cc: stable@kernel.org
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->
-> =A0mm/mremap.c | =A0 =A05 +++++
-> =A01 file changed, 5 insertions(+)
->
-> --- 3.1-rc9/mm/mremap.c 2011-07-21 19:17:23.000000000 -0700
-> +++ linux/mm/mremap.c =A0 2011-10-13 14:36:25.097780974 -0700
-> @@ -77,6 +77,7 @@ static void move_ptes(struct vm_area_str
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long new_addr)
-> =A0{
-> =A0 =A0 =A0 =A0struct address_space *mapping =3D NULL;
-> + =A0 =A0 =A0 struct anon_vma *anon_vma =3D vma->anon_vma;
-> =A0 =A0 =A0 =A0struct mm_struct *mm =3D vma->vm_mm;
-> =A0 =A0 =A0 =A0pte_t *old_pte, *new_pte, pte;
-> =A0 =A0 =A0 =A0spinlock_t *old_ptl, *new_ptl;
-> @@ -95,6 +96,8 @@ static void move_ptes(struct vm_area_str
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mapping =3D vma->vm_file->f_mapping;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mutex_lock(&mapping->i_mmap_mutex);
-> =A0 =A0 =A0 =A0}
-> + =A0 =A0 =A0 if (anon_vma)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 anon_vma_lock(anon_vma);
->
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * We don't have to worry about the ordering of src and ds=
-t
-> @@ -121,6 +124,8 @@ static void move_ptes(struct vm_area_str
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock(new_ptl);
-> =A0 =A0 =A0 =A0pte_unmap(new_pte - 1);
-> =A0 =A0 =A0 =A0pte_unmap_unlock(old_pte - 1, old_ptl);
-> + =A0 =A0 =A0 if (anon_vma)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 anon_vma_unlock(anon_vma);
-> =A0 =A0 =A0 =A0if (mapping)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mutex_unlock(&mapping->i_mmap_mutex);
-> =A0 =A0 =A0 =A0mmu_notifier_invalidate_range_end(vma->vm_mm, old_start, o=
-ld_end);
+
+I don't think this patch can help with that, the problem of execve vs
+rmap_walk is that there's 1 single vma existing for src and dst
+virtual ranges while execve runs move_page_tables. So there is no
+possible way that rmap_walk will be guaranteed to find _all_ ptes
+mapping a page if there's just one vma mapping either the src or dst
+range while move_page_table runs. No addition of locking whatsoever
+can fix that bug because we miss a vma (well modulo locking that
+prevents rmap_walk to run at all, until we're finished with execve,
+which is more or less what VM_STACK_INCOMPLETE_SETUP does...).
+
+The only way is to fix this is prevent migrate (or any other rmap_walk
+user that requires 100% reliability from the rmap layer, for example
+swap doesn't require 100% reliability and can still run and gracefully
+fail at finding the pte) while we're moving pagetables in execve. And
+that's what Mel's above mentioned patch does.
+
+The other way to fix that bug that I implemented was to do copy_vma in
+execve, so that we still have both src and dst ranges of
+move_page_tables covered by 2 (not 1) vma, each with the proper
+vma->vm_pgoff, so my approach fixed that bug as well (but requires a
+vma allocation in execve so it was dropped in favor of Mel's patch
+which is totally fine with as both approaches fixes the bug equally
+well, even if now we've to deal with this special case of sometime
+rmap_walk having false negatives if the vma_flags is set, and the
+important thing is that after VM_STACK_INCOMPLETE_SETUP has been
+cleared it won't ever be set again for the whole lifetime of the vma).
+
+I may be missing something, I did a short review so far, just so the
+patch doesn't get merged if not needed. I mean I think it needs a bit
+more looks on it... The fact the i_mmap_mutex was taken but the
+anon_vma lock was not taken (while in every other place they both are
+needed) certainly makes the patch look correct, but that's just a
+misleading coincidence I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
