@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AFE876B002E
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 12:18:50 -0400 (EDT)
-Date: Sun, 16 Oct 2011 18:14:29 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 7/X] uprobes: xol_add_vma: simply use TASK_SIZE as a hint
-Message-ID: <20111016161429.GB24893@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111015190007.GA30243@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EB1556B002E
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 16:38:00 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 4/4] powerpc: gup_hugepte() support THP based tail recounting
+Date: Sun, 16 Oct 2011 22:37:05 +0200
+Message-Id: <1318797426-26600-5-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1316793432.9084.47.camel@twins>
+References: <1316793432.9084.47.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-I don't understand why xol_add_vma() abuses mm->mm_rb to find the
-highest mapping. We can simply use TASK_SIZE-PAGE_SIZE a hint.
+Up to this point the code assumed old refcounting for hugepages
+(pre-thp). This updates the code directly to the thp mapcount tail page
+refcounting.
 
-If this area is already occupied, the hint will be ignored with
-or without this change. Otherwise the result is "obviously better"
-and the code becomes simpler.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
----
-
- kernel/uprobes.c |   13 ++++---------
- 1 files changed, 4 insertions(+), 9 deletions(-)
-
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 038f21c..b876977 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -1045,9 +1045,7 @@ void munmap_uprobe(struct vm_area_struct *vma)
- /* Slot allocation for XOL */
- static int xol_add_vma(struct uprobes_xol_area *area)
- {
--	struct vm_area_struct *vma;
- 	struct mm_struct *mm;
--	unsigned long addr_hint;
- 	int ret;
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index 78b14ab..a618ef0 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -385,12 +385,23 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 	return NULL;
+ }
  
- 	area->page = alloc_page(GFP_HIGHUSER);
-@@ -1060,15 +1058,12 @@ static int xol_add_vma(struct uprobes_xol_area *area)
- 	ret = -EALREADY;
- 	if (mm->uprobes_xol_area)
- 		goto fail;
++static inline void get_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(page_mapcount(page) < 0);
++	VM_BUG_ON(atomic_read(&page->_count) != 0);
++	atomic_inc(&page->_mapcount);
++}
 +
- 	/*
--	 * Find the end of the top mapping and skip a page.
--	 * If there is no space for PAGE_SIZE above that,
--	 * this hint will be ignored.
-+	 * Try to map as high as possible, this is only a hint.
- 	 */
--	vma = rb_entry(rb_last(&mm->mm_rb), struct vm_area_struct, vm_rb);
--	addr_hint = vma->vm_end + PAGE_SIZE;
--
--	area->vaddr = get_unmapped_area(NULL, addr_hint, PAGE_SIZE, 0, 0);
-+	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
-+					PAGE_SIZE, 0, 0);
- 	if (IS_ERR_VALUE(area->vaddr)) {
- 		ret = area->vaddr;
- 		goto fail;
+ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+ 		       unsigned long end, int write, struct page **pages, int *nr)
+ {
+ 	unsigned long mask;
+ 	unsigned long pte_end;
+-	struct page *head, *page;
++	struct page *head, *page, *tail;
+ 	pte_t pte;
+ 	int refs;
+ 
+@@ -413,6 +424,7 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
+ 	head = pte_page(pte);
+ 
+ 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
++	tail = page;
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
+@@ -431,6 +443,16 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
+ 		*nr -= refs;
+ 		while (refs--)
+ 			put_page(head);
++	} else {
++		/*
++		 * Any tail page need their mapcount reference taken
++		 * before we return.
++		 */
++		while (refs--) {
++			if (PageTail(tail))
++				get_huge_page_tail(tail);
++			tail++;
++		}
+ 	}
+ 
+ 	return 1;
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
