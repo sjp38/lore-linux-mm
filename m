@@ -1,43 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4FD1A6B0033
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 15:01:03 -0400 (EDT)
-Date: Mon, 17 Oct 2011 20:55:26 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 6/X] uprobes: reimplement xol_add_vma() via
-	install_special_mapping()
-Message-ID: <20111017185526.GA9244@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111016161359.GA24893@redhat.com> <20111017105054.GC11831@linux.vnet.ibm.com> <1318858455.7251.12.camel@moss-pluto>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id AB8986B002E
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 16:14:43 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <7f94da39-4855-46b6-96d3-ab5ddbaed039@default>
+Date: Mon, 17 Oct 2011 13:14:23 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
+References: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com
+ 3e84809b-a45d-4980-b342-c2d671f87f79@default>
+In-Reply-To: <3e84809b-a45d-4980-b342-c2d671f87f79@default>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1318858455.7251.12.camel@moss-pluto>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Eric Paris <eparis@parisplace.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de
+Cc: cascardo@holoscopio.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
 
-On 10/17, Stephen Smalley wrote:
->
-> > Since selinux wasnt happy to have an anonymous vma attached, we would
-> > create a pseudo file using shmem_file_setup. However after comments from
-> > Peter and Stephan's suggestions we started using override_creds. Peter and
-> > Oleg suggest that we use install_special_mapping.
+> From: Dan Magenheimer
+> Sent: Wednesday, October 12, 2011 2:39 PM
+> To: Seth Jennings; gregkh@suse.de
+> Cc: cascardo@holoscopio.com; rdunlap@xenotime.net; devel@driverdev.osuosl=
+.org; linux-
+> kernel@vger.kernel.org; linux-mm@kvack.org; rcj@linux.vnet.ibm.com; brkin=
+g@linux.vnet.ibm.com
+> Subject: RE: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
+>=20
+> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> > Subject: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
 > >
-> > Are you okay with using install_special_mapping instead of
-> > override_creds()?
->
-> That's fine with me.
+> > zcache_do_preload() currently does a spin_trylock() on the
+> > zcache_direct_reclaim_lock. Holding this lock intends to prevent
+> > shrink_zcache_memory() from evicting zbud pages as a result
+> > of a preload.
+> >
+> > However, it also prevents two threads from
+> > executing zcache_do_preload() at the same time.  The first
+> > thread will obtain the lock and the second thread's spin_trylock()
+> > will fail (an aborted preload) causing the page to be either lost
+> > (cleancache) or pushed out to the swap device (frontswap). It
+> > also doesn't ensure that the call to shrink_zcache_memory() is
+> > on the same thread as the call to zcache_do_preload().
+>=20
+> Yes, this looks to be leftover code from early in kztmem/zcache
+> development.  Good analysis.
+>=20
+> > Additional, there is no need for this mechanism because all
+> > zcache_do_preload() calls that come down from cleancache already
+> > have PF_MEMALLOC set in the process flags which prevents
+> > direct reclaim in the memory manager. If the zcache_do_preload()
+>=20
+> Might it be worthwhile to add a BUG/ASSERT for the presence
+> of PF_MEMALLOC, or at least a comment in the code?
+>=20
+> > call is done from the frontswap path, we _want_ reclaim to be
+> > done (which it isn't right now).
+> >
+> > This patch removes the zcache_direct_reclaim_lock and related
+> > statistics in zcache.
+> >
+> > Based on v3.1-rc8
+> >
+> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+>=20
+> With added code/comment per above...
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-Good.
+After Seth's further analysis, ignore my conditional and
+consider v1 of this patch:
 
-> But I'm still not clear on how you are controlling
-> the use of this facility from userspace, which is my primary concern.
-
-Yes, but just in case... Any security check in xol_add_vma() is pointless.
-The task is already "owned" by uprobes when xol_add_vma() is called.
-
-Oleg.
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
