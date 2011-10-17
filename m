@@ -1,64 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED4D6B002C
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 10:07:36 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LT7008KWR8G1Q60@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 17 Oct 2011 15:07:28 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LT700GNMR8G9Y@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 17 Oct 2011 15:07:28 +0100 (BST)
-Date: Mon, 17 Oct 2011 16:07:27 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
- mapper for DMA-mapping
-In-reply-to: <401E54CE964CD94BAE1EB4A729C7087E3722519EAE@HQMAIL04.nvidia.com>
-Message-id: <01b801cc8cd6$1a6d4340$4f47c9c0$%szyprowski@samsung.com>
-Content-language: pl
-References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
- <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
- <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
- <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
- <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
- <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
- <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519C65@HQMAIL04.nvidia.com>
- <401E54CE964CD94BAE1EB4A729C7087E3722519EAE@HQMAIL04.nvidia.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 48F3A6B002C
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 10:25:43 -0400 (EDT)
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: [RFC 2/3] PM / Hibernate : do not count debug pages as savable
+Date: Mon, 17 Oct 2011 16:24:45 +0200
+Message-Id: <1318861486-3942-2-git-send-email-sgruszka@redhat.com>
+In-Reply-To: <1318861486-3942-1-git-send-email-sgruszka@redhat.com>
+References: <1318861486-3942-1-git-send-email-sgruszka@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Krishna Reddy' <vdumpa@nvidia.com>
-Cc: linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>, Stanislaw Gruszka <sgruszka@redhat.com>
 
-Hello Krishna,
+When debugging memory corruption with CONFIG_DEBUG_PAGEALLOC and
+corrupt_dbg > 0, we have lot of free pages that are not marked so.
+Snapshot code account them as savable, what cause hibernate memory
+preallocation failure.
 
-On Thursday, October 13, 2011 2:18 AM You wrote:
+It is pretty hard to make hibernate allocation succeed with
+corrupt_dbg=1. This change at least make it possible when system has
+relatively big amount of RAM.
 
-> Here a patch v2 that has updates/fixes to DMA IOMMU code. With these changes, the nvidia
-> device is able to boot with all its platform drivers as DMA IOMMU clients.
-> 
-> Here is the overview of changes.
-> 
-> 1. Converted the mutex to spinlock to handle atomic context calls and used spinlock in
-> necessary places.
-> 2. Implemented arm_iommu_map_page and arm_iommu_unmap_page, which are used by MMC host stack.
-> 3. Separated creation of dma_iommu_mapping from arm_iommu_attach_device in order to share
-> mapping.
-> 4. Fixed various bugs identified in DMA IOMMU code during testing.
+Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+---
+ include/linux/mm.h      |    7 ++++++-
+ kernel/power/snapshot.c |    6 ++++++
+ mm/page_alloc.c         |    6 ------
+ 3 files changed, 12 insertions(+), 7 deletions(-)
 
-The code looks much better now. The only problem is the fact that your mailed has changed
-all tabs into spaces making the patch really hard to apply. Could you resend it correctly?
-
-Best regards
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 17e3658..651785b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1630,13 +1630,18 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+ extern unsigned int _corrupt_dbg;
+ 
+-
+ static inline unsigned int corrupt_dbg(void)
+ {
+ 	return _corrupt_dbg;
+ }
++
++static inline bool page_is_corrupt_dbg(struct page *page)
++{
++	return test_bit(PAGE_DEBUG_FLAG_CORRUPT, &page->debug_flags);
++}
+ #else
+ static inline unsigned int corrupt_dbg(void) { return 0; }
++static inline bool page_is_corrupt_dbg(struct page *page) { return false; }
+ #endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
+ #endif /* __KERNEL__ */
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 06efa54..45cf1b1 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -858,6 +858,9 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
+ 	    PageReserved(page))
+ 		return NULL;
+ 
++	if (page_is_corrupt_dbg(page))
++		return NULL;
++
+ 	return page;
+ }
+ 
+@@ -920,6 +923,9 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
+ 	    && (!kernel_page_present(page) || pfn_is_nosave(pfn)))
+ 		return NULL;
+ 
++	if (page_is_corrupt_dbg(page))
++		return NULL;
++
+ 	return page;
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8d18ae4..8a7770a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -425,15 +425,9 @@ static inline void clear_page_corrupt_dbg(struct page *page)
+ 	__clear_bit(PAGE_DEBUG_FLAG_CORRUPT, &page->debug_flags);
+ }
+ 
+-static inline bool page_is_corrupt_dbg(struct page *page)
+-{
+-	return test_bit(PAGE_DEBUG_FLAG_CORRUPT, &page->debug_flags);
+-}
+-
+ #else
+ static inline void set_page_corrupt_dbg(struct page *page) { }
+ static inline void clear_page_corrupt_dbg(struct page *page) { }
+-static inline bool page_is_corrupt_dbg(struct page *page) { return false; }
+ #endif
+ 
+ static inline void set_page_order(struct page *page, int order)
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
