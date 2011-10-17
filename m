@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 172756B002C
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:34:56 -0400 (EDT)
-Subject: Re: [PATCH 6/X] uprobes: reimplement xol_add_vma() via
- install_special_mapping()
-From: Stephen Smalley <sds@tycho.nsa.gov>
-In-Reply-To: <20111017105054.GC11831@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
-	 <20111015190007.GA30243@redhat.com> <20111016161359.GA24893@redhat.com>
-	 <20111017105054.GC11831@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 17 Oct 2011 09:34:15 -0400
-Message-ID: <1318858455.7251.12.camel@moss-pluto>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED4D6B002C
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 10:07:36 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LT7008KWR8G1Q60@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 17 Oct 2011 15:07:28 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LT700GNMR8G9Y@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 17 Oct 2011 15:07:28 +0100 (BST)
+Date: Mon, 17 Oct 2011 16:07:27 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [Linaro-mm-sig] [PATCH 1/2] ARM: initial proof-of-concept IOMMU
+ mapper for DMA-mapping
+In-reply-to: <401E54CE964CD94BAE1EB4A729C7087E3722519EAE@HQMAIL04.nvidia.com>
+Message-id: <01b801cc8cd6$1a6d4340$4f47c9c0$%szyprowski@samsung.com>
+Content-language: pl
+References: <1314971786-15140-1-git-send-email-m.szyprowski@samsung.com>
+ <1314971786-15140-2-git-send-email-m.szyprowski@samsung.com>
+ <594816116217195c28de13accaf1f9f2.squirrel@www.codeaurora.org>
+ <001f01cc786d$d55222c0$7ff66840$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E37225197F8@HQMAIL04.nvidia.com>
+ <00b101cc87ee$8976c410$9c644c30$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519A1F@HQMAIL04.nvidia.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519BF4@HQMAIL04.nvidia.com>
+ <00e501cc88a2$b82fc680$288f5380$%szyprowski@samsung.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519C65@HQMAIL04.nvidia.com>
+ <401E54CE964CD94BAE1EB4A729C7087E3722519EAE@HQMAIL04.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Eric Paris <eparis@parisplace.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: 'Krishna Reddy' <vdumpa@nvidia.com>
+Cc: linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, linux-arm-kernel@lists.infradead.org
 
-On Mon, 2011-10-17 at 16:20 +0530, Srikar Dronamraju wrote:
-> > I apologize in advance if this was already discussed, but I just can't
-> > understand why xol_add_vma() does not use install_special_mapping().
-> > Unless I missed something this should work and this has the following
-> > advantages:
-> 
-> 
-> The override_creds was based on what Stephen Smalley suggested 
-> https://lkml.org/lkml/2011/4/20/224    
-> 
-> At that time Peter had suggested install_special_mapping(). However the
-> consensus was to go with Stephen's suggestion of override_creds.
-> 
-> > 
-> > 	- we can avoid override_creds() hacks, install_special_mapping()
-> > 	  fools security_file_mmap() passing prot/flags = 0
-> > 
-> > 	- no need to play with vma after do_mmap_pgoff()
-> > 
-> > 	- no need for get_user_pages(FOLL_WRITE/FOLL_FORCE) hack
-> > 
-> > 	- no need for do_munmap() if get_user_pages() fails
-> > 
-> > 	- this protects us from mprotect(READ/WRITE)
-> > 
-> > 	- this protects from MADV_DONTNEED, the page will be correctly
-> > 	  re-instantiated from area->page
-> > 
-> > 	- this makes xol_vma more "cheap", swapper can't see this page
-> > 	  and we avoid the meaningless add_to_swap/pageout.
-> > 
-> > 	  Note that, before this patch, area->page can't be removed
-> > 	  from the swap cache anyway (we have the reference). And it
-> > 	  must not, uprobes modifies this page directly.
-> 
-> Stephan, Eric, 
-> 
-> Would you agree with Oleg's observation that we would be better off
-> using install_special_mapping rather than using override_creds.
-> 
-> To give you some more information about the problem.
-> 
-> Uprobes will be a in-kernel debugging facility that provides
-> singlestepping out of line. To achieve this, it will create a per-mm vma
-> which is not mapped to any file. However this vma has to be executable.
-> 
-> Slots are made in this executable vma, and one slot can be used to
-> single step a original instruction.
-> 
-> This executable vma that we are creating is not for any particular
-> binary but would have to be created dynamically as and when an
-> application is debugged. For example, if we were to debug malloc call in
-> libc, we would end up adding xol vma to all the live processes in the
-> system.
-> 
-> Since selinux wasnt happy to have an anonymous vma attached, we would
-> create a pseudo file using shmem_file_setup. However after comments from
-> Peter and Stephan's suggestions we started using override_creds. Peter and
-> Oleg suggest that we use install_special_mapping. 
-> 
-> Are you okay with using install_special_mapping instead of
-> override_creds()?
+Hello Krishna,
 
-That's fine with me.  But I'm still not clear on how you are controlling
-the use of this facility from userspace, which is my primary concern.
-Who gets to enable/disable this facility, and what check is applied
-between the process that enables it and the target process(es) that are
-affected by it?  Is it subject to the same checks as ptrace?
+On Thursday, October 13, 2011 2:18 AM You wrote:
 
+> Here a patch v2 that has updates/fixes to DMA IOMMU code. With these changes, the nvidia
+> device is able to boot with all its platform drivers as DMA IOMMU clients.
+> 
+> Here is the overview of changes.
+> 
+> 1. Converted the mutex to spinlock to handle atomic context calls and used spinlock in
+> necessary places.
+> 2. Implemented arm_iommu_map_page and arm_iommu_unmap_page, which are used by MMC host stack.
+> 3. Separated creation of dma_iommu_mapping from arm_iommu_attach_device in order to share
+> mapping.
+> 4. Fixed various bugs identified in DMA IOMMU code during testing.
+
+The code looks much better now. The only problem is the fact that your mailed has changed
+all tabs into spaces making the patch really hard to apply. Could you resend it correctly?
+
+Best regards
 -- 
-Stephen Smalley
-National Security Agency
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
