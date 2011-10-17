@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8986B002E
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 16:14:43 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <7f94da39-4855-46b6-96d3-ab5ddbaed039@default>
-Date: Mon, 17 Oct 2011 13:14:23 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
-References: <1318448460-5930-1-git-send-email-sjenning@linux.vnet.ibm.com
- 3e84809b-a45d-4980-b342-c2d671f87f79@default>
-In-Reply-To: <3e84809b-a45d-4980-b342-c2d671f87f79@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 791E46B002F
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 17:33:18 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 2/2] powerpc: gup_huge_pmd() return 0 if pte changes
+Date: Mon, 17 Oct 2011 23:32:52 +0200
+Message-Id: <1318887172-5854-3-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1318887172-5854-1-git-send-email-aarcange@redhat.com>
+References: <1316793432.9084.47.camel@twins>
+ <1318887172-5854-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, gregkh@suse.de
-Cc: cascardo@holoscopio.com, rdunlap@xenotime.net, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rcj@linux.vnet.ibm.com, brking@linux.vnet.ibm.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-> From: Dan Magenheimer
-> Sent: Wednesday, October 12, 2011 2:39 PM
-> To: Seth Jennings; gregkh@suse.de
-> Cc: cascardo@holoscopio.com; rdunlap@xenotime.net; devel@driverdev.osuosl=
-.org; linux-
-> kernel@vger.kernel.org; linux-mm@kvack.org; rcj@linux.vnet.ibm.com; brkin=
-g@linux.vnet.ibm.com
-> Subject: RE: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
->=20
-> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > Subject: [PATCH] staging: zcache: remove zcache_direct_reclaim_lock
-> >
-> > zcache_do_preload() currently does a spin_trylock() on the
-> > zcache_direct_reclaim_lock. Holding this lock intends to prevent
-> > shrink_zcache_memory() from evicting zbud pages as a result
-> > of a preload.
-> >
-> > However, it also prevents two threads from
-> > executing zcache_do_preload() at the same time.  The first
-> > thread will obtain the lock and the second thread's spin_trylock()
-> > will fail (an aborted preload) causing the page to be either lost
-> > (cleancache) or pushed out to the swap device (frontswap). It
-> > also doesn't ensure that the call to shrink_zcache_memory() is
-> > on the same thread as the call to zcache_do_preload().
->=20
-> Yes, this looks to be leftover code from early in kztmem/zcache
-> development.  Good analysis.
->=20
-> > Additional, there is no need for this mechanism because all
-> > zcache_do_preload() calls that come down from cleancache already
-> > have PF_MEMALLOC set in the process flags which prevents
-> > direct reclaim in the memory manager. If the zcache_do_preload()
->=20
-> Might it be worthwhile to add a BUG/ASSERT for the presence
-> of PF_MEMALLOC, or at least a comment in the code?
->=20
-> > call is done from the frontswap path, we _want_ reclaim to be
-> > done (which it isn't right now).
-> >
-> > This patch removes the zcache_direct_reclaim_lock and related
-> > statistics in zcache.
-> >
-> > Based on v3.1-rc8
-> >
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
->=20
-> With added code/comment per above...
-> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+powerpc didn't return 0 in that case, if it's rolling back the *nr
+pointer it should also return zero to avoid adding pages to the array
+at the wrong offset.
 
-After Seth's further analysis, ignore my conditional and
-consider v1 of this patch:
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ arch/powerpc/mm/hugetlbpage.c |   21 +++++++++++----------
+ 1 files changed, 11 insertions(+), 10 deletions(-)
 
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index a618ef0..1c59d94 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -443,16 +443,17 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
+ 		*nr -= refs;
+ 		while (refs--)
+ 			put_page(head);
+-	} else {
+-		/*
+-		 * Any tail page need their mapcount reference taken
+-		 * before we return.
+-		 */
+-		while (refs--) {
+-			if (PageTail(tail))
+-				get_huge_page_tail(tail);
+-			tail++;
+-		}
++		return 0;
++	}
++
++	/*
++	 * Any tail page need their mapcount reference taken before we
++	 * return.
++	 */
++	while (refs--) {
++		if (PageTail(tail))
++			get_huge_page_tail(tail);
++		tail++;
+ 	}
+ 
+ 	return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
