@@ -1,109 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C11E6B002C
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 19:54:58 -0400 (EDT)
-Date: Mon, 17 Oct 2011 01:54:42 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Message-ID: <20111016235442.GB25266@redhat.com>
-References: <201110122012.33767.pluto@agmk.net>
- <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
- <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DBFEE6B002C
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2011 20:33:57 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 290D93EE081
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:33:54 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7A245DE7A
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:33:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E955445DE61
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:33:53 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D97C01DB803F
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:33:53 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A55641DB803E
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 09:33:53 +0900 (JST)
+Date: Mon, 17 Oct 2011 09:32:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] [PATCH 0/4] memcg: Kernel memory accounting.
+Message-Id: <20111017093257.054e9af6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1318639110-27714-1-git-send-email-ssouhlal@FreeBSD.org>
+References: <1318639110-27714-1-git-send-email-ssouhlal@FreeBSD.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+Cc: glommer@parallels.com, gthelen@google.com, yinghan@google.com, jbottomley@parallels.com, suleiman@google.com, linux-mm@kvack.org
 
-On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
-> mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
-> and pagetable locks, were good enough before page migration (with its
-> requirement that every migration entry be found) came in; and enough
-> while migration always held mmap_sem.  But not enough nowadays, when
-> there's memory hotremove and compaction: anon_vma lock is also needed,
-> to make sure a migration entry is not dodging around behind our back.
+On Fri, 14 Oct 2011 17:38:26 -0700
+Suleiman Souhlal <ssouhlal@FreeBSD.org> wrote:
 
-For things like migrate and split_huge_page, the anon_vma layer must
-guarantee the page is reachable by rmap walk at all times regardless
-if it's at the old or new address.
+> This patch series introduces kernel memory accounting to memcg.
+> It currently only accounts for slab.
+> 
+> With this, kernel memory gets counted in a memcg's usage_in_bytes.
+> 
+> Slab gets accounted per-page, by using per-cgroup kmem_caches that
+> get created the first time an allocation of that type is done by
+> that cgroup.
+> This means that we only have to do charges/uncharges in the slow
+> path of the slab allocator, which should have low performance
+> impacts.
+> 
+> A per-cgroup kmem_cache will appear in slabinfo named like its
+> original cache, with the cgroup's name in parenthesis.
+> On cgroup deletion, the accounting gets moved to the root cgroup
+> and any existing cgroup kmem_cache gets "dead" appended to its
+> name, to indicate that its accounting was migrated.
+> 
+> TODO:
+> 	- Per-memcg slab shrinking (we have patches for that already).
+> 	- Make it support the other slab allocators.
+> 	- Come up with a scheme that does not require holding
+> 	  rcu_read_lock in the whole slab allocation path.
+> 	- Account for other types of kernel memory than slab.
+> 	- Migrate to the parent cgroup instead of root on cgroup
+> 	  deletion.
+> 
 
-This shall be guaranteed by the copy_vma called by move_vma well
-before move_page_tables/move_ptes can run.
+Could you show rough perforamance score ?
 
-copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
-into the anon_vma chains structures (vma_link does that). That before
-any pte can be moved.
+For example,
+Assume cgroup dir as
 
-Because we keep two vmas mapped on both src and dst range, with
-different vma->vm_pgoff that is valid for the page (the page doesn't
-change its page->index) the page should always find _all_ its pte at
-any given time.
+  /cgroup/memory <--- root
+		|-A  memory.use_hierarchy=1   no limit
+		  |-B                         no limit
+1) Compare kernel make 'sys time' under root, A, B.
+2) run unixbench under root, A, B.
 
-There may be other variables at play like the order of insertion in
-the anon_vma chain matches our direction of copy and removal of the
-old pte. But I think the double locking of the PT lock should make the
-order in the anon_vma chain absolutely irrelevant (the rmap_walk
-obviously takes the PT lock too), and furthermore likely the
-anon_vma_chain insertion is favorable (the dst vma is inserted last
-and checked last). But it shouldn't matter.
+I think you may have some numbers already.
 
-Another thing could be the copy_vma vma_merge branch succeeding
-(returning not NULL) but I doubt we risk to fall into that one. For
-the rmap_walk to be always working on both the src and dst
-vma->vma_pgoff the pgoff must be different so we can't possibly be ok
-if there's just 1 vma covering the whole range. I exclude this could
-be the case because the pgoff passed to copy_vma is different than the
-vma->vm_pgoff given to copy_vma, so vma_merge can't possibly succeed.
+Thanks,
+-Kame
 
-Yet another point to investigate is the point where we teardown the
-old vma and we leave the new vma generated by copy_vma
-established. That's apparently taken care of by do_munmap in move_vma
-so that shall be safe too as munmap is safe in the first place.
 
-Overall I don't think this patch is needed and it seems a noop.
 
-> It appears that Mel's a8bef8ff6ea1 "mm: migration: avoid race between
-> shift_arg_pages() and rmap_walk() during migration by not migrating
-> temporary stacks" was actually a workaround for this in the special
-> common case of exec's use of move_pagetables(); and we should probably
-> now remove that VM_STACK_INCOMPLETE_SETUP stuff as a separate cleanup.
 
-I don't think this patch can help with that, the problem of execve vs
-rmap_walk is that there's 1 single vma existing for src and dst
-virtual ranges while execve runs move_page_tables. So there is no
-possible way that rmap_walk will be guaranteed to find _all_ ptes
-mapping a page if there's just one vma mapping either the src or dst
-range while move_page_table runs. No addition of locking whatsoever
-can fix that bug because we miss a vma (well modulo locking that
-prevents rmap_walk to run at all, until we're finished with execve,
-which is more or less what VM_STACK_INCOMPLETE_SETUP does...).
 
-The only way is to fix this is prevent migrate (or any other rmap_walk
-user that requires 100% reliability from the rmap layer, for example
-swap doesn't require 100% reliability and can still run and gracefully
-fail at finding the pte) while we're moving pagetables in execve. And
-that's what Mel's above mentioned patch does.
 
-The other way to fix that bug that I implemented was to do copy_vma in
-execve, so that we still have both src and dst ranges of
-move_page_tables covered by 2 (not 1) vma, each with the proper
-vma->vm_pgoff, so my approach fixed that bug as well (but requires a
-vma allocation in execve so it was dropped in favor of Mel's patch
-which is totally fine with as both approaches fixes the bug equally
-well, even if now we've to deal with this special case of sometime
-rmap_walk having false negatives if the vma_flags is set, and the
-important thing is that after VM_STACK_INCOMPLETE_SETUP has been
-cleared it won't ever be set again for the whole lifetime of the vma).
 
-I may be missing something, I did a short review so far, just so the
-patch doesn't get merged if not needed. I mean I think it needs a bit
-more looks on it... The fact the i_mmap_mutex was taken but the
-anon_vma lock was not taken (while in every other place they both are
-needed) certainly makes the patch look correct, but that's just a
-misleading coincidence I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
