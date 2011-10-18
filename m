@@ -1,58 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB956B002E
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 14:02:09 -0400 (EDT)
-Received: from /spool/local
-	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Tue, 18 Oct 2011 13:50:19 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9IHmsmJ174224
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 13:48:54 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9IHmrNb024379
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 15:48:54 -0200
-Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <op.v3j5ent03l0zgt@mpn-glaptop>
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
-	 <1317909290-29832-3-git-send-email-m.szyprowski@samsung.com>
-	 <20111018122109.GB6660@csn.ul.ie>  <op.v3j5ent03l0zgt@mpn-glaptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 18 Oct 2011 10:48:46 -0700
-Message-ID: <1318960126.4465.249.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 897CB6B002D
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 18:27:59 -0400 (EDT)
+Date: Tue, 18 Oct 2011 15:27:56 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: problems with memory hotplug/remove on 3.0.1
+Message-ID: <20111018222756.GA3841@labbmf-linux.qualcomm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: linux-mm@kvack.org
+Cc: kparsha@codeaurora.org, vgandhi@codeaurora.org
 
-On Tue, 2011-10-18 at 10:26 -0700, Michal Nazarewicz wrote:
-> > You can do this in a more general fashion by checking the
-> > zone boundaries and resolving the pfn->page every MAX_ORDER_NR_PAGES.
-> > That will not be SPARSEMEM specific.
-> 
-> I've tried doing stuff that way but it ended up with much more code.
+We have encountered two problems with memory hotplug/hotremove
+in 3.0.1 -- this is a port of memory hotplug to ARM with a few
+small changes noted below.
 
-I guess instead of:
+Neither of these occurred on a similar 2.6.38-based port
+we did to the same hardware.
 
->> +static inline bool zone_pfn_same_memmap(unsigned long pfn1, unsigned long pfn2)
->> +{
->> +    return pfn_to_section_nr(pfn1) == pfn_to_section_nr(pfn2);
->> +}
+The memory is essentially 2 512M memory banks, the lower
+is always on, the upper is the one we are powering on
+and off. ARCH_POPULATES_NODE_MAP was ported to ARM
+and a small change was made to ensure that
+the movable zone could be placed exactly where desired
+(as movablecore= does not and must be specified on
+the command line -- we don't know where the movable
+zone must be until the kernel starts coming up).
+Also the upper 512M is forced to be highmem as
+the movable zone must come from the highest physical
+memory zone (of course highmem may be larger than
+512M, just not smaller).
 
-You could do:
+1. If highmem is set to start at exactly 512M, then
+all of highmem is used up when forming the movable
+zone. This seems to confuse the memory management
+subsystem (page reclaim?) because although the memory
+hotremove of the upper 512M succeeds, running a command
+that takes a pagefault after hotremove causes
+the system to hang:
 
-static inline bool zone_pfn_same_maxorder(unsigned long pfn1, unsigned long pfn2)
-{
-	unsigned long mask = MAX_ORDER_NR_PAGES-1;
-	return (pfn1 & mask) == (pfn2 & mask);
-}
+try_to_free_pages
+__alloc_pages_nodemask
+do_wp_page
+handle_pte_fault
+handle_mm_fault
+do_page_fault
 
-I think that works.  Should be the same code you have now, basically.
+try_to_free_pages() is called repeatedly (forever), making no
+apparent progress. After some experimentation, I
+discovered that making the highmem zone at least 5M
+larger than the 512M movable zone appears to make the
+problem disappear.
 
--- Dave
+I can (if I don't run anything that provokes the
+above bug) hotplug the 512M back in, and then this
+problem does not occur.
+
+I've seen some discussion about very small zones causing
+problems. Is what we are seeing a known problem?
+Is there a known fix (or at least a patch we could try)?
+
+2. Assuming the workaround we have for #1 is present,
+we see memory hotremove occasionally fail. This seems
+to (after a few seconds) cause init's state to become
+corrupted, provoking a panic -- sometimes (but not always)
+init's PC is 0. Sometimes additional (not always the
+same) processes also unexpectedly exit after the
+memory hotremove attempt.
+
+Thanks in advance for any insight you might have.
+
+Larry Bassel
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
