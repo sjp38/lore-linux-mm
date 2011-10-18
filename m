@@ -1,34 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A00336B002F
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 18:45:31 -0400 (EDT)
-Date: Mon, 17 Oct 2011 18:44:10 -0400 (EDT)
-Message-Id: <20111017.184410.578309826256473077.davem@davemloft.net>
-Subject: Re: [PATCH 2/3] sparc: gup_pte_range() support THP based tail
- recounting
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1318862517-7042-3-git-send-email-aarcange@redhat.com>
-References: <1316793432.9084.47.camel@twins>
-	<1318862517-7042-1-git-send-email-aarcange@redhat.com>
-	<1318862517-7042-3-git-send-email-aarcange@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CE0D26B002D
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 20:46:59 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2CB3B3EE0C3
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 09:46:56 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B92B45DE9E
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 09:46:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E617E45DEA6
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 09:46:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9E681DB8038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 09:46:55 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A40501DB8040
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 09:46:55 +0900 (JST)
+Date: Tue, 18 Oct 2011 09:45:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: memory hotplug: Check if pages are correctly
+ reserved on a per-section basis
+Message-Id: <20111018094559.ff01db54.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111017143820.GA7626@suse.de>
+References: <20111010071119.GE6418@suse.de>
+	<20111010150038.ac161977.akpm@linux-foundation.org>
+	<20111010232403.GA30513@kroah.com>
+	<20111010162813.7a470ae4.akpm@linux-foundation.org>
+	<20111011072406.GA2503@suse.de>
+	<20111017143820.GA7626@suse.de>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com
-Cc: peterz@infradead.org, akpm@linux-foundation.org, minchan.kim@gmail.com, walken@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hughd@google.com, jweiner@redhat.com, riel@redhat.com, mgorman@suse.de, kosaki.motohiro@jp.fujitsu.com, shaohua.li@intel.com, paulmck@linux.vnet.ibm.com, benh@kernel.crashing.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, nfont@linux.vnet.ibm.com, rientjes@google.com
 
-From: Andrea Arcangeli <aarcange@redhat.com>
-Date: Mon, 17 Oct 2011 16:41:56 +0200
+On Mon, 17 Oct 2011 16:38:20 +0200
+Mel Gorman <mgorman@suse.de> wrote:
 
-> Up to this point the code assumed old refcounting for hugepages
-> (pre-thp). This updates the code directly to the thp mapcount tail
-> page refcounting.
+> (Resending as I am not seeing it in -next so maybe it got lost)
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> mm: memory hotplug: Check if pages are correctly reserved on a per-section basis
+> 
+> It is expected that memory being brought online is PageReserved
+> similar to what happens when the page allocator is being brought up.
+> Memory is onlined in "memory blocks" which consist of one or more
+> sections. Unfortunately, the code that verifies PageReserved is
+> currently assuming that the memmap backing all these pages is virtually
+> contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
+> As a result, memory hot-add is failing on those configurations with
+> the message;
+> 
+> kernel: section number XXX page number 256 not reserved, was it already online?
+> 
+> This patch updates the PageReserved check to lookup struct page once
+> per section to guarantee the correct struct page is being checked.
+> 
+> [Check pages within sections properly: rientjes@google.com]
+> [original patch by: nfont@linux.vnet.ibm.com]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: David S. Miller <davem@davemloft.net>
+Thank you.
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
