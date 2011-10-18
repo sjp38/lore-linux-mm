@@ -1,52 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 652536B004D
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 13:22:15 -0400 (EDT)
-Received: from /spool/local
-	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 18 Oct 2011 13:10:04 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9IH80tC2371642
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 13:08:00 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9IH7xIM013305
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 15:08:00 -0200
-Date: Tue, 18 Oct 2011 22:17:39 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/X] uprobes: write_opcode() needs put_page(new_page)
- unconditionally
-Message-ID: <20111018164739.GI11831@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20111015190007.GA30243@redhat.com>
- <20111015190057.GC30243@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 99D556B002C
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 13:26:45 -0400 (EDT)
+Received: by qadb17 with SMTP id b17so827710qad.14
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2011 10:26:43 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+ <1317909290-29832-3-git-send-email-m.szyprowski@samsung.com>
+ <20111018122109.GB6660@csn.ul.ie>
+Date: Tue, 18 Oct 2011 10:26:37 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111015190057.GC30243@redhat.com>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v3j5ent03l0zgt@mpn-glaptop>
+In-Reply-To: <20111018122109.GB6660@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
+ Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
+ Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-> Every write_opcode()->__replace_page() leaks the new page on success.
-> 
-> We have the reference after alloc_page_vma(), then __replace_page()
-> does another get_page() for the new mapping, we need put_page(new_page)
-> in any case.
-> 
-> Alternatively we could remove __replace_page()->get_page() but it is
-> better to change write_opcode(). This way it is simpler to unify the
-> code with ksm.c:replace_page() and we can simplify the error handling
-> in write_opcode(), the patch simply adds a single page_cache_release()
-> under "unlock_out" label.
+On Tue, 18 Oct 2011 05:21:09 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
 
-I have folded this change and your other suggested changes into my patches.
+> At this point, I'm going to apologise for not reviewing this a long lo=
+ng
+> time ago.
+>
+> On Thu, Oct 06, 2011 at 03:54:42PM +0200, Marek Szyprowski wrote:
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> This commit introduces alloc_contig_freed_pages() function
+>> which allocates (ie. removes from buddy system) free pages
+>> in range. Caller has to guarantee that all pages in range
+>> are in buddy system.
+>>
+>
+> Straight away, I'm wondering why you didn't use
+>
+> mm/compaction.c#isolate_freepages()
+>
+> It knows how to isolate pages within ranges. All its control informati=
+on
+> is passed via struct compact_control() which I recognise may be awkwar=
+d
+> for CMA but compaction.c know how to manage all the isolated pages and=
 
--- 
-Thanks and Regards
-Srikar
+> pass them to migrate.c appropriately.
+
+It is something to consider.  At first glance, I see that isolate_freepa=
+ges
+seem to operate on pageblocks which is not desired for CMA.
+
+> I haven't read all the patches yet but isolate_freepages() does break
+> everything up into order-0 pages. This may not be to your liking but i=
+t
+> would not be possible to change.
+
+Splitting everything into order-0 pages is desired behaviour.
+
+>> Along with this function, a free_contig_pages() function is
+>> provided which frees all (or a subset of) pages allocated
+>> with alloc_contig_free_pages().
+
+> mm/compaction.c#release_freepages()
+
+It sort of does the same thing but release_freepages() assumes that page=
+s
+that are being freed are not-continuous and they need to be on the lru l=
+ist.
+With free_contig_pages(), we can assume all pages are continuous.
+
+>> +#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+>> +/*
+>> + * Both PFNs must be from the same zone!  If this function returns
+>> + * true, pfn_to_page(pfn1) + (pfn2 - pfn1) =3D=3D pfn_to_page(pfn2).=
+
+>> + */
+>> +static inline bool zone_pfn_same_memmap(unsigned long pfn1, unsigned=
+ long pfn2)
+>> +{
+>> +	return pfn_to_section_nr(pfn1) =3D=3D pfn_to_section_nr(pfn2);
+>> +}
+>> +
+>
+> Why do you care what section the page is in? The zone is important all=
+
+> right, but not the section. Also, offhand I'm unsure if being in the
+> same section guarantees the same zone. sections are ordinarily fully
+> populated (except on ARM but hey) but I can't remember anything
+> enforcing that zones be section-aligned.
+>
+> Later I think I see that the intention was to reduce the use of
+> pfn_to_page().
+
+That is correct.
+
+> You can do this in a more general fashion by checking the
+> zone boundaries and resolving the pfn->page every MAX_ORDER_NR_PAGES.
+> That will not be SPARSEMEM specific.
+
+I've tried doing stuff that way but it ended up with much more code.
+
+Dave suggested the above function to check if pointer arithmetic is vali=
+d.
+
+Please see also <https://lkml.org/lkml/2011/9/21/220>.
+
+>
+>> +#else
+>> +
+>> +#define zone_pfn_same_memmap(pfn1, pfn2) (true)
+>> +
+>> +#endif
+>> +
+>>  #endif /* !__GENERATING_BOUNDS.H */
+>>  #endif /* !__ASSEMBLY__ */
+>>  #endif /* _LINUX_MMZONE_H */
+
+
+>> @@ -5706,6 +5706,73 @@ out:
+>>  	spin_unlock_irqrestore(&zone->lock, flags);
+>>  }
+>>
+>> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned=
+ long end,
+>> +				       gfp_t flag)
+>> +{
+>> +	unsigned long pfn =3D start, count;
+>> +	struct page *page;
+>> +	struct zone *zone;
+>> +	int order;
+>> +
+>> +	VM_BUG_ON(!pfn_valid(start));
+>
+> VM_BUG_ON seems very harsh here. WARN_ON_ONCE and returning 0 to the
+> caller sees reasonable.
+>
+>> +	page =3D pfn_to_page(start);
+>> +	zone =3D page_zone(page);
+>> +
+>> +	spin_lock_irq(&zone->lock);
+>> +
+>> +	for (;;) {
+>> +		VM_BUG_ON(page_count(page) || !PageBuddy(page) ||
+>> +			  page_zone(page) !=3D zone);
+>> +
+>
+> Here you will VM_BUG_ON with the zone lock held leading to system
+> halting very shortly.
+>
+>> +		list_del(&page->lru);
+>> +		order =3D page_order(page);
+>> +		count =3D 1UL << order;
+>> +		zone->free_area[order].nr_free--;
+>> +		rmv_page_order(page);
+>> +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(long)count);
+>> +
+>
+> The callers need to check in advance if watermarks are sufficient for
+> this. In compaction, it happens in compaction_suitable() because it on=
+ly
+> needed to be checked once. Your requirements might be different.
+>
+>> +		pfn +=3D count;
+>> +		if (pfn >=3D end)
+>> +			break;
+>> +		VM_BUG_ON(!pfn_valid(pfn));
+>> +
+>
+> On ARM, it's possible to encounter invalid pages. VM_BUG_ON is serious=
+
+> overkill.
+>
+>> +		if (zone_pfn_same_memmap(pfn - count, pfn))
+>> +			page +=3D count;
+>> +		else
+>> +			page =3D pfn_to_page(pfn);
+>> +	}
+>> +
+>> +	spin_unlock_irq(&zone->lock);
+>> +
+>> +	/* After this, pages in the range can be freed one be one */
+>> +	count =3D pfn - start;
+>> +	pfn =3D start;
+>> +	for (page =3D pfn_to_page(pfn); count; --count) {
+>> +		prep_new_page(page, 0, flag);
+>> +		++pfn;
+>> +		if (likely(zone_pfn_same_memmap(pfn - 1, pfn)))
+>> +			++page;
+>> +		else
+>> +			page =3D pfn_to_page(pfn);
+>> +	}
+>> +
+>
+> Here it looks like you have implemented something like split_free_page=
+().
+
+split_free_page() takes a single page, removes it from buddy system, and=
+ finally
+splits it.  alloc_contig_freed_pages() takes a range of pages, removes t=
+hem from
+buddy system, and finally splits them.  Because it works on a range, it =
+is
+made into a separate function.
+
+>> +	return pfn;
+>> +}
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
