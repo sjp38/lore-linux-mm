@@ -1,224 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id EADFC6B002D
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 22:07:00 -0400 (EDT)
-Subject: [patch v3]vmscan: correctly detect GFP_ATOMIC allocation failure
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111012075906.GB1866@barrios-desktop>
-References: <20111008102531.GC8679@barrios-desktop>
-	 <1318139591.22361.56.camel@sli10-conroe>
-	 <20111009080156.GB23003@barrios-desktop>
-	 <1318148271.22361.67.camel@sli10-conroe>
-	 <20111009151035.GA1679@barrios-desktop>
-	 <1318231693.22361.75.camel@sli10-conroe>
-	 <20111010154250.GA1791@barrios-desktop>
-	 <1318311010.22361.95.camel@sli10-conroe>
-	 <20111011065401.GA4415@barrios-desktop>
-	 <1318387739.22361.109.camel@sli10-conroe>
-	 <20111012075906.GB1866@barrios-desktop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 18 Oct 2011 10:13:52 +0800
-Message-ID: <1318904032.22361.113.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF8F6B002D
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 00:10:06 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p9I4A4ID030923
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 21:10:04 -0700
+Received: from iaqq3 (iaqq3.prod.google.com [10.12.43.3])
+	by wpaz9.hot.corp.google.com with ESMTP id p9I45TJA022100
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2011 21:09:58 -0700
+Received: by iaqq3 with SMTP id q3so395341iaq.6
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2011 21:09:58 -0700 (PDT)
+Date: Mon, 17 Oct 2011 21:09:48 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.1-rc9: BUG: soft lockup in find_get_pages+0x4e/0x140
+In-Reply-To: <alpine.DEB.2.02.1110152003210.26507@p34.internal.lan>
+Message-ID: <alpine.LSU.2.00.1110172036300.7358@sister.anvils>
+References: <alpine.DEB.2.02.1110152003210.26507@p34.internal.lan>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mel <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>
+To: Justin Piszcz <jpiszcz@lucidpixels.com>
+Cc: Pawel Sikora <pluto@agmk.net>, arekm@pld-linux.org, Anders Ossowicki <aowi@novozymes.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2011-10-12 at 15:59 +0800, Minchan Kim wrote:
-> On Wed, Oct 12, 2011 at 10:48:59AM +0800, Shaohua Li wrote:
->  > > there are two cases one zone is below min_watermark.
-> > > > 1. the zone is below min_watermark for allocation in the zone. in this
-> > > > case we need hurry up.
-> > > > 2. the zone is below min_watermark for allocation from high zone. we
-> > > > don't really need hurry up if other zone is above min_watermark.
-> > > > Since low zone need to reserve pages for high zone, the second case
-> > > > could be common.
-> > > 
-> > > You mean "lowmem_reserve"?
-> > > It means opposite. It is a mechanism to defend using of lowmem pages from high zone allocation
-> > > because it could be fatal to allow process pages to be allocated from low zone.
-> > > Also, We could set each ratio for reserved pages of zones.
-> > > How could we make sure lower zones have enough free pages for higher zone?
-> > lowmem_reserve causes the problem, but it's not a fault of
-> > lowmem_reserve. I'm thinking changing it.
-> > 
-> > > > Yes, keeping kswapd running in this case can reduce the chance
-> > > > GFP_ATOMIC failure. But my patch will not cause immediate failure
-> > > > because there is still some zones which are above min_watermark and can
-> > > > meet the GFP_ATOMIC allocation. And keeping kswapd running has some
-> > > 
-> > > True. It was why I said "I don't mean you are wrong but we are very careful about this."
-> > > Normally, it could handle but might fail on sudden peak of atomic allocation stream.
-> > > Recently, we have suffered from many reporting of GFP_AOTMIC allocation than olded.
-> > > So I would like to be very careful and that's why I suggest we need at least some experiment.
-> > > Through it, Andrew could make final call.
-> > sure.
-> > 
-> > > > drawbacks:
-> > > > 1. cpu overhead
-> > > > 2. extend isolate window size, so trash working set.
-> > > > Considering DMA zone, we almost always have DMA zone min_watermark not
-> > > > ok for any allocation from high zone. So we will always have such
-> > > > drawbacks.
-> > > 
-> > > I agree with you in that it's a problem.
-> > > I think the real solution is to remove the zone from allocation fallback list in such case
-> > > because the lower zone could never meet any allocation for the higher zone.
-> > > But it makes code rather complicated as we have to consider admin who can change
-> > > reserved pages anytime.
-> > Not worthy the complication.
-> > 
-> > > So how about this?
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 8913374..f71ed2f 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -2693,8 +2693,16 @@ loop_again:
-> > >                                  * failure risk. Hurry up!
-> > >                                  */
-> > >                                 if (!zone_watermark_ok_safe(zone, order,
-> > > -                                           min_wmark_pages(zone), end_zone, 0))
-> > > -                                       has_under_min_watermark_zone = 1;
-> > > +                                           min_wmark_pages(zone), end_zone, 0)) {
-> > > +                                       /*
-> > > +                                        * In case of big reserved page for higher zone,
-> > > +                                        * it is pointless to try reclaimaing pages quickly
-> > > +                                        * because it could never meet the requirement.
-> > > +                                        */
-> > > +                                       if (zone->present_pages >
-> > > +                                               min_wmark_pages(zone) + zone->lowmem_reserve[end_zone])
-> > > +                                               has_under_min_watermark_zone = 1;
-> > > +                               }
-> > >                         } else {
-> > >                                 /*
-> > >                                  * If a zone reaches its high watermark,
-> > This looks like a workaround just for DMA zone. present_pages could be
-> > bigger than min_mwark+lowmem_reserve. And We still suffered from the
-> > issue, for example, a DMA32 zone with some pages allocated for DMA, or a
-> > zone which has some lru pages, but still much smaller than high zone.
+On Sat, 15 Oct 2011, Justin Piszcz wrote:
 > 
-> Right. I thought about it but couldn't have a good idea for it. :(
+> With 3.1-rc9 during a filesystem dump, this occurred, I thought a previous
+> patch fixed this but it did not, it occurs MUCH less (first time in a couple
+> of weeks) but the problem still occurs.
+
+Shaohua's nr_skip patch fixed, or at least worked around, the error I
+introduced there in 3.1-rc1.  But now you're finding a similar problem
+still in 3.1-rc9: that confirms what you and others already reported,
+that something like it occurs even in 3.0 without my bug.
+
 > 
-> > 
-> > > Even, we could apply this at starting of the loop so that we can avoid unnecessary scanning st the beginning.
-> > > In that case, we have to apply zone->lowmem_reserve[end_zone] only because we have to consider NO_WATERMARK alloc case.
-> > yes, we can do this to avoid unnecessary scan. but DMA zone hasn't lru
-> > pages, so not sure how big the benefit is here.
+> Thoughts?
+
+No more than before: that it seems as if a page with refcount 0 has
+somehow got stuck in the radix_tree.  We do know of a refcounting bug
+in THP, but I don't see how that one would manifest in this way.
+
+Or maybe the radix_tree is corrupt and it isn't even a struct page *
+there; but you're not the only one to see this, so random corruption
+is not at all likely.
+
 > 
-> At least, we can prevent has_under_min_watermark_zone from set.
-> But it still have a problem you pointed out earlier.
-> 
-> > 
-> > > > Or is something below better? we can avoid the big reserved pages
-> > > > accounting to the min_wmark_pages for low zone. if high zone is under
-> > > > min_wmark, kswapd will not sleep.
-> > > >                                if (!zone_watermark_ok_safe(zone, order,
-> > > > -                                            min_wmark_pages(zone), end_zone, 0))
-> > > > +                                            min_wmark_pages(zone), 0, 0))
-> > > >                                         has_under_min_watermark_zone = 1;
-> > > 
-> > > I think it's not a good idea since page allocator always considers classzone_idx.
-> > > So although we fix kswapd issue through your changes, page allocator still can't allocate memory
-> > > and wakes up kswapd, again.
-> > why kswapd will be waked up again? The high zone itself still has
-> > min_wark+low_reserve ok for the allocation(classzone_idx 0 means
-> > checking the low_reserve for allocation from the zone itself), so the
-> > allocation can be met.
-> 
-> You're absolutely right.
-> I got confused. Sorry about that.
-> 
-> I like this than your old version.
-> That's because it could rush if one of zonelist is consumed as below min_watermak.
-> It could mitigate GFP_ALLOC fail than yours old version but still would be higher than now.
-> So, we need the number.
-> 
-> Could you repost this as formal patch with good comment and number?
-> Personally, I like description based on scenario with kind step-by-step.
-> Feel free to use my description in my patch if you want.
-> 
-> Thanks for patient discussion in spite of my irregular reply, Shaohua.
-Thanks for your time. Here is patch. I'm trying to get some number, but
-didn't find a proper workload to demonstrate the atomic allocation
-failure. Any suggestion for the workload?
+> [675100.763357] BUG: soft lockup - CPU#0 stuck for 22s! [dump:11066]
+> [675100.763361] CPU 0 [675100.763364] Pid: 11066, comm: dump Not tainted
+> 3.1.0-rc9 #1 Supermicro X8DTH-i/6/iF/6F/X8DTH
+> [675100.763368] RIP: 0010:[<ffffffff81078eee>]  [<ffffffff81078eee>]
+> find_get_pages+0x4e/0x140
+> [675100.763375] RSP: 0018:ffff8806e6603d28  EFLAGS: 00000246
+> [675100.763377] RAX: ffff880019a0a210 RBX: ffffea0028a65820 RCX:
+> 000000000000000e
+> [675100.763379] RDX: 0000000000000000 RSI: 0000000000000000 RDI:
+> ffffea0029e0faf0
+> [675100.763381] RBP: 0000000001200ae9 R08: 0000000000000000 R09:
+> ffff8806e6603ce8
+> [675100.763383] R10: 0000000001200b03 R11: 0000000000000002 R12:
+> ffffffff810805a4
+> [675100.763386] R13: ffff880c3fffae00 R14: ffff880c3fffae00 R15:
+> ffff8806e6603db8
+> [675100.763392] FS:  00007fe9b56cc760(0000) GS:ffff88063fc00000(0000)
+> knlGS:0000000000000000
+> [675100.763395] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [675100.763397] CR2: 00007f2da3718fa8 CR3: 0000000c22da4000 CR4:
+> 00000000000006f0
+> [675100.763400] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
+> 0000000000000000
+> [675100.763402] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
+> 0000000000000400
+> [675100.763405] Process dump (pid: 11066, threadinfo ffff8806e6602000, task
+> ffff880c21c931a0)
+> [675100.763407] Stack:
+> [675100.763408]  ffff8800398aaa88 0000000000000000 ffff88063fc0d560
+> 0000000000000005
+> [675100.763415]  ffff880c270652d8 ffff8806e6603da8 00000000000067b5
+> ffffffffffffffff
+> [675100.763421]  ffff880c270652d8 ffffea0028a65820 000000000000000d
+> ffffffff81083d15
+> [675100.763427] Call Trace:
+> [675100.763433]  [<ffffffff81083d15>] ? pagevec_lookup+0x15/0x20
+> [675100.763437]  [<ffffffff810843c6>] ? invalidate_mapping_pages+0x66/0x170
+> [675100.763442]  [<ffffffff812bc841>] ? blkdev_ioctl+0x6b1/0x700
+> [675100.763451]  [<ffffffff810e405b>] ? block_ioctl+0x3b/0x50
+> [675100.763455]  [<ffffffff810c692e>] ? do_vfs_ioctl+0x8e/0x4f0
+> [675100.763459]  [<ffffffff810c6dd9>] ? sys_ioctl+0x49/0x80
+> [675100.763464]  [<ffffffff8168b17b>] ? system_call_fastpath+0x16/0x1b
+> [675100.763466] Code: 48 89 de 4c 89 ef e8 72 37 25 00 85 c0 89 c1 0f 84 a8
+> 00 00 00 49 89 df 31 d2 31 f6 45 31 f6 66 0f 1f 44 00 00 49 8b 07 48 8b 38
+> [675100.763484]  85 ff 74 3e 40 f6 c7 03 75 5e 44 8b 47 1c 45 85 c0 74 ec 45
 
-Thanks,
-Shaohua
+Since I've no idea what's causing this, all we can do is attempt to
+gather more info.  The patch below, which applies to 3.0.N as well as
+3.1-rc9, may help with that; but it makes no attempt to recover the
+situation, since I just don't know what this situation is.
 
+When you next hit the problem, please let us know the messages say,
+from the "find_get_pages(" line to the end of the trace, but the
+Page lines the most interesting - thanks, and good luck.
 
-Subject: vmscan: correctly detect GFP_ATOMIC allocation failure -v3
+The memcontrol.c part of it is to cut out the noise of an interfering
+bug and stacktrace, coming from an irrelevant error in some configs.
 
-has_under_min_watermark_zone is used to detect if there is GFP_ATOMIC allocation
-failure risk. Current logic is if any zone has min watermark not ok, we have
-risk.
-
-Low zone needs reserve memory to avoid fallback from high zone. The reserved
-memory is zone->lowmem_reserve[]. If high zone is big, low zone's
-min_wmark + lowmem_reserve[] usually is big. Sometimes min_wmark +
-lowmem_reserve[] could even be higher than zone->present_pages. An example is
-DMA zone. Other low zones could have the similar high reserved memory though
-might still have margins between reserved pages and present pages. So in kswapd
-loop, if end_zone is a high zone, has_under_min_watermark_zone could be easily
-set or always set for DMA.
-
-Let's consider end_zone is a high zone and it has high_mwark not ok, but
-min_mwark ok. A DMA zone always has present_pages less than reserved pages, so
-has_under_min_watermark_zone is always set. When kswapd is running, there are
-some drawbacks:
-1. kswapd can keep unnecessary running without congestion_wait. high zone
-already can meet GFP_ATOMIC. The running will waste some CPU.
-2. kswapd can scan much more pages to trash working set. congestion_wait can
-slow down scan if kswapd has trouble. Now congestion_wait is skipped, kswapd
-will keep scanning unnecessary pages.
-
-So since DMA zone always set has_under_min_watermark_zone, current logic actually
-equals to that kswapd keeps running without congestion_wait till high zone has
-high wmark ok when it has trouble. This is not intended.
-
-In this path, we test the min_mwark against the zone itself. This doesn't change
-the behavior of high zone. For low zone, we now exclude lowmem_reserve for high
-zone to avoid unnecessary running.
-
-Note: With this patch, we could have potential higher risk of GFP_ATOMIC failure.
-
-v3: Uses a less intrusive method to determine if has_under_min_watermark_zone
-should be set after discussion with Minchan.
-v2: use bool and clear has_under_min_watermark_zone for zone with watermark ok
-as suggested by David Rientjes.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Signed-off-for-debug-only-by: Hugh Dickins <hughd@google.com>
 ---
- mm/vmscan.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Index: linux/mm/vmscan.c
-===================================================================
---- linux.orig/mm/vmscan.c	2011-10-17 16:02:30.000000000 +0800
-+++ linux/mm/vmscan.c	2011-10-18 09:32:23.000000000 +0800
-@@ -2463,7 +2463,7 @@ loop_again:
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		unsigned long lru_pages = 0;
--		int has_under_min_watermark_zone = 0;
-+		bool has_under_min_watermark_zone = false;
- 
- 		/* The swap token gets in the way of swapout... */
- 		if (!priority)
-@@ -2593,8 +2593,8 @@ loop_again:
- 				 * failure risk. Hurry up!
- 				 */
- 				if (!zone_watermark_ok_safe(zone, order,
--					    min_wmark_pages(zone), end_zone, 0))
--					has_under_min_watermark_zone = 1;
-+					    min_wmark_pages(zone), 0, 0))
-+					has_under_min_watermark_zone = true;
- 			} else {
- 				/*
- 				 * If a zone reaches its high watermark,
+ mm/filemap.c    |   38 ++++++++++++++++++++++++++++++++++++++
+ mm/memcontrol.c |   17 +----------------
+ 2 files changed, 39 insertions(+), 16 deletions(-)
 
+--- 3.1-rc9/mm/filemap.c	2011-09-21 17:44:52.246176260 -0700
++++ fgpdebug/mm/filemap.c	2011-10-17 20:47:20.777176328 -0700
+@@ -806,6 +806,29 @@ repeat:
+ }
+ EXPORT_SYMBOL(find_or_create_page);
+ 
++static void safe_dump_page(struct page *page, char *which)
++{
++	pg_data_t *pgdat;
++	bool good = false;
++	unsigned long pfn = 0;
++
++	for_each_online_pgdat(pgdat) {
++		struct page *start_page;
++
++		start_page = pfn_to_page(pgdat->node_start_pfn);
++		pfn = pgdat->node_start_pfn + (page - start_page);
++		if (page >= start_page &&
++		    page <  start_page + pgdat->node_spanned_pages &&
++		    pfn_valid(pfn) && page == pfn_to_page(pfn)) {
++			good = true;
++			break;
++		}
++	}
++	printk(KERN_ALERT "Page %s is %p (pfn %lx)\n", which, page, pfn);
++	if (good)
++		dump_page(page);
++}
++
+ /**
+  * find_get_pages - gang pagecache lookup
+  * @mapping:	The address_space to search
+@@ -825,6 +848,7 @@ EXPORT_SYMBOL(find_or_create_page);
+ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ 			    unsigned int nr_pages, struct page **pages)
+ {
++	int spinning = 1000;
+ 	unsigned int i;
+ 	unsigned int ret;
+ 	unsigned int nr_found, nr_skip;
+@@ -839,6 +863,20 @@ restart:
+ 		struct page *page;
+ repeat:
+ 		page = radix_tree_deref_slot((void **)pages[i]);
++		if (spinning > 0 && unlikely(--spinning == 0)) {
++			printk(KERN_ALERT
++				"find_get_pages(%p, %lu, %u, %p)",
++				mapping, start, nr_pages, pages);
++			print_symbol(KERN_CONT " of %s:\n",
++				(unsigned long)mapping->a_ops);
++			if (ret)
++				safe_dump_page(pages[ret-1], "before");
++			safe_dump_page(page, "stuck ");
++			if (i + 1 < nr_found)
++				safe_dump_page(radix_tree_deref_slot(
++					(void **)pages[i+1]), "after ");
++			dump_stack();
++		}
+ 		if (unlikely(!page))
+ 			continue;
+ 
+--- 3.1-rc9/mm/memcontrol.c	2011-09-21 17:44:52.250176292 -0700
++++ fgpdebug/mm/memcontrol.c	2011-10-17 19:28:47.427572665 -0700
+@@ -3380,23 +3380,8 @@ void mem_cgroup_print_bad_page(struct pa
+ 
+ 	pc = lookup_page_cgroup_used(page);
+ 	if (pc) {
+-		int ret = -1;
+-		char *path;
+-
+-		printk(KERN_ALERT "pc:%p pc->flags:%lx pc->mem_cgroup:%p",
++		printk(KERN_ALERT "pc:%p pc->flags:%lx pc->mem_cgroup:%p\n",
+ 		       pc, pc->flags, pc->mem_cgroup);
+-
+-		path = kmalloc(PATH_MAX, GFP_KERNEL);
+-		if (path) {
+-			rcu_read_lock();
+-			ret = cgroup_path(pc->mem_cgroup->css.cgroup,
+-							path, PATH_MAX);
+-			rcu_read_unlock();
+-		}
+-
+-		printk(KERN_CONT "(%s)\n",
+-				(ret < 0) ? "cannot get the path" : path);
+-		kfree(path);
+ 	}
+ }
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
