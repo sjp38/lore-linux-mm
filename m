@@ -1,28 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 498B86B002C
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 16:46:13 -0400 (EDT)
-Date: Wed, 19 Oct 2011 13:46:07 -0700
-From: Stephen Hemminger <shemminger@vyatta.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 418966B002C
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 16:52:41 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p9JKqSR5029792
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 13:52:28 -0700
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by hpaq11.eem.corp.google.com with ESMTP id p9JKpAhO021197
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 13:52:27 -0700
+Received: by pzk36 with SMTP id 36so8698258pzk.3
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 13:52:22 -0700 (PDT)
+Date: Wed, 19 Oct 2011 13:52:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: regression in /proc/self/numa_maps with huge pages
-Message-ID: <20111019134607.5ee1254e@nehalam.linuxnetplumber.net>
 In-Reply-To: <20111019131007.e0d1c561.akpm@linux-foundation.org>
-References: <20111019123530.2e59b86c@nehalam.linuxnetplumber.net>
-	<20111019131007.e0d1c561.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.DEB.2.00.1110191345290.5687@chino.kir.corp.google.com>
+References: <20111019123530.2e59b86c@nehalam.linuxnetplumber.net> <20111019131007.e0d1c561.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Wilson <wilsons@start.ca>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Stephen Hemminger <shemminger@vyatta.com>, Stephen Wilson <wilsons@start.ca>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Wed, 19 Oct 2011 13:10:07 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 19 Oct 2011, Andrew Morton wrote:
 
-> On Wed, 19 Oct 2011 12:35:30 -0700
-> Stephen Hemminger <shemminger@vyatta.com> wrote:
-> 
 > > We are working on an application that uses a library that uses
 > > both huge pages and parses numa_maps.  This application is no longer
 > > able to identify the socket id correctly for huge pages because the
@@ -55,11 +58,21 @@ Andrew Morton <akpm@linux-foundation.org> wrote:
 >  	walk_page_range(vma->vm_start, vma->vm_end, &walk);
 >  
 >  	if (!md->pages)
-> 
 
-That works, the application is happy.
-Never would have found it except someone put the CPU in the wrong socket
-on one dual CPU motherboard so everything is reported as socket 1!
+Hmm, Dave Hansen (cc'd) was working on a patch that would add a pagesize= 
+field to /proc/pid/numa_maps because there's now a discrepency in what is 
+labeled "huge."  Hugetlbfs pages, for which "huge" would now be shown 
+again for the patch above, always have their page counts shown in their 
+appropriate hugepage size (2M, 1G for x86, others for other archs) which 
+is ambiguous with just "huge" shown.  THP page counts, on the other hand, 
+are always shown in PAGE_SIZE pages.
+
+So adding "huge" back is ambiguous in terms of hugetlbfs size and doesn't 
+represent THP hugepages.  No objection to the patch if it's strictly for 
+numa_maps compatibility starting from 3.0, but we need to extend the 
+output with a pagesize= type field unless we want to require users to use 
+/proc/pid/smaps anytime they want to parse the page counts emitted by 
+numa_maps.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
