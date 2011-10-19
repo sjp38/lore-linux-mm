@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 897CB6B002D
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 18:27:59 -0400 (EDT)
-Date: Tue, 18 Oct 2011 15:27:56 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: problems with memory hotplug/remove on 3.0.1
-Message-ID: <20111018222756.GA3841@labbmf-linux.qualcomm.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3D96B002D
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 20:05:44 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p9J05f7n010542
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:05:41 -0700
+Received: from iaeo4 (iaeo4.prod.google.com [10.12.166.4])
+	by hpaq14.eem.corp.google.com with ESMTP id p9J03Qv2003267
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:05:40 -0700
+Received: by iaeo4 with SMTP id o4so2470007iae.9
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:05:31 -0700 (PDT)
+Date: Tue, 18 Oct 2011 17:02:56 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: munlock use mapcount to avoid terrible overhead
+Message-ID: <alpine.LSU.2.00.1110181700400.3361@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kparsha@codeaurora.org, vgandhi@codeaurora.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We have encountered two problems with memory hotplug/hotremove
-in 3.0.1 -- this is a port of memory hotplug to ARM with a few
-small changes noted below.
+A process spent 30 minutes exiting, just munlocking the pages of a large
+anonymous area that had been alternately mprotected into page-sized vmas:
+for every single page there's an anon_vma walk through all the other
+little vmas to find the right one.
 
-Neither of these occurred on a similar 2.6.38-based port
-we did to the same hardware.
+A general fix to that would be a lot more complicated (use prio_tree on
+anon_vma?), but there's one very simple thing we can do to speed up the
+common case: if a page to be munlocked is mapped only once, then it is
+our vma that it is mapped into, and there's no need whatever to walk
+through all the others.
 
-The memory is essentially 2 512M memory banks, the lower
-is always on, the upper is the one we are powering on
-and off. ARCH_POPULATES_NODE_MAP was ported to ARM
-and a small change was made to ensure that
-the movable zone could be placed exactly where desired
-(as movablecore= does not and must be specified on
-the command line -- we don't know where the movable
-zone must be until the kernel starts coming up).
-Also the upper 512M is forced to be highmem as
-the movable zone must come from the highest physical
-memory zone (of course highmem may be larger than
-512M, just not smaller).
+Okay, there is a very remote race in munlock_vma_pages_range(), if
+between its follow_page() and lock_page(), another process were to
+munlock the same page, then page reclaim remove it from our vma, then
+another process mlock it again.  We would find it with page_mapcount
+1, yet it's still mlocked in another process.  But never mind, that's
+much less likely than the down_read_trylock() failure which munlocking
+already tolerates (in try_to_unmap_one()): in due course page reclaim
+will discover and move the page to unevictable instead.
+    
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+ mm/mlock.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-1. If highmem is set to start at exactly 512M, then
-all of highmem is used up when forming the movable
-zone. This seems to confuse the memory management
-subsystem (page reclaim?) because although the memory
-hotremove of the upper 512M succeeds, running a command
-that takes a pagefault after hotremove causes
-the system to hang:
-
-try_to_free_pages
-__alloc_pages_nodemask
-do_wp_page
-handle_pte_fault
-handle_mm_fault
-do_page_fault
-
-try_to_free_pages() is called repeatedly (forever), making no
-apparent progress. After some experimentation, I
-discovered that making the highmem zone at least 5M
-larger than the 512M movable zone appears to make the
-problem disappear.
-
-I can (if I don't run anything that provokes the
-above bug) hotplug the 512M back in, and then this
-problem does not occur.
-
-I've seen some discussion about very small zones causing
-problems. Is what we are seeing a known problem?
-Is there a known fix (or at least a patch we could try)?
-
-2. Assuming the workaround we have for #1 is present,
-we see memory hotremove occasionally fail. This seems
-to (after a few seconds) cause init's state to become
-corrupted, provoking a panic -- sometimes (but not always)
-init's PC is 0. Sometimes additional (not always the
-same) processes also unexpectedly exit after the
-memory hotremove attempt.
-
-Thanks in advance for any insight you might have.
-
-Larry Bassel
-
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+--- 3.1-rc10/mm/mlock.c	2011-07-21 19:17:23.000000000 -0700
++++ linux/mm/mlock.c	2011-10-06 12:47:54.670436979 -0700
+@@ -110,7 +110,10 @@ void munlock_vma_page(struct page *page)
+ 	if (TestClearPageMlocked(page)) {
+ 		dec_zone_page_state(page, NR_MLOCK);
+ 		if (!isolate_lru_page(page)) {
+-			int ret = try_to_munlock(page);
++			int ret = SWAP_AGAIN;
++
++			if (page_mapcount(page) > 1)
++				ret = try_to_munlock(page);
+ 			/*
+ 			 * did try_to_unlock() succeed or punt?
+ 			 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
