@@ -1,41 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9830F6B002D
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 09:40:17 -0400 (EDT)
-Received: by wyg34 with SMTP id 34so2312010wyg.14
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 06:40:15 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1BFCD6B002F
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 10:55:04 -0400 (EDT)
+Date: Wed, 19 Oct 2011 09:54:58 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
+ __vm_enough_memory
+Message-ID: <20111019145458.GA9266@sgi.com>
+References: <20111014122506.GB26737@sgi.com>
+ <20111014135055.GA28592@sgi.com>
+ <alpine.DEB.2.00.1110140856420.6411@router.home>
+ <20111014141921.GC28592@sgi.com>
+ <alpine.DEB.2.00.1110140932530.6411@router.home>
+ <alpine.DEB.2.00.1110140958550.6411@router.home>
+ <20111014161603.GA30561@sgi.com>
+ <20111018134835.GA16222@sgi.com>
+ <m2mxcyz4f7.fsf@firstfloor.org>
+ <alpine.DEB.2.00.1110181806570.12850@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20111019074336.GB3410@suse.de>
-References: <201110122012.33767.pluto@agmk.net> <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
- <alpine.LSU.2.00.1110131629530.1410@sister.anvils> <20111016235442.GB25266@redhat.com>
- <alpine.LSU.2.00.1110171111150.2545@sister.anvils> <20111019074336.GB3410@suse.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 19 Oct 2011 06:39:55 -0700
-Message-ID: <CA+55aFwf75oJ3JJ2aCR8TJJm_oLireD6SDO+43GveVVb8vGw1w@mail.gmail.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1110181806570.12850@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 
-On Wed, Oct 19, 2011 at 12:43 AM, Mel Gorman <mgorman@suse.de> wrote:
->
-> My vote is with the migration change. While there are occasionally
-> patches to make migration go faster, I don't consider it a hot path.
-> mremap may be used intensively by JVMs so I'd loathe to hurt it.
+On Tue, Oct 18, 2011 at 06:16:21PM -0700, David Rientjes wrote:
+> On Tue, 18 Oct 2011, Andi Kleen wrote:
+> 
+> > > Would it make sense to have the ZVC delta be tuneable (via /proc/sys/vm?), keeping the
+> > > same default behavior as what we currently have?
+> > 
+> > Tunable is bad. We don't really want a "hundreds of lines magic shell script to
+> > make large systems perform". Please find a way to auto tune.
+> > 
+> 
+> Agreed, and I think even if we had a tunable that it would result in 
+> potentially erradic VM performance because some areas depend on "fairly 
+> accurate" ZVCs and it wouldn't be clear that you're trading other unknown 
+> VM issues that will affect your workload because you've increased the 
+> deltas.  Let's try to avoid having to ask "what is your ZVC delta tunable 
+> set at?" when someone reports a bug about reclaim stopping preemptively.
 
-Ok, everybody seems to like that more, and it removes code rather than
-adds it, so I certainly prefer it too. Pawe=C5=82, can you test that other
-patch (to mm/migrate.c) that Hugh posted? Instead of the mremap vma
-locking patch that you already verified for your setup?
+Yes, I'm inclined to agree.
 
-Hugh - that one didn't have a changelog/sign-off, so if you could
-write that up, and Pawe=C5=82's testing is successful, I can apply it...
-Looks like we have acks from both Andrea and Mel.
+> 
+> That said, perhaps we need higher deltas by default and then hints in key 
+> areas in the form of sync_stats_if_delta_above(x) calls that would do 
+> zone_page_state_add() only when that kind of precision is actually needed.  
+> For public interfaces, that would be very easy to audit to see what the 
+> level of precision is when parsing the data.
 
-                  Linus
+I did some manual tuning to see what deltas would be needed to achieve the
+greatest tmpfs writeback performance on a system with 640 cpus and 64 nodes:
+
+For 120 threads writing in parallel (each to it's own mountpoint), the
+threshold needs to be on the order of 1000.  At a threshold of 750, I
+start to see a slowdown of 50-60 MB/sec.
+
+For 400 threads writing in parallel, the threshold needs to be on the order
+of 2000 (although we're off by about 40 MB/sec at that point).
+
+The necessary deltas in these cases are quite a bit higher than the current
+125 maximum (see calculate*threshold in mm/vmstat.c).
+
+I like the idea of having certain areas triggering vm_stat sync, as long
+as we know what those key areas are and how often they might be called.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
