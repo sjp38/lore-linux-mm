@@ -1,67 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D41AA6B002C
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 15:42:28 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p9JJgLv7011882
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:42:21 -0700
-Received: from iaen33 (iaen33.prod.google.com [10.12.165.33])
-	by wpaz29.hot.corp.google.com with ESMTP id p9JJfqHV004767
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:42:20 -0700
-Received: by iaen33 with SMTP id n33so4629503iae.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:42:19 -0700 (PDT)
-Date: Wed, 19 Oct 2011 12:42:15 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CA66A6B002C
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 15:50:59 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p9JJoqfh008480
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:50:52 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by hpaq14.eem.corp.google.com with ESMTP id p9JJlIaM022975
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:50:50 -0700
+Received: by pzk2 with SMTP id 2so7181311pzk.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 12:50:50 -0700 (PDT)
+Date: Wed, 19 Oct 2011 12:50:35 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-In-Reply-To: <CA+55aFwf75oJ3JJ2aCR8TJJm_oLireD6SDO+43GveVVb8vGw1w@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1110191234570.6900@sister.anvils>
-References: <201110122012.33767.pluto@agmk.net> <alpine.LSU.2.00.1110131547550.1346@sister.anvils> <alpine.LSU.2.00.1110131629530.1410@sister.anvils> <20111016235442.GB25266@redhat.com> <alpine.LSU.2.00.1110171111150.2545@sister.anvils> <20111019074336.GB3410@suse.de>
- <CA+55aFwf75oJ3JJ2aCR8TJJm_oLireD6SDO+43GveVVb8vGw1w@mail.gmail.com>
+Subject: [PATCH] mm: fix race between mremap and removing migration entry
+Message-ID: <alpine.LSU.2.00.1110191243300.6980@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, Justin Piszcz <jpiszcz@lucidpixels.com>, arekm@pid-linux.org, Anders Ossowicki <aowi@novozymes.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 19 Oct 2011, Linus Torvalds wrote:
-> On Wed, Oct 19, 2011 at 12:43 AM, Mel Gorman <mgorman@suse.de> wrote:
-> >
-> > My vote is with the migration change. While there are occasionally
-> > patches to make migration go faster, I don't consider it a hot path.
-> > mremap may be used intensively by JVMs so I'd loathe to hurt it.
-> 
-> Ok, everybody seems to like that more, and it removes code rather than
-> adds it, so I certainly prefer it too. Pawel, can you test that other
-> patch (to mm/migrate.c) that Hugh posted? Instead of the mremap vma
-> locking patch that you already verified for your setup?
-> 
-> Hugh - that one didn't have a changelog/sign-off, so if you could
-> write that up, and Pawel's testing is successful, I can apply it...
-> Looks like we have acks from both Andrea and Mel.
+I don't usually pay much attention to the stale "? " addresses in
+stack backtraces, but this lucky report from Pawel Sikora hints that
+mremap's move_ptes() has inadequate locking against page migration.
 
-Yes, I'm glad to have that input from Andrea and Mel, thank you.
+ 3.0 BUG_ON(!PageLocked(p)) in migration_entry_to_page():
+ kernel BUG at include/linux/swapops.h:105!
+ RIP: 0010:[<ffffffff81127b76>]  [<ffffffff81127b76>]
+                       migration_entry_wait+0x156/0x160
+  [<ffffffff811016a1>] handle_pte_fault+0xae1/0xaf0
+  [<ffffffff810feee2>] ? __pte_alloc+0x42/0x120
+  [<ffffffff8112c26b>] ? do_huge_pmd_anonymous_page+0xab/0x310
+  [<ffffffff81102a31>] handle_mm_fault+0x181/0x310
+  [<ffffffff81106097>] ? vma_adjust+0x537/0x570
+  [<ffffffff81424bed>] do_page_fault+0x11d/0x4e0
+  [<ffffffff81109a05>] ? do_mremap+0x2d5/0x570
+  [<ffffffff81421d5f>] page_fault+0x1f/0x30
 
-Here we go.  I can't add a Tested-by since Pawel was reporting on the
-alternative patch, but perhaps you'll be able to add that in later.
+mremap's down_write of mmap_sem, together with i_mmap_mutex or lock,
+and pagetable locks, were good enough before page migration (with its
+requirement that every migration entry be found) came in, and enough
+while migration always held mmap_sem; but not enough nowadays, when
+there's memory hotremove and compaction.
 
-I may have read too much into Pawel's mail, but it sounded like he
-would have expected an eponymous find_get_pages() lockup by now,
-and was pleased that this patch appeared to have cured that.
+The danger is that move_ptes() lets a migration entry dodge around
+behind remove_migration_pte()'s back, so it's in the old location when
+looking at the new, then in the new location when looking at the old.
 
-I've spent quite a while trying to explain find_get_pages() lockup by
-a missed migration entry, but I just don't see it: I don't expect this
-(or the alternative) patch to do anything to fix that problem.  I won't
-mind if it magically goes away, but I expect we'll need more info from
-the debug patch I sent Justin a couple of days ago.
+Either mremap's move_ptes() must additionally take anon_vma lock(), or
+migration's remove_migration_pte() must stop peeking for is_swap_entry()
+before it takes pagetable lock.
 
-Ah, I'd better send the patch separately as
-"[PATCH] mm: fix race between mremap and removing migration entry":
-Pawel's "l" makes my old alpine setup choose quoted printable when
-I reply to your mail.
+Consensus chooses the latter: we prefer to add overhead to migration
+than to mremapping, which gets used by JVMs and by exec stack setup.
 
-Hugh
+Reported-by: Pawel Sikora <pluto@agmk.net>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Cc: stable@vger.kernel.org
+---
+
+ mm/migrate.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+--- 3.1-rc10/mm/migrate.c	2011-07-21 19:17:23.000000000 -0700
++++ linux/mm/migrate.c	2011-10-19 11:48:51.243961016 -0700
+@@ -120,10 +120,10 @@ static int remove_migration_pte(struct p
+ 
+ 		ptep = pte_offset_map(pmd, addr);
+ 
+-		if (!is_swap_pte(*ptep)) {
+-			pte_unmap(ptep);
+-			goto out;
+-		}
++		/*
++		 * Peek to check is_swap_pte() before taking ptlock?  No, we
++		 * can race mremap's move_ptes(), which skips anon_vma lock.
++		 */
+ 
+ 		ptl = pte_lockptr(mm, pmd);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
