@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BF8416B002D
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 20:25:50 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6356B002D
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 20:56:42 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p9J0ufH8024147
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:56:41 -0700
+Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
+	by wpaz17.hot.corp.google.com with ESMTP id p9J0nN49027997
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:56:40 -0700
+Received: by pzk4 with SMTP id 4so3772918pzk.10
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2011 17:56:37 -0700 (PDT)
+Date: Tue, 18 Oct 2011 17:56:23 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] mm: munlock use mapcount to avoid terrible overhead
-References: <alpine.LSU.2.00.1110181700400.3361@sister.anvils>
-Date: Tue, 18 Oct 2011 17:25:48 -0700
-In-Reply-To: <alpine.LSU.2.00.1110181700400.3361@sister.anvils> (Hugh
-	Dickins's message of "Tue, 18 Oct 2011 17:02:56 -0700 (PDT)")
-Message-ID: <m262jlzv1v.fsf@firstfloor.org>
+In-Reply-To: <20111018171453.53075590.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1110181752440.4283@sister.anvils>
+References: <alpine.LSU.2.00.1110181700400.3361@sister.anvils> <20111018171453.53075590.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hugh Dickins <hughd@google.com> writes:
+On Tue, 18 Oct 2011, Andrew Morton wrote:
+> On Tue, 18 Oct 2011 17:02:56 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
+> 
+> > A process spent 30 minutes exiting, just munlocking the pages of a large
+> > anonymous area that had been alternately mprotected into page-sized vmas:
+> > for every single page there's an anon_vma walk through all the other
+> > little vmas to find the right one.
+> 
+> And how long did the test case take with the patch applied?
 
-> A process spent 30 minutes exiting, just munlocking the pages of a large
-> anonymous area that had been alternately mprotected into page-sized vmas:
-> for every single page there's an anon_vma walk through all the other
-> little vmas to find the right one.
+5 seconds in the case tried; but the issue is quadratic,
+so you can make the improvement look arbitrarily good.
 
-We had the same problem recently after a mmap+touch workload: in this
-case it was hugepaged walking all these anon_vmas and the list was over
-100k long. 
-
-Had some data on this at plumbers:
-http://halobates.de/plumbers-fork-locks_v2.pdf
-
-> A general fix to that would be a lot more complicated (use prio_tree on
-> anon_vma?), but there's one very simple thing we can do to speed up the
-> common case: if a page to be munlocked is mapped only once, then it is
-> our vma that it is mapped into, and there's no need whatever to walk
-> through all the others.
-
-I think we need a generic fix, this problem does not only happen
-in munmap. 
-
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
