@@ -1,41 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D08AD6B002C
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 11:32:07 -0400 (EDT)
-Date: Wed, 19 Oct 2011 10:31:54 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
- __vm_enough_memory
-In-Reply-To: <20111019145458.GA9266@sgi.com>
-Message-ID: <alpine.DEB.2.00.1110191029570.24001@router.home>
-References: <20111014122506.GB26737@sgi.com> <20111014135055.GA28592@sgi.com> <alpine.DEB.2.00.1110140856420.6411@router.home> <20111014141921.GC28592@sgi.com> <alpine.DEB.2.00.1110140932530.6411@router.home> <alpine.DEB.2.00.1110140958550.6411@router.home>
- <20111014161603.GA30561@sgi.com> <20111018134835.GA16222@sgi.com> <m2mxcyz4f7.fsf@firstfloor.org> <alpine.DEB.2.00.1110181806570.12850@chino.kir.corp.google.com> <20111019145458.GA9266@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A55576B002C
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 15:35:35 -0400 (EDT)
+Date: Wed, 19 Oct 2011 12:35:30 -0700
+From: Stephen Hemminger <shemminger@vyatta.com>
+Subject: regression in /proc/self/numa_maps with huge pages
+Message-ID: <20111019123530.2e59b86c@nehalam.linuxnetplumber.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dimitri Sivanich <sivanich@sgi.com>
-Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Stephen Wilson <wilsons@start.ca>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 19 Oct 2011, Dimitri Sivanich wrote:
+We are working on an application that uses a library that uses
+both huge pages and parses numa_maps.  This application is no longer
+able to identify the socket id correctly for huge pages because the
+that 'huge' is no longer part of /proc/self/numa_maps.
 
-> For 120 threads writing in parallel (each to it's own mountpoint), the
-> threshold needs to be on the order of 1000.  At a threshold of 750, I
-> start to see a slowdown of 50-60 MB/sec.
->
-> For 400 threads writing in parallel, the threshold needs to be on the order
-> of 2000 (although we're off by about 40 MB/sec at that point).
->
-> The necessary deltas in these cases are quite a bit higher than the current
-> 125 maximum (see calculate*threshold in mm/vmstat.c).
->
-> I like the idea of having certain areas triggering vm_stat sync, as long
-> as we know what those key areas are and how often they might be called.
+Basically, application sets up huge page mmaps, then reads /proc/self/numa_maps
+and skips all entries without the string " huge ".  Then it looks for address
+and socket info.
 
-You could potentially reduce the maximum necessary by applying my earlier
-patch (but please reduce the counters touched to the current cacheline).
-That should reduce the number of updates in the global cacheline and allow
-you to reduce the very high deltas that you have to deal with now.
+Why was this information dropped? Looks like the desire to be generic
+overstepped the desire to remain compatible.
+
+
+This regression in kernel ABI was introduced by:
+commit 29ea2f6982f1edc4302729116f2246dd7b45471d
+Author: Stephen Wilson <wilsons@start.ca>
+Date:   Tue May 24 17:12:42 2011 -0700
+
+    mm: use walk_page_range() instead of custom page table walking code
+    
+    Converting show_numa_map() to use the generic routine decouples the
+    function from mempolicy.c, allowing it to be moved out of the mm subsystem
+    and into fs/proc.
+    
+    Also, include KSM pages in /proc/pid/numa_maps statistics.  The pagewalk
+    logic implemented by check_pte_range() failed to account for such pages as
+    they were not applicable to the page migration case.
+    
+    Signed-off-by: Stephen Wilson <wilsons@start.ca>
+    Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+    Cc: Hugh Dickins <hughd@google.com>
+    Cc: David Rientjes <rientjes@google.com>
+    Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+    Cc: Alexey Dobriyan <adobriyan@gmail.com>
+    Cc: Christoph Lameter <cl@linux-foundation.org>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
