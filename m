@@ -1,59 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BAA9F6B0037
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 02:51:35 -0400 (EDT)
-Received: by wwf5 with SMTP id 5so3033018wwf.26
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 23:51:32 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 823366B002D
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 04:56:23 -0400 (EDT)
+Message-ID: <4E9FE1FC.8080103@parallels.com>
+Date: Thu, 20 Oct 2011 12:55:24 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <201110200830.22062.pluto@agmk.net>
-References: <201110122012.33767.pluto@agmk.net> <CA+55aFwf75oJ3JJ2aCR8TJJm_oLireD6SDO+43GveVVb8vGw1w@mail.gmail.com>
- <alpine.LSU.2.00.1110191234570.6900@sister.anvils> <201110200830.22062.pluto@agmk.net>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 19 Oct 2011 23:51:11 -0700
-Message-ID: <CA+55aFwU-xwg=5ZDqsA1xwKsjeTT=8uDRygCJoW1ya7-QBitSw@mail.gmail.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFD] Isolated memory cgroups again
+References: <20111020013305.GD21703@tiehlicka.suse.cz>
+In-Reply-To: <20111020013305.GD21703@tiehlicka.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-2?Q?Pawe=B3_Sikora?= <pluto@agmk.net>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-2011/10/19 Pawe=C5=82 Sikora <pluto@agmk.net>:
+On 10/20/2011 05:33 AM, Michal Hocko wrote:
+> Hi all,
+> this is a request for discussion (I hope we can touch this during memcg
+> meeting during the upcoming KS). I have brought this up earlier this
+> year before LSF (http://thread.gmane.org/gmane.linux.kernel.mm/60464).
+> The patch got much smaller since then due to excellent Johannes' memcg
+> naturalization work (http://thread.gmane.org/gmane.linux.kernel.mm/68724)
+> which this is based on.
+> I realize that this will be controversial but I would like to hear
+> whether this is strictly no-go or whether we can go that direction (the
+> implementation might differ of course).
 >
-> the latest patch (mm/migrate.c) applied on 3.0.4 also survives points
-> 1) and 2) described previously (https://lkml.org/lkml/2011/10/18/427),
-> so please apply it to the upstream/stable git tree.
+> The patch is still half baked but I guess it should be sufficient to
+> show what I am trying to achieve.
+> The basic idea is that memcgs would get a new attribute (isolated) which
+> would control whether that group should be considered during global
+> reclaim.
 
-Ok, thanks, applied and pushed out.
+I'd like to hear a bit more of your use cases, but at first, I don't 
+like it. I think we should always, regardless of any knobs or 
+definitions, be able to globally select a task or set of tasks, and kill 
+them.
 
-> from the other side, both patches don't help for 3.0.4+vserver host soft-=
-lock
-> which dies in few hours of stressing. iirc this lock has started with 2.6=
-.38.
-> is there any major change in memory managment area in 2.6.38 that i can b=
-isect
-> and test with vserver?
+We have a slightly similar need here (we'd have to find out how 
+similar...). We're working on it as well, but no patches yet (very 
+basic) Let me describe it so we can see if it fits.
 
-I suspect you'd be best off simply just doing a full bisect. Yes, if
-2.6.37 is the last known working kernel for you, and 38 breaks, that's
-a lot of commits (about 10k, to be exact), and it will take an
-annoying number of reboots and tests, but assuming you don't hit any
-problems, it should still be "only" about 14 bisection points or so.
+The main concern is with OOM behaviour of tasks within a cgroup. We'd 
+like to be able to, in a per-cgroup basis:
 
-You could *try* to minimize the bisect by only looking at commits that
-change mm/, but quite frankly, partial tree bisects tend to not be all
-that reliable. But if you want to try, you could do basically
+* select how "important" a group is. OOM should try to kill less 
+important memory hogs first (but note: it's less important *memory 
+hogs*, not ordinary processes, and all of them are actually considered)
+* select if a fat task within a group should be OOMed, or if the whole 
+group should go.
+* assuming an hierarchical grouping, select if we should kill children 
+first
+* assuming an hierarchical grouping, select if we should kill children 
+at all.
 
-   git bisect start mm/
-   git bisect good v2.6.37
-   git bisect bad v2.6.38
+This is a broader work, but I am under the impression that you should 
+also be able to contemplate your needs (at least the OOM part) with such 
+mechanism, by setting arbitrarily high limits on certain cgroups.
 
-and go from there. That will try to do a more specific bisect, and you
-should have fewer test points, but the end result really is much less
-reliable. But it might help narrow things down a bit.
+Of course it might be the case that I am not yet fully understanding 
+your scenario. In this case, I'm all ears!
 
-             Linus
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
