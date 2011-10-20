@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D03776B002C
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 12:00:09 -0400 (EDT)
-Date: Thu, 20 Oct 2011 23:56:42 +0800
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id F0B306B002D
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 12:05:54 -0400 (EDT)
+Date: Fri, 21 Oct 2011 00:05:30 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 2/2] nfs: scale writeback threshold proportional to dirty
- threshold
-Message-ID: <20111020155642.GB7054@localhost>
+Subject: Re: [PATCH 1/2] nfs: writeback pages wait queue
+Message-ID: <20111020160530.GC7054@localhost>
 References: <20111020155542.GA7054@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -15,107 +14,206 @@ In-Reply-To: <20111020155542.GA7054@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Tang Feng <feng.tang@intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-nfs_congestion_kb is to control the max allowed writeback and in-commit
-pages. It's not reasonable for them to outnumber dirty and to-commit
-pages. So each of them should not take more than 1/4 dirty threshold.
+Trond,
 
-Considering that nfs_init_writepagecache() is called on fresh boot,
-at the time dirty_thresh is much higher than the real dirty limit after
-lots of user space memory consumptions, use 1/8 instead.
+After applying these two patches, the IO-less patchset performances
+45% better than the vanilla kernel and the average commit size only
+decreases by -16% in the common NFS-thresh=1G/nfs-1dd case :)
 
-Feng: fix deadlock by preventing (nfs_congestion_kb == 0)
+Thanks,
+Fengguang
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-Signed-off-by: Feng Tang <feng.tang@intel.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/nfs/write.c      |   36 +++++++++++++++++-------------------
- mm/page-writeback.c |    6 ++++++
- 2 files changed, 23 insertions(+), 19 deletions(-)
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                  354.65       +45.4%       515.48  TOTAL write_bw
+                10498.00       +91.7%     20120.00  TOTAL nfs_nr_commits
+               233013.00       +99.9%    465751.00  TOTAL nfs_nr_writes
+                  895.47        +3.1%       923.62  TOTAL nfs_commit_size
+                    5.71       -14.5%         4.88  TOTAL nfs_write_size
+               108269.33       -84.3%     17003.69  TOTAL nfs_write_queue_time
+                 1836.03       -34.4%      1204.27  TOTAL nfs_write_rtt_time
+               110144.96       -83.5%     18220.96  TOTAL nfs_write_execute_time
+                 2902.62       -88.6%       332.20  TOTAL nfs_commit_queue_time
+                16282.75       -23.3%     12490.87  TOTAL nfs_commit_rtt_time
+                19234.16       -33.3%     12833.00  TOTAL nfs_commit_execute_time
 
---- linux-next.orig/fs/nfs/write.c	2011-10-20 23:45:59.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2011-10-20 23:53:16.000000000 +0800
-@@ -1782,6 +1782,22 @@ out:
- }
- #endif
- 
-+void nfs_update_congestion_thresh(void)
-+{
-+	unsigned long background_thresh;
-+	unsigned long dirty_thresh;
-+
-+	/*
-+	 * Limit to 1/8 dirty threshold, so that writeback+in_commit pages
-+	 * won't overnumber dirty+to_commit pages.
-+	 */
-+	global_dirty_limits(&background_thresh, &dirty_thresh);
-+	dirty_thresh <<= PAGE_SHIFT - 10;
-+	dirty_thresh += 1024;
-+
-+	nfs_congestion_kb = dirty_thresh / 8;
-+}
-+
- int __init nfs_init_writepagecache(void)
- {
- 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-@@ -1801,25 +1817,7 @@ int __init nfs_init_writepagecache(void)
- 	if (nfs_commit_mempool == NULL)
- 		return -ENOMEM;
- 
--	/*
--	 * NFS congestion size, scale with available memory.
--	 *
--	 *  64MB:    8192k
--	 * 128MB:   11585k
--	 * 256MB:   16384k
--	 * 512MB:   23170k
--	 *   1GB:   32768k
--	 *   2GB:   46340k
--	 *   4GB:   65536k
--	 *   8GB:   92681k
--	 *  16GB:  131072k
--	 *
--	 * This allows larger machines to have larger/more transfers.
--	 * Limit the default to 256M
--	 */
--	nfs_congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
--	if (nfs_congestion_kb > 256*1024)
--		nfs_congestion_kb = 256*1024;
-+	nfs_update_congestion_thresh();
- 
- 	return 0;
- }
---- linux-next.orig/mm/page-writeback.c	2011-10-20 23:45:23.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-10-20 23:48:07.000000000 +0800
-@@ -207,6 +207,10 @@ static int calc_period_shift(void)
- 	return 2 + ilog2(dirty_total - 1);
- }
- 
-+void __weak nfs_update_congestion_thresh(void)
-+{
-+}
-+
- /*
-  * update the period when the dirty threshold changes.
-  */
-@@ -217,6 +221,7 @@ static void update_completion_period(voi
- 	prop_change_shift(&vm_dirties, shift);
- 
- 	writeback_set_ratelimit();
-+	nfs_update_congestion_thresh();
- }
- 
- int dirty_background_ratio_handler(struct ctl_table *table, int write,
-@@ -447,6 +452,7 @@ unsigned long bdi_dirty_limit(struct bac
- 
- 	return bdi_dirty;
- }
-+EXPORT_SYMBOL_GPL(global_dirty_limits);
- 
- /*
-  * Dirty position control.
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                   21.85       +97.9%        43.23  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   51.38       +42.6%        73.26  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   28.81      +145.3%        70.68  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                   13.74       +57.1%        21.59  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                   29.11        -0.3%        29.02  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                   16.68       +90.5%        31.78  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                   48.88       +41.2%        69.01  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   57.85       +32.7%        76.74  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                   47.13       +63.1%        76.87  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                    9.82       -33.0%         6.58  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                   13.72       -18.1%        11.24  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                   15.68       -65.0%         5.48  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                  354.65       +45.4%       515.48  TOTAL write_bw
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                  834.00      +224.2%      2704.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  311.00      +144.1%       759.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                  282.00      +253.5%       997.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                 1387.00      +334.2%      6023.00  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                 1081.00      +280.3%      4111.00  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                  930.00      +368.0%      4352.00  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                  254.00      +108.7%       530.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   38.00       +55.3%        59.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                   54.00       +96.3%       106.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                 1321.00       -74.9%       332.00  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                 1932.00       -99.1%        17.00  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                 2074.00       -93.7%       130.00  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                10498.00       +91.7%     20120.00  TOTAL nfs_nr_commits
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                28359.00       -39.2%     17230.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                22241.00      +550.6%    144695.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                24969.00       +27.8%     31900.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                21722.00       +38.2%     30030.00  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                11015.00       +28.2%     14117.00  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                17012.00      +217.7%     54039.00  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                25616.00        +3.1%     26403.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                24761.00      +177.5%     68702.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                29235.00       +37.1%     40089.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                12929.00       +21.6%     15720.00  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                 7683.00       +24.2%      9542.00  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                 7471.00       +77.8%     13284.00  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+               233013.00       +99.9%    465751.00  TOTAL nfs_nr_writes
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                    7.84       -38.6%         4.81  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   49.58       -41.6%        28.94  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   30.58       -30.5%        21.27  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                    2.99       -63.9%         1.08  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                    8.06       -73.8%         2.12  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                    5.33       -58.9%         2.19  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                   57.68       -32.1%        39.15  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                  465.15       -16.5%       388.43  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                  261.60       -16.4%       218.80  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                    2.25      +163.5%         5.93  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                    2.13     +9221.2%       198.29  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                    2.27      +455.3%        12.61  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                  895.47        +3.1%       923.62  TOTAL nfs_commit_size
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                    0.23      +227.7%         0.76  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                    0.69       -78.1%         0.15  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                    0.35       +92.4%         0.66  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                    0.19       +13.4%         0.22  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                    0.79       -22.2%         0.62  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                    0.29       -39.5%         0.18  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                    0.57       +37.4%         0.79  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                    0.71       -53.3%         0.33  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                    0.48       +19.7%         0.58  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                    0.23       -45.5%         0.13  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                    0.53       -34.0%         0.35  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                    0.63       -80.4%         0.12  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                    5.71       -14.5%         4.88  TOTAL nfs_write_size
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                 6544.25       -95.1%       321.04  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                 1064.82       +11.2%      1184.16  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                22801.48       -86.3%      3113.39  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                 1083.47       -99.8%         2.56  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                    3.82       -55.8%         1.69  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                 2840.08       -99.3%        20.09  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                20227.73       -96.6%       683.65  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 2346.04      +274.0%      8774.87  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                50812.68       -94.3%      2901.88  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  417.03       -99.9%         0.25  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                    1.70       -97.9%         0.04  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                  126.23       -99.9%         0.08  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+               108269.33       -84.3%     17003.69  TOTAL nfs_write_queue_time
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                  276.99       -41.1%       163.20  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  106.71       -67.0%        35.21  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   76.32       +13.4%        86.53  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  335.96       -41.8%       195.49  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                   33.67       +70.7%        57.48  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                  159.03       -46.0%        85.80  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                  340.25       -67.6%       110.23  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   47.88       +12.7%        53.96  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                  118.13       -53.8%        54.62  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  223.24       -53.0%       104.83  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                   58.89       +12.8%        66.43  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                   58.97      +223.0%       190.49  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                 1836.03       -34.4%      1204.27  TOTAL nfs_write_rtt_time
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                 6821.43       -92.9%       484.70  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                 1173.98        +4.0%      1220.80  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                22878.44       -86.0%      3201.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                 1419.50       -86.0%       198.20  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                   37.72       +57.1%        59.27  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                 2999.22       -96.5%       106.41  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                20570.86       -96.1%       795.46  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 2416.09      +265.6%      8832.81  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                50941.27       -94.2%      2960.10  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  640.32       -83.6%       105.13  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                   60.78        +9.4%        66.49  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                  185.35        +2.8%       190.59  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+               110144.96       -83.5%     18220.96  TOTAL nfs_write_execute_time
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                   54.75       -89.4%         5.82  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   88.26       -98.7%         1.12  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   38.41       -92.1%         3.05  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                    7.59       -91.0%         0.68  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                    0.42       -93.3%         0.03  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                    2.57       -75.1%         0.64  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                  784.08       -93.8%        48.69  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 1338.39       -81.4%       248.51  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                  586.69       -96.0%        23.32  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                    1.27       -84.3%         0.20  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                    0.02      +147.1%         0.06  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                    0.16       -41.3%         0.09  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                 2902.62       -88.6%       332.20  TOTAL nfs_commit_queue_time
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                  702.80        +8.2%       760.66  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  538.99       -35.8%       346.08  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                  704.42       -37.1%       443.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  228.96       -18.4%       186.78  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                  155.88       -54.6%        70.75  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                  169.51       -28.9%       120.53  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                 3791.44       -11.4%      3361.05  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 4229.79       -17.8%      3476.80  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 5534.04       -35.4%      3574.73  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                   96.34       -31.4%        66.11  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                   60.95       -35.5%        39.29  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                   69.64       -35.3%        45.08  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                16282.75       -23.3%     12490.87  TOTAL nfs_commit_rtt_time
+
+      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
+------------------------  ------------------------
+                  757.92        +1.2%       766.73  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  627.36       -44.6%       347.25  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                  743.59       -40.0%       446.39  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  236.73       -20.8%       187.57  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
+                  156.31       -54.7%        70.79  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
+                  172.16       -29.6%       121.26  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
+                 4579.56       -25.5%      3411.34  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 5568.53       -33.1%      3725.49  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 6163.54       -41.5%      3605.27  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                   97.67       -32.1%        66.35  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
+                   60.99       -35.5%        39.35  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
+                   69.82       -35.3%        45.20  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
+                19234.16       -33.3%     12833.00  TOTAL nfs_commit_execute_time
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
