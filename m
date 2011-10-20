@@ -1,64 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB3A6B0035
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 02:01:18 -0400 (EDT)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LTC00MK2OQ3K4@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Thu, 20 Oct 2011 07:01:16 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LTC008TEOQ3BQ@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 20 Oct 2011 07:01:15 +0100 (BST)
-Date: Thu, 20 Oct 2011 08:01:12 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: CMA v16 and DMA-mapping v13 patch series
-Message-id: <ADF13DA15EB3FE4FBA487CCC7BEFDF3622549EBE58@bssrvexch01>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-language: en-US
-Content-transfer-encoding: base64
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5596E6B002C
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 11:55:49 -0400 (EDT)
+Date: Thu, 20 Oct 2011 23:55:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 1/2] nfs: writeback pages wait queue
+Message-ID: <20111020155542.GA7054@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
-Cc: 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, 'Subash Patel' <subashrp@gmail.com>, Joerg Roedel <joro@8bytes.org>, Shariq Hasnain <shariq.hasnain@linaro.org>Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-SGVsbG8gZXZlcnlvbmUsDQoNCkl0IGxvb2tzIHRoYXQgdGhlIGxhc3QgcGF0Y2ggc2VyaWVzIGZy
-b20gbWUgd2FzIG5vdCBjbGVhcmx5IGRlc2NyaWJlZCBpbiB0ZXJtcw0Kb2YgdGhlaXIga2VybmVs
-IGJhc2UuIFNlbGVjdGluZyBhICctbmV4dCcga2VybmVsIGFzIGEgYmFzZSB3YXMgbm90IHRoZSBi
-ZXN0DQppZGVhLiBJJ20gcmVhbGx5IHNvcnJ5IGZvciB0aGUgY29uZnVzaW9uLiBJJ3ZlIHJlYmFz
-ZWQgYWdhaW4gdGhlc2Ugc2VyaWVzIGFuZA0KcHJlcGFyZWQgMyBuZXcgYnJhbmNoZXMuIEZlZWwg
-ZnJlZSB0byBkb3dubG9hZCBhbmQgZ2l2ZSB0aGVtIGEgdHJ5Lg0KDQpIZXJlIGFyZSB0aGUga2Vy
-bmVsIHRyZWVzIHdpdGggbGF0ZXN0IHZlcnNpb24gb2YgdGhlIHBhdGNoZXMsIHJlYWR5IHRvIHVz
-ZToNCg0KTGludXggdjMuMS1yYzEwIHdpdGggQ01BIHYxNiAoYW5kIGEgZmV3IGZpeGVzKToNCmdp
-dDovL2dpdC5pbmZyYWRlYWQub3JnL3VzZXJzL2ttcGFyay9saW51eC0yLjYtc2Ftc3VuZyAzLjEt
-cmMxMC1jbWEtdjE2DQoNCkxpbnV4IHYzLjEtcmMxMCB3aXRoIERNQSBtYXBwaW5nIHYzICh3aXRo
-IERNQS1JT01NVSBpbnRlZ3JhdGlvbik6DQpnaXQ6Ly9naXQuaW5mcmFkZWFkLm9yZy91c2Vycy9r
-bXBhcmsvbGludXgtMi42LXNhbXN1bmcgMy4xLXJjMTAtZG1hLXYzDQoNCkxpbnV4IHYzLjEtcmMx
-MCB3aXRoIGJvdGggQ01BIHYxNiBhbmQgRE1BLW1hcHBpbmcgdjM6DQpnaXQ6Ly9naXQuaW5mcmFk
-ZWFkLm9yZy91c2Vycy9rbXBhcmsvbGludXgtMi42LXNhbXN1bmcgMy4xLXJjMTAtY21hLXYxNi1k
-bWEtdjMNCg0KQmVzdCByZWdhcmRzDQotLQ0KTWFyZWsgU3p5cHJvd3NraQ0KU2Ftc3VuZyBQb2xh
-bmQgUiZEIENlbnRlcg0KDQoNCg0KVGhlIGFib3ZlIG1lc3NhZ2UgaXMgaW50ZW5kZWQgc29sZWx5
-IGZvciB0aGUgbmFtZWQgYWRkcmVzc2VlIGFuZCBtYXkgY29udGFpbiB0cmFkZSBzZWNyZXQsIGlu
-ZHVzdHJpYWwgdGVjaG5vbG9neSBvciBwcml2aWxlZ2VkIGFuZCBjb25maWRlbnRpYWwgaW5mb3Jt
-YXRpb24gb3RoZXJ3aXNlIHByb3RlY3RlZCB1bmRlciBhcHBsaWNhYmxlIGxhdy4gQW55IHVuYXV0
-aG9yaXplZCBkaXNzZW1pbmF0aW9uLCBkaXN0cmlidXRpb24sIGNvcHlpbmcgb3IgdXNlIG9mIHRo
-ZSBpbmZvcm1hdGlvbiBjb250YWluZWQgaW4gdGhpcyBjb21tdW5pY2F0aW9uIGlzIHN0cmljdGx5
-IHByb2hpYml0ZWQuIElmIHlvdSBoYXZlIHJlY2VpdmVkIHRoaXMgY29tbXVuaWNhdGlvbiBpbiBl
-cnJvciwgcGxlYXNlIG5vdGlmeSBzZW5kZXIgYnkgZW1haWwgYW5kIGRlbGV0ZSB0aGlzIGNvbW11
-bmljYXRpb24gaW1tZWRpYXRlbHkuDQoNCg0KUG93ecW8c3phIHdpYWRvbW/Fm8SHIHByemV6bmFj
-em9uYSBqZXN0IHd5xYLEhWN6bmllIGRsYSBhZHJlc2F0YSBuaW5pZWpzemVqIHdpYWRvbW/Fm2Np
-IGkgbW/FvGUgemF3aWVyYcSHIGluZm9ybWFjamUgYsSZZMSFY2UgdGFqZW1uaWPEhSBoYW5kbG93
-xIUsIHRhamVtbmljxIUgcHJ6ZWRzacSZYmlvcnN0d2Egb3JheiBpbmZvcm1hY2plIG8gY2hhcmFr
-dGVyemUgcG91Zm55bSBjaHJvbmlvbmUgb2Jvd2nEhXp1asSFY3ltaSBwcnplcGlzYW1pIHByYXdh
-LiBKYWtpZWtvbHdpZWsgbmlldXByYXduaW9uZSBpY2ggcm96cG93c3plY2huaWFuaWUsIGR5c3Ry
-eWJ1Y2phLCBrb3Bpb3dhbmllIGx1YiB1xbx5Y2llIGluZm9ybWFjamkgemF3YXJ0eWNoIHcgcG93
-ecW8c3plaiB3aWFkb21vxZtjaSBqZXN0IHphYnJvbmlvbmUuIEplxZtsaSBvdHJ6eW1hxYJlxZsg
-cG93ecW8c3rEhSB3aWFkb21vxZvEhyBvbXnFgmtvd28sIHVwcnplam1pZSBwcm9zesSZIHBvaW5m
-b3JtdWogbyB0eW0gZmFrY2llIGRyb2fEhSBtYWlsb3fEhSBuYWRhd2PEmSB0ZWogd2lhZG9tb8Wb
-Y2kgb3JheiBuaWV6d8WCb2N6bmllIHVzdcWEIHBvd3nFvHN6xIUgd2lhZG9tb8WbxIcgemUgc3dv
-amVnbyBrb21wdXRlcmEuDQo=
+The generic writeback routines are departing from congestion_wait()
+in preference of get_request_wait(), aka. waiting on the block queues.
+
+Introduce the missing writeback wait queue for NFS, otherwise its
+writeback pages will grow out of control, exhausting all PG_dirty pages.
+
+Feng: do more coarse grained throttle on each ->writepages rather than
+on each page, for better performance and avoid throttled-before-send-rpc
+deadlock
+
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Chris Mason <chris.mason@oracle.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Signed-off-by: Feng Tang <feng.tang@intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/nfs/client.c           |    2 
+ fs/nfs/write.c            |   84 +++++++++++++++++++++++++++++++-----
+ include/linux/nfs_fs_sb.h |    1 
+ 3 files changed, 77 insertions(+), 10 deletions(-)
+
+--- linux-next.orig/fs/nfs/write.c	2011-10-20 23:08:17.000000000 +0800
++++ linux-next/fs/nfs/write.c	2011-10-20 23:45:59.000000000 +0800
+@@ -190,11 +190,64 @@ static int wb_priority(struct writeback_
+  * NFS congestion control
+  */
+ 
++#define NFS_WAIT_PAGES	(1024L >> (PAGE_SHIFT - 10))
+ int nfs_congestion_kb;
+ 
+-#define NFS_CONGESTION_ON_THRESH 	(nfs_congestion_kb >> (PAGE_SHIFT-10))
+-#define NFS_CONGESTION_OFF_THRESH	\
+-	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
++/*
++ * SYNC requests will block on (2*limit) and wakeup on (2*limit-NFS_WAIT_PAGES)
++ * ASYNC requests will block on (limit) and wakeup on (limit - NFS_WAIT_PAGES)
++ * In this way SYNC writes will never be blocked by ASYNC ones.
++ */
++
++static void nfs_set_congested(long nr, struct backing_dev_info *bdi)
++{
++	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
++
++	if (nr > limit && !test_bit(BDI_async_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_ASYNC);
++	else if (nr > 2 * limit && !test_bit(BDI_sync_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_SYNC);
++}
++
++static void nfs_wait_congested(int is_sync,
++			       struct backing_dev_info *bdi,
++			       wait_queue_head_t *wqh)
++{
++	int waitbit = is_sync ? BDI_sync_congested : BDI_async_congested;
++	DEFINE_WAIT(wait);
++
++	if (!test_bit(waitbit, &bdi->state))
++		return;
++
++	for (;;) {
++		prepare_to_wait(&wqh[is_sync], &wait, TASK_UNINTERRUPTIBLE);
++		if (!test_bit(waitbit, &bdi->state))
++			break;
++
++		io_schedule();
++	}
++	finish_wait(&wqh[is_sync], &wait);
++}
++
++static void nfs_wakeup_congested(long nr,
++				 struct backing_dev_info *bdi,
++				 wait_queue_head_t *wqh)
++{
++	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
++
++	if (nr < 2 * limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_sync_congested, &bdi->state))
++			clear_bdi_congested(bdi, BLK_RW_SYNC);
++		if (waitqueue_active(&wqh[BLK_RW_SYNC]))
++			wake_up(&wqh[BLK_RW_SYNC]);
++	}
++	if (nr < limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_async_congested, &bdi->state))
++			clear_bdi_congested(bdi, BLK_RW_ASYNC);
++		if (waitqueue_active(&wqh[BLK_RW_ASYNC]))
++			wake_up(&wqh[BLK_RW_ASYNC]);
++	}
++}
+ 
+ static int nfs_set_page_writeback(struct page *page)
+ {
+@@ -205,11 +258,8 @@ static int nfs_set_page_writeback(struct
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		page_cache_get(page);
+-		if (atomic_long_inc_return(&nfss->writeback) >
+-				NFS_CONGESTION_ON_THRESH) {
+-			set_bdi_congested(&nfss->backing_dev_info,
+-						BLK_RW_ASYNC);
+-		}
++		nfs_set_congested(atomic_long_inc_return(&nfss->writeback),
++				  &nfss->backing_dev_info);
+ 	}
+ 	return ret;
+ }
+@@ -221,8 +271,10 @@ static void nfs_end_page_writeback(struc
+ 
+ 	end_page_writeback(page);
+ 	page_cache_release(page);
+-	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
+-		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
++
++	nfs_wakeup_congested(atomic_long_dec_return(&nfss->writeback),
++			     &nfss->backing_dev_info,
++			     nfss->writeback_wait);
+ }
+ 
+ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblock)
+@@ -323,10 +375,17 @@ static int nfs_writepage_locked(struct p
+ 
+ int nfs_writepage(struct page *page, struct writeback_control *wbc)
+ {
++	struct inode *inode = page->mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	int ret;
+ 
+ 	ret = nfs_writepage_locked(page, wbc);
+ 	unlock_page(page);
++
++	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	return ret;
+ }
+ 
+@@ -342,6 +401,7 @@ static int nfs_writepages_callback(struc
+ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
+ {
+ 	struct inode *inode = mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	unsigned long *bitlock = &NFS_I(inode)->flags;
+ 	struct nfs_pageio_descriptor pgio;
+ 	int err;
+@@ -358,6 +418,10 @@ int nfs_writepages(struct address_space 
+ 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
+ 	nfs_pageio_complete(&pgio);
+ 
++	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
+ 	smp_mb__after_clear_bit();
+ 	wake_up_bit(bitlock, NFS_INO_FLUSHING);
+--- linux-next.orig/include/linux/nfs_fs_sb.h	2011-10-20 23:08:17.000000000 +0800
++++ linux-next/include/linux/nfs_fs_sb.h	2011-10-20 23:45:12.000000000 +0800
+@@ -102,6 +102,7 @@ struct nfs_server {
+ 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
+ 	struct backing_dev_info	backing_dev_info;
+ 	atomic_long_t		writeback;	/* number of writeback pages */
++	wait_queue_head_t	writeback_wait[2];
+ 	int			flags;		/* various flags */
+ 	unsigned int		caps;		/* server capabilities */
+ 	unsigned int		rsize;		/* read size */
+--- linux-next.orig/fs/nfs/client.c	2011-10-20 23:08:17.000000000 +0800
++++ linux-next/fs/nfs/client.c	2011-10-20 23:45:12.000000000 +0800
+@@ -1066,6 +1066,8 @@ static struct nfs_server *nfs_alloc_serv
+ 	INIT_LIST_HEAD(&server->layouts);
+ 
+ 	atomic_set(&server->active, 0);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_SYNC]);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_ASYNC]);
+ 
+ 	server->io_stats = nfs_alloc_iostats();
+ 	if (!server->io_stats) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
