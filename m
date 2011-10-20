@@ -1,79 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C57A26B002D
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 23:39:34 -0400 (EDT)
-Date: Thu, 20 Oct 2011 11:39:30 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2DF136B002D
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 23:59:23 -0400 (EDT)
+Date: Thu, 20 Oct 2011 11:59:18 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 00/11] IO-less dirty throttling v12
-Message-ID: <20111020033930.GA22746@localhost>
+Subject: Re: [RFC][PATCH 1/2] nfs: writeback pages wait queue
+Message-ID: <20111020035918.GA26746@localhost>
 References: <20111003134228.090592370@intel.com>
+ <1318248846.14400.21.camel@laptop>
+ <20111010130722.GA11387@localhost>
+ <20111010131051.GA16847@localhost>
+ <20111018085147.GA27805@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111003134228.090592370@intel.com>
+In-Reply-To: <20111018085147.GA27805@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-FYI, a simple sequential write comparison between the common filesystems.
+> @@ -424,6 +419,10 @@ int nfs_writepages(struct address_space 
+>  	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
+>  	nfs_pageio_complete(&pgio);
+>  
+> +	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
+> +			   &nfss->backing_dev_info,
+> +			   nfss->writeback_wait);
+> +
+>  	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
+>  	smp_mb__after_clear_bit();
+>  	wake_up_bit(bitlock, NFS_INO_FLUSHING);
 
-For a newly created filesystem, btrfs is super fast!  The interesting thing is,
-btrfs performs best in the dirty_thresh=100M cases, rather than the 1G/8G cases.
+The "wakeup NFS_INO_FLUSHING after congestion wait" logic looks
+strange, so I tried moving the nfs_wait_congested() _after_
+wake_up_bit()...and got write_bw regressions.
 
-btrfs also performs equally well in the 1dd, 2dd, 10dd, 100dd cases. However
-the tests are blind to the possibility of long term fragmentation.
+OK, not knowing what's going on underneath, I'll just stick to the current form.
 
-                   btrfs                      ext3                      ext4                       xfs  
-------------------------  ------------------------  ------------------------  ------------------------  
-                   56.55       -45.8%        30.66       -10.8%        50.42       -26.1%        41.76  thresh=1G/X-100dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6a+
-                   56.11       -37.2%        35.24        +0.2%        56.23       -13.9%        48.34  thresh=1G/X-10dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6a+
-                   56.21       -22.5%        43.58        +3.4%        58.12        -6.9%        52.36  thresh=1G/X-1dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6a+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+  
+------------------------  ------------------------  
+                  417.26        -5.5%       394.24  TOTAL write_bw
+                 5179.00       -12.6%      4529.00  TOTAL nfs_nr_commits
+               340466.00       -37.2%    213939.00  TOTAL nfs_nr_writes
+                  722.54       +17.6%       849.42  TOTAL nfs_commit_size
+                    3.75        +6.3%         3.99  TOTAL nfs_write_size
+                15477.38       -14.5%     13235.34  TOTAL nfs_write_queue_time
+                  517.54       +13.0%       585.00  TOTAL nfs_write_rtt_time
+                16011.09       -13.5%     13848.09  TOTAL nfs_write_execute_time
+                  714.65       -43.4%       404.65  TOTAL nfs_commit_queue_time
+                12787.93        +9.2%     13960.35  TOTAL nfs_commit_rtt_time
+                13519.94        +6.4%     14387.44  TOTAL nfs_commit_execute_time
 
-                   58.23       -35.9%        37.34       -20.2%        46.45       -23.5%        44.53  thresh=100M/X-10dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6a+
-                   58.43       -23.9%        44.44        -3.1%        56.60        -4.4%        55.89  thresh=100M/X-1dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6a+
-                   58.53       -28.7%        41.70        -7.5%        54.14       -12.7%        51.11  thresh=100M/X-2dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6a+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                   44.42        -0.8%        44.05  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   78.49        -8.0%        72.22  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   69.96        -2.4%        68.30  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                   70.59        -3.8%        67.88  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   76.76        -8.7%        70.09  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                   77.04        -6.9%        71.70  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  417.26        -5.5%       394.24  TOTAL write_bw
 
-                   54.37       -40.8%        32.21       -34.6%        35.58       -42.9%        31.07  thresh=8M/X-10dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6a+
-                   56.12       -19.1%        45.37        +0.5%        56.39        -1.2%        55.44  thresh=8M/X-1dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6a+
-                   56.22       -22.3%        43.71        -8.8%        51.26       -15.4%        47.59  thresh=8M/X-2dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6a+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                 2683.00        -1.8%      2634.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  811.00       -43.8%       456.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                 1049.00       -16.7%       874.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  474.00        -8.4%       434.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   56.00       -23.2%        43.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                  106.00       -17.0%        88.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                 5179.00       -12.6%      4529.00  TOTAL nfs_nr_commits
 
-                  510.77       -30.6%       354.27        -8.9%       465.19       -16.2%       428.07  TOTAL write_bw
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                17641.00        -2.2%     17257.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+               177296.00       -54.1%     81335.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                26346.00       +41.6%     37309.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                22279.00       +12.7%     25107.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                67612.00       -59.7%     27271.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                29292.00       -12.4%     25660.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+               340466.00       -37.2%    213939.00  TOTAL nfs_nr_writes
 
-Below is a more extensive run on virtually the same kernel.
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                    4.97        +1.1%         5.03  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   29.00       +63.5%        47.43  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   19.99       +17.0%        23.40  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                   44.66        +5.3%        47.03  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                  408.94       +18.6%       485.03  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                  214.96       +12.3%       241.50  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  722.54       +17.6%       849.42  TOTAL nfs_commit_size
 
-In the thresh=8G case, ext4 performs noticeably better than others,
-and the number of dd tasks is no longer relevant with big enough memory.
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                    0.76        +1.5%         0.77  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                    0.13      +100.4%         0.27  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                    0.80       -31.1%         0.55  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                    0.95       -14.4%         0.81  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                    0.34      +125.8%         0.76  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                    0.78        +6.5%         0.83  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                    3.75        +6.3%         3.99  TOTAL nfs_write_size
 
-                   btrfs                      ext3                      ext4                       xfs  
-------------------------  ------------------------  ------------------------  ------------------------  
-                   92.89       -28.6%        66.36        +7.8%       100.10        -2.7%        90.41  thresh=8G/X-100dd-1M-32p-32768M-8192M:10-3.1.0-rc8-ioless6+
-                   89.69       -19.7%        72.00       +18.7%       106.42        +2.2%        91.67  thresh=8G/X-10dd-1M-32p-32768M-8192M:10-3.1.0-rc8-ioless6+
-                   92.26       -18.7%        75.01       +16.3%       107.26        +1.4%        93.51  thresh=8G/X-1dd-1M-32p-32768M-8192M:10-3.1.0-rc8-ioless6+
-                   89.96       -16.8%        74.87       +20.7%       108.62        +3.1%        92.76  thresh=8G/X-2dd-1M-32p-32768M-8192M:10-3.1.0-rc8-ioless6+
-note: the above 8G cases run on another test box!
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                  460.14       -29.9%       322.63  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  718.69       +68.2%      1208.67  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                 5203.60       -26.1%      3843.39  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  427.40       +93.4%       826.64  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 7369.68       -18.0%      6041.98  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 1297.87       -23.6%       992.02  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                15477.38       -14.5%     13235.34  TOTAL nfs_write_queue_time
 
-                   60.29       -47.0%        31.96       -14.6%        51.47       -27.9%        43.44  thresh=1G/X-100dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6+
-                   58.80       -38.5%        36.19        -4.4%        56.19       -15.3%        49.83  thresh=1G/X-10dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6+
-                   58.53       -23.1%        45.03        -0.2%        58.41       -10.0%        52.70  thresh=1G/X-1dd-4k-8p-4096M-1024M:10-3.1.0-rc8-ioless6+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                  134.58        -8.9%       122.60  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                   33.24       +48.8%        49.46  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                   89.69       -19.4%        72.31  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  129.86       -35.3%        84.03  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                   48.33      +239.4%       164.05  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                   81.84       +13.1%        92.55  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  517.54       +13.0%       585.00  TOTAL nfs_write_rtt_time
 
-                   58.01       -35.0%        37.69        -4.1%        55.62       -12.4%        50.82  thresh=400M-300M/X-10dd-4k-8p-4096M-400M:300M-3.1.0-rc8-ioless6+
-                   57.69       -26.0%        42.69        +1.8%        58.71        -2.4%        56.33  thresh=400M-300M/X-1dd-4k-8p-4096M-400M:300M-3.1.0-rc8-ioless6+
-                   57.13       -32.4%        38.63        +2.5%        58.58        -6.8%        53.27  thresh=400M-300M/X-2dd-4k-8p-4096M-400M:300M-3.1.0-rc8-ioless6+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                  595.23       -25.1%       445.75  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  753.68       +67.4%      1261.46  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                 5294.55       -26.0%      3917.11  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                  559.44       +63.1%       912.46  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 7424.41       -16.2%      6221.64  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 1383.78       -21.3%      1089.67  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                16011.09       -13.5%     13848.09  TOTAL nfs_write_execute_time
 
-                   56.97       -33.3%        38.01        -3.2%        55.14        -9.3%        51.67  thresh=400M/X-10dd-4k-8p-4096M-400M:10-3.1.0-rc8-ioless6+
-                   57.78       -22.3%        44.90        +0.6%        58.14        -0.7%        57.35  thresh=400M/X-1dd-4k-8p-4096M-400M:10-3.1.0-rc8-ioless6+
-                   56.12       -27.3%        40.81        +2.4%        57.49        -4.9%        53.36  thresh=400M/X-2dd-4k-8p-4096M-400M:10-3.1.0-rc8-ioless6+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                    2.34        +2.5%         2.40  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                    1.59      +488.4%         9.37  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                    2.63       +47.0%         3.86  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                   68.22        -6.5%        63.78  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                  618.34       -52.9%       291.44  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                   21.54       +56.9%        33.80  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                  714.65       -43.4%       404.65  TOTAL nfs_commit_queue_time
 
-                   59.39       -36.0%        38.02       -20.0%        47.50       -24.4%        44.89  thresh=100M/X-10dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6+
-                   58.68       -23.0%        45.20        -0.9%        58.18        -1.1%        58.06  thresh=100M/X-1dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6+
-                   58.92       -27.9%        42.50        -5.3%        55.79       -11.8%        51.94  thresh=100M/X-2dd-4k-8p-4096M-100M:10-3.1.0-rc8-ioless6+
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                  766.76        +1.7%       779.63  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  344.34       +49.3%       514.10  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                  431.90       +15.0%       496.81  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                 3743.78        +5.6%      3954.60  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 3699.59       +14.0%      4216.05  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 3801.55        +5.2%      3999.17  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                12787.93        +9.2%     13960.35  TOTAL nfs_commit_rtt_time
 
-                   57.12       -41.1%        33.63       -36.0%        36.58       -43.6%        32.19  thresh=8M/X-10dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6+
-                   59.29       -18.5%        48.30        -3.3%        57.35        -5.8%        55.86  thresh=8M/X-1dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6+
-                   59.23       -21.0%        46.77       -10.8%        52.82       -17.3%        48.96  thresh=8M/X-2dd-4k-8p-4096M-8M:10-3.1.0-rc8-ioless6+
-
-                 1238.75       -27.5%       898.56        +0.1%      1240.38        -8.9%      1129.01  TOTAL write_bw
+3.1.0-rc9-ioless-full-nfs-ino-flushing-next-20111014+  3.1.0-rc9-ioless-full-nfs-wakeup-wait-next-20111014+
+------------------------  ------------------------
+                  769.38        +1.7%       782.27  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
+                  346.06       +51.3%       523.52  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
+                  434.96       +15.2%       501.07  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
+                 3813.17        +5.4%      4020.45  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
+                 4318.75        +4.4%      4507.51  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
+                 3837.62        +5.6%      4052.61  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
+                13519.94        +6.4%     14387.44  TOTAL nfs_commit_execute_time
 
 Thanks,
 Fengguang
