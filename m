@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 64E166B0031
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 17:58:51 -0400 (EDT)
-Date: Wed, 19 Oct 2011 23:54:02 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 14/X] uprobes: uprobe_deny_signal: check
-	__fatal_signal_pending()
-Message-ID: <20111019215402.GH16395@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 81B4C6B002D
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 20:39:40 -0400 (EDT)
+Received: by yxs7 with SMTP id 7so2994249yxs.14
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 17:39:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111019215139.GA16395@redhat.com>
+Date: Wed, 19 Oct 2011 17:39:37 -0700
+Message-ID: <CALCETrXbPWsgaZmsvHZGEX-CxB579tG+zusXiYhR-13RcEnGvQ@mail.gmail.com>
+Subject: Latency writing to an mlocked ext4 mapping
+From: Andy Lutomirski <luto@amacapital.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-Change uprobe_deny_signal() to check __fatal_signal_pending() along with
-xol_was_trapped().
+I have a real-time program that has everything mlocked (i.e.
+mlockall(MCL_CURRENT | MCL_FUTURE)).  It has some log files opened for
+writing.  Those files are opened and memset to zero in another thread
+to fault everything in.  The system is under light I/O load with very
+little memory pressure.
 
-Normally this is not really needed but this is safer. And this makes more
-clear the fact that even SIGKILL is handled via UTASK_SSTEP_TRAPPED. Once
-again, SIGKILL can be pending because of the core-dumping, we should not
-exit with regs->ip pointing to ->xol_vaddr.
----
- kernel/uprobes.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Latencytop shows frequent latency in the real-time threads.  The main
+offenders are:
 
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index aa5492a..9e9d4e4 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -1335,7 +1335,7 @@ bool uprobe_deny_signal(void)
- 		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
- 		spin_unlock_irq(&tsk->sighand->siglock);
- 
--		if (xol_was_trapped(tsk)) {
-+		if (__fatal_signal_pending(tsk) || xol_was_trapped(tsk)) {
- 			utask->state = UTASK_SSTEP_TRAPPED;
- 			set_tsk_thread_flag(tsk, TIF_UPROBE);
- 			set_tsk_thread_flag(tsk, TIF_NOTIFY_RESUME);
+schedule sleep_on_page wait_on_page_bit ext4_page_mkwrite do_wp_page
+handle_pte_fault handle_mm_fault do_page_fault page_fault
+
+schedule do_get_write_access jbd2_journal_get_write_access
+__ext4_journal_get_write_access ext4_reserve_inode_write
+ext4_mark_inode_dirty ext4_dirty_inode __mark_inode_dirty
+file_update_time do_wp_page handle_pte_fault handle_mm_fault
+
+
+I imagine the problem is that the system is periodically writing out
+my dirty pages and marking them clean (and hence write protected).
+When I try to write to them, the kernel makes them writable again,
+which causes latency either due to updating the inode mtime or because
+the file is being written to disk when I try to write to it.
+
+Is there any way to prevent this?  One possibility would be a way to
+ask the kernel not to write the file out to disk.  Another would be a
+way to ask the kernel to make a copy of the file when it writes it
+disk and leave the original mapping writable.
+
+Obviously I can fix this by mapping anonymous memory, but then I need
+another thread to periodically write my logs out to disk, and if that
+crashes, I lose data.
+
 -- 
-1.5.5.1
-
+Andy Lutomirski
+AMA Capital Management, LLC
+Office: (310) 553-5322
+Mobile: (650) 906-0647
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
