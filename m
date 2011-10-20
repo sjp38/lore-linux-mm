@@ -1,69 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 823366B002D
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 04:56:23 -0400 (EDT)
-Message-ID: <4E9FE1FC.8080103@parallels.com>
-Date: Thu, 20 Oct 2011 12:55:24 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [RFD] Isolated memory cgroups again
-References: <20111020013305.GD21703@tiehlicka.suse.cz>
-In-Reply-To: <20111020013305.GD21703@tiehlicka.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 596B76B002D
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 05:00:49 -0400 (EDT)
+Date: Thu, 20 Oct 2011 04:59:33 -0400 (EDT)
+Message-Id: <20111020.045933.1246070642138310107.davem@davemloft.net>
+Subject: Re: [PATCH] mm: add a "struct page_frag" type containing a page,
+ offset and length
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1318927778.16132.52.camel@zakaz.uk.xensource.com>
+References: <20111013142201.355f9afc.akpm@linux-foundation.org>
+	<1318575363.11016.8.camel@dagon.hellion.org.uk>
+	<1318927778.16132.52.camel@zakaz.uk.xensource.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Ian.Campbell@citrix.com
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org, hch@infradead.org, jaxboe@fusionio.com, linux-mm@kvack.org
 
-On 10/20/2011 05:33 AM, Michal Hocko wrote:
-> Hi all,
-> this is a request for discussion (I hope we can touch this during memcg
-> meeting during the upcoming KS). I have brought this up earlier this
-> year before LSF (http://thread.gmane.org/gmane.linux.kernel.mm/60464).
-> The patch got much smaller since then due to excellent Johannes' memcg
-> naturalization work (http://thread.gmane.org/gmane.linux.kernel.mm/68724)
-> which this is based on.
-> I realize that this will be controversial but I would like to hear
-> whether this is strictly no-go or whether we can go that direction (the
-> implementation might differ of course).
->
-> The patch is still half baked but I guess it should be sufficient to
-> show what I am trying to achieve.
-> The basic idea is that memcgs would get a new attribute (isolated) which
-> would control whether that group should be considered during global
-> reclaim.
+From: Ian Campbell <Ian.Campbell@citrix.com>
+Date: Tue, 18 Oct 2011 09:49:38 +0100
 
-I'd like to hear a bit more of your use cases, but at first, I don't 
-like it. I think we should always, regardless of any knobs or 
-definitions, be able to globally select a task or set of tasks, and kill 
-them.
+> Subject: [PATCH] mm: add a "struct page_frag" type containing a page, offset and length
+> 
+> A few network drivers currently use skb_frag_struct for this purpose but I have
+> patches which add additional fields and semantics there which these other uses
+> do not want.
+> 
+> A structure for reference sub-page regions seems like a generally useful thing
+> so do so instead of adding a network subsystem specific structure.
+> 
+> Signed-off-by: Ian Campbell <ian.campbell@citrix.com>
+> Acked-by: Jens Axboe <jaxboe@fusionio.com>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-We have a slightly similar need here (we'd have to find out how 
-similar...). We're working on it as well, but no patches yet (very 
-basic) Let me describe it so we can see if it fits.
+Applied, thanks Ian.
 
-The main concern is with OOM behaviour of tasks within a cgroup. We'd 
-like to be able to, in a per-cgroup basis:
+Please respin your skbfrag patches.
 
-* select how "important" a group is. OOM should try to kill less 
-important memory hogs first (but note: it's less important *memory 
-hogs*, not ordinary processes, and all of them are actually considered)
-* select if a fat task within a group should be OOMed, or if the whole 
-group should go.
-* assuming an hierarchical grouping, select if we should kill children 
-first
-* assuming an hierarchical grouping, select if we should kill children 
-at all.
-
-This is a broader work, but I am under the impression that you should 
-also be able to contemplate your needs (at least the OOM part) with such 
-mechanism, by setting arbitrarily high limits on certain cgroups.
-
-Of course it might be the case that I am not yet fully understanding 
-your scenario. In this case, I'm all ears!
-
-Thank you.
+Thanks again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
