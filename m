@@ -1,157 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7239F6B002D
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 05:11:30 -0400 (EDT)
-Received: by vws16 with SMTP id 16so2614483vws.14
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2011 02:11:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20111016235442.GB25266@redhat.com>
-References: <201110122012.33767.pluto@agmk.net>
-	<alpine.LSU.2.00.1110131547550.1346@sister.anvils>
-	<alpine.LSU.2.00.1110131629530.1410@sister.anvils>
-	<20111016235442.GB25266@redhat.com>
-Date: Thu, 20 Oct 2011 17:11:28 +0800
-Message-ID: <CAPQyPG69WePwar+k0nhwfdW7vv7FjqJBYwKfYm7n5qaPwS-WgQ@mail.gmail.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D53756B002D
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 05:23:43 -0400 (EDT)
+Date: Thu, 20 Oct 2011 05:23:33 -0400 (EDT)
+Message-Id: <20111020.052333.865812021350188883.davem@davemloft.net>
+Subject: Re: [PATCH 0/6] skb fragment API: convert network drivers (part V,
+ take 2)
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1319101275.3385.129.camel@zakaz.uk.xensource.com>
+References: <1319101275.3385.129.camel@zakaz.uk.xensource.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Ian.Campbell@citrix.com
+Cc: netdev@vger.kernel.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-Hi Andrea,
+From: Ian Campbell <Ian.Campbell@citrix.com>
+Date: Thu, 20 Oct 2011 10:01:15 +0100
 
-On Mon, Oct 17, 2011 at 7:54 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
-te:
-> On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
->> mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
->> and pagetable locks, were good enough before page migration (with its
->> requirement that every migration entry be found) came in; and enough
->> while migration always held mmap_sem. =A0But not enough nowadays, when
->> there's memory hotremove and compaction: anon_vma lock is also needed,
->> to make sure a migration entry is not dodging around behind our back.
->
-> For things like migrate and split_huge_page, the anon_vma layer must
-> guarantee the page is reachable by rmap walk at all times regardless
-> if it's at the old or new address.
->
-> This shall be guaranteed by the copy_vma called by move_vma well
-> before move_page_tables/move_ptes can run.
->
-> copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
-> into the anon_vma chains structures (vma_link does that). That before
-> any pte can be moved.
->
-> Because we keep two vmas mapped on both src and dst range, with
-> different vma->vm_pgoff that is valid for the page (the page doesn't
-> change its page->index) the page should always find _all_ its pte at
-> any given time.
->
-> There may be other variables at play like the order of insertion in
-> the anon_vma chain matches our direction of copy and removal of the
-> old pte. But I think the double locking of the PT lock should make the
-> order in the anon_vma chain absolutely irrelevant (the rmap_walk
-> obviously takes the PT lock too), and furthermore likely the
-> anon_vma_chain insertion is favorable (the dst vma is inserted last
-> and checked last). But it shouldn't matter.
+> The following series is the second attempt to convert a fifth (and
+> hopefully final) batch of network drivers to the SKB pages fragment API
+> introduced in 131ea6675c76.
 
-I happened to be reading these code last week.
-
-And I do think this order matters, the reason is just quite similar why we
-need i_mmap_lock in move_ptes():
-If rmap_walk goes dst--->src, then when it first look into dst, ok, the
-pte is not there, and it happily skip it and release the PTL.
-Then just before it look into src, move_ptes() comes in, takes the locks
-and moves the pte from src to dst. And then when rmap_walk() look
-into src,  it will find an empty pte again. The pte is still there,
-but rmap_walk() missed it !
-
-IMO, this can really happen in case of vma_merge() succeeding.
-Imagine that src vma is lately faulted and in anon_vma_prepare()
-it got a same anon_vma with an existing vma ( named evil_vma )through
-find_mergeable_anon_vma().  This can potentially make the vma_merge() in
-copy_vma() return with evil_vma on some new relocation request. But src_vma
-is really linked _after_  evil_vma/new_vma/dst_vma.
-In this way, the ordering protocol  of anon_vma chain is broken.
-This should be a rare case because I think in most cases
-if two VMAs can reusable_anon_vma() they were already merged.
-
-How do you think  ?
-
-And If my reasoning is sound and this bug is really triggered by it
-Hugh's first patch should be the right fix :)
-
-
-Regards,
-
-Nai Xia
-
->
-> Another thing could be the copy_vma vma_merge branch succeeding
-> (returning not NULL) but I doubt we risk to fall into that one. For
-> the rmap_walk to be always working on both the src and dst
-> vma->vma_pgoff the pgoff must be different so we can't possibly be ok
-> if there's just 1 vma covering the whole range. I exclude this could
-> be the case because the pgoff passed to copy_vma is different than the
-> vma->vm_pgoff given to copy_vma, so vma_merge can't possibly succeed.
->
-> Yet another point to investigate is the point where we teardown the
-> old vma and we leave the new vma generated by copy_vma
-> established. That's apparently taken care of by do_munmap in move_vma
-> so that shall be safe too as munmap is safe in the first place.
->
-> Overall I don't think this patch is needed and it seems a noop.
->
->> It appears that Mel's a8bef8ff6ea1 "mm: migration: avoid race between
->> shift_arg_pages() and rmap_walk() during migration by not migrating
->> temporary stacks" was actually a workaround for this in the special
->> common case of exec's use of move_pagetables(); and we should probably
->> now remove that VM_STACK_INCOMPLETE_SETUP stuff as a separate cleanup.
->
-> I don't think this patch can help with that, the problem of execve vs
-> rmap_walk is that there's 1 single vma existing for src and dst
-> virtual ranges while execve runs move_page_tables. So there is no
-> possible way that rmap_walk will be guaranteed to find _all_ ptes
-> mapping a page if there's just one vma mapping either the src or dst
-> range while move_page_table runs. No addition of locking whatsoever
-> can fix that bug because we miss a vma (well modulo locking that
-> prevents rmap_walk to run at all, until we're finished with execve,
-> which is more or less what VM_STACK_INCOMPLETE_SETUP does...).
->
-> The only way is to fix this is prevent migrate (or any other rmap_walk
-> user that requires 100% reliability from the rmap layer, for example
-> swap doesn't require 100% reliability and can still run and gracefully
-> fail at finding the pte) while we're moving pagetables in execve. And
-> that's what Mel's above mentioned patch does.
->
-> The other way to fix that bug that I implemented was to do copy_vma in
-> execve, so that we still have both src and dst ranges of
-> move_page_tables covered by 2 (not 1) vma, each with the proper
-> vma->vm_pgoff, so my approach fixed that bug as well (but requires a
-> vma allocation in execve so it was dropped in favor of Mel's patch
-> which is totally fine with as both approaches fixes the bug equally
-> well, even if now we've to deal with this special case of sometime
-> rmap_walk having false negatives if the vma_flags is set, and the
-> important thing is that after VM_STACK_INCOMPLETE_SETUP has been
-> cleared it won't ever be set again for the whole lifetime of the vma).
->
-> I may be missing something, I did a short review so far, just so the
-> patch doesn't get merged if not needed. I mean I think it needs a bit
-> more looks on it... The fact the i_mmap_mutex was taken but the
-> anon_vma lock was not taken (while in every other place they both are
-> needed) certainly makes the patch look correct, but that's just a
-> misleading coincidence I think.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Applied, thanks Ian.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
