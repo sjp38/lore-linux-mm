@@ -1,219 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B306B002D
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 12:05:54 -0400 (EDT)
-Date: Fri, 21 Oct 2011 00:05:30 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/2] nfs: writeback pages wait queue
-Message-ID: <20111020160530.GC7054@localhost>
-References: <20111020155542.GA7054@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5D06B002C
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2011 12:30:24 -0400 (EDT)
+Date: Thu, 20 Oct 2011 09:30:09 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFD] Isolated memory cgroups again
+Message-ID: <20111020163009.GB25505@tiehlicka.suse.cz>
+References: <20111020013305.GD21703@tiehlicka.suse.cz>
+ <20111020105950.fd04f58f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111020155542.GA7054@localhost>
+In-Reply-To: <20111020105950.fd04f58f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-Trond,
+On Thu 20-10-11 10:59:50, KAMEZAWA Hiroyuki wrote:
+> On Wed, 19 Oct 2011 18:33:09 -0700
+> Michal Hocko <mhocko@suse.cz> wrote:
+[...]
+> > I realize that this will be controversial but I would like to hear
+> > whether this is strictly no-go or whether we can go that direction (the
+> > implementation might differ of course).
+> > 
+> > The patch is still half baked but I guess it should be sufficient to
+> > show what I am trying to achieve.
+> > The basic idea is that memcgs would get a new attribute (isolated) which
+> > would control whether that group should be considered during global
+> > reclaim.
+> > This means that we could achieve a certain memory isolation for
+> > processes in the group from the rest of the system activity which has
+> > been traditionally done by mlocking the important parts of memory.
+> > This approach, however, has some advantages. First of all, it is a kind
+> > of all or nothing type of approach. Either the memory is important and
+> > mlocked or you have no guarantee that it keeps resident. 
+> > Secondly it is much more prone to OOM situation.
+> > Let's consider a case where a memory is evictable in theory but you
+> > would pay quite much if you have to get it back resident (pre calculated
+> > data from database - e.g. reports). The memory wouldn't be used very
+> > often so it would be a number one candidate to evict after some time.
+> > We would want to have something like a clever mlock in such a case which
+> > would evict that memory only if the cgroup itself gets under memory
+> > pressure (e.g. peak workload). This is not hard to do if we are not
+> > over committing the memory but things get tricky otherwise.
+> > With the isolated memcgs we get exactly such a guarantee because we would
+> > reclaim such a memory only from the hard limit reclaim paths or if the
+> > soft limit reclaim if it is set up.
+> > 
+> > Any thoughts comments?
+> > 
+> 
+> I can only say
+>  - it can be implemented in a clean way.
+>  - maybe customers wants it.
+>  - This kinds of "mlock" can be harmful and make system admin difficult.
 
-After applying these two patches, the IO-less patchset performances
-45% better than the vanilla kernel and the average commit size only
-decreases by -16% in the common NFS-thresh=1G/nfs-1dd case :)
+It is usually admin who sets up control groups and their attributes.
 
-Thanks,
-Fengguang
+>  - I'm not sure there will be a chance for security issue, DOS attack.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                  354.65       +45.4%       515.48  TOTAL write_bw
-                10498.00       +91.7%     20120.00  TOTAL nfs_nr_commits
-               233013.00       +99.9%    465751.00  TOTAL nfs_nr_writes
-                  895.47        +3.1%       923.62  TOTAL nfs_commit_size
-                    5.71       -14.5%         4.88  TOTAL nfs_write_size
-               108269.33       -84.3%     17003.69  TOTAL nfs_write_queue_time
-                 1836.03       -34.4%      1204.27  TOTAL nfs_write_rtt_time
-               110144.96       -83.5%     18220.96  TOTAL nfs_write_execute_time
-                 2902.62       -88.6%       332.20  TOTAL nfs_commit_queue_time
-                16282.75       -23.3%     12490.87  TOTAL nfs_commit_rtt_time
-                19234.16       -33.3%     12833.00  TOTAL nfs_commit_execute_time
+It depends what you consider by the DOS attack. In scenarios I have in
+mind it is usually the important workload that is isolated which means
+that the feature helps preventing DOS attack on it.
+If you are more thinking about the rest (not isolated groups) then yes,
+there will be a bigger pressure on them. This is something that has to
+be considered when the system is set up.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                   21.85       +97.9%        43.23  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                   51.38       +42.6%        73.26  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                   28.81      +145.3%        70.68  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                   13.74       +57.1%        21.59  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                   29.11        -0.3%        29.02  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                   16.68       +90.5%        31.78  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                   48.88       +41.2%        69.01  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                   57.85       +32.7%        76.74  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                   47.13       +63.1%        76.87  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                    9.82       -33.0%         6.58  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                   13.72       -18.1%        11.24  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                   15.68       -65.0%         5.48  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                  354.65       +45.4%       515.48  TOTAL write_bw
+> 
+> Hmm...if the number of isolated pages can be shown in /proc/meminfo,
+> I'll not have strong NACK.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                  834.00      +224.2%      2704.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                  311.00      +144.1%       759.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                  282.00      +253.5%       997.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                 1387.00      +334.2%      6023.00  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                 1081.00      +280.3%      4111.00  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                  930.00      +368.0%      4352.00  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                  254.00      +108.7%       530.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                   38.00       +55.3%        59.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                   54.00       +96.3%       106.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                 1321.00       -74.9%       332.00  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                 1932.00       -99.1%        17.00  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                 2074.00       -93.7%       130.00  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                10498.00       +91.7%     20120.00  TOTAL nfs_nr_commits
+This will be trivial to implement.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                28359.00       -39.2%     17230.00  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                22241.00      +550.6%    144695.00  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                24969.00       +27.8%     31900.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                21722.00       +38.2%     30030.00  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                11015.00       +28.2%     14117.00  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                17012.00      +217.7%     54039.00  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                25616.00        +3.1%     26403.00  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                24761.00      +177.5%     68702.00  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                29235.00       +37.1%     40089.00  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                12929.00       +21.6%     15720.00  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                 7683.00       +24.2%      9542.00  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                 7471.00       +77.8%     13284.00  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-               233013.00       +99.9%    465751.00  TOTAL nfs_nr_writes
+> 
+> But I personally think we should make softlimit better rather than
+> adding new interface. If this feature can be archieved when setting
+> softlimit=UNLIMITED, it's simple. And Johannes' work will make this
+> easy to be implemented.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                    7.84       -38.6%         4.81  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                   49.58       -41.6%        28.94  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                   30.58       -30.5%        21.27  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                    2.99       -63.9%         1.08  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                    8.06       -73.8%         2.12  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                    5.33       -58.9%         2.19  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                   57.68       -32.1%        39.15  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                  465.15       -16.5%       388.43  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                  261.60       -16.4%       218.80  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                    2.25      +163.5%         5.93  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                    2.13     +9221.2%       198.29  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                    2.27      +455.3%        12.61  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                  895.47        +3.1%       923.62  TOTAL nfs_commit_size
+As I already said. I am not insisting on the implementation. I just
+consider isolation important and we have several customers who need
+this. If this can be done by the soft limit reclaim only I will not
+object for sure. Configuration would need to be careful in both cases
+anyway.
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                    0.23      +227.7%         0.76  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                    0.69       -78.1%         0.15  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                    0.35       +92.4%         0.66  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                    0.19       +13.4%         0.22  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                    0.79       -22.2%         0.62  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                    0.29       -39.5%         0.18  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                    0.57       +37.4%         0.79  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                    0.71       -53.3%         0.33  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                    0.48       +19.7%         0.58  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                    0.23       -45.5%         0.13  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                    0.53       -34.0%         0.35  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                    0.63       -80.4%         0.12  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                    5.71       -14.5%         4.88  TOTAL nfs_write_size
+> (total rewrite of softlimit should be required...I think.)
+> 
+> Thanks,
+> -Kame
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                 6544.25       -95.1%       321.04  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                 1064.82       +11.2%      1184.16  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                22801.48       -86.3%      3113.39  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                 1083.47       -99.8%         2.56  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                    3.82       -55.8%         1.69  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                 2840.08       -99.3%        20.09  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                20227.73       -96.6%       683.65  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                 2346.04      +274.0%      8774.87  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                50812.68       -94.3%      2901.88  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                  417.03       -99.9%         0.25  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                    1.70       -97.9%         0.04  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                  126.23       -99.9%         0.08  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-               108269.33       -84.3%     17003.69  TOTAL nfs_write_queue_time
+Thanks
 
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                  276.99       -41.1%       163.20  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                  106.71       -67.0%        35.21  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                   76.32       +13.4%        86.53  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                  335.96       -41.8%       195.49  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                   33.67       +70.7%        57.48  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                  159.03       -46.0%        85.80  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                  340.25       -67.6%       110.23  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                   47.88       +12.7%        53.96  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                  118.13       -53.8%        54.62  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                  223.24       -53.0%       104.83  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                   58.89       +12.8%        66.43  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                   58.97      +223.0%       190.49  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                 1836.03       -34.4%      1204.27  TOTAL nfs_write_rtt_time
-
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                 6821.43       -92.9%       484.70  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                 1173.98        +4.0%      1220.80  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                22878.44       -86.0%      3201.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                 1419.50       -86.0%       198.20  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                   37.72       +57.1%        59.27  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                 2999.22       -96.5%       106.41  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                20570.86       -96.1%       795.46  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                 2416.09      +265.6%      8832.81  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                50941.27       -94.2%      2960.10  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                  640.32       -83.6%       105.13  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                   60.78        +9.4%        66.49  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                  185.35        +2.8%       190.59  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-               110144.96       -83.5%     18220.96  TOTAL nfs_write_execute_time
-
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                   54.75       -89.4%         5.82  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                   88.26       -98.7%         1.12  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                   38.41       -92.1%         3.05  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                    7.59       -91.0%         0.68  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                    0.42       -93.3%         0.03  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                    2.57       -75.1%         0.64  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                  784.08       -93.8%        48.69  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                 1338.39       -81.4%       248.51  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                  586.69       -96.0%        23.32  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                    1.27       -84.3%         0.20  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                    0.02      +147.1%         0.06  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                    0.16       -41.3%         0.09  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                 2902.62       -88.6%       332.20  TOTAL nfs_commit_queue_time
-
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                  702.80        +8.2%       760.66  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                  538.99       -35.8%       346.08  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                  704.42       -37.1%       443.00  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                  228.96       -18.4%       186.78  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                  155.88       -54.6%        70.75  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                  169.51       -28.9%       120.53  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                 3791.44       -11.4%      3361.05  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                 4229.79       -17.8%      3476.80  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                 5534.04       -35.4%      3574.73  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                   96.34       -31.4%        66.11  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                   60.95       -35.5%        39.29  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                   69.64       -35.3%        45.08  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                16282.75       -23.3%     12490.87  TOTAL nfs_commit_rtt_time
-
-      3.1.0-rc8-vanilla+        3.1.0-rc8-nfs-wq4+
-------------------------  ------------------------
-                  757.92        +1.2%       766.73  NFS-thresh=100M/nfs-10dd-4k-32p-32768M-100M:10-X
-                  627.36       -44.6%       347.25  NFS-thresh=100M/nfs-1dd-4k-32p-32768M-100M:10-X
-                  743.59       -40.0%       446.39  NFS-thresh=100M/nfs-2dd-4k-32p-32768M-100M:10-X
-                  236.73       -20.8%       187.57  NFS-thresh=10M/nfs-10dd-4k-32p-32768M-10M:10-X
-                  156.31       -54.7%        70.79  NFS-thresh=10M/nfs-1dd-4k-32p-32768M-10M:10-X
-                  172.16       -29.6%       121.26  NFS-thresh=10M/nfs-2dd-4k-32p-32768M-10M:10-X
-                 4579.56       -25.5%      3411.34  NFS-thresh=1G/nfs-10dd-4k-32p-32768M-1024M:10-X
-                 5568.53       -33.1%      3725.49  NFS-thresh=1G/nfs-1dd-4k-32p-32768M-1024M:10-X
-                 6163.54       -41.5%      3605.27  NFS-thresh=1G/nfs-2dd-4k-32p-32768M-1024M:10-X
-                   97.67       -32.1%        66.35  NFS-thresh=1M/nfs-10dd-4k-32p-32768M-1M:10-X
-                   60.99       -35.5%        39.35  NFS-thresh=1M/nfs-1dd-4k-32p-32768M-1M:10-X
-                   69.82       -35.3%        45.20  NFS-thresh=1M/nfs-2dd-4k-32p-32768M-1M:10-X
-                19234.16       -33.3%     12833.00  TOTAL nfs_commit_execute_time
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
