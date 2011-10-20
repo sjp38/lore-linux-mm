@@ -1,99 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BBACC6B002F
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 21:16:01 -0400 (EDT)
-Received: by gyf3 with SMTP id 3so3020105gyf.14
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2011 18:15:59 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D05D76B002D
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2011 21:33:23 -0400 (EDT)
+Date: Wed, 19 Oct 2011 18:33:09 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFD] Isolated memory cgroups again
+Message-ID: <20111020013305.GD21703@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <ACE78D84-0E94-4E7A-99BF-C20583018697@dilger.ca>
-References: <CALCETrXbPWsgaZmsvHZGEX-CxB579tG+zusXiYhR-13RcEnGvQ@mail.gmail.com>
-	<ACE78D84-0E94-4E7A-99BF-C20583018697@dilger.ca>
-Date: Wed, 19 Oct 2011 18:15:59 -0700
-Message-ID: <CALCETrU23vyCXPG6mJU9qaPeAGOWDQtur5C+LRT154V5FM=Ajg@mail.gmail.com>
-Subject: Re: Latency writing to an mlocked ext4 mapping
-From: Andy Lutomirski <luto@amacapital.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger@dilger.ca>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-On Wed, Oct 19, 2011 at 6:02 PM, Andreas Dilger <adilger@dilger.ca> wrote:
-> What kernel are you using? =A0A change to keep pages consistent during wr=
-iteout was landed not too long ago (maybe Linux 3.0) in order to allow chec=
-ksumming of the data.
+Hi all,
+this is a request for discussion (I hope we can touch this during memcg
+meeting during the upcoming KS). I have brought this up earlier this
+year before LSF (http://thread.gmane.org/gmane.linux.kernel.mm/60464).
+The patch got much smaller since then due to excellent Johannes' memcg
+naturalization work (http://thread.gmane.org/gmane.linux.kernel.mm/68724)
+which this is based on.
+I realize that this will be controversial but I would like to hear
+whether this is strictly no-go or whether we can go that direction (the
+implementation might differ of course).
 
-3.0.6, with no relevant patches.  (I have a one-liner added to the tcp
-code that I'll submit sometime soon.)  Would this explain the latency
-in file_update_time or is that a separate issue?  file_update_time
-seems like a good thing to make fully asynchronous (especially if the
-file in question is a fifo, but I've already moved my fifos to tmpfs).
+The patch is still half baked but I guess it should be sufficient to
+show what I am trying to achieve.
+The basic idea is that memcgs would get a new attribute (isolated) which
+would control whether that group should be considered during global
+reclaim.
+This means that we could achieve a certain memory isolation for
+processes in the group from the rest of the system activity which has
+been traditionally done by mlocking the important parts of memory.
+This approach, however, has some advantages. First of all, it is a kind
+of all or nothing type of approach. Either the memory is important and
+mlocked or you have no guarantee that it keeps resident. 
+Secondly it is much more prone to OOM situation.
+Let's consider a case where a memory is evictable in theory but you
+would pay quite much if you have to get it back resident (pre calculated
+data from database - e.g. reports). The memory wouldn't be used very
+often so it would be a number one candidate to evict after some time.
+We would want to have something like a clever mlock in such a case which
+would evict that memory only if the cgroup itself gets under memory
+pressure (e.g. peak workload). This is not hard to do if we are not
+over committing the memory but things get tricky otherwise.
+With the isolated memcgs we get exactly such a guarantee because we would
+reclaim such a memory only from the hard limit reclaim paths or if the
+soft limit reclaim if it is set up.
 
->
-> We discussed doing copy-on-write, but there are relatively few mmap users=
- and it wasn't clear whether the complexity was worth it.
+Any thoughts comments?
 
-Hmm.  That might be nice, especially if the page is mlocked.
+---
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Implement isolated cgroups
 
---Andy
+This patch adds a new per-cgroup knob (isolated) which controls whether
+pages charged for the group should be considered for the global reclaim
+or they are reclaimed only during soft reclaim and under per-cgroup
+memory pressure.
 
->
-> Cheers, Andreas
->
-> On 2011-10-19, at 6:39 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->
->> I have a real-time program that has everything mlocked (i.e.
->> mlockall(MCL_CURRENT | MCL_FUTURE)). =A0It has some log files opened for
->> writing. =A0Those files are opened and memset to zero in another thread
->> to fault everything in. =A0The system is under light I/O load with very
->> little memory pressure.
->>
->> Latencytop shows frequent latency in the real-time threads. =A0The main
->> offenders are:
->>
->> schedule sleep_on_page wait_on_page_bit ext4_page_mkwrite do_wp_page
->> handle_pte_fault handle_mm_fault do_page_fault page_fault
->>
->> schedule do_get_write_access jbd2_journal_get_write_access
->> __ext4_journal_get_write_access ext4_reserve_inode_write
->> ext4_mark_inode_dirty ext4_dirty_inode __mark_inode_dirty
->> file_update_time do_wp_page handle_pte_fault handle_mm_fault
->>
->>
->> I imagine the problem is that the system is periodically writing out
->> my dirty pages and marking them clean (and hence write protected).
->> When I try to write to them, the kernel makes them writable again,
->> which causes latency either due to updating the inode mtime or because
->> the file is being written to disk when I try to write to it.
->>
->> Is there any way to prevent this? =A0One possibility would be a way to
->> ask the kernel not to write the file out to disk. =A0Another would be a
->> way to ask the kernel to make a copy of the file when it writes it
->> disk and leave the original mapping writable.
->>
->> Obviously I can fix this by mapping anonymous memory, but then I need
->> another thread to periodically write my logs out to disk, and if that
->> crashes, I lose data.
->>
->> --
->> Andy Lutomirski
->> AMA Capital Management, LLC
->> Office: (310) 553-5322
->> Mobile: (650) 906-0647
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->
+The value can be modified by GROUP/memory.isolated knob.
+
+The primary idea behind isolated cgroups is in a better isolation of a group
+from the global system activity. At the moment, memory cgroups are mainly
+used to throttle processes in a group by placing a cap on their memory
+usage. However, mem. cgroups don't protect their (charged) memory from being
+evicted by the global reclaim as groups are considered during global
+reclaim.
+
+The feature will provide an easy way to setup a mission critical workload in
+the memory isolated environment without necessity of mlock. Due to
+per-cgroup reclaim we can even handle memory usage spikes much more
+gracefully because a part of the working set can get reclaimed (unlike OOM
+killed as if mlock has been used). So we can look at the feature as an
+intelligent mlock (protect from external memory pressure and reclaim on
+internal pressure).
+
+The implementation ignores isolated group status for the soft reclaim which
+means that every isolated group can configure how much memory it can
+sacrifice under global memory pressure. Soft unlimited groups are isolated
+from the global memory pressure completely.
+
+Please note that the feature has to be used with caution because isolated
+groups will make a bigger reclaim pressure to non-isolated cgroups.
+
+Implementation is really simple because we just have to hook into shrink_zone
+and exclude isolated groups if we are doing the global reclaiming.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+TODO
+- consider hierarchies - I am not sure whether we want to have
+  non-consistent isolated status in the hierarchy - probably not
+- handle root cgroup
+- Do we want some checks whether the current setting is safe?
+- is bool sufficient. Don't we rather want something like priority
+  instead?
 
 
+ include/linux/memcontrol.h |    7 +++++++
+ mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                |    8 +++++++-
+ 3 files changed, 58 insertions(+), 1 deletion(-)
 
---=20
-Andy Lutomirski
-AMA Capital Management, LLC
-Office: (310) 553-5322
-Mobile: (650) 906-0647
+Index: linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/mm/memcontrol.c
+===================================================================
+--- linux-3.1-rc4-next-20110831-mmotm-isolated-memcg.orig/mm/memcontrol.c
++++ linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/mm/memcontrol.c
+@@ -258,6 +258,9 @@ struct mem_cgroup {
+ 	/* set when res.limit == memsw.limit */
+ 	bool		memsw_is_minimum;
+ 
++	/* is the group isolated from the global memory pressure? */
++	bool		isolated;
++
+ 	/* protect arrays of thresholds */
+ 	struct mutex thresholds_lock;
+ 
+@@ -287,6 +290,11 @@ struct mem_cgroup {
+ 	spinlock_t pcp_counter_lock;
+ };
+ 
++bool mem_cgroup_isolated(struct mem_cgroup *mem)
++{
++	return mem->isolated;
++}
++
+ /* Stuffs for move charges at task migration. */
+ /*
+  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+@@ -4561,6 +4569,37 @@ static int mem_control_numa_stat_open(st
+ }
+ #endif /* CONFIG_NUMA */
+ 
++static int mem_cgroup_isolated_write(struct cgroup *cgrp, struct cftype *cft,
++		const char *buffer)
++{
++	int ret = -EINVAL;
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++
++	if (mem_cgroup_is_root(mem))
++		goto out;
++
++	if (!strcasecmp(buffer, "true"))
++		mem->isolated = true;
++	else if (!strcasecmp(buffer, "false"))
++		mem->isolated = false;
++	else
++		goto out;
++
++	ret = 0;
++out:
++	return ret;
++}
++
++static int mem_cgroup_isolated_read(struct cgroup *cgrp, struct cftype *cft,
++		struct seq_file *seq)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++
++	seq_puts(seq, (mem->isolated)?"true":"false");
++
++	return 0;
++}
++
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+@@ -4624,6 +4663,11 @@ static struct cftype mem_cgroup_files[]
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++	{
++		.name = "isolated",
++		.write_string = mem_cgroup_isolated_write,
++		.read_seq_string = mem_cgroup_isolated_read,
++	},
+ #ifdef CONFIG_NUMA
+ 	{
+ 		.name = "numa_stat",
+Index: linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/include/linux/memcontrol.h
+===================================================================
+--- linux-3.1-rc4-next-20110831-mmotm-isolated-memcg.orig/include/linux/memcontrol.h
++++ linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/include/linux/memcontrol.h
+@@ -165,6 +165,9 @@ void mem_cgroup_split_huge_fixup(struct
+ bool mem_cgroup_bad_page_check(struct page *page);
+ void mem_cgroup_print_bad_page(struct page *page);
+ #endif
++
++bool mem_cgroup_isolated(struct mem_cgroup *mem);
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
+ 
+@@ -382,6 +385,10 @@ static inline
+ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+ {
+ }
++bool mem_cgroup_isolated(struct mem_cgroup *mem)
++{
++	return false;
++}
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+Index: linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/mm/vmscan.c
+===================================================================
+--- linux-3.1-rc4-next-20110831-mmotm-isolated-memcg.orig/mm/vmscan.c
++++ linux-3.1-rc4-next-20110831-mmotm-isolated-memcg/mm/vmscan.c
+@@ -2109,7 +2109,13 @@ static void shrink_zone(int priority, st
+ 			.zone = zone,
+ 		};
+ 
+-		shrink_mem_cgroup_zone(priority, &mz, sc);
++		/*
++		 * Do not reclaim from an isolated group if we are in
++		 * the global reclaim.
++		 */
++		if (!(mem_cgroup_isolated(mem) && global_reclaim(sc)))
++			shrink_mem_cgroup_zone(priority, &mz, sc);
++
+ 		/*
+ 		 * Limit reclaim has historically picked one memcg and
+ 		 * scanned it with decreasing priority levels until
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
