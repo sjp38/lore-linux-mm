@@ -1,141 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EAE886B0035
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 06:06:30 -0400 (EDT)
-Date: Fri, 21 Oct 2011 12:06:24 +0200
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
-Message-ID: <20111021100624.GB4029@csn.ul.ie>
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <1317909290-29832-3-git-send-email-m.szyprowski@samsung.com>
- <20111018122109.GB6660@csn.ul.ie>
- <op.v3j5ent03l0zgt@mpn-glaptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 97B976B002E
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 08:16:55 -0400 (EDT)
+Date: Fri, 21 Oct 2011 08:16:24 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFD] Isolated memory cgroups again
+Message-ID: <20111021114430.GA1317@cmpxchg.org>
+References: <20111020013305.GD21703@tiehlicka.suse.cz>
+ <CALWz4ixxeFveibvqYa4cQR1a4fEBrTrTUFwm2iajk9mV0MEiTw@mail.gmail.com>
+ <4EA12FBA.7090700@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <op.v3j5ent03l0zgt@mpn-glaptop>
+In-Reply-To: <4EA12FBA.7090700@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@hansenpartnership.com>
 
-On Tue, Oct 18, 2011 at 10:26:37AM -0700, Michal Nazarewicz wrote:
-> On Tue, 18 Oct 2011 05:21:09 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> >At this point, I'm going to apologise for not reviewing this a long long
-> >time ago.
-> >
-> >On Thu, Oct 06, 2011 at 03:54:42PM +0200, Marek Szyprowski wrote:
-> >>From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, Oct 21, 2011 at 12:39:22PM +0400, Glauber Costa wrote:
+> On 10/21/2011 03:41 AM, Ying Han wrote:
+> >On Wed, Oct 19, 2011 at 6:33 PM, Michal Hocko<mhocko@suse.cz>  wrote:
+> >>Hi all,
+> >>this is a request for discussion (I hope we can touch this during memcg
+> >>meeting during the upcoming KS). I have brought this up earlier this
+> >>year before LSF (http://thread.gmane.org/gmane.linux.kernel.mm/60464).
+> >>The patch got much smaller since then due to excellent Johannes' memcg
+> >>naturalization work (http://thread.gmane.org/gmane.linux.kernel.mm/68724)
+> >>which this is based on.
+> >>I realize that this will be controversial but I would like to hear
+> >>whether this is strictly no-go or whether we can go that direction (the
+> >>implementation might differ of course).
 > >>
-> >>This commit introduces alloc_contig_freed_pages() function
-> >>which allocates (ie. removes from buddy system) free pages
-> >>in range. Caller has to guarantee that all pages in range
-> >>are in buddy system.
+> >>The patch is still half baked but I guess it should be sufficient to
+> >>show what I am trying to achieve.
+> >>The basic idea is that memcgs would get a new attribute (isolated) which
+> >>would control whether that group should be considered during global
+> >>reclaim.
+> >>This means that we could achieve a certain memory isolation for
+> >>processes in the group from the rest of the system activity which has
+> >>been traditionally done by mlocking the important parts of memory.
+> >>This approach, however, has some advantages. First of all, it is a kind
+> >>of all or nothing type of approach. Either the memory is important and
+> >>mlocked or you have no guarantee that it keeps resident.
+> >>Secondly it is much more prone to OOM situation.
+> >>Let's consider a case where a memory is evictable in theory but you
+> >>would pay quite much if you have to get it back resident (pre calculated
+> >>data from database - e.g. reports). The memory wouldn't be used very
+> >>often so it would be a number one candidate to evict after some time.
+> >>We would want to have something like a clever mlock in such a case which
+> >>would evict that memory only if the cgroup itself gets under memory
+> >>pressure (e.g. peak workload). This is not hard to do if we are not
+> >>over committing the memory but things get tricky otherwise.
+> >>With the isolated memcgs we get exactly such a guarantee because we would
+> >>reclaim such a memory only from the hard limit reclaim paths or if the
+> >>soft limit reclaim if it is set up.
 > >>
+> >>Any thoughts comments?
 > >
-> >Straight away, I'm wondering why you didn't use
+> >I didn't read through the patch itself but only the description. If we
+> >wanna protect a memcg being reclaimed from under global memory
+> >pressure, I think we can approach it by making change on soft_limit
+> >reclaim.
 > >
-> >mm/compaction.c#isolate_freepages()
-> >
-> >It knows how to isolate pages within ranges. All its control information
-> >is passed via struct compact_control() which I recognise may be awkward
-> >for CMA but compaction.c know how to manage all the isolated pages and
-> >pass them to migrate.c appropriately.
+> >I have a soft_limit change built on top of Johannes's patchset, which
+> >does basically soft_limit aware reclaim under global memory pressure.
+> >The implementation is simple, and I am looking forward to discuss more
+> >with you guys in the conference.
 > 
-> It is something to consider.  At first glance, I see that isolate_freepages
-> seem to operate on pageblocks which is not desired for CMA.
+> I don't think soft limits will help his case, if I know understand
+> it correctly. Global reclaim can be triggered regardless of any soft
+> limits we may set.
 > 
+> Now, there are two things I still don't like about it:
+> * The definition of a "main workload", "main cgroup", or anything
+> like that. I'd prefer to rank them according to some parameter,
+> something akin to swapiness. This would allow for other people to
+> use it in a different way, while still making you capable of
+> reaching your goals through parameter settings (i.e. one cgroup has
+> a high value of reclaim, all others, a much lower one)
 
-isolate_freepages_block operates on a range of pages that happens to be
-hard-coded to be a pageblock because that was the requirements. It calculates
-end_pfn and it is possible to make that a function parameter.
+This is essentially what I wanted to convert soft limit reclaim to: if
+a cgroup is considered for reclaim and its exceeding its soft limit,
+the amount of scanning force applied to it is doubled compared to its
+buddies that are scanned in the same cycle.
 
-> >I haven't read all the patches yet but isolate_freepages() does break
-> >everything up into order-0 pages. This may not be to your liking but it
-> >would not be possible to change.
-> 
-> Splitting everything into order-0 pages is desired behaviour.
-> 
+> * The fact that you seem to want to *skip* reclaim altogether for a
+> cgroup. That's a dangerous condition, IMHO. What I think we should
+> try to achieve, is "skip it for practical purposes on sane
+> workloads". Again, a parameter that when set to a very high mark,
+> has the effect of disallowing reclaim for a cgroup under most sane
+> circumstances.
 
-Great.
-
-> >>Along with this function, a free_contig_pages() function is
-> >>provided which frees all (or a subset of) pages allocated
-> >>with alloc_contig_free_pages().
-> 
-> >mm/compaction.c#release_freepages()
-> 
-> It sort of does the same thing but release_freepages() assumes that pages
-> that are being freed are not-continuous and they need to be on the lru list.
-> With free_contig_pages(), we can assume all pages are continuous.
-> 
-
-Ok, I jumped the gun here. release_freepages() may not be a perfect fit.
-release_freepages() is also used when finishing compaction where as it
-is a real free function that is required here.
-
-> >You can do this in a more general fashion by checking the
-> >zone boundaries and resolving the pfn->page every MAX_ORDER_NR_PAGES.
-> >That will not be SPARSEMEM specific.
-> 
-> I've tried doing stuff that way but it ended up with much more code.
-> 
-> Dave suggested the above function to check if pointer arithmetic is valid.
-> 
-> Please see also <https://lkml.org/lkml/2011/9/21/220>.
-> 
-
-Ok, I'm still not fully convinced but I confess I'm not thinking about this
-particular function too deeply because I am expecting the problem would
-go away if compaction and CMA shared common code for freeing contiguous
-regions via page migration.
-
-> >> <SNIP>
-> >>+		if (zone_pfn_same_memmap(pfn - count, pfn))
-> >>+			page += count;
-> >>+		else
-> >>+			page = pfn_to_page(pfn);
-> >>+	}
-> >>+
-> >>+	spin_unlock_irq(&zone->lock);
-> >>+
-> >>+	/* After this, pages in the range can be freed one be one */
-> >>+	count = pfn - start;
-> >>+	pfn = start;
-> >>+	for (page = pfn_to_page(pfn); count; --count) {
-> >>+		prep_new_page(page, 0, flag);
-> >>+		++pfn;
-> >>+		if (likely(zone_pfn_same_memmap(pfn - 1, pfn)))
-> >>+			++page;
-> >>+		else
-> >>+			page = pfn_to_page(pfn);
-> >>+	}
-> >>+
-> >
-> >Here it looks like you have implemented something like split_free_page().
-> 
-> split_free_page() takes a single page, removes it from buddy system, and finally
-> splits it. 
-
-I'm referring to just this chunk.
-
-split_free_page takes a page, checks the watermarks and performs similar
-operations to prep_new_page(). There should be no need to introduce a
-new similar function. split_free_page() does affect hte pageblock
-migratetype and that is undesirable but that part could be taken out and
-moved to compaction.c if necessary.
-
-On the watermarks thing, CMA does not pay much attention to them. I have
-a strong feeling that it is easy to deadlock a system by using CMA while
-under memory pressure. Compaction had the same problem early in its
-development FWIW. This is partially why I'd prefer to see CMA and
-compaction sharing as much code as possible because compaction gets
-continual testing.
-
--- 
-Mel Gorman
-SUSE Labs
+Yes.  I think it would be better to have a minimum guarantee setting
+rather than a wholesale cgroup isolation.  If the cgroup's memory
+usage is below that guarantee, reclaim skips it.  If you insist, you
+can still set this to ULONG_MAX.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
