@@ -1,150 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAD16B0032
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 08:22:21 -0400 (EDT)
-From: Joerg Roedel <joerg.roedel@amd.com>
-Subject: [PATCH 2/3] mmu_notifier: Add invalidate_range_free_pages() notifier
-Date: Fri, 21 Oct 2011 14:21:47 +0200
-Message-ID: <1319199708-17777-3-git-send-email-joerg.roedel@amd.com>
-In-Reply-To: <1319199708-17777-1-git-send-email-joerg.roedel@amd.com>
-References: <1319199708-17777-1-git-send-email-joerg.roedel@amd.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 68AA76B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 11:05:32 -0400 (EDT)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 21 Oct 2011 11:04:07 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9LF3MCB080516
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 11:03:22 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9LF3AWN016295
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 09:03:12 -0600
+Date: Fri, 21 Oct 2011 20:12:07 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 12/X] uprobes: x86: introduce abort_xol()
+Message-ID: <20111021144207.GN11831@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20111015190007.GA30243@redhat.com>
+ <20111019215139.GA16395@redhat.com>
+ <20111019215326.GF16395@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20111019215326.GF16395@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, joro@8bytes.org, Joerg Roedel <joerg.roedel@amd.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-This notifier closes an important gap in the current
-invalidate_range_start()/end() notifiers. The _start() part
-is called when all pages are still mapped while the _end()
-notifier is called when all pages are potentially unmapped
-and already freed.
+Hey Oleg,
 
-This does not allow to manage external (non-CPU) hardware
-TLBs with MMU-notifiers because there is no way to prevent
-that hardware will esablish new TLB entries between the
-calls of these two functions. But this is a requirement to
-the subsytem that implements these existing notifiers.
+> A separate "patch", just to emphasize that I do not know what
+> actually abort_xol() should do! I do not understand this asm
+> magic.
+> 
+> This patch simply changes regs->ip back to the probed insn,
+> obviously this is not enough to handle UPROBES_FIX_*. Please
+> take care.
+> 
+> If it is not clear, abort_xol() is needed when we should
+> re-execute the original insn (replaced with int3), see the
+> next patch.
 
-To allow managing external TLBs the MMU-notifiers need to
-catch the moment when pages are unmapped but not yet freed.
-This new notifier catches that moment and notifies the
-interested subsytem when pages that were unmapped are about
-to be freed. The new notifier will only be called between
-invalidate_range_start()/end().
+We should be removing the breakpoint in abort_xol().
+Otherwise if we just set the instruction pointer to int3 and signal a
+sigill, then the user may be confused why a breakpoint is generating
+SIGILL.
 
-Signed-off-by: Joerg Roedel <joerg.roedel@amd.com>
----
- include/linux/mmu_notifier.h |   32 +++++++++++++++++++++++++++-----
- mm/mmu_notifier.c            |   13 +++++++++++++
- 2 files changed, 40 insertions(+), 5 deletions(-)
+> ---
+>  arch/x86/include/asm/uprobes.h |    1 +
+>  arch/x86/kernel/uprobes.c      |    9 +++++++++
+>  2 files changed, 10 insertions(+), 0 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+> index f0fbdab..6209da1 100644
+> --- a/arch/x86/include/asm/uprobes.h
+> +++ b/arch/x86/include/asm/uprobes.h
+> @@ -51,6 +51,7 @@ extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
+>  extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
+>  extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
+>  extern bool xol_was_trapped(struct task_struct *tsk);
+> +extern void abort_xol(struct pt_regs *regs);
+>  extern int uprobe_exception_notify(struct notifier_block *self,
+>  				       unsigned long val, void *data);
+>  #endif	/* _ASM_UPROBES_H */
+> diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+> index c861c27..bc11a89 100644
+> --- a/arch/x86/kernel/uprobes.c
+> +++ b/arch/x86/kernel/uprobes.c
+> @@ -511,6 +511,15 @@ bool xol_was_trapped(struct task_struct *tsk)
+>  	return false;
+>  }
+> 
+> +void abort_xol(struct pt_regs *regs)
+> +{
+> +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+> +	// !!! Dear Srikar and Ananth, please implement me !!!
+> +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+> +	struct uprobe_task *utask = current->utask;
+> +	regs->ip = utask->vaddr;
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index b9469d6..199813f 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -94,11 +94,17 @@ struct mmu_notifier_ops {
- 	/*
- 	 * invalidate_range_start() and invalidate_range_end() must be
- 	 * paired and are called only when the mmap_sem and/or the
--	 * locks protecting the reverse maps are held. The subsystem
--	 * must guarantee that no additional references are taken to
--	 * the pages in the range established between the call to
--	 * invalidate_range_start() and the matching call to
--	 * invalidate_range_end().
-+	 * locks protecting the reverse maps are held.
-+	 * invalidate_range_free_pages() is called between the two
-+	 * functions every time when the VM has unmapped pages that are
-+	 * about to be freed.
-+	 * The subsystem must guarantee that no additional references
-+	 * are taken to the pages in the range established between the
-+	 * call to invalidate_range_start() and the matching call to
-+	 * invalidate_range_end(). If this guarantee can not be given
-+	 * by the subsystem it has to make sure that additional
-+	 * references are dropped again in the
-+	 * invalidate_range_free_pages() notifier.
- 	 *
- 	 * Invalidation of multiple concurrent ranges may be
- 	 * optionally permitted by the driver. Either way the
-@@ -109,6 +115,9 @@ struct mmu_notifier_ops {
- 	 * invalidate_range_start() is called when all pages in the
- 	 * range are still mapped and have at least a refcount of one.
- 	 *
-+	 * invalidate_range_free_pages() is called when a bunch of pages
-+	 * are unmapped but not yet freed by the VM.
-+	 *
- 	 * invalidate_range_end() is called when all pages in the
- 	 * range have been unmapped and the pages have been freed by
- 	 * the VM.
-@@ -137,6 +146,8 @@ struct mmu_notifier_ops {
- 	void (*invalidate_range_start)(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
- 				       unsigned long start, unsigned long end);
-+	void (*invalidate_range_free_pages)(struct mmu_notifier *mn,
-+					    struct mm_struct *mm);
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
- 				     unsigned long start, unsigned long end);
-@@ -181,6 +192,7 @@ extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address);
- extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern void __mmu_notifier_invalidate_range_free_pages(struct mm_struct *mm);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
- 
-@@ -227,6 +239,12 @@ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 		__mmu_notifier_invalidate_range_start(mm, start, end);
- }
- 
-+static inline void mmu_notifier_invalidate_range_free_pages(struct mm_struct *mm)
-+{
-+	if (mm_has_notifiers(mm))
-+		__mmu_notifier_invalidate_range_free_pages(mm);
-+}
-+
- static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-@@ -354,6 +372,10 @@ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- {
- }
- 
-+static inline void mmu_notifier_invalidate_range_free_pages(struct mm_struct *mm)
-+{
-+}
-+
- static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 8d032de..ec6b11b 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -168,6 +168,19 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 	rcu_read_unlock();
- }
- 
-+void __mmu_notifier_invalidate_range_free_pages(struct mm_struct *mm)
-+{
-+	struct mmu_notifier *mn;
-+	struct hlist_node *n;
-+
-+	rcu_read_lock();
-+	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
-+		if (mn->ops->invalidate_range_free_pages)
-+			mn->ops->invalidate_range_free_pages(mn, mm);
-+	}
-+	rcu_read_unlock();
-+}
-+
- void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
+nit:
+Shouldnt we be setting the ip to the next instruction after this
+instruction?
+
+> +}
+> +
+>  /*
+>   * Called after single-stepping. To avoid the SMP problems that can
+>   * occur when we temporarily put back the original opcode to
+
+
+I have applied all your patches and ran tests, the tests are all
+passing.
+
+I will fold them into my patches and send them out.
+
 -- 
-1.7.5.4
-
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
