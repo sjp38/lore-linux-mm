@@ -1,91 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 343046B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 12:34:23 -0400 (EDT)
-Received: from /spool/local
-	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ananth@in.ibm.com>;
-	Fri, 21 Oct 2011 12:27:03 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9LGQTK4269684
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 12:26:30 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9LGQQbM020981
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 10:26:29 -0600
-Date: Fri, 21 Oct 2011 21:56:31 +0530
-From: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 97E666B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 12:46:48 -0400 (EDT)
+Date: Fri, 21 Oct 2011 18:42:21 +0200
+From: Oleg Nesterov <oleg@redhat.com>
 Subject: Re: [PATCH 12/X] uprobes: x86: introduce abort_xol()
-Message-ID: <20111021162631.GB2552@in.ibm.com>
-Reply-To: ananth@in.ibm.com
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com> <20111019215326.GF16395@redhat.com> <20111021144207.GN11831@linux.vnet.ibm.com>
+Message-ID: <20111021164221.GA30770@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com> <20111019215326.GF16395@redhat.com> <20111021144207.GN11831@linux.vnet.ibm.com> <20111021162631.GB2552@in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111021144207.GN11831@linux.vnet.ibm.com>
+In-Reply-To: <20111021162631.GB2552@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 21, 2011 at 08:12:07PM +0530, Srikar Dronamraju wrote:
+On 10/21, Ananth N Mavinakayanahalli wrote:
+>
+> On Fri, Oct 21, 2011 at 08:12:07PM +0530, Srikar Dronamraju wrote:
+>
+> > > +void abort_xol(struct pt_regs *regs)
+> > > +{
+> > > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+> > > +	// !!! Dear Srikar and Ananth, please implement me !!!
+> > > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+> > > +	struct uprobe_task *utask = current->utask;
+> > > +	regs->ip = utask->vaddr;
+> >
+> > nit:
+> > Shouldnt we be setting the ip to the next instruction after this
+> > instruction?
+>
+> No, since we should re-execute the original instruction
 
-...
+Yes,
 
-> > If it is not clear, abort_xol() is needed when we should
-> > re-execute the original insn (replaced with int3), see the
-> > next patch.
-> 
-> We should be removing the breakpoint in abort_xol().
-> Otherwise if we just set the instruction pointer to int3 and signal a
-> sigill, then the user may be confused why a breakpoint is generating
-> SIGILL.
-> 
-> > ---
-> >  arch/x86/include/asm/uprobes.h |    1 +
-> >  arch/x86/kernel/uprobes.c      |    9 +++++++++
-> >  2 files changed, 10 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-> > index f0fbdab..6209da1 100644
-> > --- a/arch/x86/include/asm/uprobes.h
-> > +++ b/arch/x86/include/asm/uprobes.h
-> > @@ -51,6 +51,7 @@ extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
-> >  extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
-> >  extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
-> >  extern bool xol_was_trapped(struct task_struct *tsk);
-> > +extern void abort_xol(struct pt_regs *regs);
-> >  extern int uprobe_exception_notify(struct notifier_block *self,
-> >  				       unsigned long val, void *data);
-> >  #endif	/* _ASM_UPROBES_H */
-> > diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-> > index c861c27..bc11a89 100644
-> > --- a/arch/x86/kernel/uprobes.c
-> > +++ b/arch/x86/kernel/uprobes.c
-> > @@ -511,6 +511,15 @@ bool xol_was_trapped(struct task_struct *tsk)
-> >  	return false;
-> >  }
-> > 
-> > +void abort_xol(struct pt_regs *regs)
-> > +{
-> > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> > +	// !!! Dear Srikar and Ananth, please implement me !!!
-> > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> > +	struct uprobe_task *utask = current->utask;
-> > +	regs->ip = utask->vaddr;
-> 
-> nit:
-> Shouldnt we be setting the ip to the next instruction after this
-> instruction?
+> after removing
+> the breakpoint.
 
-No, since we should re-execute the original instruction after removing
-the breakpoint.
+No? we should not remove this uprobe?
 
-Also, wrt ip being set to the next instruction on a breakpoint hit,
-that's arch specific. For instance, on x86, it points to the next
-instruction, while on powerpc, the nip points to the breakpoint vaddr
-at the time of exception.
+> Also, wrt ip being set to the next instruction on a breakpoint hit,
+> that's arch specific.
 
-Ananth
+Probably yes, I am not sure. But:
+
+> For instance, on x86, it points to the next
+> instruction,
+
+No?
+
+	/**
+	 * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
+	 * @regs: Reflects the saved state of the task after it has hit a breakpoint
+	 * instruction.
+	 * Return the address of the breakpoint instruction.
+	 */
+	unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs)
+	{
+		return instruction_pointer(regs) - UPROBES_BKPT_INSN_SIZE;
+	}
+
+Yes, initially regs->ip points to the next insn after int3, but
+utask->vaddr == get_uprobe_bkpt_addr() == addr of int3.
+
+Right?
+
+> while on powerpc, the nip points to the breakpoint vaddr
+> at the time of exception.
+
+I think get_uprobe_bkpt_addr() should be consistent on every arch.
+That is why (I think) it is __weak.
+
+Anyway, abort_xol() has to be arch-specific.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
