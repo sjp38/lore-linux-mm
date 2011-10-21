@@ -1,50 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8FF6B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 18:50:17 -0400 (EDT)
-Date: Sat, 22 Oct 2011 00:50:08 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Message-ID: <20111021225008.GK608@redhat.com>
-References: <201110122012.33767.pluto@agmk.net>
- <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
- <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
- <20111016235442.GB25266@redhat.com>
- <CAPQyPG69WePwar+k0nhwfdW7vv7FjqJBYwKfYm7n5qaPwS-WgQ@mail.gmail.com>
- <20111021155632.GD4082@suse.de>
- <20111021174120.GJ608@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B28056B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 19:50:16 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Fri, 21 Oct 2011 19:48:48 -0400
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B1@USINDEVS02.corp.hds.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+ <20110901100650.6d884589.rdunlap@xenotime.net>
+ <20110901152650.7a63cb8b@annuminas.surriel.com>
+ <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
+ <20111010153723.6397924f.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
+ <20111011125419.2702b5dc.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
+ <20111011135445.f580749b.akpm@linux-foundation.org>
+ <4E95917D.3080507@redhat.com>
+ <20111012122018.690bdf28.akpm@linux-foundation.org>,<4E95F167.5050709@redhat.com>
+In-Reply-To: <4E95F167.5050709@redhat.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111021174120.GJ608@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Nai Xia <nai.xia@gmail.com>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Fri, Oct 21, 2011 at 07:41:20PM +0200, Andrea Arcangeli wrote:
-> We have two options:
-> 
-> 1) we remove the vma_merge call from copy_vma and we do the vma_merge
-> manually after mremap succeed (so then we're as safe as fork is and we
-> relay on the ordering). No locks but we'll just do 1 more allocation
-> for one addition temporary vma that will be removed after mremap
-> completed.
-> 
-> 2) Hugh's original fix.
+On 10/12/2011 03:58 PM, Rik van Riel wrote:
+> On 10/12/2011 03:20 PM, Andrew Morton wrote:
+>> On Wed, 12 Oct 2011 09:09:17 -0400
+>> Rik van Riel<riel@redhat.com>  wrote:
+>>
+>> Do we actually have a real-world application which is hurting from
+>> this?
+>=20
+> Satoru-san?
 
-3) put the src vma at the tail if vma_merge succeeds and the src vma
-and dst vma aren't the same
+Sorry for late reply.
 
-I tried to implement this but I'm still wondering about the safety of
-this with concurrent processes all calling mremap at the same time on
-the same anon_vma same_anon_vma list, the reasoning I think it may be
-safe is in the comment. I run a few mremap with my benchmark where the
-THP aware mremap in -mm gets a x10 boost and moves 5G and it didn't
-crash but that's about it and not conclusive, if you review please
-comment...
+We do.
+Basically we need this kind of feature for almost all our latency
+sensitive applications to avoid latency issue in memory allocation.
 
-I've to pack luggage and prepare to fly to KS tomorrow so I may not be
-responsive in the next few days.
+Currently we run those applications on custom kernels which this
+kind of patch is applied to. But it is hard for us to support every
+kernel version for it. Also there are several customers who can't
+accept a custom kernel and so they must use other commercial Unix.
+If this feature is accepted, they will definitely use it on their
+systems.
 
-===
+Thanks,
+Satoru=
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
