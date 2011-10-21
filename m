@@ -1,106 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 68AA76B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 11:05:32 -0400 (EDT)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 21 Oct 2011 11:04:07 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9LF3MCB080516
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 11:03:22 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9LF3AWN016295
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 09:03:12 -0600
-Date: Fri, 21 Oct 2011 20:12:07 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 12/X] uprobes: x86: introduce abort_xol()
-Message-ID: <20111021144207.GN11831@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20111015190007.GA30243@redhat.com>
- <20111019215139.GA16395@redhat.com>
- <20111019215326.GF16395@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 54A716B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 11:56:43 -0400 (EDT)
+Date: Fri, 21 Oct 2011 17:56:32 +0200
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
+Message-ID: <20111021155632.GD4082@suse.de>
+References: <201110122012.33767.pluto@agmk.net>
+ <alpine.LSU.2.00.1110131547550.1346@sister.anvils>
+ <alpine.LSU.2.00.1110131629530.1410@sister.anvils>
+ <20111016235442.GB25266@redhat.com>
+ <CAPQyPG69WePwar+k0nhwfdW7vv7FjqJBYwKfYm7n5qaPwS-WgQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20111019215326.GF16395@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPQyPG69WePwar+k0nhwfdW7vv7FjqJBYwKfYm7n5qaPwS-WgQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-Hey Oleg,
-
-> A separate "patch", just to emphasize that I do not know what
-> actually abort_xol() should do! I do not understand this asm
-> magic.
+On Thu, Oct 20, 2011 at 05:11:28PM +0800, Nai Xia wrote:
+> On Mon, Oct 17, 2011 at 7:54 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
+> >> mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
+> >> and pagetable locks, were good enough before page migration (with its
+> >> requirement that every migration entry be found) came in; and enough
+> >> while migration always held mmap_sem.  But not enough nowadays, when
+> >> there's memory hotremove and compaction: anon_vma lock is also needed,
+> >> to make sure a migration entry is not dodging around behind our back.
+> >
+> > For things like migrate and split_huge_page, the anon_vma layer must
+> > guarantee the page is reachable by rmap walk at all times regardless
+> > if it's at the old or new address.
+> >
+> > This shall be guaranteed by the copy_vma called by move_vma well
+> > before move_page_tables/move_ptes can run.
+> >
+> > copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
+> > into the anon_vma chains structures (vma_link does that). That before
+> > any pte can be moved.
+> >
+> > Because we keep two vmas mapped on both src and dst range, with
+> > different vma->vm_pgoff that is valid for the page (the page doesn't
+> > change its page->index) the page should always find _all_ its pte at
+> > any given time.
+> >
+> > There may be other variables at play like the order of insertion in
+> > the anon_vma chain matches our direction of copy and removal of the
+> > old pte. But I think the double locking of the PT lock should make the
+> > order in the anon_vma chain absolutely irrelevant (the rmap_walk
+> > obviously takes the PT lock too), and furthermore likely the
+> > anon_vma_chain insertion is favorable (the dst vma is inserted last
+> > and checked last). But it shouldn't matter.
 > 
-> This patch simply changes regs->ip back to the probed insn,
-> obviously this is not enough to handle UPROBES_FIX_*. Please
-> take care.
+> I happened to be reading these code last week.
 > 
-> If it is not clear, abort_xol() is needed when we should
-> re-execute the original insn (replaced with int3), see the
-> next patch.
+> And I do think this order matters, the reason is just quite similar why we
+> need i_mmap_lock in move_ptes():
+> If rmap_walk goes dst--->src, then when it first look into dst, ok, the
 
-We should be removing the breakpoint in abort_xol().
-Otherwise if we just set the instruction pointer to int3 and signal a
-sigill, then the user may be confused why a breakpoint is generating
-SIGILL.
+You might be right in that the ordering matters. We do link new VMAs at
+the end of the list in anon_vma_chain_list so remove_migrate_ptes should
+be walking from src->dst.
 
-> ---
->  arch/x86/include/asm/uprobes.h |    1 +
->  arch/x86/kernel/uprobes.c      |    9 +++++++++
->  2 files changed, 10 insertions(+), 0 deletions(-)
+If remove_migrate_pte finds src first, it will remove the pte and the
+correct version will get copied. If move_ptes runs between when
+remove_migrate_ptes moves from src to dst, then the PTE at dst will
+still be correct.
+
+> pte is not there, and it happily skip it and release the PTL.
+> Then just before it look into src, move_ptes() comes in, takes the locks
+> and moves the pte from src to dst. And then when rmap_walk() look
+> into src,  it will find an empty pte again. The pte is still there,
+> but rmap_walk() missed it !
 > 
-> diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-> index f0fbdab..6209da1 100644
-> --- a/arch/x86/include/asm/uprobes.h
-> +++ b/arch/x86/include/asm/uprobes.h
-> @@ -51,6 +51,7 @@ extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
->  extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
->  extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
->  extern bool xol_was_trapped(struct task_struct *tsk);
-> +extern void abort_xol(struct pt_regs *regs);
->  extern int uprobe_exception_notify(struct notifier_block *self,
->  				       unsigned long val, void *data);
->  #endif	/* _ASM_UPROBES_H */
-> diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-> index c861c27..bc11a89 100644
-> --- a/arch/x86/kernel/uprobes.c
-> +++ b/arch/x86/kernel/uprobes.c
-> @@ -511,6 +511,15 @@ bool xol_was_trapped(struct task_struct *tsk)
->  	return false;
->  }
+
+I believe the ordering is correct though and protects us in this case.
+
+> IMO, this can really happen in case of vma_merge() succeeding.
+> Imagine that src vma is lately faulted and in anon_vma_prepare()
+> it got a same anon_vma with an existing vma ( named evil_vma )through
+> find_mergeable_anon_vma().  This can potentially make the vma_merge() in
+> copy_vma() return with evil_vma on some new relocation request. But src_vma
+> is really linked _after_  evil_vma/new_vma/dst_vma.
+> In this way, the ordering protocol  of anon_vma chain is broken.
+> This should be a rare case because I think in most cases
+> if two VMAs can reusable_anon_vma() they were already merged.
 > 
-> +void abort_xol(struct pt_regs *regs)
-> +{
-> +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> +	// !!! Dear Srikar and Ananth, please implement me !!!
-> +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> +	struct uprobe_task *utask = current->utask;
-> +	regs->ip = utask->vaddr;
+> How do you think  ?
+> 
 
-nit:
-Shouldnt we be setting the ip to the next instruction after this
-instruction?
+Despite the comments in anon_vma_compatible(), I would expect that VMAs
+that can share an anon_vma from find_mergeable_anon_vma() will also get
+merged. When the new VMA is created, it will be linked in the usual
+manner and the oldest->newest ordering is what is required. That's not
+that important though.
 
-> +}
-> +
->  /*
->   * Called after single-stepping. To avoid the SMP problems that can
->   * occur when we temporarily put back the original opcode to
+What is important is if mremap is moving src to a dst that is adjacent
+to another anon_vma. If src has never been faulted, it's not an issue
+because there are also no migration PTEs. If src has been faulted, then
+is_mergeable_anon_vma() should fail as anon_vma1 != anon_vma2 and they
+are not compatible. The ordering is preserved and we are still ok.
 
-
-I have applied all your patches and ran tests, the tests are all
-passing.
-
-I will fold them into my patches and send them out.
+All that said, while I don't think there is a problem, I can't convince
+myself 100% of it. Andrea, can you spot a flaw?
 
 -- 
-Thanks and Regards
-Srikar
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
