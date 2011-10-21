@@ -1,142 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 716C96B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 14:03:47 -0400 (EDT)
-Date: Fri, 21 Oct 2011 19:59:15 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: test-case (Was: [PATCH 12/X] uprobes: x86: introduce abort_xol())
-Message-ID: <20111021175915.GA1705@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com> <20111019215326.GF16395@redhat.com> <20111021144207.GN11831@linux.vnet.ibm.com> <20111021162631.GB2552@in.ibm.com> <20111021164221.GA30770@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 500946B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 16:00:26 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p9LK0NA1021804
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:23 -0700
+Received: from qyc1 (qyc1.prod.google.com [10.241.81.129])
+	by hpaq13.eem.corp.google.com with ESMTP id p9LK0J6L021422
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:21 -0700
+Received: by qyc1 with SMTP id 1so5941413qyc.10
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111021164221.GA30770@redhat.com>
+In-Reply-To: <20111021121759.429d8222.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20111020013305.GD21703@tiehlicka.suse.cz>
+	<CALWz4ixxeFveibvqYa4cQR1a4fEBrTrTUFwm2iajk9mV0MEiTw@mail.gmail.com>
+	<20111021024554.GC2589@tiehlicka.suse.cz>
+	<20111021121759.429d8222.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 21 Oct 2011 13:00:18 -0700
+Message-ID: <CALWz4iw9OGUNKjD5y2xGDGaesTjwUT5TOL2A7wDd5apy4M5fnw@mail.gmail.com>
+Subject: Re: [RFD] Isolated memory cgroups again
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=001636426b15bbfe6704afd4851d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@hansenpartnership.com>
 
-On 10/21, Oleg Nesterov wrote:
+--001636426b15bbfe6704afd4851d
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Thursday, October 20, 2011, KAMEZAWA Hiroyuki <
+kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 20 Oct 2011 19:45:55 -0700
+> Michal Hocko <mhocko@suse.cz> wrote:
 >
-> On 10/21, Ananth N Mavinakayanahalli wrote:
-> >
-> > On Fri, Oct 21, 2011 at 08:12:07PM +0530, Srikar Dronamraju wrote:
-> >
-> > > > +void abort_xol(struct pt_regs *regs)
-> > > > +{
-> > > > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> > > > +	// !!! Dear Srikar and Ananth, please implement me !!!
-> > > > +	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> > > > +	struct uprobe_task *utask = current->utask;
-> > > > +	regs->ip = utask->vaddr;
-> > >
-> > > nit:
-> > > Shouldnt we be setting the ip to the next instruction after this
-> > > instruction?
-> >
-> > No, since we should re-execute the original instruction
+>> On Thu 20-10-11 16:41:27, Ying Han wrote:
+>> [...]
+>> > Hi Michal:
+>>
+>> Hi,
+>>
+>> >
+>> > I didn't read through the patch itself but only the description. If we
+>> > wanna protect a memcg being reclaimed from under global memory
+>> > pressure, I think we can approach it by making change on soft_limit
+>> > reclaim.
+>> >
+>> > I have a soft_limit change built on top of Johannes's patchset, which
+>> > does basically soft_limit aware reclaim under global memory pressure.
+>>
+>> Is there any link to the patch(es)? I would be interested to look at
+>> it before we discuss it.
+>>
 >
-> Yes,
-
-In case it was not clear, I meant "agree with your 'No'".
-
-> > after removing
-> > the breakpoint.
+> I'd like to see it, too.
 >
-> No? we should not remove this uprobe?
+> Thanks,
+> -Kame
 >
-> > Also, wrt ip being set to the next instruction on a breakpoint hit,
-> > that's arch specific.
->
-> Probably yes, I am not sure. But:
->
-> > For instance, on x86, it points to the next
-> > instruction,
->
-> No?
->
-> 	/**
-> 	 * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
-> 	 * @regs: Reflects the saved state of the task after it has hit a breakpoint
-> 	 * instruction.
-> 	 * Return the address of the breakpoint instruction.
-> 	 */
-> 	unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs)
-> 	{
-> 		return instruction_pointer(regs) - UPROBES_BKPT_INSN_SIZE;
-> 	}
->
-> Yes, initially regs->ip points to the next insn after int3, but
-> utask->vaddr == get_uprobe_bkpt_addr() == addr of int3.
+Now I am at airport heading to Prague , I will try to post one before the
+meeting if possible. The current patch is simple enough which most of the
+work are reverting the existing soft limit implementation and then the new
+logic is based on the memcg aware global reclaim.
 
-Ananth, Srikar, I'd suggest this test-case:
+The logic is based on reclaim priority, and we skip reclaim from certain
+memcg(under soft limit) before getting down to DEF_PRIORITY - 3. This is
+simple enough to get us start collecting some data result and I am looking
+forward to discuss more thoughts in the meeting
 
-	#include <stdio.h>
-	#include <signal.h>
-	#include <ucontext.h>
 
-	void *fault_insn;
+--ying
 
-	static inline void *uc_ip(struct ucontext *ctxt)
-	{
-		return (void*)ctxt->uc_mcontext.gregs[16];
-	}
+--001636426b15bbfe6704afd4851d
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-	void segv(int sig, siginfo_t *info, void *ctxt)
-	{
-		static int cnt;
+<br><br>On Thursday, October 20, 2011, KAMEZAWA Hiroyuki &lt;<a href=3D"mai=
+lto:kamezawa.hiroyu@jp.fujitsu.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt; =
+wrote:<br>&gt; On Thu, 20 Oct 2011 19:45:55 -0700<br>&gt; Michal Hocko &lt;=
+<a href=3D"mailto:mhocko@suse.cz">mhocko@suse.cz</a>&gt; wrote:<br>
+&gt;<br>&gt;&gt; On Thu 20-10-11 16:41:27, Ying Han wrote:<br>&gt;&gt; [...=
+]<br>&gt;&gt; &gt; Hi Michal:<br>&gt;&gt;<br>&gt;&gt; Hi,<br>&gt;&gt;<br>&g=
+t;&gt; &gt;<br>&gt;&gt; &gt; I didn&#39;t read through the patch itself but=
+ only the description. If we<br>
+&gt;&gt; &gt; wanna protect a memcg being reclaimed from under global memor=
+y<br>&gt;&gt; &gt; pressure, I think we can approach it by making change on=
+ soft_limit<br>&gt;&gt; &gt; reclaim.<br>&gt;&gt; &gt;<br>&gt;&gt; &gt; I h=
+ave a soft_limit change built on top of Johannes&#39;s patchset, which<br>
+&gt;&gt; &gt; does basically soft_limit aware reclaim under global memory p=
+ressure.<br>&gt;&gt;<br>&gt;&gt; Is there any link to the patch(es)? I woul=
+d be interested to look at<br>&gt;&gt; it before we discuss it.<br>&gt;&gt;=
+<br>
+&gt;<br>&gt; I&#39;d like to see it, too.<br>&gt;<br>&gt; Thanks,<br>&gt; -=
+Kame<br>&gt;<br>Now I am at airport heading to Prague , I will try to post =
+one before the meeting if possible. The current patch is simple enough whic=
+h most of the work are reverting the existing soft limit implementation and=
+ then the new logic is based on the memcg aware global reclaim.<br>
+<br>The logic is based on reclaim priority, and we skip reclaim from certai=
+n memcg(under soft limit) before getting down to DEF_PRIORITY - 3. This is =
+simple enough to get us start collecting some data result and I am looking =
+forward to discuss more thoughts in the meeting<br>
+<br><br>--ying=20
 
-		printf("SIGSEGV! ip=%p addr=%p\n", uc_ip(ctxt), info->si_addr);
-
-		if (uc_ip(ctxt) != fault_insn)
-			printf("ERR!! wrong ip\n");
-		if (info->si_addr != (void*)0x12345678)
-			printf("ERR!! wrong addr\n");
-
-		if (++cnt == 3)
-			signal(SIGSEGV, SIG_DFL);
-	}
-
-	int main(void)
-	{
-		struct sigaction sa = {
-			.sa_sigaction	= segv,
-			.sa_flags	= SA_SIGINFO,
-		};
-
-		sigaction(SIGSEGV, &sa, NULL);
-
-		fault_insn = &&label;
-
-	label:
-		asm volatile ("movl $0x0,0x12345678");
-
-		return 0;
-	}
-
-result:
-
-	$ ulimit -c unlimited
-
-	$ ./segv
-	SIGSEGV! ip=0x4006eb addr=0x12345678
-	SIGSEGV! ip=0x4006eb addr=0x12345678
-	SIGSEGV! ip=0x4006eb addr=0x12345678
-	Segmentation fault (core dumped)
-
-	$ gdb -c ./core.1826
-	...
-	Program terminated with signal 11, Segmentation fault.
-	#0  0x00000000004006eb in ?? ()
-
-Now. If you insert uprobe at asm("movl") insn, result should be the same
-or the patches I sent are wrong. In particular, the addr in the coredump
-should be correct too. And consumer->handler() should be called 3 times
-too. This insn is really executed 3 times.
-
-I have no idea how can I test this.
-
-Oleg.
+--001636426b15bbfe6704afd4851d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
