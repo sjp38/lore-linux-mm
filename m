@@ -1,109 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 500946B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 16:00:26 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p9LK0NA1021804
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:23 -0700
-Received: from qyc1 (qyc1.prod.google.com [10.241.81.129])
-	by hpaq13.eem.corp.google.com with ESMTP id p9LK0J6L021422
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:21 -0700
-Received: by qyc1 with SMTP id 1so5941413qyc.10
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2011 13:00:18 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D13926B002D
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 18:07:44 -0400 (EDT)
+From: =?utf-8?q?Pawe=C5=82_Sikora?= <pluto@agmk.net>
+Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
+Date: Fri, 21 Oct 2011 23:36:46 +0200
+References: <201110122012.33767.pluto@agmk.net> <2109011.boM0eZ0ZTE@pawels> <CAPQyPG4SE8DyzuqwG74sE2zuZbDgfDoGDir1xHC3zdED+k=qLA@mail.gmail.com>
+In-Reply-To: <CAPQyPG4SE8DyzuqwG74sE2zuZbDgfDoGDir1xHC3zdED+k=qLA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20111021121759.429d8222.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20111020013305.GD21703@tiehlicka.suse.cz>
-	<CALWz4ixxeFveibvqYa4cQR1a4fEBrTrTUFwm2iajk9mV0MEiTw@mail.gmail.com>
-	<20111021024554.GC2589@tiehlicka.suse.cz>
-	<20111021121759.429d8222.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 21 Oct 2011 13:00:18 -0700
-Message-ID: <CALWz4iw9OGUNKjD5y2xGDGaesTjwUT5TOL2A7wDd5apy4M5fnw@mail.gmail.com>
-Subject: Re: [RFD] Isolated memory cgroups again
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=001636426b15bbfe6704afd4851d
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Message-Id: <201110212336.47267.pluto@agmk.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Kir Kolyshkin <kir@parallels.com>, Pavel Emelianov <xemul@parallels.com>, GregThelen <gthelen@google.com>, "pjt@google.com" <pjt@google.com>, Tim Hockin <thockin@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <paul@paulmenage.org>, James Bottomley <James.Bottomley@hansenpartnership.com>
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, arekm@pld-linux.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, jpiszcz@lucidpixels.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
---001636426b15bbfe6704afd4851d
-Content-Type: text/plain; charset=ISO-8859-1
+On Friday 21 of October 2011 11:07:56 Nai Xia wrote:
+> On Fri, Oct 21, 2011 at 4:07 PM, Pawel Sikora <pluto@agmk.net> wrote:
+> > On Friday 21 of October 2011 14:22:37 Nai Xia wrote:
+> >
+> >> And as a side note. Since I notice that Pawel's workload may include OOM,
+> >
+> > my last tests on patched (3.0.4 + migrate.c fix + vserver) kernel produce full cpu load
+> > on dual 8-cores opterons like on this htop screenshot -> http://pluto.agmk.net/kernel/screen1.png
+> > afaics all userspace applications usualy don't use more than half of physical memory
+> > and so called "cache" on htop bar doesn't reach the 100%.
+> 
+> OKi 1/4 ?did you logged any OOM killing if there was some memory usage burst?
+> But, well my above OOM reasoning is a direct short cut to imagined
+> root cause of "adjacent VMAs which
+> should have been merged but in fact not merged" case.
+> Maybe there are other cases that can lead to this or maybe it's
+> totally another bug....
 
-On Thursday, October 20, 2011, KAMEZAWA Hiroyuki <
-kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 20 Oct 2011 19:45:55 -0700
-> Michal Hocko <mhocko@suse.cz> wrote:
->
->> On Thu 20-10-11 16:41:27, Ying Han wrote:
->> [...]
->> > Hi Michal:
->>
->> Hi,
->>
->> >
->> > I didn't read through the patch itself but only the description. If we
->> > wanna protect a memcg being reclaimed from under global memory
->> > pressure, I think we can approach it by making change on soft_limit
->> > reclaim.
->> >
->> > I have a soft_limit change built on top of Johannes's patchset, which
->> > does basically soft_limit aware reclaim under global memory pressure.
->>
->> Is there any link to the patch(es)? I would be interested to look at
->> it before we discuss it.
->>
->
-> I'd like to see it, too.
->
-> Thanks,
-> -Kame
->
-Now I am at airport heading to Prague , I will try to post one before the
-meeting if possible. The current patch is simple enough which most of the
-work are reverting the existing soft limit implementation and then the new
-logic is based on the memcg aware global reclaim.
+i don't see any OOM killing with my conservative settings
+(vm.overcommit_memory=2, vm.overcommit_ratio=100).
 
-The logic is based on reclaim priority, and we skip reclaim from certain
-memcg(under soft limit) before getting down to DEF_PRIORITY - 3. This is
-simple enough to get us start collecting some data result and I am looking
-forward to discuss more thoughts in the meeting
+> But still I think if my reasoning is good, similar bad things will
+> happen again some time in the future,
+> even if it was not your case here...
+> 
+> >
+> > the patched kernel with disabled CONFIG_TRANSPARENT_HUGEPAGE (new thing in 2.6.38)
+> > died at night, so now i'm going to disable also CONFIG_COMPACTION/MIGRATION in next
+> > steps and stress this machine again...
+> 
+> OK, it's smart to narrow down the range first....
 
-
---ying
-
---001636426b15bbfe6704afd4851d
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br>On Thursday, October 20, 2011, KAMEZAWA Hiroyuki &lt;<a href=3D"mai=
-lto:kamezawa.hiroyu@jp.fujitsu.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt; =
-wrote:<br>&gt; On Thu, 20 Oct 2011 19:45:55 -0700<br>&gt; Michal Hocko &lt;=
-<a href=3D"mailto:mhocko@suse.cz">mhocko@suse.cz</a>&gt; wrote:<br>
-&gt;<br>&gt;&gt; On Thu 20-10-11 16:41:27, Ying Han wrote:<br>&gt;&gt; [...=
-]<br>&gt;&gt; &gt; Hi Michal:<br>&gt;&gt;<br>&gt;&gt; Hi,<br>&gt;&gt;<br>&g=
-t;&gt; &gt;<br>&gt;&gt; &gt; I didn&#39;t read through the patch itself but=
- only the description. If we<br>
-&gt;&gt; &gt; wanna protect a memcg being reclaimed from under global memor=
-y<br>&gt;&gt; &gt; pressure, I think we can approach it by making change on=
- soft_limit<br>&gt;&gt; &gt; reclaim.<br>&gt;&gt; &gt;<br>&gt;&gt; &gt; I h=
-ave a soft_limit change built on top of Johannes&#39;s patchset, which<br>
-&gt;&gt; &gt; does basically soft_limit aware reclaim under global memory p=
-ressure.<br>&gt;&gt;<br>&gt;&gt; Is there any link to the patch(es)? I woul=
-d be interested to look at<br>&gt;&gt; it before we discuss it.<br>&gt;&gt;=
-<br>
-&gt;<br>&gt; I&#39;d like to see it, too.<br>&gt;<br>&gt; Thanks,<br>&gt; -=
-Kame<br>&gt;<br>Now I am at airport heading to Prague , I will try to post =
-one before the meeting if possible. The current patch is simple enough whic=
-h most of the work are reverting the existing soft limit implementation and=
- then the new logic is based on the memcg aware global reclaim.<br>
-<br>The logic is based on reclaim priority, and we skip reclaim from certai=
-n memcg(under soft limit) before getting down to DEF_PRIORITY - 3. This is =
-simple enough to get us start collecting some data result and I am looking =
-forward to discuss more thoughts in the meeting<br>
-<br><br>--ying=20
-
---001636426b15bbfe6704afd4851d--
+disabling hugepage/compacting didn't help but disabling hugepage/compacting/migration keeps
+opterons stable for ~9h so far. userspace uses ~40GB (from 64) ram, caches reach 100% on htop bar,
+average load ~16. i wonder if it survive weekend...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
