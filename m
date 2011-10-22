@@ -1,233 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E44926B002D
-	for <linux-mm@kvack.org>; Sat, 22 Oct 2011 01:07:31 -0400 (EDT)
-Received: by iagf6 with SMTP id f6so8058057iag.14
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2011 22:07:28 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 219296B002E
+	for <linux-mm@kvack.org>; Sat, 22 Oct 2011 01:52:48 -0400 (EDT)
+Received: by iagf6 with SMTP id f6so8103415iag.14
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2011 22:52:45 -0700 (PDT)
 From: Nai Xia <nai.xia@gmail.com>
 Reply-To: nai.xia@gmail.com
 Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
-Date: Sat, 22 Oct 2011 13:07:11 +0800
-References: <201110122012.33767.pluto@agmk.net> <20111021155632.GD4082@suse.de> <20111021174120.GJ608@redhat.com>
-In-Reply-To: <20111021174120.GJ608@redhat.com>
+Date: Sat, 22 Oct 2011 13:52:22 +0800
+References: <201110122012.33767.pluto@agmk.net> <20111021174120.GJ608@redhat.com> <20111021225008.GK608@redhat.com>
+In-Reply-To: <20111021225008.GK608@redhat.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201110221307.11615.nai.xia@gmail.com>
+Message-Id: <201110221352.22741.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Saturday 22 October 2011 01:41:20 Andrea Arcangeli wrote:
-> On Fri, Oct 21, 2011 at 05:56:32PM +0200, Mel Gorman wrote:
-> > On Thu, Oct 20, 2011 at 05:11:28PM +0800, Nai Xia wrote:
-> > > On Mon, Oct 17, 2011 at 7:54 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > > > On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
-> > > >> mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
-> > > >> and pagetable locks, were good enough before page migration (with its
-> > > >> requirement that every migration entry be found) came in; and enough
-> > > >> while migration always held mmap_sem.  But not enough nowadays, when
-> > > >> there's memory hotremove and compaction: anon_vma lock is also needed,
-> > > >> to make sure a migration entry is not dodging around behind our back.
-> > > >
-> > > > For things like migrate and split_huge_page, the anon_vma layer must
-> > > > guarantee the page is reachable by rmap walk at all times regardless
-> > > > if it's at the old or new address.
-> > > >
-> > > > This shall be guaranteed by the copy_vma called by move_vma well
-> > > > before move_page_tables/move_ptes can run.
-> > > >
-> > > > copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
-> > > > into the anon_vma chains structures (vma_link does that). That before
-> > > > any pte can be moved.
-> > > >
-> > > > Because we keep two vmas mapped on both src and dst range, with
-> > > > different vma->vm_pgoff that is valid for the page (the page doesn't
-> > > > change its page->index) the page should always find _all_ its pte at
-> > > > any given time.
-> > > >
-> > > > There may be other variables at play like the order of insertion in
-> > > > the anon_vma chain matches our direction of copy and removal of the
-> > > > old pte. But I think the double locking of the PT lock should make the
-> > > > order in the anon_vma chain absolutely irrelevant (the rmap_walk
-> > > > obviously takes the PT lock too), and furthermore likely the
-> > > > anon_vma_chain insertion is favorable (the dst vma is inserted last
-> > > > and checked last). But it shouldn't matter.
-> > > 
-> > > I happened to be reading these code last week.
-> > > 
-> > > And I do think this order matters, the reason is just quite similar why we
-> > > need i_mmap_lock in move_ptes():
-> > > If rmap_walk goes dst--->src, then when it first look into dst, ok, the
+On Saturday 22 October 2011 06:50:08 Andrea Arcangeli wrote:
+> On Fri, Oct 21, 2011 at 07:41:20PM +0200, Andrea Arcangeli wrote:
+> > We have two options:
 > > 
-> > You might be right in that the ordering matters. We do link new VMAs at
-> 
-> Yes I also think ordering matters as I mentioned in the previous email
-> that Nai answered to.
-> 
-> > the end of the list in anon_vma_chain_list so remove_migrate_ptes should
-> > be walking from src->dst.
-> 
-> Correct. Like I mentioned in that previous email that Nai answered,
-> that wouldn't be ok only if vma_merge succeeds and I didn't change my mind
-> about that...
-> 
-> copy_vma is only called by mremap so supposedly that path can
-> trigger. Looks like I was wrong about vma_merge being able to succeed
-> in copy_vma, and if it does I still think it's a problem as we have no
-> ordering guarantee.
-> 
-> The only other place that depends on the anon_vma_chain order is fork,
-> and there, no vma_merge can happen, so that is safe.
-> 
-> > If remove_migrate_pte finds src first, it will remove the pte and the
-> > correct version will get copied. If move_ptes runs between when
-> > remove_migrate_ptes moves from src to dst, then the PTE at dst will
-> > still be correct.
-> 
-> The problem is rmap_walk will search dst before src. So it will do
-> nothing on dst. Then mremap moves the pte from src to dst. When rmap
-> walk then checks "src" it finds nothing again.
-> 
-> > > pte is not there, and it happily skip it and release the PTL.
-> > > Then just before it look into src, move_ptes() comes in, takes the locks
-> > > and moves the pte from src to dst. And then when rmap_walk() look
-> > > into src,  it will find an empty pte again. The pte is still there,
-> > > but rmap_walk() missed it !
-> > > 
+> > 1) we remove the vma_merge call from copy_vma and we do the vma_merge
+> > manually after mremap succeed (so then we're as safe as fork is and we
+> > relay on the ordering). No locks but we'll just do 1 more allocation
+> > for one addition temporary vma that will be removed after mremap
+> > completed.
 > > 
-> > I believe the ordering is correct though and protects us in this case.
+> > 2) Hugh's original fix.
 > 
-> Normally it is, the only problem is vma_merge succeeding I think.
+> 3) put the src vma at the tail if vma_merge succeeds and the src vma
+> and dst vma aren't the same
 > 
-> > > IMO, this can really happen in case of vma_merge() succeeding.
-> > > Imagine that src vma is lately faulted and in anon_vma_prepare()
-> > > it got a same anon_vma with an existing vma ( named evil_vma )through
-> > > find_mergeable_anon_vma().  This can potentially make the vma_merge() in
-> > > copy_vma() return with evil_vma on some new relocation request. But src_vma
-> > > is really linked _after_  evil_vma/new_vma/dst_vma.
-> > > In this way, the ordering protocol  of anon_vma chain is broken.
-> > > This should be a rare case because I think in most cases
-> > > if two VMAs can reusable_anon_vma() they were already merged.
-> > > 
-> > > How do you think  ?
-> > > 
-> 
-> I tried to understand the above scenario yesterday but with 12 hour
-> of travel on me I just couldn't.
+> I tried to implement this but I'm still wondering about the safety of
+> this with concurrent processes all calling mremap at the same time on
+> the same anon_vma same_anon_vma list, the reasoning I think it may be
+> safe is in the comment. I run a few mremap with my benchmark where the
+> THP aware mremap in -mm gets a x10 boost and moves 5G and it didn't
 
-Oh,yes, the first hypothesis was actually a vague feeling that things
-might go wrong in that direction. The details in it was somewhat 
-missleading. But following that direction, I found the 2nd clear 
-hypothesis that leads to this bug step by step.
+BTW, I am curious about what benchmark did you run and " x10 boost"
+meaning compared to Hugh's anon_vma_locking fix?
+
+> crash but that's about it and not conclusive, if you review please
+> comment...
+
+My comment is at the bottom of this post.
 
 > 
-> Yesterday however I thought of another simpler case:
+> I've to pack luggage and prepare to fly to KS tomorrow so I may not be
+> responsive in the next few days.
 > 
-> part of a vma is moved with mremap elsewhere. Then it is moved back to
-> its original place. So then vma_merge will succeed, and the "src" of
-> mremap is now queued last in anon_vma_chain, wrong ordering.
+> ===
+> From f2898ff06b5a9a14b9d957c7696137f42a2438e9 Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Sat, 22 Oct 2011 00:11:49 +0200
+> Subject: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+>  vma_merge succeeding in copy_vma
+> 
+> migrate was doing a rmap_walk with speculative lock-less access on
+> pagetables. That could lead it to not serialize properly against
+> mremap PT locks. But a second problem remains in the order of vmas in
+> the same_anon_vma list used by the rmap_walk.
+> 
+> If vma_merge would succeed in copy_vma, the src vma could be placed
+> after the dst vma in the same_anon_vma list. That could still lead
+> migrate to miss some pte.
+> 
+> This patch adds a anon_vma_order_tail() function to force the dst vma
+> at the end of the list before mremap starts to solve the problem.
+> 
+> If the mremap is very large and there are a lots of parents or childs
+> sharing the anon_vma root lock, this should still scale better than
+> taking the anon_vma root lock around every pte copy practically for
+> the whole duration of mremap.
+> ---
+>  include/linux/rmap.h |    1 +
+>  mm/mmap.c            |    8 ++++++++
+>  mm/rmap.c            |   43 +++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 52 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 2148b12..45eb098 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -120,6 +120,7 @@ void anon_vma_init(void);	/* create anon_vma_cachep */
+>  int  anon_vma_prepare(struct vm_area_struct *);
+>  void unlink_anon_vmas(struct vm_area_struct *);
+>  int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+> +void anon_vma_order_tail(struct vm_area_struct *);
+>  int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
+>  void __anon_vma_link(struct vm_area_struct *);
+>  
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index a65efd4..a5858dc 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2339,7 +2339,15 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+>  		 */
+>  		if (vma_start >= new_vma->vm_start &&
+>  		    vma_start < new_vma->vm_end)
+> +			/*
+> +			 * No need to call anon_vma_order_tail() in
+> +			 * this case because the same PT lock will
+> +			 * serialize the rmap_walk against both src
+> +			 * and dst vmas.
+> +			 */
+>  			*vmap = new_vma;
+> +		else
+> +			anon_vma_order_tail(new_vma);
+>  	} else {
+>  		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+>  		if (new_vma) {
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 8005080..170cece 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -272,6 +272,49 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+>  }
+>  
+>  /*
+> + * Some rmap walk that needs to find all ptes/hugepmds without false
+> + * negatives (like migrate and split_huge_page) running concurrent
+> + * with operations that copy or move pagetables (like mremap() and
+> + * fork()) to be safe depends the anon_vma "same_anon_vma" list to be
+> + * in a certain order: the dst_vma must be placed after the src_vma in
+> + * the list. This is always guaranteed by fork() but mremap() needs to
+> + * call this function to enforce it in case the dst_vma isn't newly
+> + * allocated and chained with the anon_vma_clone() function but just
+> + * an extension of a pre-existing vma through vma_merge.
+> + *
+> + * NOTE: the same_anon_vma list can still changed by other processes
+> + * while mremap runs because mremap doesn't hold the anon_vma mutex to
+> + * prevent modifications to the list while it runs. All we need to
+> + * enforce is that the relative order of this process vmas isn't
+> + * changing (we don't care about other vmas order). Each vma
+> + * corresponds to an anon_vma_chain structure so there's no risk that
+> + * other processes calling anon_vma_order_tail() and changing the
+> + * same_anon_vma list under mremap() will screw with the relative
+> + * order of this process vmas in the list, because we won't alter the
+> + * order of any vma that isn't belonging to this process. And there
+> + * can't be another anon_vma_order_tail running concurrently with
+> + * mremap() coming from this process because we hold the mmap_sem for
+> + * the whole mremap(). fork() ordering dependency also shouldn't be
+> + * affected because we only care that the parent vmas are placed in
+> + * the list before the child vmas and anon_vma_order_tail won't reorder
+> + * vmas from either the fork parent or child.
+> + */
+> +void anon_vma_order_tail(struct vm_area_struct *dst)
+> +{
+> +	struct anon_vma_chain *pavc;
+> +	struct anon_vma *root = NULL;
+> +
+> +	list_for_each_entry_reverse(pavc, &dst->anon_vma_chain, same_vma) {
+> +		struct anon_vma *anon_vma = pavc->anon_vma;
+> +		VM_BUG_ON(pavc->vma != dst);
+> +		root = lock_anon_vma_root(root, anon_vma);
+> +		list_del(&pavc->same_anon_vma);
+> +		list_add_tail(&pavc->same_anon_vma, &anon_vma->head);
+> +	}
+> +	unlock_anon_vma_root(root);
+> +}
 
-Oh, yes, partial mremaping will do the trick. I was too addicted to find
-a case when two VMAs missed a normal merge chance but will merge later
-on. The only thing I can find by now is that ENOMEM is vma_adjust().
+This patch and together with the reasoning looks good to me. 
+But I wondering this patch can make the anon_vma chain ordering game more 
+complex and harder to play in the future.
+However, if it does bring much perfomance benefit, I vote for this patch 
+because it balances all three requirements here: bug free, performance &
+no two VMAs stay not merged for no good reason.
 
-Partial mremaping is a simpler case and definitely more likey to happen. 
+Our situation again makes me have the strong feeling that we are really
+in bad need of a computer aided way to travel all possible state space.
+There are some guys around me who do automatic software testing research.
+But I am afraid our problem is too much "real world" for them... sigh...  
 
-> 
-> Today I read an email from Nai who showed apparently the same scenario
-> I was thinking, without evil vmas or stuff.
-> 
-> I have an hard time to imagine a vma_merge succeeding on a vma that
-> isn't going back to its original place. The vm_pgoff + vma->anon_vma
-> checks should keep some linarity so going back to the original place
-> sounds the only way vma_merge can succeed in copy_vma. But still it
-> can happen in that case I think (so not sure how the above scenario
-> with an evil_vma could ever happen if it has a different anon_vma and
-> it's not a part of a vma that is going back to its original place like
-> in the second scenario Nai also posted about).
-> 
-> That me and Nai had same scenario hypothesis indipendentely (second
-> Nai hypoteisis not the first quoted above), plus copy_vma doing
-> vma_merge and being only called by mremap, sounds like it can really
-> happen.
-> 
-> > Despite the comments in anon_vma_compatible(), I would expect that VMAs
-> > that can share an anon_vma from find_mergeable_anon_vma() will also get
-> > merged. When the new VMA is created, it will be linked in the usual
-> > manner and the oldest->newest ordering is what is required. That's not
-> > that important though.
-> > 
-> > What is important is if mremap is moving src to a dst that is adjacent
-> > to another anon_vma. If src has never been faulted, it's not an issue
-> > because there are also no migration PTEs. If src has been faulted, then
-> > is_mergeable_anon_vma() should fail as anon_vma1 != anon_vma2 and they
-> > are not compatible. The ordering is preserved and we are still ok.
-> 
-> I was thinking along these lines, the only pitfall should be when
-> something is moved and put back into its original place. When it is
-> moved, a new vma is created and queued last. When it's put back to its
-> original location, vma_merge will succeed, and "src" is now the
-> previous "dst" so queued last and that breaks.
-> 
-> > All that said, while I don't think there is a problem, I can't convince
-> > myself 100% of it. Andrea, can you spot a flaw?
-> 
-> I think Nai's correct, only second hypothesis though.
-> 
-> We have two options:
-> 
-> 1) we remove the vma_merge call from copy_vma and we do the vma_merge
-> manually after mremap succeed (so then we're as safe as fork is and we
-> relay on the ordering). No locks but we'll just do 1 more allocation
-> for one addition temporary vma that will be removed after mremap
-> completed.
-> 
-> 2) Hugh's original fix.
-> 
-> First option probably is faster and prefereable, the vma_merge there
-> should only trigger when putting things back to origin I suspect, and
-> never with random mremaps, not sure how common it is to put things
-> back to origin. If we're in a hurry we can merge Hugh's patch and
-> optimize it later. We can still retain the migrate fix if we intend to
-> take way number 1 later. I didn't like too much migrate doing
-> speculative access on ptes that it can't miss or it'll crash anyway.
 
-Me too, I think it's error-prone or at least we must be very careful
-of its not doing sth evil. If the speculative access does not save
-too much of the time, we need not brother to waste our mind power
-over it.
-
-> 
-> Said that the fix merged upstream is 99% certain to fix things in
-> practice already so I doubt we're in hurry. And if things go wrong
-> these issues don't go unnoticed and they shouldn't corrupt memory even
-> if they trigger. 100% certain it can't do damage (other than a BUG_ON)
-> for split_huge_page as I count the pmds encountered in the rmap_walk
-> when I set the splitting bit, and I compare that count with
-> page_mapcount and BUG_ON if they don't match, and later I repeat the
-> same comparsion in the second rmap_walk that establishes the pte and
-> downgrades the hugepmd to pmd, and BUG_ON again if they don't match
-> with the previous rmap_walk count. It may be possible to trigger the
-> BUG_ON with some malicious activity but it won't be too easy either
-> because it's not an instant thing, still a race had to trigger and
-> it's hard to reproduce.
-> 
-> The anon_vma lock is quite a wide lock as it's shared by all parents
-> anon_vma_chains too, slab allocation from local cpu may actually be
-> faster in some condition (even when the slab allocation is
-> superflous). But then I'm not sure. So I'm not against applying Hugh's
-> fix even for the long run. I wouldn't git revert the migration change,
-> but then if we go with Hugh's fix probably it'd be safe.
-> 
-
-Yeah, anon_vma root lock is a big lock. And JFYI, actually I am doing 
-some very nasty hacking on anon_vma and one of the side effects is 
-breaking the root lock into pieces. But this area is pretty 
-convolved by many racing conditions. I hope some day I will finally make
-my patch work and have your precious review of it. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
