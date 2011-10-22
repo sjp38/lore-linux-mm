@@ -1,109 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8F96B002D
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2011 20:11:30 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 21 Oct 2011 20:11:20 -0400
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B2@USINDEVS02.corp.hds.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com>
- <20110901100650.6d884589.rdunlap@xenotime.net>
- <20110901152650.7a63cb8b@annuminas.surriel.com>
- <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516CBBC@USINDEVS02.corp.hds.com>
- <alpine.DEB.2.00.1110111343070.29761@chino.kir.corp.google.com>
- <4E959292.9060301@redhat.com>
- <alpine.DEB.2.00.1110121316590.7646@chino.kir.corp.google.com>
- <4E966564.5030902@redhat.com>,<alpine.DEB.2.00.1110122210030.7572@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1110122210030.7572@chino.kir.corp.google.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E44926B002D
+	for <linux-mm@kvack.org>; Sat, 22 Oct 2011 01:07:31 -0400 (EDT)
+Received: by iagf6 with SMTP id f6so8058057iag.14
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2011 22:07:28 -0700 (PDT)
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
+Subject: Re: kernel 3.0: BUG: soft lockup: find_get_pages+0x51/0x110
+Date: Sat, 22 Oct 2011 13:07:11 +0800
+References: <201110122012.33767.pluto@agmk.net> <20111021155632.GD4082@suse.de> <20111021174120.GJ608@redhat.com>
+In-Reply-To: <20111021174120.GJ608@redhat.com>
 MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201110221307.11615.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On 10/13/2011 01:22 AM, David Rientjes wrote:
-> On Thu, 13 Oct 2011, Rik van Riel wrote:
->=20
->> Furthermore, I am not sure that giving kswapd more CPU time is
->> going to help, because kswapd could be stuck on some lock, held
->> by a lower priority (or sleeping) context.
->>
->> I agree that the BFS patch would be worth a try, and would be
->> very pleasantly surprised if it worked, but I am not very
->> optimistic about it...
->>
->=20
-> It may require a combination of Con's patch, increasing the priority of=20
-> kswapd if a higher priority task kicks it in the page allocator, and an=20
-> extra bonus on top of the high watermark if it was triggered by a=20
-> rt-thread -- similar to ALLOC_HARDER but instead reclaiming to=20
-> (high * 1.25).
+On Saturday 22 October 2011 01:41:20 Andrea Arcangeli wrote:
+> On Fri, Oct 21, 2011 at 05:56:32PM +0200, Mel Gorman wrote:
+> > On Thu, Oct 20, 2011 at 05:11:28PM +0800, Nai Xia wrote:
+> > > On Mon, Oct 17, 2011 at 7:54 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > > > On Thu, Oct 13, 2011 at 04:30:09PM -0700, Hugh Dickins wrote:
+> > > >> mremap's down_write of mmap_sem, together with i_mmap_mutex/lock,
+> > > >> and pagetable locks, were good enough before page migration (with its
+> > > >> requirement that every migration entry be found) came in; and enough
+> > > >> while migration always held mmap_sem.  But not enough nowadays, when
+> > > >> there's memory hotremove and compaction: anon_vma lock is also needed,
+> > > >> to make sure a migration entry is not dodging around behind our back.
+> > > >
+> > > > For things like migrate and split_huge_page, the anon_vma layer must
+> > > > guarantee the page is reachable by rmap walk at all times regardless
+> > > > if it's at the old or new address.
+> > > >
+> > > > This shall be guaranteed by the copy_vma called by move_vma well
+> > > > before move_page_tables/move_ptes can run.
+> > > >
+> > > > copy_vma obviously takes the anon_vma lock to insert the new "dst" vma
+> > > > into the anon_vma chains structures (vma_link does that). That before
+> > > > any pte can be moved.
+> > > >
+> > > > Because we keep two vmas mapped on both src and dst range, with
+> > > > different vma->vm_pgoff that is valid for the page (the page doesn't
+> > > > change its page->index) the page should always find _all_ its pte at
+> > > > any given time.
+> > > >
+> > > > There may be other variables at play like the order of insertion in
+> > > > the anon_vma chain matches our direction of copy and removal of the
+> > > > old pte. But I think the double locking of the PT lock should make the
+> > > > order in the anon_vma chain absolutely irrelevant (the rmap_walk
+> > > > obviously takes the PT lock too), and furthermore likely the
+> > > > anon_vma_chain insertion is favorable (the dst vma is inserted last
+> > > > and checked last). But it shouldn't matter.
+> > > 
+> > > I happened to be reading these code last week.
+> > > 
+> > > And I do think this order matters, the reason is just quite similar why we
+> > > need i_mmap_lock in move_ptes():
+> > > If rmap_walk goes dst--->src, then when it first look into dst, ok, the
+> > 
+> > You might be right in that the ordering matters. We do link new VMAs at
+> 
+> Yes I also think ordering matters as I mentioned in the previous email
+> that Nai answered to.
+> 
+> > the end of the list in anon_vma_chain_list so remove_migrate_ptes should
+> > be walking from src->dst.
+> 
+> Correct. Like I mentioned in that previous email that Nai answered,
+> that wouldn't be ok only if vma_merge succeeds and I didn't change my mind
+> about that...
+> 
+> copy_vma is only called by mremap so supposedly that path can
+> trigger. Looks like I was wrong about vma_merge being able to succeed
+> in copy_vma, and if it does I still think it's a problem as we have no
+> ordering guarantee.
+> 
+> The only other place that depends on the anon_vma_chain order is fork,
+> and there, no vma_merge can happen, so that is safe.
+> 
+> > If remove_migrate_pte finds src first, it will remove the pte and the
+> > correct version will get copied. If move_ptes runs between when
+> > remove_migrate_ptes moves from src to dst, then the PTE at dst will
+> > still be correct.
+> 
+> The problem is rmap_walk will search dst before src. So it will do
+> nothing on dst. Then mremap moves the pte from src to dst. When rmap
+> walk then checks "src" it finds nothing again.
+> 
+> > > pte is not there, and it happily skip it and release the PTL.
+> > > Then just before it look into src, move_ptes() comes in, takes the locks
+> > > and moves the pte from src to dst. And then when rmap_walk() look
+> > > into src,  it will find an empty pte again. The pte is still there,
+> > > but rmap_walk() missed it !
+> > > 
+> > 
+> > I believe the ordering is correct though and protects us in this case.
+> 
+> Normally it is, the only problem is vma_merge succeeding I think.
+> 
+> > > IMO, this can really happen in case of vma_merge() succeeding.
+> > > Imagine that src vma is lately faulted and in anon_vma_prepare()
+> > > it got a same anon_vma with an existing vma ( named evil_vma )through
+> > > find_mergeable_anon_vma().  This can potentially make the vma_merge() in
+> > > copy_vma() return with evil_vma on some new relocation request. But src_vma
+> > > is really linked _after_  evil_vma/new_vma/dst_vma.
+> > > In this way, the ordering protocol  of anon_vma chain is broken.
+> > > This should be a rare case because I think in most cases
+> > > if two VMAs can reusable_anon_vma() they were already merged.
+> > > 
+> > > How do you think  ?
+> > > 
+> 
+> I tried to understand the above scenario yesterday but with 12 hour
+> of travel on me I just couldn't.
 
-I tested Con's patch. The results are following.
+Oh,yes, the first hypothesis was actually a vague feeling that things
+might go wrong in that direction. The details in it was somewhat 
+missleading. But following that direction, I found the 2nd clear 
+hypothesis that leads to this bug step by step.
 
-1. delayacct result
+> 
+> Yesterday however I thought of another simpler case:
+> 
+> part of a vma is moved with mremap elsewhere. Then it is moved back to
+> its original place. So then vma_merge will succeed, and the "src" of
+> mremap is now queued last in anon_vma_chain, wrong ordering.
 
-RECLAIM                     count    delay total  delay average
----------------------------------------------------------------
-normal task w/o Con's patch   210       42685857        203us
-rt task w/o Con's patch        32        4922368        153us
-rt task w   Con's patch        29        4399320        151us
+Oh, yes, partial mremaping will do the trick. I was too addicted to find
+a case when two VMAs missed a normal merge chance but will merge later
+on. The only thing I can find by now is that ENOMEM is vma_adjust().
 
+Partial mremaping is a simpler case and definitely more likey to happen. 
 
-2. /proc/vmstat result
-                     normal task w/o  rt task w/o  rt task w/
-                         Con's patch  Con's patch  Con's patch
----------------------------------------------------------------------
-nr_vmscan_write                    0        13160        14536
-pgsteal_dma                        0            0            0
-pgsteal_dma32                 182710       175049       169871
-pgsteal_normal                 10260         9499        13077
-pgsteal_movable                    0            0            0
-pgscan_kswapd_dma                  0            0            0
-pgscan_kswapd_dma32           127159       149096       147924
-pgscan_kswapd_normal           26094        49011        33186
-pgscan_kswapd_movable              0            0            0
-pgscan_direct_dma                  0            0            0
-pgscan_direct_dma32            55551        25923        21947
-pgscan_direct_normal            7128         3624         2816
-pgscan_direct_movable              0            0            0
-kswapd_steal                  134481       157951       159556
-kswapd_inodesteal                  0            0            0
-kswapd_low_wmark_hit_quickly       0            0            6
-kswapd_high_wmark_hit_quickly      0            0            0
-allocstall                       324          151          128
+> 
+> Today I read an email from Nai who showed apparently the same scenario
+> I was thinking, without evil vmas or stuff.
+> 
+> I have an hard time to imagine a vma_merge succeeding on a vma that
+> isn't going back to its original place. The vm_pgoff + vma->anon_vma
+> checks should keep some linarity so going back to the original place
+> sounds the only way vma_merge can succeed in copy_vma. But still it
+> can happen in that case I think (so not sure how the above scenario
+> with an evil_vma could ever happen if it has a different anon_vma and
+> it's not a part of a vma that is going back to its original place like
+> in the second scenario Nai also posted about).
+> 
+> That me and Nai had same scenario hypothesis indipendentely (second
+> Nai hypoteisis not the first quoted above), plus copy_vma doing
+> vma_merge and being only called by mremap, sounds like it can really
+> happen.
+> 
+> > Despite the comments in anon_vma_compatible(), I would expect that VMAs
+> > that can share an anon_vma from find_mergeable_anon_vma() will also get
+> > merged. When the new VMA is created, it will be linked in the usual
+> > manner and the oldest->newest ordering is what is required. That's not
+> > that important though.
+> > 
+> > What is important is if mremap is moving src to a dst that is adjacent
+> > to another anon_vma. If src has never been faulted, it's not an issue
+> > because there are also no migration PTEs. If src has been faulted, then
+> > is_mergeable_anon_vma() should fail as anon_vma1 != anon_vma2 and they
+> > are not compatible. The ordering is preserved and we are still ok.
+> 
+> I was thinking along these lines, the only pitfall should be when
+> something is moved and put back into its original place. When it is
+> moved, a new vma is created and queued last. When it's put back to its
+> original location, vma_merge will succeed, and "src" is now the
+> previous "dst" so queued last and that breaks.
+> 
+> > All that said, while I don't think there is a problem, I can't convince
+> > myself 100% of it. Andrea, can you spot a flaw?
+> 
+> I think Nai's correct, only second hypothesis though.
+> 
+> We have two options:
+> 
+> 1) we remove the vma_merge call from copy_vma and we do the vma_merge
+> manually after mremap succeed (so then we're as safe as fork is and we
+> relay on the ordering). No locks but we'll just do 1 more allocation
+> for one addition temporary vma that will be removed after mremap
+> completed.
+> 
+> 2) Hugh's original fix.
+> 
+> First option probably is faster and prefereable, the vma_merge there
+> should only trigger when putting things back to origin I suspect, and
+> never with random mremaps, not sure how common it is to put things
+> back to origin. If we're in a hurry we can merge Hugh's patch and
+> optimize it later. We can still retain the migrate fix if we intend to
+> take way number 1 later. I didn't like too much migrate doing
+> speculative access on ptes that it can't miss or it'll crash anyway.
 
-Unfortunately, it seems that Con's patch does not improve my
-testcase so much. We may need extra bonus on the high watermark if
-we take the way above. But necessary bonus depends on workloads,
-hardware etc., so it can't be solved with fixed bonus, I think.
+Me too, I think it's error-prone or at least we must be very careful
+of its not doing sth evil. If the speculative access does not save
+too much of the time, we need not brother to waste our mind power
+over it.
 
-> If we're going to go with extra_free_kbytes, then I'd like to see the tes=
-t=20
-> case posted with a mathematical formula to show me what I should tune it=
-=20
-> to be depending on my machine's memory capacity and amount of free RAM=20
-> when started (and I can use mem=3D to test it for various capacities).  F=
-or=20
-> this to be merged, there should be a clear expression that shows what the=
-=20
-> ideal setting of the tunable should be rather than asking for trial-and-
-> error to see what works and what doesn't.  If such an expression doesn't=
-=20
-> exist, then it's clear that the necessary setting will vary significantly=
-=20
-> as the implementation changes from kernel to kernel.
+> 
+> Said that the fix merged upstream is 99% certain to fix things in
+> practice already so I doubt we're in hurry. And if things go wrong
+> these issues don't go unnoticed and they shouldn't corrupt memory even
+> if they trigger. 100% certain it can't do damage (other than a BUG_ON)
+> for split_huge_page as I count the pmds encountered in the rmap_walk
+> when I set the splitting bit, and I compare that count with
+> page_mapcount and BUG_ON if they don't match, and later I repeat the
+> same comparsion in the second rmap_walk that establishes the pte and
+> downgrades the hugepmd to pmd, and BUG_ON again if they don't match
+> with the previous rmap_walk count. It may be possible to trigger the
+> BUG_ON with some malicious activity but it won't be too easy either
+> because it's not an instant thing, still a race had to trigger and
+> it's hard to reproduce.
+> 
+> The anon_vma lock is quite a wide lock as it's shared by all parents
+> anon_vma_chains too, slab allocation from local cpu may actually be
+> faster in some condition (even when the slab allocation is
+> superflous). But then I'm not sure. So I'm not against applying Hugh's
+> fix even for the long run. I wouldn't git revert the migration change,
+> but then if we go with Hugh's fix probably it'd be safe.
+> 
 
-Hmm, try and error is tuning itself, isn't it? When we tune a system,
-we usually set some knobs, run some benchmarks/tests/etc., evaluate
-the results and decide which is the appropriate value.
-
-Regards,
-Satoru=
+Yeah, anon_vma root lock is a big lock. And JFYI, actually I am doing 
+some very nasty hacking on anon_vma and one of the side effects is 
+breaking the root lock into pieces. But this area is pretty 
+convolved by many racing conditions. I hope some day I will finally make
+my patch work and have your precious review of it. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
