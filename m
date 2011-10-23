@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7AB6B0032
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 11:49:58 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E98AF6B0033
+	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 11:50:01 -0400 (EDT)
 Received: by mail-bw0-f41.google.com with SMTP id zu5so9120434bkb.14
-        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 08:49:57 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 08:50:00 -0700 (PDT)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v2 5/6] slub: Only IPI CPUs that have per cpu obj to flush
-Date: Sun, 23 Oct 2011 17:48:41 +0200
-Message-Id: <1319384922-29632-6-git-send-email-gilad@benyossef.com>
+Subject: [PATCH v2 6/6] slub: only preallocate cpus_with_slabs if offstack
+Date: Sun, 23 Oct 2011 17:48:42 +0200
+Message-Id: <1319384922-29632-7-git-send-email-gilad@benyossef.com>
 In-Reply-To: <1319384922-29632-1-git-send-email-gilad@benyossef.com>
 References: <1319384922-29632-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,34 +15,20 @@ List-ID: <linux-mm.kvack.org>
 To: lkml@vger.kernel.org
 Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
 
-flush_all() is called for each kmem_cahce_destroy(). So every cache
-being destroyed dynamically ended up sending an IPI to each CPU in the
-system, regardless if the cache has ever been used there.
+We need a cpumask to track cpus with per cpu cache pages
+to know which cpu to whack during flush_all. For
+CONFIG_CPUMASK_OFFSTACK=n we allocate the mask on stack.
+For CONFIG_CPUMASK_OFFSTACK=y we don't want to call kmalloc
+on the flush_all path, so we preallocate per kmem_cache
+on cache creation and use it in flush_all.
 
-For example, if you close the Infinband ipath driver char device file,
-the close file ops calls kmem_cache_destroy(). So running some
-infiniband config tool on one a single CPU dedicated to system tasks
-might interrupt the rest of the 127 CPUs I dedicated to some CPU
-intensive task.
+The result is that for the common CONFIG_CPUMASK_OFFSTACK=n
+case there is no memory overhead for the mask var.
 
-I suspect there is a good chance that every line in the output of "git
-grep kmem_cache_destroy linux/ | grep '\->'" has a similar scenario.
-
-This patch attempts to rectify this issue by sending an IPI to flush
-the per cpu objects back to the free lists only to CPUs that seems to
-have such objects.
-
-The check which CPU to IPI is racy but we don't care since
-asking a CPU without per cpu objects to flush does no
-damage and as far as I can tell the flush_all by itself is
-racy against allocs on remote CPUs anyway, so if you meant
-the flush_all to be determinstic, you had to arrange for
-locking regardless.
-
-Also note that it is fine for concurrent uses of the cpumask var
-on different cpus since they end up tracking the same thing. The
-only downside to a race is asking a CPU with not per cpu cache
-to flush, which before this patch happens all the time any way.
+Since systems where CONFIG_CPUMASK_OFFSTACK=y are the systems
+which are most likely to benefit from less IPIs by tracking
+which cpu pas actually has a per cpu cache, we end up paying
+the overhead only in cases we enjoy the upside.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
 Acked-by: Chris Metcalf <cmetcalf@tilera.com>
@@ -55,131 +41,148 @@ CC: Pekka Enberg <penberg@kernel.org>
 CC: Matt Mackall <mpm@selenic.com>
 CC: Sasha Levin <levinsasha928@gmail.com>
 ---
- include/linux/slub_def.h |    3 +++
- mm/slub.c                |   37 +++++++++++++++++++++++++++++++++++--
- 2 files changed, 38 insertions(+), 2 deletions(-)
+ include/linux/slub_def.h |    8 ++++++-
+ mm/slub.c                |   52 +++++++++++++++++++++++++++++++++------------
+ 2 files changed, 45 insertions(+), 15 deletions(-)
 
 diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index f58d641..b130f61 100644
+index b130f61..c07f7aa 100644
 --- a/include/linux/slub_def.h
 +++ b/include/linux/slub_def.h
-@@ -102,6 +102,9 @@ struct kmem_cache {
- 	 */
+@@ -103,8 +103,14 @@ struct kmem_cache {
  	int remote_node_defrag_ratio;
  #endif
-+
-+	/* Which CPUs hold local slabs for this cache. */
-+	cpumask_var_t cpus_with_slabs;
+ 
+-	/* Which CPUs hold local slabs for this cache. */
++#ifdef CONFIG_CPUMASK_OFFSTACK
++	/*
++	 * Which CPUs hold local slabs for this cache.
++	 * Only updated on calling flush_all().
++	 * Defined on stack for CONFIG_CPUMASK_OFFSTACK=n.
++	 */
+ 	cpumask_var_t cpus_with_slabs;
++#endif
  	struct kmem_cache_node *node[MAX_NUMNODES];
  };
  
 diff --git a/mm/slub.c b/mm/slub.c
-index 7c54fe8..f8cbf2d 100644
+index f8cbf2d..765be95 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1948,7 +1948,18 @@ static void flush_cpu_slab(void *d)
+@@ -1946,20 +1946,48 @@ static void flush_cpu_slab(void *d)
+ 	__flush_cpu_slab(s, smp_processor_id());
+ }
  
++/*
++ * We need a cpumask struct to track which cpus have
++ * per cpu caches. For CONFIG_CPUMASK_OFFSTACK=n we
++ * allocate on stack. For CONFIG_CPUMASK_OFFSTACK=y
++ * we don't want to allocate in the flush_all code path
++ * so we allocate a struct for each cache structure
++ * on kmem cache creation and use it here.
++ */
  static void flush_all(struct kmem_cache *s)
  {
--	on_each_cpu(flush_cpu_slab, s, 1);
-+	struct kmem_cache_cpu *c;
-+	int cpu;
+ 	struct kmem_cache_cpu *c;
+ 	int cpu;
++	cpumask_var_t cpus;
+ 
++#ifdef CONFIG_CPUMASK_OFFSTACK
++	cpus = s->cpus_with_slabs;
++#endif
+ 	for_each_online_cpu(cpu) {
+ 		c = per_cpu_ptr(s->cpu_slab, cpu);
+ 		if (c && c->page)
+-			cpumask_set_cpu(cpu, s->cpus_with_slabs);
++			cpumask_set_cpu(cpu, cpus);
+ 		else
+-			cpumask_clear_cpu(cpu, s->cpus_with_slabs);
++			cpumask_clear_cpu(cpu, cpus);
+ 	}
+ 
+-	on_each_cpu_mask(s->cpus_with_slabs, flush_cpu_slab, s, 1);
++	on_each_cpu_mask(cpus, flush_cpu_slab, s, 1);
++}
 +
-+	for_each_online_cpu(cpu) {
-+		c = per_cpu_ptr(s->cpu_slab, cpu);
-+		if (c && c->page)
-+			cpumask_set_cpu(cpu, s->cpus_with_slabs);
-+		else
-+			cpumask_clear_cpu(cpu, s->cpus_with_slabs);
-+	}
++static inline int alloc_cpus_mask(struct kmem_cache *s, int flags)
++{
++#ifdef CONFIG_CPUMASK_OFFSTACK
++	return alloc_cpumask_var(&s->cpus_with_slabs, flags);
++#else
++	return 1;
++#endif
++}
 +
-+	on_each_cpu_mask(s->cpus_with_slabs, flush_cpu_slab, s, 1);
++static inline void free_cpus_mask(struct kmem_cache *s)
++{
++#ifdef CONFIG_CPUMASK_OFFSTACK
++	free_cpumask_var(s->cpus_with_slabs);
++#endif
  }
  
  /*
-@@ -3028,6 +3039,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
+@@ -3039,7 +3067,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
  		if (s->flags & SLAB_DESTROY_BY_RCU)
  			rcu_barrier();
  		sysfs_slab_remove(s);
-+		free_cpumask_var(s->cpus_with_slabs);
+-		free_cpumask_var(s->cpus_with_slabs);
++		free_cpus_mask(s);
  	}
  	up_write(&slub_lock);
  }
-@@ -3528,6 +3540,7 @@ void __init kmem_cache_init(void)
- 	int order;
- 	struct kmem_cache *temp_kmem_cache_node;
- 	unsigned long kmalloc_size;
-+	int ret;
- 
- 	kmem_size = offsetof(struct kmem_cache, node) +
- 				nr_node_ids * sizeof(struct kmem_cache_node *);
-@@ -3635,15 +3648,24 @@ void __init kmem_cache_init(void)
- 
- 	slab_state = UP;
- 
--	/* Provide the correct kmalloc names now that the caches are up */
-+	/*
-+	 * Provide the correct kmalloc names and the cpus_with_slabs cpumasks
-+	 * for CONFIG_CPUMASK_OFFSTACK=y case now that the caches are up.
-+	 */
+@@ -3655,16 +3683,14 @@ void __init kmem_cache_init(void)
  	if (KMALLOC_MIN_SIZE <= 32) {
  		kmalloc_caches[1]->name = kstrdup(kmalloc_caches[1]->name, GFP_NOWAIT);
  		BUG_ON(!kmalloc_caches[1]->name);
-+		ret = alloc_cpumask_var(&kmalloc_caches[1]->cpus_with_slabs,
-+			GFP_NOWAIT);
-+		BUG_ON(!ret);
+-		ret = alloc_cpumask_var(&kmalloc_caches[1]->cpus_with_slabs,
+-			GFP_NOWAIT);
++		ret = alloc_cpus_mask(kmalloc_caches[1], GFP_NOWAIT);
+ 		BUG_ON(!ret);
  	}
  
  	if (KMALLOC_MIN_SIZE <= 64) {
  		kmalloc_caches[2]->name = kstrdup(kmalloc_caches[2]->name, GFP_NOWAIT);
  		BUG_ON(!kmalloc_caches[2]->name);
-+		ret = alloc_cpumask_var(&kmalloc_caches[2]->cpus_with_slabs,
-+				GFP_NOWAIT);
-+		BUG_ON(!ret);
+-		ret = alloc_cpumask_var(&kmalloc_caches[2]->cpus_with_slabs,
+-				GFP_NOWAIT);
++		ret = alloc_cpus_mask(kmalloc_caches[2], GFP_NOWAIT);
+ 		BUG_ON(!ret);
  	}
  
- 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
-@@ -3651,6 +3673,9 @@ void __init kmem_cache_init(void)
+@@ -3673,8 +3699,7 @@ void __init kmem_cache_init(void)
  
  		BUG_ON(!s);
  		kmalloc_caches[i]->name = s;
-+		ret = alloc_cpumask_var(&kmalloc_caches[i]->cpus_with_slabs,
-+				GFP_NOWAIT);
-+		BUG_ON(!ret);
+-		ret = alloc_cpumask_var(&kmalloc_caches[i]->cpus_with_slabs,
+-				GFP_NOWAIT);
++		ret = alloc_cpus_mask(kmalloc_caches[i], GFP_NOWAIT);
+ 		BUG_ON(!ret);
  	}
  
- #ifdef CONFIG_SMP
-@@ -3668,6 +3693,10 @@ void __init kmem_cache_init(void)
+@@ -3693,8 +3718,7 @@ void __init kmem_cache_init(void)
  			BUG_ON(!name);
  			kmalloc_dma_caches[i] = create_kmalloc_cache(name,
  				s->objsize, SLAB_CACHE_DMA);
-+			ret = alloc_cpumask_var(
-+				&kmalloc_dma_caches[i]->cpus_with_slabs,
-+				GFP_NOWAIT);
-+			BUG_ON(!ret);
+-			ret = alloc_cpumask_var(
+-				&kmalloc_dma_caches[i]->cpus_with_slabs,
++			ret = alloc_cpus_mask(kmalloc_dma_caches[i],
+ 				GFP_NOWAIT);
+ 			BUG_ON(!ret);
  		}
- 	}
- #endif
-@@ -3778,15 +3807,19 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+@@ -3810,11 +3834,11 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
  
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
-+
  		if (kmem_cache_open(s, n,
  				size, align, flags, ctor)) {
-+			alloc_cpumask_var(&s->cpus_with_slabs, GFP_KERNEL);
+-			alloc_cpumask_var(&s->cpus_with_slabs, GFP_KERNEL);
++			alloc_cpus_mask(s, GFP_KERNEL);
  			list_add(&s->list, &slab_caches);
  			if (sysfs_slab_add(s)) {
  				list_del(&s->list);
-+				free_cpumask_var(s->cpus_with_slabs);
+-				free_cpumask_var(s->cpus_with_slabs);
++				free_cpus_mask(s);
  				kfree(n);
  				kfree(s);
  				goto err;
- 			}
-+
- 			up_write(&slub_lock);
- 			return s;
- 		}
 -- 
 1.7.0.4
 
