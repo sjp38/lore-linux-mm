@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C2B56B003B
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 11:57:55 -0400 (EDT)
-Received: by mail-bw0-f41.google.com with SMTP id zu5so9127821bkb.14
-        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 08:57:54 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 79FF76B003C
+	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 11:57:59 -0400 (EDT)
+Received: by mail-ey0-f169.google.com with SMTP id 4so6779982eye.14
+        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 08:57:57 -0700 (PDT)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v2 4/6] mm: Only IPI CPUs to drain local pages if they exist
-Date: Sun, 23 Oct 2011 17:56:51 +0200
-Message-Id: <1319385413-29665-5-git-send-email-gilad@benyossef.com>
+Subject: [PATCH v2 5/6] slub: Only IPI CPUs that have per cpu obj to flush
+Date: Sun, 23 Oct 2011 17:56:52 +0200
+Message-Id: <1319385413-29665-6-git-send-email-gilad@benyossef.com>
 In-Reply-To: <1319385413-29665-1-git-send-email-gilad@benyossef.com>
 References: <1319385413-29665-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,9 +15,34 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
 
-Use a cpumask to track CPUs with per-cpu pages in any zone
-and only send an IPI requesting CPUs to drain these pages
-to the buddy allocator if they actually have pages.
+flush_all() is called for each kmem_cahce_destroy(). So every cache
+being destroyed dynamically ended up sending an IPI to each CPU in the
+system, regardless if the cache has ever been used there.
+
+For example, if you close the Infinband ipath driver char device file,
+the close file ops calls kmem_cache_destroy(). So running some
+infiniband config tool on one a single CPU dedicated to system tasks
+might interrupt the rest of the 127 CPUs I dedicated to some CPU
+intensive task.
+
+I suspect there is a good chance that every line in the output of "git
+grep kmem_cache_destroy linux/ | grep '\->'" has a similar scenario.
+
+This patch attempts to rectify this issue by sending an IPI to flush
+the per cpu objects back to the free lists only to CPUs that seems to
+have such objects.
+
+The check which CPU to IPI is racy but we don't care since
+asking a CPU without per cpu objects to flush does no
+damage and as far as I can tell the flush_all by itself is
+racy against allocs on remote CPUs anyway, so if you meant
+the flush_all to be determinstic, you had to arrange for
+locking regardless.
+
+Also note that it is fine for concurrent uses of the cpumask var
+on different cpus since they end up tracking the same thing. The
+only downside to a race is asking a CPU with not per cpu cache
+to flush, which before this patch happens all the time any way.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
 Acked-by: Chris Metcalf <cmetcalf@tilera.com>
@@ -30,174 +55,131 @@ CC: Pekka Enberg <penberg@kernel.org>
 CC: Matt Mackall <mpm@selenic.com>
 CC: Sasha Levin <levinsasha928@gmail.com>
 ---
- mm/page_alloc.c |   64 +++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 files changed, 55 insertions(+), 9 deletions(-)
+ include/linux/slub_def.h |    3 +++
+ mm/slub.c                |   37 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6e8ecb6..9551b90 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -57,11 +57,17 @@
- #include <linux/ftrace_event.h>
- #include <linux/memcontrol.h>
- #include <linux/prefetch.h>
-+#include <linux/percpu.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-+#include <asm/local.h>
- #include "internal.h"
- 
-+/* Which CPUs have per cpu pages  */
-+cpumask_var_t cpus_with_pcp;
-+static DEFINE_PER_CPU(unsigned long, total_cpu_pcp_count);
-+
- #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
- DEFINE_PER_CPU(int, numa_node);
- EXPORT_PER_CPU_SYMBOL(numa_node);
-@@ -224,6 +230,36 @@ EXPORT_SYMBOL(nr_online_nodes);
- 
- int page_group_by_mobility_disabled __read_mostly;
- 
-+/*
-+ * The following two functions track page counts both per zone/per CPU
-+ * and globaly per CPU.
-+ *
-+ * They must be called with interrupts disabled and either pinned to specific
-+ * CPU or for offline CPUs or under stop_machine.
-+ */
-+
-+static inline void inc_pcp_count(int cpu, struct per_cpu_pages *pcp, int count)
-+{
-+	unsigned long *tot = &per_cpu(total_cpu_pcp_count, cpu);
-+
-+	if (unlikely(!*tot))
-+		cpumask_set_cpu(cpu, cpus_with_pcp);
-+
-+	*tot += count;
-+	pcp->count += count;
-+}
-+
-+static inline void dec_pcp_count(int cpu, struct per_cpu_pages *pcp, int count)
-+{
-+	unsigned long *tot = &per_cpu(total_cpu_pcp_count, cpu);
-+
-+	pcp->count -= count;
-+	*tot -= count;
-+
-+	if (unlikely(!*tot))
-+		cpumask_clear_cpu(cpu, cpus_with_pcp);
-+}
-+
- static void set_pageblock_migratetype(struct page *page, int migratetype)
- {
- 
-@@ -1072,7 +1108,7 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
- 	else
- 		to_drain = pcp->count;
- 	free_pcppages_bulk(zone, to_drain, pcp);
--	pcp->count -= to_drain;
-+	dec_pcp_count(smp_processor_id(), pcp, to_drain);
- 	local_irq_restore(flags);
- }
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index f58d641..b130f61 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -102,6 +102,9 @@ struct kmem_cache {
+ 	 */
+ 	int remote_node_defrag_ratio;
  #endif
-@@ -1099,7 +1135,7 @@ static void drain_pages(unsigned int cpu)
- 		pcp = &pset->pcp;
- 		if (pcp->count) {
- 			free_pcppages_bulk(zone, pcp->count, pcp);
--			pcp->count = 0;
-+			dec_pcp_count(cpu, pcp, pcp->count);
- 		}
- 		local_irq_restore(flags);
- 	}
-@@ -1118,7 +1154,7 @@ void drain_local_pages(void *arg)
-  */
- void drain_all_pages(void)
- {
--	on_each_cpu(drain_local_pages, NULL, 1);
-+	on_each_cpu_mask(cpus_with_pcp, drain_local_pages, NULL, 1);
- }
- 
- #ifdef CONFIG_HIBERNATION
-@@ -1166,7 +1202,7 @@ void free_hot_cold_page(struct page *page, int cold)
- 	struct zone *zone = page_zone(page);
- 	struct per_cpu_pages *pcp;
- 	unsigned long flags;
--	int migratetype;
-+	int migratetype, cpu;
- 	int wasMlocked = __TestClearPageMlocked(page);
- 
- 	if (!free_pages_prepare(page, 0))
-@@ -1194,15 +1230,16 @@ void free_hot_cold_page(struct page *page, int cold)
- 		migratetype = MIGRATE_MOVABLE;
- 	}
- 
-+	cpu = smp_processor_id();
- 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
- 	if (cold)
- 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
- 	else
- 		list_add(&page->lru, &pcp->lists[migratetype]);
--	pcp->count++;
-+	inc_pcp_count(cpu, pcp, 1);
- 	if (pcp->count >= pcp->high) {
- 		free_pcppages_bulk(zone, pcp->batch, pcp);
--		pcp->count -= pcp->batch;
-+		dec_pcp_count(cpu, pcp, pcp->batch);
- 	}
- 
- out:
-@@ -1305,9 +1342,10 @@ again:
- 		pcp = &this_cpu_ptr(zone->pageset)->pcp;
- 		list = &pcp->lists[migratetype];
- 		if (list_empty(list)) {
--			pcp->count += rmqueue_bulk(zone, 0,
-+			inc_pcp_count(smp_processor_id(), pcp,
-+					rmqueue_bulk(zone, 0,
- 					pcp->batch, list,
--					migratetype, cold);
-+					migratetype, cold));
- 			if (unlikely(list_empty(list)))
- 				goto failed;
- 		}
-@@ -1318,7 +1356,7 @@ again:
- 			page = list_entry(list->next, struct page, lru);
- 
- 		list_del(&page->lru);
--		pcp->count--;
-+		dec_pcp_count(smp_processor_id(), pcp, 1);
- 	} else {
- 		if (unlikely(gfp_flags & __GFP_NOFAIL)) {
- 			/*
-@@ -3553,6 +3591,10 @@ static int zone_batchsize(struct zone *zone)
- #endif
- }
- 
-+/*
-+ * NOTE: If you call this function on a pcp of a populated zone you
-+ * need to worry about syncing cpus_with_pcp state as well.
-+ */
- static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
- {
- 	struct per_cpu_pages *pcp;
-@@ -3673,6 +3715,7 @@ static int __zone_pcp_update(void *data)
- 
- 		local_irq_save(flags);
- 		free_pcppages_bulk(zone, pcp->count, pcp);
-+		dec_pcp_count(cpu, pcp, pcp->count);
- 		setup_pageset(pset, batch);
- 		local_irq_restore(flags);
- 	}
-@@ -5040,6 +5083,9 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
- void __init page_alloc_init(void)
- {
- 	hotcpu_notifier(page_alloc_cpu_notify, 0);
 +
-+	/* Allocate the cpus_with_pcp var if CONFIG_CPUMASK_OFFSTACK */
-+	alloc_bootmem_cpumask_var(&cpus_with_pcp);
++	/* Which CPUs hold local slabs for this cache. */
++	cpumask_var_t cpus_with_slabs;
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
+ };
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 7c54fe8..f8cbf2d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1948,7 +1948,18 @@ static void flush_cpu_slab(void *d)
+ 
+ static void flush_all(struct kmem_cache *s)
+ {
+-	on_each_cpu(flush_cpu_slab, s, 1);
++	struct kmem_cache_cpu *c;
++	int cpu;
++
++	for_each_online_cpu(cpu) {
++		c = per_cpu_ptr(s->cpu_slab, cpu);
++		if (c && c->page)
++			cpumask_set_cpu(cpu, s->cpus_with_slabs);
++		else
++			cpumask_clear_cpu(cpu, s->cpus_with_slabs);
++	}
++
++	on_each_cpu_mask(s->cpus_with_slabs, flush_cpu_slab, s, 1);
  }
  
  /*
+@@ -3028,6 +3039,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
+ 		if (s->flags & SLAB_DESTROY_BY_RCU)
+ 			rcu_barrier();
+ 		sysfs_slab_remove(s);
++		free_cpumask_var(s->cpus_with_slabs);
+ 	}
+ 	up_write(&slub_lock);
+ }
+@@ -3528,6 +3540,7 @@ void __init kmem_cache_init(void)
+ 	int order;
+ 	struct kmem_cache *temp_kmem_cache_node;
+ 	unsigned long kmalloc_size;
++	int ret;
+ 
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 				nr_node_ids * sizeof(struct kmem_cache_node *);
+@@ -3635,15 +3648,24 @@ void __init kmem_cache_init(void)
+ 
+ 	slab_state = UP;
+ 
+-	/* Provide the correct kmalloc names now that the caches are up */
++	/*
++	 * Provide the correct kmalloc names and the cpus_with_slabs cpumasks
++	 * for CONFIG_CPUMASK_OFFSTACK=y case now that the caches are up.
++	 */
+ 	if (KMALLOC_MIN_SIZE <= 32) {
+ 		kmalloc_caches[1]->name = kstrdup(kmalloc_caches[1]->name, GFP_NOWAIT);
+ 		BUG_ON(!kmalloc_caches[1]->name);
++		ret = alloc_cpumask_var(&kmalloc_caches[1]->cpus_with_slabs,
++			GFP_NOWAIT);
++		BUG_ON(!ret);
+ 	}
+ 
+ 	if (KMALLOC_MIN_SIZE <= 64) {
+ 		kmalloc_caches[2]->name = kstrdup(kmalloc_caches[2]->name, GFP_NOWAIT);
+ 		BUG_ON(!kmalloc_caches[2]->name);
++		ret = alloc_cpumask_var(&kmalloc_caches[2]->cpus_with_slabs,
++				GFP_NOWAIT);
++		BUG_ON(!ret);
+ 	}
+ 
+ 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
+@@ -3651,6 +3673,9 @@ void __init kmem_cache_init(void)
+ 
+ 		BUG_ON(!s);
+ 		kmalloc_caches[i]->name = s;
++		ret = alloc_cpumask_var(&kmalloc_caches[i]->cpus_with_slabs,
++				GFP_NOWAIT);
++		BUG_ON(!ret);
+ 	}
+ 
+ #ifdef CONFIG_SMP
+@@ -3668,6 +3693,10 @@ void __init kmem_cache_init(void)
+ 			BUG_ON(!name);
+ 			kmalloc_dma_caches[i] = create_kmalloc_cache(name,
+ 				s->objsize, SLAB_CACHE_DMA);
++			ret = alloc_cpumask_var(
++				&kmalloc_dma_caches[i]->cpus_with_slabs,
++				GFP_NOWAIT);
++			BUG_ON(!ret);
+ 		}
+ 	}
+ #endif
+@@ -3778,15 +3807,19 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 
+ 	s = kmalloc(kmem_size, GFP_KERNEL);
+ 	if (s) {
++
+ 		if (kmem_cache_open(s, n,
+ 				size, align, flags, ctor)) {
++			alloc_cpumask_var(&s->cpus_with_slabs, GFP_KERNEL);
+ 			list_add(&s->list, &slab_caches);
+ 			if (sysfs_slab_add(s)) {
+ 				list_del(&s->list);
++				free_cpumask_var(s->cpus_with_slabs);
+ 				kfree(n);
+ 				kfree(s);
+ 				goto err;
+ 			}
++
+ 			up_write(&slub_lock);
+ 			return s;
+ 		}
 -- 
 1.7.0.4
 
