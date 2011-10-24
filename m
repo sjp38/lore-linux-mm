@@ -1,31 +1,14 @@
 From: Michal Nazarewicz <mina86@mina86.com>
 Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
 Date: Sun, 23 Oct 2011 21:05:05 -0700
-Message-ID: <809d0a2afe624c06505e0df51e7657f66aaf9007.1319428526.git.mina86__44736.3240797587$1319429148$gmane$org@mina86.com>
+Message-ID: <809d0a2afe624c06505e0df51e7657f66aaf9007.1319428526.git.mina86__24464.5426668741$1319429148$gmane$org@mina86.com>
 References: <20111018122109.GB6660@csn.ul.ie>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1RIBn4-00052W-NF
-	for glkm-linux-mm-2@m.gmane.org; Mon, 24 Oct 2011 06:05:35 +0200
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B25AF6B002D
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 00:05:29 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p9O45P0q005169
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:25 -0700
-Received: from gyd10 (gyd10.prod.google.com [10.243.49.202])
-	by hpaq12.eem.corp.google.com with ESMTP id p9O41gYu001838
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:24 -0700
-Received: by gyd10 with SMTP id 10so8629693gyd.7
-        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:21 -0700 (PDT)
+Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <20111018122109.GB6660@csn.ul.ie>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Sender: linux-kernel-owner@vger.kernel.org
 To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>Marek Szyprowski <m.szyprowski@samsung.com>Mel Gorman <mel@csn.ul.ie>
 Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+List-Id: linux-mm.kvack.org
 
 > On Thu, Oct 06, 2011 at 03:54:42PM +0200, Marek Szyprowski wrote:
 >> This commit introduces alloc_contig_freed_pages() function
@@ -419,10 +402,3 @@ index df69706..adf3f34 100644
  	if (start != outer_start)
 -- 
 1.7.3.1
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
