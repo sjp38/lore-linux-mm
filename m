@@ -1,411 +1,424 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id F3DA26B002D
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 21:20:28 -0400 (EDT)
-Date: Tue, 1 Nov 2011 02:20:17 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111101012017.GJ3466@redhat.com>
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org>
- <1319785956.3235.7.camel@lappy>
- <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
- <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default20111031223717.GI3466@redhat.com>
- <1b2e4f74-7058-4712-85a7-84198723e3ee@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1b2e4f74-7058-4712-85a7-84198723e3ee@default>
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
+Date: Sun, 23 Oct 2011 21:05:05 -0700
+Message-ID: <809d0a2afe624c06505e0df51e7657f66aaf9007.1319428526.git.mina86__44736.3240797587$1319429148$gmane$org@mina86.com>
+References: <20111018122109.GB6660@csn.ul.ie>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1RIBn4-00052W-NF
+	for glkm-linux-mm-2@m.gmane.org; Mon, 24 Oct 2011 06:05:35 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B25AF6B002D
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 00:05:29 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p9O45P0q005169
+	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:25 -0700
+Received: from gyd10 (gyd10.prod.google.com [10.243.49.202])
+	by hpaq12.eem.corp.google.com with ESMTP id p9O41gYu001838
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:24 -0700
+Received: by gyd10 with SMTP id 10so8629693gyd.7
+        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:05:21 -0700 (PDT)
+In-Reply-To: <20111018122109.GB6660@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>Marek Szyprowski <m.szyprowski@samsung.com>Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Mon, Oct 31, 2011 at 04:36:04PM -0700, Dan Magenheimer wrote:
-> Do you see code doing this?  I am pretty sure zcache is
-> NOT doing an extra copy, it is compressing from the source
-> page.  And I am pretty sure Xen tmem is not doing the
-> extra copy either.
+> On Thu, Oct 06, 2011 at 03:54:42PM +0200, Marek Szyprowski wrote:
+>> This commit introduces alloc_contig_freed_pages() function
+>> which allocates (ie. removes from buddy system) free pages
+>> in range. Caller has to guarantee that all pages in range
+>> are in buddy system.
 
-So below you describe put as a copy of a page from the kernel into the
-newly allocated PAM space... I guess there's some improvement needed
-for the documentation at least, a compression is done sometime instead
-of a copy... I thought you always had to copy first sorry.
+On Tue, 18 Oct 2011 05:21:09 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
+> Straight away, I'm wondering why you didn't use
+> mm/compaction.c#isolate_freepages()
 
- * "Put" a page, e.g. copy a page from the kernel into newly allocated
- * PAM space (if such space is available).  Tmem_put is complicated by
- * a corner case: What if a page with matching handle already exists in
- * tmem?  To guarantee coherency, one of two actions is necessary: Either
- * the data for the page must be overwritten, or the page must be
- * "flushed" so that the data is not accessible to a subsequent "get".
- * Since these "duplicate puts" are relatively rare, this implementation
- * always flushes for simplicity.
- */
-int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
-		char *data, size_t size, bool raw, bool ephemeral)
-{
-	struct tmem_obj *obj = NULL, *objfound = NULL, *objnew = NULL;
-	void *pampd = NULL, *pampd_del = NULL;
-	int ret = -ENOMEM;
-	struct tmem_hashbucket *hb;
+Does the below look like a step in the right direction?
 
-	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-	spin_lock(&hb->lock);
-	obj = objfound = tmem_obj_find(hb, oidp);
-	if (obj != NULL) {
-		pampd = tmem_pampd_lookup_in_obj(objfound, index);
-		if (pampd != NULL) {
-			/* if found, is a dup put, flush the old one */
-			pampd_del = tmem_pampd_delete_from_obj(obj, index);
-			BUG_ON(pampd_del != pampd);
-			(*tmem_pamops.free)(pampd, pool, oidp, index);
-			if (obj->pampd_count == 0) {
-				objnew = obj;
-				objfound = NULL;
-			}
-			pampd = NULL;
-		}
-	} else {
-		obj = objnew = (*tmem_hostops.obj_alloc)(pool);
-		if (unlikely(obj == NULL)) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		tmem_obj_init(obj, hb, pool, oidp);
-	}
-	BUG_ON(obj == NULL);
-	BUG_ON(((objnew != obj) && (objfound != obj)) || (objnew == objfound));
-	pampd = (*tmem_pamops.create)(data, size, raw, ephemeral,
-					obj->pool, &obj->oid, index);
+It basically moves isolate_freepages_block() to page_alloc.c (changing
+it name to isolate_freepages_range()) and changes it so that depending
+on arguments it treats holes (either invalid PFN or non-free page) as
+errors so that CMA can use it.
 
-So then .create is calls zcache_pampd_create... 
+It also accepts a range rather then just assuming a single pageblock
+thus the change moves range calculation in compaction.c from
+isolate_freepages_block() up to isolate_freepages().
 
-static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
-       	    			 ^^^^^^^^^^
-				struct tmem_pool *pool, struct tmem_oid *oid,
-				 uint32_t index)
-{
-	void *pampd = NULL, *cdata;
-	size_t clen;
-	int ret;
-	unsigned long count;
-	struct page *page = (struct page *)(data);
-	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	struct zcache_client *cli = pool->client;
-	uint16_t client_id = get_client_id_from_client(cli);
-	unsigned long zv_mean_zsize;
-	unsigned long curr_pers_pampd_count;
-	u64 total_zsize;
+The change also modifies spilt_free_page() so that it does not try to
+change pageblock's migrate type if current migrate type is ISOLATE or
+CMA.
 
-	if (eph) {
-		ret = zcache_compress(page, &cdata, &clen);
+---
+ include/linux/mm.h             |    1 -
+ include/linux/page-isolation.h |    4 +-
+ mm/compaction.c                |   73 +++--------------------
+ mm/internal.h                  |    5 ++
+ mm/page_alloc.c                |  128 +++++++++++++++++++++++++---------------
+ 5 files changed, 95 insertions(+), 116 deletions(-)
 
-
-zcache_compress then does:
-
-static int zcache_compress(struct page *from, void **out_va, size_t *out_len)
-{
-	int ret = 0;
-	unsigned char *dmem = __get_cpu_var(zcache_dstmem);
-	unsigned char *wmem = __get_cpu_var(zcache_workmem);
-	char *from_va;
-
-	BUG_ON(!irqs_disabled());
-	if (unlikely(dmem == NULL || wmem == NULL))
-		goto out;  /* no buffer, so can't compress */
-	from_va = kmap_atomic(from, KM_USER0);
-	mb();
-	ret = lzo1x_1_compress(from_va, PAGE_SIZE, dmem, out_len, wmem);
-	      				^^^^^^^^^
-
-tmem is called from frontswap_put_page.
-
-+int __frontswap_put_page(struct page *page)
-+{
-+       int ret = -1, dup = 0;
-+       swp_entry_t entry = { .val = page_private(page), };
-+       int type = swp_type(entry);
-+       struct swap_info_struct *sis = swap_info[type];
-+       pgoff_t offset = swp_offset(entry);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fd599f4..98c99c4 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -435,7 +435,6 @@ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
+ void split_page(struct page *page, unsigned int order);
+-int split_free_page(struct page *page);
+ 
+ /*
+  * Compound pages have a destructor function.  Provide a
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 003c52f..6becc74 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -48,10 +48,8 @@ static inline void unset_migratetype_isolate(struct page *page)
+ }
+ 
+ /* The below functions must be run on a range from a single zone. */
+-extern unsigned long alloc_contig_freed_pages(unsigned long start,
+-					      unsigned long end, gfp_t flag);
+ extern int alloc_contig_range(unsigned long start, unsigned long end,
+-			      gfp_t flags, unsigned migratetype);
++			      unsigned migratetype);
+ extern void free_contig_pages(unsigned long pfn, unsigned nr_pages);
+ 
+ /*
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9e5cc59..685a19e 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -58,77 +58,15 @@ static unsigned long release_freepages(struct list_head *freelist)
+ 	return count;
+ }
+ 
+-/* Isolate free pages onto a private freelist. Must hold zone->lock */
+-static unsigned long isolate_freepages_block(struct zone *zone,
+-				unsigned long blockpfn,
+-				struct list_head *freelist)
+-{
+-	unsigned long zone_end_pfn, end_pfn;
+-	int nr_scanned = 0, total_isolated = 0;
+-	struct page *cursor;
+-
+-	/* Get the last PFN we should scan for free pages at */
+-	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
+-
+-	/* Find the first usable PFN in the block to initialse page cursor */
+-	for (; blockpfn < end_pfn; blockpfn++) {
+-		if (pfn_valid_within(blockpfn))
+-			break;
+-	}
+-	cursor = pfn_to_page(blockpfn);
+-
+-	/* Isolate free pages. This assumes the block is valid */
+-	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
+-		int isolated, i;
+-		struct page *page = cursor;
+-
+-		if (!pfn_valid_within(blockpfn))
+-			continue;
+-		nr_scanned++;
+-
+-		if (!PageBuddy(page))
+-			continue;
+-
+-		/* Found a free page, break it into order-0 pages */
+-		isolated = split_free_page(page);
+-		total_isolated += isolated;
+-		for (i = 0; i < isolated; i++) {
+-			list_add(&page->lru, freelist);
+-			page++;
+-		}
+-
+-		/* If a page was split, advance to the end of it */
+-		if (isolated) {
+-			blockpfn += isolated - 1;
+-			cursor += isolated - 1;
+-		}
+-	}
+-
+-	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+-	return total_isolated;
+-}
+-
+ /* Returns true if the page is within a block suitable for migration to */
+ static bool suitable_migration_target(struct page *page)
+ {
+-
+ 	int migratetype = get_pageblock_migratetype(page);
+ 
+ 	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
+ 	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
+ 		return false;
+ 
+-	/* Keep MIGRATE_CMA alone as well. */
+-	/*
+-	 * XXX Revisit.  We currently cannot let compaction touch CMA
+-	 * pages since compaction insists on changing their migration
+-	 * type to MIGRATE_MOVABLE (see split_free_page() called from
+-	 * isolate_freepages_block() above).
+-	 */
+-	if (is_migrate_cma(migratetype))
+-		return false;
+-
+ 	/* If the page is a large free page, then allow migration */
+ 	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+ 		return true;
+@@ -149,7 +87,7 @@ static void isolate_freepages(struct zone *zone,
+ 				struct compact_control *cc)
+ {
+ 	struct page *page;
+-	unsigned long high_pfn, low_pfn, pfn;
++	unsigned long high_pfn, low_pfn, pfn, zone_end_pfn, end_pfn;
+ 	unsigned long flags;
+ 	int nr_freepages = cc->nr_freepages;
+ 	struct list_head *freelist = &cc->freepages;
+@@ -169,6 +107,8 @@ static void isolate_freepages(struct zone *zone,
+ 	 */
+ 	high_pfn = min(low_pfn, pfn);
+ 
++	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
 +
-+       BUG_ON(!PageLocked(page));
-+       BUG_ON(sis == NULL);
-+       if (frontswap_test(sis, offset))
-+               dup = 1;
-+       ret = (*frontswap_ops.put_page)(type, offset, page);
-
-In turn called by swap_writepage:
-
-@@ -98,6 +99,12 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
-                unlock_page(page);
-                goto out;
-        }
-+       if (frontswap_put_page(page) == 0) {
-+               set_page_writeback(page);
-+               unlock_page(page);
-+               end_page_writeback(page);
-+               goto out;
-+       }
-        bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
-        if (bio == NULL) {
-                set_page_dirty(page);
-
-
-And zcache-main.c has #ifdef for both frontswap and cleancache, and
-the above frontswap_ops.put_page points to the below
-zcache_frontswap_put_page which even shows a local_irq_save() for the
-whole time of the compression... did you ever check irq latency with
-zcache+frontswap? Wonder what the RT folks will say about
-zcache+frontswap considering local_irq_save is a blocker for preempt-RT.
-
-#ifdef CONFIG_CLEANCACHE
-#include <linux/cleancache.h>
-#endif
-#ifdef CONFIG_FRONTSWAP
-#include <linux/frontswap.h>
-#endif
-
-#ifdef CONFIG_FRONTSWAP
-/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-static int zcache_frontswap_poolid = -1;
-
-/*
- * Swizzling increases objects per swaptype, increasing tmem concurrency
- * for heavy swaploads.  Later, larger nr_cpus -> larger SWIZ_BITS
- */
-#define SWIZ_BITS		4
-#define SWIZ_MASK		((1 << SWIZ_BITS) - 1)
-#define _oswiz(_type, _ind)	((_type << SWIZ_BITS) | (_ind & SWIZ_MASK))
-#define iswiz(_ind)		(_ind >> SWIZ_BITS)
-
-static inline struct tmem_oid oswiz(unsigned type, u32 ind)
-{
-	struct tmem_oid oid = { .oid = { 0 } };
-	oid.oid[0] = _oswiz(type, ind);
-	return oid;
-}
-
-static int zcache_frontswap_put_page(unsigned type, pgoff_t offset,
-				   struct page *page)
-{
-	u64 ind64 = (u64)offset;
-	u32 ind = (u32)offset;
-	struct tmem_oid oid = oswiz(type, ind);
-	int ret = -1;
-	unsigned long flags;
-
-	BUG_ON(!PageLocked(page));
-	if (likely(ind64 == ind)) {
-		local_irq_save(flags);
-		ret = zcache_put_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-					&oid, iswiz(ind), page);
-		local_irq_restore(flags);
-	}
-	return ret;
-}
-
-/* returns 0 if the page was successfully gotten from frontswap, -1 if
- * was not present (should never happen!) */
-static int zcache_frontswap_get_page(unsigned type, pgoff_t offset,
-				   struct page *page)
-{
-	u64 ind64 = (u64)offset;
-	u32 ind = (u32)offset;
-	struct tmem_oid oid = oswiz(type, ind);
-	int ret = -1;
-
-	BUG_ON(!PageLocked(page));
-	if (likely(ind64 == ind))
-		ret = zcache_get_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-					&oid, iswiz(ind), page);
-	return ret;
-}
-
-/* flush a single page from frontswap */
-static void zcache_frontswap_flush_page(unsigned type, pgoff_t offset)
-{
-	u64 ind64 = (u64)offset;
-	u32 ind = (u32)offset;
-	struct tmem_oid oid = oswiz(type, ind);
-
-	if (likely(ind64 == ind))
-		(void)zcache_flush_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-					&oid, iswiz(ind));
-}
-
-/* flush all pages from the passed swaptype */
-static void zcache_frontswap_flush_area(unsigned type)
-{
-	struct tmem_oid oid;
-	int ind;
-
-	for (ind = SWIZ_MASK; ind >= 0; ind--) {
-		oid = oswiz(type, ind);
-		(void)zcache_flush_object(LOCAL_CLIENT,
-						zcache_frontswap_poolid, &oid);
-	}
-}
-
-static void zcache_frontswap_init(unsigned ignored)
-{
-	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-	if (zcache_frontswap_poolid < 0)
-		zcache_frontswap_poolid =
-			zcache_new_pool(LOCAL_CLIENT, TMEM_POOL_PERSIST);
-}
-
-static struct frontswap_ops zcache_frontswap_ops = {
-	.put_page = zcache_frontswap_put_page,
-	.get_page = zcache_frontswap_get_page,
-	.flush_page = zcache_frontswap_flush_page,
-	.flush_area = zcache_frontswap_flush_area,
-	.init = zcache_frontswap_init
-};
-
-struct frontswap_ops zcache_frontswap_register_ops(void)
-{
-	struct frontswap_ops old_ops =
-		frontswap_register_ops(&zcache_frontswap_ops);
-
-	return old_ops;
-}
-#endif
-
-#ifdef CONFIG_CLEANCACHE
-static void zcache_cleancache_put_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index, struct page *page)
-{
-	u32 ind = (u32) index;
-	struct tmem_oid oid = *(struct tmem_oid *)&key;
-
-	if (likely(ind == index))
-		(void)zcache_put_page(LOCAL_CLIENT, pool_id, &oid, index, page);
-}
-
-static int zcache_cleancache_get_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index, struct page *page)
-{
-	u32 ind = (u32) index;
-	struct tmem_oid oid = *(struct tmem_oid *)&key;
-	int ret = -1;
-
-	if (likely(ind == index))
-		ret = zcache_get_page(LOCAL_CLIENT, pool_id, &oid, index, page);
-	return ret;
-}
-
-static void zcache_cleancache_flush_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index)
-{
-	u32 ind = (u32) index;
-	struct tmem_oid oid = *(struct tmem_oid *)&key;
-
-	if (likely(ind == index))
-		(void)zcache_flush_page(LOCAL_CLIENT, pool_id, &oid, ind);
-}
-
-static void zcache_cleancache_flush_inode(int pool_id,
-					struct cleancache_filekey key)
-{
-	struct tmem_oid oid = *(struct tmem_oid *)&key;
-
-	(void)zcache_flush_object(LOCAL_CLIENT, pool_id, &oid);
-}
-
-static void zcache_cleancache_flush_fs(int pool_id)
-{
-	if (pool_id >= 0)
-		(void)zcache_destroy_pool(LOCAL_CLIENT, pool_id);
-}
-
-static int zcache_cleancache_init_fs(size_t pagesize)
-{
-	BUG_ON(sizeof(struct cleancache_filekey) !=
-				sizeof(struct tmem_oid));
-	BUG_ON(pagesize != PAGE_SIZE);
-	return zcache_new_pool(LOCAL_CLIENT, 0);
-}
-
-static int zcache_cleancache_init_shared_fs(char *uuid, size_t pagesize)
-{
-	/* shared pools are unsupported and map to private */
-	BUG_ON(sizeof(struct cleancache_filekey) !=
-				sizeof(struct tmem_oid));
-	BUG_ON(pagesize != PAGE_SIZE);
-	return zcache_new_pool(LOCAL_CLIENT, 0);
-}
-
-static struct cleancache_ops zcache_cleancache_ops = {
-	.put_page = zcache_cleancache_put_page,
-	.get_page = zcache_cleancache_get_page,
-	.flush_page = zcache_cleancache_flush_page,
-	.flush_inode = zcache_cleancache_flush_inode,
-	.flush_fs = zcache_cleancache_flush_fs,
-	.init_shared_fs = zcache_cleancache_init_shared_fs,
-	.init_fs = zcache_cleancache_init_fs
-};
-
-struct cleancache_ops zcache_cleancache_register_ops(void)
-{
-	struct cleancache_ops old_ops =
-		cleancache_register_ops(&zcache_cleancache_ops);
-
-	return old_ops;
-}
-#endif
-
-This zcache functionality is all but pluggable if you've to create a
-new zcache slightly different implementation for each user
-(frontswap/cleancache etc...). And the cast of the page when it enters
-tmem to char:
-
-static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
-				uint32_t index, struct page *page)
-{
-	struct tmem_pool *pool;
-	int ret = -1;
-
-	BUG_ON(!irqs_disabled());
-	pool = zcache_get_pool_by_id(cli_id, pool_id);
-	if (unlikely(pool == NULL))
-		goto out;
-	if (!zcache_freeze && zcache_do_preload(pool) == 0) {
-		/* preload does preempt_disable on success */
-		ret = tmem_put(pool, oidp, index, (char *)(page),
-				PAGE_SIZE, 0, is_ephemeral(pool));
-
-Is so weird... and then it returns a page when it exits tmem and
-enters zcache again in zcache_pampd_create.
-
-And the "len" get lost at some point inside zcache but I guess that's
-fixable and not part of the API at least.... but the whole thing looks
-an exercise to pass through tmem. I don't really understand why one
-page must become a char at some point and what benefit it would ever
-provide.
-
-I also don't understand how you plan to ever swap the compressed data
-considering it's hold outside of the kernel not anymore in a struct
-page. If swap compression was done right, the on-disk data should be
-stored in the compressed format in a compact way so you spend the CPU
-once and you also gain disk speed by writing less. How do you plan to
-achieve this with this design?
-
-I like the failing when the size of the compressed data is bigger than
-the uncompressed one, only in that case the data should go to swap
-uncompressed of course. That's something in software we can handle and
-hardware can't handle so well and that's why some older hardware
-compression for RAM probably didn't takeoff.
-
-I've an hard time to be convinced this is the best way to do swap
-compression especially not seeing how it will ever reach swap on
-disk. But yes it's not doing an additional copy unlike the tmem_put
-comment would imply (it's disabling irqs for the whole duration of the
-compression though).
+ 	/*
+ 	 * Isolate free pages until enough are available to migrate the
+ 	 * pages on cc->migratepages. We stop searching if the migrate
+@@ -176,7 +116,7 @@ static void isolate_freepages(struct zone *zone,
+ 	 */
+ 	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
+ 					pfn -= pageblock_nr_pages) {
+-		unsigned long isolated;
++		unsigned isolated, scanned;
+ 
+ 		if (!pfn_valid(pfn))
+ 			continue;
+@@ -205,7 +145,10 @@ static void isolate_freepages(struct zone *zone,
+ 		isolated = 0;
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		if (suitable_migration_target(page)) {
+-			isolated = isolate_freepages_block(zone, pfn, freelist);
++			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
++			isolated = isolate_freepages_range(zone, pfn,
++					end_pfn, freelist, &scanned);
++			trace_mm_compaction_isolate_freepages(scanned, isolated);
+ 			nr_freepages += isolated;
+ 		}
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+diff --git a/mm/internal.h b/mm/internal.h
+index d071d380..4a9bb3f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -263,3 +263,8 @@ extern u64 hwpoison_filter_flags_mask;
+ extern u64 hwpoison_filter_flags_value;
+ extern u64 hwpoison_filter_memcg;
+ extern u32 hwpoison_filter_enable;
++
++unsigned isolate_freepages_range(struct zone *zone,
++				 unsigned long start, unsigned long end,
++				 struct list_head *freelist,
++				 unsigned *scannedp);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index df69706..adf3f34 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1300,10 +1300,11 @@ void split_page(struct page *page, unsigned int order)
+  * Note: this is probably too low level an operation for use in drivers.
+  * Please consult with lkml before using this in your driver.
+  */
+-int split_free_page(struct page *page)
++static unsigned split_free_page(struct page *page)
+ {
+ 	unsigned int order;
+ 	unsigned long watermark;
++	struct page *endpage;
+ 	struct zone *zone;
+ 
+ 	BUG_ON(!PageBuddy(page));
+@@ -1326,14 +1327,18 @@ int split_free_page(struct page *page)
+ 	set_page_refcounted(page);
+ 	split_page(page, order);
+ 
+-	if (order >= pageblock_order - 1) {
+-		struct page *endpage = page + (1 << order) - 1;
+-		for (; page < endpage; page += pageblock_nr_pages)
+-			if (!is_pageblock_cma(page))
+-				set_pageblock_migratetype(page,
+-							  MIGRATE_MOVABLE);
++	if (order < pageblock_order - 1)
++		goto done;
++
++	endpage = page + (1 << order) - 1;
++	for (; page < endpage; page += pageblock_nr_pages) {
++		int mt = get_pageblock_migratetype(page);
++		/* Don't change CMA nor ISOLATE */
++		if (!is_migrate_cma(mt) && mt != MIGRATE_ISOLATE)
++			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 	}
+ 
++done:
+ 	return 1 << order;
+ }
+ 
+@@ -5723,57 +5728,76 @@ out:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+ 
+-unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
+-				       gfp_t flag)
++/**
++ * isolate_freepages_range() - isolate free pages, must hold zone->lock.
++ * @zone:	Zone pages are in.
++ * @start:	The first PFN to start isolating.
++ * @end:	The one-past-last PFN.
++ * @freelist:	A list to save isolated pages to.
++ * @scannedp:	Optional pointer where to save number of scanned pages.
++ *
++ * If @freelist is not provided, holes in range (either non-free pages
++ * or invalid PFN) are considered an error and function undos its
++ * actions and returns zero.
++ *
++ * If @freelist is provided, function will simply skip non-free and
++ * missing pages and put only the ones isolated on the list.  It will
++ * also call trace_mm_compaction_isolate_freepages() at the end.
++ *
++ * Returns number of isolated pages.  This may be more then end-start
++ * if end fell in a middle of a free page.
++ */
++unsigned isolate_freepages_range(struct zone *zone,
++				 unsigned long start, unsigned long end,
++				 struct list_head *freelist, unsigned *scannedp)
+ {
+-	unsigned long pfn = start, count;
++	unsigned nr_scanned = 0, total_isolated = 0;
++	unsigned long pfn = start;
+ 	struct page *page;
+-	struct zone *zone;
+-	int order;
+ 
+ 	VM_BUG_ON(!pfn_valid(start));
+-	page = pfn_to_page(start);
+-	zone = page_zone(page);
+ 
+-	spin_lock_irq(&zone->lock);
++	/* Isolate free pages. This assumes the block is valid */
++	page = pfn_to_page(pfn);
++	while (pfn < end) {
++		unsigned isolated = 1;
+ 
+-	for (;;) {
+-		VM_BUG_ON(!page_count(page) || !PageBuddy(page) ||
+-			  page_zone(page) != zone);
++		VM_BUG_ON(page_zone(page) != zone);
+ 
+-		list_del(&page->lru);
+-		order = page_order(page);
+-		count = 1UL << order;
+-		zone->free_area[order].nr_free--;
+-		rmv_page_order(page);
+-		__mod_zone_page_state(zone, NR_FREE_PAGES, -(long)count);
++		if (!pfn_valid_within(blockpfn))
++			goto skip;
++		++nr_scanned;
+ 
+-		pfn += count;
+-		if (pfn >= end)
+-			break;
+-		VM_BUG_ON(!pfn_valid(pfn));
+-
+-		if (zone_pfn_same_memmap(pfn - count, pfn))
+-			page += count;
+-		else
+-			page = pfn_to_page(pfn);
+-	}
++		if (!PageBuddy(page)) {
++skip:
++			if (freelist)
++				goto next;
++			for (; start < pfn; ++start)
++				__free_page(pfn_to_page(pfn));
++			return 0;
++		}
+ 
+-	spin_unlock_irq(&zone->lock);
++		/* Found a free page, break it into order-0 pages */
++		isolated = split_free_page(page);
++		total_isolated += isolated;
++		if (freelist) {
++			struct page *p = page;
++			unsigned i = isolated;
++			for (; i--; ++page)
++				list_add(&p->lru, freelist);
++		}
+ 
+-	/* After this, pages in the range can be freed one be one */
+-	count = pfn - start;
+-	pfn = start;
+-	for (page = pfn_to_page(pfn); count; --count) {
+-		prep_new_page(page, 0, flag);
+-		++pfn;
+-		if (likely(zone_pfn_same_memmap(pfn - 1, pfn)))
+-			++page;
++next:		/* Advance to the next page */
++		pfn += isolated;
++		if (zone_pfn_same_memmap(pfn - isolated, pfn))
++			page += isolated;
+ 		else
+ 			page = pfn_to_page(pfn);
+ 	}
+ 
+-	return pfn;
++	if (scannedp)
++		*scannedp = nr_scanned;
++	return total_isolated;
+ }
+ 
+ static unsigned long pfn_to_maxpage(unsigned long pfn)
+@@ -5837,7 +5861,6 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+  * alloc_contig_range() -- tries to allocate given range of pages
+  * @start:	start PFN to allocate
+  * @end:	one-past-the-last PFN to allocate
+- * @flags:	flags passed to alloc_contig_freed_pages().
+  * @migratetype:	migratetype of the underlaying pageblocks (either
+  *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
+  *			in range must have the same migratetype and it must
+@@ -5853,9 +5876,10 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+  * need to be freed with free_contig_pages().
+  */
+ int alloc_contig_range(unsigned long start, unsigned long end,
+-		       gfp_t flags, unsigned migratetype)
++		       unsigned migratetype)
+ {
+ 	unsigned long outer_start, outer_end;
++	struct zone *zone;
+ 	int ret;
+ 
+ 	/*
+@@ -5910,7 +5934,17 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 			return -EINVAL;
+ 
+ 	outer_start = start & (~0UL << ret);
+-	outer_end   = alloc_contig_freed_pages(outer_start, end, flags);
++
++	zone = page_zone(pfn_to_page(outer_start));
++	spin_lock_irq(&zone->lock);
++	outer_end = isolate_freepages_range(zone, outer_start, end, NULL, NULL);
++	spin_unlock_irq(&zone->lock);
++
++	if (!outer_end) {
++		ret = -EBUSY;
++		goto done;
++	}
++	outer_end += outer_start;
+ 
+ 	/* Free head and tail (if any) */
+ 	if (start != outer_start)
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
