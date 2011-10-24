@@ -1,55 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FED06B0035
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 11:26:00 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 24 Oct 2011 09:18:24 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9OFHM2V144446
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 09:17:22 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9OFHIFN020837
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 09:17:22 -0600
-Date: Mon, 24 Oct 2011 20:25:31 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 11/X] uprobes: x86: introduce xol_was_trapped()
-Message-ID: <20111024145531.GB31435@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
- <20111015190007.GA30243@redhat.com>
- <20111019215139.GA16395@redhat.com>
- <20111019215307.GE16395@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E34816B002D
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 12:10:40 -0400 (EDT)
+Date: Mon, 24 Oct 2011 11:10:35 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: [PATCH] cache align vm_stat
+Message-ID: <20111024161035.GA19820@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111019215307.GE16395@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@gentwo.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>
 
-> diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-> index 1c30cfd..f0fbdab 100644
-> --- a/arch/x86/include/asm/uprobes.h
-> +++ b/arch/x86/include/asm/uprobes.h
-> @@ -39,6 +39,7 @@ struct uprobe_arch_info {
-> 
->  struct uprobe_task_arch_info {
->  	unsigned long saved_scratch_register;
-> +	unsigned long saved_trap_no;
->  };
->  #else
->  struct uprobe_arch_info {};
+Avoid false sharing of the vm_stat array.
 
+This was found to adversely affect tmpfs I/O performance.
 
-one nit
-I had to add saved_trap_no to #else part (i.e uprobe_arch_info ). 
+Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
+---
+ mm/vmstat.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---
-Thanks and Regards
-Srikar
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -78,7 +78,7 @@ void vm_events_fold_cpu(int cpu)
+  *
+  * vm_stat contains the global counters
+  */
+-atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
++atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
+ EXPORT_SYMBOL(vm_stat);
+ 
+ #ifdef CONFIG_SMP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
