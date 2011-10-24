@@ -1,63 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1486B002D
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 04:02:42 -0400 (EDT)
-Received: by ywa17 with SMTP id 17so3353216ywa.14
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2011 01:02:38 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C8BB76B002D
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 10:46:18 -0400 (EDT)
+Date: Mon, 24 Oct 2011 16:41:27 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 13/X] uprobes: introduce UTASK_SSTEP_TRAPPED logic
+Message-ID: <20111024144127.GA14975@redhat.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com> <20111019215344.GG16395@redhat.com> <20111022072030.GB24475@in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <m2obx755md.fsf@firstfloor.org>
-References: <1319384922-29632-1-git-send-email-gilad@benyossef.com>
-	<1319384922-29632-7-git-send-email-gilad@benyossef.com>
-	<m2obx755md.fsf@firstfloor.org>
-Date: Mon, 24 Oct 2011 10:02:38 +0200
-Message-ID: <CAOtvUMfVFV3_2wtT-qNpcHxzsTW-1j3wGUqt+O5GhayZHxW1mg@mail.gmail.com>
-Subject: Re: [PATCH v2 6/6] slub: only preallocate cpus_with_slabs if offstack
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111022072030.GB24475@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: lkml@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
+To: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 24, 2011 at 7:19 AM, Andi Kleen <andi@firstfloor.org> wrote:
+On 10/22, Ananth N Mavinakayanahalli wrote:
 >
-> Gilad Ben-Yossef <gilad@benyossef.com> writes:
+> On Wed, Oct 19, 2011 at 11:53:44PM +0200, Oleg Nesterov wrote:
+> > Finally, add UTASK_SSTEP_TRAPPED state/code to handle the case when
+> > xol insn itself triggers the signal.
+> >
+> > In this case we should restart the original insn even if the task is
+> > already SIGKILL'ed (say, the coredump should report the correct ip).
+> > This is even more important if the task has a handler for SIGSEGV/etc,
+> > The _same_ instruction should be repeated again after return from the
+> > signal handler, and SSTEP can never finish in this case.
 >
-> > We need a cpumask to track cpus with per cpu cache pages
-> > to know which cpu to whack during flush_all. For
-> > CONFIG_CPUMASK_OFFSTACK=n we allocate the mask on stack.
-> > For CONFIG_CPUMASK_OFFSTACK=y we don't want to call kmalloc
-> > on the flush_all path, so we preallocate per kmem_cache
-> > on cache creation and use it in flush_all.
+> Oleg,
 >
-> What's the problem with calling kmalloc in flush_all?
-> That's a slow path anyways, isn't it?
->
-> I believe the IPI functions usually allocate anyways.
->
-> So maybe you can do that much simpler.
+> Not sure I understand this completely...
 
-That was what the first version of the patch did (use
-alloc_cpumask_var in flush_all).
+I hope you do not think I do ;)
 
-Pekka Enberg pointed out that calling kmalloc on the kmem_cache
-shrinking code path is not a good idea
-and it does sound like a deadlock waiting to happen.
+> When you say 'correct ip' you mean the original vaddr where we now have
+> a uprobe breakpoint and not the xol copy, right?
 
-Gilad
+Yes,
 
---
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+> Coredump needs to report the correct ip, but should it also not report
+> correctly the instruction that caused the signal? Ergo, shouldn't we
+> put the original instruction back at the uprobed vaddr?
 
-"I've seen things you people wouldn't believe. Goto statements used to
-implement co-routines. I watched C structures being stored in
-registers. All those moments will be lost in time... like tears in
-rain... Time to die. "
+OK, now I see what you mean. I was confused by the "restore the original
+instruction before _restart_" suggestion.
+
+Agreed! it would be nice to "hide" these int3's if we dump the core, but
+I think this is a bit off-topic. It makes sense to do this in any case,
+even if the core-dumping was triggered by another thread/insn. It makes
+sense to remove all int3's, not only at regs->ip location. But how can
+we do this? This is nontrivial.
+
+And. Even worse. Suppose that you do "gdb probed_application". Now you
+see int3's in the disassemble output. What can we do?
+
+I think we can do nothing, at least currently. This just reflects the
+fact that uprobe connects to inode, not to process/mm/etc.
+
+What do you think?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
