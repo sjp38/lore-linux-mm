@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C8BB76B002D
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 10:46:18 -0400 (EDT)
-Date: Mon, 24 Oct 2011 16:41:27 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 13/X] uprobes: introduce UTASK_SSTEP_TRAPPED logic
-Message-ID: <20111024144127.GA14975@redhat.com>
-References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com> <20111015190007.GA30243@redhat.com> <20111019215139.GA16395@redhat.com> <20111019215344.GG16395@redhat.com> <20111022072030.GB24475@in.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D2BAD6B002F
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 10:59:22 -0400 (EDT)
+Date: Mon, 24 Oct 2011 09:59:16 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH] Reduce vm_stat cacheline contention in
+ __vm_enough_memory
+Message-ID: <20111024145916.GA18070@sgi.com>
+References: <alpine.DEB.2.00.1110140856420.6411@router.home>
+ <20111014141921.GC28592@sgi.com>
+ <alpine.DEB.2.00.1110140932530.6411@router.home>
+ <alpine.DEB.2.00.1110140958550.6411@router.home>
+ <20111014161603.GA30561@sgi.com>
+ <20111018134835.GA16222@sgi.com>
+ <m2mxcyz4f7.fsf@firstfloor.org>
+ <alpine.DEB.2.00.1110181806570.12850@chino.kir.corp.google.com>
+ <20111019145458.GA9266@sgi.com>
+ <alpine.DEB.2.00.1110191029570.24001@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111022072030.GB24475@in.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.1110191029570.24001@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 
-On 10/22, Ananth N Mavinakayanahalli wrote:
->
-> On Wed, Oct 19, 2011 at 11:53:44PM +0200, Oleg Nesterov wrote:
-> > Finally, add UTASK_SSTEP_TRAPPED state/code to handle the case when
-> > xol insn itself triggers the signal.
+On Wed, Oct 19, 2011 at 10:31:54AM -0500, Christoph Lameter wrote:
+> On Wed, 19 Oct 2011, Dimitri Sivanich wrote:
+> 
+> > For 120 threads writing in parallel (each to it's own mountpoint), the
+> > threshold needs to be on the order of 1000.  At a threshold of 750, I
+> > start to see a slowdown of 50-60 MB/sec.
 > >
-> > In this case we should restart the original insn even if the task is
-> > already SIGKILL'ed (say, the coredump should report the correct ip).
-> > This is even more important if the task has a handler for SIGSEGV/etc,
-> > The _same_ instruction should be repeated again after return from the
-> > signal handler, and SSTEP can never finish in this case.
->
-> Oleg,
->
-> Not sure I understand this completely...
+> > For 400 threads writing in parallel, the threshold needs to be on the order
+> > of 2000 (although we're off by about 40 MB/sec at that point).
+> >
+> > The necessary deltas in these cases are quite a bit higher than the current
+> > 125 maximum (see calculate*threshold in mm/vmstat.c).
+> >
+> > I like the idea of having certain areas triggering vm_stat sync, as long
+> > as we know what those key areas are and how often they might be called.
+> 
+> You could potentially reduce the maximum necessary by applying my earlier
+> patch (but please reduce the counters touched to the current cacheline).
+> That should reduce the number of updates in the global cacheline and allow
+> you to reduce the very high deltas that you have to deal with now.
 
-I hope you do not think I do ;)
-
-> When you say 'correct ip' you mean the original vaddr where we now have
-> a uprobe breakpoint and not the xol copy, right?
-
-Yes,
-
-> Coredump needs to report the correct ip, but should it also not report
-> correctly the instruction that caused the signal? Ergo, shouldn't we
-> put the original instruction back at the uprobed vaddr?
-
-OK, now I see what you mean. I was confused by the "restore the original
-instruction before _restart_" suggestion.
-
-Agreed! it would be nice to "hide" these int3's if we dump the core, but
-I think this is a bit off-topic. It makes sense to do this in any case,
-even if the core-dumping was triggered by another thread/insn. It makes
-sense to remove all int3's, not only at regs->ip location. But how can
-we do this? This is nontrivial.
-
-And. Even worse. Suppose that you do "gdb probed_application". Now you
-see int3's in the disassemble output. What can we do?
-
-I think we can do nothing, at least currently. This just reflects the
-fact that uprobe connects to inode, not to process/mm/etc.
-
-What do you think?
-
-Oleg.
+I tried updating whole, single vm_stat cachelines as you suggest, but that
+made little if any difference in tmpfs writeback performance.  The same higher
+threshold values were still necessary to significantly reduce the contention
+seen in __vm_enough_memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
