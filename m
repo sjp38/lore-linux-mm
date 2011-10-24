@@ -1,53 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3129B6B002D
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 17:22:37 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p9NLMU0B007156
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 14:22:32 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by wpaz37.hot.corp.google.com with ESMTP id p9NLJEKX027212
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 14:22:28 -0700
-Received: by pzk2 with SMTP id 2so18870139pzk.0
-        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 14:22:24 -0700 (PDT)
-Date: Sun, 23 Oct 2011 14:22:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B1@USINDEVS02.corp.hds.com>
-Message-ID: <alpine.DEB.2.00.1110231419070.17218@chino.kir.corp.google.com>
-References: <20110901105208.3849a8ff@annuminas.surriel.com> <20110901100650.6d884589.rdunlap@xenotime.net> <20110901152650.7a63cb8b@annuminas.surriel.com> <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com> <20111010153723.6397924f.akpm@linux-foundation.org>
- <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com> <20111011125419.2702b5dc.akpm@linux-foundation.org> <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com> <20111011135445.f580749b.akpm@linux-foundation.org> <4E95917D.3080507@redhat.com>
- <20111012122018.690bdf28.akpm@linux-foundation.org>,<4E95F167.5050709@redhat.com> <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B1@USINDEVS02.corp.hds.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CB1086B002D
+	for <linux-mm@kvack.org>; Sun, 23 Oct 2011 21:00:38 -0400 (EDT)
+Received: by ywa17 with SMTP id 17so3069855ywa.14
+        for <linux-mm@kvack.org>; Sun, 23 Oct 2011 18:00:36 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 2/9] mm: alloc_contig_freed_pages() added
+References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
+ <1317909290-29832-3-git-send-email-m.szyprowski@samsung.com>
+ <20111018122109.GB6660@csn.ul.ie> <op.v3j5ent03l0zgt@mpn-glaptop>
+ <20111021100624.GB4029@csn.ul.ie>
+Date: Sun, 23 Oct 2011 18:00:30 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v3tzq4q53l0zgt@mpn-glaptop>
+In-Reply-To: <20111021100624.GB4029@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
+ Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
+ Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Fri, 21 Oct 2011, Satoru Moriya wrote:
+On Fri, 21 Oct 2011 03:06:24 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
 
-> We do.
-> Basically we need this kind of feature for almost all our latency
-> sensitive applications to avoid latency issue in memory allocation.
-> 
+> On Tue, Oct 18, 2011 at 10:26:37AM -0700, Michal Nazarewicz wrote:
+>> On Tue, 18 Oct 2011 05:21:09 -0700, Mel Gorman <mel@csn.ul.ie> wrote:=
 
-These are all realtime?
+>>
+>> >At this point, I'm going to apologise for not reviewing this a long =
+long
+>> >time ago.
+>> >
+>> >On Thu, Oct 06, 2011 at 03:54:42PM +0200, Marek Szyprowski wrote:
+>> >>From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> >>
+>> >>This commit introduces alloc_contig_freed_pages() function
+>> >>which allocates (ie. removes from buddy system) free pages
+>> >>in range. Caller has to guarantee that all pages in range
+>> >>are in buddy system.
+>> >>
+>> >
+>> >Straight away, I'm wondering why you didn't use
+>> >
+>> >mm/compaction.c#isolate_freepages()
+>> >
+>> >It knows how to isolate pages within ranges. All its control informa=
+tion
+>> >is passed via struct compact_control() which I recognise may be awkw=
+ard
+>> >for CMA but compaction.c know how to manage all the isolated pages a=
+nd
+>> >pass them to migrate.c appropriately.
+>>
+>> It is something to consider.  At first glance, I see that isolate_fre=
+epages
+>> seem to operate on pageblocks which is not desired for CMA.
+>>
+>
+> isolate_freepages_block operates on a range of pages that happens to b=
+e
+> hard-coded to be a pageblock because that was the requirements. It cal=
+culates
+> end_pfn and it is possible to make that a function parameter.
 
-> Currently we run those applications on custom kernels which this
-> kind of patch is applied to. But it is hard for us to support every
-> kernel version for it. Also there are several customers who can't
-> accept a custom kernel and so they must use other commercial Unix.
-> If this feature is accepted, they will definitely use it on their
-> systems.
-> 
+Yes, this seems doable.  I'll try and rewrite the patches to use it.
 
-That's precisely the problem, it's behavior is going to vary widely from 
-version to version as the implementation changes for reclaim and 
-compaction.  I think we can do much better with the priority of kswapd and 
-reclaiming above the high watermark for threads that need a surplus of 
-extra memory because they are realtime, two things we can easily do.
+The biggest difference is in how CMA and compaction treat pages which ar=
+e not
+free.  CMA treat it as an error and compaction just skips those.  This i=
+s
+solvable by an argument though.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
