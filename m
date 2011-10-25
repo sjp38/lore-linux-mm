@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D07576B0023
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 18:12:35 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p9PMCVQY021783
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:12:31 -0700
-Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
-	by wpaz29.hot.corp.google.com with ESMTP id p9PMBDkm030449
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 087D66B0023
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 18:18:20 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p9PMIJZl002863
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:18:19 -0700
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by wpaz24.hot.corp.google.com with ESMTP id p9PMCLmX013559
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:12:29 -0700
-Received: by pzk1 with SMTP id 1so3705792pzk.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:12:29 -0700 (PDT)
-Date: Tue, 25 Oct 2011 15:12:26 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:18:17 -0700
+Received: by pzk36 with SMTP id 36so3548923pzk.7
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:18:17 -0700 (PDT)
+Date: Tue, 25 Oct 2011 15:18:15 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-In-Reply-To: <CAMbhsRQs+P9djqW_62ajfZTHE3yxsOs0agek81aZrBzZ2-5-Fg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1110251510240.26017@chino.kir.corp.google.com>
-References: <1319524789-22818-1-git-send-email-ccross@android.com> <CAOJsxLGuHZG9pvx5bCp9tOLA40uDz+U_ZY=_xOddtR9423-Jww@mail.gmail.com> <CAMbhsRQs+P9djqW_62ajfZTHE3yxsOs0agek81aZrBzZ2-5-Fg@mail.gmail.com>
+In-Reply-To: <20111025090956.GA10797@suse.de>
+Message-ID: <alpine.DEB.2.00.1110251513520.26017@chino.kir.corp.google.com>
+References: <1319524789-22818-1-git-send-email-ccross@android.com> <20111025090956.GA10797@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Tue, 25 Oct 2011, Colin Cross wrote:
+On Tue, 25 Oct 2011, Mel Gorman wrote:
 
-> GFP_KERNEL is __GFP_WAIT | __GFP_IO | __GFP_FS.  Once driver suspend
-> has started, gfp_allowed_mask is ~(__GFP_IO | GFP_FS), so any call to
-> __alloc_pages_nodemask(GFP_KERNEL, ...) gets masked to effectively
-> __alloc_pages_nodemask(__GFP_WAIT, ...).
+> That said, it will be difficult to remember why checking __GFP_NOFAIL in
+> this case is necessary and someone might "optimitise" it away later. It
+> would be preferable if it was self-documenting. Maybe something like
+> this? (This is totally untested)
 > 
 
-Just passing __GFP_WAIT is the problem that you're trying to address, 
-though.  Why not include __GFP_NORETRY since you know the liklihood of 
-allocation being successful on the second iteration is very slim since 
-you're not in a context where you can force reclaim or oom killing?
+__GFP_NOFAIL _should_ be optimized away in this case because all he's 
+passing is __GFP_WAIT | __GFP_NOFAIL.  That doesn't make any sense unless 
+all you want to do is livelock.
 
-> The loop is in __alloc_pages_slowpath, from the rebalance label to
-> should_alloc_retry.
+__GFP_NOFAIL doesn't mean the page allocator would infinitely loop in all 
+conditions.  That's why GFP_ATOMIC | __GFP_NOFAIL actually fails, and I 
+would argue that __GFP_WAIT | __GFP_NOFAIL should fail as well since it's 
+the exact same condition except doesn't have access to the extra memory 
+reserves.
 
-The loop is by design and is activated because you're just passing 
-__GFP_WAIT in this context for no sensible reason.
+Suspend needs to either set __GFP_NORETRY to avoid the livelock if it's 
+going to disable all means of memory reclaiming or freeing in the page 
+allocator.  Or, better yet, just make it GFP_NOWAIT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
