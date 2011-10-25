@@ -1,116 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D8D96B0023
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:29:36 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p9PJTUnW023629
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 12:29:32 -0700
-Received: from iaeo4 (iaeo4.prod.google.com [10.12.166.4])
-	by hpaq12.eem.corp.google.com with ESMTP id p9PJShp0015163
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 12:29:29 -0700
-Received: by iaeo4 with SMTP id o4so1500277iae.9
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2011 12:29:29 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0176B0023
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 15:39:37 -0400 (EDT)
+Received: by vcbfk1 with SMTP id fk1so1150519vcb.14
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2011 12:39:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20111025090956.GA10797@suse.de>
+In-Reply-To: <20111025112300.GB10797@suse.de>
 References: <1319524789-22818-1-git-send-email-ccross@android.com>
 	<20111025090956.GA10797@suse.de>
-Date: Tue, 25 Oct 2011 12:29:28 -0700
-Message-ID: <CAMbhsRRhBfJ-e23WHHbGcDUmsgOnbYkJ2uD9AWD4XUaRUu_4_w@mail.gmail.com>
+	<CAMbhsRR07Gpv-nEAvq8OQmLxkMyL5cASpq1vqQ8qN5ctwnamsQ@mail.gmail.com>
+	<20111025112300.GB10797@suse.de>
+Date: Tue, 25 Oct 2011 22:39:34 +0300
+Message-ID: <CAOJsxLH54aUjVE3b7queQMOJP1kb+bxtUTAUA=T=N378M5_hJA@mail.gmail.com>
 Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-From: Colin Cross <ccross@android.com>
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+Cc: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Tue, Oct 25, 2011 at 2:09 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Mon, Oct 24, 2011 at 11:39:49PM -0700, Colin Cross wrote:
->> Under the following conditions, __alloc_pages_slowpath can loop
->> forever:
->> gfp_mask & __GFP_WAIT is true
->> gfp_mask & __GFP_FS is false
->> reclaim and compaction make no progress
->> order <=3D PAGE_ALLOC_COSTLY_ORDER
->>
->> These conditions happen very often during suspend and resume,
->> when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
->> allocations into __GFP_WAIT.
-> b>
->> The oom killer is not run because gfp_mask & __GFP_FS is false,
->> but should_alloc_retry will always return true when order is less
->> than PAGE_ALLOC_COSTLY_ORDER.
->>
->> Fix __alloc_pages_slowpath to skip retrying when oom killer is
->> not allowed by the GFP flags, the same way it would skip if the
->> oom killer was allowed but disabled.
->>
->> Signed-off-by: Colin Cross <ccross@android.com>
->
-> Hi Colin,
->
-> Your patch functionally seems fine. I see the problem and we certainly
-> do not want to have the OOM killer firing during suspend. I would prefer
-> that the IO devices would not be suspended until reclaim was completed
-> but I imagine that would be a lot harder.
->
-> That said, it will be difficult to remember why checking __GFP_NOFAIL in
-> this case is necessary and someone might "optimitise" it away later. It
-> would be preferable if it was self-documenting. Maybe something like
-> this? (This is totally untested)
->
-> =A0mm/page_alloc.c | =A0 22 ++++++++++++++++++++++
-> =A01 files changed, 22 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6e8ecb6..ad8f376 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
-> =A0 =A0 =A0 =A0saved_gfp_mask =3D gfp_allowed_mask;
-> =A0 =A0 =A0 =A0gfp_allowed_mask &=3D ~GFP_IOFS;
-> =A0}
-> +
-> +static bool pm_suspending(void)
-> +{
-> + =A0 =A0 =A0 if ((gfp_allowed_mask & GFP_IOFS) =3D=3D GFP_IOFS)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 return true;
-> +}
-> +
-> +#else
-> +
-> +static bool pm_suspending(void)
-> +{
-> + =A0 =A0 =A0 return false;
-> +}
-> =A0#endif /* CONFIG_PM_SLEEP */
->
-> =A0#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-> @@ -2207,6 +2221,14 @@ rebalance:
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto restart;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Suspend converts GFP_KERNEL to __GFP_W=
-AIT which can
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* prevent reclaim making forward progres=
-s without
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* invoking OOM. Bail if we are suspendin=
-g
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pm_suspending())
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto nopage;
-> =A0 =A0 =A0 =A0}
->
-> =A0 =A0 =A0 =A0/* Check if we should retry the allocation */
->
+Hi Mel,
 
-Your patch solves my immediate problem.
-Tested-by: Colin Cross <ccross@android.com>
+On Tue, Oct 25, 2011 at 2:23 PM, Mel Gorman <mgorman@suse.de> wrote:
+> I see what you mean with GFP_NOIO but there is an important difference
+> between GFP_NOIO and suspend. =A0A GFP_NOIO low-order allocation currentl=
+y
+> implies __GFP_NOFAIL as commented on in should_alloc_retry(). If no progr=
+ess
+> is made, we call wait_iff_congested() and sleep for a bit. As the system
+> is running, kswapd and other process activity will proceed and eventually
+> reclaim enough pages for the GFP_NOIO allocation to succeed. In a running
+> system, GFP_NOIO can stall for a period of time but your patch will cause
+> the allocation to fail. While I expect callers return ENOMEM or handle
+> the situation properly with a wait-and-retry loop, there will be
+> operations that fail that used to succeed. This is why I'd prefer it was
+> a suspend-specific fix unless we know there is a case where a machine
+> livelocks due to a GFP_NOIO allocation looping forever and even then I'd
+> wonder why kswapd was not helping.
+
+I'm not that happy about your patch because it's going to the
+direction where the page allocator is special-casing for suspension.
+If you don't think it's a good idea to fix it for the general case
+(i.e. Colin's patch), why don't we fix it up in a way that suspension
+code passes sane GFP flags?
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
