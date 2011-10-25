@@ -1,89 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D306E6B002D
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 08:26:23 -0400 (EDT)
-Date: Tue, 25 Oct 2011 14:26:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Latency writing to an mlocked ext4 mapping
-Message-ID: <20111025122618.GA8072@quack.suse.cz>
-References: <CALCETrXbPWsgaZmsvHZGEX-CxB579tG+zusXiYhR-13RcEnGvQ@mail.gmail.com>
- <ACE78D84-0E94-4E7A-99BF-C20583018697@dilger.ca>
- <CALCETrU23vyCXPG6mJU9qaPeAGOWDQtur5C+LRT154V5FM=Ajg@mail.gmail.com>
- <CALCETrX=-CnNQ9+4tRbqMG4mfuy2FBPXXoJeBVDVPnEiRJYRFQ@mail.gmail.com>
- <CALCETrUcOKQAJTTmCSD3Q3wYS-zLqv6tBa4AdkK50bNobRhDUQ@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E29846B0023
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 10:32:18 -0400 (EDT)
+Received: from /spool/local
+	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 25 Oct 2011 10:29:13 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p9PESDKZ215866
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 10:28:15 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p9PESBZY010018
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2011 12:28:13 -0200
+Date: Tue, 25 Oct 2011 19:36:13 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: test-case (Was: [PATCH 12/X] uprobes: x86: introduce
+ abort_xol())
+Message-ID: <20111025140613.GA17914@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110920115938.25326.93059.sendpatchset@srdronam.in.ibm.com>
+ <20111015190007.GA30243@redhat.com>
+ <20111019215139.GA16395@redhat.com>
+ <20111019215326.GF16395@redhat.com>
+ <20111021144207.GN11831@linux.vnet.ibm.com>
+ <20111021162631.GB2552@in.ibm.com>
+ <20111021164221.GA30770@redhat.com>
+ <20111021175915.GA1705@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrUcOKQAJTTmCSD3Q3wYS-zLqv6tBa4AdkK50bNobRhDUQ@mail.gmail.com>
+In-Reply-To: <20111021175915.GA1705@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 19-10-11 22:59:55, Andy Lutomirski wrote:
-> On Wed, Oct 19, 2011 at 7:17 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> > On Wed, Oct 19, 2011 at 6:15 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> >> On Wed, Oct 19, 2011 at 6:02 PM, Andreas Dilger <adilger@dilger.ca> wrote:
-> >>> What kernel are you using?  A change to keep pages consistent during writeout was landed not too long ago (maybe Linux 3.0) in order to allow checksumming of the data.
-> >>
-> >> 3.0.6, with no relevant patches.  (I have a one-liner added to the tcp
-> >> code that I'll submit sometime soon.)  Would this explain the latency
-> >> in file_update_time or is that a separate issue?  file_update_time
-> >> seems like a good thing to make fully asynchronous (especially if the
-> >> file in question is a fifo, but I've already moved my fifos to tmpfs).
-> >
-> > On 2.6.39.4, I got one instance of:
-> >
-> > call_rwsem_down_read_failed ext4_map_blocks ext4_da_get_block_prep
-> > __block_write_begin ext4_da_write_begin ext4_page_mkwrite do_wp_page
-> > handle_pte_fault handle_mm_fault do_page_fault page_fault
-> >
-> > but I'm not seeing the large numbers of the ext4_page_mkwrite trace
-> > that I get on 3.0.6.  file_update_time is now by far the dominant
-> > cause of latency.
 > 
-> The culprit seems to be do_wp_page -> file_update_time ->
-> mark_inode_dirty_sync.  This surprises me for two reasons:
+> Ananth, Srikar, I'd suggest this test-case:
 > 
->  - Why the _sync?  Are we worried that data will be written out before
-> the metadata?  If so, surely there's a better way than adding latency
-> here.
-  _sync just means that inode will become dirty for fsync(2) purposes but
-not for fdatasync(2) purposes - i.e. it's just a timestamp update (or
-it could be something similar).
+> 	#include <stdio.h>
+> 	#include <signal.h>
+> 	#include <ucontext.h>
+> 
+> 	void *fault_insn;
+> 
+> 	static inline void *uc_ip(struct ucontext *ctxt)
+> 	{
+> 		return (void*)ctxt->uc_mcontext.gregs[16];
+> 	}
+> 
+> 	void segv(int sig, siginfo_t *info, void *ctxt)
+> 	{
+> 		static int cnt;
+> 
+> 		printf("SIGSEGV! ip=%p addr=%p\n", uc_ip(ctxt), info->si_addr);
+> 
+> 		if (uc_ip(ctxt) != fault_insn)
+> 			printf("ERR!! wrong ip\n");
+> 		if (info->si_addr != (void*)0x12345678)
+> 			printf("ERR!! wrong addr\n");
+> 
+> 		if (++cnt == 3)
+> 			signal(SIGSEGV, SIG_DFL);
+> 	}
+> 
+> 	int main(void)
+> 	{
+> 		struct sigaction sa = {
+> 			.sa_sigaction	= segv,
+> 			.sa_flags	= SA_SIGINFO,
+> 		};
+> 
+> 		sigaction(SIGSEGV, &sa, NULL);
+> 
+> 		fault_insn = &&label;
+> 
+> 	label:
+> 		asm volatile ("movl $0x0,0x12345678");
+> 
+> 		return 0;
+> 	}
+> 
+> result:
+> 
+> 	$ ulimit -c unlimited
+> 
+> 	$ ./segv
+> 	SIGSEGV! ip=0x4006eb addr=0x12345678
+> 	SIGSEGV! ip=0x4006eb addr=0x12345678
+> 	SIGSEGV! ip=0x4006eb addr=0x12345678
+> 	Segmentation fault (core dumped)
+> 
+> 	$ gdb -c ./core.1826
+> 	...
+> 	Program terminated with signal 11, Segmentation fault.
+> 	#0  0x00000000004006eb in ?? ()
+> 
+> Now. If you insert uprobe at asm("movl") insn, result should be the same
+> or the patches I sent are wrong. In particular, the addr in the coredump
+> should be correct too. And consumer->handler() should be called 3 times
+> too. This insn is really executed 3 times.
+> 
+> I have no idea how can I test this.
+> 
 
->  - Why are we calling file_update_time at all?  Presumably we also
-> update the time when the page is written back (if not, that sounds
-> like a bug, since the contents may be changed after something saw the
-> mtime update), and, if so, why bother updating it on the first write?
-> Anything that relies on this behavior is, I think, unreliable, because
-> the page could be made writable arbitrarily early by another program
-> that changes nothing.
-  We don't update timestamp when the page is written back. I believe this
-is mostly because we don't know whether the data has been changed by a
-write syscall, which already updated the timestamp, or by mmap. That is
-also the reason why we update the timestamp at page fault time.
+I have tested this on both x86_32 and x86_64 and can confirm that the
+behaviour is same with or without uprobes placed at that instruction.
+This is on the uprobes code with your changes.
 
-  The reason why file_update_time() blocks for you is probably that it
-needs to get access to buffer where inode is stored on disk and because a
-transaction including this buffer is committing at the moment, your thread
-has to wait until the transaction commit finishes. This is mostly a problem
-specific to how ext4 works so e.g. xfs shouldn't have it.
+However on x86_32; the output is different from x86_64. 
 
-  Generally I believe the attempts to achieve any RT-like latencies when
-writing to a filesystem are rather hopeless. How much hopeless depends on
-the load of the filesystem (e.g., in your case of mostly idle filesystem I
-can imagine some tweaks could reduce your latencies to an acceptable level
-but once the disk gets loaded you'll be screwed). So I'd suggest that
-having RT thread just store log in memory (or write to a pipe) and have
-another non-RT thread write the data to disk would be a much more robust
-design.
+On x86_32 (I have additionally printed the uc_ip and fault_insn.
 
-								Honza
+SIGSEGV! ip=0x10246 addr=0x12345678
+ERR!! wrong ip uc_ip(ctxt) = 10246 fault_insn = 804856c
+SIGSEGV! ip=0x10246 addr=0x12345678
+ERR!! wrong ip uc_ip(ctxt) = 10246 fault_insn = 804856c
+SIGSEGV! ip=0x10246 addr=0x12345678
+ERR!! wrong ip uc_ip(ctxt) = 10246 fault_insn = 804856c
+Segmentation fault
+
+the fault_insn matches the address shown in disassemble of gdb.
+I still trying to dig up what uc_ip is and why its different on x86_32.
+
+On x86_64 the result is what you pasted above.
+
+
+Also I was thinking on your suggestion of making abort_xol a weak
+function.  In which case we could have architecture independent function
+in kernel/uprobes.c which is just a wrapper for set_instruction_pointer. 
+
+void __weak abort_xol(struct pt_regs *regs, struct uprobe_task *utask)
+{
+	set_instruction_pointer(regs, utask->vaddr);	
+}
+
+where it would called  from uprobe_notify_resume() as 
+
+	abort_xol(regs, utask);
+
+If other archs would want to do something else, they could override
+abort_xol definition.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
