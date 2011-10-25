@@ -1,165 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7AD6B0023
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 15:39:35 -0400 (EDT)
-Received: by ggnh4 with SMTP id h4so7990516ggn.14
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2011 12:39:33 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 6/9] drivers: add Contiguous Memory Allocator
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <1317909290-29832-7-git-send-email-m.szyprowski@samsung.com>
- <20111018134321.GE6660@csn.ul.ie>
-Date: Mon, 24 Oct 2011 12:39:29 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A0816B002D
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2011 22:05:00 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Mon, 24 Oct 2011 22:04:09 -0400
+Subject: RE: [PATCH -v2 -mm] add extra free kbytes tunable
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B3@USINDEVS02.corp.hds.com>
+References: <20110901105208.3849a8ff@annuminas.surriel.com>
+ <20110901100650.6d884589.rdunlap@xenotime.net>
+ <20110901152650.7a63cb8b@annuminas.surriel.com>
+ <alpine.DEB.2.00.1110072001070.13992@chino.kir.corp.google.com>
+ <20111010153723.6397924f.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBC4@USINDEVS02.corp.hds.com>
+ <20111011125419.2702b5dc.akpm@linux-foundation.org>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB516CBFE@USINDEVS02.corp.hds.com>
+ <20111011135445.f580749b.akpm@linux-foundation.org>
+ <4E95917D.3080507@redhat.com>
+ <20111012122018.690bdf28.akpm@linux-foundation.org>,<4E95F167.5050709@redhat.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB4F747B1@USINDEVS02.corp.hds.com>,<alpine.DEB.2.00.1110231419070.17218@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1110231419070.17218@chino.kir.corp.google.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v3vfj30d3l0zgt@mpn-glaptop>
-In-Reply-To: <20111018134321.GE6660@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
- Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
- Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Seiji Aguchi <saguchi@redhat.com>, "hughd@google.com" <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-> On Thu, Oct 06, 2011 at 03:54:46PM +0200, Marek Szyprowski wrote:
->> +static unsigned long __init __cma_early_get_total_pages(void)
->> +{
->> +	struct memblock_region *reg;
->> +	unsigned long total_pages =3D 0;
->> +
->> +	/*
->> +	 * We cannot use memblock_phys_mem_size() here, because
->> +	 * memblock_analyze() has not been called yet.
->> +	 */
->> +	for_each_memblock(memory, reg)
->> +		total_pages +=3D memblock_region_memory_end_pfn(reg) -
->> +			       memblock_region_memory_base_pfn(reg);
->> +	return total_pages;
->> +}
->> +
+saOn 10/23/2011 05:22 PM, David Rientjes wrote:
+> On Fri, 21 Oct 2011, Satoru Moriya wrote:
+>=20
+>> We do.
+>> Basically we need this kind of feature for almost all our latency
+>> sensitive applications to avoid latency issue in memory allocation.
+>>
+>=20
+> These are all realtime?
 
-On Tue, 18 Oct 2011 06:43:21 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
-> Is this being called too early yet? What prevents you seeing up the CM=
-A
-> regions after the page allocator is brought up for example? I understa=
-nd
-> that there is a need for the memory to be coherent so maybe that is th=
-e
-> obstacle.
+Do you mean that these are all realtime process?
 
-Another reason is that we want to be sure that we can get given range of=
- pages.
-After page allocator is set-up, someone could allocate a non-movable pag=
-e from
-the range that interests us and that wouldn't be nice for us.
+If so, answer is depending on the situation. In the some situations,
+we can set these applications as rt-task. But the other situation,
+e.g. using some middlewares, package softwares etc, we can't set them
+as rt-task because they are not built for running as rt-task. And also
+it is difficult to rebuilt them for working as rt-task because they
+usually have huge code base.
 
->> +struct page *dma_alloc_from_contiguous(struct device *dev, int count=
-,
->> +				       unsigned int align)
->> +{
->> +	struct cma *cma =3D get_dev_cma_area(dev);
->> +	unsigned long pfn, pageno;
->> +	int ret;
->> +
->> +	if (!cma)
->> +		return NULL;
->> +
->> +	if (align > CONFIG_CMA_ALIGNMENT)
->> +		align =3D CONFIG_CMA_ALIGNMENT;
->> +
->> +	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,=
+>> Currently we run those applications on custom kernels which this
+>> kind of patch is applied to. But it is hard for us to support every
+>> kernel version for it. Also there are several customers who can't
+>> accept a custom kernel and so they must use other commercial Unix.
+>> If this feature is accepted, they will definitely use it on their
+>> systems.
+>>
+>=20
+> That's precisely the problem, it's behavior is going to vary widely from=
+=20
+> version to version as the implementation changes for reclaim and=20
+> compaction.  I think we can do much better with the priority of kswapd an=
+d=20
+> reclaiming above the high watermark for threads that need a surplus of=20
+> extra memory because they are realtime, two things we can easily do.
 
->> +		 count, align);
->> +
->> +	if (!count)
->> +		return NULL;
->> +
->> +	mutex_lock(&cma_mutex);
->> +
->> +	pageno =3D bitmap_find_next_zero_area(cma->bitmap, cma->count, 0, c=
-ount,
->> +					    (1 << align) - 1);
->> +	if (pageno >=3D cma->count) {
->> +		ret =3D -ENOMEM;
->> +		goto error;
->> +	}
->> +	bitmap_set(cma->bitmap, pageno, count);
->> +
->> +	pfn =3D cma->base_pfn + pageno;
->> +	ret =3D alloc_contig_range(pfn, pfn + count, 0, MIGRATE_CMA);
->> +	if (ret)
->> +		goto free;
->> +
+As I reported another mail, changing kswapd priority does not mitigate
+even my simple testcase very much. Of course, reclaiming above the high
+wmark may solve the issue on some workloads but if an application can
+allocate memory more than high wmark - min wmark which is extended and
+fast enough, latency issue will happen.
+Unless this latency concern is fixed, customers doesn't use vanilla
+kernel.
 
-> If alloc_contig_range returns failure, the bitmap is still set. It wil=
-l
-> never be freed so now the area cannot be used for CMA allocations any
-> more.
-
-bitmap is cleared at the =E2=80=9Cfree:=E2=80=9D label.
-
->> +	mutex_unlock(&cma_mutex);
->> +
->> +	pr_debug("%s(): returned %p\n", __func__, pfn_to_page(pfn));
->> +	return pfn_to_page(pfn);
->> +free:
->> +	bitmap_clear(cma->bitmap, pageno, count);
->> +error:
->> +	mutex_unlock(&cma_mutex);
->> +	return NULL;
->> +}
-
-
->> +int dma_release_from_contiguous(struct device *dev, struct page *pag=
-es,
->> +				int count)
->> +{
->> +	struct cma *cma =3D get_dev_cma_area(dev);
->> +	unsigned long pfn;
->> +
->> +	if (!cma || !pages)
->> +		return 0;
->> +
->> +	pr_debug("%s(page %p)\n", __func__, (void *)pages);
->> +
->> +	pfn =3D page_to_pfn(pages);
->> +
->> +	if (pfn < cma->base_pfn || pfn >=3D cma->base_pfn + cma->count)
->> +		return 0;
->> +
->> +	mutex_lock(&cma_mutex);
->> +
->> +	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
->> +	free_contig_pages(pfn, count);
->> +
->> +	mutex_unlock(&cma_mutex);
->
-> It feels like the mutex could be a lot lighter here. If the bitmap is
-> protected by a spinlock, it would only need to be held while the bitma=
-p
-> was being cleared. free the contig pages outside the spinlock and clea=
-r
-> the bitmap afterwards.
->
-> It's not particularly important as the scalability of CMA is not
-> something to be concerned with at this point.
-
-Mutex is used also to protect the core operations, ie. isolating pages
-and such.  This is because two CMA calls may want to work on the same
-pageblock and we have to prevent that from happening.
-
-We could add the spinlock for protecting the bitmap but we will still
-need mutex for other uses.
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Regards,
+Satoru=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
