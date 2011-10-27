@@ -1,27 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 26AA06B002D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 17:12:11 -0400 (EDT)
-Date: Thu, 27 Oct 2011 17:11:57 -0400
-From: Christoph Hellwig <hch@infradead.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DDC076B002D
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 17:44:41 -0400 (EDT)
 Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111027211157.GA1199@infradead.org>
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <alpine.DEB.2.00.1110271318220.7639@chino.kir.corp.google.com>
-MIME-Version: 1.0
+Mime-Version: 1.0 (Apple Message framework v1251.1)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1110271318220.7639@chino.kir.corp.google.com>
+From: Avi Miller <avi.miller@oracle.com>
+In-Reply-To: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+Date: Fri, 28 Oct 2011 08:44:17 +1100
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <4F63081B-84E7-4FF8-8920-5AF4B73895D1@oracle.com>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, levinsasha928@gmail.com, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, levinsasha928@gmail.com, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
 
-On Thu, Oct 27, 2011 at 01:18:40PM -0700, David Rientjes wrote:
-> Isn't this something that should go through the -mm tree?
+Hi Linus et al,
 
-It should have.  It should also have ACKs from the core VM developers,
-and at least the few I talked to about it really didn't seem to like it.
+If further support is required:
+
+On 28/10/2011, at 5:52 AM, Dan Magenheimer wrote:
+
+> Linux kernel distros incorporating frontswap:
+> - Oracle UEK 2.6.39 Beta:
+
+I have been testing this kernel for a while now as well and is =
+performing well. I have tested Xen HVM, HVPVM and PVM guests all with =
+tmem enabled. Automated testing is scheduled to go into our test farm =
+(that runs ~80,000 hours of QA of testing of Oracle products on Oracle =
+Linux per day) soon.
+
+> - OracleVM since 2.2 (2009)
+
+Likewise. We are planning to incorporate Transcendent Memory support =
+into future Oracle VM 3.0 releases as support functionality, i.e. that =
+this will be enabled on a per-server/per-guest basis so that guests are =
+capable of reducing memory footprint. We see this as a critical feature =
+to compete with other hypervisor's memory sharing/de-duplication =
+functionality.
+
+Thanks,
+Avi
+
+---
+Oracle <http://www.oracle.com>
+Avi Miller | Principal Program Manager | +61 (412) 229 687
+Oracle Linux and Virtualization
+417 St Kilda Road, Melbourne, Victoria 3004 Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
