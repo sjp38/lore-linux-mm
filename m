@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B80D86B002D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 05:10:48 -0400 (EDT)
-Received: by wwf5 with SMTP id 5so3181948wwf.26
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2011 02:10:46 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 4/9] mm: MIGRATE_CMA migration type added
-References: <1317909290-29832-1-git-send-email-m.szyprowski@samsung.com>
- <1317909290-29832-5-git-send-email-m.szyprowski@samsung.com>
- <20111018130826.GD6660@csn.ul.ie> <op.v3ve8vbl3l0zgt@mpn-glaptop>
-Date: Thu, 27 Oct 2011 11:10:42 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 520286B002D
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 08:51:20 -0400 (EDT)
+Date: Thu, 27 Oct 2011 07:51:15 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH] cache align vm_stat
+Message-ID: <20111027125115.GB21671@sgi.com>
+References: <20111027085008.GA6563@csn.ul.ie>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v3z6f4173l0zgt@mpn-glaptop>
-In-Reply-To: <op.v3ve8vbl3l0zgt@mpn-glaptop>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111027085008.GA6563@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
- Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
- Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@gentwo.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>
 
-> On Tue, 18 Oct 2011 06:08:26 -0700, Mel Gorman <mel@csn.ul.ie> wrote:
->> This does mean that MIGRATE_CMA also does not have a per-cpu list.
->> I don't know if that matters to you but all allocations using
->> MIGRATE_CMA will take the zone lock.
+On Thu, Oct 27, 2011 at 10:50:25AM +0200, Mel Gorman wrote:
+> On Mon, Oct 24, 2011 at 11:10:35AM -0500, Dimitri Sivanich wrote:
+> > Avoid false sharing of the vm_stat array.
+> > 
+> > This was found to adversely affect tmpfs I/O performance.
+> > 
+> 
+> I think this fix is overly simplistic. It is moving each counter into
+> its own cache line. While I accept that this will help the preformance
+> of the tmpfs-based workload, it will adversely affect workloads that
+> touch a lot of counters because of the increased cache footprint.
 
-On Mon, 24 Oct 2011 21:32:45 +0200, Michal Nazarewicz <mina86@mina86.com=
-> wrote:
-> This is sort of an artefact of my misunderstanding of pcp lists in the=
+To reiterate, this change is as follows:
+  -atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
+  +atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
 
-> past.  I'll have to re-evaluate the decision not to include CMA on pcp=
+I think you've misunderstood the effect of the fix.  It does not move
+each counter into it's own cache line.  It forces the overall array to
+start on a cache line boundary.  From 'nm -n vmlinux' output:
+	ffffffff81e04200 d hash_lock
+	ffffffff81e04240 D vm_stat
+	ffffffff81e04340 d nr_files
+Unless I'm missing something, vm_stat is using 4 cachelines, not 24.
+And yes, the addresses of the first 3 counters are, in fact,
+ffffffff81e04240, ffffffff81e04248, and ffffffff81e04250.
 
-> list.
+Also, while this patch does make some difference in performance, it is
+only an incremental step in improving vm_stat contention.  More will need
+to be done.
 
-Actually sorry.  My comment above is somehow invalid.
+Also, I've found that separating counters into their own cacheline has less
+of an effect on performance than one might think.  It really has more to do
+with the number of updates that each of these counters (especially
+NR_FREE_PAGES) is receiving.
 
-The CMA does not need to be on pcp list because CMA pages are never allo=
-cated
-via standard kmalloc() and friends.  Because of the fallbacks in rmqueue=
-_bulk()
-the CMA pages end up being added to a pcp list of the MOVABLE type and s=
-o when
-kmallec() allocates an MOVABLE page it can end up grabbing a CMA page.
+> 
+> 1. Is it possible to rearrange the vmstat array such that two hot
+>    counters do not share a cache line?
 
-So it's quite OK that CMA does not have its own pcp list as the list wou=
-ld
-not be used anyway.
+See my comment above.
 
--- =
+> 2. Has Andrew's suggestion to alter the per-cpu threshold based on the
+>    value of the global counter to reduce conflicts been tried?
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Altering the per-cpu threshold (that returned from calculate*threshold in
+mm/vmstat.c) works well, but see my previous posts about the size of
+threshold required to achieve reasonable scaling performance.  Values are
+much higher than the currently allowed 125 (more on the order of 1000-2000).
+
+> 
+> (I'm at Linux Con at the moment so will be even slower to respond than
+> usual)
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
