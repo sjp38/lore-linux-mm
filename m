@@ -1,25 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 621376B002D
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2011 22:31:50 -0400 (EDT)
-Date: Wed, 26 Oct 2011 21:31:46 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 321B06B002D
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 04:50:37 -0400 (EDT)
+Date: Thu, 27 Oct 2011 10:50:25 +0200
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH] cache align vm_stat
-In-Reply-To: <20111024161035.GA19820@sgi.com>
-Message-ID: <alpine.DEB.2.00.1110262131240.27107@router.home>
-References: <20111024161035.GA19820@sgi.com>
+Message-ID: <20111027085008.GA6563@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dimitri Sivanich <sivanich@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@gentwo.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>
 
-On Mon, 24 Oct 2011, Dimitri Sivanich wrote:
-
+On Mon, Oct 24, 2011 at 11:10:35AM -0500, Dimitri Sivanich wrote:
 > Avoid false sharing of the vm_stat array.
+> 
+> This was found to adversely affect tmpfs I/O performance.
+> 
 
-Acked-by: Christoph Lameter <cl@gentwo.org>
+I think this fix is overly simplistic. It is moving each counter into
+its own cache line. While I accept that this will help the preformance
+of the tmpfs-based workload, it will adversely affect workloads that
+touch a lot of counters because of the increased cache footprint.
+
+1. Is it possible to rearrange the vmstat array such that two hot
+   counters do not share a cache line?
+2. Has Andrew's suggestion to alter the per-cpu threshold based on the
+   value of the global counter to reduce conflicts been tried?
+
+(I'm at Linux Con at the moment so will be even slower to respond than
+usual)
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
