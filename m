@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC076B002D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 17:44:41 -0400 (EDT)
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Mime-Version: 1.0 (Apple Message framework v1251.1)
-Content-Type: text/plain; charset=us-ascii
-From: Avi Miller <avi.miller@oracle.com>
-In-Reply-To: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
-Date: Fri, 28 Oct 2011 08:44:17 +1100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4F63081B-84E7-4FF8-8920-5AF4B73895D1@oracle.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F4A06B002D
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 17:49:41 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <75efb251-7a5e-4aca-91e2-f85627090363@default>
+Date: Thu, 27 Oct 2011 14:49:31 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <alpine.DEB.2.00.1110271318220.7639@chino.kir.corp.google.com
+ 20111027211157.GA1199@infradead.org>
+In-Reply-To: <20111027211157.GA1199@infradead.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, levinsasha928@gmail.com, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
 
-Hi Linus et al,
+> From: Christoph Hellwig [mailto:hch@infradead.org]
+> Sent: Thursday, October 27, 2011 3:12 PM
+> To: David Rientjes
+> Cc: Dan Magenheimer; Linus Torvalds; linux-mm@kvack.org; LKML; Andrew Mor=
+ton; Konrad Wilk; Jeremy
+> Fitzhardinge; Seth Jennings; ngupta@vflare.org; levinsasha928@gmail.com; =
+Chris Mason;
+> JBeulich@novell.com; Dave Hansen; Jonathan Corbet; Neo Jia
+> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+>=20
+> On Thu, Oct 27, 2011 at 01:18:40PM -0700, David Rientjes wrote:
+> > Isn't this something that should go through the -mm tree?
+>=20
+> It should have.  It should also have ACKs from the core VM developers,
+> and at least the few I talked to about it really didn't seem to like it.
 
-If further support is required:
+Yes, it would have been nice to have it go through the -mm tree.
+But, *sigh*, I guess it will be up to Linus again to decide if
+"didn't seem to like it" is sufficient to block functionality
+that has found use by a number of in-kernel users and by
+real shipping products... and continues to grow in usefulness.
 
-On 28/10/2011, at 5:52 AM, Dan Magenheimer wrote:
+If Linux truly subscribes to the "code rules" mantra, no core
+VM developer has proposed anything -- even a design, let alone
+working code -- that comes close to providing the functionality
+and flexibility that frontswap (and cleancache) provides, and
+frontswap provides it with a very VERY small impact on existing
+kernel code AND has been posted and working for 2+ years.
+(And during that 2+ years, excellent feedback has improved the
+"kernel-ness" of the code, but NONE of the core frontswap
+design/hooks have changed... because frontswap _just works_!)
 
-> Linux kernel distros incorporating frontswap:
-> - Oracle UEK 2.6.39 Beta:
+Perhaps other frontswap users would be so kind as to reply
+on this thread with their opinions...
 
-I have been testing this kernel for a while now as well and is =
-performing well. I have tested Xen HVM, HVPVM and PVM guests all with =
-tmem enabled. Automated testing is scheduled to go into our test farm =
-(that runs ~80,000 hours of QA of testing of Oracle products on Oracle =
-Linux per day) soon.
-
-> - OracleVM since 2.2 (2009)
-
-Likewise. We are planning to incorporate Transcendent Memory support =
-into future Oracle VM 3.0 releases as support functionality, i.e. that =
-this will be enabled on a per-server/per-guest basis so that guests are =
-capable of reducing memory footprint. We see this as a critical feature =
-to compete with other hypervisor's memory sharing/de-duplication =
-functionality.
-
-Thanks,
-Avi
-
----
-Oracle <http://www.oracle.com>
-Avi Miller | Principal Program Manager | +61 (412) 229 687
-Oracle Linux and Virtualization
-417 St Kilda Road, Melbourne, Victoria 3004 Australia
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
