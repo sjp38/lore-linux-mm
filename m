@@ -1,76 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8255F6B002D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 19:34:18 -0400 (EDT)
-Received: by wyg34 with SMTP id 34so4571939wyg.14
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2011 16:34:15 -0700 (PDT)
-Date: Fri, 28 Oct 2011 08:34:07 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 5/5]thp: split huge page if head page is isolated
-Message-ID: <20111027233407.GC29407@barrios-laptop.redhat.com>
-References: <1319511580.22361.141.camel@sli10-conroe>
+	by kanga.kvack.org (Postfix) with SMTP id 03B8F6B0023
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2011 23:43:21 -0400 (EDT)
+Message-ID: <4EAA2492.3020907@cn.fujitsu.com>
+Date: Fri, 28 Oct 2011 11:42:10 +0800
+From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Reply-To: gaowanlong@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1319511580.22361.141.camel@sli10-conroe>
+Subject: [possible deadlock][3.1.0-g138c4ae] possible circular locking dependency
+ detected
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, aarcange@redhat.com, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: linux-fsdevel@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Oct 25, 2011 at 10:59:40AM +0800, Shaohua Li wrote:
-> With current logic, if page reclaim finds a huge page, it will just reclaim
-> the head page and leave tail pages reclaimed later. Let's take an example,
-> lru list has page A and B, page A is huge page:
-> 1. page A is isolated
-> 2. page B is isolated
-> 3. shrink_page_list() adds page A to swap page cache. so page A is split.
-> page A+1, page A+2, ... are added to lru list.
-> 4. shrink_page_list() adds page B to swap page cache.
-> 5. page A and B is written out and reclaimed.
-> 6. page A+1, A+2 ... is isolated and reclaimed later.
-> So the reclaim order is A, B, ...(maybe other pages), A+1, A+2 ...
+Hi folks:
 
-I don't see your code yet but have a question.
-You mitigate this problem by 4/5 which could add subpages into lru tail
-so subpages would reclaim next interation of reclaim.
+My dmesg said that:
 
-What do we need 5/5?
-Do I miss something?
+======================================================
+[ INFO: possible circular locking dependency detected ]
+3.1.0-138c4ae #2
+-------------------------------------------------------
+hugemmap05/18198 is trying to acquire lock:
+ (&mm->mmap_sem){++++++}, at: [<ffffffff8114d85c>] might_fault+0x5c/0xb0
 
-> 
-> We expected the whole huge page A is reclaimed in the meantime, so
-> the order is A, A+1, ... A+HPAGE_PMD_NR-1, B, ....
-> 
-> With this patch, we do huge page split just after the head page is isolated
-> for inactive lru list, so the tail pages will be reclaimed immediately.
-> 
-> In a test, a range of anonymous memory is written and will trigger swap.
-> Without the patch:
-> #cat /proc/vmstat|grep thp
-> thp_fault_alloc 451
-> thp_fault_fallback 0
-> thp_collapse_alloc 0
-> thp_collapse_alloc_failed 0
-> thp_split 238
-> 
-> With the patch:
-> #cat /proc/vmstat|grep thp
-> thp_fault_alloc 450
-> thp_fault_fallback 1
-> thp_collapse_alloc 0
-> thp_collapse_alloc_failed 0
-> thp_split 103
-> 
-> So the thp_split number is reduced a lot, though there is one extra
-> thp_fault_fallback.
+but task is already holding lock:
+ (&sb->s_type->i_mutex_key#21){+.+.+.}, at: [<ffffffff811a10f6>] vfs_readdir+0x86/0xe0
 
-Wow. The result seems to be good.
-Is it result of effect only 5/5? or both 4/5 and 5/5?
+which lock already depends on the new lock.
 
--- 
-Kind regards,
-Minchan Kim
+
+the existing dependency chain (in reverse order) is:
+
+-> #1 (&sb->s_type->i_mutex_key#21){+.+.+.}:
+       [<ffffffff810afd34>] validate_chain+0x704/0x860
+       [<ffffffff810b018c>] __lock_acquire+0x2fc/0x500
+       [<ffffffff810b0b01>] lock_acquire+0xb1/0x1a0
+       [<ffffffff815464f2>] __mutex_lock_common+0x62/0x420
+       [<ffffffff81546a1a>] mutex_lock_nested+0x4a/0x60
+       [<ffffffff8120b4ba>] hugetlbfs_file_mmap+0xaa/0x160
+       [<ffffffff81158071>] mmap_region+0x3e1/0x590
+       [<ffffffff81158584>] do_mmap_pgoff+0x364/0x3b0
+       [<ffffffff811587d9>] sys_mmap_pgoff+0x209/0x240
+       [<ffffffff8101aac9>] sys_mmap+0x29/0x30
+       [<ffffffff81551542>] system_call_fastpath+0x16/0x1b
+
+-> #0 (&mm->mmap_sem){++++++}:
+       [<ffffffff810af607>] check_prev_add+0x537/0x560
+       [<ffffffff810afd34>] validate_chain+0x704/0x860
+       [<ffffffff810b018c>] __lock_acquire+0x2fc/0x500
+       [<ffffffff810b0b01>] lock_acquire+0xb1/0x1a0
+       [<ffffffff8114d889>] might_fault+0x89/0xb0
+       [<ffffffff811a0f2e>] filldir+0x7e/0xe0
+       [<ffffffff811b445e>] dcache_readdir+0x5e/0x230
+       [<ffffffff811a1130>] vfs_readdir+0xc0/0xe0
+       [<ffffffff811a12c9>] sys_getdents+0x89/0x100
+       [<ffffffff81551542>] system_call_fastpath+0x16/0x1b
+
+other info that might help us debug this:
+
+ Possible unsafe locking scenario:
+
+       CPU0                    CPU1
+       ----                    ----
+  lock(&sb->s_type->i_mutex_key);
+                               lock(&mm->mmap_sem);
+                               lock(&sb->s_type->i_mutex_key);
+  lock(&mm->mmap_sem);
+
+ *** DEADLOCK ***
+
+1 lock held by hugemmap05/18198:
+ #0:  (&sb->s_type->i_mutex_key#21){+.+.+.}, at: [<ffffffff811a10f6>] vfs_readdir+0x86/0xe0
+
+stack backtrace:
+Pid: 18198, comm: hugemmap05 Not tainted 3.1.0-138c4ae #2
+Call Trace:
+ [<ffffffff810ad469>] print_circular_bug+0x109/0x110
+ [<ffffffff810af607>] check_prev_add+0x537/0x560
+ [<ffffffff8114e112>] ? do_anonymous_page+0xf2/0x2d0
+ [<ffffffff810afd34>] validate_chain+0x704/0x860
+ [<ffffffff810b018c>] __lock_acquire+0x2fc/0x500
+ [<ffffffff810b0b01>] lock_acquire+0xb1/0x1a0
+ [<ffffffff8114d85c>] ? might_fault+0x5c/0xb0
+ [<ffffffff8114d889>] might_fault+0x89/0xb0
+ [<ffffffff8114d85c>] ? might_fault+0x5c/0xb0
+ [<ffffffff81546763>] ? __mutex_lock_common+0x2d3/0x420
+ [<ffffffff811a10f6>] ? vfs_readdir+0x86/0xe0
+ [<ffffffff811a0f2e>] filldir+0x7e/0xe0
+ [<ffffffff811b445e>] dcache_readdir+0x5e/0x230
+ [<ffffffff811a0eb0>] ? filldir64+0xf0/0xf0
+ [<ffffffff811a0eb0>] ? filldir64+0xf0/0xf0
+ [<ffffffff811a0eb0>] ? filldir64+0xf0/0xf0
+ [<ffffffff811a1130>] vfs_readdir+0xc0/0xe0
+ [<ffffffff8118e9be>] ? fget+0xee/0x220
+ [<ffffffff8118e8d0>] ? fget_raw+0x220/0x220
+ [<ffffffff811a12c9>] sys_getdents+0x89/0x100
+ [<ffffffff81551542>] system_call_fastpath+0x16/0x1b
+
+
+
+Wile hugemmap05 is a test case from LTP.
+http://ltp.git.sourceforge.net/git/gitweb.cgi?p=ltp/ltp.git;a=blob;f=testcases/kernel/mem/hugetlb/hugemmap/hugemmap05.c;h=50bb8ca23ae9686662740f9ea5d7187affff8b60;hb=HEAD
+
+But I don't know how to reproduce this.
+
+
+Thanks
+-Wanlong Gao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
