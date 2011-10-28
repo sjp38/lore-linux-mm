@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B7346B0023
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 03:12:50 -0400 (EDT)
-Received: by faat2 with SMTP id t2so4785545faa.14
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 00:12:42 -0700 (PDT)
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-From: Sasha Levin <levinsasha928@gmail.com>
-In-Reply-To: <20111027215243.GA31644@infradead.org>
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
-	 <alpine.DEB.2.00.1110271318220.7639@chino.kir.corp.google.com20111027211157.GA1199@infradead.org>
-	 <75efb251-7a5e-4aca-91e2-f85627090363@default>
-	 <20111027215243.GA31644@infradead.org>
-Content-Type: text/plain; charset="us-ascii"
-Date: Fri, 28 Oct 2011 09:12:36 +0200
-Message-ID: <1319785956.3235.7.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D417D6B002F
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 03:21:35 -0400 (EDT)
+Received: by ggnh4 with SMTP id h4so4436811ggn.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 00:21:33 -0700 (PDT)
+Date: Fri, 28 Oct 2011 16:21:25 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [patch 4/5]thp: correct order in lru list for split huge page
+Message-ID: <20111028072102.GA6268@barrios-laptop.redhat.com>
+References: <1319511577.22361.140.camel@sli10-conroe>
+ <20111027231928.GB29407@barrios-laptop.redhat.com>
+ <1319778538.22361.152.camel@sli10-conroe>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1319778538.22361.152.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "aarcange@redhat.com" <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Thu, 2011-10-27 at 17:52 -0400, Christoph Hellwig wrote:
-> On Thu, Oct 27, 2011 at 02:49:31PM -0700, Dan Magenheimer wrote:
-> > If Linux truly subscribes to the "code rules" mantra, no core
-> > VM developer has proposed anything -- even a design, let alone
-> > working code -- that comes close to providing the functionality
-> > and flexibility that frontswap (and cleancache) provides, and
-> > frontswap provides it with a very VERY small impact on existing
-> > kernel code AND has been posted and working for 2+ years.
-> > (And during that 2+ years, excellent feedback has improved the
-> > "kernel-ness" of the code, but NONE of the core frontswap
-> > design/hooks have changed... because frontswap _just works_!)
-> 
-> It might work for whatever defintion of work, but you certainly couldn't
-> convince anyone that matters that it's actually sexy and we'd actually
-> need it.  Only actually working on Xen of course doesn't help.
+On Fri, Oct 28, 2011 at 01:08:58PM +0800, Shaohua Li wrote:
+> On Fri, 2011-10-28 at 07:19 +0800, Minchan Kim wrote:
+> > On Tue, Oct 25, 2011 at 10:59:37AM +0800, Shaohua Li wrote:
+> > > If a huge page is split, all the subpages should live in lru list adjacently
+> > > because they should be taken as a whole.
+> > > In page split, with current code:
+> > > a. if huge page is in lru list, the order is: page, page+HPAGE_PMD_NR-1,
+> > > page + HPAGE_PMD_NR-2, ..., page + 1(in lru page reclaim order)
+> > > b. otherwise, the order is: page, ..other pages.., page + 1, page + 2, ...(in
+> > > lru page reclaim order). page + 1 ... page + HPAGE_PMD_NR - 1 are in the lru
+> > > reclaim tail.
+> > > 
+> > > In case a, the order is wrong. In case b, page is isolated (to be reclaimed),
+> > > but other tail pages will not soon.
+> > > 
+> > > With below patch:
+> > > in case a, the order is: page, page + 1, ... page + HPAGE_PMD_NR-1(in lru page
+> > > reclaim order).
+> > > in case b, the order is: page + 1, ... page + HPAGE_PMD_NR-1 (in lru page reclaim
+> > > order). The tail pages are in the lru reclaim head.
+> > > 
+> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> > 
+> > In case of a, it doesn't matter ordering of subpages.
+> > As a huge page, age of sub pages are same.
+> It does matter. Hugepage is split first and then reclaim. if page, page
+> +HPAGE_PMD_NR-1 is reclaimed, you can't get an order-1 page. but if
+> page, page+1 is reclaimed, you can.
 
-Theres a working POC of it on KVM, mostly based on reusing in-kernel Xen
-code.
+Right you are. I didn't catch up it.
+It would be better to add it in description.
+It's most important part in this patch.
 
-I felt it would be difficult to try and merge any tmem KVM patches until
-both frontswap and cleancache are in the kernel, thats why the
-development is currently paused at the POC level.
+Thanks.
 
 -- 
-
-Sasha.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
