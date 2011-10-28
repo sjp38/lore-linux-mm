@@ -1,88 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB7A6B0023
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 05:50:53 -0400 (EDT)
-Received: by ggnh4 with SMTP id h4so4555324ggn.14
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 02:50:51 -0700 (PDT)
-Date: Fri, 28 Oct 2011 18:50:40 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 5/5]thp: split huge page if head page is isolated
-Message-ID: <20111028095040.GA31281@barrios-laptop.redhat.com>
-References: <1319511580.22361.141.camel@sli10-conroe>
- <20111027233407.GC29407@barrios-laptop.redhat.com>
- <1319778715.22361.155.camel@sli10-conroe>
- <20111028073026.GB6268@barrios-laptop.redhat.com>
- <1319790356.22361.165.camel@sli10-conroe>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 446E86B0023
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 10:26:27 -0400 (EDT)
+Received: by vcbfk1 with SMTP id fk1so4912403vcb.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 07:26:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1319790356.22361.165.camel@sli10-conroe>
+In-Reply-To: <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.com>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+	<75efb251-7a5e-4aca-91e2-f85627090363@default>
+	<20111027215243.GA31644@infradead.org>
+	<1319785956.3235.7.camel@lappy>
+	<CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.com>
+Date: Fri, 28 Oct 2011 17:26:24 +0300
+Message-ID: <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "aarcange@redhat.com" <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Cyclonus J <cyclonusj@gmail.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Fri, Oct 28, 2011 at 04:25:56PM +0800, Shaohua Li wrote:
-> On Fri, 2011-10-28 at 15:30 +0800, Minchan Kim wrote:
-> > On Fri, Oct 28, 2011 at 01:11:55PM +0800, Shaohua Li wrote:
-> > > On Fri, 2011-10-28 at 07:34 +0800, Minchan Kim wrote:
-> > > > On Tue, Oct 25, 2011 at 10:59:40AM +0800, Shaohua Li wrote:
-> > > > > With current logic, if page reclaim finds a huge page, it will just reclaim
-> > > > > the head page and leave tail pages reclaimed later. Let's take an example,
-> > > > > lru list has page A and B, page A is huge page:
-> > > > > 1. page A is isolated
-> > > > > 2. page B is isolated
-> > > > > 3. shrink_page_list() adds page A to swap page cache. so page A is split.
-> > > > > page A+1, page A+2, ... are added to lru list.
-> > > > > 4. shrink_page_list() adds page B to swap page cache.
-> > > > > 5. page A and B is written out and reclaimed.
-> > > > > 6. page A+1, A+2 ... is isolated and reclaimed later.
-> > > > > So the reclaim order is A, B, ...(maybe other pages), A+1, A+2 ...
-> > > > 
-> > > > I don't see your code yet but have a question.
-> > > > You mitigate this problem by 4/5 which could add subpages into lru tail
-> > > > so subpages would reclaim next interation of reclaim.
-> > > > 
-> > > > What do we need 5/5?
-> > > > Do I miss something?
-> > > Both patches are required. without this patch, current page reclaim will
-> > > only reclaim the first page of a huge page, because the hugepage isn't
-> > > split yet. The hugepage is split when the first page is being written to
-> > > swap, which is too later and page reclaim might already isolated a lot
-> > > of pages.
-> > 
-> > When split happens, subpages would be located in tail of LRU by your 4/5.
-> > (Assume tail of LRU is old age).
-> yes, but a lot of other pages already isolated. we will reclaim those
-> pages first. for example, reclaim huge page A, B. current reclaim order
-> is A, B, A+1, ... B+1, because we will isolated A and B first, all tail
-> pages are not isolated yet. While with my patch, the order is A, A
-> +1, ... B, B+1,.... with my patch, we can avoid unnecessary page split
-> or page isolation. This is exactly why my patch reduces the thp_split
-> count.
+On Fri, Oct 28, 2011 at 10:30 AM, Cyclonus J <cyclonusj@gmail.com> wrote:
+>> I felt it would be difficult to try and merge any tmem KVM patches until
+>> both frontswap and cleancache are in the kernel, thats why the
+>> development is currently paused at the POC level.
+>
+> Same here. I am working a KVM support for Transcedent Memory as well.
+> It would be nice to see this in the mainline.
 
-It's possbile but I doubt how it is effective becuase add_to_swap has a unlikely as follows
+We don't really merge code for future projects - especially when it
+touches the core kernel.
 
-	if (unlikely(PageTransHuge(page)))
+As for the frontswap patches, there's pretty no ACKs from MM people
+apart from one Reviewed-by from Andrew. I really don't see why the
+pull request is sent directly to Linus...
 
-I don't mean unlikely assumption is absolutely right.
-But at least, you have to convince us of it's wrong.
-Personally, I don't want to add more logic and handling THP pages
-different with normal page unless it's real concern.
-
-> 
-> > In addtion, isolation happens 32 page chunk so the subpages would be isolated
-> > and reclaimed in next iteration. I think 32 pages are not too many.
-> > 
-> > What do you think about it?
-> since headpage and tailpages are in different list, the 32 chunk will
-> not include tailpages.
-
-Yes. but it would be handled in next iteration.
-
--- 
-Kind regards,
-Minchan Kim
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
