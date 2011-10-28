@@ -1,122 +1,257 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 441416B002D
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 19:37:07 -0400 (EDT)
-Received: by ywa17 with SMTP id 17so5379829ywa.14
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 16:37:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20111025122618.GA8072@quack.suse.cz>
-References: <CALCETrXbPWsgaZmsvHZGEX-CxB579tG+zusXiYhR-13RcEnGvQ@mail.gmail.com>
-	<ACE78D84-0E94-4E7A-99BF-C20583018697@dilger.ca>
-	<CALCETrU23vyCXPG6mJU9qaPeAGOWDQtur5C+LRT154V5FM=Ajg@mail.gmail.com>
-	<CALCETrX=-CnNQ9+4tRbqMG4mfuy2FBPXXoJeBVDVPnEiRJYRFQ@mail.gmail.com>
-	<CALCETrUcOKQAJTTmCSD3Q3wYS-zLqv6tBa4AdkK50bNobRhDUQ@mail.gmail.com>
-	<20111025122618.GA8072@quack.suse.cz>
-Date: Fri, 28 Oct 2011 16:37:03 -0700
-Message-ID: <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
-Subject: Re: Latency writing to an mlocked ext4 mapping
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1886B002D
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 19:39:36 -0400 (EDT)
+Received: by gyf3 with SMTP id 3so5385251gyf.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 16:39:34 -0700 (PDT)
 From: Andy Lutomirski <luto@amacapital.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH] mm: Improve cmtime update on shared writable mmaps
+Date: Fri, 28 Oct 2011 16:39:25 -0700
+Message-Id: <6e365cb75f3318ab45d7145aededcc55b8ededa3.1319844715.git.luto@amacapital.net>
+In-Reply-To: <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
+References: <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>, Andreas Dilger <adilger@dilger.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+Cc: Andy Lutomirski <luto@amacapital.net>
 
-On Tue, Oct 25, 2011 at 5:26 AM, Jan Kara <jack@suse.cz> wrote:
-> On Wed 19-10-11 22:59:55, Andy Lutomirski wrote:
->> On Wed, Oct 19, 2011 at 7:17 PM, Andy Lutomirski <luto@amacapital.net> w=
-rote:
->> > On Wed, Oct 19, 2011 at 6:15 PM, Andy Lutomirski <luto@amacapital.net>=
- wrote:
->> >> On Wed, Oct 19, 2011 at 6:02 PM, Andreas Dilger <adilger@dilger.ca> w=
-rote:
->> >>> What kernel are you using? =A0A change to keep pages consistent duri=
-ng writeout was landed not too long ago (maybe Linux 3.0) in order to allow=
- checksumming of the data.
->> >>
->> >> 3.0.6, with no relevant patches. =A0(I have a one-liner added to the =
-tcp
->> >> code that I'll submit sometime soon.) =A0Would this explain the laten=
-cy
->> >> in file_update_time or is that a separate issue? =A0file_update_time
->> >> seems like a good thing to make fully asynchronous (especially if the
->> >> file in question is a fifo, but I've already moved my fifos to tmpfs)=
-.
->> >
->> > On 2.6.39.4, I got one instance of:
->> >
->> > call_rwsem_down_read_failed ext4_map_blocks ext4_da_get_block_prep
->> > __block_write_begin ext4_da_write_begin ext4_page_mkwrite do_wp_page
->> > handle_pte_fault handle_mm_fault do_page_fault page_fault
->> >
->> > but I'm not seeing the large numbers of the ext4_page_mkwrite trace
->> > that I get on 3.0.6. =A0file_update_time is now by far the dominant
->> > cause of latency.
->>
->> The culprit seems to be do_wp_page -> file_update_time ->
->> mark_inode_dirty_sync. =A0This surprises me for two reasons:
->>
->> =A0- Why the _sync? =A0Are we worried that data will be written out befo=
-re
->> the metadata? =A0If so, surely there's a better way than adding latency
->> here.
-> =A0_sync just means that inode will become dirty for fsync(2) purposes bu=
-t
-> not for fdatasync(2) purposes - i.e. it's just a timestamp update (or
-> it could be something similar).
->
->> =A0- Why are we calling file_update_time at all? =A0Presumably we also
->> update the time when the page is written back (if not, that sounds
->> like a bug, since the contents may be changed after something saw the
->> mtime update), and, if so, why bother updating it on the first write?
->> Anything that relies on this behavior is, I think, unreliable, because
->> the page could be made writable arbitrarily early by another program
->> that changes nothing.
-> =A0We don't update timestamp when the page is written back. I believe thi=
-s
-> is mostly because we don't know whether the data has been changed by a
-> write syscall, which already updated the timestamp, or by mmap. That is
-> also the reason why we update the timestamp at page fault time.
->
-> =A0The reason why file_update_time() blocks for you is probably that it
-> needs to get access to buffer where inode is stored on disk and because a
-> transaction including this buffer is committing at the moment, your threa=
-d
-> has to wait until the transaction commit finishes. This is mostly a probl=
-em
-> specific to how ext4 works so e.g. xfs shouldn't have it.
->
-> =A0Generally I believe the attempts to achieve any RT-like latencies when
-> writing to a filesystem are rather hopeless. How much hopeless depends on
-> the load of the filesystem (e.g., in your case of mostly idle filesystem =
-I
-> can imagine some tweaks could reduce your latencies to an acceptable leve=
-l
-> but once the disk gets loaded you'll be screwed). So I'd suggest that
-> having RT thread just store log in memory (or write to a pipe) and have
-> another non-RT thread write the data to disk would be a much more robust
-> design.
+We used to update a file's time on do_wp_page.  This caused latency
+whenever file_update_time would sleep (this happens on ext4).  It is
+also, IMO, less than ideal: any copy, backup, or 'make' run taken
+after do_wp_page but before an mmap user finished writing would see
+the new timestamp but the old contents.
 
-Windows seems to do pretty well at this, and I think it should be fixable o=
-n
-Linux too.  "All" that needs to be done is to remove the pte_wrprotect from
-page_mkclean_one.  The fallout from that might be unpleasant, though, but
-it would probably speed up a number of workloads.
+With this patch, cmtime is updated after a page is written.  When the
+mm code transfers the dirty bit from a pte to the associated struct
+page, it also sets a new page flag indicating that the page was
+modified directly from userspace.  The inode's time is then updated in
+clear_page_dirty_for_io.
 
-Adding a whole separate process just to copy data from memory to disk sound=
-s
-a bit like a hack -- that's what mmap + mlock would do if it worked better.
-Incidentally, pipes are no good.  I haven't root-caused it yet, but both re=
-ading
-to and writing from pipes, even if O_NONBLOCK, can block.  I haven't root-c=
-aused
-it yet.
+We can't update cmtime in all contexts in which ptes are unmapped:
+various reclaim paths can unmap ptes from GFP_NOFS paths.
 
-Anyway, I'll start sending patches to whittle away at the problem,
-starting right now :)
+Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+---
 
---Andy
+I'm not thrilled about using a page flag for this, but I haven't
+spotted a better way.  Updating the time in writepage would touch
+a lot of files and would interact oddly with write.
+
+ fs/inode.c                 |   51 ++++++++++++++++++++++++++++++-------------
+ include/linux/fs.h         |    1 +
+ include/linux/page-flags.h |    5 ++++
+ mm/page-writeback.c        |   19 +++++++++++++---
+ mm/rmap.c                  |   18 +++++++++++++-
+ 5 files changed, 72 insertions(+), 22 deletions(-)
+
+diff --git a/fs/inode.c b/fs/inode.c
+index ec79246..ee93a25 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -1461,21 +1461,8 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
+ }
+ EXPORT_SYMBOL(touch_atime);
+ 
+-/**
+- *	file_update_time	-	update mtime and ctime time
+- *	@file: file accessed
+- *
+- *	Update the mtime and ctime members of an inode and mark the inode
+- *	for writeback.  Note that this function is meant exclusively for
+- *	usage in the file write path of filesystems, and filesystems may
+- *	choose to explicitly ignore update via this function with the
+- *	S_NOCMTIME inode flag, e.g. for network filesystem where these
+- *	timestamps are handled by the server.
+- */
+-
+-void file_update_time(struct file *file)
++static void do_inode_update_time(struct file *file, struct inode *inode)
+ {
+-	struct inode *inode = file->f_path.dentry->d_inode;
+ 	struct timespec now;
+ 	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
+ 
+@@ -1497,7 +1484,7 @@ void file_update_time(struct file *file)
+ 		return;
+ 
+ 	/* Finally allowed to write? Takes lock. */
+-	if (mnt_want_write_file(file))
++	if (file && mnt_want_write_file(file))
+ 		return;
+ 
+ 	/* Only change inode inside the lock region */
+@@ -1508,10 +1495,42 @@ void file_update_time(struct file *file)
+ 	if (sync_it & S_MTIME)
+ 		inode->i_mtime = now;
+ 	mark_inode_dirty_sync(inode);
+-	mnt_drop_write(file->f_path.mnt);
++
++	if (file)
++		mnt_drop_write(file->f_path.mnt);
++}
++
++/**
++ *	file_update_time	-	update mtime and ctime time
++ *	@file: file accessed
++ *
++ *	Update the mtime and ctime members of an inode and mark the inode
++ *	for writeback.  Note that this function is meant exclusively for
++ *	usage in the file write path of filesystems, and filesystems may
++ *	choose to explicitly ignore update via this function with the
++ *	S_NOCMTIME inode flag, e.g. for network filesystem where these
++ *	timestamps are handled by the server.
++ */
++
++void file_update_time(struct file *file)
++{
++	do_inode_update_time(file, file->f_path.dentry->d_inode);
+ }
+ EXPORT_SYMBOL(file_update_time);
+ 
++/**
++ *	inode_update_time_writable	-	update mtime and ctime
++ *	@inode: inode accessed
++ *
++ *	Same as file_update_time, except that the caller is responsible
++ *	for checking that the mount is writable.
++ */
++
++void inode_update_time_writable(struct inode *inode)
++{
++	do_inode_update_time(0, inode);
++}
++
+ int inode_needs_sync(struct inode *inode)
+ {
+ 	if (IS_SYNC(inode))
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 277f497..9e28927 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2553,6 +2553,7 @@ extern int inode_newsize_ok(const struct inode *, loff_t offset);
+ extern void setattr_copy(struct inode *inode, const struct iattr *attr);
+ 
+ extern void file_update_time(struct file *file);
++extern void inode_update_time_writable(struct inode *inode);
+ 
+ extern int generic_show_options(struct seq_file *m, struct vfsmount *mnt);
+ extern void save_mount_options(struct super_block *sb, char *options);
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e90a673..4eed012 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -107,6 +107,7 @@ enum pageflags {
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	PG_compound_lock,
+ #endif
++	PG_update_cmtime,	/* Dirtied via writable mapping. */
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
+@@ -273,6 +274,10 @@ PAGEFLAG_FALSE(HWPoison)
+ #define __PG_HWPOISON 0
+ #endif
+ 
++/* Whoever clears PG_update_cmtime must update the cmtime. */
++SETPAGEFLAG(UpdateCMTime, update_cmtime)
++TESTCLEARFLAG(UpdateCMTime, update_cmtime)
++
+ u64 stable_page_flags(struct page *page);
+ 
+ static inline int PageUptodate(struct page *page)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0e309cd..41c48ea 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1460,7 +1460,8 @@ EXPORT_SYMBOL(set_page_dirty_lock);
+ 
+ /*
+  * Clear a page's dirty flag, while caring for dirty memory accounting.
+- * Returns true if the page was previously dirty.
++ * Returns true if the page was previously dirty.  Also updates inode time
++ * if necessary.
+  *
+  * This is for preparing to put the page under writeout.  We leave the page
+  * tagged as dirty in the radix tree so that a concurrent write-for-sync
+@@ -1474,6 +1475,7 @@ EXPORT_SYMBOL(set_page_dirty_lock);
+  */
+ int clear_page_dirty_for_io(struct page *page)
+ {
++	int ret;
+ 	struct address_space *mapping = page_mapping(page);
+ 
+ 	BUG_ON(!PageLocked(page));
+@@ -1520,11 +1522,20 @@ int clear_page_dirty_for_io(struct page *page)
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
+ 			dec_bdi_stat(mapping->backing_dev_info,
+ 					BDI_RECLAIMABLE);
+-			return 1;
++			ret = 1;
++			goto out;
+ 		}
+-		return 0;
++		ret = 0;
++		goto out;
+ 	}
+-	return TestClearPageDirty(page);
++	ret = TestClearPageDirty(page);
++
++out:
++	/* We know that the inode (if any) is on a writable mount. */
++	if (mapping && mapping->host && TestClearPageUpdateCMTime(page))
++		inode_update_time_writable(mapping->host);
++
++	return ret;
+ }
+ EXPORT_SYMBOL(clear_page_dirty_for_io);
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 8005080..2ee595d 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -937,6 +937,16 @@ int page_mkclean(struct page *page)
+ 		struct address_space *mapping = page_mapping(page);
+ 		if (mapping) {
+ 			ret = page_mkclean_file(mapping, page);
++
++			/*
++			 * If dirtied via shared writable mapping, cmtime
++			 * needs to be updated.  If dirtied only through
++			 * write(), etc, then the writer already updated
++			 * cmtime.
++			 */
++			if (ret)
++				SetPageUpdateCMTime(page);
++
+ 			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
+ 				ret = 1;
+ 		}
+@@ -1203,8 +1213,10 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	pteval = ptep_clear_flush_notify(vma, address, pte);
+ 
+ 	/* Move the dirty bit to the physical page now the pte is gone. */
+-	if (pte_dirty(pteval))
++	if (pte_dirty(pteval)) {
++		SetPageUpdateCMTime(page);
+ 		set_page_dirty(page);
++	}
+ 
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
+@@ -1388,8 +1400,10 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+ 			set_pte_at(mm, address, pte, pgoff_to_pte(page->index));
+ 
+ 		/* Move the dirty bit to the physical page now the pte is gone. */
+-		if (pte_dirty(pteval))
++		if (pte_dirty(pteval)) {
++			SetPageUpdateCMTime(page);
+ 			set_page_dirty(page);
++		}
+ 
+ 		page_remove_rmap(page);
+ 		page_cache_release(page);
+-- 
+1.7.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
