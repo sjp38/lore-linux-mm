@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DB8946B002F
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 03:30:14 -0400 (EDT)
-Received: by qadc11 with SMTP id c11so4465580qad.14
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 00:30:11 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 855126B0030
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 03:30:32 -0400 (EDT)
+Received: by ywa17 with SMTP id 17so4457493ywa.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 00:30:30 -0700 (PDT)
+Date: Fri, 28 Oct 2011 16:30:26 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [patch 5/5]thp: split huge page if head page is isolated
+Message-ID: <20111028073026.GB6268@barrios-laptop.redhat.com>
+References: <1319511580.22361.141.camel@sli10-conroe>
+ <20111027233407.GC29407@barrios-laptop.redhat.com>
+ <1319778715.22361.155.camel@sli10-conroe>
 MIME-Version: 1.0
-In-Reply-To: <1319785956.3235.7.camel@lappy>
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
-	<75efb251-7a5e-4aca-91e2-f85627090363@default>
-	<20111027215243.GA31644@infradead.org>
-	<1319785956.3235.7.camel@lappy>
-Date: Fri, 28 Oct 2011 00:30:10 -0700
-Message-ID: <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.com>
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-From: Cyclonus J <cyclonusj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1319778715.22361.155.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "aarcange@redhat.com" <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 28, 2011 at 12:12 AM, Sasha Levin <levinsasha928@gmail.com> wro=
-te:
-> On Thu, 2011-10-27 at 17:52 -0400, Christoph Hellwig wrote:
->> On Thu, Oct 27, 2011 at 02:49:31PM -0700, Dan Magenheimer wrote:
->> > If Linux truly subscribes to the "code rules" mantra, no core
->> > VM developer has proposed anything -- even a design, let alone
->> > working code -- that comes close to providing the functionality
->> > and flexibility that frontswap (and cleancache) provides, and
->> > frontswap provides it with a very VERY small impact on existing
->> > kernel code AND has been posted and working for 2+ years.
->> > (And during that 2+ years, excellent feedback has improved the
->> > "kernel-ness" of the code, but NONE of the core frontswap
->> > design/hooks have changed... because frontswap _just works_!)
->>
->> It might work for whatever defintion of work, but you certainly couldn't
->> convince anyone that matters that it's actually sexy and we'd actually
->> need it. =A0Only actually working on Xen of course doesn't help.
->
-> Theres a working POC of it on KVM, mostly based on reusing in-kernel Xen
-> code.
->
-> I felt it would be difficult to try and merge any tmem KVM patches until
-> both frontswap and cleancache are in the kernel, thats why the
-> development is currently paused at the POC level.
+On Fri, Oct 28, 2011 at 01:11:55PM +0800, Shaohua Li wrote:
+> On Fri, 2011-10-28 at 07:34 +0800, Minchan Kim wrote:
+> > On Tue, Oct 25, 2011 at 10:59:40AM +0800, Shaohua Li wrote:
+> > > With current logic, if page reclaim finds a huge page, it will just reclaim
+> > > the head page and leave tail pages reclaimed later. Let's take an example,
+> > > lru list has page A and B, page A is huge page:
+> > > 1. page A is isolated
+> > > 2. page B is isolated
+> > > 3. shrink_page_list() adds page A to swap page cache. so page A is split.
+> > > page A+1, page A+2, ... are added to lru list.
+> > > 4. shrink_page_list() adds page B to swap page cache.
+> > > 5. page A and B is written out and reclaimed.
+> > > 6. page A+1, A+2 ... is isolated and reclaimed later.
+> > > So the reclaim order is A, B, ...(maybe other pages), A+1, A+2 ...
+> > 
+> > I don't see your code yet but have a question.
+> > You mitigate this problem by 4/5 which could add subpages into lru tail
+> > so subpages would reclaim next interation of reclaim.
+> > 
+> > What do we need 5/5?
+> > Do I miss something?
+> Both patches are required. without this patch, current page reclaim will
+> only reclaim the first page of a huge page, because the hugepage isn't
+> split yet. The hugepage is split when the first page is being written to
+> swap, which is too later and page reclaim might already isolated a lot
+> of pages.
 
-Same here. I am working a KVM support for Transcedent Memory as well.
-It would be nice to see this in the mainline.
+When split happens, subpages would be located in tail of LRU by your 4/5.
+(Assume tail of LRU is old age).
+In addtion, isolation happens 32 page chunk so the subpages would be isolated
+and reclaimed in next iteration. I think 32 pages are not too many.
 
-Thanks,
-CJ
-
->
-> --
->
-> Sasha.
->
->
+What do you think about it?
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
