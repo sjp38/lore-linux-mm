@@ -1,68 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 132D26B0023
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 04:18:02 -0400 (EDT)
-Subject: Re: [patch 5/5]thp: split huge page if head page is isolated
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111028073026.GB6268@barrios-laptop.redhat.com>
-References: <1319511580.22361.141.camel@sli10-conroe>
-	 <20111027233407.GC29407@barrios-laptop.redhat.com>
-	 <1319778715.22361.155.camel@sli10-conroe>
-	 <20111028073026.GB6268@barrios-laptop.redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 28 Oct 2011 16:25:56 +0800
-Message-ID: <1319790356.22361.165.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B84E36B0023
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 04:42:49 -0400 (EDT)
+Received: by ggnh4 with SMTP id h4so4499222ggn.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 01:42:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1110272307110.14619@router.home>
+References: <1319384922-29632-1-git-send-email-gilad@benyossef.com>
+	<1319384922-29632-5-git-send-email-gilad@benyossef.com>
+	<alpine.DEB.2.00.1110272307110.14619@router.home>
+Date: Fri, 28 Oct 2011 10:42:47 +0200
+Message-ID: <CAOtvUMdCecUuue+hzue3CY79N_eYS6fDiRXp6BVkfNYfrZoBVA@mail.gmail.com>
+Subject: Re: [PATCH v2 4/6] mm: Only IPI CPUs to drain local pages if they exist
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: multipart/alternative; boundary=bcaec52c5ea9a02f7d04b057df44
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "aarcange@redhat.com" <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
 
-On Fri, 2011-10-28 at 15:30 +0800, Minchan Kim wrote:
-> On Fri, Oct 28, 2011 at 01:11:55PM +0800, Shaohua Li wrote:
-> > On Fri, 2011-10-28 at 07:34 +0800, Minchan Kim wrote:
-> > > On Tue, Oct 25, 2011 at 10:59:40AM +0800, Shaohua Li wrote:
-> > > > With current logic, if page reclaim finds a huge page, it will just reclaim
-> > > > the head page and leave tail pages reclaimed later. Let's take an example,
-> > > > lru list has page A and B, page A is huge page:
-> > > > 1. page A is isolated
-> > > > 2. page B is isolated
-> > > > 3. shrink_page_list() adds page A to swap page cache. so page A is split.
-> > > > page A+1, page A+2, ... are added to lru list.
-> > > > 4. shrink_page_list() adds page B to swap page cache.
-> > > > 5. page A and B is written out and reclaimed.
-> > > > 6. page A+1, A+2 ... is isolated and reclaimed later.
-> > > > So the reclaim order is A, B, ...(maybe other pages), A+1, A+2 ...
-> > > 
-> > > I don't see your code yet but have a question.
-> > > You mitigate this problem by 4/5 which could add subpages into lru tail
-> > > so subpages would reclaim next interation of reclaim.
-> > > 
-> > > What do we need 5/5?
-> > > Do I miss something?
-> > Both patches are required. without this patch, current page reclaim will
-> > only reclaim the first page of a huge page, because the hugepage isn't
-> > split yet. The hugepage is split when the first page is being written to
-> > swap, which is too later and page reclaim might already isolated a lot
-> > of pages.
-> 
-> When split happens, subpages would be located in tail of LRU by your 4/5.
-> (Assume tail of LRU is old age).
-yes, but a lot of other pages already isolated. we will reclaim those
-pages first. for example, reclaim huge page A, B. current reclaim order
-is A, B, A+1, ... B+1, because we will isolated A and B first, all tail
-pages are not isolated yet. While with my patch, the order is A, A
-+1, ... B, B+1,.... with my patch, we can avoid unnecessary page split
-or page isolation. This is exactly why my patch reduces the thp_split
-count.
+--bcaec52c5ea9a02f7d04b057df44
+Content-Type: text/plain; charset=ISO-8859-1
 
-> In addtion, isolation happens 32 page chunk so the subpages would be isolated
-> and reclaimed in next iteration. I think 32 pages are not too many.
-> 
-> What do you think about it?
-since headpage and tailpages are in different list, the 32 chunk will
-not include tailpages.
+On Fri, Oct 28, 2011 at 6:10 AM, Christoph Lameter <cl@gentwo.org> wrote:
+
+> On Sun, 23 Oct 2011, Gilad Ben-Yossef wrote:
+>
+> > +/* Which CPUs have per cpu pages  */
+> > +cpumask_var_t cpus_with_pcp;
+> > +static DEFINE_PER_CPU(unsigned long, total_cpu_pcp_count);
+>
+> This increases the cache footprint of a hot vm path. Is it possible to do
+> the same than what you did for slub? Run a loop over all zones when
+> draining to check for remaining pcp pages and build the set of cpus
+> needing IPIs temporarily while draining?
+>
+>
+Sounds like a good idea. I will give it a shot.
+
+Thanks,
+Gilad
+
+
+
+-- 
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"I've seen things you people wouldn't believe. Goto statements used to
+implement co-routines. I watched C structures being stored in registers. All
+those moments will be lost in time... like tears in rain... Time to die. "
+
+--bcaec52c5ea9a02f7d04b057df44
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br>On Fri, Oct 28, 2011 at 6:10 AM, Christoph Lameter <sp=
+an dir=3D"ltr">&lt;<a href=3D"mailto:cl@gentwo.org">cl@gentwo.org</a>&gt;</=
+span> wrote:<br><div class=3D"gmail_quote"><blockquote class=3D"gmail_quote=
+" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class=3D"im">On Sun, 23 Oct <a href=3D"tel:2011" value=3D"+9722011">20=
+11</a>, Gilad Ben-Yossef wrote:<br>
+<br>
+&gt; +/* Which CPUs have per cpu pages =A0*/<br>
+&gt; +cpumask_var_t cpus_with_pcp;<br>
+&gt; +static DEFINE_PER_CPU(unsigned long, total_cpu_pcp_count);<br>
+<br>
+</div>This increases the cache footprint of a hot vm path. Is it possible t=
+o do<br>
+the same than what you did for slub? Run a loop over all zones when<br>
+draining to check for remaining pcp pages and build the set of cpus<br>
+needing IPIs temporarily while draining?<br>
+<br></blockquote><div><br></div><div>Sounds like a good idea. I will give i=
+t a shot.</div><div><br></div><div>Thanks,</div><div>Gilad=A0</div></div><b=
+r><br clear=3D"all"><div><br></div>-- <br>Gilad Ben-Yossef<br>Chief Coffee =
+Drinker<br>
+<a href=3D"mailto:gilad@benyossef.com" target=3D"_blank">gilad@benyossef.co=
+m</a><br>Israel Cell: +972-52-8260388<br>US Cell: +1-973-8260388<br><a href=
+=3D"http://benyossef.com" target=3D"_blank">http://benyossef.com</a><br><br=
+>&quot;I&#39;ve seen things you people wouldn&#39;t believe. Goto statement=
+s used to implement co-routines. I watched C structures being stored in reg=
+isters. All those moments will be lost in time... like tears in rain... Tim=
+e to die. &quot;<br>
+<br>
+</div>
+
+--bcaec52c5ea9a02f7d04b057df44--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
