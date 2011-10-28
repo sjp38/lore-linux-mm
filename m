@@ -1,36 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 142046B0023
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 02:12:42 -0400 (EDT)
-Message-ID: <4EAA4799.1020505@cn.fujitsu.com>
-Date: Fri, 28 Oct 2011 14:11:37 +0800
-From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-Reply-To: gaowanlong@cn.fujitsu.com
-MIME-Version: 1.0
-Subject: Re: [possible deadlock][3.1.0-g138c4ae] possible circular locking
- dependency detected
-References: <4EAA2492.3020907@cn.fujitsu.com>	<CAA_GA1eGt-Xu1wQ-g0v+J7CD4OEAU1nm1Eviww1+mOKjYWEcMg@mail.gmail.com>	<4EAA4263.2090809@cn.fujitsu.com> <CAA_GA1cKK45Z=YFUHRi-LUuhWpcs9ruW9xom_6LRmqhRNao+hQ@mail.gmail.com>
-In-Reply-To: <CAA_GA1cKK45Z=YFUHRi-LUuhWpcs9ruW9xom_6LRmqhRNao+hQ@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7346B0023
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2011 03:12:50 -0400 (EDT)
+Received: by faat2 with SMTP id t2so4785545faa.14
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2011 00:12:42 -0700 (PDT)
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+From: Sasha Levin <levinsasha928@gmail.com>
+In-Reply-To: <20111027215243.GA31644@infradead.org>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+	 <alpine.DEB.2.00.1110271318220.7639@chino.kir.corp.google.com20111027211157.GA1199@infradead.org>
+	 <75efb251-7a5e-4aca-91e2-f85627090363@default>
+	 <20111027215243.GA31644@infradead.org>
+Content-Type: text/plain; charset="us-ascii"
+Date: Fri, 28 Oct 2011 09:12:36 +0200
+Message-ID: <1319785956.3235.7.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
 
-On 10/28/2011 02:02 PM, Bob Liu wrote:
-
-
->>
->>
->> Oh, it looks like can fix this bug, but I also can't reproduce it whether with or without this patch.
->>
+On Thu, 2011-10-27 at 17:52 -0400, Christoph Hellwig wrote:
+> On Thu, Oct 27, 2011 at 02:49:31PM -0700, Dan Magenheimer wrote:
+> > If Linux truly subscribes to the "code rules" mantra, no core
+> > VM developer has proposed anything -- even a design, let alone
+> > working code -- that comes close to providing the functionality
+> > and flexibility that frontswap (and cleancache) provides, and
+> > frontswap provides it with a very VERY small impact on existing
+> > kernel code AND has been posted and working for 2+ years.
+> > (And during that 2+ years, excellent feedback has improved the
+> > "kernel-ness" of the code, but NONE of the core frontswap
+> > design/hooks have changed... because frontswap _just works_!)
 > 
-> Make sure CONFIG_DEBUG_LOCK_ALLOC was set.
-> 
+> It might work for whatever defintion of work, but you certainly couldn't
+> convince anyone that matters that it's actually sexy and we'd actually
+> need it.  Only actually working on Xen of course doesn't help.
 
+Theres a working POC of it on KVM, mostly based on reusing in-kernel Xen
+code.
 
-Yeah, certainly, if not, the dmesg can't appear anyway.
+I felt it would be difficult to try and merge any tmem KVM patches until
+both frontswap and cleancache are in the kernel, thats why the
+development is currently paused at the POC level.
+
+-- 
+
+Sasha.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
