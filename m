@@ -1,67 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DB7B6B002D
-	for <linux-mm@kvack.org>; Sat, 29 Oct 2011 09:09:36 -0400 (EDT)
-Received: by wyg34 with SMTP id 34so6319620wyg.14
-        for <linux-mm@kvack.org>; Sat, 29 Oct 2011 06:09:33 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 165316B002D
+	for <linux-mm@kvack.org>; Sat, 29 Oct 2011 09:43:15 -0400 (EDT)
+From: Ed Tomlinson <edt@aei.ca>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+Date: Sat, 29 Oct 2011 09:43:08 -0400
+Message-ID: <1777884.rjTZT9Wj01@grover>
+In-Reply-To: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
 MIME-Version: 1.0
-Date: Sat, 29 Oct 2011 21:09:33 +0800
-Message-ID: <CAJd=RBBRQjo_RHjoGBGQX9TUWkgdGGgh-KNpDX2sEUwwVy-89w@mail.gmail.com>
-Subject: [PATCH] mm/hugetlb: Release pages in the error path of COW
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, levinsasha928@gmail.com, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
 
-If anon_vma is prepared unsuccessfully, new_page and old_page should be freed.
+On Thursday 27 October 2011 11:52:22 Dan Magenheimer wrote:
+> Hi Linus --
 
-And due to that page_table_lock is re-acquired, race in updating page table
-should also be check. If race does happen, our job is done.
+> SO... Please pull:
+> 
+> git://oss.oracle.com/git/djm/tmem.git #tmem
+> 
 
-All comments and ideas welcome.
+My wife has an old PC thats short on memory.  Its got Ubuntu
+running on it.  It also has cleancache and zram enabled.  The
+box works better when using these.  Frontcache would improve 
+things further.  It will balance the tmem vs physical memory
+dynamicily making it a better solution than zram.
+
+I'd love to see this in the kernel.
 
 Thanks
+Ed Tomlinson
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
-
---- a/mm/hugetlb.c	Sat Aug 13 11:45:14 2011
-+++ b/mm/hugetlb.c	Sat Oct 29 20:44:09 2011
-@@ -2406,8 +2406,7 @@ retry_avoidcopy:
- 			if (unmap_ref_private(mm, vma, old_page, address)) {
- 				BUG_ON(page_count(old_page) != 1);
- 				BUG_ON(huge_pte_none(pte));
--				spin_lock(&mm->page_table_lock);
--				goto retry_avoidcopy;
-+				goto lock_and_check;
- 			}
- 			WARN_ON_ONCE(1);
- 		}
-@@ -2422,6 +2421,8 @@ retry_avoidcopy:
- 	 * anon_vma prepared.
- 	 */
- 	if (unlikely(anon_vma_prepare(vma))) {
-+		page_cache_release(new_page);
-+		page_cache_release(old_page);
- 		/* Caller expects lock to be held */
- 		spin_lock(&mm->page_table_lock);
- 		return VM_FAULT_OOM;
-@@ -2455,6 +2456,14 @@ retry_avoidcopy:
- 	}
- 	page_cache_release(new_page);
- 	page_cache_release(old_page);
-+	return 0;
-+
-+lock_and_check:
-+	spin_lock(&mm->page_table_lock);
-+	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-+	if (likely(pte_same(huge_ptep_get(ptep), pte)))
-+		goto retry_avoidcopy;
-+	/* else changes occured while taking page_table_lock, our job done */
- 	return 0;
- }
+PS.  At work we use AIX with memory compression.  With the
+workloads we run compression lets the OS act like it has 30%
+more memory.  It works.  It would be nice to have a similar
+facility in Linux.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
