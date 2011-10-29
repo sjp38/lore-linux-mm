@@ -1,92 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C4756B002D
-	for <linux-mm@kvack.org>; Sat, 29 Oct 2011 04:56:41 -0400 (EDT)
-Date: Sat, 29 Oct 2011 10:56:38 +0200
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 40A666B002D
+	for <linux-mm@kvack.org>; Sat, 29 Oct 2011 05:01:10 -0400 (EDT)
+Date: Sat, 29 Oct 2011 11:01:05 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: +
- oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch added
- to -mm tree
-Message-ID: <20111029085638.GA6368@tiehlicka.suse.cz>
-References: <201110102246.p9AMkPVD004527@hpaq11.eem.corp.google.com>
+Subject: Re: [PATCH 2/2] oom: do not live lock on frozen tasks
+Message-ID: <20111029090105.GB6203@tiehlicka.suse.cz>
+References: <cover.1317110948.git.mhocko@suse.cz>
+ <65d9dff7ff78fad1f146e71d32f9f92741281b46.1317110948.git.mhocko@suse.cz>
+ <20111028152321.103189a2.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201110102246.p9AMkPVD004527@hpaq11.eem.corp.google.com>
+In-Reply-To: <20111028152321.103189a2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@google.com
-Cc: mm-commits@vger.kernel.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, rjw@sisk.pl, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Sorry for the really late reply.
+On Fri 28-10-11 15:23:21, Andrew Morton wrote:
+> On Tue, 27 Sep 2011 10:01:47 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > Konstantin Khlebnikov has reported (https://lkml.org/lkml/2011/8/23/45)
+> > that OOM can end up in a live lock if select_bad_process picks up a frozen
+> > task.
+> > Unfortunately we cannot mark such processes as unkillable to ignore them
+> > because we could panic the system even though there is a chance that
+> > somebody could thaw the process so we can make a forward process (e.g. a
+> > process from another cpuset or with a different nodemask).
+> > 
+> > Let's thaw an OOM selected frozen process right after we've sent fatal
+> > signal from oom_kill_task.
+> > Thawing is safe if the frozen task doesn't access any suspended device
+> > (e.g. by ioctl) on the way out to the userspace where we handle the
+> > signal and die. Note, we are not interested in the kernel threads because
+> > they are not oom killable.
+> > 
+> > Accessing suspended devices by a userspace processes shouldn't be an
+> > issue because devices are suspended only after userspace is already
+> > frozen and oom is disabled at that time.
+> > 
+> > Other than that userspace accesses the fridge only from the
+> > signal handling routines so we are able to handle SIGKILL without any
+> > negative side effects or we always check for pending signals after
+> > we return from try_to_freeze (e.g. in lguest).
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+> > Acked-by: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/oom_kill.c |    6 ++++++
+> >  1 files changed, 6 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 626303b..c419a7e 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -32,6 +32,7 @@
+> >  #include <linux/mempolicy.h>
+> >  #include <linux/security.h>
+> >  #include <linux/ptrace.h>
+> > +#include <linux/freezer.h>
+> >  
+> >  int sysctl_panic_on_oom;
+> >  int sysctl_oom_kill_allocating_task;
+> > @@ -451,10 +452,15 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+> >  				task_pid_nr(q), q->comm);
+> >  			task_unlock(q);
+> >  			force_sig(SIGKILL, q);
+> > +
+> > +			if (frozen(q))
+> > +				thaw_process(q);
+> >  		}
+> >  
+> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> >  	force_sig(SIGKILL, p);
+> > +	if (frozen(p))
+> > +		thaw_process(p);
+> >  
+> >  	return 0;
+> >  }
+> 
+> I'm not sure this is 1000% correct.  Perhaps there's a conceivable
+> window after the "if (frozen)" test where the task can flip itself into
+> the frozen state.
 
-On Mon 10-10-11 15:46:25, akpm@google.com wrote:
-> From: David Rientjes <rientjes@google.com>
-> Subject: oom: thaw threads if oom killed thread is frozen before deferring
-> 
-> If a thread has been oom killed and is frozen, thaw it before returning to
-> the page allocator.  Otherwise, it can stay frozen indefinitely and no
-> memory will be freed.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> Reported-by: Michal Hocko <mhocko@suse.cz>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Andrew Morton <akpm@google.com>
+Yes and David's patch
+(oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch)
+is much better in that regards. So we should go with the other patch.
 
-Can we still update the tags?
-The issue has been reported by Konstantin Khlebnikov <khlebnikov@openvz.org>
-and I think that we want SOB from Rafael here (he originally SOB the
-previous patch which thawed tasks from oom_kill_task). You can also add
-my Acked-by.
-
-> ---
 > 
->  mm/oom_kill.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+> thaw_process() itself appears to be callable regardless of the frozen
+> state and will do the right thing under the right lock.  So this code
+> would be safer, correcter and slower if it unconditionally called
+> thaw_process().
 > 
-> diff -puN mm/oom_kill.c~oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring mm/oom_kill.c
-> --- a/mm/oom_kill.c~oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring
-> +++ a/mm/oom_kill.c
-> @@ -32,6 +32,7 @@
->  #include <linux/mempolicy.h>
->  #include <linux/security.h>
->  #include <linux/ptrace.h>
-> +#include <linux/freezer.h>
->  
->  int sysctl_panic_on_oom;
->  int sysctl_oom_kill_allocating_task;
-> @@ -320,8 +321,11 @@ static struct task_struct *select_bad_pr
->  		 * blocked waiting for another task which itself is waiting
->  		 * for memory. Is there a better alternative?
->  		 */
-> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> +		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
-> +			if (unlikely(frozen(p)))
-> +				thaw_process(p);
->  			return ERR_PTR(-1UL);
-> +		}
->  		if (!p->mm)
->  			continue;
->  
-> _
-> Subject: Subject: oom: thaw threads if oom killed thread is frozen before deferring
+> I'm sure it doesn't matter though ;)
 > 
-> Patches currently in -mm which might be from rientjes@google.com are
-> 
-> origin.patch
-> linux-next.patch
-> oom-avoid-killing-kthreads-if-they-assume-the-oom-killed-threads-mm.patch
-> oom-remove-oom_disable_count.patch
-> oom-fix-race-while-temporarily-setting-currents-oom_score_adj.patch
-> mm-avoid-null-pointer-access-in-vm_struct-via-proc-vmallocinfo.patch
-> mm-compaction-make-compact_zone_order-static.patch
-> oom-thaw-threads-if-oom-killed-thread-is-frozen-before-deferring.patch
-> cpusets-avoid-looping-when-storing-to-mems_allowed-if-one-node-remains-set.patch
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
