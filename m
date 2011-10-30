@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 160F56B002D
-	for <linux-mm@kvack.org>; Sat, 29 Oct 2011 11:29:44 -0400 (EDT)
-Received: by ywa17 with SMTP id 17so5986594ywa.14
-        for <linux-mm@kvack.org>; Sat, 29 Oct 2011 08:29:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6239F6B002D
+	for <linux-mm@kvack.org>; Sun, 30 Oct 2011 07:05:00 -0400 (EDT)
+Date: Sun, 30 Oct 2011 11:04:56 +0000
+From: Richard Davies <richard.davies@elastichosts.com>
+Subject: Understanding memory (over?)use
+Message-ID: <20111030110456.GA5026@alpha.arachsys.com>
 MIME-Version: 1.0
-In-Reply-To: <4EAAD351.70805@redhat.com>
-References: <1319385413-29665-1-git-send-email-gilad@benyossef.com>
-	<1319385413-29665-5-git-send-email-gilad@benyossef.com>
-	<4EAAD351.70805@redhat.com>
-Date: Sat, 29 Oct 2011 17:29:41 +0200
-Message-ID: <CAOtvUMd8Z_jbs__+cVG2+ZkPZLqGkJGym402RMRYGDDjT73bkg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/6] mm: Only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
+To: linux-mm@kvack.org
 
-On Fri, Oct 28, 2011 at 6:07 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 10/23/2011 11:56 AM, Gilad Ben-Yossef wrote:
->>
->> Use a cpumask to track CPUs with per-cpu pages in any zone
->> and only send an IPI requesting CPUs to drain these pages
->> to the buddy allocator if they actually have pages.
->
->> +/* Which CPUs have per cpu pages =A0*/
->> +cpumask_var_t cpus_with_pcp;
->> +static DEFINE_PER_CPU(unsigned long, total_cpu_pcp_count);
->
-> Does the flushing happen so frequently that it is worth keeping this
-> state on a per-cpu basis, or would it be better to check each CPU's
-> pcp info and assemble a cpumask at flush time like done in patch 5?
->
+Hi all,
 
-No, I don't  believe it is frequent at all. I will try to re-work the
-patch as suggested.
+I'd appreciate your help understanding some machines we have which are using
+a lot of kernel(?) memory which we can't account for.
+
+As you can see below, this machine has about 1.5GB more memory use in "free"
+than the sum of process memory (18,138,572 kB vs 16,558,608 kB).
+
+We can't find this in kernel (e.g. Slab + PageTables in cat /proc/meminfo is
+much smaller).
+
+Please can someone tell us where to look?
+
+Ideally, I'd like to understand a "bottom-up" processes + kernel sum which
+comes to the same answer as the "top-up" number from "free".
 
 Thanks,
-Gilad
 
->
-
->
-> --
-> All rights reversed
->
+Richard.
 
 
+Here's the data for a machine with a 2.6.39.2 kernel and KSM enabled, running
+several qemu-kvm VMs and little else:
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+# swapoff -a
 
-"I've seen things you people wouldn't believe. Goto statements used to
-implement co-routines. I watched C structures being stored in
-registers. All those moments will be lost in time... like tears in
-rain... Time to die. "
+# echo 3 > /proc/sys/vm/drop_caches
+
+# free -k -t
+             total       used       free     shared    buffers     cached
+Mem:      33015884   18138572   14877312          0       8944       6068
+-/+ buffers/cache:   18123560   14892324
+Swap:            0          0          0
+Total:    33015884   18138572   14877312
+
+# ps auxf | awk 'BEGIN {a = 0} /[0-9]/ {a = a + $5} END { print a }'
+16558608
+
+# cat /proc/meminfo
+MemTotal:       33015884 kB
+MemFree:        14870240 kB
+Buffers:           13208 kB
+Cached:             7036 kB
+SwapCached:            0 kB
+Active:         15215524 kB
+Inactive:        2001364 kB
+Active(anon):   15206612 kB
+Inactive(anon):  1986976 kB
+Active(file):       8912 kB
+Inactive(file):    14388 kB
+Unevictable:       10112 kB
+Mlocked:           10112 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:              5816 kB
+Writeback:             0 kB
+AnonPages:      13233548 kB
+Mapped:             6416 kB
+Shmem:               168 kB
+Slab:             594360 kB
+SReclaimable:       7852 kB
+SUnreclaim:       586508 kB
+KernelStack:        2696 kB
+PageTables:        32140 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    16507940 kB
+Committed_AS:   15540924 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       99100 kB
+VmallocChunk:   34359418288 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:     65536 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:        5440 kB
+DirectMap2M:    33548288 kB
+
+# for i in /sys/kernel/mm/ksm/* ; do echo -n "$i: " ; cat $i ; done
+/sys/kernel/mm/ksm/full_scans: 4240
+/sys/kernel/mm/ksm/pages_shared: 273541
+/sys/kernel/mm/ksm/pages_sharing: 444652
+/sys/kernel/mm/ksm/pages_to_scan: 100
+/sys/kernel/mm/ksm/pages_unshared: 2651880
+/sys/kernel/mm/ksm/pages_volatile: 282107
+/sys/kernel/mm/ksm/run: 1
+/sys/kernel/mm/ksm/sleep_millisecs: 20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
