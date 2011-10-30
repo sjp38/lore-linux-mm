@@ -1,147 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3BBF66B0069
-	for <linux-mm@kvack.org>; Sun, 30 Oct 2011 17:48:20 -0400 (EDT)
-Date: Sun, 30 Oct 2011 22:47:48 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111030214748.GB3650@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E52E36B0069
+	for <linux-mm@kvack.org>; Sun, 30 Oct 2011 17:50:16 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <f64fa61a-6a93-430a-bc51-53acb5e2e1ea@default>
+Date: Sun, 30 Oct 2011 14:50:01 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
  <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org>
- <1319785956.3235.7.camel@lappy>
+ <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
  <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
  <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com20111028163053.GC1319@redhat.com>
+ <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com>
+ <20111028163053.GC1319@redhat.com>
  <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
+ <20138.62532.493295.522948@quad.stoffel.home>
+ <3982e04f-8607-4f0a-b855-2e7f31aaa6f7@default>
+ <20139.5644.583790.903531@quad.stoffel.home>
+ <3ac142d4-a4ca-4a24-bf0b-69a90bd1d1a0@default
+ 1320005162.15403.14.camel@nimitz>
+In-Reply-To: <1320005162.15403.14.camel@nimitz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: John Stoffel <john@stoffel.org>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Jonathan Corbet <corbet@lwn.net>
 
-On Fri, Oct 28, 2011 at 10:07:12AM -0700, Dan Magenheimer wrote:
-> 
-> > From: Johannes Weiner [mailto:jweiner@redhat.com]
-> > Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-> > 
-> > On Fri, Oct 28, 2011 at 06:36:03PM +0300, Pekka Enberg wrote:
-> > > On Fri, Oct 28, 2011 at 6:21 PM, Dan Magenheimer
-> > > <dan.magenheimer@oracle.com> wrote:
-> > > Looking at your patches, there's no trace that anyone outside your own
-> > > development team even looked at the patches. Why do you feel that it's
-> > > OK to ask Linus to pull them?
-> > 
-> > People did look at it.
-> > 
-> > In my case, the handwavy benefits did not convince me.  The handwavy
-> > 'this is useful' from just more people of the same company does not
-> > help, either.
-> > 
-> > I want to see a usecase that tangibly gains from this, not just more
-> > marketing material.  Then we can talk about boring infrastructure and
-> > adding hooks to the VM.
-> > 
-> > Convincing the development community of the problem you are trying to
-> > solve is the undocumented part of the process you fail to follow.
-> 
-> Hi Johannes --
-> 
-> First, there are several companies and several unaffiliated kernel
-> developers contributing here, building on top of frontswap.  I happen
-> to be spearheading it, and my company is backing me up.  (It
-> might be more appropriate to note that much of the resistance comes
-> from people of your company... but please let's keep our open-source
-> developer hats on and have a technical discussion rather than one
-> which pleases our respective corporate overlords.)
+> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+> Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
 
-I didn't mean to start a mud fight about this, I only mentioned the
-part about your company because I already assume it sees value in tmem
-- it probably wouldn't fund its development otherwise.  I just tend to
-not care too much about Acks from the same company as the patch itself
-and I believe other people do the same.
+Thanks Dave (I think ;-) for chiming in.
 
-> Second, have you read http://lwn.net/Articles/454795/ ?
-> If not, please do.  If yes, please explain what you don't
-> see as convincing or tangible or documented.  All of this
-> exists today as working publicly available code... it's
-> not marketing material.
+> On Sun, 2011-10-30 at 12:18 -0700, Dan Magenheimer wrote:
+> > > since they're the ones who will have to understand this stuff and kno=
+w
+> > > how to maintain it.  And keeping this maintainable is a key goal.
+> >
+> > Absolutely agree.  Count the number of frontswap lines that affect
+> > the current VM core code and note also how they are very clearly
+> > identified.  It really is a very VERY small impact to the core VM
+> > code (e.g. in the files swapfile.c and page_io.c).
+>=20
+> Granted, the impact on the core VM in lines of code is small.  But, I
+> think the behavioral impact is potentially huge since tmem's hooks add
+> non-trivial amounts of framework underneath the VM in core paths.  In
+> zcache's case, this means a bunch of allocations and an entirely new
+> allocator memory allocator being used in the swap paths.
 
-I remember answering this to you in private already some time ago when
-discussing frontswap.
+True BUT (and this is a big BUT) it ONLY affects the core VM
+path if both CONFIG_FRONTSWAP=3Dy AND if a "tmem backend" such as
+zcache registers it.  So not only is the code maintenance
+impact very VERY small (which you granted), but there is
+no impact on users or distros or products that don't turn it
+on.  I also should repeat that the core VM changes introduced
+by frontswap have remained essentially identical since first
+proposed circa 2.6.18... the impacted swap code is NOT frequently-
+changing code.  My point in my "Absolutely agree" above, is
+that the maintenance burden to core VM developers is low.
 
-You keep proposing a bridge and I keep asking for proof that this is
-not a bridge to nowhere.  Unless that question is answered, I am not
-interested in discussing the bridge's design.
+> We're certainly still shaking bugs out of the interactions there like
+> with zcache_direct_reclaim_lock.  Granted, that's not a
+> tmem/frontswap/cleancache bug, but it does speak to the difficulty and
+> subtlety of writing one of those frameworks underneath the tmem API.
 
-According to the LWN article, there are the following backends:
+IMHO, that's coming perilously close to saying "we don't accept
+code that has bugs in it".  How many significant pieces of functionality
+have been added to the kernel EVER where there were NO bugs found in
+the next few months?  How much MERGED functionality (such as new
+filesystems) has gone into the kernel years before it was broadly deployed?
 
-1. Zcache: allow swapping into compressed memory
+Zcache is currently a staging driver for a reason... I admit it...
+I wrote zcache in a couple of months (and mostly over the holidays)
+and it was really the first major Linux kernel driver I'd done.
+I was surprised as hell when GregKH took it into staging.  But
+it works pretty darn well.  Why?  Because it is built on the
+foundation of cleancache and frontswap, which _just work_!!
+And Seth Jennings (also of IBM for those that don't know) has been
+doing a great job of finding and fixing bottlenecks, as well as
+looking at some interesting enhancements.  I think he found ONE bug
+so far... because I hadn't tested on 32-bit highmem machines.
+Clearly, Seth and IBM see some value in zcache (perhaps, as Ed
+Tomlinson pointed out, because AIX has similar capability?)
 
-This sets aside a portion of memory which the kernel will swap
-compressed pages into upon pressure.  Now, obviously, reserving memory
-from the system for this increases the pressure in the first place,
-eating away on what space we have for anonymous memory and page cache.
+But let's not forget that there would be no zcache for Seth or
+IBM to work on if you hadn't already taken the frontswap patchset
+into your tree.  Frontswap is an ENABLER for zcache, as well as
+for Xen tmem, for RAMster and (soon according to two kernel developers)
+possibly also for KVM.  Given the tiny maintenance cost, why
+not merge it?
 
-Do you auto-size that region depending on workload?
+So if you are saying that frontswap is not quite ready to be
+merged, fine, I can accept that.  But there are now a number
+of features, developers, distros, and products depending on it,
+so there's a few of us who would like to hear CONCRETE STEPS
+we need to achieve to make it ready.  (John Stoffel is the only
+one to suggest any... not counting documentation he didn't
+read, the big one is getting some measurements to show zcache
+is valuable.  Hoping Seth can help with that?)
 
-If so, how?  If not, is it documented how to size it manually?
+Got any suggestions?
 
-Where are the performance numbers for various workloads, including
-both those that benefit from every bit of page cache and those that
-would fit into memory without zcache occupying space?
-
-However, looking at the zcache code, it seems it wants to allocate
-storage pages only when already trying to swap out.  Are you sure this
-works in reality?
-
-2. RAMster: allow swapping between machines in a cluster
-
-Are there people using it?  It, too, sounds like a good idea but I
-don't see any proof it actually works as intended.
-
-3. Xen: allow guests to swap into the host.
-
-The article mentions that there is code to put the guests under
-pressure and let them swap to host memory when the pressure is too
-high.  This sounds useful.
-
-Where is the code that controls the amount of pressure put on the
-guests?
-
-Where are the performance numbers?  Surely you can construct a case
-where the initial machine sizes are not quite right and then collect
-data that demonstrates the machines are rebalancing as expected?
-
-4. kvm: same as Xen
-
-Apart from the questions that already apply to Xen, I remember KVM
-people in particular complaining about the synchroneous single-page
-interface that results in a hypercall per swapped page.  What happened
-to this concern?
-
----
-
-I would really appreciate if you could pick one of those backends and
-present them as a real and practical solution to real and practical
-problems.  With documentation on configuration and performance data of
-real workloads.  We can discuss implementation details like how memory
-is exchanged between source and destination when we come to it.
-
-I am not asking for just more code that uses your interface, I want to
-know the real value for real people of the combination of all that
-stuff.  With proof, not just explanations of how it's supposed to
-work.
-
-Until you can accept that, please include
-
-	Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-on all further stand-alone submissions of tmem core code and/or hooks
-in the VM.  Thanks.
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
