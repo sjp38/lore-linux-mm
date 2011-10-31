@@ -1,92 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 938506B006E
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 17:45:46 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <88a768ce-833d-4344-80a9-d357410ea9cf@default>
-Date: Mon, 31 Oct 2011 14:45:25 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D92B56B002D
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 18:37:46 -0400 (EDT)
+Date: Mon, 31 Oct 2011 23:37:17 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+Message-ID: <20111031223717.GI3466@redhat.com>
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
  <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
- <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com20111028163053.GC1319@redhat.com>
- <b86860d2-3aac-4edd-b460-bd95cb1103e6@default
- 20111031183423.GG3466@redhat.com>
-In-Reply-To: <20111031183423.GG3466@redhat.com>
+ <20111027215243.GA31644@infradead.org>
+ <1319785956.3235.7.camel@lappy>
+ <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
+ <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-> From: Andrea Arcangeli [mailto:aarcange@redhat.com]
-> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
->=20
-> On Fri, Oct 28, 2011 at 10:07:12AM -0700, Dan Magenheimer wrote:
-> > First, there are several companies and several unaffiliated kernel
-> > developers contributing here, building on top of frontswap.  I happen
-> > to be spearheading it, and my company is backing me up.  (It
-> > might be more appropriate to note that much of the resistance comes
-> > from people of your company... but please let's keep our open-source
-> > developer hats on and have a technical discussion rather than one
-> > which pleases our respective corporate overlords.)
->=20
-> Fair enough to want an independent review but I'd be interesting to
-> also know how many of the several companies and unaffiliated kernel
-> developers are contributing to it that aren't using tmem with Xen.
+On Mon, Oct 31, 2011 at 01:58:39PM -0700, Dan Magenheimer wrote:
+> Hmmm... not sure I understand this one.  It IS copy-based
+> so is not zerocopy; the page of data is actually moving out
 
-Well just to summarize the non-Oracle-non-tmem supportive responses so far
-to this frontswap thread:
+copy-based is my main problem, being synchronous is no big deal I
+agree.
 
-Nitin Gupta, for zcache
-Brian King (IBM), for Linux on Power
-Sasha Levin and Neo Jia, affiliation unspecified, working on tmem for KVM
-Ed Tomlinson, affiliation unspecified, end-user of zcache
+I mean, I don't see why you have to make one copy before you start
+compressing and then you write to disk the output of the compression
+algorithm. To me it looks like this API forces on zcache one more copy
+than necessary.
 
-This doesn't count those that replied offlist to Linus to support the
-merging of cleancache earlier this year, and doesn't count the fair
-number of people who have offlist asked me about zcache or if KVM
-supports tmem or when RAMster will be ready.  I suppose I could
-do a better job advertising others' interest...
+I can't see why this copy is necessary and why zcache isn't working on
+"struct page" on core kernel structures instead of moving the memory
+off to a memory object invisible to the core VM.
 
-> Note, Hugh is working for another company... and they're using cgroups
-> not KVM nor Xen, so I suggests he'd be a fair reviewer from a non-virt
-> standpoint, if he hopefully has the time to weight in.
+> TRUE.  Tell me again why a vmexit/vmenter per 4K page is
+> "impossible"?  Again you are assuming (1) the CPU had some
 
-I spent an hour with Hugh at Google this summer, and he (like you)
-expressed some dislike of the ABI/API and the hooks but he has since
-told both me and Andrew he doesn't have time to pursue this.
+It's sure not impossible, it's just impossible we want it as it'd be
+too slow.
 
-Others in Google have shown vague interest in tmem for cgroups but
-I've been too busy myself to even think about that.
+> real work to do instead and (2) that vmexit/vmenter is horribly
 
-> However keep in mind if we'd see something that can allow KVM to run
-> even faster, we'd be quite silly in not taking advantage of it too, to
-> beat our own SPECvirt record. The whole design idea of KVM (unlike
-> Xen) is to reuse the kernel improvements as much as possible so when
-> the guest runs faster the hypervisor also runs faster with the exact
-> same code. Problem a vmexit doing a bounce buffer every 4k doesn't mix
-> well into SPECvirt in my view and that probably is what has kept us
-> from making any attempt to use tmem API anywhere.
+Sure the CPU has another 1000 VM to schedule. This is like saying
+virtio-blk isn't needed on desktop virt becauase the desktop isn't
+doing much I/O. Absurd argument, there are another 1000 desktops doing
+I/O at the same time of course.
 
-If SPECvirt does any swapping that actually goes to disk (doubtful?),
-frontswap will help.
+> slow.  Even if vmexit/vmenter is thousands of cycles, it is still
+> orders of magnitude faster than a disk access.  And vmexit/vmenter
 
-Personally, I think SPECvirt was hand-designed by VMware to favor
-their platform, but they were chagrined to find that you and KVM
-cleverly re-implemented transparent content-based page sharing
-which was the feature for which they were designing SPECvirt.
-IOW, SPECvirt is benchmarketing not benchmarking... but I know
-that's important too. :-)
+I fully agree tmem is faster for Xen than no tmem. That's not the
+point, we don't need such an articulate hack hiding pages from the
+guest OS in order to share pagecache, our hypervisor is just a bit
+more powerful and has a function called file_read_actor that does what
+your tmem copy does...
 
-Sorry for the topic drift...
+> is about the same order of magnitude as page copy, and much
+> faster than compression/decompression, both of which still
+> result in a nice win.
 
-Thanks,
-Dan
+Saying it's a small overhead, is not like saying it is _needed_. Why
+not add a udelay(1) in it too? Sure it won't be noticeable.
+
+> You are also assuming that frontswap puts/gets are highly
+> frequent.  By definition they are not, because they are
+> replacing single-page disk reads/writes due to swapping.
+
+They'll be as frequent as the highmem bounce buffers...
+
+> That said, the API/ABI is very extensible, so if it were
+> proven that batching was sufficiently valuable, it could
+> be added later... but I don't see it as a showstopper.
+> Really do you?
+
+That's fine with me... but like ->writepages it'll take ages for the
+fs to switch from writepage to writepages. Considering this is a new
+API I don't think it's unreasonable to ask at least it to handle
+immediately zerocopy behavior. So showing the userland mapping to the
+tmem layer so it can avoid the copy and read from the userland
+address. Xen will badly choke if ever tries to do that, but zcache
+should be ok with that.
+
+Now there may be algorithms where the page must be stable, but others
+will be perfectly fine even if the page is changing under the
+compression, and in that case the page won't be discarded and it'll be
+marked dirty again. So even if a wrong data goes on disk, we'll
+rewrite later. I see no reason why there has always to be a copy
+before starting any compression/encryption as long as the algorithm
+will not crash its input data isn't changing under it.
+
+The ideal API would be to send down page pointers (and handling
+compound pages too), not to copy. Maybe with a flag where you can also
+specify offsets so you can send down partial pages too down to a byte
+granularity. The "copy input data before anything else can happen"
+looks flawed to me. It is not flawed for Xen because Xen has no
+knowledge of the guest "struct page" but her I'm talking about the
+not-virt usages.
+
+> So, please, all the other parts necessary for tmem are
+> already in-tree, why all the resistance about frontswap?
+
+Well my comments are generic not specific to frontswap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
