@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6876C6B006E
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 14:34:32 -0400 (EDT)
-Date: Mon, 31 Oct 2011 19:34:23 +0100
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CCF36B006E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 14:44:57 -0400 (EDT)
+Date: Mon, 31 Oct 2011 19:44:43 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111031183423.GG3466@redhat.com>
+Message-ID: <20111031184443.GH3466@redhat.com>
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
  <75efb251-7a5e-4aca-91e2-f85627090363@default>
  <20111027215243.GA31644@infradead.org>
@@ -14,42 +14,44 @@ References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
  <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
  <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com20111028163053.GC1319@redhat.com>
  <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
+ <20138.62532.493295.522948@quad.stoffel.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
+In-Reply-To: <20138.62532.493295.522948@quad.stoffel.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>
+To: John Stoffel <john@stoffel.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Fri, Oct 28, 2011 at 10:07:12AM -0700, Dan Magenheimer wrote:
-> First, there are several companies and several unaffiliated kernel
-> developers contributing here, building on top of frontswap.  I happen
-> to be spearheading it, and my company is backing me up.  (It
-> might be more appropriate to note that much of the resistance comes
-> from people of your company... but please let's keep our open-source
-> developer hats on and have a technical discussion rather than one
-> which pleases our respective corporate overlords.)
+On Fri, Oct 28, 2011 at 02:28:20PM -0400, John Stoffel wrote:
+> and service.  How would TM benefit me?  I don't use Xen, don't want to
+> play with it honestly because I'm busy enough as it is, and I just
+> don't see the hard benefits.
 
-Fair enough to want an independent review but I'd be interesting to
-also know how many of the several companies and unaffiliated kernel
-developers are contributing to it that aren't using tmem with
-Xen. Obviously bounce buffers 4k vmexits are still faster than
-Xen-paravirt-I/O on disk platter...
+If you used Xen tmem would be more or less the equivalent of
+cache=writethrough/writeback. For us tmem is the linux host pagecache
+running on the baremetal in short. But at least when we vmexit for a
+read we read 128-512k of it (depending on if=virtio or others and
+guest kernel readahead decision), not just a fixed absolutely worst
+case 4k unit like tmem would do...
 
-Note, Hugh is working for another company... and they're using cgroups
-not KVM nor Xen, so I suggests he'd be a fair reviewer from a non-virt
-standpoint, if he hopefully has the time to weight in.
+Without tmem Xen can only work like KVM cache=off.
 
-However keep in mind if we'd see something that can allow KVM to run
-even faster, we'd be quite silly in not taking advantage of it too, to
-beat our own SPECvirt record. The whole design idea of KVM (unlike
-Xen) is to reuse the kernel improvements as much as possible so when
-the guest runs faster the hypervisor also runs faster with the exact
-same code. Problem a vmexit doing a bounce buffer every 4k doesn't mix
-well into SPECvirt in my view and that probably is what has kept us
-from making any attempt to use tmem API anywhere.
+If at least it would drop us a copy, but no, it still does the bounce
+buffer, so I'd rather bounce in the host kernel function
+file_read_actor than in some superflous (as far as KVM is concerned)
+tmem code, plus we normally read orders of magnitude more than 4k in
+each vmexit, so our default cache=writeback/writethroguh may already
+be more efficient than if we'd use tmem for that.
+
+We could only consider for swap compression but for swap compression
+I've no idea why we still need to do a copy, instead of just
+compressing from userland page in zerocopy (worst case using any
+mechanism introduced to provide stable pages).
+
+And when host linux pagecache will go hugepage we'll get a >4k copy in
+one go while tmem bounce will still be stuck at 4k...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
