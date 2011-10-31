@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EB00C6B0069
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 14:22:51 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p9VIMlIY027212
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 11:22:48 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by hpaq12.eem.corp.google.com with ESMTP id p9VHt3HR003544
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 11:22:46 -0700
-Received: by pzk2 with SMTP id 2so22982391pzk.8
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2011 11:22:44 -0700 (PDT)
-Date: Mon, 31 Oct 2011 11:22:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] oom: fix integer overflow of points in oom_badness
-In-Reply-To: <1320076569-23872-1-git-send-email-fhrbata@redhat.com>
-Message-ID: <alpine.DEB.2.00.1110311120280.7271@chino.kir.corp.google.com>
-References: <1320048865-13175-1-git-send-email-fhrbata@redhat.com> <1320076569-23872-1-git-send-email-fhrbata@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6876C6B006E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 14:34:32 -0400 (EDT)
+Date: Mon, 31 Oct 2011 19:34:23 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+Message-ID: <20111031183423.GG3466@redhat.com>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <75efb251-7a5e-4aca-91e2-f85627090363@default>
+ <20111027215243.GA31644@infradead.org>
+ <1319785956.3235.7.camel@lappy>
+ <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
+ <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com20111028163053.GC1319@redhat.com>
+ <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, stable@kernel.org, eteo@redhat.com, pmatouse@redhat.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>
 
-On Mon, 31 Oct 2011, Frantisek Hrbata wrote:
+On Fri, Oct 28, 2011 at 10:07:12AM -0700, Dan Magenheimer wrote:
+> First, there are several companies and several unaffiliated kernel
+> developers contributing here, building on top of frontswap.  I happen
+> to be spearheading it, and my company is backing me up.  (It
+> might be more appropriate to note that much of the resistance comes
+> from people of your company... but please let's keep our open-source
+> developer hats on and have a technical discussion rather than one
+> which pleases our respective corporate overlords.)
 
-> An integer overflow will happen on 64bit archs if task's sum of rss, swapents
-> and nr_ptes exceeds (2^31)/1000 value. This was introduced by commit
-> 
-> f755a04 oom: use pte pages in OOM score
-> 
+Fair enough to want an independent review but I'd be interesting to
+also know how many of the several companies and unaffiliated kernel
+developers are contributing to it that aren't using tmem with
+Xen. Obviously bounce buffers 4k vmexits are still faster than
+Xen-paravirt-I/O on disk platter...
 
-This commit was introduced in 2.6.39 but also backported to stable since 
-2.6.36, so presumably we'd need to mark this for stable as well going back 
-that far.
+Note, Hugh is working for another company... and they're using cgroups
+not KVM nor Xen, so I suggests he'd be a fair reviewer from a non-virt
+standpoint, if he hopefully has the time to weight in.
 
-> where the oom score computation was divided into several steps and it's no
-> longer computed as one expression in unsigned long(rss, swapents, nr_pte are
-> unsigned long), where the result value assigned to points(int) is in
-> range(1..1000). So there could be an int overflow while computing
-> 
-> 176          points *= 1000;
-> 
-> and points may have negative value. Meaning the oom score for a mem hog task
-> will be one.
-> 
-> 196          if (points <= 0)
-> 197                  return 1;
-> 
-> For example:
-> [ 3366]     0  3366 35390480 24303939   5       0             0 oom01
-> Out of memory: Kill process 3366 (oom01) score 1 or sacrifice child
-> 
-> Here the oom1 process consumes more than 24303939(rss)*4096~=92GB physical
-> memory, but it's oom score is one.
-> 
-> In this situation the mem hog task is skipped and oom killer kills another and
-> most probably innocent task with oom score greater than one.
-> 
-> The points variable should be of type long instead of int to prevent the int
-> overflow.
-> 
-> Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
-Cc: stable@kernel.org [2.6.36+]
+However keep in mind if we'd see something that can allow KVM to run
+even faster, we'd be quite silly in not taking advantage of it too, to
+beat our own SPECvirt record. The whole design idea of KVM (unlike
+Xen) is to reuse the kernel improvements as much as possible so when
+the guest runs faster the hypervisor also runs faster with the exact
+same code. Problem a vmexit doing a bounce buffer every 4k doesn't mix
+well into SPECvirt in my view and that probably is what has kept us
+from making any attempt to use tmem API anywhere.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
