@@ -1,74 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E9BF36B0069
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 07:33:29 -0400 (EDT)
-Date: Mon, 31 Oct 2011 19:33:21 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across
- zones
-Message-ID: <20111031113321.GA30890@localhost>
-References: <1317367044-475-1-git-send-email-jweiner@redhat.com>
- <1317367044-475-4-git-send-email-jweiner@redhat.com>
- <20110930142805.GC869@tiehlicka.suse.cz>
- <20111028201829.GA20607@localhost>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 389A16B002D
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 09:37:54 -0400 (EDT)
+Date: Mon, 31 Oct 2011 08:37:49 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH] cache align vm_stat
+Message-ID: <20111031133749.GB17076@sgi.com>
+References: <20111024161035.GA19820@sgi.com>
+ <alpine.DEB.2.00.1110262131240.27107@router.home>
+ <20111028155456.20f3d611.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111028201829.GA20607@localhost>
+In-Reply-To: <20111028155456.20f3d611.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, "Li, Shaohua" <shaohua.li@intel.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@gentwo.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>
 
-> //regression
-> 3) much increased cpu %user and %system for btrfs
+On Fri, Oct 28, 2011 at 03:54:56PM -0700, Andrew Morton wrote:
+> On Wed, 26 Oct 2011 21:31:46 -0500 (CDT)
+> Christoph Lameter <cl@gentwo.org> wrote:
+> 
+> > On Mon, 24 Oct 2011, Dimitri Sivanich wrote:
+> > 
+> > > Avoid false sharing of the vm_stat array.
+> 
+> Did we have some nice machine-description and measurement results which
+> can be included in the changelog?  Such things should always be
+> included with a performace patch!
+> 
+Tests run on a 640 cpu UV system.
 
-Sorry I find out that the CPU time regressions for btrfs are caused by
-some additional trace events enabled on btrfs (for debugging an
-unrelated btrfs hang bug) which results in 7 times more trace event
-lines:
-
- 2701238 /export/writeback/thresh=1000M/btrfs-1dd-4k-8p-2941M-1000M:10-3.1.0-rc9-ioless-full-nfs-wq5-next-20111014+
-19054054 /export/writeback/thresh=1000M/btrfs-1dd-4k-8p-2941M-1000M:10-3.1.0-rc9-ioless-full-per-zone-dirty-next-20111014+
-
-So no real regressions.
-
-Besides, the patchset also performs good on random writes:
-
-3.1.0-rc9-ioless-full-nfs-wq5-next-20111014+  3.1.0-rc9-ioless-full-per-zone-dirty-next-20111014+  
-------------------------  ------------------------  
-                    1.65        -5.1%         1.57  MMAP-RANDWRITE-4K/btrfs-fio_fat_mmap_randwrite_4k-4k-8p-4096M-20:10-X
-                   18.65        -6.4%        17.46  MMAP-RANDWRITE-4K/ext3-fio_fat_mmap_randwrite_4k-4k-8p-4096M-20:10-X
-                    2.09        +1.2%         2.12  MMAP-RANDWRITE-4K/ext4-fio_fat_mmap_randwrite_4k-4k-8p-4096M-20:10-X
-                    2.49        -0.3%         2.48  MMAP-RANDWRITE-4K/xfs-fio_fat_mmap_randwrite_4k-4k-8p-4096M-20:10-X
-                   51.35        +0.0%        51.36  MMAP-RANDWRITE-64K/btrfs-fio_fat_mmap_randwrite_64k-64k-8p-4096M-20:10-X
-                   45.20        +0.5%        45.43  MMAP-RANDWRITE-64K/ext3-fio_fat_mmap_randwrite_64k-64k-8p-4096M-20:10-X
-                   44.77        +0.7%        45.10  MMAP-RANDWRITE-64K/ext4-fio_fat_mmap_randwrite_64k-64k-8p-4096M-20:10-X
-                   45.11        +2.5%        46.23  MMAP-RANDWRITE-64K/xfs-fio_fat_mmap_randwrite_64k-64k-8p-4096M-20:10-X
-                  211.31        +0.2%       211.74  TOTAL write_bw
-
-And writes to USB key:
-
-3.1.0-rc9-ioless-full-nfs-wq5-next-20111014+  3.1.0-rc9-ioless-full-per-zone-dirty-next-20111014+  
-------------------------  ------------------------  
-                    5.94        +0.8%         5.99  UKEY-thresh=1G/btrfs-1dd-4k-8p-4096M-1024M:10-X
-                    2.64        -0.8%         2.62  UKEY-thresh=1G/ext3-10dd-4k-8p-4096M-1024M:10-X
-                    5.10        +0.3%         5.12  UKEY-thresh=1G/ext3-1dd-4k-8p-4096M-1024M:10-X
-                    3.26        -0.8%         3.24  UKEY-thresh=1G/ext3-2dd-4k-8p-4096M-1024M:10-X
-                    5.63        -0.5%         5.60  UKEY-thresh=1G/ext4-10dd-4k-8p-4096M-1024M:10-X
-                    6.04        -0.1%         6.04  UKEY-thresh=1G/ext4-1dd-4k-8p-4096M-1024M:10-X
-                    5.90        -0.2%         5.88  UKEY-thresh=1G/ext4-2dd-4k-8p-4096M-1024M:10-X
-                    2.45       +22.6%         3.00  UKEY-thresh=1G/xfs-10dd-4k-8p-4096M-1024M:10-X
-                    6.18        -0.4%         6.16  UKEY-thresh=1G/xfs-1dd-4k-8p-4096M-1024M:10-X
-                    4.81        +0.0%         4.81  UKEY-thresh=1G/xfs-2dd-4k-8p-4096M-1024M:10-X
-                   47.94        +1.1%        48.45  TOTAL write_bw
-
-In summary, I see no problem at all in these trivial writeback tests.
-
-Tested-by: Wu Fengguang <fengguang.wu@intel.com>
-
-Thanks,
-Fengguang
+With 120 threads doing parallel writes, each to different tmpfs mounts:
+No patch:		~300 MB/sec
+With vm_stat alignment:	~430 MB/sec
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
