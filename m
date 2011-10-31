@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5765F6B0069
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 11:56:23 -0400 (EDT)
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH v2] oom: fix integer overflow of points in oom_badness
-Date: Mon, 31 Oct 2011 16:56:09 +0100
-Message-Id: <1320076569-23872-1-git-send-email-fhrbata@redhat.com>
-In-Reply-To: <1320048865-13175-1-git-send-email-fhrbata@redhat.com>
-References: <1320048865-13175-1-git-send-email-fhrbata@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B03F6B0069
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 12:17:22 -0400 (EDT)
+Received: by ywf7 with SMTP id 7so1763590ywf.33
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2011 09:17:16 -0700 (PDT)
+From: Shawn Bohrer <sbohrer@rgmadvisors.com>
+Subject: [PATCH] fadvise: only initiate writeback for specified range with FADV_DONTNEED
+Date: Mon, 31 Oct 2011 11:16:59 -0500
+Message-Id: <1320077819-1494-1-git-send-email-sbohrer@rgmadvisors.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, minchan.kim@gmail.com, stable@kernel.org, eteo@redhat.com, pmatouse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Shawn Bohrer <sbohrer@rgmadvisors.com>
 
-An integer overflow will happen on 64bit archs if task's sum of rss, swapents
-and nr_ptes exceeds (2^31)/1000 value. This was introduced by commit
+Previously POSIX_FADV_DONTNEED would start writeback for the entire file
+when the bdi was not write congested.  This negatively impacts
+performance if the file contians dirty pages outside of the requested
+range.  This change uses __filemap_fdatawrite_range() to only initiate
+writeback for the requested range.
 
-f755a04 oom: use pte pages in OOM score
-
-where the oom score computation was divided into several steps and it's no
-longer computed as one expression in unsigned long(rss, swapents, nr_pte are
-unsigned long), where the result value assigned to points(int) is in
-range(1..1000). So there could be an int overflow while computing
-
-176          points *= 1000;
-
-and points may have negative value. Meaning the oom score for a mem hog task
-will be one.
-
-196          if (points <= 0)
-197                  return 1;
-
-For example:
-[ 3366]     0  3366 35390480 24303939   5       0             0 oom01
-Out of memory: Kill process 3366 (oom01) score 1 or sacrifice child
-
-Here the oom1 process consumes more than 24303939(rss)*4096~=92GB physical
-memory, but it's oom score is one.
-
-In this situation the mem hog task is skipped and oom killer kills another and
-most probably innocent task with oom score greater than one.
-
-The points variable should be of type long instead of int to prevent the int
-overflow.
-
-Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+Signed-off-by: Shawn Bohrer <sbohrer@rgmadvisors.com>
 ---
- mm/oom_kill.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/fadvise.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 626303b..e9a1785 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -162,7 +162,7 @@ static bool oom_unkillable_task(struct task_struct *p,
- unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 		      const nodemask_t *nodemask, unsigned long totalpages)
- {
--	int points;
-+	long points;
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index 8d723c9..469491e 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -117,7 +117,8 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+ 		break;
+ 	case POSIX_FADV_DONTNEED:
+ 		if (!bdi_write_congested(mapping->backing_dev_info))
+-			filemap_flush(mapping);
++			__filemap_fdatawrite_range(mapping, offset, endbyte,
++						   WB_SYNC_NONE);
  
- 	if (oom_unkillable_task(p, mem, nodemask))
- 		return 0;
+ 		/* First and last FULL page! */
+ 		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
 -- 
-1.7.6.4
+1.7.6
+
+
+
+---------------------------------------------------------------
+This email, along with any attachments, is confidential. If you 
+believe you received this message in error, please contact the 
+sender immediately and delete all copies of the message.  
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
