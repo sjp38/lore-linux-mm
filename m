@@ -1,44 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 94ECC6B002D
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 16:12:27 -0400 (EDT)
-Date: Mon, 31 Oct 2011 13:12:24 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7FAC56B002D
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 16:14:50 -0400 (EDT)
+Date: Mon, 31 Oct 2011 13:14:48 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] vmscan: promote shared file mapped pages
-Message-Id: <20111031131224.79ca1a2c.akpm@linux-foundation.org>
-In-Reply-To: <20110808110658.31053.55013.stgit@localhost6>
-References: <20110808110658.31053.55013.stgit@localhost6>
+Subject: Re: [PATCH] mm: add free_hot_cold_page_list helper
+Message-Id: <20111031131448.c6d6d458.akpm@linux-foundation.org>
+In-Reply-To: <CAEwNFnBFNzrPoen-oM7DdB1QA5-cmUqAFABO7WxzZpiQacA7Fg@mail.gmail.com>
+References: <20110729075837.12274.58405.stgit@localhost6>
+	<CAEwNFnBFNzrPoen-oM7DdB1QA5-cmUqAFABO7WxzZpiQacA7Fg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 8 Aug 2011 15:06:58 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+On Mon, 29 Aug 2011 16:48:46 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> Commit v2.6.33-5448-g6457474 (vmscan: detect mapped file pages used only once)
-> greatly decreases lifetime of single-used mapped file pages.
-> Unfortunately it also decreases life time of all shared mapped file pages.
-> Because after commit v2.6.28-6130-gbf3f3bc (mm: don't mark_page_accessed in fault path)
-> page-fault handler does not mark page active or even referenced.
+> On Fri, Jul 29, 2011 at 4:58 PM, Konstantin Khlebnikov
+> <khlebnikov@openvz.org> wrote:
+> > This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
+> > It frees pages directly from list without temporary page-vector.
+> > It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
+> >
+> > bloat-o-meter:
+> >
+> > add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
+> > function                                     old     new   delta
+> > free_hot_cold_page_list                        -     264    +264
+> > get_page_from_freelist                      2129    2132      +3
+> >  pagevec_free                               243     239      -4
+> > split_free_page                              380     373      -7
+> > release_pages                                606     510     -96
+> > free_page_list                               188       -    -188
+> >
+> > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > ---
+> >  include/linux/gfp.h |    1 +
+> >  mm/page_alloc.c     |   12 ++++++++++++
+> >  mm/swap.c           |   14 +++-----------
+> >  mm/vmscan.c         |   20 +-------------------
+> >  4 files changed, 17 insertions(+), 30 deletions(-)
+> >
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index cb40892..dd7b9cc 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
+> >  extern void  free_pages(struct page *page, unsigned int order);
+> >  extern void free_pages(unsigned long addr, unsigned int order);
+> >  extern void free_hot_cold_page(struct page *page, int cold);
+> > +extern void free_hot_cold_page_list(struct list_head *list, int cold);
+> >
+> >  #define  free_page(page)  free_pages((page), 0)
+> >  #define free_page(addr) free_pages((addr), 0)
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 1dbcf88..af486e4 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1209,6 +1209,18 @@ out:
+> >        local_irq_restore(flags);
+> >  }
+> >
+> > +void free_hot_cold_page_list(struct list_head *list, int cold)
+> > +{
+> > +       struct page *page, *next;
+> > +
+> > +       list_for_each_entry_safe(page, next, list, lru) {
+> > +               trace_mm_pagevec_free(page, cold);
 > 
-> Thus page_check_references() activates file page only if it was used twice while
-> it stays in inactive list, meanwhile it activates anon pages after first access.
-> Inactive list can be small enough, this way reclaimer can accidentally
-> throw away any widely used page if it wasn't used twice in short period.
 > 
-> After this patch page_check_references() also activate file mapped page at first
-> inactive list scan if this page is already used multiple times via several ptes.
+> I understand you want to minimize changes without breaking current ABI
+> with trace tools.
+> But apparently, It's not a pagvec_free. It just hurts readability.
+> As I take a look at the code, mm_pagevec_free isn't related to pagevec
+> but I guess it can represent 0-order pages free because 0-order pages
+> are freed only by pagevec until now.
+> So, how about renaming it with mm_page_free or mm_page_free_zero_order?
+> If you do, you need to do s/MM_PAGEVEC_FREE/MM_FREE_FREE/g in
+> trace-pagealloc-postprocess.pl.
+> 
+> 
+> > +               free_hot_cold_page(page, cold);
+> > +       }
+> > +
+> > +       INIT_LIST_HEAD(list);
+> 
+> Why do we need it?
 
-We have quite a few acks on these two patches, but everyone wants to
-see detailed performance testing.  That hasn't happened, and caution
-dictates that I hold these patches out of linux-3.2, pending that
-testing.
-
-Of course, you're not the only person who can undertake that testing (hint).
+My email has been horrid for a couple of months (fixed now), so I might
+have missed any reply to Minchin's review comments?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
