@@ -1,131 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 796136B002D
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 19:14:50 -0400 (EDT)
-Received: by gyg8 with SMTP id 8so2064748gyg.14
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2011 16:14:48 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D036B002D
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2011 19:36:22 -0400 (EDT)
 MIME-Version: 1.0
-In-Reply-To: <20111031231031.GD10107@quack.suse.cz>
-References: <CALCETrXbPWsgaZmsvHZGEX-CxB579tG+zusXiYhR-13RcEnGvQ@mail.gmail.com>
-	<ACE78D84-0E94-4E7A-99BF-C20583018697@dilger.ca>
-	<CALCETrU23vyCXPG6mJU9qaPeAGOWDQtur5C+LRT154V5FM=Ajg@mail.gmail.com>
-	<CALCETrX=-CnNQ9+4tRbqMG4mfuy2FBPXXoJeBVDVPnEiRJYRFQ@mail.gmail.com>
-	<CALCETrUcOKQAJTTmCSD3Q3wYS-zLqv6tBa4AdkK50bNobRhDUQ@mail.gmail.com>
-	<20111025122618.GA8072@quack.suse.cz>
-	<CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
-	<20111031231031.GD10107@quack.suse.cz>
-Date: Mon, 31 Oct 2011 16:14:47 -0700
-Message-ID: <CALCETrViG6t1forOFtO-R=bGABvtLcECxJ8m8Tenv6rwxLg_ew@mail.gmail.com>
-Subject: Re: Latency writing to an mlocked ext4 mapping
-From: Andy Lutomirski <luto@amacapital.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <1b2e4f74-7058-4712-85a7-84198723e3ee@default>
+Date: Mon, 31 Oct 2011 16:36:04 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <75efb251-7a5e-4aca-91e2-f85627090363@default>
+ <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
+ <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
+ <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default
+ 20111031223717.GI3466@redhat.com>
+In-Reply-To: <20111031223717.GI3466@redhat.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Mon, Oct 31, 2011 at 4:10 PM, Jan Kara <jack@suse.cz> wrote:
-> On Fri 28-10-11 16:37:03, Andy Lutomirski wrote:
->> On Tue, Oct 25, 2011 at 5:26 AM, Jan Kara <jack@suse.cz> wrote:
->> >> =A0- Why are we calling file_update_time at all? =A0Presumably we als=
-o
->> >> update the time when the page is written back (if not, that sounds
->> >> like a bug, since the contents may be changed after something saw the
->> >> mtime update), and, if so, why bother updating it on the first write?
->> >> Anything that relies on this behavior is, I think, unreliable, becaus=
-e
->> >> the page could be made writable arbitrarily early by another program
->> >> that changes nothing.
->> > =A0We don't update timestamp when the page is written back. I believe =
-this
->> > is mostly because we don't know whether the data has been changed by a
->> > write syscall, which already updated the timestamp, or by mmap. That i=
-s
->> > also the reason why we update the timestamp at page fault time.
->> >
->> > =A0The reason why file_update_time() blocks for you is probably that i=
-t
->> > needs to get access to buffer where inode is stored on disk and becaus=
-e a
->> > transaction including this buffer is committing at the moment, your th=
-read
->> > has to wait until the transaction commit finishes. This is mostly a pr=
-oblem
->> > specific to how ext4 works so e.g. xfs shouldn't have it.
->> >
->> > =A0Generally I believe the attempts to achieve any RT-like latencies w=
-hen
->> > writing to a filesystem are rather hopeless. How much hopeless depends=
- on
->> > the load of the filesystem (e.g., in your case of mostly idle filesyst=
-em I
->> > can imagine some tweaks could reduce your latencies to an acceptable l=
-evel
->> > but once the disk gets loaded you'll be screwed). So I'd suggest that
->> > having RT thread just store log in memory (or write to a pipe) and hav=
-e
->> > another non-RT thread write the data to disk would be a much more robu=
-st
->> > design.
->>
->> Windows seems to do pretty well at this, and I think it should be fixabl=
-e on
->> Linux too. =A0"All" that needs to be done is to remove the pte_wrprotect=
- from
->> page_mkclean_one. =A0The fallout from that might be unpleasant, though, =
-but
->> it would probably speed up a number of workloads.
-> =A0Well, but Linux's mm pretty much depends the pte_wrprotect() so that's
-> unlikely to go away in a forseeable future. The reason is that we need to
-> reliably account the number of dirty pages so that we can throttle
-> processes that dirty too much of memory and also protect agaist system
-> going into out-of-memory problems when too many pages would be dirty (and
-> thus hard to reclaim). Thus we create clean pages as write-protected, whe=
-n
-> they are first written to, we account them as dirtied and unprotect them.
-> When pages are cleaned by writeback, we decrement number of dirty pages
-> accordingly and write-protect them again.
+> From: Andrea Arcangeli [mailto:aarcange@redhat.com]
+> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+>=20
+> On Mon, Oct 31, 2011 at 01:58:39PM -0700, Dan Magenheimer wrote:
+> > Hmmm... not sure I understand this one.  It IS copy-based
+> > so is not zerocopy; the page of data is actually moving out
+>=20
+> copy-based is my main problem, being synchronous is no big deal I
+> agree.
+>=20
+> I mean, I don't see why you have to make one copy before you start
+> compressing and then you write to disk the output of the compression
+> algorithm. To me it looks like this API forces on zcache one more copy
+> than necessary.
+>=20
+> I can't see why this copy is necessary and why zcache isn't working on
+> "struct page" on core kernel structures instead of moving the memory
+> off to a memory object invisible to the core VM.
 
-What about skipping pte_wrprotect for mlocked pages and continuing to
-account them dirty even if they're actually clean?  This should be a
-straightforward patch except for the effect on stable pages for
-writeback.  (It would also have unfortunate side effects on
-ctime/mtime without my other patch to rearrange that code.)
+Do you see code doing this?  I am pretty sure zcache is
+NOT doing an extra copy, it is compressing from the source
+page.  And I am pretty sure Xen tmem is not doing the
+extra copy either.
 
->
->> Adding a whole separate process just to copy data from memory to disk so=
-unds
->> a bit like a hack -- that's what mmap + mlock would do if it worked bett=
-er.
-> =A0Well, always only guarantees you cannot hit major fault when accessing
-> the page. And we keep that promise - we only hit a minor fault. But I agr=
-ee
-> that for your usecase this is impractical.
+Seth and I had discussed ADDING the extra copy in zcache
+to make the synchronous/irq-disabled time shorter for puts
+and doing the compression as a separate thread, but I
+don't think I have seen any patch to implement that.
 
-Not really true.  We never fault in the page, but make_write can wait
-for I/O (for hundreds of ms) which is just as bad.
+So if this is true (no extra copy), are you happy?
 
->
-> I can see as theoretically feasible for writeback to skip mlocked pages
-> which would help your case. But practically, I do not see how to implemen=
-t
-> that efficiently (just skipping a dirty page when we find it's mlocked
-> seems like a way to waste CPU needlessly).
->
->> Incidentally, pipes are no good. =A0I haven't root-caused it yet, but bo=
-th
->> reading to and writing from pipes, even if O_NONBLOCK, can block. =A0I
->> haven't root-caused it yet.
-> =A0Interesting. I imagine they could block on memory allocation but I gue=
-ss
-> you don't put that much pressure on your system. So it might be interesti=
-ng
-> to know where else they block...
+Maybe you are saying that the extra copy would be necessary
+in a KVM implementation of tmem?  If so, I haven't thought
+about a KVM+tmem design enough to comment on that.
 
-I'll figure it out in a couple of days, I imagine.
+> > TRUE.  Tell me again why a vmexit/vmenter per 4K page is
+> > "impossible"?  Again you are assuming (1) the CPU had some
+>=20
+> It's sure not impossible, it's just impossible we want it as it'd be
+> too slow.
 
---Andy
+You are clearly speculating here.  Wouldn't it be nice to
+try it and find out?
+
+> > real work to do instead and (2) that vmexit/vmenter is horribly
+>=20
+> Sure the CPU has another 1000 VM to schedule. This is like saying
+> virtio-blk isn't needed on desktop virt becauase the desktop isn't
+> doing much I/O. Absurd argument, there are another 1000 desktops doing
+> I/O at the same time of course.
+
+But this is truly different, I think at least for the most common
+cases, because the guest is essentially out of physical memory if it
+is swapping.  And the vmexit/vmenter (I assume, I don't really
+know KVM) gives the KVM scheduler the opportunity to schedule
+another of those 1000 VMs if it wishes.
+
+Also I'll venture to guess (without any proof) that the path through
+the blkio subsystem to deal with any swap page and set up the disk
+I/O is not much shorter than the cost of a vmexit/vmenter on
+modern systems ;-)
+
+Now we are both speculating. :-)
+
+> > slow.  Even if vmexit/vmenter is thousands of cycles, it is still
+> > orders of magnitude faster than a disk access.  And vmexit/vmenter
+>=20
+> I fully agree tmem is faster for Xen than no tmem. That's not the
+> point, we don't need such an articulate hack hiding pages from the
+> guest OS in order to share pagecache, our hypervisor is just a bit
+> more powerful and has a function called file_read_actor that does what
+> your tmem copy does...
+
+Well either then KVM doesn't need frontswap at all and need
+not be interfering with a patch that works fine for the
+other users, or Sasha and Neo will implement it and find
+that frontswap does (sometimes?) provide some benefits.
+
+In either case, I'm not sure why you would be objecting
+to merging frontswap.
+=20
+> > is about the same order of magnitude as page copy, and much
+> > faster than compression/decompression, both of which still
+> > result in a nice win.
+>=20
+> Saying it's a small overhead, is not like saying it is _needed_. Why
+> not add a udelay(1) in it too? Sure it won't be noticeable.
+
+Actually the current implementation of RAMster over LAN adds
+quite a bit more than udelay(1).  But that's all still experimental.
+It might be interesting to try adding udelay(1) in zcache
+to see if there is any noticeable effect.
+
+> > You are also assuming that frontswap puts/gets are highly
+> > frequent.  By definition they are not, because they are
+> > replacing single-page disk reads/writes due to swapping.
+>=20
+> They'll be as frequent as the highmem bounce buffers...
+
+I don't understand.  Sorry, I really am ignorant of
+highmem systems as I grew up on PA-RISC and IA-64.
+
+> > That said, the API/ABI is very extensible, so if it were
+> > proven that batching was sufficiently valuable, it could
+> > be added later... but I don't see it as a showstopper.
+> > Really do you?
+>=20
+> That's fine with me... but like ->writepages it'll take ages for the
+> fs to switch from writepage to writepages. Considering this is a new
+> API I don't think it's unreasonable to ask at least it to handle
+> immediately zerocopy behavior. So showing the userland mapping to the
+> tmem layer so it can avoid the copy and read from the userland
+> address. Xen will badly choke if ever tries to do that, but zcache
+> should be ok with that.
+>=20
+> Now there may be algorithms where the page must be stable, but others
+> will be perfectly fine even if the page is changing under the
+> compression, and in that case the page won't be discarded and it'll be
+> marked dirty again. So even if a wrong data goes on disk, we'll
+> rewrite later. I see no reason why there has always to be a copy
+> before starting any compression/encryption as long as the algorithm
+> will not crash its input data isn't changing under it.
+>=20
+> The ideal API would be to send down page pointers (and handling
+> compound pages too), not to copy. Maybe with a flag where you can also
+> specify offsets so you can send down partial pages too down to a byte
+> granularity. The "copy input data before anything else can happen"
+> looks flawed to me. It is not flawed for Xen because Xen has no
+> knowledge of the guest "struct page" but her I'm talking about the
+> not-virt usages.
+
+Again, I think you are assuming things work differently than
+I think they do.  I don't think there is an extra copy before
+the compression.  And Xen isn't choking, nor is zcache.
+(Note that the Xen tmem implementation, as all of Xen will be
+soon, is 64-bit only... Seth recently fixed a bug keeping
+zcache from working in 32-bit highmem systems, so I know
+32-bit works for zcache.)
+
+So if this is true (no extra copy), are you happy?
+
+> > So, please, all the other parts necessary for tmem are
+> > already in-tree, why all the resistance about frontswap?
+>=20
+> Well my comments are generic not specific to frontswap.
+
+OK, but cleancache is already in-tree and open to any improvement
+ideas you may have.  Frontswap is only using the existing ABI/API
+that cleancache already uses.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
