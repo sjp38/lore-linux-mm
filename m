@@ -1,81 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2AC6B0069
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 17:33:07 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <d5104e62-0783-4af2-8892-d5a8ecc123a4@default>
-Date: Tue, 1 Nov 2011 14:32:48 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C176D6B0069
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 17:43:13 -0400 (EDT)
+Date: Tue, 1 Nov 2011 14:43:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+Message-Id: <20111101144309.a51c99b5.akpm@linux-foundation.org>
+In-Reply-To: <f62e02cd-fa41-44e8-8090-efe2ef052f64@default>
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
- <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com>
- <20111028163053.GC1319@redhat.com>
- <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
- <20138.62532.493295.522948@quad.stoffel.home>
- <3982e04f-8607-4f0a-b855-2e7f31aaa6f7@default>
- <1320048767.8283.13.camel@dabdike>
- <424e9e3a-670d-4835-914f-83e99a11991a@default>
- <1320142403.7701.62.camel@dabdike>
- <bb0996fb-9b83-4de2-a1e4-d9c810c4b48a@default
- 1320173294.15403.109.camel@nimitz>
-In-Reply-To: <1320173294.15403.109.camel@nimitz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+	<20111031171321.097a166c.kamezawa.hiroyu@jp.fujitsu.com>
+	<ef778e79-72d0-4c58-99e8-3b36d85fa30d@default
+ 20111101095038.30289914.kamezawa.hiroyu@jp.fujitsu.com>
+	<f62e02cd-fa41-44e8-8090-efe2ef052f64@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, John Stoffel <john@stoffel.org>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Jonathan Corbet <corbet@lwn.net>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, levinsasha928@gmail.com, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Neo Jia <cyclonusj@gmail.com>
 
-> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
-> Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
->=20
-> On Tue, 2011-11-01 at 11:10 -0700, Dan Magenheimer wrote:
-> > Case A) CONFIG_FRONTSWAP=3Dn
-> > Case B) CONFIG_FRONTSWAP=3Dy and no tmem backend registers
-> > Case C) CONFIG_FRONTSWAP=3Dy and a tmem backend DOES register
-> ...
-> > The point is that only Case C has possible interactions
-> > so Case A and Case B end-users and kernel developers need
-> > not worry about the maintenance.
->=20
-> I'm personally evaluating this as if all the distributions would turn it
-> on.  I'm evaluating as if every one of my employer's systems ships with
-> it and as if it is =3Dy my laptop.  Basically, I'm evaluating A/B/C and
-> only looking at the worst-case maintenance cost (C).  In other words,
-> I'm ignoring A/B and assuming wide use.
+On Tue, 1 Nov 2011 08:25:38 -0700 (PDT)
+Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-Good.  Me too.  I was just saying that the-company-that-must-not-
-be-named (from which most of the non-technical objections are=20
-coming), can choose A or B as they wish without any impact
-to their developers or users.
-=20
-> I'm curious where you expect to see the code get turned on and used
-> since we might be looking at this from different angles.
+> OK, I will then coordinate with sfr to remove it from the linux-next
+> tree when (if?) akpm puts the patchset into the -mm tree.
 
-I think we are on the same page.  Oracle is turning it on (case B)
-in the default UEK kernel, for which the Beta git tree is published.
-Corporate policy keeps me from saying anything in detail about
-pre-released products, but you saw that our Oracle VM manager
-responded to this thread, so I'll leave that to your imagination.
+No, that's not necessary.  The current process (you maintain git tree,
+it gets included in -next, later gets pulled by Linus) is good.  The
+only reason I see for putting such code through -mm would be if there
+were significant interactions with other core MM work.
 
-I think we agreed offlist that zcache is not ready for prime-time
-and a good measure of when it _will_ be ready is when it is
-promoted out of staging.  I'm really hoping you guys at IBM
-will drive that (and am willing to get out of the way if you
-prefer).
+It doesn't matter which route is taken, as long as the code is
+appropriately reviewed and tested.
 
-There's a lot of interest in Oracle in RAMster (which I personally
-think is very sexy), but I haven't been able to make forward progress
-in nearly three months now due to other fires and commitments. :-(
+>  But
+> since very few linux-mm experts had responded to previous postings
+> of the frontswap patchset, I am glad to have a much wider audience
+> to discuss it now because of the lkml git-pull request.
 
-So are we on the same page?
+At kernel summit there was discussion and overall agreement that we've
+been paying insufficient attention to the big-picture "should we
+include this feature at all" issues.  We resolved to look more
+intensely and critically at new features with a view to deciding
+whether their usefulness justified their maintenance burden.  It seems
+that you're our crash-test dummy ;) (Now I'm wondering how to get
+"cgroups: add a task counter subsystem" put through the same wringer).
 
-Thanks,
-Dan
+I will confess to and apologise for dropping the ball on cleancache and
+frontswap.  I was never really able to convince myself that it met the
+(very vague) cost/benefit test, but nor was I able to present
+convincing arguments that it failed that test.  So I very badly went
+into hiding, to wait and see what happened.  What we needed all those
+months ago was to have the discussion we're having now.
+
+This is a difficult discussion and a difficult decision.  But it is
+important that we get it right.  Thanks for you patience.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
