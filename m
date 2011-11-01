@@ -1,81 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A532D6B006E
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 08:36:14 -0400 (EDT)
-Date: Tue, 1 Nov 2011 12:36:08 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-Message-ID: <20111101123608.GD25123@suse.de>
-References: <alpine.DEB.2.00.1110252311030.20273@chino.kir.corp.google.com>
- <CAMbhsRS+-jn7d1bTd4F0_RB9860iWjOHLfOkDsqLfWEUbR3TYA@mail.gmail.com>
- <alpine.DEB.2.00.1110252322220.20273@chino.kir.corp.google.com>
- <CAMbhsRQdrWRLkj7U-u2AZxM11mSUNj5_1K27g58cMBo1Js1Yeg@mail.gmail.com>
- <alpine.DEB.2.00.1110252327270.20273@chino.kir.corp.google.com>
- <CAMbhsRR0z-aJ848gq6ZQATZOgz=EybVsRtaQbjCr42PtCubCzw@mail.gmail.com>
- <alpine.DEB.2.00.1110252347330.20273@chino.kir.corp.google.com>
- <CAMbhsRScgfokDOiT7c9RbmqC7E_ZXrwLEYXE7JZWFGoePjAXvg@mail.gmail.com>
- <alpine.DEB.2.00.1110260006470.23227@chino.kir.corp.google.com>
- <CAMbhsRRZBUcfv5kT4aYm=Z3+kc-usYJVqyc_+1gAEy-4yH_nPQ@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD756B0069
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 10:35:24 -0400 (EDT)
+Received: by vws16 with SMTP id 16so1801282vws.14
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2011 07:35:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAMbhsRRZBUcfv5kT4aYm=Z3+kc-usYJVqyc_+1gAEy-4yH_nPQ@mail.gmail.com>
+In-Reply-To: <1320082040-1190-1-git-send-email-aarcange@redhat.com>
+References: <20111031171441.GD3466@redhat.com>
+	<1320082040-1190-1-git-send-email-aarcange@redhat.com>
+Date: Tue, 1 Nov 2011 22:35:22 +0800
+Message-ID: <CAPQyPG5m4kQaZKeE6Txd5Jt0Lb9xicUanegEvwc7fgnopFAWDQ@mail.gmail.com>
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+ vma_merge succeeding in copy_vma
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 26, 2011 at 12:22:14AM -0700, Colin Cross wrote:
-> On Wed, Oct 26, 2011 at 12:10 AM, David Rientjes <rientjes@google.com> wrote:
-> > On Tue, 25 Oct 2011, Colin Cross wrote:
-> >
-> >> > gfp_allowed_mask is initialized to GFP_BOOT_MASK to start so that __GFP_FS
-> >> > is never allowed before the slab allocator is completely initialized, so
-> >> > you've now implicitly made all early boot allocations to be __GFP_NORETRY
-> >> > even though they may not pass it.
-> >>
-> >> Only before interrupts are enabled, and then isn't it vulnerable to
-> >> the same livelock?  Interrupts are off, single cpu, kswapd can't run.
-> >> If an allocation ever failed, which seems unlikely, why would retrying
-> >> help?
-> >>
-> >
-> > If you want to claim gfp_allowed_mask as a pm-only entity, then I see no
-> > problem with this approach.  However, if gfp_allowed_mask would be allowed
-> > to temporarily change after init for another purpose then it would make
-> > sense to retry because another allocation with __GFP_FS on another cpu or
-> > kswapd could start making progress could allow for future memory freeing.
-> >
-> > The suggestion to add a hook directly into a pm-interface was so that we
-> > could isolate it only to suspend and, to me, is the most maintainable
-> > solution.
-> >
-> 
-> pm_restrict_gfp_mask seems to claim gfp_allowed_mask as owned by pm at runtime:
-> "gfp_allowed_mask also should only be modified with pm_mutex held,
-> unless the suspend/hibernate code is guaranteed not to run in parallel
-> with that modification"
-> 
-> I think we've wrapped around to Mel's original patch, which adds a
-> pm_suspending() helper that is implemented next to
-> pm_restrict_gfp_mask.  His patch puts the check inside
-> !did_some_progress instead of should_alloc_retry, which I prefer as it
-> at least keeps trying until reclaim isn't working.  Pekka was trying
-> to avoid adding pm-specific checks into the allocator, which is why I
-> stuck to the symptom (__GFP_FS is clear) rather than the cause (PM).
-> 
+On Tue, Nov 1, 2011 at 1:27 AM, Andrea Arcangeli <aarcange@redhat.com> wrot=
+e:
+> migrate was doing a rmap_walk with speculative lock-less access on
+> pagetables. That could lead it to not serialize properly against
+> mremap PT locks. But a second problem remains in the order of vmas in
+> the same_anon_vma list used by the rmap_walk.
+>
+> If vma_merge would succeed in copy_vma, the src vma could be placed
+> after the dst vma in the same_anon_vma list. That could still lead
+> migrate to miss some pte.
+>
+> This patch adds a anon_vma_order_tail() function to force the dst vma
+> at the end of the list before mremap starts to solve the problem.
+>
+> If the mremap is very large and there are a lots of parents or childs
+> sharing the anon_vma root lock, this should still scale better than
+> taking the anon_vma root lock around every pte copy practically for
+> the whole duration of mremap.
+>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> =A0include/linux/rmap.h | =A0 =A01 +
+> =A0mm/mmap.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A08 ++++++++
+> =A0mm/rmap.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 44 ++++++++++++++++++++++++++++=
+++++++++++++++++
+> =A03 files changed, 53 insertions(+), 0 deletions(-)
+>
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 2148b12..45eb098 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -120,6 +120,7 @@ void anon_vma_init(void); =A0 /* create anon_vma_cach=
+ep */
+> =A0int =A0anon_vma_prepare(struct vm_area_struct *);
+> =A0void unlink_anon_vmas(struct vm_area_struct *);
+> =A0int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+> +void anon_vma_order_tail(struct vm_area_struct *);
+> =A0int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
+> =A0void __anon_vma_link(struct vm_area_struct *);
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index a65efd4..a5858dc 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2339,7 +2339,15 @@ struct vm_area_struct *copy_vma(struct vm_area_str=
+uct **vmap,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (vma_start >=3D new_vma->vm_start &&
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0vma_start < new_vma->vm_end)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* No need to call anon_v=
+ma_order_tail() in
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* this case because the =
+same PT lock will
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* serialize the rmap_wal=
+k against both src
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* and dst vmas.
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*vmap =3D new_vma;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 anon_vma_order_tail(new_vma=
+);
+> =A0 =A0 =A0 =A0} else {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0new_vma =3D kmem_cache_alloc(vm_area_cache=
+p, GFP_KERNEL);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (new_vma) {
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 8005080..6dbc165 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -272,6 +272,50 @@ int anon_vma_clone(struct vm_area_struct *dst, struc=
+t vm_area_struct *src)
+> =A0}
+>
+> =A0/*
+> + * Some rmap walk that needs to find all ptes/hugepmds without false
+> + * negatives (like migrate and split_huge_page) running concurrent
+> + * with operations that copy or move pagetables (like mremap() and
+> + * fork()) to be safe depends the anon_vma "same_anon_vma" list to be
+> + * in a certain order: the dst_vma must be placed after the src_vma in
+> + * the list. This is always guaranteed by fork() but mremap() needs to
+> + * call this function to enforce it in case the dst_vma isn't newly
+> + * allocated and chained with the anon_vma_clone() function but just
+> + * an extension of a pre-existing vma through vma_merge.
+> + *
+> + * NOTE: the same_anon_vma list can still be changed by other
+> + * processes while mremap runs because mremap doesn't hold the
+> + * anon_vma mutex to prevent modifications to the list while it
+> + * runs. All we need to enforce is that the relative order of this
+> + * process vmas isn't changing (we don't care about other vmas
+> + * order). Each vma corresponds to an anon_vma_chain structure so
+> + * there's no risk that other processes calling anon_vma_order_tail()
+> + * and changing the same_anon_vma list under mremap() will screw with
+> + * the relative order of this process vmas in the list, because we
+> + * won't alter the order of any vma that isn't belonging to this
+> + * process. And there can't be another anon_vma_order_tail running
+> + * concurrently with mremap() coming from this process because we hold
+> + * the mmap_sem for the whole mremap(). fork() ordering dependency
+> + * also shouldn't be affected because we only care that the parent
+> + * vmas are placed in the list before the child vmas and
+> + * anon_vma_order_tail won't reorder vmas from either the fork parent
+> + * or child.
+> + */
+> +void anon_vma_order_tail(struct vm_area_struct *dst)
+> +{
+> + =A0 =A0 =A0 struct anon_vma_chain *pavc;
+> + =A0 =A0 =A0 struct anon_vma *root =3D NULL;
+> +
+> + =A0 =A0 =A0 list_for_each_entry_reverse(pavc, &dst->anon_vma_chain, sam=
+e_vma) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct anon_vma *anon_vma =3D pavc->anon_vm=
+a;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 VM_BUG_ON(pavc->vma !=3D dst);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 root =3D lock_anon_vma_root(root, anon_vma)=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&pavc->same_anon_vma);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add_tail(&pavc->same_anon_vma, &anon_v=
+ma->head);
+> + =A0 =A0 =A0 }
+> + =A0 =A0 =A0 unlock_anon_vma_root(root);
+> +}
 
-Right now, I'm still no seeing a problem with the pm_suspending() check
-as it's made for a corner-case situation in a very slow path that is
-self-documenting. This thread has died somewhat and there is still no
-fix merged. Is someone cooking up a patch they would prefer as an
-alternative? If not, I'm going to resubmit the fix based on
-pm_suspending.
+I think Pawel might want to sign a "Tested-by", he may have been running th=
+is
+patch safely for quite some days. :)
 
--- 
-Mel Gorman
-SUSE Labs
+Reviewed-by: Nai Xia <nai.xia@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
