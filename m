@@ -1,101 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DCC6B006E
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 03:48:01 -0400 (EDT)
-Message-ID: <4EAFA429.9060103@openvz.org>
-Date: Tue, 01 Nov 2011 11:47:53 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add free_hot_cold_page_list helper
-References: <20110729075837.12274.58405.stgit@localhost6>	<CAEwNFnBFNzrPoen-oM7DdB1QA5-cmUqAFABO7WxzZpiQacA7Fg@mail.gmail.com> <20111031131448.c6d6d458.akpm@linux-foundation.org>
-In-Reply-To: <20111031131448.c6d6d458.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 25D9E6B002D
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 04:21:45 -0400 (EDT)
+Message-Id: <4EB01C8F0200001600008FAE@novprvlin0050.provo.novell.com>
+Date: Tue, 01 Nov 2011 02:21:35 -0600
+From: "Guan Jun He" <gjhe@suse.com>
+Subject: Re: [PATCH][mm/memory.c]: transparent hugepage check condition
+ missed
+References: <transparent-hugepage-check-condition-miss>
+ <1320049412-12642-1-git-send-email-gjhe@suse.com>
+ <1320110288.22361.190.camel@sli10-conroe>
+In-Reply-To: <1320110288.22361.190.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Andrew Morton wrote:
-> On Mon, 29 Aug 2011 16:48:46 +0900
-> Minchan Kim<minchan.kim@gmail.com>  wrote:
->
->> On Fri, Jul 29, 2011 at 4:58 PM, Konstantin Khlebnikov
->> <khlebnikov@openvz.org>  wrote:
->>> This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
->>> It frees pages directly from list without temporary page-vector.
->>> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
->>>
->>> bloat-o-meter:
->>>
->>> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
->>> function                                     old     new   delta
->>> free_hot_cold_page_list                        -     264    +264
->>> get_page_from_freelist                      2129    2132      +3
->>>   pagevec_free                               243     239      -4
->>> split_free_page                              380     373      -7
->>> release_pages                                606     510     -96
->>> free_page_list                               188       -    -188
->>>
->>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->>> ---
->>>   include/linux/gfp.h |    1 +
->>>   mm/page_alloc.c     |   12 ++++++++++++
->>>   mm/swap.c           |   14 +++-----------
->>>   mm/vmscan.c         |   20 +-------------------
->>>   4 files changed, 17 insertions(+), 30 deletions(-)
->>>
->>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->>> index cb40892..dd7b9cc 100644
->>> --- a/include/linux/gfp.h
->>> +++ b/include/linux/gfp.h
->>> @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
->>>   extern void  free_pages(struct page *page, unsigned int order);
->>>   extern void free_pages(unsigned long addr, unsigned int order);
->>>   extern void free_hot_cold_page(struct page *page, int cold);
->>> +extern void free_hot_cold_page_list(struct list_head *list, int cold);
->>>
->>>   #define  free_page(page)  free_pages((page), 0)
->>>   #define free_page(addr) free_pages((addr), 0)
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 1dbcf88..af486e4 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -1209,6 +1209,18 @@ out:
->>>         local_irq_restore(flags);
->>>   }
->>>
->>> +void free_hot_cold_page_list(struct list_head *list, int cold)
->>> +{
->>> +       struct page *page, *next;
->>> +
->>> +       list_for_each_entry_safe(page, next, list, lru) {
->>> +               trace_mm_pagevec_free(page, cold);
->>
->>
->> I understand you want to minimize changes without breaking current ABI
->> with trace tools.
->> But apparently, It's not a pagvec_free. It just hurts readability.
->> As I take a look at the code, mm_pagevec_free isn't related to pagevec
->> but I guess it can represent 0-order pages free because 0-order pages
->> are freed only by pagevec until now.
->> So, how about renaming it with mm_page_free or mm_page_free_zero_order?
->> If you do, you need to do s/MM_PAGEVEC_FREE/MM_FREE_FREE/g in
->> trace-pagealloc-postprocess.pl.
->>
->>
->>> +               free_hot_cold_page(page, cold);
->>> +       }
->>> +
->>> +       INIT_LIST_HEAD(list);
->>
->> Why do we need it?
->
-> My email has been horrid for a couple of months (fixed now), so I might
-> have missed any reply to Minchin's review comments?
->
 
-Sorry, I forget about this patch. v2 sended.
+
+>>> On 11/1/2011 at 09:18 AM, in message <1320110288.22361.190.camel@sli10-=
+conroe>,
+Shaohua Li <shaohua.li@intel.com> wrote:=20
+> On Mon, 2011-10-31 at 16:23 +0800, Guanjun He wrote:
+>> For the transparent hugepage module still does not support
+>> tmpfs and cache,the check condition should always be checked=20
+>> to make sure that it only affect the anonymous maps, the=20
+>> original check condition missed this, this patch is to fix this.
+>> Otherwise,the hugepage may affect the file-backed maps,
+>> then the cache for the small-size pages will be unuseful,
+>> and till now there is still no implementation for hugepage's cache.
+>>=20
+>> Signed-off-by: Guanjun He <gjhe@suse.com>
+>> ---
+>>  mm/memory.c |    3 ++-
+>>  1 files changed, 2 insertions(+), 1 deletions(-)
+>>=20
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index a56e3ba..79b85fe 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -3475,7 +3475,8 @@ int handle_mm_fault(struct mm_struct *mm, =
+struct=20
+> vm_area_struct *vma,
+>>  		if (pmd_trans_huge(orig_pmd)) {
+>>  			if (flags & FAULT_FLAG_WRITE &&
+>>  			    !pmd_write(orig_pmd) &&
+>> -			    !pmd_trans_splitting(orig_pmd))
+>> +			    !pmd_trans_splitting(orig_pmd) &&
+>> +			    !vma->vm_ops)
+>>  				return do_huge_pmd_wp_page(mm, vma, =
+address,
+>>  							   pmd, orig_pmd);
+>>  			return 0;
+> so if vma->vm_ops !=3D NULL, how could the pmd_trans_huge(orig_pmd) be
+> true? We never enable THP if vma->vm_ops !=3D NULL.
+acturally, pmd_trans_huge(orig_pmd) only checks the _PAGE_PSE bits,=20
+it's only a pagesize, not a flag to identity a hugepage.
+If I change my default pagesize to PAGE_PSE, then THP will be confused.
+
+There is already a defination:
+
+#define VM_HUGEPAGE	0x01000000	/* MADV_HUGEPAGE marked this vma =
+*/
+
+maybe,this can be the flag to identity a hugepage.But the comment marked =
+it only stands for MADV_HUGEPAGE,
+and it's still a hugepage.So, I suggest to add the check condition =
+!vma->vm_ops, or turn to=20
+use VM_HUGEPAGE as the flag.
+or
+adjust the logic to:
+(transparent_hugepage_enabled() use the VM_HUGEPAGE flag)
+
+ if(transparent_hugepage_enabled(vma)){
+    if (pmd_none(*pmd){
+        ...
+    }
+    else
+    {
+      ...
+    }
+}
+
+
+the original logic is:
+
+if (pmd_none(*pmd) && transparent_hugepage_enabled(vma))=20
+{
+  ...
+}
+else
+{
+  ...
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
