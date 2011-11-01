@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB3A6B006E
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 14:21:35 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <49255b17-02bb-4a4a-b85a-cd5a879beb98@default>
-Date: Tue, 1 Nov 2011 11:21:20 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
- <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <20111031181651.GF3466@redhat.com 1320142590.7701.64.camel@dabdike>
-In-Reply-To: <1320142590.7701.64.camel@dabdike>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AE94B6B006E
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 14:27:42 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 1 Nov 2011 12:23:27 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pA1ICRHH118320
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2011 12:22:49 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pA1HUQtP031809
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2011 11:30:26 -0600
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4E738B81.2070005@vflare.org>
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	 <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org>
+	 <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org>
+	 <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org>
+	 <4E72284B.2040907@linux.vnet.ibm.com>  <4E738B81.2070005@vflare.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 01 Nov 2011 10:30:15 -0700
+Message-ID: <1320168615.15403.80.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, dan.magenheimer@oracle.com, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-> From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
-> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
->=20
-> Actually, I think there's an unexpressed fifth requirement:
->=20
-> 5. The optimised use case should be for non-paging situations.
+On Fri, 2011-09-16 at 13:46 -0400, Nitin Gupta wrote:
+> I think replacing allocator every few weeks isn't a good idea. So, I
+> guess better would be to let me work for about 2 weeks and try the slab
+> based approach.  If nothing works out in this time, then maybe xcfmalloc
+> can be integrated after further testing.
 
-Not quite sure what you mean here (especially for frontswap)...
-=20
-> The problem here is that almost every data centre person tries very hard
-> to make sure their systems never tip into the swap zone.  A lot of
-> hosting datacentres use tons of cgroup controllers for this and
-> deliberately never configure swap which makes transcendent memory
-> useless to them under the current API.  I'm not sure this is fixable,
+Hi Nitin,
 
-I can't speak for cgroups, but the generic "state-of-the-art"
-that you describe is a big part of what frontswap DOES try
-to fix, or at least ameliorate.  Tipping "into the swap zone"
-is currently very bad.  Very very bad.  Frontswap doesn't
-"solve" swapping, but it is the foundation for some of the
-first things in a long time that aren't just "add more RAM."
+It's been about six weeks. :)
 
-> but it's the reason why a large swathe of users would never be
-> interested in the patches, because they by design never operate in the
-> region transcended memory is currently looking to address.
+Can we talk about putting xcfmalloc() in staging now?
 
-It's true, those that are memory-rich and can spend nearly
-infinite amounts on more RAM (and on high-end platforms that
-can expand to hold massive amounts of RAM) are not tmem's
-target audience.
-
-> This isn't an inherent design flaw, but it does ask the question "is
-> your design scope too narrow?"
-
-Considering all the hazing that I've gone through to get
-this far, you think I should _expand_ my design scope?!? :-)
-Thanks, I guess I'll pass. :-)
-
-Dan
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
