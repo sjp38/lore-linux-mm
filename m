@@ -1,281 +1,278 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 0698C6B006C
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 14:07:16 -0400 (EDT)
-Date: Tue, 1 Nov 2011 19:07:02 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111101180702.GL3466@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C3D566B0069
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 14:10:47 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <bb0996fb-9b83-4de2-a1e4-d9c810c4b48a@default>
+Date: Tue, 1 Nov 2011 11:10:28 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
 References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
  <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org>
- <1319785956.3235.7.camel@lappy>
- <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
- <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default20111031223717.GI3466@redhat.com>
- <1b2e4f74-7058-4712-85a7-84198723e3ee@default20111101012017.GJ3466@redhat.com>
- <6a9db6d9-6f13-4855-b026-ba668c29ddfa@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6a9db6d9-6f13-4855-b026-ba668c29ddfa@default>
+ <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
+ <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
+ <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com>
+ <20111028163053.GC1319@redhat.com>
+ <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
+ <20138.62532.493295.522948@quad.stoffel.home>
+ <3982e04f-8607-4f0a-b855-2e7f31aaa6f7@default>
+ <1320048767.8283.13.camel@dabdike>
+ <424e9e3a-670d-4835-914f-83e99a11991a@default
+ 1320142403.7701.62.camel@dabdike>
+In-Reply-To: <1320142403.7701.62.camel@dabdike>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: John Stoffel <john@stoffel.org>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Tue, Nov 01, 2011 at 09:41:38AM -0700, Dan Magenheimer wrote:
-> I suppose this documentation (note, it is in drivers/staging/zcache,
-> not in the proposed frontswap patchset) could be misleading.  It is
+> From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
+> Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+>=20
+> On Mon, 2011-10-31 at 08:39 -0700, Dan Magenheimer wrote:
+> > > From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
+> > > Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+> >
+> > > On Fri, 2011-10-28 at 13:19 -0700, Dan Magenheimer wrote:
+> > > > For those who "hack on the VM", I can't imagine why the handful
+> > > > of lines in the swap subsystem, which is probably the most stable
+> > > > and barely touched subsystem in Linux or any OS on the planet,
+> > > > is going to be a burden or much of a cost.
+> > >
+> > > Saying things like this doesn't encourage anyone to trust you.  The
+> > > whole of the MM is a complex, highly interacting system.  The recent
+> > > issues we've had with kswapd and the shrinker code gives a nice
+> > > demonstration of this ... and that was caused by well tested code
+> > > updates.
+> >
+> > I do understand that.  My point was that the hooks are
+> > placed _statically_ in largely stable code so it's not
+> > going to constantly get in the way of VM developers
+> > adding new features and fixing bugs, particularly
+> > any developers that don't care about whether frontswap
+> > works or not.  I do think that is a very relevant
+> > point about maintenance... do you disagree?
+>=20
+> Well, as I've said, all the mm code is highly interacting, so I don't
+> really see it as "stable" in the way you suggest.  What I'm saying is
+> that you need to test a variety of workloads to demonstrate there aren't
+> any nasty interactions.
 
-Yep I gotten the comment from tmem.c in staging, and the lwn link I
-read before reading the tmem_put comment also only mentioned about
-tmem_put doing a copy. So I erroneously assumed that all memory
-passing through tmem was being copied and you lost reference of the
-"struct page" when it entered zcache.
+I guess I don't understand how there can be any interactions
+at all, let alone _nasty_ interactions when there is no
+code to interact with?
 
-But instead there is this obscure cast of a "struct page *" to a "char
-*", that is casted back to a struct page * from a char * in zcache
-code, and kmap() runs on the page, to avoid the unnecessary copy.
+For clarity and brevity, let's call the three cases:
 
-So far so good, now the question is why do you have that cast at all?
+Case A) CONFIG_FRONTSWAP=3Dn
+Case B) CONFIG_FRONTSWAP=3Dy and no tmem backend registers
+Case C) CONFIG_FRONTSWAP=3Dy and a tmem backend DOES register
 
-I mean it's hard to be convinced on the sanity of on a API that
-requires the caller to cast a "struct page *" to a "char *" to run
-zerocopy. And well that is the very core tmem_put API I'm talking
-about.
+There are no interactions in Case A, agreed?  I'm not sure
+if it is clear, but in Case B every hook checks to
+see if a tmem backend is registered... if not, the
+hook is a no-op except for the addition of a
+compare-pointer-against-NULL op, so there is no
+interaction there either.
 
-I assume the explanation of the cast is: before it was passing
-page_address(page) to tmem, but that breaks with highmem because
-highmem requires kmap(page). So then you casted the page.
+So the only case where interactions are possible is
+Case C, which currently only can occur if a user
+specifies a kernel boot parameter of "tmem" or "zcache".
+(I know, a bit ugly, but there's a reason for doing
+it this way, at least for now.)
 
-This basically proofs the API must be fixed. In the kernel we work
-with _pages_ not char *, exactly for this reason, and tmem_put must be
-fixed to take a page structure. (in fact better would be an array of
-pages and ranges start/end for each entry in the array but hey at
-least a page+len would be sane). A char * is flawed and the cast of
-the page to char * and back to struct page, kind of proofs it. So I
-think that must be fixed in tmem_put. Unfortunately it's already
-merged with this cast back and forth in the upstream kernel.
+> > Runtime interactions can only occur if the code is
+> > config'ed and, if config'ed, only if a tmem backend (e.g.
+> > Xen or zcache) enables it also at runtime.
+>=20
+> So this, I don't accept without proof ... that's what we initially said
+> about the last set of shrinker updates that caused kswapd to hang
+> sandybridge systems ...
 
-About the rest of zcache I think it's interesting but because it works
-inside tmem I'm unsure how we're going to write it to disk.
+This makes me think that you didn't understand the
+code underlying Case B above, true?
 
-The local_irq_save would be nice to understand why it's needed for
-frontswap but not for pagecache. All that VM code never runs from
-irqs, so it's hard to see how the irq disabling is relevant. A bit fat
-comment on why local_irq_save is needed in zcache code (in staging
-already) would be helpful. Maybe it's tmem that can run from irq?  The
-only thing running from irqs is the tlb flush and I/O completion
-handlers, everything else in the VM isn't irq/softirq driven so we
-never have to clear irqs.
+> >   When
+> > both are enabled, runtime interactions do occur
+> > and absolutely must be fully tested.  My point was
+> > that any _users_ who don't care about whether frontswap
+> > works or not don't need to have any concerns about
+> > VM system runtime interactions.  I think this is also
+> > a very relevant point about maintenance... do you
+> > disagree?
+>=20
+> I'm sorry, what point about maintenance?
 
-My feeling is this zcache should be based on a memory pool abstraction
-that we can write to disk with a bio and working with "pages".
+The point is that only Case C has possible interactions
+so Case A and Case B end-users and kernel developers need
+not worry about the maintenance.
 
-I'm also not sure how you balance the pressure in the tmem pool, when
-you fail the allocation and swap to disk, or when you keep moving to
-compressed swap.
+IOW, if Johannes merges some super major swap subsystem rewrite
+and he doesn't have a clue if/how to move the frontswap
+hooks, his patch doesn't affect any Case A or Case B users
+and not even any Case C users that aren't using latest upstream.
 
-> This is a known problem: zcache is currently not very
-> good for high-response RT environments because it currently
-> compresses a page of data with interrupts disabled, which
-> takes (IIRC) about 20000 cycles.  (I suspect though, without proof,
-> that this is not the worst irq-disabled path in the kernel.)
+That seems relevant to me when we are discussing
+how much maintenance cost frontswap requires which,
+I think, was where this subthread started several
+emails ago :-)
 
-That's certainly more than the irq latency so it's probably something
-the rt folks don't want and yes they should keep it in mind not to use
-frontswap+zcache in embedded RT environments.
-
-Besides there was no benchmark comparing zram performance to zcache
-performance so latency aside we miss a lot of info.
-
-> As noted earlier, this is fixable at the cost of the extra copy
-> which could be implemented as an option later if needed.
-> Or, as always, the RT folks can just not enable zcache.
-> Or maybe smarter developers than me will find a solution
-> that will work even better.
-
-And what is the exact reason of the local_irq_save for doing it
-zerocopy?
-
-> Yeah, remember zcache was merged before either cleancache or
-> frontswap, so this ugliness was necessary to get around the
-> chicken-and-egg problem.  Zcache will definitely need some
-> work before it is ready to move out of staging, and your
-> feedback here is useful for that, but I don't see that as
-> condemning frontswap, do you?
-
-Would I'd like is a mechanism where you:
-
-1) add swapcache to zcache (with fallback to swap immediately if zcache
-   allocation fails)
-
-2) when some threshold is hit or zcache allocation fails, we write the
-   compressed data in a compact way to swap (freeing zcache memory),
-   or swapcache directly to swap if no zcache is present
-
-3) newly added swapcache is added to zcache (old zcache was written to
-   swap device compressed and freed)
-
-Once we already did the compression it's silly to write to disk the
-uncompressed data. Ok initially it's ok because compacting the stuff
-on disk is super tricky but we want a design that will allow writing
-the zcache to disk and add new swapcache to zcache, instead of the
-current way of swapping the new swapcache to disk uncompressed and not
-being able to writeout the compressed zcache.
-
-If nobody called zcache_get and uncompressed it, it means it's
-probably less likely to be used than the newly added swapcache that
-wants to be compressed.
-
-I'm afraid adding frontswap in this form will still get stuck us in
-the wrong model and most of it will have to be dropped and rewritten
-to do just the above 3 points I described to do proper swap
-compression.
-
-Also I'm skeptical we need to pass through tmem at all to do that. I
-mean done right the swap compression could be a feature to enable
-across the board without needing tmem at all. Then if you want to add
-ramster just add a frontswap on the already compressed
-swapcache... before it goes to the hard swap device.
-
-The final swap design must also include the pre-swapout from Avi by
-writing data to swapcache in advance and relaying on the dirty bit to
-rewrite it. And the pre-swapin as well (original idea from Con). The
-pre-swapout would need to stop before compressing. The pre-swapin
-should stop before decompressing.
-
-I mean I see an huge potential for improvement in the swap space, just
-I guess most are busy with more pressing issues, like James said most
-data centers don't use swap, desktop is irrelevant and android (as
-relevant as data center) don't use swap.
-
-But your improvement to frontswap don't look the right direction if
-you really want to improve swap for the long term. It may be better
-than nothing but I don't see it going the way it should go and I
-prefer to remove the tmem dependency on zcache all together. Zcache
-alone would be way more interesting.
-
-And tmem_put must be fixed to take a page, that cast to char * of a
-page, to avoid crashing on highmem is not allowed.
-
-Of course I didn't have the time to read 100% of the code so please
-correct me again if I misunderstood something.
-
-> This is the "fix highmem" bug fix from Seth Jennings.  The file
-> tmem.c in zcache is an attempt to separate out the core tmem
-> functionality and data structures so that it can (eventually)
-> be in the lib/ directory and be used by multiple backends.
-> (RAMster uses tmem.c unchanged.)  The code in tmem.c reflects
-> my "highmem-blindness" in that a single pointer is assumed to
-> be able to address the "PAMPD" (as opposed to a struct page *
-> and an offset, necessary for a 32-bit highmem system).  Seth
-> cleverly discovered this ugly two-line fix that (at least for now)
-> avoided major mods to tmem.c.
-
-Well you need to do the major mods, it's not ok to do that cast,
-passing pages is correct instead. Let's fix the tmem_put API before
-people can use it wrong. Maybe then I'll dislike passing through tmem
-less? Dunno.
-
-int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
--		char *data, size_t size, bool raw, bool ephemeral)
-+		struct page *page, size_t size, bool raw, bool ephemeral)
-
-
-> First ignoring frontswap, there is currently no way to move a
-> page of swap data from one swap device to another swap device
-> except by moving it first into RAM (in the swap cache), right?
-
-Yes.
-
-> Frontswap doesn't solve that problem either, though it would
-> be cool if it could.  The "partial swapoff" functionality
-> in the patch, added so that it can be called from frontswap_shrink,
-> enables pages to be pulled out of frontswap into swap cache
-> so that they can be moved if desired/necessary onto a real
-> swap device.
-
-The whole logic deciding the size of the frontswap zcache is going to
-be messy. But to do the real swapout you should not pull the memory
-out of frontswap zcache, you should write it to disk compacted and
-compressed compared to how it was inserted in frontswap... That would
-be the ideal.
-
-> The selfballooning code in drivers/xen calls frontswap_shrink
-> to pull swap pages out of the Xen hypervisor when memory pressure
-> is reduced.  Frontswap_shrink is not yet called from zcache.
-
-So I wonder how zcache is dealing with the dynamic size. Or has it a
-fixed size? How do you pull pages out of zcache to max out the real
-RAM availability? 
-
-> Note, however, that unlike swap-disks, compressed pages in
-> frontswap CAN be silently moved to another "device".  This is
-> the foundation of RAMster, which moves those compressed pages
-> to the RAM of another machine.  The device _could_ be some
-> special type of real-swap-disk, I suppose.
-
-Yeah you can do ramster with frontswap+zcache but not writing the
-zcache to disk into the swap device. Writing to disk doesn't require
-new allocations. Migrating to other node does. And you must deal with
-OOM conditions there. Or it'll deadlock. So the basic should be to
-write compressed data to disk (which at least can be done reliably for
-swapcache, unlike ramster which has the same issues of nfs swapping
-and nbd swapping and iscsi sapping) before wondering if to send it to
-another node.
-
-> Yes, this is a good example of the most important feature of
-> tmem/frontswap:  Every frontswap_put can be rejected for whatever reason
-> the tmem backend chooses, entirely dynamically.  Not only is it true
-> that hardware can't handle this well, but the Linux block I/O subsystem
-> can't handle it either.  I've suggested in the frontswap documentation
-> that this is also a key to allowing "mixed RAM + phase-change RAM"
-> systems to be useful.
-
-Yes what is not clear is how the size of the zcache is choosen.
-
-> Also I think this is also why many linux vm/vfs/fs/bio developers
-> "don't like it much" (where "it" is cleancache or frontswap).
-> They are not used to losing control of data to some other
-> non-kernel-controlled entity and not used to being told "NO"
-> when they are trying to move data somewhere.  IOW, they are
-> control freaks and tmem is out of their control so it must
-> be defeated ;-)
-
-Either tmem works on something that is a core MM structure and is
-compatible with all bios and operations we can want to do on memory,
-or I've an hard time to think it's a good thing in trying to make the
-memory it handles not-kernel-controlled.
-
-This non-kernel-controlled approach to me looks like exactly a
-requirement coming from Xen, not really something useful.
-
-There is no reason why a kernel abstraction should stay away from
-using kernel data structures like "struct page" just to cast it back
-from char * to struct page * when it needs to handle highmem in
-zcache. Something seriously wrong is going on there in API terms so
-you can start by fixing that bit.
-
-> I hope the earlier explanation about frontswap_shrink helps.
-> It's also good to note that the only other successful Linux
-> implementation of swap compression is zram, and zram's
-> creator fully supports frontswap (https://lkml.org/lkml/2011/10/28/8)
+> > > You can't hand wave away the need for benchmarks and
+> > > performance tests.
+> >
+> > I'm not.  Conclusive benchmarks are available for one user
+> > (Xen) but not (yet) for other users.  I've already acknowledged
+> > the feedback desiring benchmarking for zcache, but zcache
+> > is already merged (albeit in  staging), and Xen tmem
+> > is already merged in both Linux and the Xen hypervisor,
+> > and cleancache (the alter ego of frontswap) is already
+> > merged.
+>=20
+> The test results for Xen I've seen are simply that "we're faster than
+> swapping to disk, and we can be even better if you use self ballooning".
+> There's no indication (at least in the Xen Summit presentation) what the
+> actual workloads were.
 >
-> So where are we now?  Are you now supportive of merging
-> frontswap?  If not, can you suggest any concrete steps
-> that will gain your support?
+> > So the question is not whether benchmarks are waived,
+> > but whether one accepts (1) conclusive benchmarks for Xen;
+> > PLUS (2) insufficiently benchmarked zcache; PLUS (3) at
+> > least two other interesting-but-not-yet-benchmarkable users;
+> > as sufficient for adding this small set of hooks into
+> > swap code.
+>=20
+> That's the point: even for Xen, the benchmarks aren't "conclusive".
+> There may be a workload for which transcendent memory works better, but
+> make -j8 isn't enough of a variety of workloads)
 
-My problem is this is like zram, like mentioned it only solves the
-compression. There is no way it can store the compressed data on
-disk. And this is way more complex than zram, and it only makes the
-pooling size not fixed at swapon time... so very very small gain and
-huge complexity added (again compared to zram). zram in fact required
-absolutely zero changes to the VM. So it's hard to see how this is
-overall better than zram. If we deal with that amount of complexity we
-should at least be a little better than zram at runtime, while this is
-same.
+OK, you got me, I guess "conclusive" is too strong a word.
+It would be more accurate to say that the theoretical basis
+for improvement, which some people were very skeptical about,
+measures to be even better than expected.
+
+I agree that one workload isn't enough... I can assure you that
+there have been others.  But I really don't think you are asking
+for more _positive_ data, you are asking if there is _negative_
+data.  As you point out "we" are faster than swapping is not
+a hard bar to clear.  IOW comparing any workload that swaps a lot
+against the same workload swapping a lot less, doesn't really
+prove anything.  OR DOES IT?  Considering that reducing swapping
+is the WHOLE POINT of frontswap, I would argue that it does.
+
+Can we agree that if frontswap is doing its job properly on
+any "normal" workload that is swapping, it is improving on a
+bad situation?
+
+Then let's get back to your implied question about _negative_
+data.  As described above there is NO impact for Case A
+and Case B.  (The zealot will point out that a pointer-compare
+against-NULL per page-swapped-in/out is not "NO" impact,
+but let's ignore him for now.)  In Case C, there are
+demonstrated benefits for SOME workloads... will frontswap
+HARM some workloads?
+
+I have openly admitted that for _cleancache_ on _zcache_,
+sometimes the cost can exceed the benefits, and this was
+actually demonstrated by one user on lkml.  For _frontswap_
+it's really hard to imagine even a very contrived workload
+where frontswap fails to provide an advantage.  I suppose
+maybe if your swap disk lives on a PCI SSD and your CPU
+is ancient single-core which does extremely slow copying
+and compression?
+
+IOW, I feel like you are giving me busywork, and any additional
+evidence I present you will wave away anyway.
+
+> > I understand that some kernel developers (mostly from one
+> > company) continue to completely discount Xen, and
+> > thus won't even look at the Xen results.  IMHO
+> > that is mudslinging.
+>=20
+> OK, so lets look at this another way:  one of the signs of a good ABI is
+> generic applicability.  Any good virtualisation ABI should thus work for
+> all virtualisation systems (including VMware should they choose to take
+> advantage of it).  The fact that transcendent memory only seems to work
+> well for Xen is a red flag in this regard.
+
+I think the tmem ABI will work fine with any virtualization system,
+and particularly frontswap will.  There are some theoretical arguments
+that KVM will get little or no benefit, but those arguments
+pertain primarily to cleancache.  And I've noted that the ABI
+was designed to be very extensible, so if KVM wants a batching
+interface, they can add one.  To repeat from the LWN KS2011 report:
+
+  "[Linus] stated that, simply, code that actually is used is
+   code that is actually worth something... code aimed at
+   solving the same problem is just a vague idea that is
+   worthless by comparison...  Even if it truly is crap,
+   we've had crap in the kernel before.  The code does not
+   get better out of tree."
+
+AND the API/ABI clearly supports other non-virtualization uses
+as well.  The in-kernel hooks are very simple and the layering
+is very clean.  The ABI is extensible, has been published for
+nearly three years, and successfully rev'ed once (to accomodate
+192-bit exportfs handles for cleancache).  Your arguments are on
+very thin ice here.
+
+It sounds like you are saying that unless/until KVM has a completed
+measurable implementation... and maybe VMware and Hyper/V as well...
+you don't think the tiny set of hooks that are frontswap should
+be merged.  If so, that "red flag" sounds self-serving, not what I
+would expect from someone like you.  Sorry.
+
+> So what I don't like about this style of argument is the sleight of
+> hand: I would expect the inactive but configured case to show mostly in
+> the shrinker paths, which is where our major problems have been, so that
+> would be cleancache, not frontswap, wouldn't it?
+
+Yes, this is cleancache (already merged).  As described
+above, frontswap executes no code in Case A or Case B so
+can't possibly interact with the shrinker path.
+
+> > So the remaining question is the performance impact when
+> > compile-time AND runtime enabled; this is in the published
+> > Xen presentation I've referenced -- the impact is much much
+> > less than the performance gain.  IMHO benchmark results can
+> > be easily manipulated so I prefer to discuss the theoretical
+> > underpinnings which, in short, is that just about anything
+> > a tmem backend does (hypercall, compression, deduplication,
+> > even moving data across a fast network) is a helluva lot
+> > faster than swapping a page to disk.
+> >
+> > Are there corner cases and probably even real workloads
+> > where the cost exceeds the benefits?  Probably... though
+> > less likely for frontswap than for cleancache because ONLY
+> > pages that would actually be swapped out/in use frontswap.
+> >
+> > But I have never suggested that every kernel should always
+> > unconditionally compile-time-enable and run-time-enable
+> > frontswap... simply that it should be in-tree so those
+> > who wish to enable it are able to enable it.
+>=20
+> In practise, most useful ABIs end up being compiled in ... and useful
+> basically means useful to any constituency, however small.  If your ABI
+> is useless, then fine, we don't have to worry about the configured but
+> inactive case (but then again, we wouldn't have to worry about the ABI
+> at all).  If it has a use, then kernels will end up shipping with it
+> configured in which is why the inactive performance impact is so
+> important to quantify.
+
+So do you now understand/agree that the inactive performance is zero
+and the interaction of an inactive configuration with the remainder
+of the MM subsystem is zero?  And that you and your users will be
+completely unaffected unless you/they intentionally turn it on,
+not only compiled in, but explicitly at runtime as well?
+
+So... understanding your preference for more workloads and your
+preference that KVM should be demonstrated as a profitable user
+first... is there anything else that you think should stand
+in the way of merging frontswap so that existing and planned
+kernel developers can build on top of it in-tree?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
