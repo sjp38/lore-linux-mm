@@ -1,92 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D0A6B0069
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 16:46:06 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 50D0B6B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 16:52:12 -0400 (EDT)
+Message-ID: <4EB1AD53.2000600@redhat.com>
+Date: Wed, 02 Nov 2011 16:51:31 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Message-ID: <571bc7cd-f97f-4882-960c-06b2944f1c4a@default>
-Date: Wed, 2 Nov 2011 13:45:52 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
- <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com>
- <20111028163053.GC1319@redhat.com>
- <b86860d2-3aac-4edd-b460-bd95cb1103e6@default>
- <20138.62532.493295.522948@quad.stoffel.home>
- <3982e04f-8607-4f0a-b855-2e7f31aaa6f7@default>
- <20139.5644.583790.903531@quad.stoffel.home>
- <3ac142d4-a4ca-4a24-bf0b-69a90bd1d1a0@default>
- <1320005162.15403.14.camel@nimitz 4EB19DE5.4080108@redhat.com>
-In-Reply-To: <4EB19DE5.4080108@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <75efb251-7a5e-4aca-91e2-f85627090363@default> <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy> <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com> <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com> <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default 20111031223717.GI3466@redhat.com> <1b2e4f74-7058-4712-85a7-84198723e3ee@default>
+In-Reply-To: <1b2e4f74-7058-4712-85a7-84198723e3ee@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: John Stoffel <john@stoffel.org>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Jonathan Corbet <corbet@lwn.net>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-> From: Rik van Riel [mailto:riel@redhat.com]
-> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
->=20
-> On 10/30/2011 04:06 PM, Dave Hansen wrote:
-> > On Sun, 2011-10-30 at 12:18 -0700, Dan Magenheimer wrote:
-> >>> since they're the ones who will have to understand this stuff and kno=
-w
-> >>> how to maintain it.  And keeping this maintainable is a key goal.
-> >>
-> >> Absolutely agree.  Count the number of frontswap lines that affect
-> >> the current VM core code and note also how they are very clearly
-> >> identified.  It really is a very VERY small impact to the core VM
-> >> code (e.g. in the files swapfile.c and page_io.c).
-> >
-> > Granted, the impact on the core VM in lines of code is small.  But, I
-> > think the behavioral impact is potentially huge since tmem's hooks add
-> > non-trivial amounts of framework underneath the VM in core paths.  In
-> > zcache's case, this means a bunch of allocations and an entirely new
-> > allocator memory allocator being used in the swap paths.
->=20
-> My only real behaviour concern with tmem is that
-> /proc/sys/overcommit_memory will no longer be able
-> to do anything useful, since we'll never know in
-> advance how much memory is available.
+On 10/31/2011 07:36 PM, Dan Magenheimer wrote:
+>> From: Andrea Arcangeli [mailto:aarcange@redhat.com]
 
-True, for Case C (as defined in James Bottomley subthread).
-For Case A and Case B (ie. no tmem backend enabled),
-end-users can still rely on that existing mechanism,
-so they have a choice.
-=20
-> That may be outweighed by the benefits of having
-> more memory available than before, and a reasonable
-> tradeoff to make for the users.
->=20
-> That leaves us with having the code cleaned up to
-> reasonable standards.  To be honest, I would rather
-> have larger hooks in the existing mm code, than
-> exported variables and having the hooks live elsewhere
-> (where people changing the "normal" mm code won't see
-> it, and are more likely to break it).
+>>> real work to do instead and (2) that vmexit/vmenter is horribly
+>>
+>> Sure the CPU has another 1000 VM to schedule. This is like saying
+>> virtio-blk isn't needed on desktop virt becauase the desktop isn't
+>> doing much I/O. Absurd argument, there are another 1000 desktops doing
+>> I/O at the same time of course.
+>
+> But this is truly different, I think at least for the most common
+> cases, because the guest is essentially out of physical memory if it
+> is swapping.  And the vmexit/vmenter (I assume, I don't really
+> know KVM) gives the KVM scheduler the opportunity to schedule
+> another of those 1000 VMs if it wishes.
 
-Hmmm... the original hooks in 2009 were larger, but there
-was lots of feedback to hide the ugly details as much as
-possible.  As a side effect, higher level info is
-passed via the hooks, e.g. a "struct page *" rather
-than swaptype/entry, so backends have more flexibility
-(and IIUC it looks like Andrea's proposed changes to
-zcache may need the higher level info).
+I believe the problem Andrea is trying to point out here is
+that the proposed API cannot handle a batch of pages to be
+pushed into frontswap/cleancache at one time.
 
-But if you want to propose some code showing what
-you mean by "larger" hooks and they result in the
-same information available in the backends, and
-if others agree your hooks are more maintainable,
-I am certainly open to changing them and re-posting.
+Even if the current back-end implementations are synchronous
+and can only do one page at a time, I believe it would still
+be a good idea to have the API able to handle a vector with
+a bunch of pages all at once.
 
-Note that this could happen post-frontswap-merge too
-though which would, naturally, be my preference ;-)
+That way we can optimize the back-ends as required, at some
+later point in time.
 
-Dan
+If enough people start using tmem, such bottlenecks will show
+up at some point :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
