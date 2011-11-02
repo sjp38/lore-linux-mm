@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D175B6B0069
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 14:04:40 -0400 (EDT)
-Message-ID: <4EB1862E.8070401@jp.fujitsu.com>
-Date: Wed, 02 Nov 2011 11:04:30 -0700
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D99426B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 15:06:21 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [rfc 2/3] mm: vmscan: treat inactive cycling as neutral
-References: <20110808110658.31053.55013.stgit@localhost6> <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com> <4E3FD403.6000400@parallels.com> <20111102163056.GG19965@redhat.com> <20111102163213.GI19965@redhat.com>
-In-Reply-To: <20111102163213.GI19965@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <2bc86220-1e48-40e5-b502-dcd093956fd5@default>
+Date: Wed, 2 Nov 2011 12:06:02 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <75efb251-7a5e-4aca-91e2-f85627090363@default>
+ <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
+ <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
+ <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default20111031223717.GI3466@redhat.com>
+ <1b2e4f74-7058-4712-85a7-84198723e3ee@default20111101012017.GJ3466@redhat.com>
+ <6a9db6d9-6f13-4855-b026-ba668c29ddfa@default20111101180702.GL3466@redhat.com>
+ <b8a0ca71-a31b-488a-9a92-2502d4a6e9bf@default
+ 20111102013122.GA18879@redhat.com>
+In-Reply-To: <20111102013122.GA18879@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jweiner@redhat.com
-Cc: khlebnikov@parallels.com, penberg@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, gene.heskett@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-(11/2/2011 9:32 AM), Johannes Weiner wrote:
-> Each page that is scanned but put back to the inactive list is counted
-> as a successful reclaim, which tips the balance between file and anon
-> lists more towards the cycling list.
-> 
-> This does - in my opinion - not make too much sense, but at the same
-> time it was not much of a problem, as the conditions that lead to an
-> inactive list cycle were mostly temporary - locked page, concurrent
-> page table changes, backing device congested - or at least limited to
-> a single reclaimer that was not allowed to unmap or meddle with IO.
-> More important than being moderately rare, those conditions should
-> apply to both anon and mapped file pages equally and balance out in
-> the end.
-> 
-> Recently, we started cycling file pages in particular on the inactive
-> list much more aggressively, for used-once detection of mapped pages,
-> and when avoiding writeback from direct reclaim.
-> 
-> Those rotated pages do not exactly speak for the reclaimability of the
-> list they sit on and we risk putting immense pressure on file list for
-> no good reason.
-> 
-> Instead, count each page not reclaimed and put back to any list,
-> active or inactive, as rotated, so they are neutral with respect to
-> the scan/rotate ratio of the list class, as they should be.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> ---
->  mm/vmscan.c |    9 ++++-----
->  1 files changed, 4 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 39d3da3..6da66a7 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1360,7 +1360,9 @@ putback_lru_pages(struct zone *zone, struct scan_control *sc,
->  	 */
->  	spin_lock(&zone->lru_lock);
->  	while (!list_empty(page_list)) {
-> +		int file;
->  		int lru;
-> +
->  		page = lru_to_page(page_list);
->  		VM_BUG_ON(PageLRU(page));
->  		list_del(&page->lru);
-> @@ -1373,11 +1375,8 @@ putback_lru_pages(struct zone *zone, struct scan_control *sc,
->  		SetPageLRU(page);
->  		lru = page_lru(page);
->  		add_page_to_lru_list(zone, page, lru);
-> -		if (is_active_lru(lru)) {
-> -			int file = is_file_lru(lru);
-> -			int numpages = hpage_nr_pages(page);
-> -			reclaim_stat->recent_rotated[file] += numpages;
-> -		}
-> +		file = is_file_lru(lru);
-> +		reclaim_stat->recent_rotated[file] += hpage_nr_pages(page);
->  		if (!pagevec_add(&pvec, page)) {
->  			spin_unlock_irq(&zone->lru_lock);
->  			__pagevec_release(&pvec);
+> From: Andrea Arcangeli [mailto:aarcange@redhat.com]
+> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+>=20
+> Hi Dan.
+>=20
+> On Tue, Nov 01, 2011 at 02:00:34PM -0700, Dan Magenheimer wrote:
+> > Pardon me for complaining about my typing fingers, but it seems
+> > like you are making statements and asking questions as if you
+> > are not reading the whole reply before you start responding
+> > to the first parts.  So it's going to be hard to answer each
+> > sub-thread in order.  So let me hit a couple of the high
+> > points first.
+>=20
+> I'm actually reading all your reply, if I skip some part it may be
+> because the email is too long already :). I'm just trying to
+> understand it and I wish I had more time to dedicate to this too but
+> I've other pending stuff too.
 
-When avoiding writeback from direct reclaim case, I think we shouldn't increase
-recent_rotated because VM decided "the page should be eviceted, but also it
-should be delayed". i'm not sure it's minor factor or not.
+Hi Andrea --
 
+First, let me apologize for yesterday.  I was unnecessarily
+sarcastic and disrespectful, and I am sorry.  I very much appreciate
+your time and discussion, and good hard technical questions
+that have allowed me to clarify some of the design and
+implementation under discussion.
+
+I agree this email is too long, though it has been very useful.
+You've got some great feedback and insights in improving
+zcache, so let me be the first to cry "uncle" (surrender)
+and cut to the end....
+
+> If you confirm it's free to go and there's no ABI/API we get stuck
+> into, I'm fairly positive about it, it's clearly "alpha" feature
+> behavior (almost no improvement with zram today) but it could very
+> well be in the right direction and give huge benefit compared to zram
+> in the future. I definitely don't pretend things to be perfect... but
+> they must be in the right design direction for me to be sold off on
+> those. Just like KVM in virt space.
+
+Confirmed.  Anything below the "struct frontswap_ops" (and
+"struct cleancache_ops), that is anything in the staging/zcache
+directory, is wide open for your ideas and improvement.
+In fact, I would very much welcome your contribution and
+I think IBM and Nitin would also.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
