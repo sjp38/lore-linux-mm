@@ -1,68 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C710F6B006C
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 11:14:06 -0400 (EDT)
-Date: Wed, 2 Nov 2011 23:13:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: writeback tree status (for 3.2 merge window)
-Message-ID: <20111102151355.GA6717@localhost>
-References: <20111101074347.GA23644@localhost>
- <20111102091012.GA25879@infradead.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id CDD296B006E
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 11:19:09 -0400 (EDT)
+Date: Wed, 2 Nov 2011 11:19:03 -0400
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] mm: Improve cmtime update on shared writable mmaps
+Message-ID: <20111102151903.GA15045@thunk.org>
+References: <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
+ <6e365cb75f3318ab45d7145aededcc55b8ededa3.1319844715.git.luto@amacapital.net>
+ <20111101225342.GG18701@quack.suse.cz>
+ <CALCETrW3ZZ=474cXY0HH1=fHTwKJUo--ufPfD1WLpGRC4_CPrw@mail.gmail.com>
+ <20111102150200.GC31575@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111102091012.GA25879@infradead.org>
+In-Reply-To: <20111102150200.GC31575@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jan Kara <jack@suse.cz>, Curt Wohlgemuth <curtw@google.com>, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Tang Feng <feng.tang@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, xfs@oss.sgi.com
+To: Jan Kara <jack@suse.cz>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andreas Dilger <adilger@dilger.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Wed, Nov 02, 2011 at 05:10:12AM -0400, Christoph Hellwig wrote:
-> On Tue, Nov 01, 2011 at 03:43:47PM +0800, Wu Fengguang wrote:
-> > Hi,
-> > 
-> > There are 3 patchsets sitting in the writeback tree.
-> > 
-> >         1) IO-less dirty throttling v12
-> >         https://github.com/fengguang/linux/commits/dirty-throttling-v12
-> > 
-> >         2) writeback reasons tracing from Curt Wohlgemuth
-> >         https://github.com/fengguang/linux/commits/writeback-reason
-> > 
-> >         3) writeback queuing changes from Jan Kara and me
-> >         https://github.com/fengguang/linux/commits/requeue-io-wait
-> > 
-> > They have been merged into this branch testing in linux-next for a while:
-> > 
-> > https://github.com/fengguang/linux/commits/writeback-for-next
-> > 
-> > Since (3) still has an unresolved issue (detailed in the below
-> > links), it looks better to hold it back for this merge window.
-> 
-> Given that we have run into issues so much with it that's proably
-> the better idea.
-> 
-> To fix the originally reported issue with the missing file size updates
-> in XFS we plan to simply log all filesize changes in XFS.  Currently I
-> had this in the 3.3 queue, but in the worst case we might have to move
-> this forward to 3.2.
+On Wed, Nov 02, 2011 at 04:02:00PM +0100, Jan Kara wrote:
+>   That's a good question. Locking of i_flags was always kind of unclear to
+> me. They are certainly read without any locks and in the couple of places
+> where setting can actually race VFS uses i_mutex for serialization which is
+> kind of overkill (and unusable from page fault due to locking constraints).
+> Probably using atomic bitops for setting i_flags would be needed.
 
-OK. Anyway I'll report any progress early on (3).
+Adding a set of inode_{test,set,clear}_flag() inline functions, and
+then converting accesses of i_flags to use them would be a great
+cleanup task.  It's been on my mental todo list for a while, but it's
+a pretty invasive change.  What we have right now is definitely racy,
+though, and we only get away with it because i_flags changes happen
+relatively rarely.  Fixing this would be definitely be a Good Thing.
 
-> > The patches from (1,2) together with 2 tracing patches essential for
-> > debugging (1) have been pushed to the "writeback-for-linus" branch:
-> > 
-> >         http://git.kernel.org/?p=linux/kernel/git/wfg/linux.git;a=shortlog;h=refs/heads/writeback-for-linus
-> > 
-> > If no objections, I'll send a pull request to Linus soon.
-> 
-> Please do so.  I'm really looking forward to see the I/O-less
-> balance_dirty_pages in ASAP.
-
-Done, thanks!
-
-Thanks,
-Fengguang
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
