@@ -1,54 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7FEBC6B006E
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 12:13:26 -0400 (EDT)
-Message-ID: <4EB16C17.40906@redhat.com>
-Date: Wed, 02 Nov 2011 18:13:11 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 329486B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 12:31:57 -0400 (EDT)
+Date: Wed, 2 Nov 2011 17:30:56 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH 1/2] vmscan: promote shared file mapped pages
+Message-ID: <20111102163056.GG19965@redhat.com>
+References: <20110808110658.31053.55013.stgit@localhost6>
+ <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+ <4E3FD403.6000400@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <75efb251-7a5e-4aca-91e2-f85627090363@default> <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy> <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com> <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default> <20111031181651.GF3466@redhat.com> <1320142590.7701.64.camel@dabdike> <4EB16572.70209@redhat.com> <20111102160201.GB18879@redhat.com>
-In-Reply-To: <20111102160201.GB18879@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E3FD403.6000400@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Konstantin Khlebnikov <khlebnikov@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
 
-On 11/02/2011 06:02 PM, Andrea Arcangeli wrote:
-> Hi Avi,
->
-> On Wed, Nov 02, 2011 at 05:44:50PM +0200, Avi Kivity wrote:
-> > If you look at cleancache, then it addresses this concern - it extends
-> > pagecache through host memory.  When dropping a page from the tail of
-> > the LRU it first goes into tmem, and when reading in a page from disk
-> > you first try to read it from tmem.  However in many workloads,
-> > cleancache is actually detrimental.  If you have a lot of cache misses,
-> > then every one of them causes a pointless vmexit; considering that
-> > servers today can chew hundreds of megabytes per second, this adds up. 
-> > On the other side, if you have a use-once workload, then every page that
-> > falls of the tail of the LRU causes a vmexit and a pointless page copy.
->
-> I also think it's bad design for Virt usage, but hey, without this
-> they can't even run with cache=writeback/writethrough and they're
-> forced to cache=off, and then they claim specvirt is marketing, so for
-> Xen it's better than nothing I guess.
+On Mon, Aug 08, 2011 at 04:18:11PM +0400, Konstantin Khlebnikov wrote:
+> Pekka Enberg wrote:
+> >Hi Konstantin,
+> >
+> >On Mon, Aug 8, 2011 at 2:06 PM, Konstantin Khlebnikov
+> ><khlebnikov@openvz.org>  wrote:
+> >>Commit v2.6.33-5448-g6457474 (vmscan: detect mapped file pages used only once)
+> >>greatly decreases lifetime of single-used mapped file pages.
+> >>Unfortunately it also decreases life time of all shared mapped file pages.
+> >>Because after commit v2.6.28-6130-gbf3f3bc (mm: don't mark_page_accessed in fault path)
+> >>page-fault handler does not mark page active or even referenced.
+> >>
+> >>Thus page_check_references() activates file page only if it was used twice while
+> >>it stays in inactive list, meanwhile it activates anon pages after first access.
+> >>Inactive list can be small enough, this way reclaimer can accidentally
+> >>throw away any widely used page if it wasn't used twice in short period.
+> >>
+> >>After this patch page_check_references() also activate file mapped page at first
+> >>inactive list scan if this page is already used multiple times via several ptes.
+> >>
+> >>Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> >
+> >Both patches seem reasonable but the changelogs don't really explain
+> >why you're doing the changes. How did you find out about the problem?
+> >Is there some workload that's affected? How did you test your changes?
+> >
+> 
+> I found this while trying to fix degragation in rhel6 (~2.6.32) from rhel5 (~2.6.18).
+> There a complete mess with >100 web/mail/spam/ftp containers,
+> they share all their files but there a lot of anonymous pages:
+> ~500mb shared file mapped memory and 15-20Gb non-shared anonymous memory.
+> In this situation major-pagefaults are very costly, because all containers share the same page.
+> In my load kernel created a disproportionate pressure on the file memory, compared with the anonymous,
+> they equaled only if I raise swappiness up to 150 =)
+> 
+> These patches actually wasn't helped a lot in my problem,
+> but I saw noticable (10-20 times) reduce in count and average time of major-pagefault in file-mapped areas.
+> 
+> Actually both patches are fixes for commit v2.6.33-5448-g6457474,
+> because it was aimed at one scenario (singly used pages),
+> but it breaks the logic in other scenarios (shared and/or executable pages)
 
-Surely Xen can use the pagecache, it uses Linux for I/O just like kvm.
+I suspect that while saving shared/executable mapped file pages more
+aggressively helps to some extent, the underlying problem is that we
+tip the lru balance (comparing the recent_scanned/recent_rotated
+ratios) in favor of file pages too much and in unexpected places.
 
-> I'm trying right now to evaluate it as a pure zcache host side
-> optimization.
+For mapped file, we do:
 
-zcache style usage is fine.  It's purely internal so no ABI constraints,
-and no hypercalls either.  It's still synchronous though so RAMster like
-approaches will not work well.
+add to lru:	recent_scanned++
+cycle:		recent_scanned++
+[ activate:	recent_scanned++, recent_rotated++ ]
+[ deactivate:	recent_scanned++, recent_rotated++ ]
+reclaim:	recent_scanned++
 
+while for anon:
 
-<snip>
+add to lru:	recent_scanned++, recent_rotated++
+reactivate:	recent_scanned++, recent_rotated++
+deactivate:	recent_scanned++, recent_rotated++
+[ activate:	recent_scanned++, recent_rotated++ ]
+[ deactivate:	recent_scanned++, recent_rotated++ ]
+reclaim:	recent_scanned++
 
--- 
-error compiling committee.c: too many arguments to function
+As you can see, even a long-lived file page tips the balance to the
+file list twice: on creation and during the used-once detection.  A
+thrashing file working set as in Konstantin's case will actually be
+seen as a lucrative source of reclaimable pages.
+
+Tipping the balance with each new file LRU page was meant to steer the
+reclaim focus towards streaming IO pages and away from anonymous pages
+but wouldn't it be easier to just not swap above a certain priority to
+have the same effect?  With enough used-once file pages, we should not
+reach that priority threshold.
+
+Tipping the balance for inactive list rotation has been there from the
+beginning, but I don't quite understand why.  It probably was not a
+problem as the conditions for inactive cycling applied to both file
+and anon equally, but with used-once detection for file and deferred
+file writeback from direct reclaim, we tend to cycle more file pages
+on the inactive list than anonymous ones.  Those rotated pages should
+be a signal to favor file reclaim, though.
+
+Here are three (currently under testing) RFC patches that 1. prevent
+swapping above DEF_PRIORITY-2, 2. treat inactive list rotations to be
+neutral wrt. the inter-LRU balance, and 3. revert the file list boost
+on lru addition.
+
+The result looks like this:
+
+file:
+
+add to lru:
+[ activate:	recent_scanned++, recent_rotated++ ]
+[ deactivate:	recent_scanned++, recent_rotated++ ]
+reclaim:	recent_scanned++
+
+mapped file:
+
+add to lru:
+cycle:		recent_scanned++, recent_rotated++
+[ activate:	recent_scanned++, recent_rotated++ ]
+[ deactivate:	recent_scanned++, recent_rotated++ ]
+reclaim:	recent_scanned++
+
+anon:
+add to lru:	recent_scanned++, recent_rotated++
+reactivate:	recent_scanned++, recent_rotated++
+deactivate:	recent_scanned++, recent_rotated++
+[ activate:	recent_scanned++, recent_rotated++ ]
+[ deactivate:	recent_scanned++, recent_rotated++ ]
+reclaim:	recent_scanned++
+
+As you can see, this still behaves under the assumption that refaults
+from swap are more costly than from the fs, but we keep considering
+anonymous pages when the file working set is thrashing.
+
+What do reclaim people think about this?
+
+Konstantin, would you have the chance to try this set directly with
+your affected workload if nobody spots any obvious problems?
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
