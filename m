@@ -1,36 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6A06B006E
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 12:36:08 -0400 (EDT)
-Date: Wed, 2 Nov 2011 17:35:27 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] vmscan: promote shared file mapped pages
-Message-ID: <20111102163527.GK19965@cmpxchg.org>
-References: <20110808110658.31053.55013.stgit@localhost6>
- <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
- <4E3FD403.6000400@parallels.com>
- <20111102163056.GG19965@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCF26B006E
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 13:19:12 -0400 (EDT)
+Received: by gyg10 with SMTP id 10so497080gyg.14
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2011 10:19:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111102163056.GG19965@redhat.com>
+In-Reply-To: <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
+References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
+ <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 2 Nov 2011 10:18:50 -0700
+Message-ID: <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com>
+Subject: Re: hugetlb oops on 3.1.0-rc8-devel
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 02, 2011 at 05:30:56PM +0100, Johannes Weiner wrote:
-> Tipping the balance for inactive list rotation has been there from the
-> beginning, but I don't quite understand why.  It probably was not a
-> problem as the conditions for inactive cycling applied to both file
-> and anon equally, but with used-once detection for file and deferred
-> file writeback from direct reclaim, we tend to cycle more file pages
-> on the inactive list than anonymous ones.  Those rotated pages should
-> be a signal to favor file reclaim, though.
+On Wed, Nov 2, 2011 at 5:06 AM, Hillf Danton <dhillf@gmail.com> wrote:
+> On Wed, Nov 2, 2011 at 6:20 AM, Andy Lutomirski <luto@amacapital.net> wro=
+te:
+>> The line that crashed is BUG_ON(page_count(old_page) !=3D 1) in hugetlb_=
+cow.
+>>
+>
+> Hello Andy
+>
+> Would you please try the following patch?
+>
+> Thanks
+> =A0 =A0 =A0 =A0Hillf
+>
+>
+> --- a/mm/hugetlb.c =A0 =A0 =A0Sat Aug 13 11:45:14 2011
+> +++ b/mm/hugetlb.c =A0 =A0 =A0Wed Nov =A02 20:12:00 2011
+> @@ -2422,6 +2422,8 @@ retry_avoidcopy:
+> =A0 =A0 =A0 =A0 * anon_vma prepared.
+> =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0if (unlikely(anon_vma_prepare(vma))) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(new_page);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(old_page);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Caller expects lock to be held */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&mm->page_table_lock);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return VM_FAULT_OOM;
+>
 
-[...] should NOT be a signal [...]
+I'll patch it in.  My test case took over a week to hit it once, so I
+can't guarantee I'll spot it.
 
-obviously.  Sorry.
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
