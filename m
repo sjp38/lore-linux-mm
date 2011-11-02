@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E9ACC6B006E
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 12:33:45 -0400 (EDT)
-Date: Wed, 2 Nov 2011 17:32:47 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: [rfc 3/3] mm: vmscan: revert file list boost on lru addition
-Message-ID: <20111102163247.GJ19965@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DF6A06B006E
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 12:36:08 -0400 (EDT)
+Date: Wed, 2 Nov 2011 17:35:27 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] vmscan: promote shared file mapped pages
+Message-ID: <20111102163527.GK19965@cmpxchg.org>
 References: <20110808110658.31053.55013.stgit@localhost6>
  <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
  <4E3FD403.6000400@parallels.com>
@@ -16,48 +16,21 @@ Content-Disposition: inline
 In-Reply-To: <20111102163056.GG19965@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
 
-The idea in 9ff473b 'vmscan: evict streaming IO first' was to steer
-reclaim focus onto file pages with every new file page that hits the
-lru list, so that an influx of used-once file pages does not lead to
-swapping of anonymous pages.
+On Wed, Nov 02, 2011 at 05:30:56PM +0100, Johannes Weiner wrote:
+> Tipping the balance for inactive list rotation has been there from the
+> beginning, but I don't quite understand why.  It probably was not a
+> problem as the conditions for inactive cycling applied to both file
+> and anon equally, but with used-once detection for file and deferred
+> file writeback from direct reclaim, we tend to cycle more file pages
+> on the inactive list than anonymous ones.  Those rotated pages should
+> be a signal to favor file reclaim, though.
 
-The problem is that nobody is fixing up the balance if the pages in
-fact become part of the resident set.
+[...] should NOT be a signal [...]
 
-Anonymous page creation is neutral to the inter-lru balance, so even a
-comparably tiny number of heavily used file pages tip the balance in
-favor of the file list.
-
-In addition, there is no refault detection, and every refault will
-bias the balance even more.  A thrashing file working set will be
-mistaken for a very lucrative source of reclaimable pages.
-
-As anonymous pages are no longer swapped above a certain priority
-level, this mechanism is no longer needed.  Used-once file pages
-should get reclaimed before the VM even considers swapping.
-
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
----
- mm/swap.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 3a442f1..33e5387 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -683,7 +683,6 @@ static void ____pagevec_lru_add_fn(struct page *page, void *arg)
- 	SetPageLRU(page);
- 	if (active)
- 		SetPageActive(page);
--	update_page_reclaim_stat(zone, page, file, active);
- 	add_page_to_lru_list(zone, page, lru);
- }
- 
--- 
-1.7.6.4
+obviously.  Sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
