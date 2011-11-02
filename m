@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A41526B0069
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 16:17:10 -0400 (EDT)
-Date: Wed, 2 Nov 2011 21:17:07 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Latency writing to an mlocked ext4 mapping
-Message-ID: <20111102201707.GD31575@quack.suse.cz>
-References: <CALCETrU23vyCXPG6mJU9qaPeAGOWDQtur5C+LRT154V5FM=Ajg@mail.gmail.com>
- <CALCETrX=-CnNQ9+4tRbqMG4mfuy2FBPXXoJeBVDVPnEiRJYRFQ@mail.gmail.com>
- <CALCETrUcOKQAJTTmCSD3Q3wYS-zLqv6tBa4AdkK50bNobRhDUQ@mail.gmail.com>
- <20111025122618.GA8072@quack.suse.cz>
- <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
- <20111031231031.GD10107@quack.suse.cz>
- <CALCETrViG6t1forOFtO-R=bGABvtLcECxJ8m8Tenv6rwxLg_ew@mail.gmail.com>
- <20111101230320.GH18701@quack.suse.cz>
- <CALCETrVKHyRtizmTs=4hZzOs+7JLnvv0WtkSLYLDmM0fs2ce-w@mail.gmail.com>
- <CALCETrWNCy0VN-rQM-xPksiJ50DW-KM+w2NBprNOPhvnizZW=Q@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B806B006E
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 16:19:54 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrWNCy0VN-rQM-xPksiJ50DW-KM+w2NBprNOPhvnizZW=Q@mail.gmail.com>
+Message-ID: <dfda9890-f0e3-4a4a-ab9d-b4475a4f7a66@default>
+Date: Wed, 2 Nov 2011 13:19:39 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <75efb251-7a5e-4aca-91e2-f85627090363@default>
+ <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
+ <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
+ <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
+ <20111031181651.GF3466@redhat.com> <1320142590.7701.64.camel@dabdike
+ 4EB16572.70209@redhat.com>
+In-Reply-To: <4EB16572.70209@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Jan Kara <jack@suse.cz>, Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Avi Kivity <avi@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Tue 01-11-11 18:51:04, Andy Lutomirski wrote:
-> On Tue, Nov 1, 2011 at 4:10 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> > On Tue, Nov 1, 2011 at 4:03 PM, Jan Kara <jack@suse.cz> wrote:
-> >> Avoiding IO during a minor fault would be a decent thing which might be
-> >> worth pursuing. As you properly noted "stable pages during writeback"
-> >> requirement is one obstacle which won't be that trivial to avoid though...
+> From: Avi Kivity [mailto:avi@redhat.com]
+> Sent: Wednesday, November 02, 2011 9:45 AM
+> To: James Bottomley
+> Cc: Andrea Arcangeli; Dan Magenheimer; Pekka Enberg; Cyclonus J; Sasha Le=
+vin; Christoph Hellwig; David
+> Rientjes; Linus Torvalds; linux-mm@kvack.org; LKML; Andrew Morton; Konrad=
+ Wilk; Jeremy Fitzhardinge;
+> Seth Jennings; ngupta@vflare.org; Chris Mason; JBeulich@novell.com; Dave =
+Hansen; Jonathan Corbet
+> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+>=20
+> On 11/01/2011 12:16 PM, James Bottomley wrote:
+> > Actually, I think there's an unexpressed fifth requirement:
 > >
-> > There's an easy solution that would be good enough for me: add a mount
-> > option to turn off stable pages.
+> > 5. The optimised use case should be for non-paging situations.
 > >
-> > Is the other problem just a race, perhaps?  __block_page_mkwrite calls
-> > __block_write_begin (which calls get_block, which I think is where the
-> > latency comes from) *before* wait_on_page_writeback, which means that
-> > there might not be any space allocated yet.
-> 
-> I think I'm right (other than calling it a race).  If I change my code to do:
-> 
-> - map the file (with MCL_FUTURE set)
-> - fallocate
-> - dirty all pages
-> - fsync
-> - dirty all pages again
-> 
-> in the non-real-time thread, then a short test that was a mediocre
-> reproducer seems to work.
-> 
-> This is annoying, though -- I'm not generating twice as much write I/O
-> as I used to.  Is there any way to force the delalloc code to do its
-> thing without triggering writeback?  I don't think fallocate has this
-> effect.
-  fallocate() will preallocate blocks on disk backing the mapped page. That
-should get rid of latency in __block_write_begin(). Extents will still be
-marked as uninitialized, but conversion from uninitialized to initialized
-state happens during writeback / IO completion so you should not care much
-about it.
+> > The problem here is that almost every data centre person tries very har=
+d
+> > to make sure their systems never tip into the swap zone.  A lot of
+> > hosting datacentres use tons of cgroup controllers for this and
+> > deliberately never configure swap which makes transcendent memory
+> > useless to them under the current API.  I'm not sure this is fixable,
+> > but it's the reason why a large swathe of users would never be
+> > interested in the patches, because they by design never operate in the
+> > region transcended memory is currently looking to address.
+> >
+> > This isn't an inherent design flaw, but it does ask the question "is
+> > your design scope too narrow?"
+>=20
+> If you look at cleancache, then it addresses this concern - it extends
+> pagecache through host memory.  When dropping a page from the tail of
+> the LRU it first goes into tmem, and when reading in a page from disk
+> you first try to read it from tmem.  However in many workloads,
+> cleancache is actually detrimental.  If you have a lot of cache misses,
+> then every one of them causes a pointless vmexit; considering that
+> servers today can chew hundreds of megabytes per second, this adds up.
+> On the other side, if you have a use-once workload, then every page that
+> falls of the tail of the LRU causes a vmexit and a pointless page copy.
 
-									Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+I agree with everything you've said except "_many_ workloads".
+I would characterize this as "some" workloads, and increasingly
+fewer machines... because core-counts are increasing faster than
+the ability to attach RAM to them (according to published research).
+
+I did code a horrible hack to fix this, but haven't gotten back
+to RFC'ing it to see if there were better, less horrible, ideas.
+It essentially only puts into tmem pages that are being reclaimed
+but previously had the PageActive bit set... a smaller but
+higher-hit-ratio source of pages, I think.
+
+Anyway, I've been very open about this (see
+https://lkml.org/lkml/2011/8/29/225 , but it affects cleancache.
+Frontswap ONLY deals with pages that would have otherwise
+been swapin/swapout to a physical swap device.
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
