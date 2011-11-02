@@ -1,161 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E08716B0069
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 08:06:49 -0400 (EDT)
-Received: by wyg24 with SMTP id 24so86864wyg.14
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2011 05:06:46 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F8F46B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 11:02:07 -0400 (EDT)
+Date: Wed, 2 Nov 2011 16:02:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Improve cmtime update on shared writable mmaps
+Message-ID: <20111102150200.GC31575@quack.suse.cz>
+References: <CALCETrWoZeFpznU5Nv=+PvL9QRkTnS4atiGXx0jqZP_E3TJPqw@mail.gmail.com>
+ <6e365cb75f3318ab45d7145aededcc55b8ededa3.1319844715.git.luto@amacapital.net>
+ <20111101225342.GG18701@quack.suse.cz>
+ <CALCETrW3ZZ=474cXY0HH1=fHTwKJUo--ufPfD1WLpGRC4_CPrw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
-References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
-Date: Wed, 2 Nov 2011 20:06:46 +0800
-Message-ID: <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
-Subject: Re: hugetlb oops on 3.1.0-rc8-devel
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrW3ZZ=474cXY0HH1=fHTwKJUo--ufPfD1WLpGRC4_CPrw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Jan Kara <jack@suse.cz>, Andreas Dilger <adilger@dilger.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Wed, Nov 2, 2011 at 6:20 AM, Andy Lutomirski <luto@amacapital.net> wrote=
-:
-> (Disclaimer: I have my file_update_time patch running in this kernel.
-> But I doubt that's the problem, since it has nothing to due with
-> hugepages.)
->
-> My system just oopsed, saying this:
->
-> ... lots more than just this ...
-> [334297.627797] PID 25627 killed due to inadequate hugepage pool
-> [334298.130665] PID 25628 killed due to inadequate hugepage
-> pool"Developers ("Developers (AMA)" <dev@amacapital.net>, AMA)"
-> <dev@amacapital.net>,
-> [334298.993760] PID 25630 killed due to inadequate hugepage pool
-> [334299.373970] PID 25631 killed due to inadequate hugepage pool
-> [334301.073572] PID 25633 killed due to inadequate hugepage pool
-> [334301.460784] PID 25634 killed due to inadequate hugepage pool
-> [334302.602704] PID 25636 killed due to inadequate hugepage pool
-> [334302.911221] PID 25637 killed due to inadequate hugepage pool
-> [334304.119890] PID 25639 killed due to inadequate hugepage pool
-> [334304.636179] PID 25640 killed due to inadequate hugepage pool
-> [334305.143010] PID 25641 killed due to inadequate hugepage pool
-> [334305.934934] PID 25642 killed due to inadequate hugepage pool
-> [334306.595565] PID 25644 killed due to inadequate hugepage pool
-> [334308.043332] PID 25646 killed due to inadequate hugepage pool
-> [334308.606766] PID 25647 killed due to inadequate hugepage pool
-> [334309.628432] PID 25649 killed due to inadequate hugepage pool
-> [334309.961794] PID 25650 killed due to inadequate hugepage pool
-> [334311.170115] PID 25652 killed due to inadequate hugepage pool
-> [334311.287254] ------------[ cut here ]------------
-> [334311.287278] kernel BUG at mm/hugetlb.c:2407!
-> [334311.287296] invalid opcode: 0000 [#1] SMP
-> [334311.287315] CPU 6
-> [334311.287326] Modules linked in: ppdev parport_pc lp parport
-> des_generic ecb md4 nls_utf8 cifs fscache tcp_lp fuse acpi_cpufreq
-> mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter
-> ip6_tables w83627ehf hwmon_vid coretemp btrfs zlib_deflate
-> lzo_compress libcrc32c snd_hda_codec_hdmi snd_hda_codec_realtek vfat
-> fat joydev snd_hda_intel snd_hda_codec snd_hwdep snd_seq
-> snd_seq_device snd_pcm snd_timer serio_raw snd i2c_i801 pcspkr
-> microcode e1000e soundcore xhci_hcd mei(C) snd_page_alloc iTCO_wdt
-> iTCO_vendor_support virtio_net virtio_ring virtio kvm_intel kvm ipv6
-> xts gf128mul dm_crypt firewire_ohci firewire_core crc_itu_t i915
-> drm_kms_helper drm i2c_algo_bit i2c_core video [last unloaded:
-> scsi_wait_scan]
-> [334311.287682]
-> [334311.287693] Pid: 22419, comm: lk_index_and_co Tainted: G =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 C
-> =C2=A03.1.0-rc8-devel+ #416 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0/DQ67SW
-> [334311.287743] RIP: 0010:[<ffffffff810e3137>] =C2=A0[<ffffffff810e3137>]
-> hugetlb_cow+0x209/0x355
-> [334311.287791] RSP: 0018:ffff880147cbdcb8 =C2=A0EFLAGS: 00010202
-> [334311.287813] RAX: 0000000000000001 RBX: ffff88017e668498 RCX:
-> 0000000000000038
-> [334311.287840] RDX: 0000000000000000 RSI: ffff88017e6684e8 RDI:
-> ffffea0005110000
-> [334311.287868] RBP: ffff880147cbdd78 R08: 0000000000000000 R09:
-> ffff88023e38c600
-> [334311.287896] R10: 0000000000000001 R11: ffff88022cceb038 R12:
-> ffffea0005110000
-> [334311.287925] R13: 00007f1604600000 R14: ffffffff81bf8c20 R15:
-> ffff88022cc1c280
-> [334311.287954] FS: =C2=A000007f160b955740(0000) GS:ffff88023e380000(0000=
-)
-> knlGS:0000000000000000
-> [334311.287983] CS: =C2=A00010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [334311.288007] CR2: 00007f9c18508000 CR3: 00000001549cd000 CR4:
-> 00000000000406e0
-> [334311.288035] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
-> 00000"Developers (AMA)" <dev@amacapital.net>, 00000000000
-> [334311.288063] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
-> 0000000000000400"Developers (AMA)" <dev@amacapital.net>,
-> [334311.288092] Process [random internal program] (pid: 22419,
-> threadinfo ffff880147cbc000, task ffff88022f185a80)
-> [334311.288126] Stack:
-> [334311.288137] =C2=A0ffffffff81a33800 ffff88010c210808 ffff880213c88540
-> ffffffff81bf8c20
-> [334311.288172] =C2=A00000000000000000 ffff8801498a6118 80000001444000e5
-> ffff88010c210848
-> [334311.288206] =C2=A00000000000000001 00007f160461acd0 ffff880147cbdd18
-> ffff88017e6684e8
-> [334311.288241] Call Trace:
-> [334311.288256] =C2=A0[<ffffffff810e36e6>] hugetlb_fault+0x3fd/0x49d
-> [334311.288280] =C2=A0[<ffffffff810d17c2>] handle_mm_fault+0x81/0x1ae
-> [334311.288305] =C2=A0[<ffffffff8101c9b5>] ? x2apic_send_IPI_mask+0x13/0x=
-15
-> [334311.288331] =C2=A0[<ffffffff81440f39>] do_page_fault+0x31f/0x366
-> [334311.288357] =C2=A0[<ffffffff8103e9ab>] ? wake_up_new_task+0xb4/0xcd
-> [334311.288382] =C2=A0[<ffffffff811c9820>] ? security_file_alloc+0x16/0x1=
-8
-> [334311.288408] =C2=A0[<ffffffff810457f0>] ? do_fork+0x18c/0x225
-> [334311.288432] =C2=A0[<ffffffff8143df2e>] ? _raw_spin_lock+0xe/0x10
-> [334311.288456] =C2=A0[<ffffffff8143df2e>] ? _raw_spin_lock+0xe/0x10
-> [334311.288480] =C2=A0[<ffffffff8143e4af>] page_fault+0x1f/0x30
-> [334311.288500] Code: ff ff 48 8d 75 98 48 89 c7 e8 3b 54 fe ff 48 85
-> c0 75 b6 48 8b bd 78 ff ff ff e8 2d 9f 35 00 4c 89 e7 e8 ed e5 ff ff
-> ff c8 74 02 <0f> 0b 49 8d 7f 5c e8 de ad 35 00 e9 58 fe ff ff 48 8b bd
-> 78 ff
-> [334311.288652] RIP =C2=A0[<ffffffff810e3137>] hugetlb_cow+0x209/0x355
-> [334311.288676] =C2=A0RSP <ffff880147cbdcb8>
-> [334311.400050] ---[ end trace de2300cc5bd541be ]---
->
-> After the oops, accesses to /proc/22418/cmdline (and other things in
-> that directory) hang. =C2=A022418 is not the oopsing process or one of it=
-s
-> children, so this is strange.
->
-> The program that oopsed is written in python and does very little
-> other than firing off subprocesses (in C) and having a replacement
-> malloc LD_PRELOADed that is backed by MAP_PRIVATE | MAP_ANONYMOUS |
-> MAP_FIXED | MAP_HUGETLB mappings. =C2=A0This is clearly a bad idea and I'=
-ll
-> stop doing it; nonetheless, it shouldn't oops.
->
-> The line that crashed is BUG_ON(page_count(old_page) !=3D 1) in hugetlb_c=
-ow.
->
+On Tue 01-11-11 16:02:24, Andy Lutomirski wrote:
+> On Tue, Nov 1, 2011 at 3:53 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Fri 28-10-11 16:39:25, Andy Lutomirski wrote:
+> >> We used to update a file's time on do_wp_page.  This caused latency
+> >> whenever file_update_time would sleep (this happens on ext4).  It is
+> >> also, IMO, less than ideal: any copy, backup, or 'make' run taken
+> >> after do_wp_page but before an mmap user finished writing would see
+> >> the new timestamp but the old contents.
+> >>
+> >> With this patch, cmtime is updated after a page is written.  When the
+> >> mm code transfers the dirty bit from a pte to the associated struct
+> >> page, it also sets a new page flag indicating that the page was
+> >> modified directly from userspace.  The inode's time is then updated in
+> >> clear_page_dirty_for_io.
+> >>
+> >> We can't update cmtime in all contexts in which ptes are unmapped:
+> >> various reclaim paths can unmap ptes from GFP_NOFS paths.
+> >>
+> >> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+> >> ---
+> >>
+> >> I'm not thrilled about using a page flag for this, but I haven't
+> >> spotted a better way.  Updating the time in writepage would touch
+> >> a lot of files and would interact oddly with write.
+> >  I see two problems with this patch:
+> > 1) Using a page flags is really a no-go. We are rather short on page flags
+> > so using them for such minor thing is a real wastage. Moreover it should be
+> > rather easy to just use an inode flag instead.
+> 
+> Am I allowed to set inode flags without holding any locks?
+  That's a good question. Locking of i_flags was always kind of unclear to
+me. They are certainly read without any locks and in the couple of places
+where setting can actually race VFS uses i_mutex for serialization which is
+kind of overkill (and unusable from page fault due to locking constraints).
+Probably using atomic bitops for setting i_flags would be needed.
 
-Hello Andy
+> > 2) You cannot call inode_update_time_writable() from
+> > clear_page_dirty_for_io() because that is called under a page lock and thus
+> > would create lock inversion problems.
+> 
+> Hmm.  Isn't it permitted to at least read from an fs while holding the
+> page lock?  I thought that the page lock was held for the entire
+> duration of a read and at the beginning of writeback.
+  You are right that page lock is held during the whole ->readpage() call.
+But that does not mean any reading can be done while page lock is held...
+Page lock is also held during the ->writepage() call but that is one of
+reasons why several filesystems ignore that callback and use ->writepages()
+callback which allows them to do some fs internal locking before taking the
+page lock.
 
-Would you please try the following patch?
+> I can push this down to the ->writepage implementations or to the
+> clear_page_dirty_for_io callers, but that will result in a bigger
+> patch.
+  Yes, I think this might be a way to go. Actually using
+block_write_full_page() callback for updating times might somewhat reduce
+number of filesystems that need to be modified...
 
-Thanks
-	Hillf
+								Honza
 
-
---- a/mm/hugetlb.c	Sat Aug 13 11:45:14 2011
-+++ b/mm/hugetlb.c	Wed Nov  2 20:12:00 2011
-@@ -2422,6 +2422,8 @@ retry_avoidcopy:
- 	 * anon_vma prepared.
- 	 */
- 	if (unlikely(anon_vma_prepare(vma))) {
-+		page_cache_release(new_page);
-+		page_cache_release(old_page);
- 		/* Caller expects lock to be held */
- 		spin_lock(&mm->page_table_lock);
- 		return VM_FAULT_OOM;
+> >>  fs/inode.c                 |   51 ++++++++++++++++++++++++++++++-------------
+> >>  include/linux/fs.h         |    1 +
+> >>  include/linux/page-flags.h |    5 ++++
+> >>  mm/page-writeback.c        |   19 +++++++++++++---
+> >>  mm/rmap.c                  |   18 +++++++++++++-
+> >>  5 files changed, 72 insertions(+), 22 deletions(-)
+> >>
+> >> diff --git a/fs/inode.c b/fs/inode.c
+> >> index ec79246..ee93a25 100644
+> >> --- a/fs/inode.c
+> >> +++ b/fs/inode.c
+> >> @@ -1461,21 +1461,8 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
+> >>  }
+> >>  EXPORT_SYMBOL(touch_atime);
+> >>
+> >> -/**
+> >> - *   file_update_time        -       update mtime and ctime time
+> >> - *   @file: file accessed
+> >> - *
+> >> - *   Update the mtime and ctime members of an inode and mark the inode
+> >> - *   for writeback.  Note that this function is meant exclusively for
+> >> - *   usage in the file write path of filesystems, and filesystems may
+> >> - *   choose to explicitly ignore update via this function with the
+> >> - *   S_NOCMTIME inode flag, e.g. for network filesystem where these
+> >> - *   timestamps are handled by the server.
+> >> - */
+> >> -
+> >> -void file_update_time(struct file *file)
+> >> +static void do_inode_update_time(struct file *file, struct inode *inode)
+> >>  {
+> >> -     struct inode *inode = file->f_path.dentry->d_inode;
+> >>       struct timespec now;
+> >>       enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
+> >>
+> >> @@ -1497,7 +1484,7 @@ void file_update_time(struct file *file)
+> >>               return;
+> >>
+> >>       /* Finally allowed to write? Takes lock. */
+> >> -     if (mnt_want_write_file(file))
+> >> +     if (file && mnt_want_write_file(file))
+> >>               return;
+> >>
+> >>       /* Only change inode inside the lock region */
+> >> @@ -1508,10 +1495,42 @@ void file_update_time(struct file *file)
+> >>       if (sync_it & S_MTIME)
+> >>               inode->i_mtime = now;
+> >>       mark_inode_dirty_sync(inode);
+> >> -     mnt_drop_write(file->f_path.mnt);
+> >> +
+> >> +     if (file)
+> >> +             mnt_drop_write(file->f_path.mnt);
+> >> +}
+> >> +
+> >> +/**
+> >> + *   file_update_time        -       update mtime and ctime time
+> >> + *   @file: file accessed
+> >> + *
+> >> + *   Update the mtime and ctime members of an inode and mark the inode
+> >> + *   for writeback.  Note that this function is meant exclusively for
+> >> + *   usage in the file write path of filesystems, and filesystems may
+> >> + *   choose to explicitly ignore update via this function with the
+> >> + *   S_NOCMTIME inode flag, e.g. for network filesystem where these
+> >> + *   timestamps are handled by the server.
+> >> + */
+> >> +
+> >> +void file_update_time(struct file *file)
+> >> +{
+> >> +     do_inode_update_time(file, file->f_path.dentry->d_inode);
+> >>  }
+> >>  EXPORT_SYMBOL(file_update_time);
+> >>
+> >> +/**
+> >> + *   inode_update_time_writable      -       update mtime and ctime
+> >> + *   @inode: inode accessed
+> >> + *
+> >> + *   Same as file_update_time, except that the caller is responsible
+> >> + *   for checking that the mount is writable.
+> >> + */
+> >> +
+> >> +void inode_update_time_writable(struct inode *inode)
+> >> +{
+> >> +     do_inode_update_time(0, inode);
+> >> +}
+> >> +
+> >>  int inode_needs_sync(struct inode *inode)
+> >>  {
+> >>       if (IS_SYNC(inode))
+> >> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> >> index 277f497..9e28927 100644
+> >> --- a/include/linux/fs.h
+> >> +++ b/include/linux/fs.h
+> >> @@ -2553,6 +2553,7 @@ extern int inode_newsize_ok(const struct inode *, loff_t offset);
+> >>  extern void setattr_copy(struct inode *inode, const struct iattr *attr);
+> >>
+> >>  extern void file_update_time(struct file *file);
+> >> +extern void inode_update_time_writable(struct inode *inode);
+> >>
+> >>  extern int generic_show_options(struct seq_file *m, struct vfsmount *mnt);
+> >>  extern void save_mount_options(struct super_block *sb, char *options);
+> >> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> >> index e90a673..4eed012 100644
+> >> --- a/include/linux/page-flags.h
+> >> +++ b/include/linux/page-flags.h
+> >> @@ -107,6 +107,7 @@ enum pageflags {
+> >>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> >>       PG_compound_lock,
+> >>  #endif
+> >> +     PG_update_cmtime,       /* Dirtied via writable mapping. */
+> >>       __NR_PAGEFLAGS,
+> >>
+> >>       /* Filesystems */
+> >> @@ -273,6 +274,10 @@ PAGEFLAG_FALSE(HWPoison)
+> >>  #define __PG_HWPOISON 0
+> >>  #endif
+> >>
+> >> +/* Whoever clears PG_update_cmtime must update the cmtime. */
+> >> +SETPAGEFLAG(UpdateCMTime, update_cmtime)
+> >> +TESTCLEARFLAG(UpdateCMTime, update_cmtime)
+> >> +
+> >>  u64 stable_page_flags(struct page *page);
+> >>
+> >>  static inline int PageUptodate(struct page *page)
+> >> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> >> index 0e309cd..41c48ea 100644
+> >> --- a/mm/page-writeback.c
+> >> +++ b/mm/page-writeback.c
+> >> @@ -1460,7 +1460,8 @@ EXPORT_SYMBOL(set_page_dirty_lock);
+> >>
+> >>  /*
+> >>   * Clear a page's dirty flag, while caring for dirty memory accounting.
+> >> - * Returns true if the page was previously dirty.
+> >> + * Returns true if the page was previously dirty.  Also updates inode time
+> >> + * if necessary.
+> >>   *
+> >>   * This is for preparing to put the page under writeout.  We leave the page
+> >>   * tagged as dirty in the radix tree so that a concurrent write-for-sync
+> >> @@ -1474,6 +1475,7 @@ EXPORT_SYMBOL(set_page_dirty_lock);
+> >>   */
+> >>  int clear_page_dirty_for_io(struct page *page)
+> >>  {
+> >> +     int ret;
+> >>       struct address_space *mapping = page_mapping(page);
+> >>
+> >>       BUG_ON(!PageLocked(page));
+> >> @@ -1520,11 +1522,20 @@ int clear_page_dirty_for_io(struct page *page)
+> >>                       dec_zone_page_state(page, NR_FILE_DIRTY);
+> >>                       dec_bdi_stat(mapping->backing_dev_info,
+> >>                                       BDI_RECLAIMABLE);
+> >> -                     return 1;
+> >> +                     ret = 1;
+> >> +                     goto out;
+> >>               }
+> >> -             return 0;
+> >> +             ret = 0;
+> >> +             goto out;
+> >>       }
+> >> -     return TestClearPageDirty(page);
+> >> +     ret = TestClearPageDirty(page);
+> >> +
+> >> +out:
+> >> +     /* We know that the inode (if any) is on a writable mount. */
+> >> +     if (mapping && mapping->host && TestClearPageUpdateCMTime(page))
+> >> +             inode_update_time_writable(mapping->host);
+> >> +
+> >> +     return ret;
+> >>  }
+> >>  EXPORT_SYMBOL(clear_page_dirty_for_io);
+> >>
+> >> diff --git a/mm/rmap.c b/mm/rmap.c
+> >> index 8005080..2ee595d 100644
+> >> --- a/mm/rmap.c
+> >> +++ b/mm/rmap.c
+> >> @@ -937,6 +937,16 @@ int page_mkclean(struct page *page)
+> >>               struct address_space *mapping = page_mapping(page);
+> >>               if (mapping) {
+> >>                       ret = page_mkclean_file(mapping, page);
+> >> +
+> >> +                     /*
+> >> +                      * If dirtied via shared writable mapping, cmtime
+> >> +                      * needs to be updated.  If dirtied only through
+> >> +                      * write(), etc, then the writer already updated
+> >> +                      * cmtime.
+> >> +                      */
+> >> +                     if (ret)
+> >> +                             SetPageUpdateCMTime(page);
+> >> +
+> >>                       if (page_test_and_clear_dirty(page_to_pfn(page), 1))
+> >>                               ret = 1;
+> >>               }
+> >> @@ -1203,8 +1213,10 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> >>       pteval = ptep_clear_flush_notify(vma, address, pte);
+> >>
+> >>       /* Move the dirty bit to the physical page now the pte is gone. */
+> >> -     if (pte_dirty(pteval))
+> >> +     if (pte_dirty(pteval)) {
+> >> +             SetPageUpdateCMTime(page);
+> >>               set_page_dirty(page);
+> >> +     }
+> >>
+> >>       /* Update high watermark before we lower rss */
+> >>       update_hiwater_rss(mm);
+> >> @@ -1388,8 +1400,10 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+> >>                       set_pte_at(mm, address, pte, pgoff_to_pte(page->index));
+> >>
+> >>               /* Move the dirty bit to the physical page now the pte is gone. */
+> >> -             if (pte_dirty(pteval))
+> >> +             if (pte_dirty(pteval)) {
+> >> +                     SetPageUpdateCMTime(page);
+> >>                       set_page_dirty(page);
+> >> +             }
+> >>
+> >>               page_remove_rmap(page);
+> >>               page_cache_release(page);
+> >> --
+> >> 1.7.6.4
+> >>
+> > --
+> > Jan Kara <jack@suse.cz>
+> > SUSE Labs, CR
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
