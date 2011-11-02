@@ -1,84 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 58EA96B0069
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 22:37:44 -0400 (EDT)
-Received: by qadc11 with SMTP id c11so8268766qad.14
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2011 19:37:41 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5572A6B0069
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2011 22:42:26 -0400 (EDT)
+Received: by vcbfl17 with SMTP id fl17so2333523vcb.14
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2011 19:42:24 -0700 (PDT)
+Message-ID: <4EB0AE0E.8040709@vflare.org>
+Date: Tue, 01 Nov 2011 22:42:22 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.00.1110281044410.11733@tundra.namei.org>
-References: <CAH-7YMmqs9j2-UTUSCZaFDEhxmjkAZvHzKVvbvy7nsG8JpFA9w@mail.gmail.com>
-	<alpine.LRH.2.00.1110210232450.31056@tundra.namei.org>
-	<CAH-7YMmx0J+pQFfrU4KW2ahFDPL3udvAUgPy4_Hf19HP46MZHw@mail.gmail.com>
-	<CAH-7YMmAM8e051PopL92WhqSvqz23_eWKjfZbuaLZ4_UhGR5jw@mail.gmail.com>
-	<alpine.LRH.2.00.1110271718510.5714@tundra.namei.org>
-	<alpine.LRH.2.00.1110281044410.11733@tundra.namei.org>
-Date: Wed, 2 Nov 2011 10:37:41 +0800
-Message-ID: <CAH-7YMnsKTg-CgBaHXzzYV4WBxRGxBbEfHpUUMS9UyzV+12d1g@mail.gmail.com>
-Subject: Re: [PATCH] ACL supports to mqueue
-From: Zhou Peng <ailvpeng25@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+References: <1315404547-20075-1-git-send-email-sjenning@linux.vnet.ibm.com> <20110909203447.GB19127@kroah.com> <4E6ACE5B.9040401@vflare.org> <4E6E18C6.8080900@linux.vnet.ibm.com> <4E6EB802.4070109@vflare.org> <4E6F7DA7.9000706@linux.vnet.ibm.com> <4E6FC8A1.8070902@vflare.org> <4E72284B.2040907@linux.vnet.ibm.com> <4E738B81.2070005@vflare.org 1320168615.15403.80.camel@nimitz> <e51b28f7-da4a-4c53-889d-4f12b8dd701a@default>
+In-Reply-To: <e51b28f7-da4a-4c53-889d-4f12b8dd701a@default>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morris <jmorris@namei.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Chris Wright <chrisw@sous-sol.org>, Hugh Dickins <hughd@google.com>, Stephen Smalley <sds@tycho.nsa.gov>, Kentaro Takeda <takedakn@nttdata.co.jp>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, John Johansen <john.johansen@canonical.com>, Casey Schaufler <casey@schaufler-ca.com>, Christoph Hellwig <hch@infradead.org>, linux-security-module@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, gregkh@suse.de, devel@driverdev.osuosl.org, cascardo@holoscopio.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brking@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-Sorry for late reply, the mail skiped the inbox
-and to the lkml label directly of gmail.
-On Fri, Oct 28, 2011 at 7:47 AM, James Morris <jmorris@namei.org> wrote:
-> On Thu, 27 Oct 2011, James Morris wrote:
->
->> On Tue, 25 Oct 2011, Zhou Peng wrote:
->>
->> > Hi, how about this patch pls?
->>
->> I'm not convinced that this is a necessary feature for the mainline
->> kernel.
->
-> It also needs more review, from at least other security folk, and ideally
-> also from fs/vfs folk.
-Thank you James.
-I cc to Alexander Viro (VFS),
-Chris Wright (LSM),
-Hugh Dickins (TMPFS),
-Stephen Smalley (SELINUX),
-Kentaro Takeda, Tetsuo Handa (TOMOYO),
-John Johansen (APPARMOR)
-Hope any review
-> Why does NFSARK want this supportr? =A0Are its users asking for it? =A0(I
-> couldn't find the distro, btw).
-Yes, it's user asks for acl for ipc,
-It is a distro by nfschina.
->>
->> >
->> > On Fri, Oct 21, 2011 at 6:46 PM, Zhou Peng <ailvpeng25@gmail.com> wrot=
-e:
->> > > * In general, it can give a more fine grained and flexible DAC to ms=
-g queue obj.
->> > > * NFSARK(A distro) wants all posix ipc objects to support ACL, inclu=
-ding mqueue.
->> > > * Posix semphore and shmem both support ACL, but mqueue as one of th=
-e
->> > > three basic ipc doesn't.
->> > > * At least, it may save one note sentence for MQ_OVERVIEW(7) =A0 ^_^
->> > > =A0 =A0"Linux does not currently (2.6.26) support the use of access
->> > > control lists (ACLs) for POSIX message queues."
->> > > =A0 =A0http://www.kernel.org/doc/man-pages/online/pages/man7/mq_over=
-view.7.html
->> > >
->> > > On Thu, Oct 20, 2011 at 11:33 PM, James Morris <jmorris@namei.org> w=
-rote:
->> > > > On Thu, 20 Oct 2011, Zhou Peng wrote:
->> > > >
->> > > >> This patch adds ACL supports to mqueue filesystem.
->> > > >> Based on Linux 3.0.4.
->> > > >
->> > > > Why is this necessary, and who is planning to use it?
->> > > >
->> > > > Are any distros likely to enable this?
+On 11/01/2011 02:35 PM, Dan Magenheimer wrote:
 
---=20
-Zhou Peng
+>> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+>> Sent: Tuesday, November 01, 2011 11:30 AM
+>> To: Nitin Gupta
+>> Cc: Seth Jennings; Greg KH; gregkh@suse.de; devel@driverdev.osuosl.org; Dan Magenheimer;
+>> cascardo@holoscopio.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org; brking@linux.vnet.ibm.com;
+>> rcj@linux.vnet.ibm.com
+>> Subject: Re: [PATCH v2 0/3] staging: zcache: xcfmalloc support
+>>
+>> On Fri, 2011-09-16 at 13:46 -0400, Nitin Gupta wrote:
+>>> I think replacing allocator every few weeks isn't a good idea. So, I
+>>> guess better would be to let me work for about 2 weeks and try the slab
+>>> based approach.  If nothing works out in this time, then maybe xcfmalloc
+>>> can be integrated after further testing.
+>>
+>> Hi Nitin,
+>>
+>> It's been about six weeks. :)
+>>
+>> Can we talk about putting xcfmalloc() in staging now?
+> 
+> FWIW, given that I am quoting "code rules!" to the gods of Linux
+> on another lkml thread, I can hardly disagree here.
+> 
+
+
+I agree with you Dan. It took me really long to bring the new allocator
+into some shape and still I'm not very confident that it's ready to be
+integrated with zcache.
+
+> If Nitin continues to develop his allocator and it proves
+> better than xcfmalloc (and especially if it can replace
+> zbud as well), we can consider replacing xcfmalloc later.
+> Until zcache is promoted from staging, I think we have
+> that flexibility.
+> 
+
+
+Agreed.  Though I still consider slab based design much better, having
+already tried xcfmalloc like design much earlier in the project history,
+I would still favor xcfmalloc integration since xvmalloc weakness with
+>PAGE_SIZE/2 objects is probably too much to bear.
+
+
+> (Shameless advertisement though:  The xcfmalloc allocator
+> only applies to pages passed via frontswap, and on
+> that other lkml thread lurk many people intent on shooting
+> frontswap down.  So, frankly, I'd prefer time to be spent
+> on benchmarking zcache rather than on arguing about
+> allocators which, as things currently feel to me on that
+> other lkml thread, is not unlike rearranging deck chairs
+> on the Titanic. Half-:-).
+> 
+>
+
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
