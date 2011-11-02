@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BBEA86B0069
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 05:58:21 -0400 (EDT)
-Date: Wed, 2 Nov 2011 10:57:40 +0100
-From: "Roedel, Joerg" <Joerg.Roedel@amd.com>
-Subject: Re: [RFC][PATCH 0/3] Add support for non-CPU TLBs in MMU-Notifiers
-Message-ID: <20111102095740.GM13244@amd.com>
-References: <1319199708-17777-1-git-send-email-joerg.roedel@amd.com>
- <20111102094601.GN28536@sgi.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1717A6B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 07:30:56 -0400 (EDT)
+Date: Wed, 2 Nov 2011 11:30:31 +0000
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: Issue with core dump
+Message-ID: <20111102113030.GE22462@linux-mips.org>
+References: <CAGr+u+zkPiZpGefstcbJv_cj929icWKXbqFy1uR22Hns1hzFeQ@mail.gmail.com>
+ <20111101152320.GA30466@redhat.com>
+ <CAGr+u+wgAYVWgdcG6o+6F0mDzuyNzoOxvsFwq0dMsR3JNnZ-cA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111102094601.GN28536@sgi.com>
+In-Reply-To: <CAGr+u+wgAYVWgdcG6o+6F0mDzuyNzoOxvsFwq0dMsR3JNnZ-cA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>
+To: trisha yad <trisha1march@gmail.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rusty Russell <rusty@rustcorp.com.au>, Tejun Heo <htejun@gmail.com>
 
-On Wed, Nov 02, 2011 at 05:46:02AM -0400, Robin Holt wrote:
-> On Fri, Oct 21, 2011 at 02:21:45PM +0200, Joerg Roedel wrote:
-> > Hi,
-> > 
-> > this is my first attempt to add support for non-CPU TLBs to the
-> > MMU-Notifier framework. This will be used by the AMD IOMMU driver for
-> > the next generation of hardware. The next version of the AMD IOMMU can
-> > walk page-tables in AMD64 long-mode format (with setting
-> > accessed/dirty-bits atomically) and save the translations in its own
-> > TLB. Page faulting for IO devices is supported too. This will be used to
-> > let hardware devices share page-tables with CPU processes and access
-> > their memory directly. Please look at
-> > 
-> > 	http://support.amd.com/us/Processor_TechDocs/48882.pdf
+On Wed, Nov 02, 2011 at 12:03:39PM +0530, trisha yad wrote:
+
+> Thanks all for your answer.
 > 
-> ...
+> In loaded embedded system the time at with code hit do_user_fault()
+> and core_dump_wait() is bit
+> high, I check on my  system it took 2.7 sec. so it is very much
+> possible that core dump is not correct.
+> It  contain global value updated.
 > 
-> Did this patch set get any review or traction?  Perhaps you should have
-> included the linux-mm@kvack.org mailing list.
+> So is it possible at time of send_signal() we can stop modification of
+> faulty thread memory ?
 
-I have included this mailing list in my post afaics. I talked with
-Andrea Arcangeli about these patches at LinuxCon in Prague and will post
-a new version based on his comments.
+On existing hardware it is impossible to take a consistent snapshot of a
+multi-threaded application at the time of one thread faulting.
 
+A software simulator can handle this sort of race condition but of course
+this approach has other disadvantages.
 
-	Joerg
-
--- 
-AMD Operating System Research Center
-
-Advanced Micro Devices GmbH Einsteinring 24 85609 Dornach
-General Managers: Alberto Bozzo, Andrew Bowd
-Registration: Dornach, Landkr. Muenchen; Registerger. Muenchen, HRB Nr. 43632
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
