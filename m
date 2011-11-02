@@ -1,56 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id EFCF26B006E
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 13:19:12 -0400 (EDT)
-Received: by gyg10 with SMTP id 10so497080gyg.14
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2011 10:19:11 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD1B6B0069
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2011 13:54:43 -0400 (EDT)
+Message-ID: <4EB183CF.6050300@jp.fujitsu.com>
+Date: Wed, 02 Nov 2011 10:54:23 -0700
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
-References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
- <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 2 Nov 2011 10:18:50 -0700
-Message-ID: <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com>
-Subject: Re: hugetlb oops on 3.1.0-rc8-devel
+Subject: Re: [rfc 1/3] mm: vmscan: never swap under low memory pressure
+References: <20110808110658.31053.55013.stgit@localhost6> <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com> <4E3FD403.6000400@parallels.com> <20111102163056.GG19965@redhat.com> <20111102163141.GH19965@redhat.com>
+In-Reply-To: <20111102163141.GH19965@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: jweiner@redhat.com
+Cc: khlebnikov@parallels.com, penberg@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, gene.heskett@gmail.com
 
-On Wed, Nov 2, 2011 at 5:06 AM, Hillf Danton <dhillf@gmail.com> wrote:
-> On Wed, Nov 2, 2011 at 6:20 AM, Andy Lutomirski <luto@amacapital.net> wro=
-te:
->> The line that crashed is BUG_ON(page_count(old_page) !=3D 1) in hugetlb_=
-cow.
->>
->
-> Hello Andy
->
-> Would you please try the following patch?
->
-> Thanks
-> =A0 =A0 =A0 =A0Hillf
->
->
-> --- a/mm/hugetlb.c =A0 =A0 =A0Sat Aug 13 11:45:14 2011
-> +++ b/mm/hugetlb.c =A0 =A0 =A0Wed Nov =A02 20:12:00 2011
-> @@ -2422,6 +2422,8 @@ retry_avoidcopy:
-> =A0 =A0 =A0 =A0 * anon_vma prepared.
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (unlikely(anon_vma_prepare(vma))) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(new_page);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(old_page);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Caller expects lock to be held */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&mm->page_table_lock);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return VM_FAULT_OOM;
->
+> ---
+>  mm/vmscan.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a90c603..39d3da3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -831,6 +831,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 * Try to allocate it some swap space here.l
+>  		 */
+>  		if (PageAnon(page) && !PageSwapCache(page)) {
+> +			if (priority >= DEF_PRIORITY - 2)
+> +				goto keep_locked;
+>  			if (!(sc->gfp_mask & __GFP_IO))
+>  				goto keep_locked;
+>  			if (!add_to_swap(page))
 
-I'll patch it in.  My test case took over a week to hit it once, so I
-can't guarantee I'll spot it.
-
---Andy
+Hehe, i tried very similar way very long time ago. Unfortunately, it doesn't work.
+"DEF_PRIORITY - 2" is really poor indicator for reclaim pressure. example, if the
+machine have 1TB memory, DEF_PRIORITY-2 mean 1TB>>10 = 1GB. It't too big.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
