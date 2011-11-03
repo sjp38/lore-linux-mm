@@ -1,47 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 76E676B006E
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 06:30:22 -0400 (EDT)
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Mime-Version: 1.0 (Apple Message framework v1251.1)
-Content-Type: text/plain; charset=windows-1252
-From: Theodore Tso <tytso@MIT.EDU>
-In-Reply-To: <2baa4c1a-1fe0-4395-a428-f30703e8c435@default>
-Date: Thu, 3 Nov 2011 06:30:07 -0400
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <86F488BC-2F99-4397-9467-A52AE1511FE0@mit.edu>
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <75efb251-7a5e-4aca-91e2-f85627090363@default> <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy> <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com> <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default> <20111031181651.GF3466@redhat.com> <1320142590.7701.64.camel@dabdike> <49255b17-02bb-4a4a-b85a-cd5a879beb98@default 1320221686.3091.40.camel@dabdike> <2baa4c1a-1fe0-4395-a428-f30703e8c435@default>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E16A6B0069
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 08:50:46 -0400 (EDT)
+Date: Thu, 3 Nov 2011 13:49:38 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [rfc 2/3] mm: vmscan: treat inactive cycling as neutral
+Message-ID: <20111103124938.GL19965@redhat.com>
+References: <20110808110658.31053.55013.stgit@localhost6>
+ <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+ <4E3FD403.6000400@parallels.com>
+ <20111102163056.GG19965@redhat.com>
+ <20111102163213.GI19965@redhat.com>
+ <4EB1862E.8070401@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4EB1862E.8070401@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Theodore Tso <tytso@mit.edu>, James Bottomley <James.Bottomley@HansenPartnership.com>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: khlebnikov@parallels.com, penberg@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, gene.heskett@gmail.com
 
+On Wed, Nov 02, 2011 at 11:04:30AM -0700, KOSAKI Motohiro wrote:
+> (11/2/2011 9:32 AM), Johannes Weiner wrote:
+> > Each page that is scanned but put back to the inactive list is counted
+> > as a successful reclaim, which tips the balance between file and anon
+> > lists more towards the cycling list.
+> > 
+> > This does - in my opinion - not make too much sense, but at the same
+> > time it was not much of a problem, as the conditions that lead to an
+> > inactive list cycle were mostly temporary - locked page, concurrent
+> > page table changes, backing device congested - or at least limited to
+> > a single reclaimer that was not allowed to unmap or meddle with IO.
+> > More important than being moderately rare, those conditions should
+> > apply to both anon and mapped file pages equally and balance out in
+> > the end.
+> > 
+> > Recently, we started cycling file pages in particular on the inactive
+> > list much more aggressively, for used-once detection of mapped pages,
+> > and when avoiding writeback from direct reclaim.
+> > 
+> > Those rotated pages do not exactly speak for the reclaimability of the
+> > list they sit on and we risk putting immense pressure on file list for
+> > no good reason.
+> > 
+> > Instead, count each page not reclaimed and put back to any list,
+> > active or inactive, as rotated, so they are neutral with respect to
+> > the scan/rotate ratio of the list class, as they should be.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > ---
+> >  mm/vmscan.c |    9 ++++-----
+> >  1 files changed, 4 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 39d3da3..6da66a7 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1360,7 +1360,9 @@ putback_lru_pages(struct zone *zone, struct scan_control *sc,
+> >  	 */
+> >  	spin_lock(&zone->lru_lock);
+> >  	while (!list_empty(page_list)) {
+> > +		int file;
+> >  		int lru;
+> > +
+> >  		page = lru_to_page(page_list);
+> >  		VM_BUG_ON(PageLRU(page));
+> >  		list_del(&page->lru);
+> > @@ -1373,11 +1375,8 @@ putback_lru_pages(struct zone *zone, struct scan_control *sc,
+> >  		SetPageLRU(page);
+> >  		lru = page_lru(page);
+> >  		add_page_to_lru_list(zone, page, lru);
+> > -		if (is_active_lru(lru)) {
+> > -			int file = is_file_lru(lru);
+> > -			int numpages = hpage_nr_pages(page);
+> > -			reclaim_stat->recent_rotated[file] += numpages;
+> > -		}
+> > +		file = is_file_lru(lru);
+> > +		reclaim_stat->recent_rotated[file] += hpage_nr_pages(page);
+> >  		if (!pagevec_add(&pvec, page)) {
+> >  			spin_unlock_irq(&zone->lru_lock);
+> >  			__pagevec_release(&pvec);
+> 
+> When avoiding writeback from direct reclaim case, I think we shouldn't increase
+> recent_rotated because VM decided "the page should be eviceted, but also it
+> should be delayed". i'm not sure it's minor factor or not.
 
-On Nov 2, 2011, at 4:08 PM, Dan Magenheimer wrote:
+But we DO increase recent_scanned another time when the page is
+reclaimed on the next round.
 
-> By "infinite" I am glibly describing any environment where the
-> data centre administrator positively knows the maximum working
-> set of every machine (physical or virtual) and can ensure in
-> advance that the physical RAM always exceeds that maximum
-> working set.  As you say, these machines need not be configured
-> with a swap device as they, by definition, will never swap.
->=20
-> The point of tmem is to use RAM more efficiently by taking
-> advantage of all the unused RAM when the current working set
-> size is less than the maximum working set size.  This is very
-> common in many data centers too, especially virtualized.
-
-That doesn't match with my experience, especially with "cloud" =
-deployments, where in order to make the business plans work, the =
-machines tend to be memory constrained, since you want to pack a large =
-number of jobs/VM's onto a single machine, and high density memory is =
-expensive and/or you are DIMM slot constrained.   Of course, if you are =
-running multiple Java runtimes in each guest OS (i.e., an J2EE server, =
-and another Java VM for management, and yet another Java VM for the =
-backup manager, etc. --- really, I've seen cloud architectures that work =
-that way), things get worst even faster=85.
-
--- Ted
+If we don't increase recent_rotated for deferred reclaims, they are
+counted as success twice and so considered more valuable than
+immediate reclaims.  I don't think that makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
