@@ -1,81 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 05E326B0069
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 10:59:48 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F7E6B0069
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 11:52:35 -0400 (EDT)
+Date: Thu, 3 Nov 2011 16:51:27 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [rfc 1/3] mm: vmscan: never swap under low memory pressure
+Message-ID: <20111103155127.GM19965@redhat.com>
+References: <20110808110658.31053.55013.stgit@localhost6>
+ <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+ <4E3FD403.6000400@parallels.com>
+ <20111102163056.GG19965@redhat.com>
+ <20111102163141.GH19965@redhat.com>
+ <4EB183CF.6050300@jp.fujitsu.com>
 MIME-Version: 1.0
-Message-ID: <7fcf24b1-95a0-4245-a0da-a4b2577ea485@default>
-Date: Thu, 3 Nov 2011 07:59:17 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [GIT PULL] mm: frontswap (for 3.2 window)
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
- <75efb251-7a5e-4aca-91e2-f85627090363@default>
- <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy>
- <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default>
- <20111031181651.GF3466@redhat.com> <1320142590.7701.64.camel@dabdike>
- <49255b17-02bb-4a4a-b85a-cd5a879beb98@default>
- <1320221686.3091.40.camel@dabdike>
- <2baa4c1a-1fe0-4395-a428-f30703e8c435@default
- 86F488BC-2F99-4397-9467-A52AE1511FE0@mit.edu>
-In-Reply-To: <86F488BC-2F99-4397-9467-A52AE1511FE0@mit.edu>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <4EB183CF.6050300@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Tso <tytso@mit.edu>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: khlebnikov@parallels.com, penberg@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, gene.heskett@gmail.com
 
-> From: Theodore Tso [mailto:tytso@mit.edu]
-> Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+On Wed, Nov 02, 2011 at 10:54:23AM -0700, KOSAKI Motohiro wrote:
+> > ---
+> >  mm/vmscan.c |    2 ++
+> >  1 files changed, 2 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index a90c603..39d3da3 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -831,6 +831,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		 * Try to allocate it some swap space here.l
+> >  		 */
+> >  		if (PageAnon(page) && !PageSwapCache(page)) {
+> > +			if (priority >= DEF_PRIORITY - 2)
+> > +				goto keep_locked;
+> >  			if (!(sc->gfp_mask & __GFP_IO))
+> >  				goto keep_locked;
+> >  			if (!add_to_swap(page))
+> 
+> Hehe, i tried very similar way very long time ago. Unfortunately, it doesn't work.
+> "DEF_PRIORITY - 2" is really poor indicator for reclaim pressure. example, if the
+> machine have 1TB memory, DEF_PRIORITY-2 mean 1TB>>10 = 1GB. It't too big.
 
-Hi Ted --
+Do you remember what kind of tests you ran that demonstrated
+misbehaviour?
 
-Thanks for your reply!
-=20
-> On Nov 2, 2011, at 4:08 PM, Dan Magenheimer wrote:
->=20
-> > By "infinite" I am glibly describing any environment where the
-> > data centre administrator positively knows the maximum working
-> > set of every machine (physical or virtual) and can ensure in
-> > advance that the physical RAM always exceeds that maximum
-> > working set.  As you say, these machines need not be configured
-> > with a swap device as they, by definition, will never swap.
-> >
-> > The point of tmem is to use RAM more efficiently by taking
-> > advantage of all the unused RAM when the current working set
-> > size is less than the maximum working set size.  This is very
-> > common in many data centers too, especially virtualized.
->=20
-> That doesn't match with my experience, especially with "cloud" deployment=
-s, where in order to make the
-> business plans work, the machines tend to be memory constrained, since yo=
-u want to pack a large number
-> of jobs/VM's onto a single machine, and high density memory is expensive =
-and/or you are DIMM slot
-> constrained.   Of course, if you are running multiple Java runtimes in ea=
-ch guest OS (i.e., an J2EE
-> server, and another Java VM for management, and yet another Java VM for t=
-he backup manager, etc. ---
-> really, I've seen cloud architectures that work that way), things get wor=
-st even faster..
+We can not reclaim anonymous pages without swapping, so the priority
+cutoff applies only to inactive file pages.  If you had 1TB of
+inactive file pages, the scanner would have to go through
 
-Hmmm... since your memory-constrained example is highly
-similar to one I use in my presentations, I _think_ we are
-in total agreement, but I am confused by "doesn't match
-with my experience", or maybe you are countering James'
-lean data centre example?
+	((1 << (40 - 12)) >> 12) +
+	((1 << (40 - 12)) >> 11) +
+	((1 << (40 - 12)) >> 10) = 1792MB
 
-To clarify, for a multi-tenancy environment (such as
-virtualization or RAMster), tmem enables the ability
-to redistribute the constrained RAM resource, i.e.
-"steal from the rich and give to the poor," which is
-otherwise very difficult because each kernel is a
-memory hog.  Frontswap's role is really to announce
-"I'm overconstrained and am about to swap to disk,
-which would be embarrassing for my performance...
-can someone hold this swap page for me, please?"
+without reclaiming SWAP_CLUSTER_MAX before it considers swapping.
+That's a lot of scanning but how likely is it that you have a TB of
+unreclaimable inactive cache pages?
 
-Dan
+Put into proportion, with a priority threshold of 10 a reclaimer will
+look at 0.17% ((n >> 12) + (n >> 11) + (n >> 10) (excluding the list
+balance bias) of inactive file pages without reclaiming
+SWAP_CLUSTER_MAX before it considers swapping.
+
+Currently, the list balance biasing with each newly-added file page
+has much higher resistance to scan anonymous pages initially.  But
+once it shifted toward anon pages, all reclaimers will start swapping,
+unlike the priority threshold that each reclaimer has to reach
+individually.  Could this have been what was causing problems for you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
