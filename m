@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F7E6B0069
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 11:52:35 -0400 (EDT)
-Date: Thu, 3 Nov 2011 16:51:27 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [rfc 1/3] mm: vmscan: never swap under low memory pressure
-Message-ID: <20111103155127.GM19965@redhat.com>
-References: <20110808110658.31053.55013.stgit@localhost6>
- <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
- <4E3FD403.6000400@parallels.com>
- <20111102163056.GG19965@redhat.com>
- <20111102163141.GH19965@redhat.com>
- <4EB183CF.6050300@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 435CD6B0069
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2011 12:49:35 -0400 (EDT)
+Message-Id: <4EB2D427020000780005ED64@nat28.tlf.novell.com>
+Date: Thu, 03 Nov 2011 16:49:27 +0000
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+In-Reply-To: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <4EB183CF.6050300@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: khlebnikov@parallels.com, penberg@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, gene.heskett@gmail.com
+To: Linus Torvalds <torvalds@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 02, 2011 at 10:54:23AM -0700, KOSAKI Motohiro wrote:
-> > ---
-> >  mm/vmscan.c |    2 ++
-> >  1 files changed, 2 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index a90c603..39d3da3 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -831,6 +831,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  		 * Try to allocate it some swap space here.l
-> >  		 */
-> >  		if (PageAnon(page) && !PageSwapCache(page)) {
-> > +			if (priority >= DEF_PRIORITY - 2)
-> > +				goto keep_locked;
-> >  			if (!(sc->gfp_mask & __GFP_IO))
-> >  				goto keep_locked;
-> >  			if (!add_to_swap(page))
-> 
-> Hehe, i tried very similar way very long time ago. Unfortunately, it doesn't work.
-> "DEF_PRIORITY - 2" is really poor indicator for reclaim pressure. example, if the
-> machine have 1TB memory, DEF_PRIORITY-2 mean 1TB>>10 = 1GB. It't too big.
+>>> On 27.10.11 at 20:52, Dan Magenheimer <dan.magenheimer@oracle.com> =
+wrote:
+> Hi Linus --
+>=20
+> Frontswap now has FOUR users: Two already merged in-tree (zcache
+> and Xen) and two still in development but in public git trees
+> (RAMster and KVM).  Frontswap is part 2 of 2 of the core kernel
+> changes required to support transcendent memory; part 1 was cleancache
+> which you merged at 3.0 (and which now has FIVE users).
+>=20
+> Frontswap patches have been in linux-next since June 3 (with zero
+> changes since Sep 22).  First posted to lkml in June 2009, frontswap=20
+> is now at version 11 and has incorporated feedback from a wide range
+> of kernel developers.  For a good overview, see
+>    http://lwn.net/Articles/454795.
+> If further rationale is needed, please see the end of this email
+> for more info.
+>=20
+> SO... Please pull:
+>=20
+> git://oss.oracle.com/git/djm/tmem.git #tmem
+>=20
+>...
+> Linux kernel distros incorporating frontswap:
+> - Oracle UEK 2.6.39 Beta:
+>    http://oss.oracle.com/git/?p=3Dlinux-2.6-unbreakable-beta.git;a=3Dsumm=
+ary=20
+> - OpenSuSE since 11.2 (2009) [see mm/tmem-xen.c]
+>    http://kernel.opensuse.org/cgit/kernel/=20
 
-Do you remember what kind of tests you ran that demonstrated
-misbehaviour?
+I've been away so I am too far behind to read this entire
+very long thread, but wanted to confirm that we've been
+carrying an earlier version of this code as indicated above
+and it would simplify our kernel maintenance if frontswap
+got merged.  So please count me as supporting frontswap.
 
-We can not reclaim anonymous pages without swapping, so the priority
-cutoff applies only to inactive file pages.  If you had 1TB of
-inactive file pages, the scanner would have to go through
+Thanks, Jan
 
-	((1 << (40 - 12)) >> 12) +
-	((1 << (40 - 12)) >> 11) +
-	((1 << (40 - 12)) >> 10) = 1792MB
+> - a popular Gentoo distro
+>    http://forums.gentoo.org/viewtopic-t-862105.html=20
+>=20
+> Xen distros supporting Linux guests with frontswap:
+> - Xen hypervisor backend since Xen 4.0 (2009)
+>    http://www.xen.org/files/Xen_4_0_Datasheet.pdf=20
+> - OracleVM since 2.2 (2009)
+>    http://twitter.com/#!/Djelibeybi/status/113876514688352256=20
+>=20
+> Public visibility for frontswap (as part of transcendent memory):
+> - presented at OSDI'08, OLS'09, LCA'10, LPC'10, LinuxCon NA 11, Oracle
+>   Open World 2011, two LSF/MM Summits (2010,2011), and three
+>   Xen Summits (2009,2010,2011)
+> - http://lwn.net/Articles/454795 (current overview)
+> - http://lwn.net/Articles/386090 (2010)
+> - http://lwn.net/Articles/340080 (2009)
 
-without reclaiming SWAP_CLUSTER_MAX before it considers swapping.
-That's a lot of scanning but how likely is it that you have a TB of
-unreclaimable inactive cache pages?
 
-Put into proportion, with a priority threshold of 10 a reclaimer will
-look at 0.17% ((n >> 12) + (n >> 11) + (n >> 10) (excluding the list
-balance bias) of inactive file pages without reclaiming
-SWAP_CLUSTER_MAX before it considers swapping.
-
-Currently, the list balance biasing with each newly-added file page
-has much higher resistance to scan anonymous pages initially.  But
-once it shifted toward anon pages, all reclaimers will start swapping,
-unlike the priority threshold that each reclaimer has to reach
-individually.  Could this have been what was causing problems for you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
