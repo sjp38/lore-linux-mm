@@ -1,187 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 27B536B002D
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 03:31:09 -0400 (EDT)
-Received: by ggnh4 with SMTP id h4so2891876ggn.14
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2011 00:31:06 -0700 (PDT)
-Date: Fri, 4 Nov 2011 00:31:04 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
- vma_merge succeeding in copy_vma
-In-Reply-To: <1320082040-1190-1-git-send-email-aarcange@redhat.com>
-Message-ID: <alpine.LSU.2.00.1111032318290.2058@sister.anvils>
-References: <20111031171441.GD3466@redhat.com> <1320082040-1190-1-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F376B002D
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 04:49:10 -0400 (EDT)
+Message-Id: <4EB3B52E020000780005EF43@nat28.tlf.novell.com>
+Date: Fri, 04 Nov 2011 08:49:34 +0000
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default>
+ <4EB2D427020000780005ED64@nat28.tlf.novell.com>
+ <20111103175410.b15efb8c.akpm@linux-foundation.org>
+In-Reply-To: <20111103175410.b15efb8c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Nai Xia <nai.xia@gmail.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 31 Oct 2011, Andrea Arcangeli wrote:
+>>> On 04.11.11 at 01:54, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Thu, 03 Nov 2011 16:49:27 +0000 "Jan Beulich" <JBeulich@suse.com> =
+wrote:
+>=20
+>> >>> On 27.10.11 at 20:52, Dan Magenheimer <dan.magenheimer@oracle.com> =
+wrote:
+>> > Hi Linus --
+>> >=20
+>> > Frontswap now has FOUR users: Two already merged in-tree (zcache
+>> > and Xen) and two still in development but in public git trees
+>> > (RAMster and KVM).  Frontswap is part 2 of 2 of the core kernel
+>> > changes required to support transcendent memory; part 1 was cleancache=
 
-> migrate was doing a rmap_walk with speculative lock-less access on
-> pagetables. That could lead it to not serialize properly against
-> mremap PT locks. But a second problem remains in the order of vmas in
-> the same_anon_vma list used by the rmap_walk.
+>> > which you merged at 3.0 (and which now has FIVE users).
+>> >=20
+>> > Frontswap patches have been in linux-next since June 3 (with zero
+>> > changes since Sep 22).  First posted to lkml in June 2009, =
+frontswap=20
+>> > is now at version 11 and has incorporated feedback from a wide range
+>> > of kernel developers.  For a good overview, see
+>> >    http://lwn.net/Articles/454795.
+>> > If further rationale is needed, please see the end of this email
+>> > for more info.
+>> >=20
+>> > SO... Please pull:
+>> >=20
+>> > git://oss.oracle.com/git/djm/tmem.git #tmem
+>> >=20
+>> >...
+>> > Linux kernel distros incorporating frontswap:
+>> > - Oracle UEK 2.6.39 Beta:
+>> >    http://oss.oracle.com/git/?p=3Dlinux-2.6-unbreakable-beta.git;a=3Ds=
+ummary=20
+>> > - OpenSuSE since 11.2 (2009) [see mm/tmem-xen.c]
+>> >    http://kernel.opensuse.org/cgit/kernel/=20
+>>=20
+>> I've been away so I am too far behind to read this entire
+>> very long thread, but wanted to confirm that we've been
+>> carrying an earlier version of this code as indicated above
+>> and it would simplify our kernel maintenance if frontswap
+>> got merged.  So please count me as supporting frontswap.
+>=20
+> Are you able to tell use *why* you're carrying it, and what benefit it
+> is providing to your users?
 
-I do think that Nai Xia deserves special credit for thinking deeper
-into this than the rest of us (before you came back): something like
+Because we're supporting/using Xen, where this (within the general
+tmem picture) allows for better overall memory utilization.
 
-Issue-conceived-by: Nai Xia <nai.xia@gmail.com>
-
-> 
-> If vma_merge would succeed in copy_vma, the src vma could be placed
-> after the dst vma in the same_anon_vma list. That could still lead
-> migrate to miss some pte.
-> 
-> This patch adds a anon_vma_order_tail() function to force the dst vma
-
-I agree with Mel that anon_vma_moveto_tail() would be a better name;
-or even anon_vma_move_to_tail().
-
-> at the end of the list before mremap starts to solve the problem.
-> 
-> If the mremap is very large and there are a lots of parents or childs
-> sharing the anon_vma root lock, this should still scale better than
-> taking the anon_vma root lock around every pte copy practically for
-> the whole duration of mremap.
-
-But I'm sorry to say that I'm actually not persuaded by the patch,
-on three counts.
-
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  include/linux/rmap.h |    1 +
->  mm/mmap.c            |    8 ++++++++
->  mm/rmap.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 53 insertions(+), 0 deletions(-)
-B
-> 
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index 2148b12..45eb098 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -120,6 +120,7 @@ void anon_vma_init(void);	/* create anon_vma_cachep */
->  int  anon_vma_prepare(struct vm_area_struct *);
->  void unlink_anon_vmas(struct vm_area_struct *);
->  int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
-> +void anon_vma_order_tail(struct vm_area_struct *);
->  int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
->  void __anon_vma_link(struct vm_area_struct *);
->  
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index a65efd4..a5858dc 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2339,7 +2339,15 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
->  		 */
->  		if (vma_start >= new_vma->vm_start &&
->  		    vma_start < new_vma->vm_end)
-> +			/*
-> +			 * No need to call anon_vma_order_tail() in
-> +			 * this case because the same PT lock will
-> +			 * serialize the rmap_walk against both src
-> +			 * and dst vmas.
-> +			 */
-
-Really?  Please convince me: I just do not see what ensures that
-the same pt lock covers both src and dst areas in this case.
-
->  			*vmap = new_vma;
-> +		else
-> +			anon_vma_order_tail(new_vma);
-
-And if this puts new_vma in the right position for the normal
-move_page_tables(), as anon_vma_clone() does in the block below,
-aren't they both in exactly the wrong position for the abnormal
-move_page_tables(), called to put ptes back where they were if
-the original move_page_tables() fails?
-
-It might be possible to argue that move_page_tables() can only
-fail by failing to allocate memory for pud or pmd, and that (perhaps)
-could only happen if the task was being OOM-killed and ran out of
-reserves at this point, and if it's being OOM-killed then we don't
-mind losing a migration entry for a moment... perhaps.
-
-Certainly I'd agree that it's a very rare case.  But it feels wrong
-to be attempting to fix the already unlikely issue, while ignoring
-this aspect, or relying on such unrelated implementation details.
-
-Perhaps some further anon_vma_ordering could fix it up,
-but that would look increasingly desperate.
-
->  	} else {
->  		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
->  		if (new_vma) {
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 8005080..6dbc165 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -272,6 +272,50 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
->  }
->  
->  /*
-> + * Some rmap walk that needs to find all ptes/hugepmds without false
-> + * negatives (like migrate and split_huge_page) running concurrent
-> + * with operations that copy or move pagetables (like mremap() and
-> + * fork()) to be safe depends the anon_vma "same_anon_vma" list to be
-> + * in a certain order: the dst_vma must be placed after the src_vma in
-> + * the list. This is always guaranteed by fork() but mremap() needs to
-> + * call this function to enforce it in case the dst_vma isn't newly
-> + * allocated and chained with the anon_vma_clone() function but just
-> + * an extension of a pre-existing vma through vma_merge.
-> + *
-> + * NOTE: the same_anon_vma list can still be changed by other
-> + * processes while mremap runs because mremap doesn't hold the
-> + * anon_vma mutex to prevent modifications to the list while it
-> + * runs. All we need to enforce is that the relative order of this
-> + * process vmas isn't changing (we don't care about other vmas
-> + * order). Each vma corresponds to an anon_vma_chain structure so
-> + * there's no risk that other processes calling anon_vma_order_tail()
-> + * and changing the same_anon_vma list under mremap() will screw with
-> + * the relative order of this process vmas in the list, because we
-> + * won't alter the order of any vma that isn't belonging to this
-> + * process. And there can't be another anon_vma_order_tail running
-> + * concurrently with mremap() coming from this process because we hold
-> + * the mmap_sem for the whole mremap(). fork() ordering dependency
-> + * also shouldn't be affected because we only care that the parent
-> + * vmas are placed in the list before the child vmas and
-> + * anon_vma_order_tail won't reorder vmas from either the fork parent
-> + * or child.
-> + */
-> +void anon_vma_order_tail(struct vm_area_struct *dst)
-> +{
-> +	struct anon_vma_chain *pavc;
-> +	struct anon_vma *root = NULL;
-> +
-> +	list_for_each_entry_reverse(pavc, &dst->anon_vma_chain, same_vma) {
-> +		struct anon_vma *anon_vma = pavc->anon_vma;
-> +		VM_BUG_ON(pavc->vma != dst);
-> +		root = lock_anon_vma_root(root, anon_vma);
-> +		list_del(&pavc->same_anon_vma);
-> +		list_add_tail(&pavc->same_anon_vma, &anon_vma->head);
-> +	}
-> +	unlock_anon_vma_root(root);
-> +}
-
-I thought this was correct, but now I'm not so sure.  You rightly
-consider the question of interference between concurrent mremaps in
-different mms in your comment above, but I'm still not convinced it
-is safe.  Oh, probably just my persistent failure to picture these
-avcs properly.
-
-If we were back in the days of the simple anon_vma list, I'd probably
-share your enthusiasm for the list ordering solution; but now it looks
-like a fragile and contorted way of avoiding the obvious... we just
-need to use the anon_vma_lock (but perhaps there are some common and
-easily tested conditions under which we can skip it e.g. when a single
-pt lock covers src and dst?).
-
-Sorry to be so negative!  I may just be wrong on all counts.
-
-Hugh
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
