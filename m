@@ -1,86 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 176126B006E
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 12:45:51 -0400 (EDT)
-Date: Fri, 4 Nov 2011 17:45:32 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [GIT PULL] mm: frontswap (SUMMARY)
-Message-ID: <20111104164532.GO18879@redhat.com>
-References: <904b5bd7-efef-49fe-8413-966f0a554d1e@default>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E0ABA6B002D
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 15:16:10 -0400 (EDT)
+Received: by ggnh4 with SMTP id h4so3682055ggn.14
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2011 12:16:07 -0700 (PDT)
+Date: Fri, 4 Nov 2011 12:16:03 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+ vma_merge succeeding in copy_vma
+In-Reply-To: <CAPQyPG4DNofTw=rqJXPTbo3w4xGMdPF3SYt3qyQCWXYsDLa08A@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1111041158440.1554@sister.anvils>
+References: <20111031171441.GD3466@redhat.com> <1320082040-1190-1-git-send-email-aarcange@redhat.com> <alpine.LSU.2.00.1111032318290.2058@sister.anvils> <CAPQyPG4DNofTw=rqJXPTbo3w4xGMdPF3SYt3qyQCWXYsDLa08A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <904b5bd7-efef-49fe-8413-966f0a554d1e@default>
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-916335275-1320434175=:1554"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>, Theodore Tso <tytso@mit.edu>, James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 04, 2011 at 07:01:23AM -0700, Dan Magenheimer wrote:
->   evolve", "this overall sounds very positive (or at least
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-You quoted me wrong! If you check back my email I said:
+--8323584-916335275-1320434175=:1554
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-=====
-Thanks. So this overall sounds _fairly_ positive (or at least better
-than neutral) to me.
-=====
+On Fri, 4 Nov 2011, Nai Xia wrote:
+> On Fri, Nov 4, 2011 at 3:31 PM, Hugh Dickins <hughd@google.com> wrote:
+> > On Mon, 31 Oct 2011, Andrea Arcangeli wrote:
+> >> @@ -2339,7 +2339,15 @@ struct vm_area_struct *copy_vma(struct vm_area_=
+struct **vmap,
+> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (vma_start >=3D new_vma->vm_start &&
+> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 vma_start < new_vma->vm_end)
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* No need to call anon_vm=
+a_order_tail() in
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* this case because the s=
+ame PT lock will
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* serialize the rmap_walk=
+ against both src
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* and dst vmas.
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> >
+> > Really? =A0Please convince me: I just do not see what ensures that
+> > the same pt lock covers both src and dst areas in this case.
+>=20
+> At the first glance that rmap_walk does travel this merged VMA
+> once...
+> But, Now, Wait...., I am actually really puzzled that this case can reall=
+y
+> happen at all, you see that vma_merge() does not break the validness
+> between page->index and its VMA. So if this can really happen,
+> a page->index should be valid in both areas in a same VMA.
+> It's strange to imagine that a PTE is copy inside a _same_ VMA
+> and page->index is valid at both old and new places.
 
-I guess your clipboard buffer stored in tmem memory in between the cut
-and paste and you still got a bug in there that corrupts memory :).
+Yes, I think you are right, thank you for elucidating it.
 
->   last remaining issue (need batching for KVM) now has a viable
->   solution that works with no frontswap commit-set changes,
->   but Andrea has not confirmed
+That was a real case when we wrote copy_vma(), when rmap was using
+pte_chains; but once anon_vma came in, and imposed vm_pgoff matching
+on anonymous mappings too, it became dead code.  With linear vm_pgoff
+matching, you cannot fit a range in two places within the same vma.
+(And even the non-linear case relies upon vm_pgoff defaults.)
 
-I think it really should be vectored, just like get_user_pages is
-vectored and we're not forced to call it one page at time. This is
-even more important here because you have a "size" parameter which
-means you can push "bytes" into tmem memory, so there's no way you can
-possibly want to push bytes with an external call for each one of
-those bytes.
+So we could simplify the copy_vma() interface a little now (get rid of
+that nasty **vmap): I'm not quite sure whether we ought to do that,
+but certainly Andrea's comment there should be updated (if he also
+agrees with your analysis).
 
-You said the tmem.c is all free to be modified so it may be improved
-later.
+>=20
+> IMO, the only case that src VMA can be merged by the new
+> is that src VMA hasn't been faulted yet and the pgoff
+> is recalculated. And if my reasoning is true, this place
+> does not need to be worried about.
 
-My biggest concern of all is this moves memory outside the VM, and in
-control of tmem, but the major trouble will be how the VM controls the
-size of tmem. It'll be huge hard to be able to tell what's the ideal
-size of tmem at any given time. You admitted yourself that's the messy
-part. And your current code isn't handling this properly today, so it
-looks simpler than what will really happen if we can handle a mlockall
-program allocating 90% of ram at max CPU speed without going OOM
-because of zcache enabled.
+I don't see a place where "the pgoff is recalculated" (except in
+the consistent way when expanding or splitting or merging vma), nor
+where vma merge would allow for variable pgoff.  I agree that we
+could avoid finalizing vm_pgoff for an anonymous area until its
+anon_vma is assigned: were you imagining doing that in future,
+or am I overlooking something already there?
 
-I also don't think the frontswap+KVM effort is worth it, I doubt we
-want to deal with the added complexity of it and the obvious
-unreliability we'd run into to shrink the tmem pools. Xen may be ok
-unreliable, KVM must be rock solid, we have a design that is as solid
-as Linux bare metal, no change at all in terms of VM algorithms in the
-hypervisor, and that's our core value. There's no way we add
-unreliability with a mlock program allocating ram in the host and going OOM
-because some VM is running, even if we solve the vmexit every 4k which
-would destroy performance.
-
-So my main interest is only for having compressed swap for linux in
-general. It may speedup swap I/O too if done right. I'm still not sure
-what's the right design it to handle compressed swap, but whatever we
-do should eventually be able to write to disk the compressed data,
-which zcache can't today, so I focused on making sure it's freely
-hackable and not constrained by Xen ABI, so I liked your confirmation
-it's all hackable. It's an intriguing design if we can make the
-plugins stackable and we can change the backing store of the zcache
-compressed ram with ramster or a one writing to disk. The dark side of
-it, is the magic algorithm that will be needed to reliably shrink the
-tmem pools, which right now seems disconnected to the VM and can't be
-reliable. It looks a design that simplify things but once it will be
-reliable things will get more complex and it will have to be driven by
-the core VM so that it can react fast to memory pressure events, even
-the decision to write to disk or send the zcache compressed pages to
-other nodes with ramster should come from the main VM. I still have no
-idea if this is the simpler design to allow it or not though, but
-again I can't exclude it is and for some things it's certainly
-intriguing.
+Hugh
+--8323584-916335275-1320434175=:1554--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
