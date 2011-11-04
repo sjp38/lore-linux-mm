@@ -1,95 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ABB1C6B006E
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 11:59:38 -0400 (EDT)
-From: Pawel Sikora <pluto@agmk.net>
-Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of vma_merge succeeding in copy_vma
-Date: Fri, 04 Nov 2011 16:59:26 +0100
-Message-ID: <6389467.vmEs7mxtWt@pawels>
-In-Reply-To: <CAPQyPG4DNofTw=rqJXPTbo3w4xGMdPF3SYt3qyQCWXYsDLa08A@mail.gmail.com>
-References: <20111031171441.GD3466@redhat.com> <alpine.LSU.2.00.1111032318290.2058@sister.anvils> <CAPQyPG4DNofTw=rqJXPTbo3w4xGMdPF3SYt3qyQCWXYsDLa08A@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 176126B006E
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 12:45:51 -0400 (EDT)
+Date: Fri, 4 Nov 2011 17:45:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [GIT PULL] mm: frontswap (SUMMARY)
+Message-ID: <20111104164532.GO18879@redhat.com>
+References: <904b5bd7-efef-49fe-8413-966f0a554d1e@default>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <904b5bd7-efef-49fe-8413-966f0a554d1e@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>, Theodore Tso <tytso@mit.edu>, James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Friday 04 of November 2011 22:34:54 Nai Xia wrote:
-> On Fri, Nov 4, 2011 at 3:31 PM, Hugh Dickins <hughd@google.com> wrote=
-:
-> > On Mon, 31 Oct 2011, Andrea Arcangeli wrote:
-> >
-> >> migrate was doing a rmap_walk with speculative lock-less access on=
+On Fri, Nov 04, 2011 at 07:01:23AM -0700, Dan Magenheimer wrote:
+>   evolve", "this overall sounds very positive (or at least
 
-> >> pagetables. That could lead it to not serialize properly against
-> >> mremap PT locks. But a second problem remains in the order of vmas=
- in
-> >> the same_anon_vma list used by the rmap_walk.
-> >
-> > I do think that Nai Xia deserves special credit for thinking deeper=
+You quoted me wrong! If you check back my email I said:
 
-> > into this than the rest of us (before you came back): something lik=
-e
-> >
-> > Issue-conceived-by: Nai Xia <nai.xia@gmail.com>
->=20
-> Thanks! ;-)
+=====
+Thanks. So this overall sounds _fairly_ positive (or at least better
+than neutral) to me.
+=====
 
-hi all,
+I guess your clipboard buffer stored in tmem memory in between the cut
+and paste and you still got a bug in there that corrupts memory :).
 
-i'm still testing anon_vma_order_tail() patch. 10 days of heavy process=
-ing
-and machine is still stable but i've recorded some interesting thing:
+>   last remaining issue (need batching for KVM) now has a viable
+>   solution that works with no frontswap commit-set changes,
+>   but Andrea has not confirmed
 
-$ uname -a
-Linux hal 3.0.8-vs2.3.1-dirty #6 SMP Tue Oct 25 10:07:50 CEST 2011 x86_=
-64 AMD_Opteron(tm)_Processor_6128 PLD Linux
-$ uptime
- 16:47:44 up 10 days,  4:21,  5 users,  load average: 19.55, 19.15, 18.=
-76
-$ ps aux|grep migration
-root         6  0.0  0.0      0     0 ?        S    Oct25   0:00 [migra=
-tion/0]
-root         8 68.0  0.0      0     0 ?        S    Oct25 9974:01 [migr=
-ation/1]
-root        13 35.4  0.0      0     0 ?        S    Oct25 5202:15 [migr=
-ation/2]
-root        17 71.4  0.0      0     0 ?        S    Oct25 10479:10 [mig=
-ration/3]
-root        21 70.7  0.0      0     0 ?        S    Oct25 10370:14 [mig=
-ration/4]
-root        25 66.1  0.0      0     0 ?        S    Oct25 9698:11 [migr=
-ation/5]
-root        29 70.1  0.0      0     0 ?        S    Oct25 10283:22 [mig=
-ration/6]
-root        33 62.6  0.0      0     0 ?        S    Oct25 9190:28 [migr=
-ation/7]
-root        37  0.0  0.0      0     0 ?        S    Oct25   0:00 [migra=
-tion/8]
-root        41 97.7  0.0      0     0 ?        S    Oct25 14338:30 [mig=
-ration/9]
-root        45 29.2  0.0      0     0 ?        S    Oct25 4290:00 [migr=
-ation/10]
-root        49 68.7  0.0      0     0 ?        S    Oct25 10081:38 [mig=
-ration/11]
-root        53 98.7  0.0      0     0 ?        S    Oct25 14477:25 [mig=
-ration/12]
-root        57 70.0  0.0      0     0 ?        S    Oct25 10272:57 [mig=
-ration/13]
-root        61 69.7  0.0      0     0 ?        S    Oct25 10232:29 [mig=
-ration/14]
-root        65 70.9  0.0      0     0 ?        S    Oct25 10403:09 [mig=
-ration/15]
+I think it really should be vectored, just like get_user_pages is
+vectored and we're not forced to call it one page at time. This is
+even more important here because you have a "size" parameter which
+means you can push "bytes" into tmem memory, so there's no way you can
+possibly want to push bytes with an external call for each one of
+those bytes.
 
-wow, 71..241 hours in migration processes after 10 days of uptime?
-machine has 2 opteron nodes with 32GB ram paired with each processor.
-i suppose that it spends a lot of time on migration (processes + memory=
- pages).
+You said the tmem.c is all free to be modified so it may be improved
+later.
 
-BR,
-Pawe=C5=82.
+My biggest concern of all is this moves memory outside the VM, and in
+control of tmem, but the major trouble will be how the VM controls the
+size of tmem. It'll be huge hard to be able to tell what's the ideal
+size of tmem at any given time. You admitted yourself that's the messy
+part. And your current code isn't handling this properly today, so it
+looks simpler than what will really happen if we can handle a mlockall
+program allocating 90% of ram at max CPU speed without going OOM
+because of zcache enabled.
+
+I also don't think the frontswap+KVM effort is worth it, I doubt we
+want to deal with the added complexity of it and the obvious
+unreliability we'd run into to shrink the tmem pools. Xen may be ok
+unreliable, KVM must be rock solid, we have a design that is as solid
+as Linux bare metal, no change at all in terms of VM algorithms in the
+hypervisor, and that's our core value. There's no way we add
+unreliability with a mlock program allocating ram in the host and going OOM
+because some VM is running, even if we solve the vmexit every 4k which
+would destroy performance.
+
+So my main interest is only for having compressed swap for linux in
+general. It may speedup swap I/O too if done right. I'm still not sure
+what's the right design it to handle compressed swap, but whatever we
+do should eventually be able to write to disk the compressed data,
+which zcache can't today, so I focused on making sure it's freely
+hackable and not constrained by Xen ABI, so I liked your confirmation
+it's all hackable. It's an intriguing design if we can make the
+plugins stackable and we can change the backing store of the zcache
+compressed ram with ramster or a one writing to disk. The dark side of
+it, is the magic algorithm that will be needed to reliably shrink the
+tmem pools, which right now seems disconnected to the VM and can't be
+reliable. It looks a design that simplify things but once it will be
+reliable things will get more complex and it will have to be driven by
+the core VM so that it can react fast to memory pressure events, even
+the decision to write to disk or send the zcache compressed pages to
+other nodes with ramster should come from the main VM. I still have no
+idea if this is the simpler design to allow it or not though, but
+again I can't exclude it is and for some things it's certainly
+intriguing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
