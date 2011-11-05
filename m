@@ -1,119 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6805C6B002D
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 22:00:55 -0400 (EDT)
-Received: by vws16 with SMTP id 16so3549020vws.14
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2011 19:00:52 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 017CD6B002D
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2011 22:21:17 -0400 (EDT)
+Received: by vcbfo13 with SMTP id fo13so106162vcb.14
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2011 19:21:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20111105013317.GU18879@redhat.com>
+In-Reply-To: <6389467.vmEs7mxtWt@pawels>
 References: <20111031171441.GD3466@redhat.com>
-	<1320082040-1190-1-git-send-email-aarcange@redhat.com>
 	<alpine.LSU.2.00.1111032318290.2058@sister.anvils>
-	<20111104235603.GT18879@redhat.com>
-	<CAPQyPG5i87VcnwU5UoKiT6_=tzqO_NOPXFvyEooA1Orbe_ztGQ@mail.gmail.com>
-	<20111105013317.GU18879@redhat.com>
-Date: Sat, 5 Nov 2011 10:00:52 +0800
-Message-ID: <CAPQyPG5Y1e2dac38OLwZAinWb6xpPMWCya2vTaWLPi9+vp1JXQ@mail.gmail.com>
+	<CAPQyPG4DNofTw=rqJXPTbo3w4xGMdPF3SYt3qyQCWXYsDLa08A@mail.gmail.com>
+	<6389467.vmEs7mxtWt@pawels>
+Date: Sat, 5 Nov 2011 10:21:15 +0800
+Message-ID: <CAPQyPG5FUsibQo0B_VHBSkDKJWc7QqZ3NLTTSwZfAKqSvjLO5A@mail.gmail.com>
 Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
  vma_merge succeeding in copy_vma
 From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Pawel Sikora <pluto@agmk.net>
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Sat, Nov 5, 2011 at 9:33 AM, Andrea Arcangeli <aarcange@redhat.com> wrot=
-e:
-> On Sat, Nov 05, 2011 at 08:21:03AM +0800, Nai Xia wrote:
->> copy_vma() ---> rmap_walk() scan dst VMA --> move_page_tables() moves sr=
-c to dst
->> ---> =A0rmap_walk() scan src VMA. =A0:D
+On Fri, Nov 4, 2011 at 11:59 PM, Pawel Sikora <pluto@agmk.net> wrote:
+> On Friday 04 of November 2011 22:34:54 Nai Xia wrote:
+>> On Fri, Nov 4, 2011 at 3:31 PM, Hugh Dickins <hughd@google.com> wrote:
+>> > On Mon, 31 Oct 2011, Andrea Arcangeli wrote:
+>> >
+>> >> migrate was doing a rmap_walk with speculative lock-less access on
+>> >> pagetables. That could lead it to not serialize properly against
+>> >> mremap PT locks. But a second problem remains in the order of vmas in
+>> >> the same_anon_vma list used by the rmap_walk.
+>> >
+>> > I do think that Nai Xia deserves special credit for thinking deeper
+>> > into this than the rest of us (before you came back): something like
+>> >
+>> > Issue-conceived-by: Nai Xia <nai.xia@gmail.com>
+>>
+>> Thanks! ;-)
 >
-> Hmm yes. I think I got in the wrong track because I focused too much
-> on that line you started talking about, the *vmap =3D new_vma, you said
-> I had to reorder stuff there too, and that didn't make sense.
+> hi all,
+>
+> i'm still testing anon_vma_order_tail() patch. 10 days of heavy processin=
+g
+> and machine is still stable but i've recorded some interesting thing:
+>
+> $ uname -a
+> Linux hal 3.0.8-vs2.3.1-dirty #6 SMP Tue Oct 25 10:07:50 CEST 2011 x86_64=
+ AMD_Opteron(tm)_Processor_6128 PLD Linux
+> $ uptime
+> =C2=A016:47:44 up 10 days, =C2=A04:21, =C2=A05 users, =C2=A0load average:=
+ 19.55, 19.15, 18.76
+> $ ps aux|grep migration
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A0 6 =C2=A00.0 =C2=A00.0 =C2=A0 =C2=A0 =C2=
+=A00 =C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 =C2=
+=A0 0:00 [migration/0]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A0 8 68.0 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 9974:01 [=
+migration/1]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A013 35.4 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 5202:15 [=
+migration/2]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A017 71.4 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10479:10 =
+[migration/3]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A021 70.7 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10370:14 =
+[migration/4]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A025 66.1 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 9698:11 [=
+migration/5]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A029 70.1 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10283:22 =
+[migration/6]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A033 62.6 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 9190:28 [=
+migration/7]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A037 =C2=A00.0 =C2=A00.0 =C2=A0 =C2=A0 =C2=
+=A00 =C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 =C2=
+=A0 0:00 [migration/8]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A041 97.7 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 14338:30 =
+[migration/9]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A045 29.2 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 4290:00 [=
+migration/10]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A049 68.7 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10081:38 =
+[migration/11]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A053 98.7 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 14477:25 =
+[migration/12]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A057 70.0 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10272:57 =
+[migration/13]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A061 69.7 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10232:29 =
+[migration/14]
+> root =C2=A0 =C2=A0 =C2=A0 =C2=A065 70.9 =C2=A00.0 =C2=A0 =C2=A0 =C2=A00 =
+=C2=A0 =C2=A0 0 ? =C2=A0 =C2=A0 =C2=A0 =C2=A0S =C2=A0 =C2=A0Oct25 10403:09 =
+[migration/15]
+>
+> wow, 71..241 hours in migration processes after 10 days of uptime?
+> machine has 2 opteron nodes with 32GB ram paired with each processor.
+> i suppose that it spends a lot of time on migration (processes + memory p=
+ages).
 
-Oh, I think you misunderstood me in that. I was just saying:
+Hi Pawe=C5=82, it seems to me an issue related to load balancing but might
+not directly
+related to this bug or even not related to abnormal page migration.
+Can this be a scheduler & interrupts issue?
 
-if (*vmap =3D new_vma), then _NO_ PTEs need to be moved afterwards,
-because vma has not yet been faulted at all. Otherwise, it breaks the
-page->index semantics in the way I explained in my reply to Hugh.
+But oh, well, actually I never ever had touch a 16-core machine
+and do heavy processing. So I cannot tell if this result is normal or not.
 
-So nothing need to be added there, but the reason is because
-the above reasoning, not the same PTL locking...
+Maybe you should ask for a broader range of people?
 
-And for this case alone, I think the proper solving place
-should be outside move_vma() but inside do_mremap()
-by only vma_adjust() and vma_merge() like stuff.
-Because really it does not involve  move_page_tables().
-
->
-> The reason it doesn't make sense is that it can't be ok to reorder
-> stuff when *vmap =3D new_vma (i.e. new_vma =3D old_vma). So if I didn't
-> need to reorder in that case I thought I could extrapolate it was
-> always ok.
->
-> But the opposite is true: that case can't be solved.
->
-> Can it really happen that vma_merge will pack (prev_vma, new_range,
-> old_vma) together in a single vma? (i.e. prev_vma extended to
-> old_vma->vm_end)
->
-> Even if there's no prev_vma in the picture (but that's the extreme
-> case) it cannot be safe: i.e. a (new_range, old_vma) or (old_vma,
-> new_range).
->
-> 1 single "vma" for src and dst virtual ranges, means 1 single
-> vma->vm_pgoff. But we've two virtual addresses and two ptes. So the
-> same page->index can't work for both if the vma->vm_pgoff is the
-> same.
->
-> So regardless of the ordering here we're dealing with something more
-> fundamental.
->
-> If rmap_walk runs immediately after vma_merge completes and releases
-> the anon_vma_lock, it won't find any pte in the vma anymore. No matter
-> the order.
->
-> I thought at this before and I didn't mention it but at the light of
-> the above issue I start to think this is the only possible correct
-> solution to the problem. We should just never call vma_merge before
-> move_page_tables. And do the merge by hand later after mremap is
-> complete.
->
-> The only safe way to do it is to have _two_ different vmas, with two
-> different ->vm_pgoff. Then it will work. And by always creating a new
-> vma we'll always have it queued at the end, and it'll be safe for the
-> same reasons fork is safe.
->
-> Always allocate a new vma, and then after the whole vma copy is
-> complete, look if we can merge and free some vma. After the fact, so
-> it means we can't use vma_merge anymore. vma_merge assumes the
-> new_range is "virtual" and no vma is mapped there I think. Anyway
-> that's an implementation issue. In some unlikely case we'll allocate 1
-> more vma than before, and we'll free it once mremap is finished, but
-> that's small problem compared to solving this once and for all.
->
-> And that will fix it without ordering games and it'll fix the *vmap=3D
-> new_vma case too. That case really tripped on me as I was assuming
-> *that* was correct.
-
-Yes. "Allocating a new vma, copy first and merge later " seems
-another solution without the tricky reordering. But you know,
-I now share some of Hugh's feeling that maybe we are too
-desperate using racing in places where locks are simpler
-and guaranteed to be safe.
-
-But I think Mel indicated that anon_vma_locking might be
-harmful to JVM SMP performance.
-How severe you expect this to be, Mel ?
-
-
-Thanks
-
+BR,
 Nai
+
+>
+> BR,
+> Pawe=C5=82.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
