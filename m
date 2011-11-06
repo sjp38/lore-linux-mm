@@ -1,82 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 775766B0069
-	for <linux-mm@kvack.org>; Sun,  6 Nov 2011 17:24:22 -0500 (EST)
-Message-Id: <d08817$23rf4p@azsmga001.ch.intel.com>
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH 11/13] mm: extend prefault helpers to fault in more than PAGE_SIZE
-In-Reply-To: <1320606840-21132-12-git-send-email-daniel.vetter@ffwll.ch>
-References: <1320606840-21132-1-git-send-email-daniel.vetter@ffwll.ch> <1320606840-21132-12-git-send-email-daniel.vetter@ffwll.ch>
-Date: Sun, 06 Nov 2011 22:24:13 +0000
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B64D96B0069
+	for <linux-mm@kvack.org>; Sun,  6 Nov 2011 17:34:57 -0500 (EST)
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+In-Reply-To: Your message of "Fri, 28 Oct 2011 16:52:28 EDT."
+             <20139.5644.583790.903531@quad.stoffel.home>
+From: Valdis.Kletnieks@vt.edu
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <75efb251-7a5e-4aca-91e2-f85627090363@default> <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy> <CAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com> <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default> <CAOJsxLEE-qf9me1SAZLFiEVhHVnDh7BDrSx1+abe9R4mfkhD=g@mail.gmail.com> <20111028163053.GC1319@redhat.com> <3982e04f-8607-4f0a-b855-2e7f31aaa6f7@default>
+            <20139.5644.583790.903531@quad.stoffel.home>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1320618774_135101P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Sun, 06 Nov 2011 17:32:54 -0500
+Message-ID: <201529.1320618774@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>, intel-gfx <intel-gfx@lists.freedesktop.org>
-Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org
+To: John Stoffel <john@stoffel.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Sun,  6 Nov 2011 20:13:58 +0100, Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
-> drm/i915 wants to read/write more than one page in its fastpath
-> and hence needs to prefault more than PAGE_SIZE bytes.
-> 
-> I've checked the callsites and they all already clamp size when
-> calling fault_in_pages_* to the same as for the subsequent
-> __copy_to|from_user and hence don't rely on the implicit clamping
-> to PAGE_SIZE.
-> 
-> Also kill a copy&pasted spurious space in both functions while at it.
-> 
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
-> ---
->  include/linux/pagemap.h |   28 ++++++++++++++++++----------
->  1 files changed, 18 insertions(+), 10 deletions(-)
-> 
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index cfaaa69..689527d 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
->  static inline int fault_in_pages_writeable(char __user *uaddr, int size)
->  {
->  	int ret;
-> +	char __user *end = uaddr + size - 1;
->  
->  	if (unlikely(size == 0))
->  		return 0;
-> @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
->  	 * Writing zeroes into userspace here is OK, because we know that if
->  	 * the zero gets there, we'll be overwriting it.
->  	 */
-> -	ret = __put_user(0, uaddr);
-> +	while (uaddr <= end) {
-> +		ret = __put_user(0, uaddr);
-> +		if (ret != 0)
-> +			return ret;
-> +		uaddr += PAGE_SIZE;
-> +	}
->  	if (ret == 0) {
-> -		char __user *end = uaddr + size - 1;
-> -
->  		/*
->  		 * If the page was already mapped, this will get a cache miss
->  		 * for sure, so try to avoid doing it.
->  		 */
-> -		if (((unsigned long)uaddr & PAGE_MASK) !=
-> +		if (((unsigned long)uaddr & PAGE_MASK) ==
->  				((unsigned long)end & PAGE_MASK))
-> -		 	ret = __put_user(0, end);
-> +			ret = __put_user(0, end);
->  	}
->  	return ret;
+--==_Exmh_1320618774_135101P
+Content-Type: text/plain; charset=us-ascii
 
-You leave these functions in a worse mess by introducing a false
-compiler warning about an uninitialized ret by the now redundant test
-against zero, a do{}while loop would be clearer that the original
-behaviour is merely extended upon. And please replace the open-coded
-offset_in_page().
--Chris
+On Fri, 28 Oct 2011 16:52:28 EDT, John Stoffel said:
+> Dan> "WHY" this is such a good idea is the same as WHY it is useful to
+> Dan> add RAM to your systems. 
+>
+> So why would I use this instead of increasing the physical RAM?
 
--- 
-Chris Wilson, Intel Open Source Technology Centre
+You're welcome to buy me a new laptop that has a third DIMM slot. :)
+
+There's a lot of people running hardware that already has the max amount of
+supported RAM, and who for budget or legacy-support reasons can't easily do a
+forklift upgrade to a new machine.
+
+> if I've got a large system which cannot physically use any more
+> memory, then it might be worth my while to use TMEM to get more
+> performance out of this expensive hardware.
+
+It's not always a large system....
+
+--==_Exmh_1320618774_135101P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFOtwsWcC3lWbTT17ARAlvfAKCoKX68t1pDd8M1xDoZuSpVYUljjACfRYID
+7BmJgF1WCyqaQVF50mbeXUg=
+=pNIL
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1320618774_135101P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
