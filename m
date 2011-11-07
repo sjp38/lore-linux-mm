@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 016856B006C
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 07:47:00 -0500 (EST)
-Received: from damascus.uab.es ([127.0.0.1])
- by damascus.uab.es (Sun Java System Messaging Server 6.1 HotFix 0.10 (built
- Jan  6 2005)) with ESMTP id <0LUA00L8AJHMFG10@damascus.uab.es> for
- linux-mm@kvack.org; Mon, 07 Nov 2011 13:46:34 +0100 (CET)
-Received: from aomail.uab.es ([158.109.65.1])
- by damascus.uab.es (Sun Java	System Messaging Server 6.1 HotFix 0.10 (builtJan
- 6 2005)) with ESMTP id	<0LUA00582JHL1V70@damascus.uab.es>
- forlinux-mm@kvack.org; Mon, 07 Nov 2011 13:46:34 +0100 (CET)
-Date: Mon, 07 Nov 2011 15:49:17 +0100
-From: Davidlohr Bueso <dave@gnu.org>
-Subject: Re: [RFC PATCH] tmpfs: support user quotas
-In-reply-to: <25866.1320657093@turing-police.cc.vt.edu>
-Message-id: <1320677357.2330.7.camel@offworld>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7BIT
-References: <1320614101.3226.5.camel@offbook>
- <25866.1320657093@turing-police.cc.vt.edu>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A94A6B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 08:14:21 -0500 (EST)
+Date: Mon, 7 Nov 2011 13:14:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+ vma_merge succeeding in copy_vma
+Message-ID: <20111107131413.GA18279@suse.de>
+References: <20111031171441.GD3466@redhat.com>
+ <1320082040-1190-1-git-send-email-aarcange@redhat.com>
+ <alpine.LSU.2.00.1111032318290.2058@sister.anvils>
+ <20111104235603.GT18879@redhat.com>
+ <CAPQyPG5i87VcnwU5UoKiT6_=tzqO_NOPXFvyEooA1Orbe_ztGQ@mail.gmail.com>
+ <20111105013317.GU18879@redhat.com>
+ <CAPQyPG5Y1e2dac38OLwZAinWb6xpPMWCya2vTaWLPi9+vp1JXQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAPQyPG5Y1e2dac38OLwZAinWb6xpPMWCya2vTaWLPi9+vp1JXQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Hugh Dickins <hughd@google.com>, Lennart Poettering <lennart@poettering.net>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Mon, 2011-11-07 at 04:11 -0500, Valdis.Kletnieks@vt.edu wrote:
-> On Sun, 06 Nov 2011 18:15:01 -0300, Davidlohr Bueso said:
+On Sat, Nov 05, 2011 at 10:00:52AM +0800, Nai Xia wrote:
+> > <SNIP>
+> > The only safe way to do it is to have _two_ different vmas, with two
+> > different ->vm_pgoff. Then it will work. And by always creating a new
+> > vma we'll always have it queued at the end, and it'll be safe for the
+> > same reasons fork is safe.
+> >
+> > Always allocate a new vma, and then after the whole vma copy is
+> > complete, look if we can merge and free some vma. After the fact, so
+> > it means we can't use vma_merge anymore. vma_merge assumes the
+> > new_range is "virtual" and no vma is mapped there I think. Anyway
+> > that's an implementation issue. In some unlikely case we'll allocate 1
+> > more vma than before, and we'll free it once mremap is finished, but
+> > that's small problem compared to solving this once and for all.
+> >
+> > And that will fix it without ordering games and it'll fix the *vmap=
+> > new_vma case too. That case really tripped on me as I was assuming
+> > *that* was correct.
 > 
-> > @@ -1159,7 +1159,12 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
-> >  			struct page **pagep, void **fsdata)
+> Yes. "Allocating a new vma, copy first and merge later " seems
+> another solution without the tricky reordering. But you know,
+> I now share some of Hugh's feeling that maybe we are too
+> desperate using racing in places where locks are simpler
+> and guaranteed to be safe.
 > 
-> > +	if (atomic_long_read(&user->shmem_bytes) + len > 
-> > +	    rlimit(RLIMIT_TMPFSQUOTA))
-> > +		return -ENOSPC;
-> 
-> Is this a per-process or per-user limit?  If it's per-process, it doesn't
-> really do much good, because a user can use multiple processes to over-run the
-> limit (either intentionally or accidentally).
 
-This is a per-user limit.
-> 
-> > @@ -1169,10 +1174,12 @@ shmem_write_end(struct file *file, struct address_space *mapping,
-> >  			struct page *page, void *fsdata)
-> 
-> > +	if (pos + copied > inode->i_size) {
-> >  		i_size_write(inode, pos + copied);
-> > +		atomic_long_add(copied, &user->shmem_bytes);
-> > +	}
-> If this is per-user, it's racy with shmem_write_begin() - two processes can hit
-> the write_begin(), be under quota by (say) 1M, but by the time they both
-> complete the user is 1M over the quota.
-> 
-I guess using a spinlock instead of atomic operations would serve the
-purpose.
+I'm tending to agree. The number of cases that must be kept in mind
+is getting too tricky. Taking the anon_vma lock may be slower but at
+the risk of sounding chicken, it's easier to understand.
 
-> >  @@ -1535,12 +1542,15 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
-> > +	struct user_struct *user = current_user();
-> > +	atomic_long_sub(inode->i_size, &user->shmem_bytes);
+> But I think Mel indicated that anon_vma_locking might be
+> harmful to JVM SMP performance.
+> How severe you expect this to be, Mel ?
 > 
-> What happens here if user 'fred' creates a file on a tmpfs, and then logs out so he has
-> no processes running, and then root does a 'find tmpfs -user fred -exec rm {} \;' to clean up?
-> We just decremented root's quota, not fred's....
-> 
-Would the same would occur with mqueues? I haven't tested it but I don't
-see anywhere that user->mq_bytes is decreased like this.
 
-Thanks,
-Davidlohr
+I would only expect it to be a problem during garbage collection when
+there is a greater likelihood that mremap is heavily used. While it
+would have been nice to avoid additional overhead in mremap, I don't
+think the JVM GC case on its own is sufficient justification to avoid
+taking the anon_vma lock.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
