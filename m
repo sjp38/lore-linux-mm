@@ -1,68 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B53B96B006E
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 09:30:12 -0500 (EST)
-Date: Mon, 7 Nov 2011 15:30:10 +0100
-From: Lennart Poettering <mzxreary@0pointer.de>
-Subject: Re: [RFC PATCH] tmpfs: support user quotas
-Message-ID: <20111107143010.GA3630@tango.0pointer.de>
-References: <1320614101.3226.5.camel@offbook>
- <20111107112952.GB25130@tango.0pointer.de>
- <1320675607.2330.0.camel@offworld>
- <20111107135823.3a7cdc53@lxorguk.ukuu.org.uk>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B2FBE6B0070
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 09:35:43 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <e3566bd4-bf52-4e75-87bd-d42debcc07b6@default>
+Date: Mon, 7 Nov 2011 06:35:27 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [GIT PULL] mm: frontswap (SUMMARY)
+References: <20111104164532.GO18879@redhat.com>
+ <d19dddac-0713-47bf-bec7-04cc8d534b50@default
+ CAOJsxLFXy7-u+G_MLUnD3+kYqxsbns4dQV2WEpBu2oCJ4PtT7A@mail.gmail.com>
+In-Reply-To: <CAOJsxLFXy7-u+G_MLUnD3+kYqxsbns4dQV2WEpBu2oCJ4PtT7A@mail.gmail.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111107135823.3a7cdc53@lxorguk.ukuu.org.uk>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Davidlohr Bueso <dave@gnu.org>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Kay Sievers <kay.sievers@vrfy.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, 07.11.11 13:58, Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> From: Pekka Enberg [mailto:penberg@kernel.org]
+> Subject: Re: [GIT PULL] mm: frontswap (SUMMARY)
+>=20
+> On Sun, Nov 6, 2011 at 9:31 PM, Dan Magenheimer
+> <dan.magenheimer@oracle.com> wrote:
+> > A farewell haiku:
+> >
+> > Crash test dummy folds.
+> > KVM mafia wins.
+> > Innovation cries.
+>=20
+> Does this mean you've stopped working on frontswap or that frontswap
+> is dead? What does this mean for the cleancache hooks? Are they still
+> useful?
 
-> 
-> > Right, rlimit approach guarantees a simple way of dealing with users
-> > across all tmpfs instances.
-> 
-> Which is almost certainly not what you want to happen. Think about direct
-> rendering.
+Wow.  F***ing incredible.
 
-I don't see what direct rendering has to do with closing the security
-hole that /dev/shm currently is.
+Pekka, you'd best leave the politics to Andrea.  He's
+_much_ better at it.
 
-> For simple stuff tmpfs already supports size/nr_blocks/nr_inodes mount
-> options so you can mount private resource constrained tmpfs objects
-> already without kernel changes. No rlimit hacks needed - and rlimit is
-> the wrong API anyway.
+No, I haven't stopped, though I may be pausing to lick
+my wounds.  No it's not dead yet.  Yes, the cleancache
+hooks are still useful, so narrow-minded anti-Xen
+vultures can go circle elsewhere.
 
-Uh? I am pretty sure we don't want to mount a private tmpfs for each
-user in /dev/shm and /tmp. If you have 500 users you'd have 500 tmpfs on
-/tmp and on /dev/shm. Despite that without some ugly namespace hackery
-you couldn't make them all appear in /tmp as /dev/shm without
-subdirectories. Don't forget that /dev/shm and /tmp are an established
-userspace API.
+Since my attempt at gracefully ending the discussion
+with poetry has been ruined, I might as well spell it out:
 
-Resource limits are exactly the API that makes sense here, because:
+"Crash test dummy folds":  (1) Andrew, I'm warning you
+(from the first crash test dummy) that the new process
+may be too heavy handed and corruptible.  (2) I've taken
+enough beatings for now, thank you.
 
-a) we only want one tmpfs on /tmp, and one tmpfs on /dev/shm, not 500 on
-each for each user
+"KVM mafia wins" :  If one reads between the many
+(far too many) lines of this discussion, and as further
+evidenced by Pekka's reply, the anti-Xen crowd has
+been losing too many battles recently, is damn
+well not going to lose this one, and would like
+by any means possible to reverse previous losses.
+People, can't we just get along?
 
-b) we cannot move /dev/shm, /tmp around without breaking userspace
-massively
+"Innovation cries":  I'm expressing sadness that
+a very innovative and elegant approach to a very
+hard problem, that began Xen-specific but seems
+to have lots of interesting uses, is being blocked
+for political reasons.  I'm not denying that there
+is plenty of work still to be done, just arguing
+that this can best be explored as a community
+project... and that's not going to happen by
+conveniently ignoring the most mature user (Xen)
+because one has a personal or corporate vendetta
+against it.
 
-c) we want a global limit across all tmpfs file systems for each user
+Frontswap should be in-tree.  For anyone familiar
+with the American political system, frontswap
+has been blocked by a filibuster.
 
-d) we don't want to have to upload the quota database into each tmpfs at
-mount time.
-
-And hence: a per user RLIMIT is exactly the minimal solution we want
-here.
-
-Lennart
-
--- 
-Lennart Poettering - Red Hat, Inc.
+I won't be responding to further posts on this
+topic for awhile, for health reasons.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
