@@ -1,47 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D53E6B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 17:22:43 -0500 (EST)
-Message-ID: <4EB85A29.3010604@jp.fujitsu.com>
-Date: Mon, 07 Nov 2011 14:22:33 -0800
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 59B5F6B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 17:38:20 -0500 (EST)
+Received: by ggnh4 with SMTP id h4so7541489ggn.14
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2011 14:38:17 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom: do not kill tasks with oom_score_adj OOM_SCORE_ADJ_MIN
-References: <20111104143145.0F93B8B45E@mx2.suse.de> <alpine.DEB.2.00.1111071353140.27419@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1111071353140.27419@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4EB8586B.5060804@jp.fujitsu.com>
+References: <1320614101.3226.5.camel@offbook> <20111107112952.GB25130@tango.0pointer.de>
+ <1320675607.2330.0.camel@offworld> <20111107135823.3a7cdc53@lxorguk.ukuu.org.uk>
+ <20111107143010.GA3630@tango.0pointer.de> <4EB8586B.5060804@jp.fujitsu.com>
+From: Kay Sievers <kay.sievers@vrfy.org>
+Date: Mon, 7 Nov 2011 23:37:56 +0100
+Message-ID: <CAPXgP118CzaTuV-kABfEC-D-+K75zdKVwbaYba+FuN7umJO4kA@mail.gmail.com>
+Subject: Re: [RFC PATCH] tmpfs: support user quotas
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, oleg@redhat.com, yinghan@google.com, akpm@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: mzxreary@0pointer.de, alan@lxorguk.ukuu.org.uk, dave@gnu.org, hch@infradead.org, hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(11/7/2011 1:54 PM), David Rientjes wrote:
-> On Fri, 4 Nov 2011, Michal Hocko wrote:
-> 
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index e916168..4883514 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -185,6 +185,9 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
->>  	if (!p)
->>  		return 0;
->>  
->> +	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
->> +		return 0;
->> +
->>  	/*
->>  	 * The memory controller may have a limit of 0 bytes, so avoid a divide
->>  	 * by zero, if necessary.
-> 
-> This leaves p locked, you need to do task_unlock(p) first.
-> 
-> Once that's fixed, please add my
-> 
-> 	Acked-by: David Rientjes <rientjes@google.com>
+On Mon, Nov 7, 2011 at 23:15, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> (11/7/2011 6:30 AM), Lennart Poettering wrote:
 
-Agreed.
-	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> If you want per-user limitation, RLIMIT is bad idea. RLIMIT is only inherited
+> by fork. So, The api semantics clearly mismatch your usecase.
+
+Like RLIMIT_NPROC?
+
+> Instead, I suggest to implement new sysfs knob.
+
+Where would users show up in sysfs?
+
+Kay
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
