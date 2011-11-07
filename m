@@ -1,193 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8343E6B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 12:29:09 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: RE: [PATCH v5 04/10] per-cgroup tcp buffers control
-Date: Mon, 7 Nov 2011 17:28:50 +0000
-Message-ID: <D1C30CD88081EA42BD6A1AA039A44650705B78@US-EXCH1.sw.swsoft.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E832B6B002D
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 15:36:33 -0500 (EST)
+Date: Mon, 7 Nov 2011 15:36:13 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [Xen-devel] Re: [Revert] Re: [PATCH] mm: sync vmalloc address
+ space page tables in alloc_vm_area()
+Message-ID: <20111107203613.GA6546@phenom.dumpdata.com>
+References: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com>
+ <20110901161134.GA8979@dumpdata.com>
+ <4E5FED1A.1000300@goop.org>
+ <20110901141754.76cef93b.akpm@linux-foundation.org>
+ <4E60C067.4010600@citrix.com>
+ <20110902153204.59a928c1.akpm@linux-foundation.org>
+ <20110906163553.GA28971@dumpdata.com>
+ <20111105133846.GA4415@phenom.dumpdata.com>
 MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="45Z9DzgjV8m4Oswq"
+Content-Disposition: inline
+In-Reply-To: <20111105133846.GA4415@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "paul@paulmenage.org" <paul@paulmenage.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "davem@davemloft.net" <davem@davemloft.net>, "gthelen@google.com" <gthelen@google.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill@shutemov.name" <kirill@shutemov.name>, Andrey Vagin <avagin@parallels.com>, "devel@openvz.org" <devel@openvz.org>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "kamezawa.hiroyu@jp.fujtisu.com" <kamezawa.hiroyu@jp.fujtisu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Vrabel <david.vrabel@citrix.com>, Jeremy Fitzhardinge <jeremy@goop.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "namhyung@gmail.com" <namhyung@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "rientjes@google.com" <rientjes@google.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
 
-Ok, I forgot to change the temporary name I was using for the jump label. S=
-hame on me :)=0A=
-=0A=
---- Mensagem Original ---=0A=
-=0A=
-De: Glauber Costa <glommer@parallels.com>=0A=
-Enviado: 7 de novembro de 2011 07/11/11=0A=
-Para: linux-kernel@vger.kernel.org=0A=
-Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.co=
-m, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@v=
-ger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, Andrey Vagin <ava=
-gin@parallels.com>, devel@openvz.org, eric.dumazet@gmail.com, Glauber Costa=
- <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com=
->=0A=
-Assunto: [PATCH v5 04/10] per-cgroup tcp buffers control=0A=
-=0A=
-With all the infrastructure in place, this patch implements=0A=
-per-cgroup control for tcp memory pressure handling.=0A=
-=0A=
-A resource conter is used to control allocated memory, except=0A=
-for the root cgroup, that will keep using global counters.=0A=
-=0A=
-This patch is the one that actually enables/disables the=0A=
-jump labels controlling cgroup. To this point, they were always=0A=
-disabled.=0A=
-=0A=
-Signed-off-by: Glauber Costa <glommer@parallels.com>=0A=
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>=0A=
-CC: David S. Miller <davem@davemloft.net>=0A=
-CC: Eric W. Biederman <ebiederm@xmission.com>=0A=
-CC: Eric Dumazet <eric.dumazet@gmail.com>=0A=
----=0A=
- include/net/tcp.h       |   18 +++++++=0A=
- include/net/transp_v6.h |    1 +=0A=
- mm/memcontrol.c         |  125 +++++++++++++++++++++++++++++++++++++++++++=
-+++-=0A=
- net/core/sock.c         |   46 +++++++++++++++--=0A=
- net/ipv4/af_inet.c      |    3 +=0A=
- net/ipv4/tcp_ipv4.c     |   12 +++++=0A=
- net/ipv6/af_inet6.c     |    3 +=0A=
- net/ipv6/tcp_ipv6.c     |   10 ++++=0A=
- 8 files changed, 211 insertions(+), 7 deletions(-)=0A=
-=0A=
-diff --git a/include/net/tcp.h b/include/net/tcp.h=0A=
-index ccaa3b6..7301ca8 100644=0A=
---- a/include/net/tcp.h=0A=
-+++ b/include/net/tcp.h=0A=
-@@ -253,6 +253,22 @@ extern int sysctl_tcp_cookie_size;=0A=
- extern int sysctl_tcp_thin_linear_timeouts;=0A=
- extern int sysctl_tcp_thin_dupack;=0A=
- =0A=
-+struct tcp_memcontrol {=0A=
-+	/* per-cgroup tcp memory pressure knobs */=0A=
-+	struct res_counter tcp_memory_allocated;=0A=
-+	struct percpu_counter tcp_sockets_allocated;=0A=
-+	/* those two are read-mostly, leave them at the end */=0A=
-+	long tcp_prot_mem[3];=0A=
-+	int tcp_memory_pressure;=0A=
-+};=0A=
-+=0A=
-+long *sysctl_mem_tcp(struct mem_cgroup *memcg);=0A=
-+struct percpu_counter *sockets_allocated_tcp(struct mem_cgroup *memcg);=0A=
-+int *memory_pressure_tcp(struct mem_cgroup *memcg);=0A=
-+struct res_counter *memory_allocated_tcp(struct mem_cgroup *memcg);=0A=
-+int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);=0A=
-+void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);=0A=
-+=0A=
- extern atomic_long_t tcp_memory_allocated;=0A=
- extern struct percpu_counter tcp_sockets_allocated;=0A=
- extern int tcp_memory_pressure;=0A=
-@@ -305,6 +321,7 @@ static inline int tcp_synq_no_recent_overflow(const str=
-uct sock *sk)=0A=
- }=0A=
- =0A=
- extern struct proto tcp_prot;=0A=
-+extern struct cg_proto tcp_cg_prot;=0A=
- =0A=
- #define TCP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.tcp_statistics=
-, field)=0A=
- #define TCP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.tcp_stat=
-istics, field)=0A=
-@@ -1022,6 +1039,7 @@ static inline void tcp_openreq_init(struct request_so=
-ck *req,=0A=
- 	ireq->loc_port =3D tcp_hdr(skb)->dest;=0A=
- }=0A=
- =0A=
-+extern void tcp_enter_memory_pressure_cg(struct sock *sk);=0A=
- extern void tcp_enter_memory_pressure(struct sock *sk);=0A=
- =0A=
- static inline int keepalive_intvl_when(const struct tcp_sock *tp)=0A=
-diff --git a/include/net/transp_v6.h b/include/net/transp_v6.h=0A=
-index 498433d..1e18849 100644=0A=
---- a/include/net/transp_v6.h=0A=
-+++ b/include/net/transp_v6.h=0A=
-@@ -11,6 +11,7 @@ extern struct proto rawv6_prot;=0A=
- extern struct proto udpv6_prot;=0A=
- extern struct proto udplitev6_prot;=0A=
- extern struct proto tcpv6_prot;=0A=
-+extern struct cg_proto tcpv6_cg_prot;=0A=
- =0A=
- struct flowi6;=0A=
- =0A=
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c=0A=
-index 7d684d0..f14d7d2 100644=0A=
---- a/mm/memcontrol.c=0A=
-+++ b/mm/memcontrol.c=0A=
-@@ -49,6 +49,9 @@=0A=
- #include <linux/cpu.h>=0A=
- #include <linux/oom.h>=0A=
- #include "internal.h"=0A=
-+#ifdef CONFIG_INET=0A=
-+#include <net/tcp.h>=0A=
-+#endif=0A=
- =0A=
- #include <asm/uaccess.h>=0A=
- =0A=
-@@ -294,6 +297,10 @@ struct mem_cgroup {=0A=
- 	 */=0A=
- 	struct mem_cgroup_stat_cpu nocpu_base;=0A=
- 	spinlock_t pcp_counter_lock;=0A=
-+=0A=
-+#ifdef CONFIG_INET=0A=
-+	struct tcp_memcontrol tcp;=0A=
-+#endif=0A=
- };=0A=
- =0A=
- /* Stuffs for move charges at task migration. */=0A=
-@@ -377,7 +384,7 @@ enum mem_type {=0A=
- #define MEM_CGROUP_RECLAIM_SOFT		(1 << MEM_CGROUP_RECLAIM_SOFT_BIT)=0A=
- =0A=
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);=0A=
--=0A=
-+static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);=0A=
- static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)=0A=
- {=0A=
- 	return (mem =3D=3D root_mem_cgroup);=0A=
-@@ -387,6 +394,7 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup=
- *mem)=0A=
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM=0A=
- #ifdef CONFIG_INET=0A=
- #include <net/sock.h>=0A=
-+#include <net/ip.h>=0A=
- =0A=
- void sock_update_memcg(struct sock *sk)=0A=
- {=0A=
-@@ -451,6 +459,93 @@ u64 memcg_memory_allocated_read(struct mem_cgroup *mem=
-cg, struct cg_proto *prot)=0A=
- 				    RES_USAGE) >> PAGE_SHIFT ;=0A=
- }=0A=
- EXPORT_SYMBOL(memcg_memory_allocated_read);=0A=
-+/*=0A=
-+ * Pressure flag: try to collapse.=0A=
-+ * Technical note: it is used by multiple contexts non atomically.=0A=
-+ * All the __sk_mem_schedule() is of this nature: accounting=0A=
-+ * is strict, actions are advisory and have some latency.=0A=
-+ */=0A=
-+void tcp_enter_memory_pressure_cg(struct sock *sk)=0A=
-+{=0A=
-+	struct mem_cgroup *memcg =3D sk->sk_cgrp;=0A=
-+	if (!memcg->tcp.tcp_memory_pressure) {=0A=
-+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURES);=0A=
-+		memcg->tcp.tcp_memory_pressure =3D 1;=0A=
-+	}=0A=
-+}=0A=
-+EXPORT_SYMBOL(tcp_enter_memory_pressure_cg);=0A=
-+=0A=
-+long *sysctl_mem_tcp(struct mem_cgroup *memcg)=0A=
-+{=0A=
-+	return memcg-=
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--45Z9DzgjV8m4Oswq
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+> > > 
+> > > oookay, I queued this for 3.1 and tagged it for a 3.0.x backport.  I
+> > > *think* that's the outcome of this discussion, for the short-term?
+> > 
+> > <nods> Yup. Thanks!
+> 
+> Hey Andrew,
+> 
+> The long term outcome is the patchset that David worked on. I've sent
+> a GIT PULL to Linus to pick up the Xen related patches that switch over
+> the users of the right API:
+> 
+>  (xen) stable/vmalloc-3.2 for Linux 3.2-rc0
+> 
+> (https://lkml.org/lkml/2011/10/29/82)
+
+And Linus picked it up.
+.. snip..
+> 
+> Also, not sure what you thought of this patch below?
+
+Patch included as attachment for easier review..
+> 
+> From b9acd3abc12972be0d938d7bc2466d899023e757 Mon Sep 17 00:00:00 2001
+> From: David Vrabel <david.vrabel@citrix.com>
+> Date: Thu, 29 Sep 2011 16:53:32 +0100
+> Subject: [PATCH] xen: map foreign pages for shared rings by updating the PTEs
+>  directly
+> 
+> When mapping a foreign page with xenbus_map_ring_valloc() with the
+> GNTTABOP_map_grant_ref hypercall, set the GNTMAP_contains_pte flag and
+> pass a pointer to the PTE (in init_mm).
+> 
+> After the page is mapped, the usual fault mechanism can be used to
+> update additional MMs.  This allows the vmalloc_sync_all() to be
+> removed from alloc_vm_area().
+> 
+> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Jeremy Fitzhardinge <jeremy@goop.org>
+> Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> ---
+>  arch/x86/xen/grant-table.c         |    2 +-
+>  drivers/xen/xenbus/xenbus_client.c |   11 ++++++++---
+>  include/linux/vmalloc.h            |    2 +-
+>  mm/vmalloc.c                       |   27 +++++++++++++--------------
+>  4 files changed, 23 insertions(+), 19 deletions(-)
+> 
+> diff --git a/arch/x86/xen/grant-table.c b/arch/x86/xen/grant-table.c
+> index 6bbfd7a..5a40d24 100644
+> --- a/arch/x86/xen/grant-table.c
+> +++ b/arch/x86/xen/grant-table.c
+> @@ -71,7 +71,7 @@ int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
+>  
+>  	if (shared == NULL) {
+>  		struct vm_struct *area =
+> -			alloc_vm_area(PAGE_SIZE * max_nr_gframes);
+> +			alloc_vm_area(PAGE_SIZE * max_nr_gframes, NULL);
+>  		BUG_ON(area == NULL);
+>  		shared = area->addr;
+>  		*__shared = shared;
+> diff --git a/drivers/xen/xenbus/xenbus_client.c b/drivers/xen/xenbus/xenbus_client.c
+> index 229d3ad..52bc57f 100644
+> --- a/drivers/xen/xenbus/xenbus_client.c
+> +++ b/drivers/xen/xenbus/xenbus_client.c
+> @@ -34,6 +34,7 @@
+>  #include <linux/types.h>
+>  #include <linux/vmalloc.h>
+>  #include <asm/xen/hypervisor.h>
+> +#include <asm/xen/page.h>
+>  #include <xen/interface/xen.h>
+>  #include <xen/interface/event_channel.h>
+>  #include <xen/events.h>
+> @@ -435,19 +436,20 @@ EXPORT_SYMBOL_GPL(xenbus_free_evtchn);
+>  int xenbus_map_ring_valloc(struct xenbus_device *dev, int gnt_ref, void **vaddr)
+>  {
+>  	struct gnttab_map_grant_ref op = {
+> -		.flags = GNTMAP_host_map,
+> +		.flags = GNTMAP_host_map | GNTMAP_contains_pte,
+>  		.ref   = gnt_ref,
+>  		.dom   = dev->otherend_id,
+>  	};
+>  	struct vm_struct *area;
+> +	pte_t *pte;
+>  
+>  	*vaddr = NULL;
+>  
+> -	area = alloc_vm_area(PAGE_SIZE);
+> +	area = alloc_vm_area(PAGE_SIZE, &pte);
+>  	if (!area)
+>  		return -ENOMEM;
+>  
+> -	op.host_addr = (unsigned long)area->addr;
+> +	op.host_addr = arbitrary_virt_to_machine(pte).maddr;
+>  
+>  	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
+>  		BUG();
+> @@ -526,6 +528,7 @@ int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr)
+>  	struct gnttab_unmap_grant_ref op = {
+>  		.host_addr = (unsigned long)vaddr,
+>  	};
+> +	unsigned int level;
+>  
+>  	/* It'd be nice if linux/vmalloc.h provided a find_vm_area(void *addr)
+>  	 * method so that we don't have to muck with vmalloc internals here.
+> @@ -547,6 +550,8 @@ int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr)
+>  	}
+>  
+>  	op.handle = (grant_handle_t)area->phys_addr;
+> +	op.host_addr = arbitrary_virt_to_machine(
+> +		lookup_address((unsigned long)vaddr, &level)).maddr;
+>  
+>  	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1))
+>  		BUG();
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 9332e52..1a77252 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -118,7 +118,7 @@ unmap_kernel_range(unsigned long addr, unsigned long size)
+>  #endif
+>  
+>  /* Allocate/destroy a 'vmalloc' VM area. */
+> -extern struct vm_struct *alloc_vm_area(size_t size);
+> +extern struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes);
+>  extern void free_vm_area(struct vm_struct *area);
+>  
+>  /* for /dev/kmem */
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 5016f19..b5deec6 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -2105,23 +2105,30 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
+>  
+>  static int f(pte_t *pte, pgtable_t table, unsigned long addr, void *data)
+>  {
+> -	/* apply_to_page_range() does all the hard work. */
+> +	pte_t ***p = data;
+> +
+> +	if (p) {
+> +		*(*p) = pte;
+> +		(*p)++;
+> +	}
+>  	return 0;
+>  }
+>  
+>  /**
+>   *	alloc_vm_area - allocate a range of kernel address space
+>   *	@size:		size of the area
+> + *	@ptes:		returns the PTEs for the address space
+>   *
+>   *	Returns:	NULL on failure, vm_struct on success
+>   *
+>   *	This function reserves a range of kernel address space, and
+>   *	allocates pagetables to map that range.  No actual mappings
+> - *	are created.  If the kernel address space is not shared
+> - *	between processes, it syncs the pagetable across all
+> - *	processes.
+> + *	are created.
+> + *
+> + *	If @ptes is non-NULL, pointers to the PTEs (in init_mm)
+> + *	allocated for the VM area are returned.
+>   */
+> -struct vm_struct *alloc_vm_area(size_t size)
+> +struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
+>  {
+>  	struct vm_struct *area;
+>  
+> @@ -2135,19 +2142,11 @@ struct vm_struct *alloc_vm_area(size_t size)
+>  	 * of kernel virtual address space and mapped into init_mm.
+>  	 */
+>  	if (apply_to_page_range(&init_mm, (unsigned long)area->addr,
+> -				area->size, f, NULL)) {
+> +				size, f, ptes ? &ptes : NULL)) {
+>  		free_vm_area(area);
+>  		return NULL;
+>  	}
+>  
+> -	/*
+> -	 * If the allocated address space is passed to a hypercall
+> -	 * before being used then we cannot rely on a page fault to
+> -	 * trigger an update of the page tables.  So sync all the page
+> -	 * tables here.
+> -	 */
+> -	vmalloc_sync_all();
+> -
+>  	return area;
+>  }
+>  EXPORT_SYMBOL_GPL(alloc_vm_area);
+> -- 
+> 1.7.7.1
+> 
+
+--45Z9DzgjV8m4Oswq
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="0001-xen-map-foreign-pages-for-shared-rings-by-updating-t.patch"
+
+
+--45Z9DzgjV8m4Oswq--
