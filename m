@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 708C56B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 04:11:44 -0500 (EST)
-Subject: Re: [RFC PATCH] tmpfs: support user quotas
-In-Reply-To: Your message of "Sun, 06 Nov 2011 18:15:01 -0300."
-             <1320614101.3226.5.camel@offbook>
-From: Valdis.Kletnieks@vt.edu
-References: <1320614101.3226.5.camel@offbook>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1320657093_7081P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 07 Nov 2011 04:11:33 -0500
-Message-ID: <25866.1320657093@turing-police.cc.vt.edu>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7F2986B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 04:17:21 -0500 (EST)
+Date: Mon, 7 Nov 2011 17:17:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Possible usage of uninitalized task_ratelimit variable in
+ mm/page-writeback.c
+Message-ID: <20111107091704.GA29562@localhost>
+References: <20111107081824.GA18221@smp.if.uj.edu.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20111107081824.GA18221@smp.if.uj.edu.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@gnu.org
-Cc: Hugh Dickins <hughd@google.com>, Lennart Poettering <lennart@poettering.net>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Witold Baryluk <baryluk@smp.if.uj.edu.pl>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
---==_Exmh_1320657093_7081P
-Content-Type: text/plain; charset=us-ascii
+On Mon, Nov 07, 2011 at 04:18:24PM +0800, Witold Baryluk wrote:
+> Hi,
+> 
+> I found a minor issue when compiling kernel today
+> 
+> 
+>   CC      mm/page-writeback.o
+> mm/page-writeback.c: In function a??balance_dirty_pages_ratelimited_nra??:
+> include/trace/events/writeback.h:281:1: warning: a??task_ratelimita?? may be used uninitialized in this function [-Wuninitialized]
+> mm/page-writeback.c:1018:16: note: a??task_ratelimita?? was declared here
+> 
+> Indeed in balance_dirty_pages a task_ratelimit may be not initialized
+> (initialization skiped by goto pause;), and then used when calling
+> tracing hook.
 
-On Sun, 06 Nov 2011 18:15:01 -0300, Davidlohr Bueso said:
+Witold, thanks for the report! This patch should fix the bug.
 
-> @@ -1159,7 +1159,12 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
->  			struct page **pagep, void **fsdata)
+Thanks,
+Fengguang
+---
 
-> +	if (atomic_long_read(&user->shmem_bytes) + len > 
-> +	    rlimit(RLIMIT_TMPFSQUOTA))
-> +		return -ENOSPC;
+writeback: fix uninitialized task_ratelimit
 
-Is this a per-process or per-user limit?  If it's per-process, it doesn't
-really do much good, because a user can use multiple processes to over-run the
-limit (either intentionally or accidentally).
+In balance_dirty_pages() task_ratelimit may be not initialized
+(initialization skiped by goto pause;), and then used when calling
+tracing hook.
 
-> @@ -1169,10 +1174,12 @@ shmem_write_end(struct file *file, struct address_space *mapping,
->  			struct page *page, void *fsdata)
+Fix it by moving the task_ratelimit assignment before goto pause.
 
-> +	if (pos + copied > inode->i_size) {
->  		i_size_write(inode, pos + copied);
-> +		atomic_long_add(copied, &user->shmem_bytes);
-> +	}
+Reported-by: Witold Baryluk <baryluk@smp.if.uj.edu.pl>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-If this is per-user, it's racy with shmem_write_begin() - two processes can hit
-the write_begin(), be under quota by (say) 1M, but by the time they both
-complete the user is 1M over the quota.
-
->  @@ -1535,12 +1542,15 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
-> +	struct user_struct *user = current_user();
-> +	atomic_long_sub(inode->i_size, &user->shmem_bytes);
-
-What happens here if user 'fred' creates a file on a tmpfs, and then logs out so he has
-no processes running, and then root does a 'find tmpfs -user fred -exec rm {} \;' to clean up?
-We just decremented root's quota, not fred's....
-
-
---==_Exmh_1320657093_7081P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFOt6DFcC3lWbTT17ARAvgcAKCfOLpiqvy4o2wOLlDpgfbbXKPDtgCg+i9l
-P1HySIiEz+1LnLj38+VVp/k=
-=gCbY
------END PGP SIGNATURE-----
-
---==_Exmh_1320657093_7081P--
+--- linux.orig/mm/page-writeback.c	2011-11-07 17:07:04.080000043 +0800
++++ linux/mm/page-writeback.c	2011-11-07 17:08:43.232000031 +0800
+@@ -1097,13 +1097,13 @@ static void balance_dirty_pages(struct a
+ 		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
+ 					       background_thresh, nr_dirty,
+ 					       bdi_thresh, bdi_dirty);
+-		if (unlikely(pos_ratio == 0)) {
++		task_ratelimit = (u64)dirty_ratelimit *
++					pos_ratio >> RATELIMIT_CALC_SHIFT;
++		if (unlikely(task_ratelimit == 0)) {
+ 			pause = max_pause;
+ 			goto pause;
+ 		}
+-		task_ratelimit = (u64)dirty_ratelimit *
+-					pos_ratio >> RATELIMIT_CALC_SHIFT;
+-		pause = (HZ * pages_dirtied) / (task_ratelimit | 1);
++		pause = (HZ * pages_dirtied) / task_ratelimit;
+ 		if (unlikely(pause <= 0)) {
+ 			trace_balance_dirty_pages(bdi,
+ 						  dirty_thresh,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
