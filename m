@@ -1,32 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E722D6B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 19:33:49 -0500 (EST)
-Message-ID: <4EB878F3.1040508@jp.fujitsu.com>
-Date: Mon, 07 Nov 2011 19:33:55 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 940846B006E
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2011 19:45:26 -0500 (EST)
+Date: Tue, 8 Nov 2011 00:46:15 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: [RFC PATCH] tmpfs: support user quotas
-References: <1320614101.3226.5.camel@offbook> <20111107112952.GB25130@tango.0pointer.de> <1320675607.2330.0.camel@offworld> <20111107135823.3a7cdc53@lxorguk.ukuu.org.uk> <20111107143010.GA3630@tango.0pointer.de> <4EB8586B.5060804@jp.fujitsu.com> <CAPXgP118CzaTuV-kABfEC-D-+K75zdKVwbaYba+FuN7umJO4kA@mail.gmail.com>
-In-Reply-To: <CAPXgP118CzaTuV-kABfEC-D-+K75zdKVwbaYba+FuN7umJO4kA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20111108004615.39477beb@lxorguk.ukuu.org.uk>
+In-Reply-To: <20111108002520.GB25769@tango.0pointer.de>
+References: <1320614101.3226.5.camel@offbook>
+	<20111107112952.GB25130@tango.0pointer.de>
+	<1320675607.2330.0.camel@offworld>
+	<20111107135823.3a7cdc53@lxorguk.ukuu.org.uk>
+	<CAPXgP117Wkgvf1kDukjWt9yOye8xArpyX29xx36NT++s8TS5Rw@mail.gmail.com>
+	<20111107225314.0e3976a6@lxorguk.ukuu.org.uk>
+	<20111107230712.GA25769@tango.0pointer.de>
+	<20111107234337.1dc9d612@lxorguk.ukuu.org.uk>
+	<20111108002520.GB25769@tango.0pointer.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kay.sievers@vrfy.org
-Cc: mzxreary@0pointer.de, alan@lxorguk.ukuu.org.uk, dave@gnu.org, hch@infradead.org, hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lennart Poettering <mzxreary@0pointer.de>
+Cc: Kay Sievers <kay.sievers@vrfy.org>, Davidlohr Bueso <dave@gnu.org>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-(11/7/2011 5:37 PM), Kay Sievers wrote:
-> On Mon, Nov 7, 2011 at 23:15, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> (11/7/2011 6:30 AM), Lennart Poettering wrote:
-> 
->> If you want per-user limitation, RLIMIT is bad idea. RLIMIT is only inherited
->> by fork. So, The api semantics clearly mismatch your usecase.
-> 
-> Like RLIMIT_NPROC?
+> And half of the other resource limits are "oddities" too?
+> For  example RLIMIT_SIGPENDING is per-user and so is RLIMIT_MSGQUEUE,
+> and others too.
 
-I suggest to don't follow useless interfaces.
+When you look at the standards - yes.
+
+> > And the standards have no idea how a resource limit hit for an fs would
+> > be reported, nor how an app installer would check for it. Quota on the
+> > other hand is defined behaviour.
+> 
+> EDQUOT is POSIX, but afaik there is no POSIX standardized API for quota,
+> is there? i.e. the reporting of the user hitting quota is defined, but
+
+Its part of Unix and its well defined and used by applications, both for
+hitting quota (the easy bit), checking quota (when checking space for
+things particularly), and manipulating them
+
+The latter bit is nice, it means you can mount with a user quota set in
+the mount options, and if you want then use quota tools to change the
+quota of a specific user or two that have special rules.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
