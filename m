@@ -1,48 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D690D6B002D
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 04:29:00 -0500 (EST)
-Date: Tue, 8 Nov 2011 10:28:57 +0100 (CET)
-From: Mikael Abrahamsson <swmike@swm.pp.se>
-Subject: mdraid write performance in different kernels up to 3.0, 3.0 shows
- huge improvement
-Message-ID: <alpine.DEB.2.00.1111081019010.19721@uplift.swm.pp.se>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BDEE6B002D
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 07:15:11 -0500 (EST)
+From: Ed Tomlinson <edt@aei.ca>
+Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
+Date: Tue, 08 Nov 2011 07:15:04 -0500
+Message-ID: <15917317.H6lYS7chMM@grover>
+In-Reply-To: <201529.1320618774@turing-police.cc.vt.edu>
+References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <20139.5644.583790.903531@quad.stoffel.home> <201529.1320618774@turing-police.cc.vt.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-raid@vger.kernel.org
+To: Valdis.Kletnieks@vt.edu
+Cc: John Stoffel <john@stoffel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Johannes Weiner <jweiner@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
+On Sunday 06 November 2011 17:32:54 Valdis.Kletnieks@vt.edu wrote:
+> On Fri, 28 Oct 2011 16:52:28 EDT, John Stoffel said:
+> > Dan> "WHY" this is such a good idea is the same as WHY it is useful to
+> > Dan> add RAM to your systems. 
+> >
+> > So why would I use this instead of increasing the physical RAM?
+> 
+> You're welcome to buy me a new laptop that has a third DIMM slot. :)
+> 
+> There's a lot of people running hardware that already has the max amount of
+> supported RAM, and who for budget or legacy-support reasons can't easily do a
+> forklift upgrade to a new machine.
 
-Hello.
+I've got three boxes with this problem here.  Hense my support for frontswap/cleancache.
 
-I have been running mdraid->cryptsetup/LUKS->lvm->xfs on Ubuntu AMD64 with 
-RAID5 and now RAID6 for quite some time, dating back to 2.6.27. Around 
-2.6.32 I saw quite a bit of regression in write performance (probably the 
-implementation of barriers), 2.6.35 was acceptable, 2.6.38 was really 
-really bad, and 3.0 is like a rocket. Best of them all.
+Ed
 
-I'm talking about 10-20x in different in write performance on my workload, 
-in combination with the older kernels throwing me page allocation failures 
-when the write load gets high, and also quite often the machine would just 
-freeze up and had to be rebooted.
-
-With 2.6.38 I was down to 6-10 megabyte/s write speed, whereas 3.0 seem to 
-give me 100+ megabyte/s with the exact same workload, I've seen up to 150 
-megabyte/s writes at good times. This is on a box with AES-NI, so the 
-crypto is not the limiting factor.
-
-I have from time to time sent out an email regarding my page allocation 
-failures, but never really got any takers on trying to fault find it, my 
-tickets with ubuntu also never got any real attention. I haven't really 
-pushed it super hard with 3.0, but I've thrown loads at it that would make 
-2.6.38 lock up.
-
-Just wanted to send in this success report that this finally seem to have 
-seen some really nice improvements!
-
--- 
-Mikael Abrahamsson    email: swmike@swm.pp.se
+> > if I've got a large system which cannot physically use any more
+> > memory, then it might be worth my while to use TMEM to get more
+> > performance out of this expensive hardware.
+> 
+> It's not always a large system....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
