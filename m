@@ -1,68 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C006B002D
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 18:36:39 -0500 (EST)
-Date: Tue, 8 Nov 2011 15:36:35 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Xen-devel] Re: [Revert] Re: [PATCH] mm: sync vmalloc address
- space page tables in alloc_vm_area()
-Message-Id: <20111108153635.45b3c517.akpm@linux-foundation.org>
-In-Reply-To: <20111108233132.GA1230@phenom.dumpdata.com>
-References: <1314877863-21977-1-git-send-email-david.vrabel@citrix.com>
-	<20110901161134.GA8979@dumpdata.com>
-	<4E5FED1A.1000300@goop.org>
-	<20110901141754.76cef93b.akpm@linux-foundation.org>
-	<4E60C067.4010600@citrix.com>
-	<20110902153204.59a928c1.akpm@linux-foundation.org>
-	<20110906163553.GA28971@dumpdata.com>
-	<20111105133846.GA4415@phenom.dumpdata.com>
-	<20111107203613.GA6546@phenom.dumpdata.com>
-	<20111108150153.e3229374.akpm@linux-foundation.org>
-	<20111108233132.GA1230@phenom.dumpdata.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AD3F86B002D
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 18:42:24 -0500 (EST)
+Date: Tue, 8 Nov 2011 18:41:20 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [GIT PULL] mm: frontswap (SUMMARY)
+Message-ID: <20111108234120.GB1230@phenom.dumpdata.com>
+References: <20111104164532.GO18879@redhat.com>
+ <d19dddac-0713-47bf-bec7-04cc8d534b50@defaultCAOJsxLFXy7-u+G_MLUnD3+kYqxsbns4dQV2WEpBu2oCJ4PtT7A@mail.gmail.com>
+ <e3566bd4-bf52-4e75-87bd-d42debcc07b6@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e3566bd4-bf52-4e75-87bd-d42debcc07b6@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "namhyung@gmail.com" <namhyung@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Vrabel <david.vrabel@citrix.com>, "rientjes@google.com" <rientjes@google.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Neo Jia <cyclonusj@gmail.com>, levinsasha928@gmail.com, JeremyFitzhardinge <jeremy@goop.org>, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Chris Mason <chris.mason@oracle.com>, ngupta@vflare.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, 8 Nov 2011 18:31:32 -0500
-Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
+. snip..
+> I won't be responding to further posts on this
+> topic for awhile, for health reasons.
 
-> > > And Linus picked it up.
-> > 
-> > I've no idea what's going on here.
-> 
-> Heh. Sorry for being so confusing. Merge windows are a bit stressful and
-> I sometimes end up writing run-on sentences.
-> > 
-> > > .. snip..
-> > > > 
-> > > > Also, not sure what you thought of this patch below?
-> > > 
-> > > Patch included as attachment for easier review..
-> > 
-> > The patch "xen: map foreign pages for shared rings by updating the PTEs
-> > directly" (whcih looks harnless enough) is not present in 3.2-rc1 or linux-next.
-> 
-> <nods>. That is b/c it does not have your Ack. The patch applies cleanly to
-> 3.2-rc1 (as all the other patches that it depends on are now in 3.2-rc1).
-> 
-> I am humbly asking for you to:
->  a) review the patch (which you did) and get an idea whether you are OK (sounds like you are)
+I like stories with a nice happy end so:
+ - I am going to step up as the maintainer of the cleancache/frontswap
+   zcache and shepard those.
+ - Go through the list of review comments and work them out.
+ - Not going to push this patchset for 3.2 (obviously since rc1 is out).
+ - Dan will help me out, but won't be active on lkml for a while (see above).
 
-Yup.
-
->  b) pick it up in your -mm tree.
-
-No added benefit there.
-
-> or alternately:
->  b) give an Ack on the patch so I can put it in my linux-next and push it
->     for 3.2-rc1.
-
-That's OK by me.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
