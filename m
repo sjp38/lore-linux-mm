@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AEBF6B002D
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 12:41:32 -0500 (EST)
-Received: by wyg24 with SMTP id 24so1011856wyg.14
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2011 09:41:28 -0800 (PST)
-Date: Tue, 8 Nov 2011 18:42:27 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E8BA6B002D
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 12:55:53 -0500 (EST)
+Date: Tue, 8 Nov 2011 17:55:17 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
 Subject: Re: [RFC 1/2] dma-buf: Introduce dma buffer sharing mechanismch
-Message-ID: <20111108174122.GA4754@phenom.ffwll.local>
-References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
- <1318325033-32688-2-git-send-email-sumit.semwal@ti.com>
- <4E98085A.8080803@samsung.com>
- <20111014152139.GA2908@phenom.ffwll.local>
- <000001cc99ff$47cfe960$d76fbc20$%szyprowski@samsung.com>
- <CAO8GWqnNMGwADVnO4-RfJu0TPzHhANBdyctv2RyhCxbBJ0beXw@mail.gmail.com>
+Message-ID: <20111108175517.GG12913@n2100.arm.linux.org.uk>
+References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com> <1318325033-32688-2-git-send-email-sumit.semwal@ti.com> <4E98085A.8080803@samsung.com> <20111014152139.GA2908@phenom.ffwll.local> <000001cc99ff$47cfe960$d76fbc20$%szyprowski@samsung.com> <CAO8GWqnNMGwADVnO4-RfJu0TPzHhANBdyctv2RyhCxbBJ0beXw@mail.gmail.com> <20111108174122.GA4754@phenom.ffwll.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAO8GWqnNMGwADVnO4-RfJu0TPzHhANBdyctv2RyhCxbBJ0beXw@mail.gmail.com>
+In-Reply-To: <20111108174122.GA4754@phenom.ffwll.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Clark, Rob" <rob@ti.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>, Tomasz Stanislawski <t.stanislaws@samsung.com>, Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, Sumit Semwal <sumit.semwal@linaro.org>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: "Clark, Rob" <rob@ti.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>, Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, jesse.barker@linaro.org, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Tue, Nov 08, 2011 at 10:59:56AM -0600, Clark, Rob wrote:
-> On Thu, Nov 3, 2011 at 3:04 AM, Marek Szyprowski
-> > 2. dma-mapping api is very limited in the area of the dynamic buffer management,
-> > this API has been designed definitely for static buffer allocation and mapping.
-> >
-> > It looks that fully dynamic buffer management requires a complete change of
-> > v4l2 api principles (V4L3?) and a completely new DMA API interface. That's
-> > probably the reason by none of the GPU driver relies on the DMA-mapping API
-> > and implements custom solution for managing the mappings.
-> >
-> > This reminds me one more issue I've noticed in the current dma buf proof-of-
-> > concept. You assumed that the exporter will be responsible for mapping the
-> > buffer into io address space of all the client devices. What if the device
-> > needs additional custom hooks/hacks during the mappings? This will be a serious
-> > problem for the current GPU drivers for example. IMHO the API will be much
-> > clearer if each client driver will map the scatter list gathered from the
-> > dma buf by itself. Only the client driver has the complete knowledge how
-> > to do this correctly for this particular device. This way it will also work
-> > with devices that don't do the real DMA (like for example USB devices that
-> > copy all data from usb packets to the target buffer with the cpu).
+On Tue, Nov 08, 2011 at 06:42:27PM +0100, Daniel Vetter wrote:
+> Actually I think the importer should get a _mapped_ scatterlist when it
+> calls get_scatterlist. The simple reason is that for strange stuff like
+> memory remapped into e.g. omaps TILER doesn't have any sensible notion of
+> an address in physical memory. For the USB-example I think the right
+> approach is to attach the usb hci to the dma_buf, after all that is the
+> device that will read the data and move over the usb bus to the udl
+> device. Similar for any other device that sits behind a bus that can't do
+> dma (or it doesn't make sense to do dma).
 > 
-> The exporter doesn't map.. it returns a scatterlist to the importer.
-> But the exporter does allocate and pin backing pages.  And it is
-> preferable if the exporter has the opportunity to wait until as much
-> is known about the various importing devices to know if it must
-> allocate contiguous pages, or pages in a certain range.
+> Imo if there's a use-case where the client needs to frob the sg_list
+> before calling dma_map_sg, we have an issue with the dma subsystem in
+> general.
 
-Actually I think the importer should get a _mapped_ scatterlist when it
-calls get_scatterlist. The simple reason is that for strange stuff like
-memory remapped into e.g. omaps TILER doesn't have any sensible notion of
-an address in physical memory. For the USB-example I think the right
-approach is to attach the usb hci to the dma_buf, after all that is the
-device that will read the data and move over the usb bus to the udl
-device. Similar for any other device that sits behind a bus that can't do
-dma (or it doesn't make sense to do dma).
+Let's clear something up about the DMA API, which I think is causing some
+misunderstanding here.  For this purpose, I'm going to talk about
+dma_map_single(), but the same applies to the scatterlist and _page
+variants as well.
 
-Imo if there's a use-case where the client needs to frob the sg_list
-before calling dma_map_sg, we have an issue with the dma subsystem in
-general.
+	dma = dma_map_single(dev, cpuaddr, size, dir);
 
-> That said, on a platform where everything had iommu's or somehow
-> didn't have any particular memory requirements, or where the exporter
-> had the strictest requirements (or at least knew of the strictest
-> requirements), then the exporter is free to allocate/pin the backing
-> pages earlier, such as even before the buffer is exported.
+dev := the device _performing_ the DMA operation.  You are quite correct
+       that in the case of a USB peripheral device, the device is normally
+       the USB HCI device.
 
-Yeah, I think the important thing is that the dma_buf api should allow
-decent buffer management. If certain subsystems ignore that and just
-allocate up-front, no problem for me. But given how all graphics drivers
-for essentially all OS have moved to dynamic buffer management, I expect
-decoders, encoders, v4l devices and whatever else might sit in a graphics
-pipeline to follow.
+dma := dma address to be programmed into 'dev' which corresponds (by some
+       means) with 'cpuaddr'.  This may not be the physical address due
+       to bus offset translations or mappings setup in IOMMUs.
 
-Yours, Daniel
--- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+Therefore, it is wrong to talk about a 'physical address' when talking
+about the DMA API.
+
+We can take this one step further.  Lets say that the USB HCI is not
+capable of performing memory accesses itself, but it is connected to a
+separate DMA engine device:
+
+	mem <---> dma engine <---> usb hci <---> usb peripheral
+
+(such setups do exist, but despite having such implementations I've never
+tried to support it.)
+
+In this case, the dma engine, in response to control signals from the
+USB host controller, will generate the appropriate bus address to access
+memory and transfer the data into the USB HCI device.
+
+So, in this case, the struct device to be used for mapping memory for
+transfers to the usb peripheral is the DMA engine device, not the USB HCI
+device nor the USB peripheral device.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
