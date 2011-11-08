@@ -1,39 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 738956B002D
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 10:26:57 -0500 (EST)
-Message-ID: <1320766015.85140.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-Date: Tue, 8 Nov 2011 07:26:55 -0800 (PST)
-From: Pintu Agarwal <pintu_agarwal@yahoo.com>
-Reply-To: Pintu Agarwal <pintu_agarwal@yahoo.com>
-Subject: HELP :  Rss and Pss pages are always 0 for some drivers. Why?
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 193866B002D
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 10:29:25 -0500 (EST)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] thp: reduce khugepaged freezing latency
+Date: Tue,  8 Nov 2011 16:29:11 +0100
+Message-Id: <1320766151-2619-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1320766151-2619-1-git-send-email-aarcange@redhat.com>
+References: <4EB8E969.6010502@suse.cz>
+ <1320766151-2619-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Rafael J. Wysocki" <rjw@suse.com>
+Cc: linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Dear All,=0A=A0=0AI have a problem regarding RSS and PSS pages always showi=
-ng zero=A0for some PID.=0A=A0=0AWe are using customized kernel2.6.36 (arm w=
-ith no swap).=0A=A0=0AWe are having a menu-screen application (current PID =
-1939)=0A=A0=0AWhen I do cat /proc/1939/smaps we are getting "Rss", "Pss" pa=
-ge as always zero for some of the=A0modules=A0 /dev/ump and /dev/mali.=0ATh=
-e output is as follows:-=0Acat /proc/1936/smaps | grep -A 11 /dev/ump=0A436=
-98000-43810000 rw-s 0000e000 00:11 6751=A0=A0=A0=A0=A0=A0 /dev/ump=0ASize:=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 1504 kB=0ARss:=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0APss:=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0AShared_Clean:=A0=A0=A0=A0=A0=A0=A0=A0=A0=
- 0 kB=0AShared_Dirty:=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0APrivate_Clean:=A0=
-=A0=A0=A0=A0=A0=A0=A0 0 kB=0APrivate_Dirty:=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0A=
-Referenced:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0ASwap:=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0AKernelPageSize:=A0=A0=A0=A0=A0=A0=
-=A0 4 kB=0AMMUPageSize:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 4 kB=0A--------------=
---------------------------------------------------------=0A=A0=0AI wanted t=
-o understand why Rss and Pss pages information for only /dev/ump (similarly=
- for /dev/mali)=A0is not shown correctly by smaps.=0AWhere could be the pro=
-blem and where I should debug?=0A=A0=0AAny information on this will be a gr=
-eat help.=0A=A0=0A=A0=0A=A0=0AThanks, Regards,=0APintu Kumar
+Lack of set_freezable_with_signal() prevented khugepaged to be waken
+up (and prevented to sleep again) across the
+schedule_timeout_interruptible() calls after freezing() becomes
+true. The tight loop in khugepaged_alloc_hugepage() also missed one
+try_to_freeze() call in case alloc_hugepage() would repeatedly fail in
+turn preventing the loop to break and to reach the try_to_freeze() in
+the khugepaged main loop.
+
+khugepaged would still freeze just fine by trying again the next
+minute but it's better if it freezes immediately.
+
+Reported-by: Jiri Slaby <jslaby@suse.cz>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4298aba..67311d1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2277,6 +2277,7 @@ static struct page *khugepaged_alloc_hugepage(void)
+ 		if (!hpage) {
+ 			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 			khugepaged_alloc_sleep();
++			try_to_freeze();
+ 		} else
+ 			count_vm_event(THP_COLLAPSE_ALLOC);
+ 	} while (unlikely(!hpage) &&
+@@ -2331,7 +2332,7 @@ static int khugepaged(void *none)
+ {
+ 	struct mm_slot *mm_slot;
+ 
+-	set_freezable();
++	set_freezable_with_signal();
+ 	set_user_nice(current, 19);
+ 
+ 	/* serialize with start_khugepaged() */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
