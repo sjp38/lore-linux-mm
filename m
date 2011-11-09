@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8B50B6B002D
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 08:15:59 -0500 (EST)
-Date: Wed, 9 Nov 2011 14:14:37 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH mm] mm: memcg: remove unused node/section info from
- pc->flags fix
-Message-ID: <20111109131437.GD3153@redhat.com>
-References: <1320787408-22866-1-git-send-email-jweiner@redhat.com>
- <1320787408-22866-11-git-send-email-jweiner@redhat.com>
- <alpine.LSU.2.00.1111082108160.1250@sister.anvils>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9C76B0069
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 10:53:51 -0500 (EST)
+Received: by yenm7 with SMTP id m7so1060484yen.14
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2011 07:53:48 -0800 (PST)
+Date: Wed, 9 Nov 2011 07:53:42 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] thp: reduce khugepaged freezing latency
+Message-ID: <20111109155342.GA1260@google.com>
+References: <4EB8E969.6010502@suse.cz>
+ <1320766151-2619-1-git-send-email-aarcange@redhat.com>
+ <1320766151-2619-2-git-send-email-aarcange@redhat.com>
+ <4EB98A83.3040101@linux.vnet.ibm.com>
+ <4EBA75F2.4080800@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1111082108160.1250@sister.anvils>
+In-Reply-To: <4EBA75F2.4080800@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Rafael J. Wysocki" <rjw@suse.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Nov 08, 2011 at 09:18:10PM -0800, Hugh Dickins wrote:
-> Fix non-CONFIG_SPARSEMEM build, which failed with
-> mm/page_cgroup.c: In function `alloc_node_page_cgroup':
-> mm/page_cgroup.c:44: error: `start_pfn' undeclared (first use in this function)
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> For folding into mm-memcg-remove-unused-node-section-info-from-pc-flags.patch
-> 
->  mm/page_cgroup.c |    2 --
->  1 file changed, 2 deletions(-)
-> 
-> Hannes: heartfelt thanks to you for this great work - Hugh
+Hello, Andrea, Srivatsa.
 
-Thanks, I appreciate it.  Sorry for the trouble, the patch is
-obviously correct.
+On Wed, Nov 09, 2011 at 06:15:38PM +0530, Srivatsa S. Bhat wrote:
+> >> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> >> index 4298aba..67311d1 100644
+> >> --- a/mm/huge_memory.c
+> >> +++ b/mm/huge_memory.c
+> >> @@ -2277,6 +2277,7 @@ static struct page *khugepaged_alloc_hugepage(void)
+> >>  		if (!hpage) {
+> >>  			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+> >>  			khugepaged_alloc_sleep();
+> >> +			try_to_freeze();
+> >>  		} else
+> >>  			count_vm_event(THP_COLLAPSE_ALLOC);
+> >>  	} while (unlikely(!hpage) &&
+> >> @@ -2331,7 +2332,7 @@ static int khugepaged(void *none)
+> >>  {
+> >>  	struct mm_slot *mm_slot;
+> >>
+> >> -	set_freezable();
+> >> +	set_freezable_with_signal();
+> >>  	set_user_nice(current, 19);
+
+Oooh, please don't do that.  It's already gone in the pm tree.  It
+would be best if wait_event_freezable_timeout() can be used
+(ie. wakeup condition should be set somewhere) but, if not, something
+like the following sould work.
+
+static void khugepaged_alloc_sleep(void)
+{
+	DEFINE_WAIT(wait);
+	add_wait_queue(&khugepaged_wait, &wait);
+	try_to_freeze();
+	schedule_timeout_interruptible(
+			msecs_to_jiffies(
+				khugepaged_alloc_sleep_millisecs));
+	try_to_freeze();
+	remove_wait_queue(&khugepaged_wait, &wait);
+}
+												
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
