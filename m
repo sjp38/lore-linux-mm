@@ -1,55 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 73D046B006E
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 06:37:36 -0500 (EST)
-Received: by mail-iy0-f169.google.com with SMTP id e16so2402838iaa.14
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2011 03:37:35 -0800 (PST)
-Message-ID: <4EBA65FA.1010605@gmail.com>
-Date: Wed, 09 Nov 2011 19:37:30 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 031F36B002D
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 07:46:19 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp06.au.ibm.com (8.14.4/8.13.1) with ESMTP id pA9CiLm1007158
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2011 23:44:21 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pA9Cghmd2179216
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2011 23:42:43 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pA9CjfsV031384
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2011 23:45:41 +1100
+Message-ID: <4EBA75F2.4080800@linux.vnet.ibm.com>
+Date: Wed, 09 Nov 2011 18:15:38 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/3] mm/memblock.c: eliminate potential memleak in memblock_double_array
+Subject: Re: [PATCH] thp: reduce khugepaged freezing latency
+References: <4EB8E969.6010502@suse.cz> <1320766151-2619-1-git-send-email-aarcange@redhat.com> <1320766151-2619-2-git-send-email-aarcange@redhat.com> <4EB98A83.3040101@linux.vnet.ibm.com>
+In-Reply-To: <4EB98A83.3040101@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Rafael J. Wysocki" <rjw@suse.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-In memblock_double_array, we don't deal with old_array if we use
-slab for new_array. So the memory used by old_array may be lost.
-Add logic to try to free old_array when using slab for new_array.
+On 11/09/2011 01:31 AM, Srivatsa S. Bhat wrote:
+> On 11/08/2011 08:59 PM, Andrea Arcangeli wrote:
+>> Lack of set_freezable_with_signal() prevented khugepaged to be waken
+>> up (and prevented to sleep again) across the
+>> schedule_timeout_interruptible() calls after freezing() becomes
+>> true. The tight loop in khugepaged_alloc_hugepage() also missed one
+>> try_to_freeze() call in case alloc_hugepage() would repeatedly fail in
+>> turn preventing the loop to break and to reach the try_to_freeze() in
+>> the khugepaged main loop.
+>>
+>> khugepaged would still freeze just fine by trying again the next
+>> minute but it's better if it freezes immediately.
+>>
+>> Reported-by: Jiri Slaby <jslaby@suse.cz>
+>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>> ---
+>>  mm/huge_memory.c |    3 ++-
+>>  1 files changed, 2 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index 4298aba..67311d1 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -2277,6 +2277,7 @@ static struct page *khugepaged_alloc_hugepage(void)
+>>  		if (!hpage) {
+>>  			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+>>  			khugepaged_alloc_sleep();
+>> +			try_to_freeze();
+>>  		} else
+>>  			count_vm_event(THP_COLLAPSE_ALLOC);
+>>  	} while (unlikely(!hpage) &&
+>> @@ -2331,7 +2332,7 @@ static int khugepaged(void *none)
+>>  {
+>>  	struct mm_slot *mm_slot;
+>>
+>> -	set_freezable();
+>> +	set_freezable_with_signal();
+>>  	set_user_nice(current, 19);
+>>
+>>  	/* serialize with start_khugepaged() */
+>>
+> 
+> Why do we need to use both set_freezable_with_signal() and an additional
+> try_to_freeze()? Won't just using either one of them be good enough?
+> Or am I missing something here?
+> 
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- mm/memblock.c |    8 ++++++--
- 1 files changed, 6 insertions(+), 2 deletions(-)
+Moreover, please note that Tejun Heo has sent patches to remove
+set_freezable_with_signal() altogether (he has even cleaned up the last
+existing user: usb_storage). So it wouldn't be good to start using it again,
+if it can be avoided.
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 09ff05b..0e4248f 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -250,13 +250,17 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
- 	type->regions = new_array;
- 	type->max <<= 1;
- 
--	/* If we use SLAB that's it, we are done */
--	if (use_slab)
-+	if (use_slab) {
-+		if (memblock_is_region_reserved(__pa(old_array), old_size))
-+			goto old_memblock;
-+		kfree(old_array);
- 		return 0;
-+	}
- 
- 	/* Add the new reserved region now. Should not fail ! */
- 	BUG_ON(memblock_add_region(&memblock.reserved, addr, new_size));
- 
-+old_memblock:
- 	/* If the array wasn't our static init one, then free it. We only do
- 	 * that before SLAB is available as later on, we don't know whether
- 	 * to use kfree or free_bootmem_pages(). Shouldn't be a big deal
--- 
-1.7.1
+http://thread.gmane.org/gmane.linux.kernel/1209416
+
+Thanks,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
