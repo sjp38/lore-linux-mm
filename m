@@ -1,179 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7FA6B006C
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2011 21:01:57 -0500 (EST)
-Received: by mail-gy0-f169.google.com with SMTP id 10so1600064gyg.14
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2011 18:01:54 -0800 (PST)
-Message-ID: <4EB9DF0B.7050004@gmail.com>
-Date: Wed, 09 Nov 2011 10:01:47 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 204916B006E
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 00:18:17 -0500 (EST)
+Received: by iaae16 with SMTP id e16so1977531iaa.14
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2011 21:18:14 -0800 (PST)
+Date: Tue, 8 Nov 2011 21:18:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH mm] mm: memcg: remove unused node/section info from pc->flags
+ fix
+In-Reply-To: <1320787408-22866-11-git-send-email-jweiner@redhat.com>
+Message-ID: <alpine.LSU.2.00.1111082108160.1250@sister.anvils>
+References: <1320787408-22866-1-git-send-email-jweiner@redhat.com> <1320787408-22866-11-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] cleanup: convert the int cnt to unsigned long in mm/memblock.c
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We have the following definition in memblock.h:
-struct memblock_type {
-    unsigned long cnt;  /* number of regions */
-    unsigned long max;  /* size of the allocated array */
-    struct memblock_region *regions;
-};
+Fix non-CONFIG_SPARSEMEM build, which failed with
+mm/page_cgroup.c: In function `alloc_node_page_cgroup':
+mm/page_cgroup.c:44: error: `start_pfn' undeclared (first use in this function)
 
-But in memblock.c, some cnt/max vars are typed to int
-instead of unsigned long.
-This patch does the code cleanup.
-
-
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/memblock.c |   38 +++++++++++++++++++++-----------------
- 1 files changed, 21 insertions(+), 17 deletions(-)
+For folding into mm-memcg-remove-unused-node-section-info-from-pc-flags.patch
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 4d4d5ee..3618241 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -52,13 +52,14 @@ static phys_addr_t __init_memblock memblock_align_up(phys_addr_t addr, phys_addr
- 	return (addr + (size - 1)) & ~(size - 1);
- }
+ mm/page_cgroup.c |    2 --
+ 1 file changed, 2 deletions(-)
+
+Hannes: heartfelt thanks to you for this great work - Hugh
+
+--- 3.2-rc1-jw/mm/page_cgroup.c	2011-11-08 20:25:24.678395000 -0800
++++ linux/mm/page_cgroup.c	2011-11-08 20:42:05.687358464 -0800
+@@ -41,9 +41,7 @@ static int __init alloc_node_page_cgroup
+ 	unsigned long table_size;
+ 	unsigned long nr_pages;
  
--static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, phys_addr_t size1,
--				       phys_addr_t base2, phys_addr_t size2)
-+static int __init_memblock memblock_addrs_overlap(phys_addr_t base1,
-+		phys_addr_t size1, phys_addr_t base2, phys_addr_t size2)
- {
- 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
- }
- 
--long __init_memblock memblock_overlaps_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
-+long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-+				       phys_addr_t base, phys_addr_t size)
- {
- 	unsigned long i;
- 
-@@ -111,7 +112,7 @@ static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_
- static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
- 			phys_addr_t align, phys_addr_t start, phys_addr_t end)
- {
--	long i;
-+	unsigned long i;
- 
- 	BUG_ON(0 == size);
- 
-@@ -199,7 +200,8 @@ static long memblock_add_region(struct memblock_type *type, phys_addr_t base, ph
- static int __init_memblock memblock_double_array(struct memblock_type *type)
- {
- 	struct memblock_region *new_array, *old_array;
--	phys_addr_t old_size, new_size, addr;
-+	phys_addr_t addr;
-+	unsigned long old_size, new_size;
- 	int use_slab = slab_is_available();
- 
- 	/* We don't allow resizing until we know about the reserved regions
-@@ -277,7 +279,8 @@ static long __init_memblock memblock_add_region(struct memblock_type *type,
- 						phys_addr_t base, phys_addr_t size)
- {
- 	phys_addr_t end = base + size;
--	int i, slot = -1;
-+	long slot = -1;
-+	unsigned long i;
- 
- 	/* First try and coalesce this MEMBLOCK with others */
- 	for (i = 0; i < type->cnt; i++) {
-@@ -413,7 +416,7 @@ static long __init_memblock __memblock_remove(struct memblock_type *type,
- 					      phys_addr_t base, phys_addr_t size)
- {
- 	phys_addr_t end = base + size;
--	int i;
-+	unsigned long i;
- 
- 	/* Walk through the array for collisions */
- 	for (i = 0; i < type->cnt; i++) {
-@@ -583,7 +586,7 @@ static phys_addr_t __init memblock_alloc_nid_region(struct memblock_region *mp,
- phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
- {
- 	struct memblock_type *mem = &memblock.memory;
--	int i;
-+	unsigned long i;
- 
- 	BUG_ON(0 == size);
- 
-@@ -628,7 +631,7 @@ phys_addr_t __init memblock_phys_mem_size(void)
- 
- phys_addr_t __init_memblock memblock_end_of_DRAM(void)
- {
--	int idx = memblock.memory.cnt - 1;
-+	unsigned long idx = memblock.memory.cnt - 1;
- 
- 	return (memblock.memory.regions[idx].base + memblock.memory.regions[idx].size);
- }
-@@ -674,12 +677,13 @@ void __init memblock_enforce_memory_limit(phys_addr_t memory_limit)
- 	}
- }
- 
--static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
-+static long __init_memblock memblock_search(struct memblock_type *type,
-+					    phys_addr_t addr)
- {
--	unsigned int left = 0, right = type->cnt;
-+	unsigned long left = 0, right = type->cnt;
- 
- 	do {
--		unsigned int mid = (right + left) / 2;
-+		unsigned long mid = (right + left) / 2;
- 
- 		if (addr < type->regions[mid].base)
- 			right = mid;
-@@ -704,7 +708,7 @@ int __init_memblock memblock_is_memory(phys_addr_t addr)
- 
- int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
- {
--	int idx = memblock_search(&memblock.memory, base);
-+	long idx = memblock_search(&memblock.memory, base);
- 
- 	if (idx == -1)
+-	start_pfn = NODE_DATA(nid)->node_start_pfn;
+ 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
+-
+ 	if (!nr_pages)
  		return 0;
-@@ -727,7 +731,7 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
- static void __init_memblock memblock_dump(struct memblock_type *region, char *name)
- {
- 	unsigned long long base, size;
--	int i;
-+	unsigned long i;
  
- 	pr_info(" %s.cnt  = 0x%lx\n", name, region->cnt);
- 
-@@ -735,7 +739,7 @@ static void __init_memblock memblock_dump(struct memblock_type *region, char *na
- 		base = region->regions[i].base;
- 		size = region->regions[i].size;
- 
--		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes\n",
-+		pr_info(" %s[%#lx]\t[%#016llx-%#016llx], %#llx bytes\n",
- 		    name, i, base, base + size - 1, size);
- 	}
- }
-@@ -754,7 +758,7 @@ void __init_memblock memblock_dump_all(void)
- 
- void __init memblock_analyze(void)
- {
--	int i;
-+	unsigned long i;
- 
- 	/* Check marker in the unused last array entry */
- 	WARN_ON(memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS].base
-@@ -818,7 +822,7 @@ static int memblock_debug_show(struct seq_file *m, void *private)
- {
- 	struct memblock_type *type = m->private;
- 	struct memblock_region *reg;
--	int i;
-+	unsigned long i;
- 
- 	for (i = 0; i < type->cnt; i++) {
- 		reg = &type->regions[i];
--- 
-1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
