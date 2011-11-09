@@ -1,93 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1966B0069
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 14:40:56 -0500 (EST)
-Date: Wed, 9 Nov 2011 20:40:48 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: reduce khugepaged freezing latency
-Message-ID: <20111109194047.GO5075@redhat.com>
-References: <4EB98A83.3040101@linux.vnet.ibm.com>
- <4EBA75F2.4080800@linux.vnet.ibm.com>
- <20111109155342.GA1260@google.com>
- <20111109165201.GI5075@redhat.com>
- <20111109165925.GC1260@google.com>
- <20111109170248.GD1260@google.com>
- <20111109172942.GJ5075@redhat.com>
- <20111109180900.GF1260@google.com>
- <20111109181925.GN5075@redhat.com>
- <20111109183447.GG1260@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111109183447.GG1260@google.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 91EF06B0069
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 16:58:18 -0500 (EST)
+Date: Thu, 10 Nov 2011 08:58:03 +1100
+From: NeilBrown <neilb@suse.de>
+Subject: Re: mdraid write performance in different kernels up to 3.0, 3.0
+ shows huge improvement
+Message-ID: <20111110085803.3f60c2d6@notabene.brown>
+In-Reply-To: <alpine.DEB.2.00.1111081019010.19721@uplift.swm.pp.se>
+References: <alpine.DEB.2.00.1111081019010.19721@uplift.swm.pp.se>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/5RI3B1BoRMOV2ePMJ_Q6r3="; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@suse.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mikael Abrahamsson <swmike@swm.pp.se>
+Cc: linux-mm@kvack.org, linux-raid@vger.kernel.org
 
-On Wed, Nov 09, 2011 at 10:34:47AM -0800, Tejun Heo wrote:
-> know.  My instinct tells me to strongly recommend use of
-> wait_event_freezable_timeout() and run away.  :)
+--Sig_/5RI3B1BoRMOV2ePMJ_Q6r3=
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Passing false wasn't so appealing to me but ok. Jiri can you test this
-with some suspend? (beware builds but untested)
+On Tue, 8 Nov 2011 10:28:57 +0100 (CET) Mikael Abrahamsson <swmike@swm.pp.s=
+e>
+wrote:
 
-===
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: thp: reduce khugepaged freezing latency
+>=20
+> Hello.
+>=20
+> I have been running mdraid->cryptsetup/LUKS->lvm->xfs on Ubuntu AMD64 wit=
+h=20
+> RAID5 and now RAID6 for quite some time, dating back to 2.6.27. Around=20
+> 2.6.32 I saw quite a bit of regression in write performance (probably the=
+=20
+> implementation of barriers), 2.6.35 was acceptable, 2.6.38 was really=20
+> really bad, and 3.0 is like a rocket. Best of them all.
+>=20
+> I'm talking about 10-20x in different in write performance on my workload=
+,=20
+> in combination with the older kernels throwing me page allocation failure=
+s=20
+> when the write load gets high, and also quite often the machine would jus=
+t=20
+> freeze up and had to be rebooted.
+>=20
+> With 2.6.38 I was down to 6-10 megabyte/s write speed, whereas 3.0 seem t=
+o=20
+> give me 100+ megabyte/s with the exact same workload, I've seen up to 150=
+=20
+> megabyte/s writes at good times. This is on a box with AES-NI, so the=20
+> crypto is not the limiting factor.
 
-Use wait_event_freezable_timeout() instead of
-schedule_timeout_interruptible() to avoid missing freezer wakeups. A
-try_to_freeze() would have been needed in the
-khugepaged_alloc_hugepage tight loop too in case of the allocation
-failing repeatedly, and wait_event_freezable_timeout will provide it
-too.
+That is an amazing improvement.  I wish I know what caused it I really have
+no idea.  You have quite a deep stack there and the change could be anywher=
+e.
 
-khugepaged would still freeze just fine by trying again the next
-minute but it's better if it freezes immediately.
+Still, it is good to hear such positive reports - thanks!
 
-Reported-by: Jiri Slaby <jslaby@suse.cz>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c |   14 ++++----------
- 1 files changed, 4 insertions(+), 10 deletions(-)
+NeilBrown
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4298aba..fd925d0 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2259,12 +2259,9 @@ static void khugepaged_do_scan(struct page **hpage)
- 
- static void khugepaged_alloc_sleep(void)
- {
--	DEFINE_WAIT(wait);
--	add_wait_queue(&khugepaged_wait, &wait);
--	schedule_timeout_interruptible(
--		msecs_to_jiffies(
--			khugepaged_alloc_sleep_millisecs));
--	remove_wait_queue(&khugepaged_wait, &wait);
-+	wait_event_freezable_timeout(khugepaged_wait, false,
-+				     msecs_to_jiffies(
-+					     khugepaged_alloc_sleep_millisecs));
- }
- 
- #ifndef CONFIG_NUMA
-@@ -2313,14 +2310,11 @@ static void khugepaged_loop(void)
- 		if (unlikely(kthread_should_stop()))
- 			break;
- 		if (khugepaged_has_work()) {
--			DEFINE_WAIT(wait);
- 			if (!khugepaged_scan_sleep_millisecs)
- 				continue;
--			add_wait_queue(&khugepaged_wait, &wait);
--			schedule_timeout_interruptible(
-+			wait_event_freezable_timeout(khugepaged_wait, false,
- 				msecs_to_jiffies(
- 					khugepaged_scan_sleep_millisecs));
--			remove_wait_queue(&khugepaged_wait, &wait);
- 		} else if (khugepaged_enabled())
- 			wait_event_freezable(khugepaged_wait,
- 					     khugepaged_wait_event());
+
+>=20
+> I have from time to time sent out an email regarding my page allocation=20
+> failures, but never really got any takers on trying to fault find it, my=
+=20
+> tickets with ubuntu also never got any real attention. I haven't really=20
+> pushed it super hard with 3.0, but I've thrown loads at it that would mak=
+e=20
+> 2.6.38 lock up.
+>=20
+> Just wanted to send in this success report that this finally seem to have=
+=20
+> seen some really nice improvements!
+>=20
+
+
+--Sig_/5RI3B1BoRMOV2ePMJ_Q6r3=
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.18 (GNU/Linux)
+
+iQIVAwUBTrr3aznsnt1WYoG5AQJUjw//TK0D2Z+eBRTZRLpzBMDisnfvHKbm9OaE
+A3cXIA4zN+1tMBbHoanvfKQRpG8YF7wWWMUBlru32QoN+cM+yaUPouWkqZ6imb+8
+unA6SvaqI/8Xodci5mS0Bn4bNBjYwAVYuKAF4a9DjjZpQcSwZwyYdMnDOhurMWTA
+MuViVj+tdV8aFuJuT5lRw5YZRlLWV1xmUPoRE8GLnyMW8MU/Bd01549RRa8Fz8yU
+rcgI0qlzGFtq207eRC0sbr8VOkCauYCSWrPKXweJXA5HupmTJakDS4uuFDpUOmix
++HPTuIzgER/WPVJvHc5Hz1v26v+U6HPV897kMqywV/9w4cH2esVbHDewkiQUS0ik
+00lvzepaeZ3KdxtKxanJhHOgO+KCmUyMbMOjObZWD/O+SHmbciVu19szD7dDD07g
+infUJO1gUc828q3TfPovrDIkuoH3ToKbJHd+c/Xs1Ew9E9qs2auQRQ1IIp7m1MdL
+FvEAmy8oomD9KF1avu4lwFo1wQ/TuekTcHYCF6RhQ6g2O9zK7eWwUm7b16Ud0ZPZ
+Qd8I7pJRsOQz1ceo6kiJqrMtU21vbw2qyjJhnfOMuAd5f4uWGzmahM8GbnKf/K+V
+CE4LoZ0Oje/XttJ/hVN7I3hEMcab8EUKczDmv48P5DtsZcfTfiZVON/ixbxT0rqT
+zZsofhTVahA=
+=aTJf
+-----END PGP SIGNATURE-----
+
+--Sig_/5RI3B1BoRMOV2ePMJ_Q6r3=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
