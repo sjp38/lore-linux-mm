@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 94C286B006E
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 12:33:17 -0500 (EST)
-Date: Wed, 9 Nov 2011 18:33:08 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: reduce khugepaged freezing latency
-Message-ID: <20111109173308.GK5075@redhat.com>
-References: <4EB8E969.6010502@suse.cz>
- <1320766151-2619-1-git-send-email-aarcange@redhat.com>
- <1320766151-2619-2-git-send-email-aarcange@redhat.com>
- <4EB98A83.3040101@linux.vnet.ibm.com>
- <4EBA75F2.4080800@linux.vnet.ibm.com>
- <20111109155342.GA1260@google.com>
- <20111109165201.GI5075@redhat.com>
- <20111109165925.GC1260@google.com>
- <20111109170657.GE1260@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FDBF6B0069
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 13:03:33 -0500 (EST)
+Message-ID: <4EBAC04F.1010901@parallels.com>
+Date: Wed, 9 Nov 2011 16:02:55 -0200
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111109170657.GE1260@google.com>
+Subject: Re: [PATCH v5 00/10] per-cgroup tcp memory pressure
+References: <1320679595-21074-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1320679595-21074-1-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@suse.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com
 
-On Wed, Nov 09, 2011 at 09:06:57AM -0800, Tejun Heo wrote:
-> Ah, crap, still waking up.  Sorry about that.  So, yes, there's a race
-> condition above.  You need to set TASK_INTERRUPTIBLE before testing
-> freezing and use schedule_timeout() instead of
+On 11/07/2011 01:26 PM, Glauber Costa wrote:
+> Hi all,
+>
+> This is my new attempt at implementing per-cgroup tcp memory pressure.
+> I am particularly interested in what the network folks have to comment on
+> it: my main goal is to achieve the least impact possible in the network code.
+>
+> Here's a brief description of my approach:
+>
+> When only the root cgroup is present, the code should behave the same way as
+> before - with the exception of the inclusion of an extra field in struct sock,
+> and one in struct proto. All tests are patched out with static branch, and we
+> still access addresses directly - the same as we did before.
+>
+> When a cgroup other than root is created, we patch in the branches, and account
+> resources for that cgroup. The variables in the root cgroup are still updated.
+> If we were to try to be 100 % coherent with the memcg code, that should depend
+> on use_hierarchy. However, I feel that this is a good compromise in terms of
+> leaving the network code untouched, and still having a global vision of its
+> resources. I also do not compute max_usage for the root cgroup, for a similar
+> reason.
+>
+> Please let me know what you think of it.
 
-Yep that's the race I was thinking about. I see the wakeup in the
-no-signal case avoids the race in wait_even_freezable_timeout so that
-is ok but it'd race if I were just to add try_to_freeze before calling
-schedule_timeout_interruptible.
+Dave, Eric,
 
-> schedule_timeout_interruptible().  Was getting confused with
-> prepare_to_wait().  That said, why not use prepare_to_wait() instead?
+Can you let me know what you think of the general approach I've followed 
+in this series? The impact on the common case should be minimal, or at 
+least as expensive as a static branch (0 in most arches, I believe).
 
-Because I don't need to wait on a waitqueue there. A THP failure
-occurred, that caused some CPU overload and it's usually happening at
-time of heavy VM stress, so I don't want to retry and cause more CPU
-load from khugepaged until after some time even if more wakeups come
-by. khugepaged is a very low cost background op, so it shouldn't cause
-unnecessary CPU usage at times of VM pressure, waiting a better time
-later is better.
+I am mostly interested in knowing if this a valid pursue path. I'll be 
+happy to address any specific concerns you have once you're ok with the 
+general approach.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
