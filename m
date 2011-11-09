@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ACA596B002D
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 04:09:23 -0500 (EST)
-From: Michal Hocko <mhocko@suse.cz>
-Date: Fri, 4 Nov 2011 12:59:44 +0100
-Subject: [PATCH resend] oom: do not kill tasks with oom_score_adj OOM_SCORE_ADJ_MIN
-Message-Id: <20111109090919.C2D538AD27@mx2.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9781E6B002D
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 06:37:20 -0500 (EST)
+Received: by iaae16 with SMTP id e16so2402838iaa.14
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2011 03:37:18 -0800 (PST)
+Message-ID: <4EBA65E5.1050506@gmail.com>
+Date: Wed, 09 Nov 2011 19:37:09 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
+MIME-Version: 1.0
+Subject: [PATCH 1/3][RESEND] mm/memblock.c: return -ENOMEM instead of -ENXIO
+ on failure of debugfs_create_dir in memblock_init_debugfs
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Ying Han <yinghan@google.com>
+To: yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-c9f01245 (oom: remove oom_disable_count) has removed oom_disable_count
-counter which has been used for early break out from oom_badness so we
-could never select a task with oom_score_adj set to OOM_SCORE_ADJ_MIN
-(oom disabled).
+On the failure of debugfs_create_dir, we should return -ENOMEM
+instead of -ENXIO.
 
-Now that the counter is gone we are always going through heuristics
-calculation and we always return a non zero positive value.  This
-means that we can end up killing a task with OOM disabled because it is
-indistinguishable from regular tasks with 1% resp. CAP_SYS_ADMIN tasks
-with 3% usage of memory or tasks with oom_score_adj set but OOM enabled.
-
-Let's break out early if the task should have OOM disabled.
-
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: David Rientjes <rientjes@google.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
 ---
- mm/oom_kill.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ mm/memblock.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index e916168..4465fb8 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -185,6 +185,11 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 	if (!p)
- 		return 0;
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ccbf973..4d4d5ee 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -852,7 +852,7 @@ static int __init memblock_init_debugfs(void)
+ {
+ 	struct dentry *root = debugfs_create_dir("memblock", NULL);
+ 	if (!root)
+-		return -ENXIO;
++		return -ENOMEM;
+ 	debugfs_create_file("memory", S_IRUGO, root, &memblock.memory, &memblock_debug_fops);
+ 	debugfs_create_file("reserved", S_IRUGO, root, &memblock.reserved, &memblock_debug_fops);
  
-+	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-+		task_unlock(p);
-+		return 0;
-+	}
-+
- 	/*
- 	 * The memory controller may have a limit of 0 bytes, so avoid a divide
- 	 * by zero, if necessary.
 -- 
-1.7.7.1
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
