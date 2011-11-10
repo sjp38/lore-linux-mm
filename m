@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D6FB46B006C
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:04:37 -0500 (EST)
-Received: from d06nrmr1307.portsmouth.uk.ibm.com (d06nrmr1307.portsmouth.uk.ibm.com [9.149.38.129])
-	by mtagate7.uk.ibm.com (8.13.1/8.13.1) with ESMTP id pAAE4UQj029452
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:30 GMT
-Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
-	by d06nrmr1307.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAAE4UY91855514
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:30 GMT
-Received: from d06av08.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAAE4R8b019345
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:28 GMT
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 95A4B6B006E
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:04:42 -0500 (EST)
+Received: from d06nrmr1507.portsmouth.uk.ibm.com (d06nrmr1507.portsmouth.uk.ibm.com [9.149.38.233])
+	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id pAAE4caD012809
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:38 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAAE4cFl2576564
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:38 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAAE4RnI026321
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 07:04:28 -0700
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 3/3] mm,x86,um: move CMPXCHG_DOUBLE config option
-Date: Thu, 10 Nov 2011 15:04:20 +0100
-Message-Id: <1320933860-15588-4-git-send-email-heiko.carstens@de.ibm.com>
+Subject: [PATCH 2/3] mm,x86,um: move CMPXCHG_LOCAL config option
+Date: Thu, 10 Nov 2011 15:04:19 +0100
+Message-Id: <1320933860-15588-3-git-send-email-heiko.carstens@de.ibm.com>
 In-Reply-To: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com>
 References: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Move CMPXCHG_DOUBLE and rename it to HAVE_CMPXCHG_DOUBLE so architectures can
+Move CMPXCHG_LOCAL and rename it to HAVE_CMPXCHG_LOCAL so architectures can
 simply select the option if it is supported.
 
 Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -31,96 +31,75 @@ Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
  arch/x86/Kconfig     |    1 +
  arch/x86/Kconfig.cpu |    3 ---
  arch/x86/um/Kconfig  |    4 ----
- mm/slub.c            |    9 ++++++---
- 5 files changed, 10 insertions(+), 10 deletions(-)
+ mm/vmstat.c          |    2 +-
+ 5 files changed, 5 insertions(+), 8 deletions(-)
 
 diff --git a/arch/Kconfig b/arch/Kconfig
-index f5e749b..a5d7e7a 100644
+index 4b4a140..f5e749b 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -192,4 +192,7 @@ config HAVE_ALIGNED_STRUCT_PAGE
- config HAVE_CMPXCHG_LOCAL
- 	bool
+@@ -189,4 +189,7 @@ config HAVE_ALIGNED_STRUCT_PAGE
+ 	  on a struct page for better performance. However selecting this
+ 	  might increase the size of a struct page by a word.
  
-+config HAVE_CMPXCHG_DOUBLE
++config HAVE_CMPXCHG_LOCAL
 +	bool
 +
  source "kernel/gcov/Kconfig"
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 71aebf5..6f38b61 100644
+index 5115ce4..71aebf5 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -77,6 +77,7 @@ config X86
+@@ -76,6 +76,7 @@ config X86
+ 	select CLKEVT_I8253
  	select ARCH_HAVE_NMI_SAFE_CMPXCHG
  	select HAVE_ALIGNED_STRUCT_PAGE if SLUB && !M386
- 	select HAVE_CMPXCHG_LOCAL if !M386
-+	select HAVE_CMPXCHG_DOUBLE
++	select HAVE_CMPXCHG_LOCAL if !M386
  
  config INSTRUCTION_DECODER
  	def_bool (KPROBES || PERF_EVENTS)
 diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
-index 99d2ab8..3c57033 100644
+index e3ca7e0..99d2ab8 100644
 --- a/arch/x86/Kconfig.cpu
 +++ b/arch/x86/Kconfig.cpu
 @@ -309,9 +309,6 @@ config X86_INTERNODE_CACHE_SHIFT
  config X86_CMPXCHG
  	def_bool X86_64 || (X86_32 && !M386)
  
--config CMPXCHG_DOUBLE
--	def_bool y
+-config CMPXCHG_LOCAL
+-	def_bool X86_64 || (X86_32 && !M386)
 -
- config X86_L1_CACHE_SHIFT
- 	int
- 	default "7" if MPENTIUM4 || MPSC
+ config CMPXCHG_DOUBLE
+ 	def_bool y
+ 
 diff --git a/arch/x86/um/Kconfig b/arch/x86/um/Kconfig
-index a62bfc6..b2b54d2 100644
+index 1d97bd8..a62bfc6 100644
 --- a/arch/x86/um/Kconfig
 +++ b/arch/x86/um/Kconfig
 @@ -6,10 +6,6 @@ menu "UML-specific options"
  
  menu "Host processor type and features"
  
--config CMPXCHG_DOUBLE
+-config CMPXCHG_LOCAL
 -	bool
 -	default n
 -
- source "arch/x86/Kconfig.cpu"
+ config CMPXCHG_DOUBLE
+ 	bool
+ 	default n
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 8fd603b..f600557 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -295,7 +295,7 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+ }
+ EXPORT_SYMBOL(__dec_zone_page_state);
  
- endmenu
-diff --git a/mm/slub.c b/mm/slub.c
-index 7669b4c..7fd4e00 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -366,7 +366,8 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
- 		const char *n)
- {
- 	VM_BUG_ON(!irqs_disabled());
--#if defined(CONFIG_CMPXCHG_DOUBLE) && defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
- 		if (cmpxchg_double(&page->freelist,
- 			freelist_old, counters_old,
-@@ -400,7 +401,8 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
- 		void *freelist_new, unsigned long counters_new,
- 		const char *n)
- {
--#if defined(CONFIG_CMPXCHG_DOUBLE) && defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
- 		if (cmpxchg_double(&page->freelist,
- 			freelist_old, counters_old,
-@@ -2990,7 +2992,8 @@ static int kmem_cache_open(struct kmem_cache *s,
- 		}
- 	}
- 
--#if defined(CONFIG_CMPXCHG_DOUBLE) && defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (system_has_cmpxchg_double() && (s->flags & SLAB_DEBUG_FLAGS) == 0)
- 		/* Enable fast mode */
- 		s->flags |= __CMPXCHG_DOUBLE;
+-#ifdef CONFIG_CMPXCHG_LOCAL
++#ifdef CONFIG_HAVE_CMPXCHG_LOCAL
+ /*
+  * If we have cmpxchg_local support then we do not need to incur the overhead
+  * that comes with local_irq_save/restore if we use this_cpu_cmpxchg.
 -- 
 1.7.7.1
 
