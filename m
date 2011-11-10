@@ -1,26 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 458006B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:45:03 -0500 (EST)
-Date: Thu, 10 Nov 2011 08:44:59 -0600 (CST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 712706B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:00:20 -0500 (EST)
+Date: Thu, 10 Nov 2011 09:00:16 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch] slub: fix a code merge error
-In-Reply-To: <1320912260.22361.247.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1111100844410.19196@router.home>
-References: <1320912260.22361.247.camel@sli10-conroe>
+Subject: Re: [PATCH 1/3] mm,slub,x86: decouple size of struct page from
+ CONFIG_CMPXCHG_LOCAL
+In-Reply-To: <1320933860-15588-2-git-send-email-heiko.carstens@de.ibm.com>
+Message-ID: <alpine.DEB.2.00.1111100900010.19196@router.home>
+References: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com> <1320933860-15588-2-git-send-email-heiko.carstens@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, penberg@kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 10 Nov 2011, Shaohua Li wrote:
+On Thu, 10 Nov 2011, Heiko Carstens wrote:
 
-> Looks there is a merge error in the slub tree. DEACTIVATE_TO_TAIL != 1.
-> And this will cause performance regression.
-
-Thanks.
+> If an architecture supports CMPXCHG_LOCAL this shouldn't result automatically
+> in larger struct pages if the SLUB allocator is used. Instead introduce a new
+> config option "HAVE_ALIGNED_STRUCT_PAGE" which can be selected if a double
+> word aligned struct page is required.
+> Also update x86 Kconfig so that it should work as before.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
