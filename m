@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FCBA6B006C
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 13:22:25 -0500 (EST)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4916B0070
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 13:22:26 -0500 (EST)
 Received: from [193.150.134.105] (helo=serv30.sepura.co.uk)
 	by mta01 with esmtp (Exim 4.02)
-	id 1ROZGV-00002P-00
+	id 1ROZGV-00002R-00
 	for linux-mm@kvack.org; Thu, 10 Nov 2011 18:22:19 +0000
 Received: from p4admin by serv30.sepura.co.uk with local (Exim 4.71)
 	(envelope-from <p4admin@sepura.com>)
-	id 1ROZG1-00060E-4t
+	id 1ROZG1-000612-CP
 	for linux-mm@kvack.org; Thu, 10 Nov 2011 18:21:49 +0000
 Date: Thu, 10 Nov 2011 18:21:49 +0000
-Message-Id: <E1ROZG1-00060E-4t@serv30.sepura.co.uk>
+Message-Id: <E1ROZG1-000612-CP@serv30.sepura.co.uk>
 From: p4admin@sepura.com
 Reply-To: devtools@sepura.com ((Account for building software - Daniel Sherwood))
-Subject: Perforce change 315099
+Subject: Perforce change 315105
 Content-Type: multipart/alternative;
-	boundary="MCBoundary=_111111018222101601"
+	boundary="MCBoundary=_111111018222205401"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 Cc: linux-mm@kvack.org
 
---MCBoundary=_111111018222101601
+--MCBoundary=_111111018222205401
 Content-Type: text/plain; charset=WINDOWS-1252
 Content-Transfer-Encoding: quoted-printable
 
-Change 315099 by devtools@devtools_gitimport on 2011/11/10 18:21:14
+Change 315105 by devtools@devtools_gitimport on 2011/11/10 18:21:17
 
-=09commit 32e51a8c976fc72c3e9bcece9767d9908816bf8e
+=09commit 02b0ccef903e85673ead74ddb7c431f2f7ce183d
 =09Author: Adam Litke <agl@us.ibm.com>
-=09Date:   Sat Sep 3 15:54:59 2005 -0700
+=09Date:   Sat Sep 3 15:55:01 2005 -0700
 =09
-=09    [PATCH] hugetlb: add pte_huge() macro
+=09    [PATCH] hugetlb: check p?d_present in huge_pte_offset()
 =09
-=09    This patch adds a macro pte_huge(pte) for i386/x86_64 which is neede=
-d by a
-=09    patch later in the series.  Instead of repeating (_PAGE_PRESENT |
-=09    _PAGE_PSE), I've added __LARGE_PTE to i386 to match x86_64.
+=09    For demand faulting, we cannot assume that the page tables will be
+=09    populated.  Do what the rest of the architectures do and test p?d_pr=
+esent()
+=09    while walking down the page table.
 =09
 =09    Signed-off-by: Adam Litke <agl@us.ibm.com>
 =09    Cc: <linux-mm@kvack.org>
@@ -45,13 +45,11 @@ d by a
 
 Affected files ...
 
-... //sw/components_third_party/linux/git/master/.versions.submit#1693 edit
-... //sw/components_third_party/linux/git/master/component/include/asm-i386=
-/pgtable.h#6 edit
-... //sw/components_third_party/linux/git/master/component/include/asm-x86_=
-64/pgtable.h#6 edit
+... //sw/components_third_party/linux/git/master/.versions.submit#1695 edit
+... //sw/components_third_party/linux/git/master/component/arch/i386/mm/hug=
+etlbpage.c#5 edit
 
-  http://serv30:8666/315099?ac=3D10
+  http://serv30:8666/315105?ac=3D10
 
 
 The information in this email is confidential. It is intended
@@ -65,28 +63,28 @@ Sepura plc. Registered Office: Radio House, St Andrew=92s Road, Cambridge, =
 CB4 1GR, England. Registered in England and Wales. Registration Number 4353=
 801
 =20
---MCBoundary=_111111018222101601
+--MCBoundary=_111111018222205401
 Content-Type: text/html; charset=WINDOWS-1252
 Content-Transfer-Encoding: quoted-printable
 
 <HTML><BODY>
     <BR>
     <BR>
-    Change 315099 by <a href=3D"mailto:devtools@devtools_gitimport">devtool=
-s@devtools_gitimport</a> on 2011/11/10 18:21:14 <BR>
+    Change 315105 by <a href=3D"mailto:devtools@devtools_gitimport">devtool=
+s@devtools_gitimport</a> on 2011/11/10 18:21:17 <BR>
 <BR>
-=09commit 32e51a8c976fc72c3e9bcece9767d9908816bf8e<BR>
+=09commit 02b0ccef903e85673ead74ddb7c431f2f7ce183d<BR>
 =09Author: Adam Litke &lt;<a href=3D"mailto:agl@us.ibm.com">agl@us.ibm.com<=
 /a>&gt; <BR>
-=09Date:   Sat Sep 3 15:54:59 2005 -0700<BR>
+=09Date:   Sat Sep 3 15:55:01 2005 -0700<BR>
 =09<BR>
-=09    [PATCH] hugetlb: add pte_huge() macro<BR>
+=09    [PATCH] hugetlb: check p?d_present in huge_pte_offset()<BR>
 =09<BR>
-=09    This patch adds a macro pte_huge(pte) for i386/x86_64 which is neede=
-d by a<BR>
-=09    patch later in the series.  Instead of repeating (_PAGE_PRESENT |<BR=
->
-=09    _PAGE_PSE), I've added __LARGE_PTE to i386 to match x86_64.<BR>
+=09    For demand faulting, we cannot assume that the page tables will be<B=
+R>
+=09    populated.  Do what the rest of the architectures do and test p?d_pr=
+esent()<BR>
+=09    while walking down the page table.<BR>
 =09<BR>
 =09    Signed-off-by: Adam Litke &lt;<a href=3D"mailto:agl@us.ibm.com">agl@=
 us.ibm.com</a>&gt; <BR>
@@ -99,15 +97,13 @@ g">torvalds@osdl.org</a>&gt; <BR>
 <BR>
 Affected files ...<BR>
 <BR>
-... //sw/components_third_party/linux/git/master/.versions.submit#1693 edit=
+... //sw/components_third_party/linux/git/master/.versions.submit#1695 edit=
 <BR>
-... //sw/components_third_party/linux/git/master/component/include/asm-i386=
-/pgtable.h#6 edit<BR>
-... //sw/components_third_party/linux/git/master/component/include/asm-x86_=
-64/pgtable.h#6 edit<BR>
+... //sw/components_third_party/linux/git/master/component/arch/i386/mm/hug=
+etlbpage.c#5 edit<BR>
 <BR>
-  <a href=3D"http://serv30:8666/315099?ac=3D10" target=3D"_blank">http://se=
-rv30:8666/315099?ac=3D10</a> <BR>
+  <a href=3D"http://serv30:8666/315105?ac=3D10" target=3D"_blank">http://se=
+rv30:8666/315105?ac=3D10</a> <BR>
 
     <BR>
     <BR>
@@ -133,7 +129,7 @@ b based platform.<BR>      =20
     </BODY></HTML>
 
 
---MCBoundary=_111111018222101601--
+--MCBoundary=_111111018222205401--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
