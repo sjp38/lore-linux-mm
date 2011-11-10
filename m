@@ -1,80 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 150836B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 03:03:30 -0500 (EST)
-Received: by ggnh4 with SMTP id h4so3428338ggn.14
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2011 00:03:27 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D70506B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 05:06:22 -0500 (EST)
+Date: Thu, 10 Nov 2011 10:06:16 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-ID: <20111110100616.GD3083@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1111020352210.23788@router.home>
-References: <1319385413-29665-1-git-send-email-gilad@benyossef.com>
-	<1319385413-29665-5-git-send-email-gilad@benyossef.com>
-	<4EAAD351.70805@redhat.com>
-	<CAOtvUMd8Z_jbs__+cVG2+ZkPZLqGkJGym402RMRYGDDjT73bkg@mail.gmail.com>
-	<alpine.DEB.2.00.1111020352210.23788@router.home>
-Date: Thu, 10 Nov 2011 10:03:27 +0200
-Message-ID: <CAOtvUMd7asdth2nhWdO_ZriFSOcM75F0YmgwtGmtXgp1XrMGzg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/6] mm: Only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 2, 2011 at 10:53 AM, Christoph Lameter <cl@gentwo.org> wrote:
-> On Sat, 29 Oct 2011, Gilad Ben-Yossef wrote:
->
->> >> +/* Which CPUs have per cpu pages =A0*/
->> >> +cpumask_var_t cpus_with_pcp;
->> >> +static DEFINE_PER_CPU(unsigned long, total_cpu_pcp_count);
->> >
->> > Does the flushing happen so frequently that it is worth keeping this
->> > state on a per-cpu basis, or would it be better to check each CPU's
->> > pcp info and assemble a cpumask at flush time like done in patch 5?
->> >
->>
->> No, I don't =A0believe it is frequent at all. I will try to re-work the
->> patch as suggested.
->
-> The draining of the pcp pages is done from the vmstat callback which
-> occurs every second. Only if there is something to clean in the caches
-> will the flush happen.
->
+Occasionally during large file copies to slow storage, there are still
+reports of user-visible stalls when THP is enabled. Reports on this
+have been intermittent and not reliable to reproduce locally but;
 
-Right,  I wasn't accurate with my answer - I meant to say that the code to =
-IPI
-all CPUs asking to flush their pcp pages is infrequent, so doing more
-work in that
-code path is not unthinkable. Thanks for pointing it out.
+Andy Isaacson reported a problem copying to VFAT on SD Card
+	https://lkml.org/lkml/2011/11/7/2
 
-As Christoph pointed out flushing on each CPU is also done by the  vmstat
-workqueue every second, in addition to the IPI path.
+	In this case, it was stuck in munmap for betwen 20 and 60
+	seconds in compaction. It is also possible that khugepaged
+	was holding mmap_sem on this process if CONFIG_NUMA was set.
 
-Since the changes I need wish to do involve the code that sends the IPI and=
- not
-the flush code itself, I believe it is correct to say it is not a
-frequent activity.
+Johannes Weiner reported stalls on USB
+	https://lkml.org/lkml/2011/7/25/378
 
-Having said that, trying to come up with a way with avoiding waking up each=
- CPU
-once per second to do the vmstat work is also on my todo list, but
-this is another
-patch and another story altogether... :-)
+	In this case, there is no stack trace but it looks like the
+	same problem. The USB stick may have been using NTFS as a
+	filesystem based on other work done related to writing back
+	to USB around the same time.
 
-Thanks!
-Gilad
+Internally in SUSE, I received a bug report related to stalls in firefox
+	when using Java and Flash heavily while copying from NFS
+	to VFAT on USB. It has not been confirmed to be the same problem
+	but if it looks like a duck and quacks like a duck.....
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+In the past, commit [11bc82d6: mm: compaction: Use async migration for
+__GFP_NO_KSWAPD and enforce no writeback] forced that sync compaction
+would never be used for THP allocations. This was reverted in commit
+[c6a140bf: mm/compaction: reverse the change that forbade sync
+migraton with __GFP_NO_KSWAPD] on the grounds that it was uncertain
+it was beneficial.
 
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+While user-visible stalls do not happen for me when writing to USB,
+I setup a test running postmark while short-lived processes created
+anonymous mapping. The objective was to exercise the paths that
+allocate transparent huge pages. I then logged when processes were
+stalled for more than 1 second, recorded a stack strace and did some
+analysis to aggregate unique "stall events" which revealed
+
+Time stalled in this event:    47369 ms
+Event count:                      20
+usemem               sleep_on_page          3690 ms
+usemem               sleep_on_page          2148 ms
+usemem               sleep_on_page          1534 ms
+usemem               sleep_on_page          1518 ms
+usemem               sleep_on_page          1225 ms
+usemem               sleep_on_page          2205 ms
+usemem               sleep_on_page          2399 ms
+usemem               sleep_on_page          2398 ms
+usemem               sleep_on_page          3760 ms
+usemem               sleep_on_page          1861 ms
+usemem               sleep_on_page          2948 ms
+usemem               sleep_on_page          1515 ms
+usemem               sleep_on_page          1386 ms
+usemem               sleep_on_page          1882 ms
+usemem               sleep_on_page          1850 ms
+usemem               sleep_on_page          3715 ms
+usemem               sleep_on_page          3716 ms
+usemem               sleep_on_page          4846 ms
+usemem               sleep_on_page          1306 ms
+usemem               sleep_on_page          1467 ms
+[<ffffffff810ef30c>] wait_on_page_bit+0x6c/0x80
+[<ffffffff8113de9f>] unmap_and_move+0x1bf/0x360
+[<ffffffff8113e0e2>] migrate_pages+0xa2/0x1b0
+[<ffffffff81134273>] compact_zone+0x1f3/0x2f0
+[<ffffffff811345d8>] compact_zone_order+0xa8/0xf0
+[<ffffffff811346ff>] try_to_compact_pages+0xdf/0x110
+[<ffffffff810f773a>] __alloc_pages_direct_compact+0xda/0x1a0
+[<ffffffff810f7d5d>] __alloc_pages_slowpath+0x55d/0x7a0
+[<ffffffff810f8151>] __alloc_pages_nodemask+0x1b1/0x1c0
+[<ffffffff811331db>] alloc_pages_vma+0x9b/0x160
+[<ffffffff81142bb0>] do_huge_pmd_anonymous_page+0x160/0x270
+[<ffffffff814410a7>] do_page_fault+0x207/0x4c0
+[<ffffffff8143dde5>] page_fault+0x25/0x30
+
+The stall times are approximate at best but the estimates represent 25%
+of the worst stalls and even if the estimates are off by a factor of
+10, it's severe.
+
+This patch once again prevents sync migration for transparent
+hugepage allocations as it is preferable to fail a THP allocation
+than stall. It was suggested that __GFP_NORETRY be used instead of
+__GFP_NO_KSWAPD. This would look less like a special case but would
+still cause compaction to run at least once with sync compaction.
+
+If accepted, this is a -stable candidate.
+
+Reported-by: Andy Isaacson <adi@hexapodia.org>
+Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 963c5de..cddc2d0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2213,7 +2213,13 @@ rebalance:
+ 					sync_migration);
+ 	if (page)
+ 		goto got_pg;
+-	sync_migration = true;
++
++	/*
++	 * Do not use sync migration for transparent hugepage allocations as
++	 * it could stall writing back pages which is far worse than simply
++	 * failing to promote a page.
++	 */
++	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
