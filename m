@@ -1,92 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5E0706B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:57:59 -0500 (EST)
-Date: Thu, 10 Nov 2011 16:57:27 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 4/5]thp: correct order in lru list for split huge page
-Message-ID: <20111110155727.GA5075@redhat.com>
-References: <1319511577.22361.140.camel@sli10-conroe>
- <20111027231928.GB29407@barrios-laptop.redhat.com>
- <1319778538.22361.152.camel@sli10-conroe>
- <20111028072102.GA6268@barrios-laptop.redhat.com>
- <20111110023915.GR5075@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 65D8F6B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 11:07:53 -0500 (EST)
+Date: Thu, 10 Nov 2011 17:06:28 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [rfc 2/3] mm: vmscan: treat inactive cycling as neutral
+Message-ID: <20111110160628.GM3153@redhat.com>
+References: <20110808110658.31053.55013.stgit@localhost6>
+ <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+ <4E3FD403.6000400@parallels.com>
+ <20111102163056.GG19965@redhat.com>
+ <20111102163213.GI19965@redhat.com>
+ <20111107113417.1b7581a5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111110023915.GR5075@redhat.com>
+In-Reply-To: <20111107113417.1b7581a5.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
 
-I adjusted comment and removed the isolated lru changes which seem
-unnecessary.
+On Mon, Nov 07, 2011 at 11:34:17AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 2 Nov 2011 17:32:13 +0100
+> Johannes Weiner <jweiner@redhat.com> wrote:
+> 
+> > Each page that is scanned but put back to the inactive list is counted
+> > as a successful reclaim, which tips the balance between file and anon
+> > lists more towards the cycling list.
+> > 
+> > This does - in my opinion - not make too much sense, but at the same
+> > time it was not much of a problem, as the conditions that lead to an
+> > inactive list cycle were mostly temporary - locked page, concurrent
+> > page table changes, backing device congested - or at least limited to
+> > a single reclaimer that was not allowed to unmap or meddle with IO.
+> > More important than being moderately rare, those conditions should
+> > apply to both anon and mapped file pages equally and balance out in
+> > the end.
+> > 
+> > Recently, we started cycling file pages in particular on the inactive
+> > list much more aggressively, for used-once detection of mapped pages,
+> > and when avoiding writeback from direct reclaim.
+> > 
+> > Those rotated pages do not exactly speak for the reclaimability of the
+> > list they sit on and we risk putting immense pressure on file list for
+> > no good reason.
+> > 
+> > Instead, count each page not reclaimed and put back to any list,
+> > active or inactive, as rotated, so they are neutral with respect to
+> > the scan/rotate ratio of the list class, as they should be.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> 
+> I think this makes sense.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> I wonder it may be better to have victim list for written-backed pages..
 
-I would have preferred > 0, but I thought >= 1 may make it more
-explicit it's really not meant to hit on the first page.
-
-====
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: thp: improve order in lru list for split huge page
-
-Put the tail subpages of an isolated hugepage under splitting in the
-lru reclaim head as they supposedly should be isolated too next.
-
-Queues the subpages in physical order in the lru for non isolated
-hugepages under splitting. That might provide some theoretical cache
-benefit to the buddy allocator later.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c |    5 ++---
- mm/swap.c        |    2 +-
- 2 files changed, 3 insertions(+), 4 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index fd925d0..e221fbf 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1199,7 +1199,6 @@ static int __split_huge_page_splitting(struct page *page,
- static void __split_huge_page_refcount(struct page *page)
- {
- 	int i;
--	unsigned long head_index = page->index;
- 	struct zone *zone = page_zone(page);
- 	int zonestat;
- 	int tail_count = 0;
-@@ -1208,7 +1207,7 @@ static void __split_huge_page_refcount(struct page *page)
- 	spin_lock_irq(&zone->lru_lock);
- 	compound_lock(page);
- 
--	for (i = 1; i < HPAGE_PMD_NR; i++) {
-+	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
- 		struct page *page_tail = page + i;
- 
- 		/* tail_page->_mapcount cannot change */
-@@ -1271,7 +1270,7 @@ static void __split_huge_page_refcount(struct page *page)
- 		BUG_ON(page_tail->mapping);
- 		page_tail->mapping = page->mapping;
- 
--		page_tail->index = ++head_index;
-+		page_tail->index = page->index + i;
- 
- 		BUG_ON(!PageAnon(page_tail));
- 		BUG_ON(!PageUptodate(page_tail));
-diff --git a/mm/swap.c b/mm/swap.c
-index a91caf7..f8cfc91 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -684,7 +684,7 @@ void lru_add_page_tail(struct zone* zone,
- 		if (likely(PageLRU(page)))
- 			head = page->lru.prev;
- 		else
--			head = &zone->lru[lru].list;
-+			head = zone->lru[lru].list.prev;
- 		__add_page_to_lru_list(zone, page_tail, lru, head);
- 	} else {
- 		SetPageUnevictable(page_tail);
+Do you mean an extra LRU list that holds dirty pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
