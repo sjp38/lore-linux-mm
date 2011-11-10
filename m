@@ -1,42 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 865416B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 16:49:47 -0500 (EST)
-Message-ID: <4EBC46FD.5010109@jp.fujitsu.com>
-Date: Thu, 10 Nov 2011 16:49:49 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: mm: convert vma->vm_flags to 64bit
-References: <20110412151116.B50D.A69D9226@jp.fujitsu.com>  <CAPQyPG7RrpV8DBV_Qcgr2at_r25_ngjy_84J2FqzRPGfA3PGDA@mail.gmail.com>  <4EBC085D.3060107@jp.fujitsu.com> <1320959579.21206.24.camel@pasglop>
-In-Reply-To: <1320959579.21206.24.camel@pasglop>
-Content-Type: text/plain; charset=UTF-8
+	by kanga.kvack.org (Postfix) with ESMTP id 261336B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 18:12:15 -0500 (EST)
+Date: Thu, 10 Nov 2011 15:12:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-Id: <20111110151211.523fa185.akpm@linux-foundation.org>
+In-Reply-To: <20111110161331.GG3083@suse.de>
+References: <20111110100616.GD3083@suse.de>
+	<20111110142202.GE3083@suse.de>
+	<CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
+	<20111110161331.GG3083@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org
-Cc: nai.xia@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, dave@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, lethal@linux-sh.org, linux@arm.linux.org.uk
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/10/2011 4:12 PM, Benjamin Herrenschmidt wrote:
-> On Thu, 2011-11-10 at 12:22 -0500, KOSAKI Motohiro wrote:
->> On 11/9/2011 11:09 PM, Nai Xia wrote:
->>> Hi all,
->>>
->>> Did this patch get merged at last, or on this way being merged, or
->>> just dropped ?
->>
->> Dropped.
->> Linus said he dislike 64bit enhancement.
-> 
-> Do you have a pointer ? (And a rationale)
-> 
-> I still want to put some arch flags in there at some point...
+On Thu, 10 Nov 2011 16:13:31 +0000
+Mel Gorman <mgorman@suse.de> wrote:
 
-I'm sorry. I had got a machine crash awhile ago and I don't have
-a past mail. If my remember is correctly, Linus said he worry about
-an impact against 32bit x86 and he don't think current vm_flags
-usage is enough efficient.
+> This patch once again prevents sync migration for transparent
+> hugepage allocations as it is preferable to fail a THP allocation
+> than stall.
 
-Maybe we need to ban useless arch specific flags at first.
+Who said?  ;) Presumably some people would prefer to get lots of
+huge pages for their 1000-hour compute job, and waiting a bit to get
+those pages is acceptable.
+
+Do we have the accounting in place for us to be able to determine how
+many huge page allocation attempts failed due to this change?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
