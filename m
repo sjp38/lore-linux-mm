@@ -1,43 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DADA56B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:23:15 -0500 (EST)
-Date: Thu, 10 Nov 2011 16:23:12 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 2/5]thp: remove unnecessary tlb flush for mprotect
-Message-ID: <20111110152312.GY5075@redhat.com>
-References: <1319511565.22361.138.camel@sli10-conroe>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DE7B6B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:31:32 -0500 (EST)
+Date: Thu, 10 Nov 2011 16:29:44 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [rfc 1/3] mm: vmscan: never swap under low memory pressure
+Message-ID: <20111110152944.GL3153@redhat.com>
+References: <20110808110658.31053.55013.stgit@localhost6>
+ <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+ <4E3FD403.6000400@parallels.com>
+ <20111102163056.GG19965@redhat.com>
+ <20111102163141.GH19965@redhat.com>
+ <20111107112941.0dfa07cb.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1319511565.22361.138.camel@sli10-conroe>
+In-Reply-To: <20111107112941.0dfa07cb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
 
-On Tue, Oct 25, 2011 at 10:59:25AM +0800, Shaohua Li wrote:
-> change_protection() will do TLB flush later, don't need duplicate tlb flush.
+On Mon, Nov 07, 2011 at 11:29:41AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 2 Nov 2011 17:31:41 +0100
+> Johannes Weiner <jweiner@redhat.com> wrote:
 > 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> ---
->  mm/huge_memory.c |    1 -
->  1 file changed, 1 deletion(-)
+> > We want to prevent floods of used-once file cache pushing us to swap
+> > out anonymous pages.  Never swap under a certain priority level.  The
+> > availability of used-once cache pages should prevent us from reaching
+> > that threshold.
+> > 
+> > This is needed because subsequent patches will revert some of the
+> > mechanisms that tried to prefer file over anon, and this should not
+> > result in more eager swapping again.
+> > 
+> > It might also be better to keep the aging machinery going and just not
+> > swap, rather than staying away from anonymous pages in the first place
+> > and having less useful age information at the time of swapout.
+> > 
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> > ---
+> >  mm/vmscan.c |    2 ++
+> >  1 files changed, 2 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index a90c603..39d3da3 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -831,6 +831,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		 * Try to allocate it some swap space here.
+> >  		 */
+> >  		if (PageAnon(page) && !PageSwapCache(page)) {
+> > +			if (priority >= DEF_PRIORITY - 2)
+> > +				goto keep_locked;
+> >  			if (!(sc->gfp_mask & __GFP_IO))
+> >  				goto keep_locked;
+> >  			if (!add_to_swap(page))
 > 
-> Index: linux/mm/huge_memory.c
-> ===================================================================
-> --- linux.orig/mm/huge_memory.c	2011-10-24 19:24:31.000000000 +0800
-> +++ linux/mm/huge_memory.c	2011-10-24 19:25:10.000000000 +0800
-> @@ -1079,7 +1079,6 @@ int change_huge_pmd(struct vm_area_struc
->  			entry = pmd_modify(entry, newprot);
->  			set_pmd_at(mm, addr, pmd, entry);
->  			spin_unlock(&vma->vm_mm->page_table_lock);
-> -			flush_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
->  			ret = 1;
->  		}
->  	} else
+> Hm, how about not scanning LRU_ANON rather than checking here ?
+> Add some bias to get_scan_count() or some..
+> If you think to need rotation of LRU, only kswapd should do that..
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Absolutely, it would require more tuning.  This patch was really a
+'hey, how about we do something like this?  anyone tried that before?'
+
+I keep those things in mind if I pursue this further, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
