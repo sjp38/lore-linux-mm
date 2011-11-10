@@ -1,127 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C996B00AA
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 024B76B00AC
 	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:07:57 -0500 (EST)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 11 Nov 2011 00:37:46 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAAJ7gYL3903740
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 00:37:42 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAAJ7fUC017048
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 06:07:42 +1100
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id pAAJ7qDq011542
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 00:37:52 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAAJ7qGX4169876
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 00:37:52 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAAJ7pri028353
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 06:07:52 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Fri, 11 Nov 2011 00:12:47 +0530
-Message-Id: <20111110184247.11361.72856.sendpatchset@srdronam.in.ibm.com>
+Date: Fri, 11 Nov 2011 00:12:57 +0530
+Message-Id: <20111110184257.11361.74052.sendpatchset@srdronam.in.ibm.com>
 In-Reply-To: <20111110183725.11361.57827.sendpatchset@srdronam.in.ibm.com>
 References: <20111110183725.11361.57827.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH v6 3.2-rc1 26/28]   uprobes: introduce uprobe_deny_signal()
+Subject: [PATCH v6 3.2-rc1 27/28]   uprobes: x86: introduce xol_was_trapped()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
 
-A not-UTASK_RUNNING task obviously can't handle the signals, neither
-it should stop/freeze/etc. It must not even exit if it was
-SIGKILL'ed
+Postpone the signals until we execute the probed insn. This is
+simply wrong if xol insn traps and generates the signal itself. Say,
+SIGILL/SIGSEGV/etc.
 
-This patch adds the new hook, uprobe_deny_signal(), called by
-get_signal_to_deliver(). It simply clears TIF_SIGPENDING to ensure
-that this thread can do nothing connected to signals until it
-becomes UTASK_RUNNING.
+Adds xol_was_trapped() to detect this case. It assumes that anything
+like do_page_fault/do_trap/etc sets thread.trap_no != -1.
 
-We also change post_xol() path to do recalc_sigpending() before
-return to user-mode, this ensures the signal can't be lost.
+We add uprobe_task_arch_info->saved_trap_no and change
+pre_xol/post_xol to save/restore thread.trap_no, xol_was_trapped()
+simply checks that ->trap_no is not equal to UPROBE_TRAP_NO == -1
+set by pre_xol().
 
 Original-patch-from: Oleg Nesterov <oleg@redhat.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- include/linux/uprobes.h |    5 +++++
- kernel/signal.c         |    3 +++
- kernel/uprobes.c        |   23 +++++++++++++++++++++++
- 3 files changed, 31 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/uprobes.h |    6 +++++-
+ arch/x86/kernel/uprobes.c      |   21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index 70d639c..8d12c06 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -129,6 +129,7 @@ extern unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs);
- extern int uprobe_post_notifier(struct pt_regs *regs);
- extern int uprobe_bkpt_notifier(struct pt_regs *regs);
- extern void uprobe_notify_resume(struct pt_regs *regs);
-+extern bool uprobe_deny_signal(void);
- #else /* CONFIG_UPROBES is not defined */
- static inline int register_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer)
-@@ -149,6 +150,10 @@ static inline void munmap_uprobe(struct vm_area_struct *vma)
- static inline void uprobe_notify_resume(struct pt_regs *regs)
- {
+diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+index 99d7d4b..78e0007 100644
+--- a/arch/x86/include/asm/uprobes.h
++++ b/arch/x86/include/asm/uprobes.h
+@@ -39,16 +39,20 @@ struct uprobe_arch_info {
+ 
+ struct uprobe_task_arch_info {
+ 	unsigned long saved_scratch_register;
++	unsigned long saved_trap_no;
+ };
+ #else
+ struct uprobe_arch_info {};
+-struct uprobe_task_arch_info {};
++struct uprobe_task_arch_info {
++	unsigned long saved_trap_no;
++};
+ #endif
+ struct uprobe;
+ extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+ extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
+ extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
+ extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
++extern bool xol_was_trapped(struct task_struct *tsk);
+ extern int uprobe_exception_notify(struct notifier_block *self,
+ 				       unsigned long val, void *data);
+ #endif	/* _ASM_UPROBES_H */
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+index 0792fc8..f5b0841 100644
+--- a/arch/x86/kernel/uprobes.c
++++ b/arch/x86/kernel/uprobes.c
+@@ -409,6 +409,8 @@ void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr)
+ 	regs->ip = vaddr;
  }
-+static inline bool uprobe_deny_signal(void)
-+{
-+	return false;
-+}
- static inline unsigned long get_uprobe_bkpt_addr(struct pt_regs *regs)
+ 
++#define	UPROBE_TRAP_NO	-1ul
++
+ /*
+  * pre_xol - prepare to execute out of line.
+  * @uprobe: the probepoint information.
+@@ -424,6 +426,9 @@ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
  {
+ 	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
+ 
++	tskinfo->saved_trap_no = current->thread.trap_no;
++	current->thread.trap_no = UPROBE_TRAP_NO;
++
+ 	regs->ip = current->utask->xol_vaddr;
+ 	if (uprobe->fixups & UPROBES_FIX_RIP_AX) {
+ 		tskinfo->saved_scratch_register = regs->ax;
+@@ -439,6 +444,11 @@ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ #else
+ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ {
++	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
++
++	tskinfo->saved_trap_no = current->thread.trap_no;
++	current->thread.trap_no = UPROBE_TRAP_NO;
++
+ 	regs->ip = current->utask->xol_vaddr;
  	return 0;
-diff --git a/kernel/signal.c b/kernel/signal.c
-index b3f78d0..5d68510 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -2149,6 +2149,9 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
- 	struct signal_struct *signal = current->signal;
- 	int signr;
- 
-+	if (unlikely(uprobe_deny_signal()))
-+		return 0;
-+
- relock:
- 	/*
- 	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 13b1d68..c7de542 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -1315,6 +1315,25 @@ static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
- 	return -EFAULT;
  }
+@@ -504,6 +514,14 @@ static void handle_riprel_post_xol(struct uprobe *uprobe,
+ }
+ #endif
  
-+bool uprobe_deny_signal(void)
++bool xol_was_trapped(struct task_struct *tsk)
 +{
-+	struct task_struct *tsk = current;
-+	struct uprobe_task *utask = tsk->utask;
++	if (tsk->thread.trap_no != UPROBE_TRAP_NO)
++		return true;
 +
-+	if (likely(!utask || !utask->active_uprobe))
-+		return false;
-+
-+	WARN_ON_ONCE(utask->state != UTASK_SSTEP);
-+
-+	if (signal_pending(tsk)) {
-+		spin_lock_irq(&tsk->sighand->siglock);
-+		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
-+		spin_unlock_irq(&tsk->sighand->siglock);
-+	}
-+
-+	return true;
++	return false;
 +}
 +
  /*
-  * uprobe_notify_resume gets called in task context just before returning
-  * to userspace.
-@@ -1375,6 +1394,10 @@ void uprobe_notify_resume(struct pt_regs *regs)
- 		utask->state = UTASK_RUNNING;
- 		user_disable_single_step(current);
- 		xol_free_insn_slot(current);
-+
-+		spin_lock_irq(&current->sighand->siglock);
-+		recalc_sigpending(); /* see uprobe_deny_signal() */
-+		spin_unlock_irq(&current->sighand->siglock);
- 	}
- 	return;
+  * Called after single-stepping. To avoid the SMP problems that can
+  * occur when we temporarily put back the original opcode to
+@@ -534,6 +552,9 @@ int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ 	int result = 0;
+ 	long correction;
  
++	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NO);
++
++	current->thread.trap_no = utask->tskinfo.saved_trap_no;
+ 	correction = (long)(utask->vaddr - utask->xol_vaddr);
+ 	handle_riprel_post_xol(uprobe, regs, &correction);
+ 	if (uprobe->fixups & UPROBES_FIX_IP)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
