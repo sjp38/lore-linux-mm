@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1F8A86B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:01:20 -0500 (EST)
-Date: Thu, 10 Nov 2011 09:01:15 -0600 (CST)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1DB6B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:02:21 -0500 (EST)
+Date: Thu, 10 Nov 2011 09:02:16 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm,x86,um: move CMPXCHG_LOCAL config option
-In-Reply-To: <1320933860-15588-3-git-send-email-heiko.carstens@de.ibm.com>
-Message-ID: <alpine.DEB.2.00.1111100900400.19196@router.home>
-References: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com> <1320933860-15588-3-git-send-email-heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH 3/3] mm,x86,um: move CMPXCHG_DOUBLE config option
+In-Reply-To: <1320933860-15588-4-git-send-email-heiko.carstens@de.ibm.com>
+Message-ID: <alpine.DEB.2.00.1111100901590.19196@router.home>
+References: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com> <1320933860-15588-4-git-send-email-heiko.carstens@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,7 +17,7 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Thu, 10 Nov 2011, Heiko Carstens wrote:
 
-> Move CMPXCHG_LOCAL and rename it to HAVE_CMPXCHG_LOCAL so architectures can
+> Move CMPXCHG_DOUBLE and rename it to HAVE_CMPXCHG_DOUBLE so architectures can
 > simply select the option if it is supported.
 
 Acked-by: Christoph Lameter <cl@linux.com>
