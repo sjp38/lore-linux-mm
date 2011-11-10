@@ -1,75 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EB4236B002D
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 21:39:44 -0500 (EST)
-Date: Thu, 10 Nov 2011 03:39:15 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 4/5]thp: correct order in lru list for split huge page
-Message-ID: <20111110023915.GR5075@redhat.com>
-References: <1319511577.22361.140.camel@sli10-conroe>
- <20111027231928.GB29407@barrios-laptop.redhat.com>
- <1319778538.22361.152.camel@sli10-conroe>
- <20111028072102.GA6268@barrios-laptop.redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B6F046B002D
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2011 21:44:03 -0500 (EST)
+Received: by ywa17 with SMTP id 17so3117387ywa.14
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2011 18:44:01 -0800 (PST)
+Date: Wed, 9 Nov 2011 18:43:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/5]thp: improve the error code path
+In-Reply-To: <1320892395.22361.229.camel@sli10-conroe>
+Message-ID: <alpine.DEB.2.00.1111091828500.32414@chino.kir.corp.google.com>
+References: <1319511521.22361.135.camel@sli10-conroe> <20111025114406.GC10182@redhat.com> <1319593680.22361.145.camel@sli10-conroe> <1320643049.22361.204.camel@sli10-conroe> <20111110021853.GQ5075@redhat.com> <1320892395.22361.229.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111028072102.GA6268@barrios-laptop.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-Hi Minchan and Shaohua,
+On Thu, 10 Nov 2011, Shaohua Li wrote:
 
-On Fri, Oct 28, 2011 at 04:21:25PM +0900, Minchan Kim wrote:
-> On Fri, Oct 28, 2011 at 01:08:58PM +0800, Shaohua Li wrote:
-> > On Fri, 2011-10-28 at 07:19 +0800, Minchan Kim wrote:
-> > > On Tue, Oct 25, 2011 at 10:59:37AM +0800, Shaohua Li wrote:
-> > > > If a huge page is split, all the subpages should live in lru list adjacently
-> > > > because they should be taken as a whole.
-> > > > In page split, with current code:
-> > > > a. if huge page is in lru list, the order is: page, page+HPAGE_PMD_NR-1,
-> > > > page + HPAGE_PMD_NR-2, ..., page + 1(in lru page reclaim order)
-> > > > b. otherwise, the order is: page, ..other pages.., page + 1, page + 2, ...(in
-> > > > lru page reclaim order). page + 1 ... page + HPAGE_PMD_NR - 1 are in the lru
-> > > > reclaim tail.
-> > > > 
-> > > > In case a, the order is wrong. In case b, page is isolated (to be reclaimed),
-> > > > but other tail pages will not soon.
-> > > > 
-> > > > With below patch:
-> > > > in case a, the order is: page, page + 1, ... page + HPAGE_PMD_NR-1(in lru page
-> > > > reclaim order).
-> > > > in case b, the order is: page + 1, ... page + HPAGE_PMD_NR-1 (in lru page reclaim
-> > > > order). The tail pages are in the lru reclaim head.
-> > > > 
-> > > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > > 
-> > > In case of a, it doesn't matter ordering of subpages.
-> > > As a huge page, age of sub pages are same.
-> > It does matter. Hugepage is split first and then reclaim. if page, page
-> > +HPAGE_PMD_NR-1 is reclaimed, you can't get an order-1 page. but if
-> > page, page+1 is reclaimed, you can.
+> > hugepage_attr_group is defined even if CONFIG_SYSFS is not set and I
+> > just made a build with CONFIG_SYSFS=n and it builds just fine without
+> > any change.
 > 
-> Right you are. I didn't catch up it.
-> It would be better to add it in description.
-> It's most important part in this patch.
+> > $ grep CONFIG_SYSFS .config
+> > # CONFIG_SYSFS is not set
+> > 
+> > So we can drop 1/5 above.
+> this isn't the case in the code. And the code uses hugepage_attr_group
+> is already within CONFIG_SYSFS, so your build success.
+> 
 
-Actually the way the buddy allocator works it will compact the
-hugepage identically, regardless of the order of the freeing of the
-subpages. It might be slightly more efficient because of CPU cache
-effects to do it in order for the buddy algorithm so we may touch one
-less cacheline by finishing building an entire 1m page before jumping
-to the second half, but from a practical standpoint it's irrelevant.
+You're right, but I agree that the #ifdef's just make the function error 
+handling much too complex.  Would you mind adding sysfs_*_out labels at 
+the end of the function to handle these errors instead?  And I think we 
+should be doing khugepaged_slab_init() and mm_slots_hash_init() before 
+initializing sysfs.
 
-Case b only can materialize if the splitted page is under VM
-isolation, which is a fairly uncommon case, and the page being
-isolated while I splitted it looked a tricky enough that I guess I
-didn't attempt to optimize it for the lru ordering and I was happy
-enough it could work safe too :). Now seeing this optimization it's
-strightforward, so it's certainly good idea to apply. We can apply
-both but for case a it's purely theoretical and no better runtime
-change is possible out of it.
+Something like
+
+	out:
+		khugepaged_slab_free();
+		mm_slots_hash_free();	<-- after you remove it from #if 0
+		return err;
+
+	#ifdef CONFIG_SYSFS
+	sysfs_khugepaged_out:
+		sysfs_remove_group(hugepage_kobj, &khugepaged_attr_group);
+	sysfs_hugepage_out:
+		sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
+		...
+		goto out;
+	#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
