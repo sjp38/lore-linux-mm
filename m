@@ -1,141 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C5E3A6B0080
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:14:27 -0500 (EST)
-Date: Thu, 10 Nov 2011 15:14:12 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 1/5]thp: improve the error code path
-Message-ID: <20111110141412.GW5075@redhat.com>
-References: <1319511521.22361.135.camel@sli10-conroe>
- <20111025114406.GC10182@redhat.com>
- <1319593680.22361.145.camel@sli10-conroe>
- <1320643049.22361.204.camel@sli10-conroe>
- <20111110021853.GQ5075@redhat.com>
- <1320892395.22361.229.camel@sli10-conroe>
- <alpine.DEB.2.00.1111091828500.32414@chino.kir.corp.google.com>
- <20111110030646.GT5075@redhat.com>
- <alpine.DEB.2.00.1111092039110.27280@chino.kir.corp.google.com>
- <1320904609.22361.239.camel@sli10-conroe>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 59EDF6B0080
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:22:09 -0500 (EST)
+Date: Thu, 10 Nov 2011 14:22:03 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-ID: <20111110142202.GE3083@suse.de>
+References: <20111110100616.GD3083@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1320904609.22361.239.camel@sli10-conroe>
+In-Reply-To: <20111110100616.GD3083@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Nov 10, 2011 at 01:56:49PM +0800, Shaohua Li wrote:
-> +static struct kobject *hugepage_kobj;
-
-It's minor nitpick but we don't need to put this in .bss, passing it
-as hugepage_init_sysfs(struct kobject **hugepage_kobj) and storing it
-there in case the error returned by hugepage_init_sysfs is zero should
-be fine. The feature cannot be unloaded so we can lose the pointer
-after init is complete.
-
-Then I think we can be done with this... and it looks better now.
-
-> +static int __init hugepage_init_sysfs(void)
->  {
->  	int err;
-> -#ifdef CONFIG_SYSFS
-> -	static struct kobject *hugepage_kobj;
-> -#endif
->  
-> -	err = -EINVAL;
-> -	if (!has_transparent_hugepage()) {
-> -		transparent_hugepage_flags = 0;
-> -		goto out;
-> -	}
-> -
-> -#ifdef CONFIG_SYSFS
-> -	err = -ENOMEM;
->  	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
->  	if (unlikely(!hugepage_kobj)) {
->  		printk(KERN_ERR "hugepage: failed kobject create\n");
-> -		goto out;
-> +		return -ENOMEM;
->  	}
->  
->  	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
->  	if (err) {
->  		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-> -		goto out;
-> +		goto delete_obj;
->  	}
->  
->  	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
->  	if (err) {
->  		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-> -		goto out;
-> +		goto remove_hp_group;
->  	}
-> -#endif
-> +
-> +	return 0;
-> +
-> +remove_hp_group:
-> +	sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
-> +delete_obj:
-> +	kobject_put(hugepage_kobj);
-> +	return err;
-> +}
-> +
-> +static void __init hugepage_exit_sysfs(void)
-> +{
-> +	sysfs_remove_group(hugepage_kobj, &khugepaged_attr_group);
-> +	sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
-> +	kobject_put(hugepage_kobj);
-> +}
-> +#else
-> +static inline int hugepage_init_sysfs(void)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline void hugepage_exit_sysfs(void)
-> +{
-> +}
-> +#endif /* CONFIG_SYSFS */
-> +
-> +static int __init hugepage_init(void)
-> +{
-> +	int err;
-
-  	struct kobject *hugepage_kobj;
-
-> +
-> +	if (!has_transparent_hugepage()) {
-> +		transparent_hugepage_flags = 0;
-> +		return -EINVAL;
-> +	}
-> +
-> +	err = hugepage_init_sysfs();
-
-	err = hugepage_init_sysfs(&hugepage_kobj);
-
-
-> +	if (err)
-> +		return err;
->  
->  	err = khugepaged_slab_init();
->  	if (err)
-> @@ -545,7 +572,9 @@ static int __init hugepage_init(void)
->  
->  	set_recommended_min_free_kbytes();
->  
-> +	return 0;
->  out:
-> +	hugepage_exit_sysfs();
-
-	hugepage_exit_sysfs(hugepage_kobj);
-
->  	return err;
->  }
->  module_init(hugepage_init)
+On Thu, Nov 10, 2011 at 10:06:16AM +0000, Mel Gorman wrote:
+> than stall. It was suggested that __GFP_NORETRY be used instead of
+> __GFP_NO_KSWAPD. This would look less like a special case but would
+> still cause compaction to run at least once with sync compaction.
 > 
-> 
+
+This comment is bogus - __GFP_NORETRY would have caught THP allocations
+and would not call sync compaction. The issue was that it would also
+have caught any hypothetical high-order GFP_THISNODE allocations that
+end up calling compaction here
+
+                /*
+                 * High-order allocations do not necessarily loop after
+                 * direct reclaim and reclaim/compaction depends on
+                 * compaction being called after reclaim so call directly if
+                 * necessary
+                 */
+                page = __alloc_pages_direct_compact(gfp_mask, order,
+                                        zonelist, high_zoneidx,
+                                        nodemask,
+                                        alloc_flags, preferred_zone,
+                                        migratetype, &did_some_progress,
+                                        sync_migration);
+
+__GFP_NORETRY is used in a bunch of places and while the most
+of them are not high-order, some of them potentially are like in
+sound/core/memalloc.c. Using __GFP_NO_KSWAPD as the flag allows
+these callers to continue using sync compaction.  It could be argued
+that they would prefer __GFP_NORETRY but the potential side-effects
+should be taken should be taken into account and the comment updated
+if that happens.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
