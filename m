@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 43BE96B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:00:40 -0500 (EST)
-Date: Thu, 10 Nov 2011 15:00:37 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111110140037.GV5075@redhat.com>
-References: <20111110100616.GD3083@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111110100616.GD3083@suse.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0F66B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 09:04:32 -0500 (EST)
+Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
+	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id pAAE4Rh4012634
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:27 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAAE4REc2138150
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 14:04:27 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAAE4Pbr023883
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 07:04:25 -0700
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [PATCH 0/3] CMPXCHG config options changes
+Date: Thu, 10 Nov 2011 15:04:17 +0100
+Message-Id: <1320933860-15588-1-git-send-email-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Thu, Nov 10, 2011 at 10:06:16AM +0000, Mel Gorman wrote:
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 963c5de..cddc2d0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2213,7 +2213,13 @@ rebalance:
->  					sync_migration);
->  	if (page)
->  		goto got_pg;
-> -	sync_migration = true;
-> +
-> +	/*
-> +	 * Do not use sync migration for transparent hugepage allocations as
-> +	 * it could stall writing back pages which is far worse than simply
-> +	 * failing to promote a page.
-> +	 */
-> +	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
->  
->  	/* Try direct reclaim and then allocating */
->  	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+While implementing cmpxchg_double() on s390 I realized that we don't
+set CONFIG_CMPXCHG_LOCAL besides the fact that we have support for it.
+However setting that option will increase the size of struct page by
+eight bytes on 64 bit, which we certainly do not want.
+Also, it doesn't make sense that a present cpu feature should increase
+the size of struct page.
+Besides that it looks like the dependency to CMPXCHG_LOCAL is wrong
+and that it should depend on CMPXCHG_DOUBLE instead.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Heiko Carstens (3):
+  mm,slub,x86: decouple size of struct page from CONFIG_CMPXCHG_LOCAL
+  mm,x86,um: move CMPXCHG_LOCAL config option
+  mm,x86,um: move CMPXCHG_DOUBLE config option
+
+ arch/Kconfig             |   14 ++++++++++++++
+ arch/x86/Kconfig         |    3 +++
+ arch/x86/Kconfig.cpu     |    6 ------
+ arch/x86/um/Kconfig      |    8 --------
+ include/linux/mm_types.h |    9 ++++-----
+ mm/slub.c                |    9 ++++++---
+ mm/vmstat.c              |    2 +-
+ 7 files changed, 28 insertions(+), 23 deletions(-)
+
+-- 
+1.7.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
