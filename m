@@ -1,70 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DE7B6B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:31:32 -0500 (EST)
-Date: Thu, 10 Nov 2011 16:29:44 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [rfc 1/3] mm: vmscan: never swap under low memory pressure
-Message-ID: <20111110152944.GL3153@redhat.com>
-References: <20110808110658.31053.55013.stgit@localhost6>
- <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
- <4E3FD403.6000400@parallels.com>
- <20111102163056.GG19965@redhat.com>
- <20111102163141.GH19965@redhat.com>
- <20111107112941.0dfa07cb.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 916B56B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 10:36:55 -0500 (EST)
+Date: Thu, 10 Nov 2011 16:36:51 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 3/5]thp: add tlb_remove_pmd_tlb_entry
+Message-ID: <20111110153651.GZ5075@redhat.com>
+References: <1319511571.22361.139.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111107112941.0dfa07cb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1319511571.22361.139.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Mon, Nov 07, 2011 at 11:29:41AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 2 Nov 2011 17:31:41 +0100
-> Johannes Weiner <jweiner@redhat.com> wrote:
-> 
-> > We want to prevent floods of used-once file cache pushing us to swap
-> > out anonymous pages.  Never swap under a certain priority level.  The
-> > availability of used-once cache pages should prevent us from reaching
-> > that threshold.
-> > 
-> > This is needed because subsequent patches will revert some of the
-> > mechanisms that tried to prefer file over anon, and this should not
-> > result in more eager swapping again.
-> > 
-> > It might also be better to keep the aging machinery going and just not
-> > swap, rather than staying away from anonymous pages in the first place
-> > and having less useful age information at the time of swapout.
-> > 
-> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> > ---
-> >  mm/vmscan.c |    2 ++
-> >  1 files changed, 2 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index a90c603..39d3da3 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -831,6 +831,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  		 * Try to allocate it some swap space here.
-> >  		 */
-> >  		if (PageAnon(page) && !PageSwapCache(page)) {
-> > +			if (priority >= DEF_PRIORITY - 2)
-> > +				goto keep_locked;
-> >  			if (!(sc->gfp_mask & __GFP_IO))
-> >  				goto keep_locked;
-> >  			if (!add_to_swap(page))
-> 
-> Hm, how about not scanning LRU_ANON rather than checking here ?
-> Add some bias to get_scan_count() or some..
-> If you think to need rotation of LRU, only kswapd should do that..
+On Tue, Oct 25, 2011 at 10:59:31AM +0800, Shaohua Li wrote:
+> Index: linux/arch/x86/include/asm/tlb.h
+> ===================================================================
+> --- linux.orig/arch/x86/include/asm/tlb.h	2011-10-25 09:00:39.000000000 +0800
+> +++ linux/arch/x86/include/asm/tlb.h	2011-10-25 09:02:52.000000000 +0800
+> @@ -4,6 +4,7 @@
+>  #define tlb_start_vma(tlb, vma) do { } while (0)
+>  #define tlb_end_vma(tlb, vma) do { } while (0)
+>  #define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
+> +#define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do { } while (0)
+>  #define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
 
-Absolutely, it would require more tuning.  This patch was really a
-'hey, how about we do something like this?  anyone tried that before?'
+This is superfluous, it's already define below as noop.
 
-I keep those things in mind if I pursue this further, thanks.
+>  
+>  #include <asm-generic/tlb.h>
+> Index: linux/include/asm-generic/tlb.h
+> ===================================================================
+> --- linux.orig/include/asm-generic/tlb.h	2011-10-25 09:00:23.000000000 +0800
+> +++ linux/include/asm-generic/tlb.h	2011-10-25 09:18:01.000000000 +0800
+> @@ -139,6 +139,16 @@ static inline void tlb_remove_page(struc
+>  		__tlb_remove_tlb_entry(tlb, ptep, address);	\
+>  	} while (0)
+>  
+> +#ifndef __tlb_remove_pmd_tlb_entry
+> +#define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while(0)
+> +#endif
+> +
+> +#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)		\
+> +	do {							\
+> +		tlb->need_flush = 1;				\
+> +		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);	\
+> +	} while (0)
+
+this looks weird, why do we set need_flush = 1 again, considering that
+we're doing tlb_remove_page() just a few lines later (which also sets
+tlb->need_flush = 1).
+
+Ok that other archs may need the __tlb_remove_pmd_tlb_entry to be
+called (and I've no idea why), but the need_flush = 1 seems
+unnecessary.
+
+Why other archs need the __tlb_remove_pmd_tlb_entry to be called?
+
+One way to go would be to change the tlb->need_flush = 1 in
+__tlb_remove_page to a VM_BUG_ON(!tlb->need_flush) and then we keep it
+above and we add the __tlb_remove_pmd_tlb_entry call.
+
+Or is there any place where __tlb_remove_page is called without a
+tlb_remove_*tlb_entry being called before it?
+
+In any case the VM_BUG_ON will verify this.
+
+> Index: linux/include/linux/huge_mm.h
+> ===================================================================
+> --- linux.orig/include/linux/huge_mm.h	2011-10-25 09:07:12.000000000 +0800
+> +++ linux/include/linux/huge_mm.h	2011-10-25 09:07:44.000000000 +0800
+> @@ -18,7 +18,7 @@ extern struct page *follow_trans_huge_pm
+>  					  unsigned int flags);
+>  extern int zap_huge_pmd(struct mmu_gather *tlb,
+>  			struct vm_area_struct *vma,
+> -			pmd_t *pmd);
+> +			pmd_t *pmd, unsigned long addr);
+>  extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>  			unsigned long addr, unsigned long end,
+>  			unsigned char *vec);
+> Index: linux/mm/huge_memory.c
+> ===================================================================
+> --- linux.orig/mm/huge_memory.c	2011-10-25 09:00:07.000000000 +0800
+> +++ linux/mm/huge_memory.c	2011-10-25 09:06:55.000000000 +0800
+> @@ -1005,7 +1005,7 @@ out:
+>  }
+>  
+>  int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> -		 pmd_t *pmd)
+> +		 pmd_t *pmd, unsigned long addr)
+>  {
+>  	int ret = 0;
+>  
+> @@ -1021,6 +1021,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
+>  			pgtable = get_pmd_huge_pte(tlb->mm);
+>  			page = pmd_page(*pmd);
+>  			pmd_clear(pmd);
+> +			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+>  			page_remove_rmap(page);
+>  			VM_BUG_ON(page_mapcount(page) < 0);
+>  			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+> Index: linux/mm/memory.c
+> ===================================================================
+> --- linux.orig/mm/memory.c	2011-10-25 09:07:49.000000000 +0800
+> +++ linux/mm/memory.c	2011-10-25 09:08:29.000000000 +0800
+> @@ -1231,7 +1231,7 @@ static inline unsigned long zap_pmd_rang
+>  			if (next-addr != HPAGE_PMD_SIZE) {
+>  				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
+>  				split_huge_page_pmd(vma->vm_mm, pmd);
+> -			} else if (zap_huge_pmd(tlb, vma, pmd))
+> +			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+>  				continue;
+>  			/* fall through */
+>  		}
+
+Rest looks ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
