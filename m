@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D2BE56B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 12:23:08 -0500 (EST)
-Date: Fri, 11 Nov 2011 18:23:01 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 968616B006C
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 12:25:02 -0500 (EST)
+Date: Fri, 11 Nov 2011 18:24:58 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] hugetlb: release pages in the error path of hugetlb_cow()
-Message-ID: <20111111172301.GB4479@redhat.com>
-References: <CAJd=RBC5Q48r0sYeqF9bucaBJPv3LR4UTAannUZ8KXxoXY_Qcw@mail.gmail.com>
+Subject: Re: [PATCH] mmap: fix loop when adjusting vma
+Message-ID: <20111111172458.GC4479@redhat.com>
+References: <CAJd=RBAhHS4txg-2tnJyER=GeT4X95z6COMzJvRhcwFgXu6oOA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBC5Q48r0sYeqF9bucaBJPv3LR4UTAannUZ8KXxoXY_Qcw@mail.gmail.com>
+In-Reply-To: <CAJd=RBAhHS4txg-2tnJyER=GeT4X95z6COMzJvRhcwFgXu6oOA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Nov 11, 2011 at 09:01:20PM +0800, Hillf Danton wrote:
-> If fail to prepare anon_vma, {new, old}_page should be released, or they will
-> escape the track and/or control of memory management.
-> 
-> Thanks
-> 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
-> 
-> --- a/mm/hugetlb.c	Fri Nov 11 20:36:32 2011
-> +++ b/mm/hugetlb.c	Fri Nov 11 20:43:06 2011
-> @@ -2422,6 +2422,8 @@ retry_avoidcopy:
->  	 * anon_vma prepared.
->  	 */
->  	if (unlikely(anon_vma_prepare(vma))) {
-> +		page_cache_release(new_page);
-> +		page_cache_release(old_page);
->  		/* Caller expects lock to be held */
->  		spin_lock(&mm->page_table_lock);
->  		return VM_FAULT_OOM;
+On Fri, Nov 11, 2011 at 08:53:23PM +0800, Hillf Danton wrote:
+> --- a/mm/mmap.c	Fri Nov 11 20:35:46 2011
+> +++ b/mm/mmap.c	Fri Nov 11 20:41:32 2011
+> @@ -490,6 +490,7 @@ __vma_unlink(struct mm_struct *mm, struc
+>  int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+>  	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
+>  {
+> +	unsigned long saved_end = end;
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	struct vm_area_struct *next = vma->vm_next;
+>  	struct vm_area_struct *importer = NULL;
+> @@ -634,7 +635,14 @@ again:			remove_next = 1 + (end > next->
+>  		 */
+>  		if (remove_next == 2) {
+>  			next = vma->vm_next;
+> -			goto again;
+> +			if (next) {
+> +				/*
+> +				 * we have more work, reload @end in case
+> +				 * it is clobbered.
+> +				 */
+> +				end = saved_end;
+> +				goto again;
+> +			}
+>  		}
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Doesn't matter if it's clobbered, remove_next will be set to 1 and
+that's all we care about. Caller should use vma->vm_next->vm_end as
+"end" anyway for case 6 so it wouldn't be set to 2. Also next can't be
+NULL if remove_next == 2. So I don't think this is necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
