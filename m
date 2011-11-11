@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 073A06B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:12:27 -0500 (EST)
-Date: Fri, 11 Nov 2011 14:12:21 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/4] mm: remove debug_pagealloc_enabled
-Message-ID: <20111111141221.GL3083@suse.de>
-References: <1321014994-2426-1-git-send-email-sgruszka@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id AD4276B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:21:06 -0500 (EST)
+Date: Fri, 11 Nov 2011 15:21:00 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-ID: <20111111142100.GB3512@redhat.com>
+References: <20111110100616.GD3083@suse.de>
+ <20111110142202.GE3083@suse.de>
+ <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
+ <20111110161331.GG3083@suse.de>
+ <20111110151211.523fa185.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
+ <20111111101414.GJ3083@suse.de>
+ <alpine.DEB.2.00.1111110224500.7419@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1321014994-2426-1-git-send-email-sgruszka@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1111110224500.7419@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Nov 11, 2011 at 01:36:31PM +0100, Stanislaw Gruszka wrote:
-> After we finish (no)bootmem, pages are passed to buddy allocator. Since
-> debug_pagealloc_enabled is not set, we do not protect pages, what is
-> not what we want with CONFIG_DEBUG_PAGEALLOC=y. That could be fixed by
-> calling enable_debug_pagealloc() before free_all_bootmem(), but actually
-> I do not see any reason why we need that global variable. Hence patch
-> remove it.
-> 
-> Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
-> ---
->  arch/x86/mm/pageattr.c |    6 ------
->  include/linux/mm.h     |   10 ----------
->  init/main.c            |    5 -----
->  mm/debug-pagealloc.c   |    3 ---
->  4 files changed, 0 insertions(+), 24 deletions(-)
-> 
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index f9e5267..5031eef 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -1334,12 +1334,6 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
->  	}
->  
->  	/*
-> -	 * If page allocator is not up yet then do not call c_p_a():
-> -	 */
-> -	if (!debug_pagealloc_enabled)
-> -		return;
-> -
-> -	/*
+On Fri, Nov 11, 2011 at 02:39:10AM -0800, David Rientjes wrote:
+> The history of this boolean is somewhat disturbing: it's introduced in 
+> 77f1fe6b back on January 13 to be true after the first attempt at 
+> compaction, then changed to be !(gfp_mask & __GFP_NO_KSWAPD) in 11bc82d6 
+> on March 22, then changed to be true again in c6a140bf on May 24, then 
+> proposed to be changed right back to !(gfp_mask & __GFP_NO_KSWAPD) in this 
+> patch again.  When are we going to understand that the admin needs to tell 
+> the kernel when we'd really like to try to allocate a transparent hugepage 
+> and when it's ok to fail?
 
-According to commit [12d6f21e: x86: do not PSE on
-CONFIG_DEBUG_PAGEALLOC=y], the intention of debug_pagealloc_enabled
-was to force additional testing of splitting large pages due to
-cpa. Presumably this was because when bootmem was retired, all the
-pages would be mapped forcing the protection to be applied later
-while the system was running and races would be more interesting.
+Sorry for the confusion but it was reverted by mistake. Mel fixed a
+compaction bug that caused stalls of several minutes to
+people. compaction was overflowing into the next zone by mistake
+without adjusting its tracking parameters. So it wasn't clear anymore
+if sync compaction was really a problem or not. So I reverted it to be
+sure. And well now we're sure :). Without USB or pathologically slow
+I/O apparently it's not a noticeable issue.
 
-This patch is trading additional CPA testing for better detecting
-of memory corruption with DEBUG_PAGEALLOC. I see no issue with this
-per-se, but I'm cc'ing Ingo for comment as it was his patch and this
-is something that should go by the x86 maintainers.
+So having sync compaction off by default sounds good to me.
 
--- 
-Mel Gorman
-SUSE Labs
+We can still add a tunable to force sync compaction in case anybody
+needs.
+
+Another topic is if slub and stuff also wants sync compaction off by
+default when they allocate with large order so triggering compaction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
