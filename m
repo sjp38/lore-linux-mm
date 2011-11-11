@@ -1,88 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB9BA6B002D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 19:06:56 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 10B823EE0B5
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:06:53 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E931145DEB4
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:06:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C25D645DE9E
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:06:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B5CA01DB803F
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:06:52 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8201D1DB803C
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 09:06:52 +0900 (JST)
-Date: Fri, 11 Nov 2011 09:05:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [rfc 2/3] mm: vmscan: treat inactive cycling as neutral
-Message-Id: <20111111090546.6560077e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111110160628.GM3153@redhat.com>
-References: <20110808110658.31053.55013.stgit@localhost6>
-	<CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
-	<4E3FD403.6000400@parallels.com>
-	<20111102163056.GG19965@redhat.com>
-	<20111102163213.GI19965@redhat.com>
-	<20111107113417.1b7581a5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111110160628.GM3153@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B34276B002D
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2011 19:24:36 -0500 (EST)
+Subject: Re: [patch] slub: fix a code merge error
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <CAOJsxLH7Fss8bBR+ERBOsb=1ZbwbLi+EkS-7skC1CbBmkMpvKA@mail.gmail.com>
+References: <1320912260.22361.247.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1111101218140.21036@chino.kir.corp.google.com>
+	 <CAOJsxLH7Fss8bBR+ERBOsb=1ZbwbLi+EkS-7skC1CbBmkMpvKA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 11 Nov 2011 08:33:48 +0800
+Message-ID: <1320971628.22361.248.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Gene Heskett <gene.heskett@gmail.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
 
-On Thu, 10 Nov 2011 17:06:28 +0100
-Johannes Weiner <jweiner@redhat.com> wrote:
-
-> On Mon, Nov 07, 2011 at 11:34:17AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 2 Nov 2011 17:32:13 +0100
-> > Johannes Weiner <jweiner@redhat.com> wrote:
-> > 
-> > > Each page that is scanned but put back to the inactive list is counted
-> > > as a successful reclaim, which tips the balance between file and anon
-> > > lists more towards the cycling list.
-> > > 
-> > > This does - in my opinion - not make too much sense, but at the same
-> > > time it was not much of a problem, as the conditions that lead to an
-> > > inactive list cycle were mostly temporary - locked page, concurrent
-> > > page table changes, backing device congested - or at least limited to
-> > > a single reclaimer that was not allowed to unmap or meddle with IO.
-> > > More important than being moderately rare, those conditions should
-> > > apply to both anon and mapped file pages equally and balance out in
-> > > the end.
-> > > 
-> > > Recently, we started cycling file pages in particular on the inactive
-> > > list much more aggressively, for used-once detection of mapped pages,
-> > > and when avoiding writeback from direct reclaim.
-> > > 
-> > > Those rotated pages do not exactly speak for the reclaimability of the
-> > > list they sit on and we risk putting immense pressure on file list for
-> > > no good reason.
-> > > 
-> > > Instead, count each page not reclaimed and put back to any list,
-> > > active or inactive, as rotated, so they are neutral with respect to
-> > > the scan/rotate ratio of the list class, as they should be.
-> > > 
-> > > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> > 
-> > I think this makes sense.
-> > 
-> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > I wonder it may be better to have victim list for written-backed pages..
+On Fri, 2011-11-11 at 04:30 +0800, Pekka Enberg wrote:
+> On Thu, Nov 10, 2011 at 10:18 PM, David Rientjes <rientjes@google.com> wrote:
+> > On Thu, 10 Nov 2011, Shaohua Li wrote:
+> >
+> >> Looks there is a merge error in the slub tree. DEACTIVATE_TO_TAIL != 1.
+> >> And this will cause performance regression.
+> >>
+> >> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> >>
+> >> diff --git a/mm/slub.c b/mm/slub.c
+> >> index 7d2a996..60e16c4 100644
+> >> --- a/mm/slub.c
+> >> +++ b/mm/slub.c
+> >> @@ -1904,7 +1904,8 @@ static void unfreeze_partials(struct kmem_cache *s)
+> >>                               if (l == M_PARTIAL)
+> >>                                       remove_partial(n, page);
+> >>                               else
+> >> -                                     add_partial(n, page, 1);
+> >> +                                     add_partial(n, page,
+> >> +                                             DEACTIVATE_TO_TAIL);
+> >>
+> >>                               l = m;
+> >>                       }
+> >
+> > Acked-by: David Rientjes <rientjes@google.com>
+> >
+> > Not sure where the "merge error" is, though, this is how it was proposed
+> > on linux-mm each time the patch was posted.  Probably needs a better title
+> > and changelog.
 > 
-> Do you mean an extra LRU list that holds dirty pages?
+> Indeed. Please resend with proper subject and changelog with
+> Christoph's and David's ACKs included.
 
-an extra LRU for pages PG_reclaim ? 
+Subject: slub: use correct parameter to add a page to partial list tail
 
-THanks,
--Kame
+unfreeze_partials() needs add the page to partial list tail, since such page
+hasn't too many free objects. We now explictly use DEACTIVATE_TO_TAIL for this,
+while DEACTIVATE_TO_TAIL != 1. This will cause performance regression (eg, more
+lock contention in node->list_lock) without below fix.
+
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: David Rientjes <rientjes@google.com>
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 7d2a996..60e16c4 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1904,7 +1904,8 @@ static void unfreeze_partials(struct kmem_cache *s)
+ 				if (l == M_PARTIAL)
+ 					remove_partial(n, page);
+ 				else
+-					add_partial(n, page, 1);
++					add_partial(n, page,
++						DEACTIVATE_TO_TAIL);
+ 
+ 				l = m;
+ 			}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
