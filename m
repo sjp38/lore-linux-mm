@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 552DC6B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 07:53:26 -0500 (EST)
-Received: by wyg24 with SMTP id 24so5137604wyg.14
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2011 04:53:23 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8903B6B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 08:01:23 -0500 (EST)
+Received: by wyg24 with SMTP id 24so5147111wyg.14
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2011 05:01:20 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Nov 2011 20:53:23 +0800
-Message-ID: <CAJd=RBAhHS4txg-2tnJyER=GeT4X95z6COMzJvRhcwFgXu6oOA@mail.gmail.com>
-Subject: [PATCH] mmap: fix loop when adjusting vma
+Date: Fri, 11 Nov 2011 21:01:20 +0800
+Message-ID: <CAJd=RBC5Q48r0sYeqF9bucaBJPv3LR4UTAannUZ8KXxoXY_Qcw@mail.gmail.com>
+Subject: [PATCH] hugetlb: release pages in the error path of hugetlb_cow()
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -15,39 +15,25 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-If we have more work to do after one vma is removed, we have to reload @end in
-case it is clobbered, then try again.
+If fail to prepare anon_vma, {new, old}_page should be released, or they will
+escape the track and/or control of memory management.
 
 Thanks
 
 Signed-off-by: Hillf Danton <dhillf@gmail.com>
 ---
 
---- a/mm/mmap.c	Fri Nov 11 20:35:46 2011
-+++ b/mm/mmap.c	Fri Nov 11 20:41:32 2011
-@@ -490,6 +490,7 @@ __vma_unlink(struct mm_struct *mm, struc
- int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
- {
-+	unsigned long saved_end = end;
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct vm_area_struct *next = vma->vm_next;
- 	struct vm_area_struct *importer = NULL;
-@@ -634,7 +635,14 @@ again:			remove_next = 1 + (end > next->
- 		 */
- 		if (remove_next == 2) {
- 			next = vma->vm_next;
--			goto again;
-+			if (next) {
-+				/*
-+				 * we have more work, reload @end in case
-+				 * it is clobbered.
-+				 */
-+				end = saved_end;
-+				goto again;
-+			}
- 		}
- 	}
+--- a/mm/hugetlb.c	Fri Nov 11 20:36:32 2011
++++ b/mm/hugetlb.c	Fri Nov 11 20:43:06 2011
+@@ -2422,6 +2422,8 @@ retry_avoidcopy:
+ 	 * anon_vma prepared.
+ 	 */
+ 	if (unlikely(anon_vma_prepare(vma))) {
++		page_cache_release(new_page);
++		page_cache_release(old_page);
+ 		/* Caller expects lock to be held */
+ 		spin_lock(&mm->page_table_lock);
+ 		return VM_FAULT_OOM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
