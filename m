@@ -1,94 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 261796B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 07:20:26 -0500 (EST)
-Received: by eye4 with SMTP id 4so4352924eye.14
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2011 04:20:22 -0800 (PST)
-Message-ID: <4EBD1303.9040402@gmail.com>
-Date: Fri, 11 Nov 2011 13:20:19 +0100
-From: Jiri Slaby <jirislaby@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] thp: reduce khugepaged freezing latency
-References: <4EB98A83.3040101@linux.vnet.ibm.com> <4EBA75F2.4080800@linux.vnet.ibm.com> <20111109155342.GA1260@google.com> <20111109165201.GI5075@redhat.com> <20111109165925.GC1260@google.com> <20111109170248.GD1260@google.com> <20111109172942.GJ5075@redhat.com> <20111109180900.GF1260@google.com> <20111109181925.GN5075@redhat.com> <20111109183447.GG1260@google.com> <20111109194047.GO5075@redhat.com>
-In-Reply-To: <20111109194047.GO5075@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E98446B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 07:35:37 -0500 (EST)
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: [PATCH 1/4] mm: remove debug_pagealloc_enabled
+Date: Fri, 11 Nov 2011 13:36:31 +0100
+Message-Id: <1321014994-2426-1-git-send-email-sgruszka@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@suse.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>, Stanislaw Gruszka <sgruszka@redhat.com>
 
-On 11/09/2011 08:40 PM, Andrea Arcangeli wrote:
-> On Wed, Nov 09, 2011 at 10:34:47AM -0800, Tejun Heo wrote:
->> know.  My instinct tells me to strongly recommend use of
->> wait_event_freezable_timeout() and run away.  :)
-> 
-> Passing false wasn't so appealing to me but ok. Jiri can you test this
-> with some suspend? (beware builds but untested)
-> 
-> ===
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Subject: thp: reduce khugepaged freezing latency
-> 
-> Use wait_event_freezable_timeout() instead of
-> schedule_timeout_interruptible() to avoid missing freezer wakeups. A
-> try_to_freeze() would have been needed in the
-> khugepaged_alloc_hugepage tight loop too in case of the allocation
-> failing repeatedly, and wait_event_freezable_timeout will provide it
-> too.
-> 
-> khugepaged would still freeze just fine by trying again the next
-> minute but it's better if it freezes immediately.
-> 
-> Reported-by: Jiri Slaby <jslaby@suse.cz>
+After we finish (no)bootmem, pages are passed to buddy allocator. Since
+debug_pagealloc_enabled is not set, we do not protect pages, what is
+not what we want with CONFIG_DEBUG_PAGEALLOC=y. That could be fixed by
+calling enable_debug_pagealloc() before free_all_bootmem(), but actually
+I do not see any reason why we need that global variable. Hence patch
+remove it.
 
-Tested-by: Jiri Slaby <jslaby@suse.cz>
+Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+---
+ arch/x86/mm/pageattr.c |    6 ------
+ include/linux/mm.h     |   10 ----------
+ init/main.c            |    5 -----
+ mm/debug-pagealloc.c   |    3 ---
+ 4 files changed, 0 insertions(+), 24 deletions(-)
 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  mm/huge_memory.c |   14 ++++----------
->  1 files changed, 4 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 4298aba..fd925d0 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2259,12 +2259,9 @@ static void khugepaged_do_scan(struct page **hpage)
->  
->  static void khugepaged_alloc_sleep(void)
->  {
-> -	DEFINE_WAIT(wait);
-> -	add_wait_queue(&khugepaged_wait, &wait);
-> -	schedule_timeout_interruptible(
-> -		msecs_to_jiffies(
-> -			khugepaged_alloc_sleep_millisecs));
-> -	remove_wait_queue(&khugepaged_wait, &wait);
-> +	wait_event_freezable_timeout(khugepaged_wait, false,
-> +				     msecs_to_jiffies(
-> +					     khugepaged_alloc_sleep_millisecs));
->  }
->  
->  #ifndef CONFIG_NUMA
-> @@ -2313,14 +2310,11 @@ static void khugepaged_loop(void)
->  		if (unlikely(kthread_should_stop()))
->  			break;
->  		if (khugepaged_has_work()) {
-> -			DEFINE_WAIT(wait);
->  			if (!khugepaged_scan_sleep_millisecs)
->  				continue;
-> -			add_wait_queue(&khugepaged_wait, &wait);
-> -			schedule_timeout_interruptible(
-> +			wait_event_freezable_timeout(khugepaged_wait, false,
->  				msecs_to_jiffies(
->  					khugepaged_scan_sleep_millisecs));
-> -			remove_wait_queue(&khugepaged_wait, &wait);
->  		} else if (khugepaged_enabled())
->  			wait_event_freezable(khugepaged_wait,
->  					     khugepaged_wait_event());
-
-thanks,
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index f9e5267..5031eef 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1334,12 +1334,6 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
+ 	}
+ 
+ 	/*
+-	 * If page allocator is not up yet then do not call c_p_a():
+-	 */
+-	if (!debug_pagealloc_enabled)
+-		return;
+-
+-	/*
+ 	 * The return value is ignored as the calls cannot fail.
+ 	 * Large pages for identity mappings are not used at boot time
+ 	 * and hence no memory allocations during large page split.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3dc3a8c..0a22db1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1537,23 +1537,13 @@ static inline void vm_stat_account(struct mm_struct *mm,
+ #endif /* CONFIG_PROC_FS */
+ 
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-extern int debug_pagealloc_enabled;
+-
+ extern void kernel_map_pages(struct page *page, int numpages, int enable);
+-
+-static inline void enable_debug_pagealloc(void)
+-{
+-	debug_pagealloc_enabled = 1;
+-}
+ #ifdef CONFIG_HIBERNATION
+ extern bool kernel_page_present(struct page *page);
+ #endif /* CONFIG_HIBERNATION */
+ #else
+ static inline void
+ kernel_map_pages(struct page *page, int numpages, int enable) {}
+-static inline void enable_debug_pagealloc(void)
+-{
+-}
+ #ifdef CONFIG_HIBERNATION
+ static inline bool kernel_page_present(struct page *page) { return true; }
+ #endif /* CONFIG_HIBERNATION */
+diff --git a/init/main.c b/init/main.c
+index 217ed23..99c4ba3 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -282,10 +282,6 @@ static int __init unknown_bootoption(char *param, char *val)
+ 	return 0;
+ }
+ 
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-int __read_mostly debug_pagealloc_enabled = 0;
+-#endif
+-
+ static int __init init_setup(char *str)
+ {
+ 	unsigned int i;
+@@ -597,7 +593,6 @@ asmlinkage void __init start_kernel(void)
+ 	}
+ #endif
+ 	page_cgroup_init();
+-	enable_debug_pagealloc();
+ 	debug_objects_mem_init();
+ 	kmemleak_init();
+ 	setup_per_cpu_pageset();
+diff --git a/mm/debug-pagealloc.c b/mm/debug-pagealloc.c
+index 7cea557..789ff70 100644
+--- a/mm/debug-pagealloc.c
++++ b/mm/debug-pagealloc.c
+@@ -95,9 +95,6 @@ static void unpoison_pages(struct page *page, int n)
+ 
+ void kernel_map_pages(struct page *page, int numpages, int enable)
+ {
+-	if (!debug_pagealloc_enabled)
+-		return;
+-
+ 	if (enable)
+ 		unpoison_pages(page, numpages);
+ 	else
 -- 
-js
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
