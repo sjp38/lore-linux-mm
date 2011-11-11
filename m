@@ -1,55 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D53166B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 01:44:59 -0500 (EST)
-Subject: [patch]slub: add missed accounting
-From: Shaohua Li <shaohua.li@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 11 Nov 2011 14:54:14 +0800
-Message-ID: <1320994454.22361.259.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA8E6B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 01:50:08 -0500 (EST)
+Date: Fri, 11 Nov 2011 07:50:03 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 1/5]thp: improve the error code path
+Message-ID: <20111111065003.GO5075@redhat.com>
+References: <1319593680.22361.145.camel@sli10-conroe>
+ <1320643049.22361.204.camel@sli10-conroe>
+ <20111110021853.GQ5075@redhat.com>
+ <1320892395.22361.229.camel@sli10-conroe>
+ <alpine.DEB.2.00.1111091828500.32414@chino.kir.corp.google.com>
+ <20111110030646.GT5075@redhat.com>
+ <alpine.DEB.2.00.1111092039110.27280@chino.kir.corp.google.com>
+ <1320904609.22361.239.camel@sli10-conroe>
+ <20111110141412.GW5075@redhat.com>
+ <1320993217.22361.253.camel@sli10-conroe>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1320993217.22361.253.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: "cl@linux-foundation.org" <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-With per-cpu partial list, slab is added to partial list first and then moved
-to node list. The __slab_free() code path for add/remove_partial is almost
-deprecated(except for slub debug). But we forget to account add/remove_partial
-when move per-cpu partial pages to node list, so the statistics for such events
-are always 0. Add corresponding accounting.
+On Fri, Nov 11, 2011 at 02:33:37PM +0800, Shaohua Li wrote:
+> Improve the error code path. Delete unnecessary sysfs file for example.
+> Also remove the #ifdef xxx to make code better.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
+> ---
+>  mm/huge_memory.c |   71 ++++++++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 50 insertions(+), 21 deletions(-)
 
-This is against the patch "slub: use correct parameter to add a page to
-partial list tail"
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
----
- mm/slub.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2011-11-11 14:43:38.000000000 +0800
-+++ linux/mm/slub.c	2011-11-11 14:43:40.000000000 +0800
-@@ -1901,11 +1901,14 @@ static void unfreeze_partials(struct kme
- 			}
- 
- 			if (l != m) {
--				if (l == M_PARTIAL)
-+				if (l == M_PARTIAL) {
- 					remove_partial(n, page);
--				else
-+					stat(s, FREE_REMOVE_PARTIAL);
-+				} else {
- 					add_partial(n, page,
- 						DEACTIVATE_TO_TAIL);
-+					stat(s, FREE_ADD_PARTIAL);
-+				}
- 
- 				l = m;
- 			}
-
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
