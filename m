@@ -1,255 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7D75E6B0073
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 15:07:39 -0500 (EST)
-Message-Id: <20111111200736.489943908@linux.com>
-Date: Fri, 11 Nov 2011 14:07:28 -0600
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 81C1B6B0072
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 15:07:40 -0500 (EST)
+Message-Id: <20111111200737.166165123@linux.com>
+Date: Fri, 11 Nov 2011 14:07:29 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [rfc 17/18] slub: Move __slab_free() into slab_free()
+Subject: [rfc 18/18] slub: Move __slab_alloc() into slab_alloc()
 References: <20111111200711.156817886@linux.com>
-Content-Disposition: inline; filename=move_kfree
+Content-Disposition: inline; filename=move_alloc
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org
 
-Both functions now share variables and the control flow is easier to follow
-as a single function.
+Both functions are now quite small and share numerous variables.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 
 ---
- mm/slub.c |  173 ++++++++++++++++++++++++++++++--------------------------------
- 1 file changed, 84 insertions(+), 89 deletions(-)
+ mm/slub.c |  170 ++++++++++++++++++++++++++------------------------------------
+ 1 file changed, 73 insertions(+), 97 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-11-11 09:33:03.545996392 -0600
-+++ linux-2.6/mm/slub.c	2011-11-11 09:42:39.619212550 -0600
-@@ -2290,7 +2290,7 @@ retry:
-  *
-  * Otherwise we can simply pick the next object from the lockless free list.
-  */
--static __always_inline void *slab_alloc(struct kmem_cache *s,
-+static void *slab_alloc(struct kmem_cache *s,
- 		gfp_t gfpflags, int node, unsigned long addr)
- {
- 	void **object;
-@@ -2421,30 +2421,69 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trac
- #endif
+--- linux-2.6.orig/mm/slub.c	2011-11-11 09:33:05.056004788 -0600
++++ linux-2.6/mm/slub.c	2011-11-11 09:38:51.767942529 -0600
+@@ -2195,100 +2195,13 @@ static inline void *get_freelist(struct
+ }
  
  /*
-- * Slow patch handling. This may still be called frequently since objects
-- * have a longer lifetime than the cpu slabs in most processing loads.
+- * Slow path. The lockless freelist is empty or we need to perform
+- * debugging duties.
++ * Main allocation function. First try to allocate from per cpu
++ * object list, if empty replenish list from per cpu page list,
++ * then from the per node partial list. Finally go to the
++ * page allocator if nothing else is available.
+  *
+- * Processing is still very fast if new objects have been freed to the
+- * regular freelist. In that case we simply take over the regular freelist
+- * as the lockless freelist and zap the regular freelist.
 - *
-- * So we still attempt to reduce cache line usage. Just take the slab
-- * lock and free the item. If there is no additional partial page
-- * handling required then we can return immediately.
-+ * Free an object. First see if the object is from the per cpu slab.
-+ * if so then it can be freed to the per cpu queue. Otherwise we have
-+ * to free the object to the free queue of the slab page.
-  */
--static void __slab_free(struct kmem_cache *s, struct page *page,
--			void *x, unsigned long addr)
-+static void slab_free(struct kmem_cache *s,
-+			struct page *page, void *x, unsigned long addr)
- {
--	void *prior;
-+	struct kmem_cache_node *n = NULL;
- 	void **object = (void *)x;
-+	struct kmem_cache_cpu *c;
-+	unsigned long tid;
-+	void *prior;
- 	int was_frozen;
- 	int inuse;
--	struct page new;
- 	unsigned long counters;
--	struct kmem_cache_node *n = NULL;
- 	unsigned long uninitialized_var(flags);
-+	struct page new;
- 
--	stat(s, FREE_SLOWPATH);
-+
-+	slab_free_hook(s, x);
-+
-+	/*
-+	 * First see if we can free to the per cpu list in kmem_cache_cpu
-+	 */
-+	do {
-+		/*
-+		 * Determine the currently cpus per cpu slab.
-+		 * The cpu may change afterward. However that does not matter since
-+		 * data is retrieved via this pointer. If we are on the same cpu
-+		 * during the cmpxchg then the free will succeed.
-+		 */
-+		c = __this_cpu_ptr(s->cpu_slab);
-+
-+		tid = c->tid;
-+		barrier();
-+
-+		if (!c->freelist || unlikely(page != virt_to_head_page(c->freelist)))
-+			break;
-+
-+		set_freepointer(s, object, c->freelist);
-+
-+		if (likely(irqsafe_cpu_cmpxchg_double(
-+				s->cpu_slab->freelist, s->cpu_slab->tid,
-+				c->freelist, tid,
-+				object, next_tid(tid)))) {
-+
-+			stat(s, FREE_FASTPATH);
-+			return;
-+
-+		}
-+
-+		note_cmpxchg_failure("slab_free", s, tid);
-+
-+	} while (1);
- 
- 	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
- 		return;
- 
-+	stat(s, FREE_SLOWPATH);
-+
-+	/*
-+ 	 * Put the object onto the slab pages freelist.
-+	 */
- 	do {
- 		prior = page->freelist;
- 		counters = page->counters;
-@@ -2484,6 +2523,10 @@ static void __slab_free(struct kmem_cach
- 		object, new.counters,
- 		"__slab_free"));
- 
-+
-+	if (was_frozen)
-+		stat(s, FREE_FROZEN);
-+
- 	if (likely(!n)) {
- 
- 		/*
-@@ -2497,20 +2540,37 @@ static void __slab_free(struct kmem_cach
- 		 * The list lock was not taken therefore no list
- 		 * activity can be necessary.
- 		 */
--                if (was_frozen)
--                        stat(s, FREE_FROZEN);
--                return;
--        }
-+		return;
-+	}
- 
- 	/*
--	 * was_frozen may have been set after we acquired the list_lock in
--	 * an earlier loop. So we need to check it here again.
-+	 * List lock was taken. We have to deal with additional
-+	 * complexer processing.
- 	 */
--	if (was_frozen)
--		stat(s, FREE_FROZEN);
--	else {
--		if (unlikely(!inuse && n->nr_partial > s->min_partial))
--                        goto slab_empty;
-+	if (!was_frozen) {
-+
-+		/*
-+		 * Only if the slab page was not frozen will we have to do
-+		 * list update activities.
-+		 */
-+		if (unlikely(!inuse && n->nr_partial > s->min_partial)) {
-+
-+			/* Slab is now empty and could be freed */
-+			if (prior) {
-+				/*
-+				 * Slab was on the partial list.
-+				 */
-+				remove_partial(n, page);
-+				stat(s, FREE_REMOVE_PARTIAL);
-+			} else
-+				/* Slab must be on the full list */
-+				remove_full(s, page);
-+
-+			spin_unlock_irqrestore(&n->list_lock, flags);
-+			stat(s, FREE_SLAB);
-+			discard_slab(s, page);
-+			return;
-+		}
- 
- 		/*
- 		 * Objects left in the slab. If it was not on the partial list before
-@@ -2523,71 +2583,6 @@ static void __slab_free(struct kmem_cach
- 		}
- 	}
- 	spin_unlock_irqrestore(&n->list_lock, flags);
--	return;
+- * If that is not working then we fall back to the partial lists. We take the
+- * first element of the freelist as the object to allocate now and move the
+- * rest of the freelist to the lockless freelist.
+- *
+- * And if we were unable to get a new slab from the partial slab lists then
+- * we need to allocate a new slab. This is the slowest path since it involves
+- * a call to the page allocator and the setup of a new slab.
+- */
+-static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+-		unsigned long addr)
+-{
+-	void *freelist;
+-	struct page *page;
 -
--slab_empty:
--	if (prior) {
--		/*
--		 * Slab on the partial list.
--		 */
--		remove_partial(n, page);
--		stat(s, FREE_REMOVE_PARTIAL);
+-	stat(s, ALLOC_SLOWPATH);
+-
+-retry:
+-	freelist = get_cpu_objects(s);
+-	/* Try per cpu partial list */
+-	if (!freelist) {
+-
+-		page = this_cpu_read(s->cpu_slab->partial);
+-		if (page && this_cpu_cmpxchg(s->cpu_slab->partial,
+-				page, page->next) == page) {
+-			stat(s, CPU_PARTIAL_ALLOC);
+-			freelist = get_freelist(s, page);
+-		}
 -	} else
--		/* Slab must be on the full list */
--		remove_full(s, page);
+-		page = virt_to_head_page(freelist);
 -
--	spin_unlock_irqrestore(&n->list_lock, flags);
--	stat(s, FREE_SLAB);
--	discard_slab(s, page);
+-	if (freelist) {
+-		if (likely(node_match(page, node)))
+-			stat(s, ALLOC_REFILL);
+-		else {
+-			stat(s, ALLOC_NODE_MISMATCH);
+-			deactivate_slab(s, page, freelist);
+-			freelist = NULL;
+-		}
+-	}
+-
+-	/* Allocate a new slab */
+-	if (!freelist) {
+-		freelist = new_slab_objects(s, gfpflags, node);
+-		if (freelist)
+-			page = virt_to_head_page(freelist);
+-	}
+-
+-	/* If nothing worked then fail */
+-	if (!freelist) {
+-		if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+-			slab_out_of_memory(s, gfpflags, node);
+-
+-		return NULL;
+-	}
+-
+-	if (unlikely(kmem_cache_debug(s)) &&
+-				!alloc_debug_processing(s, page, freelist, addr))
+-			goto retry;
+-
+-	VM_BUG_ON(!page->frozen);
+-
+-	{
+-		void *next = get_freepointer(s, freelist);
+-
+-		if (!next)
+-			/*
+-			 * last object so we either unfreeze the page or
+-			 * get more objects.
+-			 */
+-			next = get_freelist(s, page);
+-
+-		if (next)
+-			put_cpu_objects(s, page, next);
+-	}
+-
+-	return freelist;
 -}
 -
 -/*
-- * Fastpath with forced inlining to produce a kfree and kmem_cache_free that
-- * can perform fastpath freeing without additional function calls.
+- * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
+- * have the fastpath folded into their functions. So no function call
+- * overhead for requests that can be satisfied on the fastpath.
 - *
-- * The fastpath is only possible if we are freeing to the current cpu slab
-- * of this processor. This typically the case if we have just allocated
-- * the item before.
+- * The fastpath works by first checking if the lockless freelist can be used.
+- * If not then __slab_alloc is called for slow processing.
 - *
-- * If fastpath is not possible then fall back to __slab_free where we deal
-- * with all sorts of special processing.
-- */
--static __always_inline void slab_free(struct kmem_cache *s,
--			struct page *page, void *x, unsigned long addr)
--{
--	void **object = (void *)x;
--	struct kmem_cache_cpu *c;
--	unsigned long tid;
--
--	slab_free_hook(s, x);
--
--redo:
--	/*
--	 * Determine the currently cpus per cpu slab.
--	 * The cpu may change afterward. However that does not matter since
--	 * data is retrieved via this pointer. If we are on the same cpu
--	 * during the cmpxchg then the free will succedd.
--	 */
--	c = __this_cpu_ptr(s->cpu_slab);
--
--	tid = c->tid;
--	barrier();
--
--	if (c->freelist && likely(page == virt_to_head_page(c->freelist))) {
--		set_freepointer(s, object, c->freelist);
--
--		if (unlikely(!irqsafe_cpu_cmpxchg_double(
--				s->cpu_slab->freelist, s->cpu_slab->tid,
--				c->freelist, tid,
--				object, next_tid(tid)))) {
--
--			note_cmpxchg_failure("slab_free", s, tid);
--			goto redo;
--		}
--		stat(s, FREE_FASTPATH);
--	} else
--		__slab_free(s, page, x, addr);
--
- }
+- * Otherwise we can simply pick the next object from the lockless free list.
++ * This is one of the most performance critical function of the
++ * Linux kernel.
+  */
+ static void *slab_alloc(struct kmem_cache *s,
+ 		gfp_t gfpflags, int node, unsigned long addr)
+@@ -2321,11 +2234,8 @@ redo:
+ 	barrier();
  
- void kmem_cache_free(struct kmem_cache *s, void *x)
+ 	object = c->freelist;
+-	if (unlikely(!object || !node_match((page = virt_to_head_page(object)), node)))
++	if (likely(object && node_match((page = virt_to_head_page(object)), node))) {
+ 
+-		object = __slab_alloc(s, gfpflags, node, addr);
+-
+-	else {
+ 		void *next = get_freepointer_safe(s, object);
+ 
+ 		/*
+@@ -2355,8 +2265,74 @@ redo:
+ 				/* Refill the per cpu queue */
+ 				put_cpu_objects(s, page, next);
+ 		}
++
++	} else {
++
++		void *freelist;
++
++		stat(s, ALLOC_SLOWPATH);
++
++retry:
++		freelist = get_cpu_objects(s);
++		/* Try per cpu partial list */
++		if (!freelist) {
++
++			page = this_cpu_read(s->cpu_slab->partial);
++			if (page && this_cpu_cmpxchg(s->cpu_slab->partial,
++					page, page->next) == page) {
++				stat(s, CPU_PARTIAL_ALLOC);
++				freelist = get_freelist(s, page);
++			}
++		} else
++			page = virt_to_head_page(freelist);
++
++		if (freelist) {
++			if (likely(node_match(page, node)))
++				stat(s, ALLOC_REFILL);
++			else {
++				stat(s, ALLOC_NODE_MISMATCH);
++				deactivate_slab(s, page, freelist);
++				freelist = NULL;
++			}
++		}
++
++		/* Allocate a new slab */
++		if (!freelist) {
++			freelist = new_slab_objects(s, gfpflags, node);
++			if (freelist)
++				page = virt_to_head_page(freelist);
++		}
++
++		/* If nothing worked then fail */
++		if (!freelist) {
++			if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
++				slab_out_of_memory(s, gfpflags, node);
++
++			return NULL;
++		}
++
++		if (unlikely(kmem_cache_debug(s)) &&
++				!alloc_debug_processing(s, page, freelist, addr))
++			goto retry;
++
++		VM_BUG_ON(!page->frozen);
++
++		object = freelist;
++		freelist = get_freepointer(s, freelist);
++
++		if (!freelist)
++			/*
++			 * last object so we either unfreeze the page or
++			 * get more objects.
++			 */
++			freelist = get_freelist(s, page);
++
++		if (freelist)
++			put_cpu_objects(s, page, freelist);
++
+ 	}
+ 
++
+ 	if (unlikely(gfpflags & __GFP_ZERO) && object)
+ 		memset(object, 0, s->objsize);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
