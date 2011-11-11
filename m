@@ -1,45 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5C06B006E
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 14:23:18 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 11 Nov 2011 14:23:16 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pABJMEpX3080350
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 14:22:14 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pABJMCLi002397
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 14:22:13 -0500
-Date: Fri, 11 Nov 2011 11:22:11 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: INFO: possible recursive locking detected: get_partial_node()
- on 3.2-rc1
-Message-ID: <20111111192211.GE2283@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20111109090556.GA5949@zhy>
- <201111102335.06046.kernelmail.jms@gmail.com>
- <1320980671.22361.252.camel@sli10-conroe>
- <alpine.DEB.2.00.1111110857330.3557@router.home>
- <CAAVPGOPwKV12TqwU1DcxvJTW9dsmWNiNFg4ga7PzWNgQ2M=1RQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAVPGOPwKV12TqwU1DcxvJTW9dsmWNiNFg4ga7PzWNgQ2M=1RQ@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B0D6B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 15:07:27 -0500 (EST)
+Message-Id: <20111111200711.156817886@linux.com>
+Date: Fri, 11 Nov 2011 14:07:11 -0600
+From: Christoph Lameter <cl@linux.com>
+Subject: [rfc 00/18] slub: irqless/lockless slow allocation paths
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julie Sullivan <kernelmail.jms@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Shaohua Li <shaohua.li@intel.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org
 
-On Fri, Nov 11, 2011 at 07:09:01PM +0000, Julie Sullivan wrote:
-> It's probably moot now but FWIW I checked Shaohua's patch too and it
-> got rid of the warning in my dmesg.
+This is a patchset that makes the allocator slow path also lockless like
+the free paths. However, in the process it is making processing more
+complex so that this is not a performance improvement. I am going to
+drop this series unless someone comes up with a bright idea to fix the
+following performance issues:
 
-Thank you both for your testing efforts!  Hopefully there will be
-a more permanent fix soon.
+1. Had to reduce the per cpu state kept to two words in order to
+   be able to operate without preempt disable / interrupt disable only
+   through cmpxchg_double(). This means that the node information and
+   the page struct location have to be calculated from the free pointer.
+   That is possible but relatively expensive and has to be done frequently
+   in fast paths.
 
-							Thanx, Paul
+2. If the freepointer becomes NULL then the page struct location can
+   no longer be determined. So per cpu slabs must be deactivated when
+   the last object is retrieved from them causing more regressions.
+
+If these issues remain unresolved then I am fine with the way things are
+right now in slub. Currently interrupts are disabled in the slow paths and
+then multiple fields in the kmem_cache_cpu structure are modified without
+regard to instruction atomicity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
