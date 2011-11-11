@@ -1,39 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4F0E66B006E
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 10:02:15 -0500 (EST)
-Date: Fri, 11 Nov 2011 09:02:08 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: INFO: possible recursive locking detected: get_partial_node()
- on 3.2-rc1
-In-Reply-To: <1320980671.22361.252.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1111110857330.3557@router.home>
-References: <20111109090556.GA5949@zhy>  <201111102335.06046.kernelmail.jms@gmail.com> <1320980671.22361.252.camel@sli10-conroe>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A99FD6B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 11:21:27 -0500 (EST)
+Date: Fri, 11 Nov 2011 16:21:19 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: Reduce the amount of work done when updating
+ min_free_kbytes
+Message-ID: <20111111162119.GP3083@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Julie Sullivan <kernelmail.jms@gmail.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 11 Nov 2011, Shaohua Li wrote:
+When min_free_kbytes is updated, some pageblocks are marked MIGRATE_RESERVE.
+Ordinarily, this work is unnoticable as it happens early in boot but on
+large machines with 1TB of memory, this has been reported to delay
+boot times, probably due to the NUMA distances involved.
 
-> Looks this could be a real dead lock. we hold a lock to free a object,
-> but the free need allocate a new object. if the new object and the freed
-> object are from the same slab, there is a deadlock.
+The bulk of the work is due to calling calling pageblock_is_reserved()
+an unnecessary amount of times and accessing far more struct page
+metadata than is necessary. This patch significantly reduces the
+amount of work done by setup_zone_migrate_reserve() improving boot
+times on 1TB machines.
 
-unfreeze partials is never called when going through get_partial_node()
-so there is no deadlock AFAICT.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |   35 +++++++++++++++++++----------------
+ 1 files changed, 19 insertions(+), 16 deletions(-)
 
-> discard_slab() doesn't need hold the lock if the slab is already removed
-> from partial list. how about below patch, only compile tested.
-
-In general I think it is good to move the call to discard_slab() out from
-under the list_lock in unfreeze_partials(). Could you fold
-discard_page_list into unfreeze_partials()? __flush_cpu_slab still calls
-discard_page_list with disabled interrupts even after your patch.
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9dd443d..c95e4c9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3401,25 +3401,28 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 		if (page_to_nid(page) != zone_to_nid(zone))
+ 			continue;
+ 
+-		/* Blocks with reserved pages will never free, skip them. */
+-		block_end_pfn = min(pfn + pageblock_nr_pages, end_pfn);
+-		if (pageblock_is_reserved(pfn, block_end_pfn))
+-			continue;
+-
+ 		block_migratetype = get_pageblock_migratetype(page);
+ 
+-		/* If this block is reserved, account for it */
+-		if (reserve > 0 && block_migratetype == MIGRATE_RESERVE) {
+-			reserve--;
+-			continue;
+-		}
++		/* Only test what is necessary when the reserves are not met */
++		if (reserve > 0) {
++			/* Blocks with reserved pages will never free, skip them. */
++			block_end_pfn = min(pfn + pageblock_nr_pages, end_pfn);
++			if (pageblock_is_reserved(pfn, block_end_pfn))
++				continue;
+ 
+-		/* Suitable for reserving if this block is movable */
+-		if (reserve > 0 && block_migratetype == MIGRATE_MOVABLE) {
+-			set_pageblock_migratetype(page, MIGRATE_RESERVE);
+-			move_freepages_block(zone, page, MIGRATE_RESERVE);
+-			reserve--;
+-			continue;
++			/* If this block is reserved, account for it */
++			if (block_migratetype == MIGRATE_RESERVE) {
++				reserve--;
++				continue;
++			}
++
++			/* Suitable for reserving if this block is movable */
++			if (block_migratetype == MIGRATE_MOVABLE) {
++				set_pageblock_migratetype(page, MIGRATE_RESERVE);
++				move_freepages_block(zone, page, MIGRATE_RESERVE);
++				reserve--;
++				continue;
++			}
+ 		}
+ 
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
