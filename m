@@ -1,106 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 325CC6B002D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 06:17:12 -0500 (EST)
-Date: Fri, 11 Nov 2011 11:17:03 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111111111703.GK3083@suse.de>
-References: <20111110100616.GD3083@suse.de>
- <20111110142202.GE3083@suse.de>
- <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
- <20111110161331.GG3083@suse.de>
- <20111110151211.523fa185.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
- <20111111101414.GJ3083@suse.de>
- <alpine.DEB.2.00.1111110224500.7419@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5F76B002D
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2011 06:20:05 -0500 (EST)
+Received: by faas10 with SMTP id s10so1737163faa.14
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2011 03:20:02 -0800 (PST)
+Message-ID: <4EBD04DE.2010201@openvz.org>
+Date: Fri, 11 Nov 2011 15:19:58 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1111110224500.7419@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2] mm: add free_hot_cold_page_list helper
+References: <20110729075837.12274.58405.stgit@localhost6>	<20111101074502.32668.93131.stgit@zurg> <20111110154259.261f1534.akpm@linux-foundation.org>
+In-Reply-To: <20111110154259.261f1534.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 
-On Fri, Nov 11, 2011 at 02:39:10AM -0800, David Rientjes wrote:
-> On Fri, 11 Nov 2011, Mel Gorman wrote:
-> 
-> > > Indeed.  It seems like the behavior would better be controlled with 
-> > > /sys/kernel/mm/transparent_hugepage/defrag which is set aside specifically 
-> > > to control defragmentation for transparent hugepages and for that 
-> > > synchronous compaction should certainly apply.
-> > 
-> > With khugepaged in place, it's adding a tunable that is unnecessary and
-> > will not be used. Even if such a tuneable was created, the default
-> > behaviour should be "do not stall".
-> > 
-> 
-> Not sure what you mean, the tunable already exists and defaults to always 
-> if THP is turned on. 
+Andrew Morton wrote:
+> On Tue, 01 Nov 2011 11:45:02 +0300
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
+>> It frees pages directly from the list without temporary page-vector.
+>> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
+>>
+>> bloat-o-meter:
+>>
+>> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
+>> function                                     old     new   delta
+>> free_hot_cold_page_list                        -     264    +264
+>> get_page_from_freelist                      2129    2132      +3
+>> __pagevec_free                               243     239      -4
+>> split_free_page                              380     373      -7
+>> release_pages                                606     510     -96
+>> free_page_list                               188       -    -188
+>
+> Here's what you changed:
+>
+> --- a/mm/page_alloc.c~mm-add-free_hot_cold_page_list-helper-v2
+> +++ a/mm/page_alloc.c
+> @@ -1210,6 +1210,9 @@ out:
+>   	local_irq_restore(flags);
+>   }
+>
+> +/*
+> + * Free a list of 0-order pages
+> + */
+>   void free_hot_cold_page_list(struct list_head *list, int cold)
+>   {
+>   	struct page *page, *next;
+> @@ -1218,8 +1221,6 @@ void free_hot_cold_page_list(struct list
+>   		trace_mm_pagevec_free(page, cold);
+>   		free_hot_cold_page(page, cold);
+>   	}
+> -
+> -	INIT_LIST_HEAD(list);
+>   }
+>
+>   /*
+> _
+>
+> However I can't find any sign that you addressed Minchin's original
+> review comment regarding free_hot_cold_page_list():
+>
+> : I understand you want to minimize changes without breaking current ABI
+> : with trace tools.
+> : But apparently, It's not a pagvec_free. It just hurts readability.
+> : As I take a look at the code, mm_pagevec_free isn't related to pagevec
+> : but I guess it can represent 0-order pages free because 0-order pages
+> : are freed only by pagevec until now.
+> : So, how about renaming it with mm_page_free or mm_page_free_zero_order?
+> : If you do, you need to do s/MM_PAGEVEC_FREE/MM_FREE_FREE/g in
+> : trace-pagealloc-postprocess.pl.
+>
 
-Yes, but it does not distinguish between "always including synchronous
-stalls" and "always but only if you can do it quickly". This patch
-does change the behaviour of "always" but it's still using compaction
-to defrag memory. A sysfs file exists, but I wanted to avoid changing
-the meaning of its values if at all possible.
+Now I try to handle this, but this events logic little bit messy:
+kernel always emit mm_page_free_direct event even if we free it in batch.
+We really need two events for page-free? Maybe we can just remove pagevec-free and
+rename page_free_direct into page_free?
 
-If a new value was to be added that would allow the user of
-synchronous compaction, what should it be called? always-sync
-exposes implementation details which is not great. always-force
-is misleading because it wouldn't actually force anything.
-always-really-really-mean-it is a bit unwieldly. always-stress might
-suit but what is the meaning exactly? Using sync compaction would be
-part of it but it could also mean be more agressive about reclaiming.
-What level of control is required and how should it be expressed?
-
-I don't object to the existence of this tunable as such but the
-default should still be "no sync compaction for THP" because stalls due
-to writing to a USB stick sucks.
-
-> I've been able to effectively control the behavior 
-> of synchronous compaction with it in combination with extfrag_threshold, 
-
-extfrag_threshold controls whether compaction runs or not, it does not
-control if synchronous compaction it used.
-
-> i.e. always compact even if the fragmentation index is very small, for 
-> workloads that really really really want hugepages at fault when such a 
-> latency is permissable and then disable khugepaged entirely in the 
-> background for cpu bound tasks.
-> 
-> The history of this boolean is somewhat disturbing: it's introduced in 
-> 77f1fe6b back on January 13 to be true after the first attempt at 
-
-It was first introduced because compaction was stalling. This was
-unacceptable because the stalling cost more than hugepages saved and
-was user visible. There were other patches related to reducing latency
-due to compaction.
-
-> compaction, then changed to be !(gfp_mask & __GFP_NO_KSWAPD) in 11bc82d6 
-
-Because this was a safe option.
-
-> on March 22, then changed to be true again in c6a140bf on May 24, then 
-
-Because testing indicated that stalls due to sync migration were not
-noticeable. For the most part, this is true but there should have
-been better recognition that sync migration could also write pages
-to slow storage which would be unacceptably slow.
-
-> proposed to be changed right back to !(gfp_mask & __GFP_NO_KSWAPD) in this 
-> patch again.  When are we going to understand that the admin needs to tell 
-> the kernel when we'd really like to try to allocate a transparent hugepage 
-> and when it's ok to fail?
-
-I don't recall a point when this was about the administrator wanting to
-control synchronous compaction. The objective was to maximise the number
-of huge pages used while minimising user-visible stalls.
-
--- 
-Mel Gorman
-SUSE Labs
+BTW, pagevec_free now absolutely unused, I'll remove it in separate patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
