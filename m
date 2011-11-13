@@ -1,129 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 382F56B002D
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 07:20:18 -0500 (EST)
-Received: by wwf10 with SMTP id 10so3814358wwf.26
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 04:20:13 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1321179449-6675-5-git-send-email-gilad@benyossef.com>
-References: <1321179449-6675-1-git-send-email-gilad@benyossef.com>
-	<1321179449-6675-5-git-send-email-gilad@benyossef.com>
-Date: Sun, 13 Nov 2011 20:20:12 +0800
-Message-ID: <CAJd=RBC0eTkjF8CSKXv-SK5Zef1G+9x-FUYRBXKmVg6Gbno5gw@mail.gmail.com>
-Subject: Re: [PATCH v3 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0AC6B002D
+	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 09:43:02 -0500 (EST)
+Received: by wwf10 with SMTP id 10so3884778wwf.26
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 06:42:59 -0800 (PST)
+Message-ID: <1321195355.2020.10.camel@localhost.localdomain>
+Subject: khugepaged cannot be freezed on 3.2-rc1
+From: Maciej Marcin Piechotka <uzytkownik2@gmail.com>
+Date: Sun, 13 Nov 2011 14:42:35 +0000
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: linux-mm@kvack.org
 
-On Sun, Nov 13, 2011 at 6:17 PM, Gilad Ben-Yossef <gilad@benyossef.com> wro=
-te:
-> flush_all() is called for each kmem_cahce_destroy(). So every cache
-> being destroyed dynamically ended up sending an IPI to each CPU in the
-> system, regardless if the cache has ever been used there.
->
-> For example, if you close the Infinband ipath driver char device file,
-> the close file ops calls kmem_cache_destroy(). So running some
-> infiniband config tool on one a single CPU dedicated to system tasks
-> might interrupt the rest of the 127 CPUs I dedicated to some CPU
-> intensive task.
->
-> I suspect there is a good chance that every line in the output of "git
-> grep kmem_cache_destroy linux/ | grep '\->'" has a similar scenario.
->
-> This patch attempts to rectify this issue by sending an IPI to flush
-> the per cpu objects back to the free lists only to CPUs that seems to
-> have such objects.
->
-> The check which CPU to IPI is racy but we don't care since asking a
-> CPU without per cpu objects to flush does no damage and as far as I
-> can tell the flush_all by itself is racy against allocs on remote
-> CPUs anyway, so if you meant the flush_all to be determinstic, you
-> had to arrange for locking regardless.
->
-> Without this patch the following artificial test case:
->
-> $ cd /sys/kernel/slab
-> $ for DIR in *; do cat $DIR/alloc_calls > /dev/null; done
->
-> produces 166 IPIs on an cpuset isolated CPU. With it it produces none.
->
-> The code path of memory allocation failure for CPUMASK_OFFSTACK=3Dy
-> config was tested using fault injection framework.
->
-> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-> Acked-by: Chris Metcalf <cmetcalf@tilera.com>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> CC: Frederic Weisbecker <fweisbec@gmail.com>
-> CC: Russell King <linux@arm.linux.org.uk>
-> CC: linux-mm@kvack.org
-> CC: Christoph Lameter <cl@linux-foundation.org>
-> CC: Pekka Enberg <penberg@kernel.org>
-> CC: Matt Mackall <mpm@selenic.com>
-> CC: Sasha Levin <levinsasha928@gmail.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Andi Kleen <andi@firstfloor.org>
-> ---
-> =C2=A0mm/slub.c | =C2=A0 15 ++++++++++++++-
-> =C2=A01 files changed, 14 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 7d2a996..caf4b3a 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2006,7 +2006,20 @@ static void flush_cpu_slab(void *d)
->
-> =C2=A0static void flush_all(struct kmem_cache *s)
-> =C2=A0{
-> - =C2=A0 =C2=A0 =C2=A0 on_each_cpu(flush_cpu_slab, s, 1);
-> + =C2=A0 =C2=A0 =C2=A0 cpumask_var_t cpus;
-> + =C2=A0 =C2=A0 =C2=A0 struct kmem_cache_cpu *c;
-> + =C2=A0 =C2=A0 =C2=A0 int cpu;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC)))=
- {
+I am sorry if I've sent to wrong address. It seems that bug reporting
+resources - bugzilla & "Reporting bugs for the Linux kernel" page - are
+(still?) down. I followed the latter from web archive).
 
-Perhaps, the technique of local_cpu_mask defined in kernel/sched_rt.c
-could be used to replace the above atomic allocation.
+When I try to suspend the computer the khugepaged refuses to be
+suspended:
 
-Best regards
+[10531.788922] PM: Syncing filesystems ... done.
+[10532.617226] Freezing user space processes ... (elapsed 0.01 seconds)
+done.
+[10532.629073] Freezing remaining freezable tasks ... 
+[10552.638137] Freezing of tasks failed after 20.00 seconds (1 tasks
+refusing to freeze, wq_busy=0):
+[10552.638155] khugepaged      R  running task        0    21      2
+0x00800000
+[10552.638159]  ffffea000072c740 000000000000ce01 ffffffff81093f56
+ffffffff8166f680
+[10552.638163]  ffffffff8102bbd0 0000000000000001 ffffffff8102bc65
+ffffea000072c140
+[10552.638166]  ffffea000072c1c0 ffffea000072c180 ffffffff8108cbc1
+ffffea000032b700
+[10552.638170] Call Trace:
+[10552.638177]  [<ffffffff81093f56>] ? vma_prio_tree_next+0x3c/0xd5
+[10552.638181]  [<ffffffff810a2798>] ? try_to_unmap_file+0x4a7/0x4bd
+[10552.638184]  [<ffffffff8108cbc1>] ? ____pagevec_lru_add_fn+0x58/0x9a
+[10552.638188]  [<ffffffff810ad11d>] ? compaction_alloc+0x132/0x24f
+[10552.638191]  [<ffffffff810b26f8>] ? migrate_pages+0xa6/0x335
+[10552.638194]  [<ffffffff810acfeb>] ? pfn_valid.part.3+0x32/0x32
+[10552.638197]  [<ffffffff810ad6b2>] ? compact_zone+0x3f4/0x5c3
+[10552.638200]  [<ffffffff810ad9a2>] ? try_to_compact_pages+0x121/0x17e
+[10552.638203]  [<ffffffff8108a2f1>] ? __alloc_pages_direct_compact
++0xaa/0x197
+[10552.638206]  [<ffffffff8108aa44>] ? __alloc_pages_nodemask
++0x666/0x6c7
+[10552.638210]  [<ffffffff8102bbd0>] ? get_parent_ip+0x9/0x1b
+[10552.638214]  [<ffffffff81348964>] ? _raw_spin_lock_irqsave+0x13/0x34
+[10552.638217]  [<ffffffff810b2e12>] ? khugepaged_alloc_hugepage
++0x4c/0xdb
+[10552.638220]  [<ffffffff81047ab9>] ? add_wait_queue+0x3c/0x3c
+[10552.638222]  [<ffffffff810b33fd>] ? khugepaged+0x7c/0xe04
+[10552.638225]  [<ffffffff81047ab9>] ? add_wait_queue+0x3c/0x3c
+[10552.638228]  [<ffffffff810b3381>] ? add_mm_counter.constprop.50
++0x9/0x9
+[10552.638230]  [<ffffffff810474ee>] ? kthread+0x76/0x7e
+[10552.638233]  [<ffffffff8134b274>] ? kernel_thread_helper+0x4/0x10
+[10552.638236]  [<ffffffff81047478>] ? kthread_worker_fn+0x139/0x139
+[10552.638238]  [<ffffffff8134b270>] ? gs_change+0xb/0xb
+[10552.638347] 
+[10552.638348] Restarting tasks ... done.
 
-Hillf
-
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 for_each_online_cpu(cp=
-u) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 c =3D per_cpu_ptr(s->cpu_slab, cpu);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 if (c && c->page)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cpumask_set_cpu(cpu, cpus);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 on_each_cpu_mask(cpus,=
- flush_cpu_slab, s, 1);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free_cpumask_var(cpus)=
-;
-> + =C2=A0 =C2=A0 =C2=A0 } else
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 on_each_cpu(flush_cpu_=
-slab, s, 1);
-> =C2=A0}
->
-> =C2=A0/*
-> --
-> 1.7.0.4
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
->
->
->
+Regards
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
