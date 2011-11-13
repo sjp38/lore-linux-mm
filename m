@@ -1,81 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 27E186B002D
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 03:39:41 -0500 (EST)
-Received: by yenm10 with SMTP id m10so2039159yen.14
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 00:39:39 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1320606618.1428.76.camel@jaguar>
-References: <1319385413-29665-1-git-send-email-gilad@benyossef.com>
-	<1319385413-29665-7-git-send-email-gilad@benyossef.com>
-	<alpine.DEB.2.00.1110272304020.14619@router.home>
-	<CAOtvUMcHOysen7betBOwEJAjL-UVzvBfCf0fzmmBERFrivkOBA@mail.gmail.com>
-	<alpine.DEB.2.00.1111020351350.23788@router.home>
-	<1320606618.1428.76.camel@jaguar>
-Date: Sun, 13 Nov 2011 10:39:39 +0200
-Message-ID: <CAOtvUMfcus0Gx3z9XA9EEU-QQuAi4aMp7+_cNEVZzsDmzxLavQ@mail.gmail.com>
-Subject: Re: [PATCH v2 6/6] slub: only preallocate cpus_with_slabs if offstack
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 23BB26B002D
+	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 05:18:22 -0500 (EST)
+Received: by bke17 with SMTP id 17so5188133bke.14
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 02:18:18 -0800 (PST)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v3 0/5] Reduce cross CPU IPI interference
+Date: Sun, 13 Nov 2011 12:17:24 +0200
+Message-Id: <1321179449-6675-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@gentwo.org>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
 
-On Sun, Nov 6, 2011 at 9:10 PM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Fri, 28 Oct 2011, Gilad Ben-Yossef wrote:
->> > I think if it is up to me, I recommend going the simpler =A0route that
->> > does the allocation in flush_all using GFP_ATOMIC for
->> > CPUMASK_OFFSTACK=3Dy and sends an IPI to all CPUs if it fails, because
->> > it is simpler code and in the end I believe it is also correct.
->
-> On Wed, 2011-11-02 at 03:52 -0500, Christoph Lameter wrote:
->> I support that. Pekka?
->
-> Sure. I'm OK with that. Someone needs to run some tests to make sure
-> it's working with low memory conditions when GFP_ATOMIC allocations
-> fail, though.
+We have lots of infrastructure in place to partition a multi-core system such
+that we have a group of CPUs that are dedicated to specific task: cgroups,
+scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel
+code will some time interrupt all CPUs in the system via IPIs for various
+needs. These IPIs are useful and cannot be avoided altogether, but in certain
+cases it is possible to interrupt only specific CPUs that have useful work to
+do and not the entire system.
 
-I've just used the fault injection framework (which is really cool by
-the way) to inject an
-allocation failure for every cpumask alloc in slub.c flush_all in
-CONFIG_CPUMASK_OFFSTACK=3Dy kernel and then forced each kmem cache
-to flush by reading sys/kernel/slab/*/alloc_calls and everything seems to b=
-e
-in order. dmesg log shows the fault injection failing the allocation,
-I get an extra debug
-trace from the cpumask allocation code and the system keeps chugging along.
+This patch set, inspired by discussions with Peter Zijlstra and Frederic
+Weisbecker when testing the nohz task patch set, is a first stab at trying to
+explore doing this by locating the places where such global IPI calls are
+being made and turning a global IPI into an IPI for a specific group of CPUs.
+The purpose of the patch set is to get feedback if this is the right way to
+go for dealing with this issue and indeed, if the issue is even worth dealing
+with at all. Based on the feedback from this patch set I plan to offer further
+patches that address similar issue in other code paths.
 
-While at it I did a similar thing for the drain_all_pages of
-mm/page_alloc.c (running
-a new version of the code from the previous patch) and forced the
-drain to be called
-by running ./hackbench 1000. Here again I saw log reports of the code
-path being
-called (from the fault injection framework), allocation failed and
-save for the debug
-trace the system continued to work fine (the OOm killer has killed by
-shell, but that
-is to be expected).
+The patch creates an on_each_cpu_mask infrastructure API (derived from
+existing arch specific versions in Tile and Arm) and uses it to turn two global
+IPI invocation to per CPU group invocations.
 
-Both of the above with the latest spin of the patch I'll send out soon
-after some more tests,
-so it looks good.
+This 3rd version incorporates changes due to reviewers feedback.
+The major changes from the previous version of the patch are:
 
-Thanks!
-Gilad
+- Reverted to the much simpler way of handling cpumask allocation in slub.c
+  flush_all() that was used in the first iteration of the patch at the 
+  suggestion of Andi K, Christoph L. and Pekka E. after testing with fault 
+  injection of memory failure show that this is safe even for CPUMASK_OFFSTACK=y 
+  case.
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+- Rewrote the patch that handles per cpu page caches flush to only try and
+  calculate which cpu to IPI when a drain is requested instead of tracking
+  the cpus as allocations and deallocation progress, in similar fashion to
+  what was done in the other patch for the slub cache at the suggestion of
+  Christoph L. and Rik V. The code is now much smaller and touches
+  only none fast path code.
 
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+The patch was compiled for arm and boot tested on x86 in UP, SMP, with and without 
+CONFIG_CPUMASK_OFFSTACK and was further tested by running hackbench on x86 in 
+SMP mode in a 4 CPUs VM with no obvious regressions.
+
+I also artificially exercised SLUB flush_all via the debug interface and observed 
+the difference in IPI count across processors with and without the patch - from 
+an IPI on all processors but one without the patch to a subset (and often no IPI 
+at all) with the patch.
+
+I further used fault injection framework to force cpumask alloction failures for
+CPUMASK_OFFSTACK=y cases and triggering the code using slub sys debug interface
+and running ./hackbench 1000 for page_alloc, with no critical failures.
+
+I believe it's as good as this patch set is going to get :-)
+
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Acked-by: Chris Metcalf <cmetcalf@tilera.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: Russell King <linux@arm.linux.org.uk>
+CC: linux-mm@kvack.org
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Matt Mackall <mpm@selenic.com>
+CC: Sasha Levin <levinsasha928@gmail.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: Andi Kleen <andi@firstfloor.org>
+
+Gilad Ben-Yossef (5):
+  smp: Introduce a generic on_each_cpu_mask function
+  arm: Move arm over to generic on_each_cpu_mask
+  tile: Move tile to use generic on_each_cpu_mask
+  slub: Only IPI CPUs that have per cpu obj to flush
+  mm: Only IPI CPUs to drain local pages if they exist
+
+ arch/arm/kernel/smp_tlb.c   |   20 +++++---------------
+ arch/tile/include/asm/smp.h |    7 -------
+ arch/tile/kernel/smp.c      |   19 -------------------
+ include/linux/smp.h         |   16 ++++++++++++++++
+ kernel/smp.c                |   20 ++++++++++++++++++++
+ mm/page_alloc.c             |   18 +++++++++++++++++-
+ mm/slub.c                   |   15 ++++++++++++++-
+ 7 files changed, 72 insertions(+), 43 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
