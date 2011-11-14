@@ -1,53 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2B16B002D
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 22:02:32 -0500 (EST)
-Subject: Re: [patch] slub: fix a code merge error
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E02676B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 00:24:42 -0500 (EST)
+Subject: Re: INFO: possible recursive locking detected: get_partial_node()
+ on 3.2-rc1
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
-References: <1320912260.22361.247.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1111101218140.21036@chino.kir.corp.google.com>
-	 <CAOJsxLH7Fss8bBR+ERBOsb=1ZbwbLi+EkS-7skC1CbBmkMpvKA@mail.gmail.com>
-	 <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1111110857330.3557@router.home>
+References: <20111109090556.GA5949@zhy>
+	 <201111102335.06046.kernelmail.jms@gmail.com>
+	 <1320980671.22361.252.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1111110857330.3557@router.home>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 14 Nov 2011 11:12:04 +0800
-Message-ID: <1321240324.22361.272.camel@sli10-conroe>
+Date: Mon, 14 Nov 2011 13:34:13 +0800
+Message-ID: <1321248853.22361.280.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alex shi <lkml.alex@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Julie Sullivan <kernelmail.jms@gmail.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 2011-11-14 at 09:56 +0800, alex shi wrote:
-> >
-> > Indeed. Please resend with proper subject and changelog with
-> > Christoph's and David's ACKs included.
+On Fri, 2011-11-11 at 23:02 +0800, Christoph Lameter wrote:
+> On Fri, 11 Nov 2011, Shaohua Li wrote:
 > 
-> Pekka:
+> > Looks this could be a real dead lock. we hold a lock to free a object,
+> > but the free need allocate a new object. if the new object and the freed
+> > object are from the same slab, there is a deadlock.
 > 
-> SLUB stat attribute was designed for stat accounting only. I checked
-> the total 24 attributes that used now. All of them used in stat() only
-> except the DEACTIVATE_TO_HEAD/TAIL.
-it's an enum, it can be used in any case if proper used.
+> unfreeze partials is never called when going through get_partial_node()
+> so there is no deadlock AFAICT.
+the unfreeze_partial isn't called from get_partial_node(). I thought the
+code path is something like this: kmem_cache_free()->put_cpu_partial()
+(hold lock) ->unfreeze_partials() ->discard_slab ->debug_object_init()
+->kmem_cache_alloc->get_partial_node()(hold lock). Not sure if this will
+really happen, but looks like a deadlock.
+But anyway, discard_slab() can be move out of unfreeze_partials()
 
-> And in fact, in the most of using scenarios the DEACTIVATE_TO_TAIL
-> make reader confuse, TO_TAIL is correct but not for DEACTIVATE.
-please look at the comments where DEACTIVATE_TO_TAIL is defined.
-
-> Further more, CL also regretted this after he acked the original
-> patches for this attribute mis-usages. He said "don't think we want
-> this patch any more."
-> http://permalink.gmane.org/gmane.linux.kernel.mm/67653 and want to use
-> a comment instead of this confusing usage.
-> https://lkml.org/lkml/2011/8/29/187
+> > discard_slab() doesn't need hold the lock if the slab is already removed
+> > from partial list. how about below patch, only compile tested.
 > 
-> So, as to this regression, from my viewpoint, reverting the
-> DEACTIVATE_TO_TAIL incorrect usage(commit 136333d104) is a better way.
->  :)
-using 0/1 is insane and can easily cause problems. Using a name can help
-avoid such insane. This is exactly what commit 136333d104 tries to do.
-This is a general C programming skill everybody should already know.
+> In general I think it is good to move the call to discard_slab() out from
+> under the list_lock in unfreeze_partials(). Could you fold
+> discard_page_list into unfreeze_partials()? __flush_cpu_slab still calls
+> discard_page_list with disabled interrupts even after your patch.
+I'm afraid there is alloc-in-atomic() error, but Yong & Julie's test
+shows this is over thinking. Here is the updated patch. Yong & Julie, I
+added your report/test by, because the new patch should be just like the
+old one, but since I changed it a little bit, can you please have a
+quick check? Thanks!
+
+
+
+Subject: slub: move discard_slab out of node lock
+
+Lockdep reports there is potential deadlock for slub node list_lock.
+discard_slab() is called with the lock hold in unfreeze_partials(),
+which could trigger a slab allocation, which could hold the lock again.
+
+discard_slab() doesn't need hold the lock actually, if the slab is
+already removed from partial list.
+
+Reported-and-tested-by: Yong Zhang <yong.zhang0@gmail.com>
+Reported-and-tested-by: Julie Sullivan <kernelmail.jms@gmail.com>
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+---
+ mm/slub.c |   16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2011-11-11 16:17:39.000000000 +0800
++++ linux/mm/slub.c	2011-11-14 13:11:11.000000000 +0800
+@@ -1862,7 +1862,7 @@ static void unfreeze_partials(struct kme
+ {
+ 	struct kmem_cache_node *n = NULL;
+ 	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
+-	struct page *page;
++	struct page *page, *discard_page = NULL;
+ 
+ 	while ((page = c->partial)) {
+ 		enum slab_modes { M_PARTIAL, M_FREE };
+@@ -1916,14 +1916,22 @@ static void unfreeze_partials(struct kme
+ 				"unfreezing slab"));
+ 
+ 		if (m == M_FREE) {
+-			stat(s, DEACTIVATE_EMPTY);
+-			discard_slab(s, page);
+-			stat(s, FREE_SLAB);
++			page->next = discard_page;
++			discard_page = page;
+ 		}
+ 	}
+ 
+ 	if (n)
+ 		spin_unlock(&n->list_lock);
++
++	while (discard_page) {
++		page = discard_page;
++		discard_page = discard_page->next;
++
++		stat(s, DEACTIVATE_EMPTY);
++		discard_slab(s, page);
++		stat(s, FREE_SLAB);
++	}
+ }
+ 
+ /*
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
