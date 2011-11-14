@@ -1,113 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E02676B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 00:24:42 -0500 (EST)
-Subject: Re: INFO: possible recursive locking detected: get_partial_node()
- on 3.2-rc1
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1111110857330.3557@router.home>
-References: <20111109090556.GA5949@zhy>
-	 <201111102335.06046.kernelmail.jms@gmail.com>
-	 <1320980671.22361.252.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1111110857330.3557@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 14 Nov 2011 13:34:13 +0800
-Message-ID: <1321248853.22361.280.camel@sli10-conroe>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3C96B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 00:40:45 -0500 (EST)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Mon, 14 Nov 2011 05:38:23 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAE5e4gN2850938
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 16:40:11 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAE5e3bL011158
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 16:40:03 +1100
+Message-ID: <4EC0A9B3.7020201@linux.vnet.ibm.com>
+Date: Mon, 14 Nov 2011 11:10:03 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: khugepaged cannot be freezed on 3.2-rc1
+References: <1321195355.2020.10.camel@localhost.localdomain>
+In-Reply-To: <1321195355.2020.10.camel@localhost.localdomain>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Julie Sullivan <kernelmail.jms@gmail.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Maciej Marcin Piechotka <uzytkownik2@gmail.com>
+Cc: linux-mm@kvack.org, Linux PM mailing list <linux-pm@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Tejun Heo <tj@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Fri, 2011-11-11 at 23:02 +0800, Christoph Lameter wrote:
-> On Fri, 11 Nov 2011, Shaohua Li wrote:
+On 11/13/2011 08:12 PM, Maciej Marcin Piechotka wrote:
+> I am sorry if I've sent to wrong address. It seems that bug reporting
+> resources - bugzilla & "Reporting bugs for the Linux kernel" page - are
+> (still?) down. I followed the latter from web archive).
+>
+
+Adding linux-pm mailing list to CC.
+Andrea Arcangeli has written a patch to solve khugepaged freezing issue.
+https://lkml.org/lkml/2011/11/9/312
+
+Can you check if that patch solves the issue for you too?
+
+Thanks,
+Srivatsa S. Bhat
+
+> When I try to suspend the computer the khugepaged refuses to be
+> suspended:
 > 
-> > Looks this could be a real dead lock. we hold a lock to free a object,
-> > but the free need allocate a new object. if the new object and the freed
-> > object are from the same slab, there is a deadlock.
+> [10531.788922] PM: Syncing filesystems ... done.
+> [10532.617226] Freezing user space processes ... (elapsed 0.01 seconds)
+> done.
+> [10532.629073] Freezing remaining freezable tasks ... 
+> [10552.638137] Freezing of tasks failed after 20.00 seconds (1 tasks
+> refusing to freeze, wq_busy=0):
+> [10552.638155] khugepaged      R  running task        0    21      2
+> 0x00800000
+> [10552.638159]  ffffea000072c740 000000000000ce01 ffffffff81093f56
+> ffffffff8166f680
+> [10552.638163]  ffffffff8102bbd0 0000000000000001 ffffffff8102bc65
+> ffffea000072c140
+> [10552.638166]  ffffea000072c1c0 ffffea000072c180 ffffffff8108cbc1
+> ffffea000032b700
+> [10552.638170] Call Trace:
+> [10552.638177]  [<ffffffff81093f56>] ? vma_prio_tree_next+0x3c/0xd5
+> [10552.638181]  [<ffffffff810a2798>] ? try_to_unmap_file+0x4a7/0x4bd
+> [10552.638184]  [<ffffffff8108cbc1>] ? ____pagevec_lru_add_fn+0x58/0x9a
+> [10552.638188]  [<ffffffff810ad11d>] ? compaction_alloc+0x132/0x24f
+> [10552.638191]  [<ffffffff810b26f8>] ? migrate_pages+0xa6/0x335
+> [10552.638194]  [<ffffffff810acfeb>] ? pfn_valid.part.3+0x32/0x32
+> [10552.638197]  [<ffffffff810ad6b2>] ? compact_zone+0x3f4/0x5c3
+> [10552.638200]  [<ffffffff810ad9a2>] ? try_to_compact_pages+0x121/0x17e
+> [10552.638203]  [<ffffffff8108a2f1>] ? __alloc_pages_direct_compact
+> +0xaa/0x197
+> [10552.638206]  [<ffffffff8108aa44>] ? __alloc_pages_nodemask
+> +0x666/0x6c7
+> [10552.638210]  [<ffffffff8102bbd0>] ? get_parent_ip+0x9/0x1b
+> [10552.638214]  [<ffffffff81348964>] ? _raw_spin_lock_irqsave+0x13/0x34
+> [10552.638217]  [<ffffffff810b2e12>] ? khugepaged_alloc_hugepage
+> +0x4c/0xdb
+> [10552.638220]  [<ffffffff81047ab9>] ? add_wait_queue+0x3c/0x3c
+> [10552.638222]  [<ffffffff810b33fd>] ? khugepaged+0x7c/0xe04
+> [10552.638225]  [<ffffffff81047ab9>] ? add_wait_queue+0x3c/0x3c
+> [10552.638228]  [<ffffffff810b3381>] ? add_mm_counter.constprop.50
+> +0x9/0x9
+> [10552.638230]  [<ffffffff810474ee>] ? kthread+0x76/0x7e
+> [10552.638233]  [<ffffffff8134b274>] ? kernel_thread_helper+0x4/0x10
+> [10552.638236]  [<ffffffff81047478>] ? kthread_worker_fn+0x139/0x139
+> [10552.638238]  [<ffffffff8134b270>] ? gs_change+0xb/0xb
+> [10552.638347] 
+> [10552.638348] Restarting tasks ... done.
 > 
-> unfreeze partials is never called when going through get_partial_node()
-> so there is no deadlock AFAICT.
-the unfreeze_partial isn't called from get_partial_node(). I thought the
-code path is something like this: kmem_cache_free()->put_cpu_partial()
-(hold lock) ->unfreeze_partials() ->discard_slab ->debug_object_init()
-->kmem_cache_alloc->get_partial_node()(hold lock). Not sure if this will
-really happen, but looks like a deadlock.
-But anyway, discard_slab() can be move out of unfreeze_partials()
-
-> > discard_slab() doesn't need hold the lock if the slab is already removed
-> > from partial list. how about below patch, only compile tested.
+> Regards
 > 
-> In general I think it is good to move the call to discard_slab() out from
-> under the list_lock in unfreeze_partials(). Could you fold
-> discard_page_list into unfreeze_partials()? __flush_cpu_slab still calls
-> discard_page_list with disabled interrupts even after your patch.
-I'm afraid there is alloc-in-atomic() error, but Yong & Julie's test
-shows this is over thinking. Here is the updated patch. Yong & Julie, I
-added your report/test by, because the new patch should be just like the
-old one, but since I changed it a little bit, can you please have a
-quick check? Thanks!
-
-
-
-Subject: slub: move discard_slab out of node lock
-
-Lockdep reports there is potential deadlock for slub node list_lock.
-discard_slab() is called with the lock hold in unfreeze_partials(),
-which could trigger a slab allocation, which could hold the lock again.
-
-discard_slab() doesn't need hold the lock actually, if the slab is
-already removed from partial list.
-
-Reported-and-tested-by: Yong Zhang <yong.zhang0@gmail.com>
-Reported-and-tested-by: Julie Sullivan <kernelmail.jms@gmail.com>
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
----
- mm/slub.c |   16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2011-11-11 16:17:39.000000000 +0800
-+++ linux/mm/slub.c	2011-11-14 13:11:11.000000000 +0800
-@@ -1862,7 +1862,7 @@ static void unfreeze_partials(struct kme
- {
- 	struct kmem_cache_node *n = NULL;
- 	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
--	struct page *page;
-+	struct page *page, *discard_page = NULL;
- 
- 	while ((page = c->partial)) {
- 		enum slab_modes { M_PARTIAL, M_FREE };
-@@ -1916,14 +1916,22 @@ static void unfreeze_partials(struct kme
- 				"unfreezing slab"));
- 
- 		if (m == M_FREE) {
--			stat(s, DEACTIVATE_EMPTY);
--			discard_slab(s, page);
--			stat(s, FREE_SLAB);
-+			page->next = discard_page;
-+			discard_page = page;
- 		}
- 	}
- 
- 	if (n)
- 		spin_unlock(&n->list_lock);
-+
-+	while (discard_page) {
-+		page = discard_page;
-+		discard_page = discard_page->next;
-+
-+		stat(s, DEACTIVATE_EMPTY);
-+		discard_slab(s, page);
-+		stat(s, FREE_SLAB);
-+	}
- }
- 
- /*
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
