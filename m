@@ -1,41 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B87B46B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 18:21:02 -0500 (EST)
-Date: Mon, 14 Nov 2011 15:21:00 -0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A95FE6B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 18:44:11 -0500 (EST)
+Date: Mon, 14 Nov 2011 15:44:08 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Reduce the amount of work done when updating
- min_free_kbytes
-Message-Id: <20111114152100.1333a015.akpm@linux-foundation.org>
-In-Reply-To: <20111111162119.GP3083@suse.de>
-References: <20111111162119.GP3083@suse.de>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-Id: <20111114154408.10de1bc7.akpm@linux-foundation.org>
+In-Reply-To: <20111111101414.GJ3083@suse.de>
+References: <20111110100616.GD3083@suse.de>
+	<20111110142202.GE3083@suse.de>
+	<CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
+	<20111110161331.GG3083@suse.de>
+	<20111110151211.523fa185.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
+	<20111111101414.GJ3083@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 11 Nov 2011 16:21:19 +0000
+On Fri, 11 Nov 2011 10:14:14 +0000
 Mel Gorman <mgorman@suse.de> wrote:
 
-> When min_free_kbytes is updated, some pageblocks are marked MIGRATE_RESERVE.
-> Ordinarily, this work is unnoticable as it happens early in boot but on
-> large machines with 1TB of memory, this has been reported to delay
-> boot times, probably due to the NUMA distances involved.
+> On Thu, Nov 10, 2011 at 03:37:32PM -0800, David Rientjes wrote:
+> > On Thu, 10 Nov 2011, Andrew Morton wrote:
+> > 
+> > > > This patch once again prevents sync migration for transparent
+> > > > hugepage allocations as it is preferable to fail a THP allocation
+> > > > than stall.
+> > > 
+> > > Who said?  ;) Presumably some people would prefer to get lots of
+> > > huge pages for their 1000-hour compute job, and waiting a bit to get
+> > > those pages is acceptable.
+> > > 
+> > 
+> > Indeed.  It seems like the behavior would better be controlled with 
+> > /sys/kernel/mm/transparent_hugepage/defrag which is set aside specifically 
+> > to control defragmentation for transparent hugepages and for that 
+> > synchronous compaction should certainly apply.
 > 
-> The bulk of the work is due to calling calling pageblock_is_reserved()
-> an unnecessary amount of times and accessing far more struct page
-> metadata than is necessary. This patch significantly reduces the
-> amount of work done by setup_zone_migrate_reserve() improving boot
-> times on 1TB machines.
-> 
+> With khugepaged in place, it's adding a tunable that is unnecessary and
+> will not be used. Even if such a tuneable was created, the default
+> behaviour should be "do not stall".
 
-By how much? :)
+(who said?)
 
-(I mainly ask because I'm curious to know how long the kernel takes to
-boot on a 1TB machine...)
+Let me repeat my cruelly unanswered question: do we have sufficient
+instrumentation in place so that operators can determine that this
+change is causing them to get less huge pages than they'd like?
+
+Because some people really really want those huge pages.  If we go and
+silently deprive them of those huge pages via changes like this, how do
+they *know* it's happening?
+
+And what are their options for making the kernel try harder to get
+those pages?
+
+And how do we communicate all of this to those operators?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
