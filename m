@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E606B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 05:19:39 -0500 (EST)
-Date: Mon, 14 Nov 2011 11:20:46 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 224856B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 05:28:15 -0500 (EST)
+Date: Mon, 14 Nov 2011 11:29:23 +0100
 From: Stanislaw Gruszka <sgruszka@redhat.com>
-Subject: Re: [PATCH 1/4] mm: remove debug_pagealloc_enabled
-Message-ID: <20111114102045.GA2513@redhat.com>
+Subject: Re: [PATCH 2/4] mm: more intensive memory corruption debug
+Message-ID: <20111114102923.GB2513@redhat.com>
 References: <1321014994-2426-1-git-send-email-sgruszka@redhat.com>
- <20111111141221.GL3083@suse.de>
+ <1321014994-2426-2-git-send-email-sgruszka@redhat.com>
+ <20111111142953.GM3083@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111111141221.GL3083@suse.de>
+In-Reply-To: <20111111142953.GM3083@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
 
-On Fri, Nov 11, 2011 at 02:12:21PM +0000, Mel Gorman wrote:
-> On Fri, Nov 11, 2011 at 01:36:31PM +0100, Stanislaw Gruszka wrote:
-> > After we finish (no)bootmem, pages are passed to buddy allocator. Since
-> > debug_pagealloc_enabled is not set, we do not protect pages, what is
-> > not what we want with CONFIG_DEBUG_PAGEALLOC=y. That could be fixed by
-> > calling enable_debug_pagealloc() before free_all_bootmem(), but actually
-> > I do not see any reason why we need that global variable. Hence patch
-> > remove it.
-> > 
-> > Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
-> > ---
-> >  arch/x86/mm/pageattr.c |    6 ------
-> >  include/linux/mm.h     |   10 ----------
-> >  init/main.c            |    5 -----
-> >  mm/debug-pagealloc.c   |    3 ---
-> >  4 files changed, 0 insertions(+), 24 deletions(-)
-> > 
-> > diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> > index f9e5267..5031eef 100644
-> > --- a/arch/x86/mm/pageattr.c
-> > +++ b/arch/x86/mm/pageattr.c
-> > @@ -1334,12 +1334,6 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
-> >  	}
+On Fri, Nov 11, 2011 at 02:29:53PM +0000, Mel Gorman wrote:
+> >  	if (PageBuddy(buddy) && page_order(buddy) == order) {
+> >  		VM_BUG_ON(page_count(buddy) != 0);
+> >  		return 1;
+> > @@ -518,9 +562,15 @@ static inline void __free_one_page(struct page *page,
+> >  			break;
 > >  
-> >  	/*
-> > -	 * If page allocator is not up yet then do not call c_p_a():
-> > -	 */
-> > -	if (!debug_pagealloc_enabled)
-> > -		return;
-> > -
-> > -	/*
+> >  		/* Our buddy is free, merge with it and move up one order. */
+> > -		list_del(&buddy->lru);
+> > -		zone->free_area[order].nr_free--;
+> > -		rmv_page_order(buddy);
+> > +		if (page_is_corrupt_dbg(buddy)) {
+> > +			clear_page_corrupt_dbg(buddy);
+> > +			set_page_private(page, 0);
+> > +			__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
 > 
-> According to commit [12d6f21e: x86: do not PSE on
-> CONFIG_DEBUG_PAGEALLOC=y], the intention of debug_pagealloc_enabled
-> was to force additional testing of splitting large pages due to
-> cpa. Presumably this was because when bootmem was retired, all the
-> pages would be mapped forcing the protection to be applied later
-> while the system was running and races would be more interesting.
+> Why are the buddies not merged?
+I believe they are merged, but I'll double check.
+
+> >  static inline void expand(struct zone *zone, struct page *page,
+> > -	int low, int high, struct free_area *area,
+> > +	unsigned int low, unsigned int high, struct free_area *area,
+> >  	int migratetype)
+> >  {
+> >  	unsigned long size = 1 << high;
+> > @@ -746,9 +796,16 @@ static inline void expand(struct zone *zone, struct page *page,
+> >  		high--;
+> >  		size >>= 1;
+> >  		VM_BUG_ON(bad_range(zone, &page[size]));
+> > -		list_add(&page[size].lru, &area->free_list[migratetype]);
+> > -		area->nr_free++;
+> > -		set_page_order(&page[size], high);
+> > +		if (high < corrupt_dbg()) {
+> > +			INIT_LIST_HEAD(&page[size].lru);
+> > +			set_page_corrupt_dbg(&page[size]);
+> > +			set_page_private(&page[size], high);
+> > +			__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << high));
+> > +		} else {
 > 
-> This patch is trading additional CPA testing for better detecting
-> of memory corruption with DEBUG_PAGEALLOC. I see no issue with this
-> per-se, but I'm cc'ing Ingo for comment as it was his patch and this
-> is something that should go by the x86 maintainers.
+> Because high is a signed integer, I don't think this would necessarily
+> optimised away at compile time when DEBUG_PAGEALLOC is not set adding a
+> new branch to a heavily executed fast path.
+> 
+> For the fast paths, you should not add new branches if you can. Move the
+> debugging code to inline functions that only exist when DEBUG_PAGEALLOC
+> is set so there is no additional overhead in the !CONFIG_DEBUG_PAGEALLOC
+> case.
 
-Not sure if I understand all of that (Ok, I clearly do not understend,
-I do not even know what CPA mean: change page address ?), but I think
-more splitting large pages testing was achived by this hunk
+I changed "high" type from int to unsigned int in the patch, and checked
+that this branch is removed by compiler in !CONFIG_DEBUG_PAGEALLOC case.
+But perhaps having this inside preprocessor checks is cleaner, so I'll do
+that.
 
--#ifdef CONFIG_DEBUG_PAGEALLOC
--       /* pse is not compatible with on-the-fly unmapping,
--        * disable it even if the cpus claim to support it.
--        */
--       setup_clear_cpu_cap(X86_FEATURE_PSE);
--#endif
-
-of commit 12d6f21e, because changelog say:
-
-    get more testing of the c_p_a() code done by not turning off
-    PSE on DEBUG_PAGEALLOC.
-
-But to make PSE and DEBUG_PAGEALLOC work debug_pagealloc_enabled was
-introduced. Now CPA code was changed that PSE and DEBUG_PAGEALLOC works
-without problem (I tested that on pse cappable cpu), so I think
-debug_pagealloc_enabled is unneeded, or do I'm wrong?
-
+Thanks for the comments, I'll rework and repost.
 Stanislaw
 
 --
