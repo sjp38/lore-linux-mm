@@ -1,83 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 49A976B002D
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 09:57:41 -0500 (EST)
-Received: by yenm10 with SMTP id m10so2180469yen.14
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 06:57:38 -0800 (PST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E1E6B002D
+	for <linux-mm@kvack.org>; Sun, 13 Nov 2011 20:45:30 -0500 (EST)
+Received: by ywp17 with SMTP id 17so2933348ywp.14
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2011 17:45:28 -0800 (PST)
+Date: Sun, 13 Nov 2011 17:45:17 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v3 1/4] mm: add free_hot_cold_page_list helper
+In-Reply-To: <20111111123957.7371.72792.stgit@zurg>
+Message-ID: <alpine.LSU.2.00.1111131740160.1239@sister.anvils>
+References: <20110729075837.12274.58405.stgit@localhost6> <20111111123957.7371.72792.stgit@zurg>
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBC0eTkjF8CSKXv-SK5Zef1G+9x-FUYRBXKmVg6Gbno5gw@mail.gmail.com>
-References: <1321179449-6675-1-git-send-email-gilad@benyossef.com>
-	<1321179449-6675-5-git-send-email-gilad@benyossef.com>
-	<CAJd=RBC0eTkjF8CSKXv-SK5Zef1G+9x-FUYRBXKmVg6Gbno5gw@mail.gmail.com>
-Date: Sun, 13 Nov 2011 16:57:36 +0200
-Message-ID: <CAOtvUMe+Um-t3k=VC2Kz4hnOdKYszn9_OG8fa2tp8qK=FLpz0Q@mail.gmail.com>
-Subject: Re: [PATCH v3 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>
 
-On Sun, Nov 13, 2011 at 2:20 PM, Hillf Danton <dhillf@gmail.com> wrote:
->
-> On Sun, Nov 13, 2011 at 6:17 PM, Gilad Ben-Yossef <gilad@benyossef.com> w=
-rote:
->
-...
->
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 7d2a996..caf4b3a 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -2006,7 +2006,20 @@ static void flush_cpu_slab(void *d)
-> >
-> > =A0static void flush_all(struct kmem_cache *s)
-> > =A0{
-> > - =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
-> > + =A0 =A0 =A0 cpumask_var_t cpus;
-> > + =A0 =A0 =A0 struct kmem_cache_cpu *c;
-> > + =A0 =A0 =A0 int cpu;
-> > +
-> > + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
->
-> Perhaps, the technique of local_cpu_mask defined in kernel/sched_rt.c
-> could be used to replace the above atomic allocation.
->
+On Fri, 11 Nov 2011, Konstantin Khlebnikov wrote:
 
-Thank you for taking the time to review my patch :-)
+> This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
+> It frees pages directly from the list without temporary page-vector.
+> It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
+> 
+> bloat-o-meter:
+> 
+> add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
+> function                                     old     new   delta
+> free_hot_cold_page_list                        -     264    +264
+> get_page_from_freelist                      2129    2132      +3
+> __pagevec_free                               243     239      -4
+> split_free_page                              380     373      -7
+> release_pages                                606     510     -96
+> free_page_list                               188       -    -188
+> 
+> v2: Remove list reinititialization.
+> v3: Always free pages in reverse order.
+>     The most recently added struct page, the most likely to be hot.
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-That is indeed the direction I went with inthe previous iteration of
-this patch, with the small change that because of observing that the
-allocation will only actually occurs for CPUMASK_OFFSTACK=3Dy which by
-definition are systems with lots and lots of CPUs and, it is actually
-better to allocate the cpumask per kmem_cache rather then per CPU,
-since on system where it matters we are bound to have more CPUs (e.g.
-4096) then kmem_caches (~160). See
-https://lkml.org/lkml/2011/10/23/151.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-I then went a head and further=A0optimized=A0the code to only=A0incur=A0the
-memory overhead of allocating those cpumasks for CPUMASK_OFFSTACK=3Dy
-systems. See https://lkml.org/lkml/2011/10/23/152.
-
-As you can see from the discussion that=A0evolved, there seems to be an
-agreement that the code complexity overhead involved is simply not
-worth it for what is, unlike sched_rt, a rather esoteric case and one
-where allocation failure is easily dealt with.
-
-Thanks!
-Gilad
---
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+> ---
+>  include/linux/gfp.h |    1 +
+>  mm/page_alloc.c     |   13 +++++++++++++
+>  mm/swap.c           |   14 +++-----------
+>  mm/vmscan.c         |   20 +-------------------
+>  4 files changed, 18 insertions(+), 30 deletions(-)
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 3a76faf..6562958 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
+>  extern void __free_pages(struct page *page, unsigned int order);
+>  extern void free_pages(unsigned long addr, unsigned int order);
+>  extern void free_hot_cold_page(struct page *page, int cold);
+> +extern void free_hot_cold_page_list(struct list_head *list, int cold);
+>  
+>  #define __free_page(page) __free_pages((page), 0)
+>  #define free_page(addr) free_pages((addr), 0)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9dd443d..5093114 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1211,6 +1211,19 @@ out:
+>  }
+>  
+>  /*
+> + * Free a list of 0-order pages
+> + */
+> +void free_hot_cold_page_list(struct list_head *list, int cold)
+> +{
+> +	struct page *page, *next;
+> +
+> +	list_for_each_entry_safe(page, next, list, lru) {
+> +		trace_mm_pagevec_free(page, cold);
+> +		free_hot_cold_page(page, cold);
+> +	}
+> +}
+> +
+> +/*
+>   * split_page takes a non-compound higher-order page, and splits it into
+>   * n (1<<order) sub-pages: page[0..n]
+>   * Each sub-page must be freed individually.
+> diff --git a/mm/swap.c b/mm/swap.c
+> index a91caf7..67a09a6 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -585,11 +585,10 @@ int lru_add_drain_all(void)
+>  void release_pages(struct page **pages, int nr, int cold)
+>  {
+>  	int i;
+> -	struct pagevec pages_to_free;
+> +	LIST_HEAD(pages_to_free);
+>  	struct zone *zone = NULL;
+>  	unsigned long uninitialized_var(flags);
+>  
+> -	pagevec_init(&pages_to_free, cold);
+>  	for (i = 0; i < nr; i++) {
+>  		struct page *page = pages[i];
+>  
+> @@ -620,19 +619,12 @@ void release_pages(struct page **pages, int nr, int cold)
+>  			del_page_from_lru(zone, page);
+>  		}
+>  
+> -		if (!pagevec_add(&pages_to_free, page)) {
+> -			if (zone) {
+> -				spin_unlock_irqrestore(&zone->lru_lock, flags);
+> -				zone = NULL;
+> -			}
+> -			__pagevec_free(&pages_to_free);
+> -			pagevec_reinit(&pages_to_free);
+> -  		}
+> +		list_add(&page->lru, &pages_to_free);
+>  	}
+>  	if (zone)
+>  		spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  
+> -	pagevec_free(&pages_to_free);
+> +	free_hot_cold_page_list(&pages_to_free, cold);
+>  }
+>  EXPORT_SYMBOL(release_pages);
+>  
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a1893c0..f4be53d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -728,24 +728,6 @@ static enum page_references page_check_references(struct page *page,
+>  	return PAGEREF_RECLAIM;
+>  }
+>  
+> -static noinline_for_stack void free_page_list(struct list_head *free_pages)
+> -{
+> -	struct pagevec freed_pvec;
+> -	struct page *page, *tmp;
+> -
+> -	pagevec_init(&freed_pvec, 1);
+> -
+> -	list_for_each_entry_safe(page, tmp, free_pages, lru) {
+> -		list_del(&page->lru);
+> -		if (!pagevec_add(&freed_pvec, page)) {
+> -			__pagevec_free(&freed_pvec);
+> -			pagevec_reinit(&freed_pvec);
+> -		}
+> -	}
+> -
+> -	pagevec_free(&freed_pvec);
+> -}
+> -
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> @@ -1009,7 +991,7 @@ keep_lumpy:
+>  	if (nr_dirty && nr_dirty == nr_congested && scanning_global_lru(sc))
+>  		zone_set_flag(zone, ZONE_CONGESTED);
+>  
+> -	free_page_list(&free_pages);
+> +	free_hot_cold_page_list(&free_pages, 1);
+>  
+>  	list_splice(&ret_pages, page_list);
+>  	count_vm_events(PGACTIVATE, pgactivate);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
