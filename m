@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C902A6B00EE
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 11:14:42 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <a5b32916-8539-43fe-a63c-0564ebd4e76f@default>
-Date: Wed, 31 Aug 2011 08:14:19 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: mm: frontswap: core code
-References: <20110830214703.GB3705@shale.localdomain>
-In-Reply-To: <20110830214703.GB3705@shale.localdomain>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 273846B00EE
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2011 11:42:23 -0400 (EDT)
+Received: by ywm13 with SMTP id 13so777365ywm.14
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2011 08:42:14 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] vmscan: Do reclaim stall in case of mlocked page.
+Date: Tue, 15 Nov 2011 00:37:23 +0900
+Message-Id: <1321285043-3470-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <error27@gmail.com>
-Cc: linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-> From: Dan Carpenter [mailto:error27@gmail.com]
-> Sent: Tuesday, August 30, 2011 3:47 PM
-> To: Dan Magenheimer
-> Cc: linux-mm@kvack.org
-> Subject: re: mm: frontswap: core code
->=20
-> Hello Dan Magenheimer,
->=20
-> This is a semi-automatic email to let you know that df0aade19b6a:
-> "mm: frontswap: core code" leads to the following Smatch complaint.
->=20
-> mm/frontswap.c +250 frontswap_curr_pages(7)
-> =09 error: we previously assumed 'si' could be null (see line 252)
->=20
-> mm/frontswap.c
->    249=09=09spin_lock(&swap_lock);
->    250=09=09for (type =3D swap_list.head; type >=3D 0; type =3D si->next)=
- {
->                                                               ^^^^^^^^
-> Dereference.
->=20
->    251=09=09=09si =3D swap_info[type];
->    252=09=09=09if (si !=3D NULL)
->                             ^^^^^^^^^^
-> Check for NULL.
->=20
->    253=09=09=09=09totalpages +=3D atomic_read(&si->frontswap_pages);
->    254=09=09}
->=20
-> These semi-automatic emails are in testing.  Let me know how they can
-> be improved.
->=20
-> regards,
-> dan carpenter
+[1] made avoid unnecessary reclaim stall when second shrink_page_list(ie, synchronous
+shrink_page_list) try to reclaim page_list which has not-dirty pages.
+But it seems rather awkawrd on unevictable page.
+The unevictable page in shrink_page_list would be moved into unevictable lru from page_list.
+So it would be not on page_list when shrink_page_list returns.
+Nevertheless it skips reclaim stall.
 
-Thanks Dan!  On second look, the check for si against NULL is
-unnecessary.  The "type >=3D0" guarantees that (and this idiom
-for walking the list of swap devices is used elsewhere in the
-swap subsystem).
+This patch fixes it so that it can do reclaim stall in case of mixing mlocked pages
+and writeback pages on page_list.
 
-Will fix it.
+[1] 7d3579e,vmscan: narrow the scenarios in whcih lumpy reclaim uses synchrounous reclaim
 
-Dan
+CC: Mel Gorman <mgorman@suse.de>
+CC: Johannes Weiner <jweiner@redhat.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2300342..23878de 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -987,7 +987,6 @@ cull_mlocked:
+ 			try_to_free_swap(page);
+ 		unlock_page(page);
+ 		putback_lru_page(page);
+-		reset_reclaim_mode(sc);
+ 		continue;
+ 
+ activate_locked:
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
