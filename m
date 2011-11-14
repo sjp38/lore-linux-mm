@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B0D66B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 08:57:15 -0500 (EST)
-Received: by ywp17 with SMTP id 17so3551998ywp.14
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2011 05:57:13 -0800 (PST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 41ADB6B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 09:04:28 -0500 (EST)
+Date: Mon, 14 Nov 2011 14:04:21 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: avoid livelock on !__GFP_FS allocations
+Message-ID: <20111114140421.GA27150@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBCkHe14gXBh3GyYyTM8dvvUam_Har5BpUU1WuG9Spd-3g@mail.gmail.com>
-References: <1321179449-6675-1-git-send-email-gilad@benyossef.com>
-	<1321179449-6675-5-git-send-email-gilad@benyossef.com>
-	<CAJd=RBC0eTkjF8CSKXv-SK5Zef1G+9x-FUYRBXKmVg6Gbno5gw@mail.gmail.com>
-	<CAOtvUMe+Um-t3k=VC2Kz4hnOdKYszn9_OG8fa2tp8qK=FLpz0Q@mail.gmail.com>
-	<CAJd=RBCkHe14gXBh3GyYyTM8dvvUam_Har5BpUU1WuG9Spd-3g@mail.gmail.com>
-Date: Mon, 14 Nov 2011 15:57:13 +0200
-Message-ID: <CAOtvUMf1COVDUv6MCsPAt806kcRfzSmeUqOZR_XWy-6dx=ZqcA@mail.gmail.com>
-Subject: Re: [PATCH v3 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Nov 14, 2011 at 3:19 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> On Sun, Nov 13, 2011 at 10:57 PM, Gilad Ben-Yossef <gilad@benyossef.com> =
-wrote:
-...
->>> Perhaps, the technique of local_cpu_mask defined in kernel/sched_rt.c
->>> could be used to replace the above atomic allocation.
->>>
->>
->> Thank you for taking the time to review my patch :-)
->>
->> That is indeed the direction I went with inthe previous iteration of
->> this patch, with the small change that because of observing that the
->> allocation will only actually occurs for CPUMASK_OFFSTACK=3Dy which by
->> definition are systems with lots and lots of CPUs and, it is actually
->> better to allocate the cpumask per kmem_cache rather then per CPU,
->> since on system where it matters we are bound to have more CPUs (e.g.
->> 4096) then kmem_caches (~160). See
->> https://lkml.org/lkml/2011/10/23/151.
->>
->> I then went a head and further=A0optimized=A0the code to only=A0incur=A0=
-the
->> memory overhead of allocating those cpumasks for CPUMASK_OFFSTACK=3Dy
->> systems. See https://lkml.org/lkml/2011/10/23/152.
->>
->> As you can see from the discussion that=A0evolved, there seems to be an
->> agreement that the code complexity overhead involved is simply not
->> worth it for what is, unlike sched_rt, a rather esoteric case and one
->> where allocation failure is easily dealt with.
->>
-> Even with the introduced overhead of allocation, IPIs could not go down
-> as much as we wish, right?
->
+This patch seems to have gotten lost in the cracks and the discussion
+on alternatives that started here https://lkml.org/lkml/2011/10/25/24
+petered out without any alternative patches being posted. Lacking
+a viable alternative patch, I'm reposting this patch because AFAIK,
+this bug still exists.
 
-My apologies, but I don't think I follow you through -
+Colin Cross reported;
 
-If processor A needs processor B to do something, an IPI is the right
-thing to do. Let's call them useful IPIs.
+  Under the following conditions, __alloc_pages_slowpath can loop forever:
+  gfp_mask & __GFP_WAIT is true
+  gfp_mask & __GFP_FS is false
+  reclaim and compaction make no progress
+  order <= PAGE_ALLOC_COSTLY_ORDER
 
-What I am trying to tackle is the places where processor B doesn't
-really have anything to
-do and processor A is simply blindly sending IPIs to the whole system.
-I call them useless IPIs.
+  These conditions happen very often during suspend and resume,
+  when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
+  allocations into __GFP_WAIT.
 
-I don't see a reason why *useless* IPIs can go to zero, or very close
-to that. Useful IPIs are fine :-)
+  The oom killer is not run because gfp_mask & __GFP_FS is false,
+  but should_alloc_retry will always return true when order is less
+  than PAGE_ALLOC_COSTLY_ORDER.
 
-Thanks,
-Gilad
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+In his fix, he avoided retrying the allocation if reclaim made no
+progress and __GFP_FS was not set. The problem is that this would
+result in GFP_NOIO allocations failing that previously succeeded
+which would be very unfortunate.
 
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+The big difference between GFP_NOIO and suspend converting GFP_KERNEL
+to behave like GFP_NOIO is that normally flushers will be cleaning
+pages and kswapd reclaims pages allowing GFP_NOIO to succeed after
+a short delay. The same does not necessarily apply during suspend as
+the storage device may be suspended.  Hence, this patch special cases
+the suspend case to fail the page allocation if reclaim cannot make
+progress. This might cause suspend to abort but that is better than
+a livelock.
+
+[mgorman@suse.de: Rework fix to be suspend specific]
+Reported-and-tested-by: Colin Cross <ccross@android.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |   22 ++++++++++++++++++++++
+ 1 files changed, 22 insertions(+), 0 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9dd443d..5402897 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
+ 	saved_gfp_mask = gfp_allowed_mask;
+ 	gfp_allowed_mask &= ~GFP_IOFS;
+ }
++
++static bool pm_suspending(void)
++{
++	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
++		return false;
++	return true;
++}
++
++#else
++
++static bool pm_suspending(void)
++{
++	return false;
++}
+ #endif /* CONFIG_PM_SLEEP */
+ 
+ #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+@@ -2214,6 +2228,14 @@ rebalance:
+ 
+ 			goto restart;
+ 		}
++
++		/*
++		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can
++		 * prevent reclaim making forward progress without
++		 * invoking OOM. Bail if we are suspending
++		 */
++		if (pm_suspending())
++			goto nopage;
+ 	}
+ 
+ 	/* Check if we should retry the allocation */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
