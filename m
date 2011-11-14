@@ -1,118 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1136B006C
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 16:46:21 -0500 (EST)
-Received: by vws16 with SMTP id 16so7414480vws.14
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2011 13:46:16 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20111111200729.024403984@linux.com>
-References: <20111111200711.156817886@linux.com>
-	<20111111200729.024403984@linux.com>
-Date: Mon, 14 Nov 2011 23:46:16 +0200
-Message-ID: <CAOJsxLFJqrTsySxtkVt2H9Drzji6ghx3aVkaM5ODTDp8g70WqA@mail.gmail.com>
-Subject: Re: [rfc 06/18] slub: Use page variable instead of c->page.
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B657F6B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 18:03:30 -0500 (EST)
+Date: Mon, 14 Nov 2011 15:03:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
+Message-Id: <20111114150326.0ee60107.akpm@linux-foundation.org>
+In-Reply-To: <20111114140421.GA27150@suse.de>
+References: <20111114140421.GA27150@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri, Nov 11, 2011 at 10:07 PM, Christoph Lameter <cl@linux.com> wrote:
-> The kmem_cache_cpu object pointed to by c will become
-> volatile with the lockless patches later so extract
-> the c->page pointer at certain times.
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+On Mon, 14 Nov 2011 14:04:21 +0000
+Mel Gorman <mgorman@suse.de> wrote:
 
-I don't know what GCC does these days but this sort of thing used to
-generate better asm in mm/slab.c. So it might be worth it to merge
-this.
+> This patch seems to have gotten lost in the cracks and the discussion
+> on alternatives that started here https://lkml.org/lkml/2011/10/25/24
+> petered out without any alternative patches being posted. Lacking
+> a viable alternative patch, I'm reposting this patch because AFAIK,
+> this bug still exists.
+> 
+> Colin Cross reported;
+> 
+>   Under the following conditions, __alloc_pages_slowpath can loop forever:
+>   gfp_mask & __GFP_WAIT is true
+>   gfp_mask & __GFP_FS is false
+>   reclaim and compaction make no progress
+>   order <= PAGE_ALLOC_COSTLY_ORDER
+> 
+>   These conditions happen very often during suspend and resume,
+>   when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
+>   allocations into __GFP_WAIT.
+> 
+>   The oom killer is not run because gfp_mask & __GFP_FS is false,
+>   but should_alloc_retry will always return true when order is less
+>   than PAGE_ALLOC_COSTLY_ORDER.
+> 
+> In his fix, he avoided retrying the allocation if reclaim made no
+> progress and __GFP_FS was not set. The problem is that this would
+> result in GFP_NOIO allocations failing that previously succeeded
+> which would be very unfortunate.
+> 
+> The big difference between GFP_NOIO and suspend converting GFP_KERNEL
+> to behave like GFP_NOIO is that normally flushers will be cleaning
+> pages and kswapd reclaims pages allowing GFP_NOIO to succeed after
+> a short delay. The same does not necessarily apply during suspend as
+> the storage device may be suspended.  Hence, this patch special cases
+> the suspend case to fail the page allocation if reclaim cannot make
+> progress. This might cause suspend to abort but that is better than
+> a livelock.
 
-> ---
-> =A0mm/slub.c | =A0 17 ++++++++++-------
-> =A01 file changed, 10 insertions(+), 7 deletions(-)
->
-> Index: linux-2.6/mm/slub.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/slub.c =A0 =A02011-11-09 11:11:25.881561697 -0600
-> +++ linux-2.6/mm/slub.c 2011-11-09 11:11:32.231598204 -0600
-> @@ -2160,6 +2160,7 @@ static void *__slab_alloc(struct kmem_ca
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long addr, st=
-ruct kmem_cache_cpu *c)
-> =A0{
-> =A0 =A0 =A0 =A0void *freelist;
-> + =A0 =A0 =A0 struct page *page;
-> =A0 =A0 =A0 =A0unsigned long flags;
->
-> =A0 =A0 =A0 =A0local_irq_save(flags);
-> @@ -2172,13 +2173,14 @@ static void *__slab_alloc(struct kmem_ca
-> =A0 =A0 =A0 =A0c =3D this_cpu_ptr(s->cpu_slab);
-> =A0#endif
->
-> - =A0 =A0 =A0 if (!c->page)
-> + =A0 =A0 =A0 page =3D c->page;
-> + =A0 =A0 =A0 if (!page)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto new_slab;
-> =A0redo:
->
-> =A0 =A0 =A0 =A0if (unlikely(!node_match(c, node))) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stat(s, ALLOC_NODE_MISMATCH);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 deactivate_slab(s, c->page, c->freelist);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 deactivate_slab(s, page, c->freelist);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0c->page =3D NULL;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0c->freelist =3D NULL;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto new_slab;
-> @@ -2186,7 +2188,7 @@ redo:
->
-> =A0 =A0 =A0 =A0stat(s, ALLOC_SLOWPATH);
->
-> - =A0 =A0 =A0 freelist =3D get_freelist(s, c->page);
-> + =A0 =A0 =A0 freelist =3D get_freelist(s, page);
->
-> =A0 =A0 =A0 =A0if (unlikely(!freelist)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0c->page =3D NULL;
-> @@ -2210,8 +2212,8 @@ load_freelist:
-> =A0new_slab:
->
-> =A0 =A0 =A0 =A0if (c->partial) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 c->page =3D c->partial;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 c->partial =3D c->page->next;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page =3D c->page =3D c->partial;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 c->partial =3D page->next;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stat(s, CPU_PARTIAL_ALLOC);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0c->freelist =3D NULL;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto redo;
-> @@ -2231,13 +2233,14 @@ new_slab:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return NULL;
-> =A0 =A0 =A0 =A0}
->
-> + =A0 =A0 =A0 page =3D c->page;
-> =A0 =A0 =A0 =A0if (likely(!kmem_cache_debug(s)))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto load_freelist;
->
-> =A0 =A0 =A0 =A0/* Only entered in the debug case */
-> - =A0 =A0 =A0 if (!alloc_debug_processing(s, c->page, freelist, addr))
-> + =A0 =A0 =A0 if (!alloc_debug_processing(s, page, freelist, addr))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto new_slab; =A0/* Slab failed checks. N=
-ext slab needed */
-> - =A0 =A0 =A0 deactivate_slab(s, c->page, get_freepointer(s, freelist));
-> + =A0 =A0 =A0 deactivate_slab(s, page, get_freepointer(s, freelist));
->
-> =A0 =A0 =A0 =A0c->page =3D NULL;
-> =A0 =A0 =A0 =A0c->freelist =3D NULL;
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Fair enough.
+
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9dd443d..5402897 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
+>  	saved_gfp_mask = gfp_allowed_mask;
+>  	gfp_allowed_mask &= ~GFP_IOFS;
+>  }
+> +
+> +static bool pm_suspending(void)
+> +{
+> +	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
+> +		return false;
+> +	return true;
+> +}
+
+This doesn't seem a terribly reliable way of detecting that PM has
+disabled the storage devices (which is what we really want to know
+here: kswapd got crippled).
+
+I guess it's safe for now, because PM is the only caller who alters
+gfp_allowed_mask (I assume).  But an explicit storage_is_unavaliable
+global which is set and cleared at exactly the correct time is clearer,
+more direct and future-safer, no?
+
+> +#else
+> +
+> +static bool pm_suspending(void)
+> +{
+> +	return false;
+> +}
+>  #endif /* CONFIG_PM_SLEEP */
+>  
+>  #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+> @@ -2214,6 +2228,14 @@ rebalance:
+>  
+>  			goto restart;
+>  		}
+> +
+> +		/*
+> +		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can
+> +		 * prevent reclaim making forward progress without
+> +		 * invoking OOM. Bail if we are suspending
+> +		 */
+> +		if (pm_suspending())
+> +			goto nopage;
+
+The comment doesn't tell the whole story: it's important that kswapd
+writeout was disabled?
+
+--- a/mm/page_alloc.c~mm-avoid-livelock-on-__gfp_fs-allocations-fix
++++ a/mm/page_alloc.c
+@@ -2263,9 +2263,10 @@ rebalance:
+ 		}
+ 
+ 		/*
+-		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can
+-		 * prevent reclaim making forward progress without
+-		 * invoking OOM. Bail if we are suspending
++		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can prevent
++		 * reclaim making forward progress without invoking OOM.
++		 * Suspend also disables storage devices so kswapd cannot save
++		 * us.  Bail if we are suspending.
+ 		 */
+ 		if (pm_suspending())
+ 			goto nopage;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
