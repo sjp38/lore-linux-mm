@@ -1,48 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8441D6B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:45:30 -0500 (EST)
-Received: by bke17 with SMTP id 17so913480bke.14
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2011 22:45:25 -0800 (PST)
-Date: Tue, 15 Nov 2011 08:45:18 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [patch] slub: fix a code merge error
-In-Reply-To: <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
-Message-ID: <alpine.LFD.2.02.1111150842590.2347@tux.localdomain>
-References: <1320912260.22361.247.camel@sli10-conroe> <alpine.DEB.2.00.1111101218140.21036@chino.kir.corp.google.com> <CAOJsxLH7Fss8bBR+ERBOsb=1ZbwbLi+EkS-7skC1CbBmkMpvKA@mail.gmail.com> <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 308DF6B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:54:33 -0500 (EST)
+Subject: [patch v2 1/4]thp: improve the error code path
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Nov 2011 15:04:11 +0800
+Message-ID: <1321340651.22361.294.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alex shi <lkml.alex@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, cl@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>
 
->> Indeed. Please resend with proper subject and changelog with
->> Christoph's and David's ACKs included.
+Improve the error code path. Delete unnecessary sysfs file for example.
+Also remove the #ifdef xxx to make code better.
 
-On Mon, 14 Nov 2011, alex shi wrote:
-> SLUB stat attribute was designed for stat accounting only. I checked
-> the total 24 attributes that used now. All of them used in stat() only
-> except the DEACTIVATE_TO_HEAD/TAIL.
->
-> And in fact, in the most of using scenarios the DEACTIVATE_TO_TAIL
-> make reader confuse, TO_TAIL is correct but not for DEACTIVATE.
->
-> Further more, CL also regretted this after he acked the original
-> patches for this attribute mis-usages. He said "don't think we want
-> this patch any more."
-> http://permalink.gmane.org/gmane.linux.kernel.mm/67653 and want to use
-> a comment instead of this confusing usage.
-> https://lkml.org/lkml/2011/8/29/187
->
-> So, as to this regression, from my viewpoint, reverting the
-> DEACTIVATE_TO_TAIL incorrect usage(commit 136333d104) is a better way.
-> :)
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
-The enum is fine. I don't see any reason to revert the whole commit if 
-Shaohua's patch fixes the problem.
+---
+ mm/huge_memory.c |   71 ++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 50 insertions(+), 21 deletions(-)
 
- 			Pekka
+Index: linux/mm/huge_memory.c
+===================================================================
+--- linux.orig/mm/huge_memory.c	2011-11-10 15:51:03.000000000 +0800
++++ linux/mm/huge_memory.c	2011-11-11 13:32:44.000000000 +0800
+@@ -487,41 +487,68 @@ static struct attribute_group khugepaged
+ 	.attrs = khugepaged_attr,
+ 	.name = "khugepaged",
+ };
+-#endif /* CONFIG_SYSFS */
+ 
+-static int __init hugepage_init(void)
++static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
+ {
+ 	int err;
+-#ifdef CONFIG_SYSFS
+-	static struct kobject *hugepage_kobj;
+-#endif
+ 
+-	err = -EINVAL;
+-	if (!has_transparent_hugepage()) {
+-		transparent_hugepage_flags = 0;
+-		goto out;
+-	}
+-
+-#ifdef CONFIG_SYSFS
+-	err = -ENOMEM;
+-	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
+-	if (unlikely(!hugepage_kobj)) {
++	*hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
++	if (unlikely(!*hugepage_kobj)) {
+ 		printk(KERN_ERR "hugepage: failed kobject create\n");
+-		goto out;
++		return -ENOMEM;
+ 	}
+ 
+-	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
++	err = sysfs_create_group(*hugepage_kobj, &hugepage_attr_group);
+ 	if (err) {
+ 		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+-		goto out;
++		goto delete_obj;
+ 	}
+ 
+-	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
++	err = sysfs_create_group(*hugepage_kobj, &khugepaged_attr_group);
+ 	if (err) {
+ 		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+-		goto out;
++		goto remove_hp_group;
+ 	}
+-#endif
++
++	return 0;
++
++remove_hp_group:
++	sysfs_remove_group(*hugepage_kobj, &hugepage_attr_group);
++delete_obj:
++	kobject_put(*hugepage_kobj);
++	return err;
++}
++
++static void __init hugepage_exit_sysfs(struct kobject *hugepage_kobj)
++{
++	sysfs_remove_group(hugepage_kobj, &khugepaged_attr_group);
++	sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
++	kobject_put(hugepage_kobj);
++}
++#else
++static inline int hugepage_init_sysfs(struct kobject **hugepage_kobj)
++{
++	return 0;
++}
++
++static inline void hugepage_exit_sysfs(struct kobject *hugepage_kobj)
++{
++}
++#endif /* CONFIG_SYSFS */
++
++static int __init hugepage_init(void)
++{
++	int err;
++	struct kobject *hugepage_kobj;
++
++	if (!has_transparent_hugepage()) {
++		transparent_hugepage_flags = 0;
++		return -EINVAL;
++	}
++
++	err = hugepage_init_sysfs(&hugepage_kobj);
++	if (err)
++		return err;
+ 
+ 	err = khugepaged_slab_init();
+ 	if (err)
+@@ -545,7 +572,9 @@ static int __init hugepage_init(void)
+ 
+ 	set_recommended_min_free_kbytes();
+ 
++	return 0;
+ out:
++	hugepage_exit_sysfs(hugepage_kobj);
+ 	return err;
+ }
+ module_init(hugepage_init)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
