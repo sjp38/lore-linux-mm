@@ -1,71 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A805A6B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 23:03:32 -0500 (EST)
-Date: Tue, 15 Nov 2011 12:03:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: writeback test scripts
-Message-ID: <20111115040326.GA24233@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8441D6B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:45:30 -0500 (EST)
+Received: by bke17 with SMTP id 17so913480bke.14
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2011 22:45:25 -0800 (PST)
+Date: Tue, 15 Nov 2011 08:45:18 +0200 (EET)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [patch] slub: fix a code merge error
+In-Reply-To: <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
+Message-ID: <alpine.LFD.2.02.1111150842590.2347@tux.localdomain>
+References: <1320912260.22361.247.camel@sli10-conroe> <alpine.DEB.2.00.1111101218140.21036@chino.kir.corp.google.com> <CAOJsxLH7Fss8bBR+ERBOsb=1ZbwbLi+EkS-7skC1CbBmkMpvKA@mail.gmail.com> <CAGjg+kHstQGLvT+=K9v_s=hLDd0974JHR0N5EVsTbkYk2=s1vQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>
+To: alex shi <lkml.alex@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, cl@linux-foundation.org
 
-Hi,
+>> Indeed. Please resend with proper subject and changelog with
+>> Christoph's and David's ACKs included.
 
-I've uploaded the writeback test scripts to github:
-(status: usable, ugly, a lot of rough edges)
+On Mon, 14 Nov 2011, alex shi wrote:
+> SLUB stat attribute was designed for stat accounting only. I checked
+> the total 24 attributes that used now. All of them used in stat() only
+> except the DEACTIVATE_TO_HEAD/TAIL.
+>
+> And in fact, in the most of using scenarios the DEACTIVATE_TO_TAIL
+> make reader confuse, TO_TAIL is correct but not for DEACTIVATE.
+>
+> Further more, CL also regretted this after he acked the original
+> patches for this attribute mis-usages. He said "don't think we want
+> this patch any more."
+> http://permalink.gmane.org/gmane.linux.kernel.mm/67653 and want to use
+> a comment instead of this confusing usage.
+> https://lkml.org/lkml/2011/8/29/187
+>
+> So, as to this regression, from my viewpoint, reverting the
+> DEACTIVATE_TO_TAIL incorrect usage(commit 136333d104) is a better way.
+> :)
 
-        git://github.com/fengguang/writeback-tests.git
-        https://github.com/fengguang/writeback-tests
+The enum is fine. I don't see any reason to revert the whole commit if 
+Shaohua's patch fixes the problem.
 
-The main features are
-
-- automated dd/fio tests
-
-- combinations of kernel/fs/fio job/nr_dd/dirty_thresh that is
-  hopefully complete enough to catch common performance regressions
-
-- compare.rb for quickly evaluating performance and locate regressions
-
-- detailed logs and graphs for analyzing regressions
-
-To try it out,
-
-1) copy all files to
-
-        /path/to/writeback-tests
-
-2) basic configuration
-
-        cp fat-config.sh $(hostname)-config.sh
-        vi  $(hostname)-config.sh
-        vi config.sh
-
-Minimal configuration is to prepare at least one empty partition and
-point DEVICES to it, create one empty mount point and point MNT to it.
-
-3) add a hook at the end of rc.local:
-
-        /path/to/writeback-tests/main-loop.sh
-
-main-loop.sh will test one case on each fresh boot.  It will
-automatically reboot the test box for each test cases until all done.
-
-Each test run will save its log files to a unique directory
-
-        /path/to/writeback-tests/$(hostname)/<path1>/<path2>/
-
-and if that directory already exists, the test case will be skipped.
-
-We may further do a queue based job submission/execution system,
-however this silly loop works good enough for me now :-)
-
-Thanks,
-Fengguang
+ 			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
