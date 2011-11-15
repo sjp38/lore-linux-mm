@@ -1,34 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 207C56B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 10:47:23 -0500 (EST)
-Date: Tue, 15 Nov 2011 16:47:17 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111115154717.GG4414@redhat.com>
-References: <20111110100616.GD3083@suse.de>
- <20111110142202.GE3083@suse.de>
- <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
- <20111110161331.GG3083@suse.de>
- <20111110151211.523fa185.akpm@linux-foundation.org>
- <20111111100156.GI3083@suse.de>
- <20111114160345.01e94987.akpm@linux-foundation.org>
- <20111115130748.GE27150@suse.de>
+	by kanga.kvack.org (Postfix) with SMTP id ED6C46B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 10:52:00 -0500 (EST)
+Date: Tue, 15 Nov 2011 09:51:56 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 1/5] smp: Introduce a generic on_each_cpu_mask
+ function
+In-Reply-To: <1321179449-6675-2-git-send-email-gilad@benyossef.com>
+Message-ID: <alpine.DEB.2.00.1111150951140.22502@router.home>
+References: <1321179449-6675-1-git-send-email-gilad@benyossef.com> <1321179449-6675-2-git-send-email-gilad@benyossef.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111115130748.GE27150@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
 
-On Tue, Nov 15, 2011 at 01:07:48PM +0000, Mel Gorman wrote:
-> Given such an abundance and wealth of information on vmstat, how
-> about this?
+On Sun, 13 Nov 2011, Gilad Ben-Yossef wrote:
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> on_each_cpu_mask calls a function on processors specified my cpumask,
+> which may include the local processor.
+
+Reviewed-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
