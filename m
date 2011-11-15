@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AF6206B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 08:35:58 -0500 (EST)
-Received: by wyi11 with SMTP id 11so1121989wyi.14
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 05:35:55 -0800 (PST)
-Message-ID: <1321364130.1944.2.camel@localhost.localdomain>
-Subject: Re: khugepaged cannot be freezed on 3.2-rc1
-From: Maciej Marcin Piechotka <uzytkownik2@gmail.com>
-Date: Tue, 15 Nov 2011 13:35:30 +0000
-In-Reply-To: <4EC0A9B3.7020201@linux.vnet.ibm.com>
-References: <1321195355.2020.10.camel@localhost.localdomain>
-	 <4EC0A9B3.7020201@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE3F6B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 09:49:51 -0500 (EST)
+Received: by pzk1 with SMTP id 1so14021036pzk.6
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 06:49:48 -0800 (PST)
+Date: Tue, 15 Nov 2011 06:49:43 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCCH percpu: add cpunum param in per_cpu_ptr_to_phys
+Message-ID: <20111115144943.GJ30922@google.com>
+References: <20111115083646.GA21468@darkstar.nay.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111115083646.GA21468@darkstar.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Linux PM mailing list <linux-pm@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Tejun Heo <tj@kernel.org>, "Rafael
- J. Wysocki" <rjw@sisk.pl>
+To: Dave Young <dyoung@redhat.com>
+Cc: gregkh@suse.de, cl@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2011-11-14 at 11:10 +0530, Srivatsa S. Bhat wrote:
-> On 11/13/2011 08:12 PM, Maciej Marcin Piechotka wrote:
-> > I am sorry if I've sent to wrong address. It seems that bug reporting
-> > resources - bugzilla & "Reporting bugs for the Linux kernel" page - are
-> > (still?) down. I followed the latter from web archive).
-> >
+On Tue, Nov 15, 2011 at 04:36:46PM +0800, Dave Young wrote:
+> per_cpu_ptr_to_phys iterate all cpu to get the phy addr
+> let's leave the caller to pass the cpu number to it.
 > 
-> Adding linux-pm mailing list to CC.
-> Andrea Arcangeli has written a patch to solve khugepaged freezing issue.
-> https://lkml.org/lkml/2011/11/9/312
+> Actually in the only one user show_crash_notes,
+> cpunum is provided already before calling this. 
 > 
-> Can you check if that patch solves the issue for you too?
-> 
-> Thanks,
-> Srivatsa S. Bhat
+> Signed-off-by: Dave Young <dyoung@redhat.com>
 
-Yes, it solves the problem (sorry for delay in responding).
+Does this matter?  If it's not a performance critical path, I'd rather
+keep the generic funtionality.
 
-Regards
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
