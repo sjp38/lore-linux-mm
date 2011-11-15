@@ -1,132 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7E86B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 02:23:07 -0500 (EST)
-Received: by ywp17 with SMTP id 17so4772432ywp.14
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2011 23:23:05 -0800 (PST)
-Date: Tue, 15 Nov 2011 15:22:52 +0800
-From: Yong Zhang <yong.zhang0@gmail.com>
-Subject: Re: INFO: possible recursive locking detected: get_partial_node() on
- 3.2-rc1
-Message-ID: <20111115072251.GA10389@zhy>
-Reply-To: Yong Zhang <yong.zhang0@gmail.com>
-References: <20111109090556.GA5949@zhy>
- <201111102335.06046.kernelmail.jms@gmail.com>
- <1320980671.22361.252.camel@sli10-conroe>
- <alpine.DEB.2.00.1111110857330.3557@router.home>
- <1321248853.22361.280.camel@sli10-conroe>
+	by kanga.kvack.org (Postfix) with ESMTP id 84EC16B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 02:52:09 -0500 (EST)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Tue, 15 Nov 2011 12:47:15 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAF78rKQ2301960
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 12:38:54 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAF78rCa010299
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 12:38:53 +0530
+Message-ID: <4EC21006.7030101@linux.vnet.ibm.com>
+Date: Tue, 15 Nov 2011 12:38:54 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1321248853.22361.280.camel@sli10-conroe>
+Subject: Re: [PATCH] PM/Memory-hotplug: Avoid task freezing failures
+References: <20111110163825.4321.56320.stgit@srivatsabhat.in.ibm.com> <20111114200506.GE30922@google.com>
+In-Reply-To: <20111114200506.GE30922@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, Julie Sullivan <kernelmail.jms@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: rjw@sisk.pl, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Nov 14, 2011 at 01:34:13PM +0800, Shaohua Li wrote:
-> On Fri, 2011-11-11 at 23:02 +0800, Christoph Lameter wrote:
-> > On Fri, 11 Nov 2011, Shaohua Li wrote:
-> > 
-> > > Looks this could be a real dead lock. we hold a lock to free a object,
-> > > but the free need allocate a new object. if the new object and the freed
-> > > object are from the same slab, there is a deadlock.
-> > 
-> > unfreeze partials is never called when going through get_partial_node()
-> > so there is no deadlock AFAICT.
-> the unfreeze_partial isn't called from get_partial_node(). I thought the
-> code path is something like this: kmem_cache_free()->put_cpu_partial()
-> (hold lock) ->unfreeze_partials() ->discard_slab ->debug_object_init()
-> ->kmem_cache_alloc->get_partial_node()(hold lock). Not sure if this will
-> really happen, but looks like a deadlock.
-> But anyway, discard_slab() can be move out of unfreeze_partials()
+On 11/15/2011 01:35 AM, Tejun Heo wrote:
+> Hello,
 > 
-> > > discard_slab() doesn't need hold the lock if the slab is already removed
-> > > from partial list. how about below patch, only compile tested.
-> > 
-> > In general I think it is good to move the call to discard_slab() out from
-> > under the list_lock in unfreeze_partials(). Could you fold
-> > discard_page_list into unfreeze_partials()? __flush_cpu_slab still calls
-> > discard_page_list with disabled interrupts even after your patch.
-> I'm afraid there is alloc-in-atomic() error, but Yong & Julie's test
-> shows this is over thinking. Here is the updated patch. Yong & Julie, I
-> added your report/test by, because the new patch should be just like the
-> old one, but since I changed it a little bit, can you please have a
-> quick check? Thanks!
+> On Thu, Nov 10, 2011 at 10:12:43PM +0530, Srivatsa S. Bhat wrote:
+>> The lock_system_sleep() function is used in the memory hotplug code at
+>> several places in order to implement mutual exclusion with hibernation.
+>> However, this function tries to acquire the 'pm_mutex' lock using
+>> mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
+>> get the lock. This would lead to task freezing failures and hence
+>> hibernation failure as a consequence, even though the hibernation call path
+>> successfully acquired the lock.
+>>
+>> This patch fixes this issue by modifying lock_system_sleep() to use
+>> mutex_lock_interruptible() instead of mutex_lock(), so that it blocks in the
+>> TASK_INTERRUPTIBLE state. This would allow the freezer to freeze the blocked
+>> task. Also, since the freezer could use signals to freeze tasks, it is quite
+>> likely that mutex_lock_interruptible() returns -EINTR (and fails to acquire
+>> the lock). Hence we keep retrying in a loop until we acquire the lock. Also,
+>> we call try_to_freeze() within the loop, so that we don't cause freezing
+>> failures due to busy looping.
+>>
+>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> ...
+>>  static inline void lock_system_sleep(void)
+>>  {
+>> -	mutex_lock(&pm_mutex);
+>> +	/*
+>> +	 * We should not use mutex_lock() here because, in case we fail to
+>> +	 * acquire the lock, it would put us to sleep in TASK_UNINTERRUPTIBLE
+>> +	 * state, which would lead to task freezing failures. As a
+>> +	 * consequence, hibernation would fail (even though it had acquired
+>> +	 * the 'pm_mutex' lock).
+>> +	 *
+>> +	 * Note that mutex_lock_interruptible() returns -EINTR if we happen
+>> +	 * to get a signal when we are waiting to acquire the lock (and this
+>> +	 * is very likely here because the freezer could use signals to freeze
+>> +	 * tasks). Hence we have to keep retrying until we get the lock. But
+>> +	 * we have to use try_to_freeze() in the loop, so that we don't cause
+>> +	 * freezing failures due to busy looping.
+>> +	 */
+>> +	while (mutex_lock_interruptible(&pm_mutex))
+>> +		try_to_freeze();
 > 
+> Hmmm... is this a problem that we need to worry about?  If not, I'm
+> not sure this is a good idea.  What if the task calling
+> lock_system_sleep() is a userland one and has actual outstanding
+> signal?  It would busy spin until it acquire pm_mutex.  Maybe that's
+> okay too given how pm_mutex is used but it's still nasty.  If this
+> isn't a real problem, maybe leave this alone for now?
 > 
-> 
-> Subject: slub: move discard_slab out of node lock
-> 
-> Lockdep reports there is potential deadlock for slub node list_lock.
-> discard_slab() is called with the lock hold in unfreeze_partials(),
-> which could trigger a slab allocation, which could hold the lock again.
-> 
-> discard_slab() doesn't need hold the lock actually, if the slab is
-> already removed from partial list.
-> 
-> Reported-and-tested-by: Yong Zhang <yong.zhang0@gmail.com>
-> Reported-and-tested-by: Julie Sullivan <kernelmail.jms@gmail.com>
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
-Tested-by: Yong Zhang <yong.zhang0@gmail.com>
+Hi Tejun,
+
+Thank you very much for taking a look. I haven't encountered this problem,
+but while going through the code, I felt this would be problematic for
+hibernation.
+The other reason I was looking into this was, to make use of this API in
+another scenario (specifically, the x86 microcode update module
+initialization, where I couldn't think of any other solution to block
+suspend) by making this API (lock_system_sleep) a bit more generic so that
+it works for suspend also. So I thought of fixing it up before doing that.
+
+Considering the point you have raised, how about something like this?
+
+while (!mutex_trylock(&pm_mutex))
+	try_to_freeze();
+
+This should address your concern right?
+At first sight, I felt this looked quite hacky.. but after trying to
+understand the meaning it conveys, it struck me that this version of the
+code seems to itself convey what exactly we are trying to achieve/avoid
+here :-)
+
+By the way, to tell the truth, I don't really like this way of blocking
+suspend/hibernation by grabbing the 'pm_mutex' lock directly.
+Probably the design that Rafael and Alan Stern are working out would be a
+cleaner solution in the long run, for subsystems to block system sleep.
 
 Thanks,
-Yong
-
-> ---
->  mm/slub.c |   16 ++++++++++++----
->  1 file changed, 12 insertions(+), 4 deletions(-)
-> 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2011-11-11 16:17:39.000000000 +0800
-> +++ linux/mm/slub.c	2011-11-14 13:11:11.000000000 +0800
-> @@ -1862,7 +1862,7 @@ static void unfreeze_partials(struct kme
->  {
->  	struct kmem_cache_node *n = NULL;
->  	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
-> -	struct page *page;
-> +	struct page *page, *discard_page = NULL;
->  
->  	while ((page = c->partial)) {
->  		enum slab_modes { M_PARTIAL, M_FREE };
-> @@ -1916,14 +1916,22 @@ static void unfreeze_partials(struct kme
->  				"unfreezing slab"));
->  
->  		if (m == M_FREE) {
-> -			stat(s, DEACTIVATE_EMPTY);
-> -			discard_slab(s, page);
-> -			stat(s, FREE_SLAB);
-> +			page->next = discard_page;
-> +			discard_page = page;
->  		}
->  	}
->  
->  	if (n)
->  		spin_unlock(&n->list_lock);
-> +
-> +	while (discard_page) {
-> +		page = discard_page;
-> +		discard_page = discard_page->next;
-> +
-> +		stat(s, DEACTIVATE_EMPTY);
-> +		discard_slab(s, page);
-> +		stat(s, FREE_SLAB);
-> +	}
->  }
->  
->  /*
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Only stand for myself
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
