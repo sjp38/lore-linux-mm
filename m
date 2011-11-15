@@ -1,132 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 308DF6B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:54:33 -0500 (EST)
-Subject: [patch v2 1/4]thp: improve the error code path
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 20FDB6B006C
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:54:39 -0500 (EST)
+Subject: [patch v2 2/4]thp: remove unnecessary tlb flush for mprotect
 From: Shaohua Li <shaohua.li@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Nov 2011 15:04:11 +0800
-Message-ID: <1321340651.22361.294.camel@sli10-conroe>
+Date: Tue, 15 Nov 2011 15:04:13 +0800
+Message-ID: <1321340653.22361.295.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-Improve the error code path. Delete unnecessary sysfs file for example.
-Also remove the #ifdef xxx to make code better.
+change_protection() will do TLB flush later, don't need duplicate tlb flush.
 
 Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/huge_memory.c |   71 ++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 50 insertions(+), 21 deletions(-)
+ mm/huge_memory.c |    1 -
+ 1 file changed, 1 deletion(-)
 
 Index: linux/mm/huge_memory.c
 ===================================================================
---- linux.orig/mm/huge_memory.c	2011-11-10 15:51:03.000000000 +0800
-+++ linux/mm/huge_memory.c	2011-11-11 13:32:44.000000000 +0800
-@@ -487,41 +487,68 @@ static struct attribute_group khugepaged
- 	.attrs = khugepaged_attr,
- 	.name = "khugepaged",
- };
--#endif /* CONFIG_SYSFS */
- 
--static int __init hugepage_init(void)
-+static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
- {
- 	int err;
--#ifdef CONFIG_SYSFS
--	static struct kobject *hugepage_kobj;
--#endif
- 
--	err = -EINVAL;
--	if (!has_transparent_hugepage()) {
--		transparent_hugepage_flags = 0;
--		goto out;
--	}
--
--#ifdef CONFIG_SYSFS
--	err = -ENOMEM;
--	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
--	if (unlikely(!hugepage_kobj)) {
-+	*hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
-+	if (unlikely(!*hugepage_kobj)) {
- 		printk(KERN_ERR "hugepage: failed kobject create\n");
--		goto out;
-+		return -ENOMEM;
- 	}
- 
--	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
-+	err = sysfs_create_group(*hugepage_kobj, &hugepage_attr_group);
- 	if (err) {
- 		printk(KERN_ERR "hugepage: failed register hugeage group\n");
--		goto out;
-+		goto delete_obj;
- 	}
- 
--	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
-+	err = sysfs_create_group(*hugepage_kobj, &khugepaged_attr_group);
- 	if (err) {
- 		printk(KERN_ERR "hugepage: failed register hugeage group\n");
--		goto out;
-+		goto remove_hp_group;
- 	}
--#endif
-+
-+	return 0;
-+
-+remove_hp_group:
-+	sysfs_remove_group(*hugepage_kobj, &hugepage_attr_group);
-+delete_obj:
-+	kobject_put(*hugepage_kobj);
-+	return err;
-+}
-+
-+static void __init hugepage_exit_sysfs(struct kobject *hugepage_kobj)
-+{
-+	sysfs_remove_group(hugepage_kobj, &khugepaged_attr_group);
-+	sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
-+	kobject_put(hugepage_kobj);
-+}
-+#else
-+static inline int hugepage_init_sysfs(struct kobject **hugepage_kobj)
-+{
-+	return 0;
-+}
-+
-+static inline void hugepage_exit_sysfs(struct kobject *hugepage_kobj)
-+{
-+}
-+#endif /* CONFIG_SYSFS */
-+
-+static int __init hugepage_init(void)
-+{
-+	int err;
-+	struct kobject *hugepage_kobj;
-+
-+	if (!has_transparent_hugepage()) {
-+		transparent_hugepage_flags = 0;
-+		return -EINVAL;
-+	}
-+
-+	err = hugepage_init_sysfs(&hugepage_kobj);
-+	if (err)
-+		return err;
- 
- 	err = khugepaged_slab_init();
- 	if (err)
-@@ -545,7 +572,9 @@ static int __init hugepage_init(void)
- 
- 	set_recommended_min_free_kbytes();
- 
-+	return 0;
- out:
-+	hugepage_exit_sysfs(hugepage_kobj);
- 	return err;
- }
- module_init(hugepage_init)
+--- linux.orig/mm/huge_memory.c	2011-11-14 16:14:08.000000000 +0800
++++ linux/mm/huge_memory.c	2011-11-14 16:14:33.000000000 +0800
+@@ -1145,7 +1145,6 @@ int change_huge_pmd(struct vm_area_struc
+ 			entry = pmd_modify(entry, newprot);
+ 			set_pmd_at(mm, addr, pmd, entry);
+ 			spin_unlock(&vma->vm_mm->page_table_lock);
+-			flush_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
+ 			ret = 1;
+ 		}
+ 	} else
 
 
 --
