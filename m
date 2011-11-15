@@ -1,38 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8645B6B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:05:28 -0500 (EST)
-Date: Tue, 15 Nov 2011 10:05:25 -0600 (CST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 19F9D6B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:08:04 -0500 (EST)
+Date: Tue, 15 Nov 2011 10:07:57 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [OOPS]: Kernel 3.1 (ext3?)
-In-Reply-To: <20111114195352.GB17328@quack.suse.cz>
-Message-ID: <alpine.DEB.2.00.1111151004050.22502@router.home>
-References: <20111110132929.GA11417@zeus> <20111114195352.GB17328@quack.suse.cz>
+Subject: Re: [rfc 01/18] slub: Get rid of the node field
+In-Reply-To: <CAOJsxLFM9W=NiGFwjt8-iwrTYrAZiJ2_Mw_EUYyXYE4TKPs9-A@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1111151006130.22502@router.home>
+References: <20111111200711.156817886@linux.com> <20111111200725.634567005@linux.com> <CAOJsxLFM9W=NiGFwjt8-iwrTYrAZiJ2_Mw_EUYyXYE4TKPs9-A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Watts <akwatts@ymail.com>, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org
 
-On Mon, 14 Nov 2011, Jan Kara wrote:
+On Mon, 14 Nov 2011, Pekka Enberg wrote:
 
-> On Thu 10-11-11 08:29:37, Andrew Watts wrote:
-> > I had the following kernel panic today on 3.1 (machine was compiling code
-> > unattended). It would appear to be a bug/regression introduced sometime
-> > between 2.6.39.4 and 3.1.
->   Hmm, the report is missing a line (top one) saying why the kernel
-> actually crashed. Can you add that?
+> On Fri, Nov 11, 2011 at 10:07 PM, Christoph Lameter <cl@linux.com> wrote:
+> > The node field is always page_to_nid(c->page). So its rather easy to
+> > replace. Note that there will be additional overhead in various hot paths
+> > due to the need to mask a set of bits in page->flags and shift the
+> > result.
+> >
+> > Signed-off-by: Christoph Lameter <cl@linux.com>
 >
->   Also it seems you are using SLUB allocator, right? This seems like a
-> problem there so adding some CCs.
+> This is a nice cleanup even if we never go irqless in the slowpaths.
+> Is page_to_nid() really that slow?
 
-Likely some data corruption. Enable slub debugging by passing
+The fastpath only uses a few cycles now. Relatively high overhead is
+added.
 
-slub_debug
-
-on the kernel commandline please to get some information as to where and
-when this happens.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
