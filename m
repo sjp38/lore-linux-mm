@@ -1,118 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EE01E6B0070
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:54:39 -0500 (EST)
-Subject: [patch v2 3/4]thp: add tlb_remove_pmd_tlb_entry
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9435C6B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 01:54:43 -0500 (EST)
+Subject: [patch v2 4/4]thp: improve order in lru list for split huge page
 From: Shaohua Li <shaohua.li@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Nov 2011 15:04:18 +0800
-Message-ID: <1321340658.22361.296.camel@sli10-conroe>
+Date: Tue, 15 Nov 2011 15:04:21 +0800
+Message-ID: <1321340661.22361.297.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-We have tlb_remove_tlb_entry to indicate a pte tlb flush entry should be
-flushed, but not a corresponding API for pmd entry. This isn't a problem so far
-because THP is only for x86 currently and tlb_flush() under x86 will flush
-entire TLB. But this is confusion and could be missed if thp is ported to
-other arch.
-Also converted tlb->need_flush = 1 to a VM_BUG_ON(!tlb->need_flush) in
-__tlb_remove_page() as suggested by Andrea Arcangeli. __tlb_remove_page()
-is supposed to be called after tlb_remove_xxx_tlb_entry() and we can catch
-any misuse.
+Put the tail subpages of an isolated hugepage under splitting in the
+lru reclaim head as they supposedly should be isolated too next.
+
+Queues the subpages in physical order in the lru for non isolated
+hugepages under splitting. That might provide some theoretical cache
+benefit to the buddy allocator later.
 
 Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/asm-generic/tlb.h |   14 ++++++++++++++
- include/linux/huge_mm.h   |    2 +-
- mm/huge_memory.c          |    3 ++-
- mm/memory.c               |    4 ++--
- 4 files changed, 19 insertions(+), 4 deletions(-)
+ mm/huge_memory.c |    5 ++---
+ mm/swap.c        |    2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)
 
-Index: linux/include/asm-generic/tlb.h
-===================================================================
---- linux.orig/include/asm-generic/tlb.h	2011-11-15 09:39:11.000000000 +0800
-+++ linux/include/asm-generic/tlb.h	2011-11-15 09:39:23.000000000 +0800
-@@ -139,6 +139,20 @@ static inline void tlb_remove_page(struc
- 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
-+/**
-+ * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
-+ * This is a nop so far, because only x86 needs it.
-+ */
-+#ifndef __tlb_remove_pmd_tlb_entry
-+#define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
-+#endif
-+
-+#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)		\
-+	do {							\
-+		tlb->need_flush = 1;				\
-+		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);	\
-+	} while (0)
-+
- #define pte_free_tlb(tlb, ptep, address)			\
- 	do {							\
- 		tlb->need_flush = 1;				\
-Index: linux/include/linux/huge_mm.h
-===================================================================
---- linux.orig/include/linux/huge_mm.h	2011-11-15 09:39:11.000000000 +0800
-+++ linux/include/linux/huge_mm.h	2011-11-15 09:39:23.000000000 +0800
-@@ -18,7 +18,7 @@ extern struct page *follow_trans_huge_pm
- 					  unsigned int flags);
- extern int zap_huge_pmd(struct mmu_gather *tlb,
- 			struct vm_area_struct *vma,
--			pmd_t *pmd);
-+			pmd_t *pmd, unsigned long addr);
- extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, unsigned long end,
- 			unsigned char *vec);
 Index: linux/mm/huge_memory.c
 ===================================================================
---- linux.orig/mm/huge_memory.c	2011-11-15 09:39:17.000000000 +0800
-+++ linux/mm/huge_memory.c	2011-11-15 09:39:23.000000000 +0800
-@@ -1026,7 +1026,7 @@ out:
- }
- 
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
--		 pmd_t *pmd)
-+		 pmd_t *pmd, unsigned long addr)
+--- linux.orig/mm/huge_memory.c	2011-11-15 09:04:26.000000000 +0800
++++ linux/mm/huge_memory.c	2011-11-15 09:13:52.000000000 +0800
+@@ -1228,7 +1228,6 @@ static int __split_huge_page_splitting(s
+ static void __split_huge_page_refcount(struct page *page)
  {
- 	int ret = 0;
+ 	int i;
+-	unsigned long head_index = page->index;
+ 	struct zone *zone = page_zone(page);
+ 	int zonestat;
+ 	int tail_count = 0;
+@@ -1237,7 +1236,7 @@ static void __split_huge_page_refcount(s
+ 	spin_lock_irq(&zone->lru_lock);
+ 	compound_lock(page);
  
-@@ -1042,6 +1042,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 			pgtable = get_pmd_huge_pte(tlb->mm);
- 			page = pmd_page(*pmd);
- 			pmd_clear(pmd);
-+			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
- 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-Index: linux/mm/memory.c
+-	for (i = 1; i < HPAGE_PMD_NR; i++) {
++	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
+ 		struct page *page_tail = page + i;
+ 
+ 		/* tail_page->_mapcount cannot change */
+@@ -1300,7 +1299,7 @@ static void __split_huge_page_refcount(s
+ 		BUG_ON(page_tail->mapping);
+ 		page_tail->mapping = page->mapping;
+ 
+-		page_tail->index = ++head_index;
++		page_tail->index = page->index + i;
+ 
+ 		BUG_ON(!PageAnon(page_tail));
+ 		BUG_ON(!PageUptodate(page_tail));
+Index: linux/mm/swap.c
 ===================================================================
---- linux.orig/mm/memory.c	2011-11-15 09:39:11.000000000 +0800
-+++ linux/mm/memory.c	2011-11-15 09:40:55.000000000 +0800
-@@ -293,7 +293,7 @@ int __tlb_remove_page(struct mmu_gather
- {
- 	struct mmu_gather_batch *batch;
- 
--	tlb->need_flush = 1;
-+	VM_BUG_ON(!tlb->need_flush);
- 
- 	if (tlb_fast_mode(tlb)) {
- 		free_page_and_swap_cache(page);
-@@ -1231,7 +1231,7 @@ static inline unsigned long zap_pmd_rang
- 			if (next-addr != HPAGE_PMD_SIZE) {
- 				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
- 				split_huge_page_pmd(vma->vm_mm, pmd);
--			} else if (zap_huge_pmd(tlb, vma, pmd))
-+			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
- 				continue;
- 			/* fall through */
- 		}
+--- linux.orig/mm/swap.c	2011-11-14 16:12:03.000000000 +0800
++++ linux/mm/swap.c	2011-11-15 09:15:33.000000000 +0800
+@@ -684,7 +684,7 @@ void lru_add_page_tail(struct zone* zone
+ 		if (likely(PageLRU(page)))
+ 			head = page->lru.prev;
+ 		else
+-			head = &zone->lru[lru].list;
++			head = zone->lru[lru].list.prev;
+ 		__add_page_to_lru_list(zone, page_tail, lru, head);
+ 	} else {
+ 		SetPageUnevictable(page_tail);
 
 
 --
