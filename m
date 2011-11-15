@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 848D86B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 10:01:44 -0500 (EST)
-Date: Tue, 15 Nov 2011 15:01:39 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111115150139.GH27150@suse.de>
-References: <20111110100616.GD3083@suse.de>
- <20111110142202.GE3083@suse.de>
- <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
- <20111110161331.GG3083@suse.de>
- <20111110151211.523fa185.akpm@linux-foundation.org>
- <20111111100156.GI3083@suse.de>
- <20111114160345.01e94987.akpm@linux-foundation.org>
- <20111115020009.GE4414@redhat.com>
- <20111115020831.GF4414@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A491C6B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 10:38:57 -0500 (EST)
+Date: Tue, 15 Nov 2011 16:38:51 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] hugetlb: release pages in the error path of hugetlb_cow()
+Message-ID: <20111115153851.GB7551@tiehlicka.suse.cz>
+References: <CAJd=RBC5Q48r0sYeqF9bucaBJPv3LR4UTAannUZ8KXxoXY_Qcw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111115020831.GF4414@redhat.com>
+In-Reply-To: <CAJd=RBC5Q48r0sYeqF9bucaBJPv3LR4UTAannUZ8KXxoXY_Qcw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Nov 15, 2011 at 03:08:31AM +0100, Andrea Arcangeli wrote:
-> On Tue, Nov 15, 2011 at 03:00:09AM +0100, Andrea Arcangeli wrote:
-> > I didn't fill that gap but I was reading the code again and I don't
-> > see why we keep retrying for -EAGAIN in the !sync case. Maybe the
-> > below is good (untested). I doubt it's good to spend cpu to retry the
-> > trylock or to retry the migrate on a pinned page by O_DIRECT. In fact
-> > as far as THP success rate is concerned maybe we should "goto out"
-> > instead of "goto fail" but I didn't change to that as compaction even
-> > if it fails a subpage may still be successful at creating order
-> > 1/2/3/4...8 pages. I only avoid 9 loops to retry a trylock or a page
-> > under O_DIRECT. Maybe that will save a bit of CPU, I doubt it can
-> > decrease the success rate in any significant way. I'll test it at the
-> > next build...
-> 
-> At the same time also noticed another minor cleanup (also untested,
-> will text at next build together with some other stuff).
-> 
-> ===
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Subject: [PATCH] compaction: move ISOLATE_CLEAN setting out of
->  compaction_migratepages loop
-> 
-> cc->sync and mode cannot change within the loop so move it out.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+On Fri 11-11-11 21:01:20, Hillf Danton wrote:
+> If fail to prepare anon_vma, {new, old}_page should be released, or they will
+> escape the track and/or control of memory management.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Looks good (intrduced by in .36 by 0fe6e20b: hugetlb, rmap: add reverse
+mapping for hugepage). The failure case is really not probable but I
+guess this is still a candidate for stable kernel.
+
+> 
+> Thanks
+> 
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+> 
+> --- a/mm/hugetlb.c	Fri Nov 11 20:36:32 2011
+> +++ b/mm/hugetlb.c	Fri Nov 11 20:43:06 2011
+> @@ -2422,6 +2422,8 @@ retry_avoidcopy:
+>  	 * anon_vma prepared.
+>  	 */
+>  	if (unlikely(anon_vma_prepare(vma))) {
+> +		page_cache_release(new_page);
+> +		page_cache_release(old_page);
+>  		/* Caller expects lock to be held */
+>  		spin_lock(&mm->page_table_lock);
+>  		return VM_FAULT_OOM;
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
