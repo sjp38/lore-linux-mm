@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2CA6B0069
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 16:40:47 -0500 (EST)
-Received: by ggnq1 with SMTP id q1so5672926ggn.14
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 13:40:45 -0800 (PST)
-Date: Tue, 15 Nov 2011 13:40:42 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-In-Reply-To: <20111114140421.GA27150@suse.de>
-Message-ID: <alpine.DEB.2.00.1111151332160.26232@chino.kir.corp.google.com>
-References: <20111114140421.GA27150@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 708856B0069
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 18:04:02 -0500 (EST)
+Received: by vws10 with SMTP id 10so152613vws.2
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 15:04:00 -0800 (PST)
+Message-Id: <201111152303.pAFN3r4Q026247@wpaz9.hot.corp.google.com>
+Subject: [patch 1/2] slab: add taint flag outputting to debug paths.
+From: akpm@linux-foundation.org
+Date: Tue, 15 Nov 2011 15:03:52 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: penberg@cs.helsinki.fi
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, davej@redhat.com
 
-On Mon, 14 Nov 2011, Mel Gorman wrote:
+From: Dave Jones <davej@redhat.com>
+Subject: slab: add taint flag outputting to debug paths.
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9dd443d..5402897 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
->  	saved_gfp_mask = gfp_allowed_mask;
->  	gfp_allowed_mask &= ~GFP_IOFS;
->  }
-> +
-> +static bool pm_suspending(void)
-> +{
-> +	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
-> +		return false;
-> +	return true;
-> +}
-> +
-> +#else
-> +
-> +static bool pm_suspending(void)
-> +{
-> +	return false;
-> +}
->  #endif /* CONFIG_PM_SLEEP */
->  
->  #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-> @@ -2214,6 +2228,14 @@ rebalance:
->  
->  			goto restart;
->  		}
-> +
-> +		/*
-> +		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can
-> +		 * prevent reclaim making forward progress without
-> +		 * invoking OOM. Bail if we are suspending
-> +		 */
-> +		if (pm_suspending())
-> +			goto nopage;
->  	}
->  
->  	/* Check if we should retry the allocation */
+When we get corruption reports, it's useful to see if the kernel was
+tainted, to rule out problems we can't do anything about.
 
-This allows all __GFP_NOFAIL allocations to fail while 
-pm_restrict_gfp_mask() is in effect, so I disagree with this unless it is 
-moved into the should_alloc_retry() logic.  If you pass did_some_progress 
-into that function and then moved the check for __GFP_NOFAIL right under 
-the check for __GFP_NORETRY and checked for pm_suspending() there (and 
-before the check for PAGE_ALLOC_COSTLY_ORDER) then it would allow the 
-infinite loop for __GFP_NOFAIL which is required if __GFP_WAIT.
+Signed-off-by: Dave Jones <davej@redhat.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/slab.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff -puN mm/slab.c~slab-add-taint-flag-outputting-to-debug-paths mm/slab.c
+--- a/mm/slab.c~slab-add-taint-flag-outputting-to-debug-paths
++++ a/mm/slab.c
+@@ -1941,8 +1941,8 @@ static void check_poison_obj(struct kmem
+ 			/* Print header */
+ 			if (lines == 0) {
+ 				printk(KERN_ERR
+-					"Slab corruption: %s start=%p, len=%d\n",
+-					cachep->name, realobj, size);
++					"Slab corruption (%s): %s start=%p, len=%d\n",
++					print_tainted(), cachep->name, realobj, size);
+ 				print_objinfo(cachep, objp, 0);
+ 			}
+ 			/* Hexdump the affected line */
+@@ -3051,8 +3051,9 @@ static void check_slabp(struct kmem_cach
+ 	if (entries != cachep->num - slabp->inuse) {
+ bad:
+ 		printk(KERN_ERR "slab: Internal list corruption detected in "
+-				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
+-			cachep->name, cachep->num, slabp, slabp->inuse);
++			"cache '%s'(%d), slabp %p(%d). Tainted(%s). Hexdump:\n",
++			cachep->name, cachep->num, slabp, slabp->inuse,
++			print_tainted());
+ 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
+ 			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
+ 			1);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
