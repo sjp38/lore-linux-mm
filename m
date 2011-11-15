@@ -1,80 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 741A86B002D
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 19:03:49 -0500 (EST)
-Date: Mon, 14 Nov 2011 16:03:45 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 70AEF6B002D
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2011 21:00:17 -0500 (EST)
+Date: Tue, 15 Nov 2011 03:00:09 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
  allocations
-Message-Id: <20111114160345.01e94987.akpm@linux-foundation.org>
-In-Reply-To: <20111111100156.GI3083@suse.de>
+Message-ID: <20111115020009.GE4414@redhat.com>
 References: <20111110100616.GD3083@suse.de>
-	<20111110142202.GE3083@suse.de>
-	<CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
-	<20111110161331.GG3083@suse.de>
-	<20111110151211.523fa185.akpm@linux-foundation.org>
-	<20111111100156.GI3083@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20111110142202.GE3083@suse.de>
+ <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
+ <20111110161331.GG3083@suse.de>
+ <20111110151211.523fa185.akpm@linux-foundation.org>
+ <20111111100156.GI3083@suse.de>
+ <20111114160345.01e94987.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111114160345.01e94987.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 11 Nov 2011 10:01:56 +0000
-Mel Gorman <mgorman@suse.de> wrote:
-
-> On Thu, Nov 10, 2011 at 03:12:11PM -0800, Andrew Morton wrote:
-> > On Thu, 10 Nov 2011 16:13:31 +0000
-> > Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > This patch once again prevents sync migration for transparent
-> > > hugepage allocations as it is preferable to fail a THP allocation
-> > > than stall.
-> > 
-> > Who said?  ;)
+On Mon, Nov 14, 2011 at 04:03:45PM -0800, Andrew Morton wrote:
+> On Fri, 11 Nov 2011 10:01:56 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
+> > A 1000-hour compute job will have its pages collapsed into hugepages by
+> > khugepaged so they might not have the huge pages at the very beginning
+> > but they get them. With khugepaged in place, there should be no need for
+> > an additional tuneable.
 > 
-> Everyone who ever complained about stalls due to writing to USB :)
+> OK...
 
-oh, here it is.  Who broke mesage threading?
+It's good idea to keep it monitored. But I guess the reduced rate will
+only materialize at temporary VM stress times.
 
-> In the last few releases, we have squashed a number of stalls due
-> to writing pages from the end of the LRU but sync compaction is a
-> relatively recent new root cause of stalls.
+> Fair enough.  One slight problem though:
 > 
-> > Presumably some people would prefer to get lots of
-> > huge pages for their 1000-hour compute job, and waiting a bit to get
-> > those pages is acceptable.
-> > 
-> 
-> A 1000-hour compute job will have its pages collapsed into hugepages by
-> khugepaged so they might not have the huge pages at the very beginning
-> but they get them. With khugepaged in place, there should be no need for
-> an additional tuneable.
+> akpm:/usr/src/25> grep -r thp_collapse_alloc_failed Documentation 
+> akpm:/usr/src/25> 
 
-OK...
+I didn't fill that gap but I was reading the code again and I don't
+see why we keep retrying for -EAGAIN in the !sync case. Maybe the
+below is good (untested). I doubt it's good to spend cpu to retry the
+trylock or to retry the migrate on a pinned page by O_DIRECT. In fact
+as far as THP success rate is concerned maybe we should "goto out"
+instead of "goto fail" but I didn't change to that as compaction even
+if it fails a subpage may still be successful at creating order
+1/2/3/4...8 pages. I only avoid 9 loops to retry a trylock or a page
+under O_DIRECT. Maybe that will save a bit of CPU, I doubt it can
+decrease the success rate in any significant way. I'll test it at the
+next build...
 
-> > Do we have the accounting in place for us to be able to determine how
-> > many huge page allocation attempts failed due to this change?
-> > 
-> 
-> thp_fault_fallback is the big one. It is incremented if we fail to
-> 	allocate a hugepage during fault in either
-> 	do_huge_pmd_anonymous_page or do_huge_pmd_wp_page_fallback
-> 
-> thp_collapse_alloc_failed is also very interesting. It is incremented
-> 	if khugepaged tried to collapse pages into a hugepage and
-> 	failed the allocation
-> 
-> The user has the  option of monitoring their compute jobs hugepage
-> usage by reading /proc/PID/smaps and looking at the AnonHugePages
-> count for the large mappings of interest.
+====
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] migrate: !sync don't retry
 
-Fair enough.  One slight problem though:
+For !sync it's not worth retrying because we won't lock_page even
+after the second pass. So make -EAGAIN behave like -EBUSY in the !sync
+should be faster. The difference between -EAGAIN and -EBUSY remains as
+usual for the sync case, where -EAGAIN will retry, while -EBUSY will
+not.
 
-akpm:/usr/src/25> grep -r thp_collapse_alloc_failed Documentation 
-akpm:/usr/src/25> 
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/migrate.c |   16 +++++++++-------
+ 1 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 578e291..7d97a14 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -680,11 +680,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		 * For !sync, there is no point retrying as the retry loop
+ 		 * is expected to be too short for PageWriteback to be cleared
+ 		 */
+-		if (!sync) {
+-			rc = -EBUSY;
+-			goto uncharge;
+-		}
+-		if (!force)
++		if (!force || !sync)
+ 			goto uncharge;
+ 		wait_on_page_writeback(page);
+ 	}
+@@ -794,7 +790,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 
+ 	rc = __unmap_and_move(page, newpage, force, offlining, sync);
+ out:
+-	if (rc != -EAGAIN) {
++	if (rc != -EAGAIN || !sync) {
+ 		/*
+ 		 * A page that has been migrated has all references
+ 		 * removed and will be freed. A page that has not been
+@@ -874,7 +870,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ out:
+ 	unlock_page(hpage);
+ 
+-	if (rc != -EAGAIN) {
++	if (rc != -EAGAIN || !sync) {
+ 		list_del(&hpage->lru);
+ 		put_page(hpage);
+ 	}
+@@ -934,11 +930,14 @@ int migrate_pages(struct list_head *from,
+ 			case -ENOMEM:
+ 				goto out;
+ 			case -EAGAIN:
++				if (!sync)
++					goto fail;
+ 				retry++;
+ 				break;
+ 			case 0:
+ 				break;
+ 			default:
++			fail:
+ 				/* Permanent failure */
+ 				nr_failed++;
+ 				break;
+@@ -981,11 +980,14 @@ int migrate_huge_pages(struct list_head *from,
+ 			case -ENOMEM:
+ 				goto out;
+ 			case -EAGAIN:
++				if (!sync)
++					goto fail;
+ 				retry++;
+ 				break;
+ 			case 0:
+ 				break;
+ 			default:
++			fail:
+ 				/* Permanent failure */
+ 				nr_failed++;
+ 				break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
