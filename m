@@ -1,23 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 731086B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:02:58 -0500 (EST)
-Date: Tue, 15 Nov 2011 10:02:54 -0600 (CST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8645B6B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:05:28 -0500 (EST)
+Date: Tue, 15 Nov 2011 10:05:25 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: INFO: possible recursive locking detected: get_partial_node()
- on 3.2-rc1
-In-Reply-To: <1321248853.22361.280.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1111151002120.22502@router.home>
-References: <20111109090556.GA5949@zhy>  <201111102335.06046.kernelmail.jms@gmail.com>  <1320980671.22361.252.camel@sli10-conroe>  <alpine.DEB.2.00.1111110857330.3557@router.home> <1321248853.22361.280.camel@sli10-conroe>
+Subject: Re: [OOPS]: Kernel 3.1 (ext3?)
+In-Reply-To: <20111114195352.GB17328@quack.suse.cz>
+Message-ID: <alpine.DEB.2.00.1111151004050.22502@router.home>
+References: <20111110132929.GA11417@zeus> <20111114195352.GB17328@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Julie Sullivan <kernelmail.jms@gmail.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Watts <akwatts@ymail.com>, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
+On Mon, 14 Nov 2011, Jan Kara wrote:
 
-Acked-by: Christoph Lameter <cl@linux.com>
+> On Thu 10-11-11 08:29:37, Andrew Watts wrote:
+> > I had the following kernel panic today on 3.1 (machine was compiling code
+> > unattended). It would appear to be a bug/regression introduced sometime
+> > between 2.6.39.4 and 3.1.
+>   Hmm, the report is missing a line (top one) saying why the kernel
+> actually crashed. Can you add that?
+>
+>   Also it seems you are using SLUB allocator, right? This seems like a
+> problem there so adding some CCs.
+
+Likely some data corruption. Enable slub debugging by passing
+
+slub_debug
+
+on the kernel commandline please to get some information as to where and
+when this happens.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
