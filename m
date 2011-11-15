@@ -1,83 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 891226B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 05:30:18 -0500 (EST)
-Date: Tue, 15 Nov 2011 10:30:07 +0000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 70C726B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 05:42:29 -0500 (EST)
+Date: Tue, 15 Nov 2011 10:42:23 +0000
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-Message-ID: <20111115103007.GB27150@suse.de>
+Message-ID: <20111115104223.GC27150@suse.de>
 References: <20111114140421.GA27150@suse.de>
- <20111114183812.GC4414@redhat.com>
+ <20111114150326.0ee60107.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20111114183812.GC4414@redhat.com>
+In-Reply-To: <20111114150326.0ee60107.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Nov 14, 2011 at 07:38:12PM +0100, Andrea Arcangeli wrote:
-> On Mon, Nov 14, 2011 at 02:04:21PM +0000, Mel Gorman wrote:
-> > In his fix, he avoided retrying the allocation if reclaim made no
-> > progress and __GFP_FS was not set. The problem is that this would
-> > result in GFP_NOIO allocations failing that previously succeeded
-> > which would be very unfortunate.
+On Mon, Nov 14, 2011 at 03:03:26PM -0800, Andrew Morton wrote:
+> > <SNIP>
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 9dd443d..5402897 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
+> >  	saved_gfp_mask = gfp_allowed_mask;
+> >  	gfp_allowed_mask &= ~GFP_IOFS;
+> >  }
+> > +
+> > +static bool pm_suspending(void)
+> > +{
+> > +	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
+> > +		return false;
+> > +	return true;
+> > +}
 > 
-> GFP_NOFS are made by filesystems/buffers to avoid locking up on fs/vfs
-> locking. Those also should be able to handle failure gracefully but
-> userland is more likely to get a -ENOMEM from these (for example
-> during direct-io) if those fs allocs fails.
-
-I was also vaguely recalling Roland's talk at day 2 of kernel summit
-(reported at http://lwn.net/Articles/464500/) where he talked about
-error handling. One point he made was that some filesystems ran into
-problems in the event of memory allocation failure. I didn't audit
-if the block layer handles it better but one way or the other I did
-not want to throw the the block or filesystem layers curve balls.
-
-> So clearly it sounds risky
-> to apply the modification quoted above and risk having any GFP_NOFS
-> fail. Said that I'm afraid we're not deadlock safe with current code
-> that cannot fail but there's no easy solution and no way to fix it in
-> the short term, and it's only a theoretical concern.
-
-It's still a valid concern. The expectation is that we are protected
-from deadlocks a combination of mempools and the watermarks forcing
-processes to stall in direct reclaim leaving a cushion of pages for
-reclaim using PF_MEMALLOC to always make forward progress. Patches
-that break how watermarks work tend to lead to deadlock.
-
-> For !__GFP_FS allocations, __GFP_NOFAIL is the default for order <=
-> PAGE_ALLOC_COSTLY_ORDER and __GFP_NORETRY is the default for order >
-> PAGE_ALLOC_COSTLY_ORDER. This inconsistency is not so clean in my
-> view.
-
-Is your concern that the behaviour of the allocator changes quite
-significantly for orders < PAGE_ALLOC_COSTLY_ORDER?
-
-I agree with you that it would be nicer if there was a gradual scaling
-back of how much work the allocator did that depended on order. To
-date there has not been much pressure or motivation to implement it.
-
-> Also for GFP_KERNEL/USER/__GFP_FS regular allocations the
-> __GFP_NOFAIL looks more like a __GFP_MAY_OOM.  But if we fix that and
-> we drop __GFP_NORETRY, and we set __GFP_NOFAIL within the
-> GFP_NOFS/NOIO #defines (to remove the magic PAGE_ALLOC_COSTLY_ORDER
-> check in should_alloc_retry) we may loop forever if somebody allocates
-> several mbytes of huge contiguous RAM with GFP_NOIO. So at least
-> there's a practical explanation for the current code.
+> This doesn't seem a terribly reliable way of detecting that PM has
+> disabled the storage devices (which is what we really want to know
+> here: kswapd got crippled).
 > 
 
-Yep.
+It only works because PM is the only caller that alters
+gfp_allowed_mask at runtime after early boot completes. We also check
+if suspend is in progress in mm/swapfile.c#try_to_free_swap() using
+the gfp_allowed_mask.
 
-> Patch looks good to me (and safer) even if I don't like keeping
-> infinite loops from a purely theoretical standpoint.
+> I guess it's safe for now, because PM is the only caller who alters
+> gfp_allowed_mask (I assume). 
 
->From a more practical point of view, I am generally more concerned
-with abnormally large stalls from within the page allocator which
-is what patches like "Do not stall in synchronous compaction for THP
-allocations" address.
+You assume correctly.
+
+> But an explicit storage_is_unavaliable
+> global which is set and cleared at exactly the correct time is clearer,
+> more direct and future-safer, no?
+> 
+
+It feels overkill to allocate more global storage for it when
+gfp_allowed_mask is already there but I could rename pm_suspending() to
+pm_disabled_storage(), make try_to_free_swap() use the same helper but
+leave the implementation the same. This would clarify the situation.
+
+> > +#else
+> > +
+> > +static bool pm_suspending(void)
+> > +{
+> > +	return false;
+> > +}
+> >  #endif /* CONFIG_PM_SLEEP */
+> >  
+> >  #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+> > @@ -2214,6 +2228,14 @@ rebalance:
+> >  
+> >  			goto restart;
+> >  		}
+> > +
+> > +		/*
+> > +		 * Suspend converts GFP_KERNEL to __GFP_WAIT which can
+> > +		 * prevent reclaim making forward progress without
+> > +		 * invoking OOM. Bail if we are suspending
+> > +		 */
+> > +		if (pm_suspending())
+> > +			goto nopage;
+> 
+> The comment doesn't tell the whole story: it's important that kswapd
+> writeout was disabled?
+> 
+
+Writeout is disabled for flushers as well but your comment covers both
+and clarifies the situation. Thanks
 
 -- 
 Mel Gorman
