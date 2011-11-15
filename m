@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AA1D6B006C
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 18:04:03 -0500 (EST)
-Received: by ywe9 with SMTP id 9so548601ywe.2
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 15:04:01 -0800 (PST)
-Message-Id: <201111152304.pAFN40e9015135@wpaz5.hot.corp.google.com>
-Subject: [patch 2/2] slub: add taint flag outputting to debug paths
-From: akpm@linux-foundation.org
-Date: Tue, 15 Nov 2011 15:04:00 -0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A58A16B0069
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 18:48:54 -0500 (EST)
+Date: Tue, 15 Nov 2011 23:48:45 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-ID: <20111115234845.GK27150@suse.de>
+References: <20111110100616.GD3083@suse.de>
+ <20111110142202.GE3083@suse.de>
+ <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
+ <20111110161331.GG3083@suse.de>
+ <20111110151211.523fa185.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
+ <20111111101414.GJ3083@suse.de>
+ <20111114154408.10de1bc7.akpm@linux-foundation.org>
+ <20111115132513.GF27150@suse.de>
+ <alpine.DEB.2.00.1111151303230.23579@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1111151303230.23579@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@cs.helsinki.fi
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, davej@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Dave Jones <davej@redhat.com>
-Subject: slub: add taint flag outputting to debug paths
+On Tue, Nov 15, 2011 at 01:07:51PM -0800, David Rientjes wrote:
+> On Tue, 15 Nov 2011, Mel Gorman wrote:
+> 
+> > Fine control is limited. If it is really needed, I would not oppose
+> > a patch that allows the use of sync compaction via a new setting in
+> > /sys/kernel/mm/transparent_hugepage/defrag. However, I think it is
+> > a slippery slope to expose implementation details like this and I'm
+> > not currently planning to implement such a patch.
+> > 
+> 
+> This doesn't expose any implementation detail, the "defrag" tunable is 
+> supposed to limit defragmentation efforts in the VM if the hugepages 
+> aren't immediately available and simply fallback to using small pages.  
 
-When we get corruption reports, it's useful to see if the kernel was
-tainted, to rule out problems we can't do anything about.
+The current settings are "always", "madvise" and "never" which matches
+the settings for /sys/kernel/mm/transparent_hugepage/enabled and are
+fairly straight forward.
 
-Signed-off-by: Dave Jones <davej@redhat.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Adding sync here could obviously be implemented although it may
+require both always-sync and madvise-sync. Alternatively, something
+like an options file could be created to create a bitmap similar to
+what ftrace does. Whatever the mechanism, it exposes the fact that
+"sync compaction" is used. If that turns out to be not enough, then
+you may want to add other steps like aggressively reclaiming memory
+which also potentially may need to be controlled via the sysfs file
+and this is the slippery slope.
 
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> Given that definition, it would make sense to allow for synchronous 
+> defragmentation (i.e. sync_compaction) on the second iteration of the page 
+> allocator slowpath if set.  So where's the disconnect between this 
+> proposed behavior and the definition of the tunable in 
+> Documentation/vm/transhuge.txt?
 
-diff -puN mm/slub.c~slub-add-taint-flag-outputting-to-debug-paths mm/slub.c
---- a/mm/slub.c~slub-add-taint-flag-outputting-to-debug-paths
-+++ a/mm/slub.c
-@@ -570,7 +570,7 @@ static void slab_bug(struct kmem_cache *
- 	va_end(args);
- 	printk(KERN_ERR "========================================"
- 			"=====================================\n");
--	printk(KERN_ERR "BUG %s: %s\n", s->name, buf);
-+	printk(KERN_ERR "BUG %s (%s): %s\n", s->name, print_tainted(), buf);
- 	printk(KERN_ERR "----------------------------------------"
- 			"-------------------------------------\n\n");
- }
-_
+The transhuge.txt file does not describe how defrag works or whether it
+uses sync compaction internally.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
