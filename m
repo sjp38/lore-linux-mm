@@ -1,179 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8256C6B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 08:07:54 -0500 (EST)
-Date: Tue, 15 Nov 2011 13:07:48 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111115130748.GE27150@suse.de>
-References: <20111110100616.GD3083@suse.de>
- <20111110142202.GE3083@suse.de>
- <CAEwNFnCRCxrru5rBk7FpypqeL8nD=SY5W3-TaA7Ap5o4CgDSbg@mail.gmail.com>
- <20111110161331.GG3083@suse.de>
- <20111110151211.523fa185.akpm@linux-foundation.org>
- <20111111100156.GI3083@suse.de>
- <20111114160345.01e94987.akpm@linux-foundation.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 758246B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 08:10:07 -0500 (EST)
+Message-ID: <4EC264AA.30306@redhat.com>
+Date: Tue, 15 Nov 2011 14:10:02 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20111114160345.01e94987.akpm@linux-foundation.org>
+Subject: [RFC PATCH V2] Enforce RSS+Swap rlimit
+References: <4EB3FA89.6090601@redhat.com>
+In-Reply-To: <4EB3FA89.6090601@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Nov 14, 2011 at 04:03:45PM -0800, Andrew Morton wrote:
-> > <SNIP>
-> > A 1000-hour compute job will have its pages collapsed into hugepages by
-> > khugepaged so they might not have the huge pages at the very beginning
-> > but they get them. With khugepaged in place, there should be no need for
-> > an additional tuneable.
-> 
-> OK...
-> 
 
-David Rientjes did point out that it is preferred in certain
-cases that khugepaged be disabled on jobs that are CPU bound, high
-priority and do not want interference. If this really is the case,
-it should not be the default behaviour and added as a new option to
-/sys/kernel/mm/transparent_hugepage/defrag in a separate patch.
+Change since V1: rebase on 3.2-rc1
 
-> > > Do we have the accounting in place for us to be able to determine how
-> > > many huge page allocation attempts failed due to this change?
-> > > 
-> > 
-> > thp_fault_fallback is the big one. It is incremented if we fail to
-> > 	allocate a hugepage during fault in either
-> > 	do_huge_pmd_anonymous_page or do_huge_pmd_wp_page_fallback
-> > 
-> > thp_collapse_alloc_failed is also very interesting. It is incremented
-> > 	if khugepaged tried to collapse pages into a hugepage and
-> > 	failed the allocation
-> > 
-> > The user has the  option of monitoring their compute jobs hugepage
-> > usage by reading /proc/PID/smaps and looking at the AnonHugePages
-> > count for the large mappings of interest.
-> 
-> Fair enough.  One slight problem though:
-> 
-> akpm:/usr/src/25> grep -r thp_collapse_alloc_failed Documentation 
-> akpm:/usr/src/25> 
-> 
+Currently RSS rlimit is not enforced. We can not forbid a process to exceeds
+its RSS limit and allow it swap out. That would hurts the performance of all
+system, even when memory resources are plentiful.
 
-mel@machina:~/git-public/linux-2.6/Documentation > git grep vmstat
-trace/postprocess/trace-vmscan-postprocess.pl:                  # To closer match vmstat scanning statistics, only count isolate_both
-mel@machina:~/git-public/linux-2.6/Documentation >
+Therefore, instead of enforcing a limit on rss usage alone, this patch enforces
+a limit on rss+swap value. This is similar to memsw limits of cgroup.
+If a process rss+swap usage exceeds RLIMIT_RSS max limit, he received a SIGBUS
+signal. 
 
-Given such an abundance and wealth of information on vmstat, how
-about this?
+My tests show that code in do_anonymous_page() and __do_fault() indeed prevents
+processes to get more memory than the limit and I haven't seen any adverse
+effect, but so far, I have no test coverage of the code in do_wp_page(). I'm
+not sure how to test it.
 
-==== CUT HERE ====
-mm: Document the meminfo and vmstat fields of relevance to transparent hugepages
-
-This patch updates Documentation/vm/transhuge.txt and
-Documentation/filesystems/proc.txt with some information on monitoring
-transparent huge page usage and the associated overhead.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- Documentation/filesystems/proc.txt |    2 +
- Documentation/vm/transhuge.txt     |   62 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+), 0 deletions(-)
+ include/linux/mm.h |    7 +++++++
+ mm/memory.c        |   21 +++++++++++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 0ec91f0..fb6ca6d 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -710,6 +710,7 @@ Committed_AS:   100056 kB
- VmallocTotal:   112216 kB
- VmallocUsed:       428 kB
- VmallocChunk:   111088 kB
-+AnonHugePages:   49152 kB
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3dc3a8c..3b54ff1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1092,6 +1092,13 @@ static inline unsigned long get_mm_rss(struct mm_struct *mm)
+ 		get_mm_counter(mm, MM_ANONPAGES);
+ }
  
-     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-               bits and the kernel binary code)
-@@ -743,6 +744,7 @@ VmallocChunk:   111088 kB
-        Dirty: Memory which is waiting to get written back to the disk
-    Writeback: Memory which is actively being written back to the disk
-    AnonPages: Non-file backed pages mapped into userspace page tables
-+AnonHugePages: Non-file backed huge pages mapped into userspace page tables
-       Mapped: files which have been mmaped, such as libraries
-         Slab: in-kernel data structures cache
- SReclaimable: Part of Slab, that might be reclaimed, such as caches
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 29bdf62..f734bb2 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -166,6 +166,68 @@ behavior. So to make them effective you need to restart any
- application that could have been using hugepages. This also applies to
- the regions registered in khugepaged.
++static inline unsigned long get_mm_memsw(struct mm_struct *mm)
++{
++	return get_mm_counter(mm, MM_FILEPAGES) +
++		get_mm_counter(mm, MM_ANONPAGES) +
++		get_mm_counter(mm, MM_SWAPENTS);
++}
++
+ static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
+ {
+ 	return max(mm->hiwater_rss, get_mm_rss(mm));
+diff --git a/mm/memory.c b/mm/memory.c
+index 829d437..b0463c2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2661,8 +2661,14 @@ gotten:
+ 				dec_mm_counter_fast(mm, MM_FILEPAGES);
+ 				inc_mm_counter_fast(mm, MM_ANONPAGES);
+ 			}
+-		} else
++		} else {
++			if (get_mm_memsw(mm) >=
++			    rlimit_max(RLIMIT_RSS) >> PAGE_SHIFT) {
++				ret |= VM_FAULT_SIGBUS;
++				goto release;
++			}
+ 			inc_mm_counter_fast(mm, MM_ANONPAGES);
++		}
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+@@ -2713,6 +2719,7 @@ gotten:
+ 	} else
+ 		mem_cgroup_uncharge_page(new_page);
  
-+== Monitoring usage ==
-+
-+The number of transparent huge pages currently used by the system is
-+available by reading the AnonHugePages field in /proc/meminfo. To
-+identify what applications are using transparent huge pages, it is
-+necessary to read /proc/PID/smaps and count the AnonHugePages fields
-+for each mapping. Note that reading the smaps file is expensive and
-+reading it frequently will incur overhead.
-+
-+There are a number of counters in /proc/vmstat that may be used to
-+monitor how successfully the system is providing huge pages for use.
-+
-+thp_fault_alloc is incremented every time a huge page is successfully
-+	allocated to handle a page fault. This applies to both the
-+	first time a page is faulted and for COW faults.
-+
-+thp_collapse_alloc is incremented by khugepaged when it has found
-+	a range of pages to collapse into one huge page and has
-+	successfully allocated a new huge page to store the data.
-+
-+thp_fault_fallback is incremented if a page fault fails to allocate
-+	a huge page and instead falls back to using small pages.
-+
-+thp_collapse_alloc_failed is incremented if khugepaged found a range
-+	of pages that should be collapsed into one huge page but failed
-+	the allocation.
-+
-+thp_split is incremented every time a huge page is split into base
-+	pages. This can happen for a variety of reasons but a common
-+	reason is that a huge page is old and is being reclaimed.
-+
-+As the system ages, allocating huge pages may be expensive as the
-+system uses memory compaction to copy data around memory to free a
-+huge page for use. There are some counters in /proc/vmstat to help
-+monitor this overhead.
-+
-+compact_stall is incremented every time a process stalls to run
-+	memory compaction so that a huge page is free for use.
-+
-+compact_success is incremented if the system compacted memory and
-+	freed a huge page for use.
-+
-+compact_fail is incremented if the system tries to compact memory
-+	but failed.
-+
-+compact_pages_moved is incremented each time a page is moved. If
-+	this value is increasing rapidly, it implies that the system
-+	is copying a lot of data to satisfy the huge page allocation.
-+	It is possible that the cost of copying exceeds any savings
-+	from reduced TLB misses.
-+
-+compact_pagemigrate_failed is incremented when the underlying mechanism
-+	for moving a page failed.
-+
-+compact_blocks_moved is incremented each time memory compaction examines
-+	a huge page aligned range of pages.
-+
-+It is possible to establish how long the stalls were using the function
-+tracer to record how long was spent in __alloc_pages_nodemask and
-+using the mm_page_alloc tracepoint to identify which allocations were
-+for huge pages.
-+
- == get_user_pages and follow_page ==
++release:
+ 	if (new_page)
+ 		page_cache_release(new_page);
+ unlock:
+@@ -3073,6 +3080,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct page *page;
+ 	spinlock_t *ptl;
+ 	pte_t entry;
++	int ret = 0;
  
- get_user_pages and follow_page if run on a hugepage, will return the
+ 	pte_unmap(page_table);
+ 
+@@ -3109,6 +3117,10 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (!pte_none(*page_table))
+ 		goto release;
+ 
++	if (get_mm_memsw(mm) >=  rlimit_max(RLIMIT_RSS) >> PAGE_SHIFT) {
++		ret = VM_FAULT_SIGBUS;
++		goto release;
++	}
+ 	inc_mm_counter_fast(mm, MM_ANONPAGES);
+ 	page_add_new_anon_rmap(page, vma, address);
+ setpte:
+@@ -3118,7 +3130,7 @@ setpte:
+ 	update_mmu_cache(vma, address, page_table);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+-	return 0;
++	return ret;
+ release:
+ 	mem_cgroup_uncharge_page(page);
+ 	page_cache_release(page);
+@@ -3263,6 +3275,10 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		entry = mk_pte(page, vma->vm_page_prot);
+ 		if (flags & FAULT_FLAG_WRITE)
+ 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		if (get_mm_memsw(mm) >=  rlimit_max(RLIMIT_RSS) >> PAGE_SHIFT) {
++			ret = VM_FAULT_SIGBUS;
++			goto unlock;
++		}
+ 		if (anon) {
+ 			inc_mm_counter_fast(mm, MM_ANONPAGES);
+ 			page_add_new_anon_rmap(page, vma, address);
+@@ -3287,6 +3303,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			anon = 1; /* no anon but release faulted_page */
+ 	}
+ 
++unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 
+ 	if (dirty_page) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
