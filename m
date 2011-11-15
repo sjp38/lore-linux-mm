@@ -1,52 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C28876B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:00:29 -0500 (EST)
-Date: Tue, 15 Nov 2011 10:00:21 -0600 (CST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 731086B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 11:02:58 -0500 (EST)
+Date: Tue, 15 Nov 2011 10:02:54 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 5/5] mm: Only IPI CPUs to drain local pages if they
- exist
-In-Reply-To: <1321179449-6675-6-git-send-email-gilad@benyossef.com>
-Message-ID: <alpine.DEB.2.00.1111150956410.22502@router.home>
-References: <1321179449-6675-1-git-send-email-gilad@benyossef.com> <1321179449-6675-6-git-send-email-gilad@benyossef.com>
+Subject: Re: INFO: possible recursive locking detected: get_partial_node()
+ on 3.2-rc1
+In-Reply-To: <1321248853.22361.280.camel@sli10-conroe>
+Message-ID: <alpine.DEB.2.00.1111151002120.22502@router.home>
+References: <20111109090556.GA5949@zhy>  <201111102335.06046.kernelmail.jms@gmail.com>  <1320980671.22361.252.camel@sli10-conroe>  <alpine.DEB.2.00.1111110857330.3557@router.home> <1321248853.22361.280.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Julie Sullivan <kernelmail.jms@gmail.com>, Yong Zhang <yong.zhang0@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, 13 Nov 2011, Gilad Ben-Yossef wrote:
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9dd443d..44dc6c5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1119,7 +1119,23 @@ void drain_local_pages(void *arg)
->   */
->  void drain_all_pages(void)
->  {
-> -	on_each_cpu(drain_local_pages, NULL, 1);
-> +	int cpu;
-> +	struct zone *zone;
-> +	cpumask_var_t cpus;
-> +	struct per_cpu_pageset *pageset;
-
-We usually name such pointers "pcp" in the page allocator.
-
-> +
-> +	if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
-> +		for_each_populated_zone(zone) {
-> +			for_each_online_cpu(cpu) {
-> +				pageset = per_cpu_ptr(zone->pageset, cpu);
-> +				if (pageset->pcp.count)
-> +					cpumask_set_cpu(cpu, cpus);
-> +		}
-
-The pagesets are allocated on bootup from the per cpu areas. You may get a
-better access pattern by using for_each_online_cpu as the outer loop
-because their is a likelyhood of linear increasing accesses as you loop
-through the zones for a particular cpu.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
