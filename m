@@ -1,47 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B34A16B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 12:33:44 -0500 (EST)
-Message-ID: <4EC2A274.8080801@goop.org>
-Date: Tue, 15 Nov 2011 09:33:40 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BD4A6B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 12:37:06 -0500 (EST)
+Date: Tue, 15 Nov 2011 17:36:56 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
+Message-ID: <20111115173656.GJ27150@suse.de>
+References: <20111114140421.GA27150@suse.de>
+ <CAEwNFnALUoeh5cEW=XZqy7Aab4hxtE11-mAjWB1c5eddzGuQFA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-References: <b2fa75b6-f49c-4399-ba94-7ddf08d8db6e@default> <75efb251-7a5e-4aca-91e2-f85627090363@default> <20111027215243.GA31644@infradead.org> <1319785956.3235.7.camel@lappy> <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com> <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com> <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default> <20111031223717.GI3466@redhat.com> <1b2e4f74-7058-4712-85a7-84198723e3ee@default 4EB1AD53.2000600@redhat.com> <cb397723-5297-493d-9bbd-522a6400a5a6@default> <4EC29367.9040106@redhat.com>
-In-Reply-To: <4EC29367.9040106@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAEwNFnALUoeh5cEW=XZqy7Aab4hxtE11-mAjWB1c5eddzGuQFA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 11/15/2011 08:29 AM, Rik van Riel wrote:
-> On 11/02/2011 05:14 PM, Dan Magenheimer wrote:
->
->> It occurs to me that batching could be done locally without
->> changing the in-kernel "API" (i.e. frontswap_ops)... the
->> guest-side KVM tmem-backend-driver could do the compression
->> into guest-side memory and make a single
->> hypercall=vmexit/vmenter whenever it has collected enough for
->> a batch.
->
-> That seems like the best way to do it, indeed.
->
-> Do the current hooks allow that mode of operation,
-> or do the hooks only return after the entire operation
-> has completed?
+On Wed, Nov 16, 2011 at 01:13:30AM +0900, Minchan Kim wrote:
+> On Mon, Nov 14, 2011 at 11:04 PM, Mel Gorman <mgorman@suse.de> wrote:
+> > This patch seems to have gotten lost in the cracks and the discussion
+> > on alternatives that started here https://lkml.org/lkml/2011/10/25/24
+> > petered out without any alternative patches being posted. Lacking
+> > a viable alternative patch, I'm reposting this patch because AFAIK,
+> > this bug still exists.
+> >
+> > Colin Cross reported;
+> >
+> >  Under the following conditions, __alloc_pages_slowpath can loop forever:
+> >  gfp_mask & __GFP_WAIT is true
+> >  gfp_mask & __GFP_FS is false
+> >  reclaim and compaction make no progress
+> >  order <= PAGE_ALLOC_COSTLY_ORDER
+> >
+> >  These conditions happen very often during suspend and resume,
+> >  when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
+> >  allocations into __GFP_WAIT.
+> >
+> >  The oom killer is not run because gfp_mask & __GFP_FS is false,
+> >  but should_alloc_retry will always return true when order is less
+> >  than PAGE_ALLOC_COSTLY_ORDER.
+> >
+> > In his fix, he avoided retrying the allocation if reclaim made no
+> > progress and __GFP_FS was not set. The problem is that this would
+> > result in GFP_NOIO allocations failing that previously succeeded
+> > which would be very unfortunate.
+> >
+> > The big difference between GFP_NOIO and suspend converting GFP_KERNEL
+> > to behave like GFP_NOIO is that normally flushers will be cleaning
+> > pages and kswapd reclaims pages allowing GFP_NOIO to succeed after
+> > a short delay. The same does not necessarily apply during suspend as
+> > the storage device may be suspended.  Hence, this patch special cases
+> > the suspend case to fail the page allocation if reclaim cannot make
+> > progress. This might cause suspend to abort but that is better than
+> > a livelock.
+> >
+> > [mgorman@suse.de: Rework fix to be suspend specific]
+> > Reported-and-tested-by: Colin Cross <ccross@android.com>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/page_alloc.c |   22 ++++++++++++++++++++++
+> >  1 files changed, 22 insertions(+), 0 deletions(-)
+> >
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 9dd443d..5402897 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -127,6 +127,20 @@ void pm_restrict_gfp_mask(void)
+> >        saved_gfp_mask = gfp_allowed_mask;
+> >        gfp_allowed_mask &= ~GFP_IOFS;
+> >  }
+> > +
+> > +static bool pm_suspending(void)
+> > +{
+> > +       if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
+> > +               return false;
+> > +       return true;
+> > +}
+> > +
+> > +#else
+> > +
+> > +static bool pm_suspending(void)
+> > +{
+> > +       return false;
+> > +}
+> >  #endif /* CONFIG_PM_SLEEP */
+> >
+> >  #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+> > @@ -2214,6 +2228,14 @@ rebalance:
+> >
+> >                        goto restart;
+> >                }
+> > +
+> > +               /*
+> > +                * Suspend converts GFP_KERNEL to __GFP_WAIT which can
+> > +                * prevent reclaim making forward progress without
+> > +                * invoking OOM. Bail if we are suspending
+> > +                */
+> > +               if (pm_suspending())
+> > +                       goto nopage;
+> >        }
+> >
+> >        /* Check if we should retry the allocation */
+> >
+> 
+> I don't have much time to look into this problem so I miss some things.
+> But the feeling I have a mind when I faced this problem is why we
+> should make another special case handling function.
+> Already we have such thing for hibernation - oom_killer_disabled in vm
+> Could we use it instead of making new branch for very special case?
 
-The APIs are synchronous, but need only return once the memory has been
-dealt with in some way.  If you were batching before making a hypercall,
-then the implementation would just have to make a copy into its private
-memory and you'd have to make sure that lookups on batched but
-unsubmitted pages work.
+Fair question!
 
-(It's been a while since I've looked at these patches, but I'm assuming
-nothing fundamental has changed about them lately.)
+Suspend is a multi-stage process and the OOM killer is disabled at
+a different time to the GFP flags being restricted. This is another
+reason why renaming to pm_suspending to pm_suspended_storage is a
+good idea (pm_suspending is misleading at best).
 
-    J
+I am vague on all the steps hibernation takes but initially processes
+are frozen and if they are successfully frozen then the OOM killer is
+disabled. At this point, storage is still active so the GFP allowed
+mask is the same. When preparing to write the image, kernel threads
+are suspended so there is no new IO being initiated and then the GFP
+mask is restricted to prevent any memory allocation trying to write
+pages to storage. It then writes the image to disk.
+
+So what we have now is
+
+        if (!did_some_progress) {
+                if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+                        if (oom_killer_disabled)
+                                goto nopage;
+
+Lets say we changed that to
+
+        if (!did_some_progress) {
+                if (oom_killer_disabled)
+                        goto nopage;
+                if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+
+The impact would be that during the time between processes been frozen
+and storage being suspended, GFP_NOIO allocations that used to call
+wait_iff_congested and retry while kswapd does its thing will return
+failure instead. These GFP_NOIO allocations that used to succeed will
+now fail in rare cases during suspend and I don't think we want that.
+
+Is this what you meant or had you something else in mind?
+
+> Maybe It would be better to rename oom_killer_disabled with
+> pm_is_going or something.
+> 
+
+I think renaming oom_killer_disabled to pm_oom_disabled would be
+reasonable but it does not necessarily get us away from needing a
+pm_suspended_storage() test.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
