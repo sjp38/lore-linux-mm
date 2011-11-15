@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DC7E76B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 06:23:34 -0500 (EST)
-Received: by vcbfo11 with SMTP id fo11so6744695vcb.14
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 03:23:31 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EAB176B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 07:23:24 -0500 (EST)
+Date: Tue, 15 Nov 2011 12:23:15 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Reduce the amount of work done when updating
+ min_free_kbytes
+Message-ID: <20111115122315.GD27150@suse.de>
+References: <20111111162119.GP3083@suse.de>
+ <20111114152100.1333a015.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1321346525-10187-1-git-send-email-amwang@redhat.com>
-References: <1321346525-10187-1-git-send-email-amwang@redhat.com>
-Date: Tue, 15 Nov 2011 13:23:31 +0200
-Message-ID: <CAOJsxLEXbWbEhqX2YfzcQhyLJrY0H2ifCJCvGkoFHZsYAZEMPA@mail.gmail.com>
-Subject: Re: [Patch] tmpfs: add fallocate support
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20111114152100.1333a015.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amerigo Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+On Mon, Nov 14, 2011 at 03:21:00PM -0800, Andrew Morton wrote:
+> On Fri, 11 Nov 2011 16:21:19 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > When min_free_kbytes is updated, some pageblocks are marked MIGRATE_RESERVE.
+> > Ordinarily, this work is unnoticable as it happens early in boot but on
+> > large machines with 1TB of memory, this has been reported to delay
+> > boot times, probably due to the NUMA distances involved.
+> > 
+> > The bulk of the work is due to calling calling pageblock_is_reserved()
+> > an unnecessary amount of times and accessing far more struct page
+> > metadata than is necessary. This patch significantly reduces the
+> > amount of work done by setup_zone_migrate_reserve() improving boot
+> > times on 1TB machines.
+> > 
+> 
+> By how much? :)
+> 
+> (I mainly ask because I'm curious to know how long the kernel takes to
+> boot on a 1TB machine...)
+> 
 
-On Tue, Nov 15, 2011 at 10:42 AM, Amerigo Wang <amwang@redhat.com> wrote:
-> This patch adds fallocate support to tmpfs. I tested this patch
-> with the following test case,
->
-> =A0 =A0 =A0 =A0% sudo mount -t tmpfs -o size=3D100 tmpfs /mnt
-> =A0 =A0 =A0 =A0% touch /mnt/foobar
-> =A0 =A0 =A0 =A0% echo hi > /mnt/foobar
-> =A0 =A0 =A0 =A0% fallocate -o 3 -l 5000 /mnt/foobar
-> =A0 =A0 =A0 =A0fallocate: /mnt/foobar: fallocate failed: No space left on=
- device
-> =A0 =A0 =A0 =A0% fallocate -o 3 -l 3000 /mnt/foobar
-> =A0 =A0 =A0 =A0% ls -l /mnt/foobar
-> =A0 =A0 =A0 =A0-rw-rw-r-- 1 wangcong wangcong 3003 Nov 15 16:10 /mnt/foob=
-ar
-> =A0 =A0 =A0 =A0% dd if=3D/dev/zero of=3D/mnt/foobar seek=3D3 bs=3D1 count=
-=3D3000
-> =A0 =A0 =A0 =A03000+0 records in
-> =A0 =A0 =A0 =A03000+0 records out
-> =A0 =A0 =A0 =A03000 bytes (3.0 kB) copied, 0.0153224 s, 196 kB/s
-> =A0 =A0 =A0 =A0% hexdump -C /mnt/foobar
-> =A0 =A0 =A0 =A000000000 =A068 69 0a 00 00 00 00 00 =A000 00 00 00 00 00 0=
-0 00 =A0|hi..............|
-> =A0 =A0 =A0 =A000000010 =A000 00 00 00 00 00 00 00 =A000 00 00 00 00 00 0=
-0 00 =A0|................|
-> =A0 =A0 =A0 =A0*
-> =A0 =A0 =A0 =A000000bb0 =A000 00 00 00 00 00 00 00 =A000 00 00 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 |...........|
-> =A0 =A0 =A0 =A000000bbb
-> =A0 =A0 =A0 =A0% cat /mnt/foobar
-> =A0 =A0 =A0 =A0hi
->
-> Signed-off-by: WANG Cong <amwang@redhat.com>
 
-What's the use case for this?
+Good question. I don't have access to the machine but based on the dmesg
+they posted before and after, this patch reduced boot times by 27
+seconds.
 
-                        Pekka
+With only dmesg, I don't know how long it is taking to start services
+and mount of the filesystem but assuming no major problems or timeouts
+from drivers it looks like it is taking about 6 minutes to boot.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
