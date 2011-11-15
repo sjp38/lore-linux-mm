@@ -1,59 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB726B002D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 03:10:04 -0500 (EST)
-Received: from /spool/local
-	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 15 Nov 2011 03:10:00 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAF89ncH281396
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 03:09:49 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAF89lZ5019357
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 03:09:49 -0500
-Date: Tue, 15 Nov 2011 13:14:06 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 3.2-rc1 28/28]   uprobes: introduce
- UTASK_SSTEP_TRAPPED logic
-Message-ID: <20111115074406.GE4243@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111110183725.11361.57827.sendpatchset@srdronam.in.ibm.com>
- <20111110184307.11361.8163.sendpatchset@srdronam.in.ibm.com>
- <20111114163953.GA29399@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 02DB66B002D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 03:34:39 -0500 (EST)
+Date: Tue, 15 Nov 2011 16:36:46 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: [PATCCH percpu: add cpunum param in per_cpu_ptr_to_phys
+Message-ID: <20111115083646.GA21468@darkstar.nay.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111114163953.GA29399@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: gregkh@suse.de, tj@kernel.org, cl@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> >
-> > +void __weak abort_xol(struct pt_regs *regs, struct uprobe_task *utask)
-> > +{
-> > +	set_instruction_pointer(regs, utask->vaddr);
-> > +}
-> 
-> OK, this is fine on 32bit. But X86_64 should also handle
-> UPROBES_FIX_RIP_AX/CX?
-> 
-> IOW, shouldn't we also do
-> 
-> 	if (uprobe->fixups & UPROBES_FIX_RIP_AX)
-> 		regs->ax = tskinfo->saved_scratch_register;
-> 	else if (uprobe->fixups & UPROBES_FIX_RIP_CX)
-> 		regs->cx = tskinfo->saved_scratch_register;
-> 
-> on 64bit?
+per_cpu_ptr_to_phys iterate all cpu to get the phy addr
+let's leave the caller to pass the cpu number to it.
 
-Yes, we should be doing this on x86_64. Since abort_xol is a weak
-function, I will have x86_64 specific abort_xol.
+Actually in the only one user show_crash_notes,
+cpunum is provided already before calling this. 
 
--- 
-Thanks and Regards
-Srikar
+Signed-off-by: Dave Young <dyoung@redhat.com>
+---
+ drivers/base/cpu.c     |    2 +-
+ include/linux/percpu.h |    2 +-
+ mm/percpu.c            |   29 ++++-------------------------
+ 3 files changed, 6 insertions(+), 27 deletions(-)
+
+--- linux-2.6.orig/drivers/base/cpu.c	2011-09-20 12:39:36.000000000 +0800
++++ linux-2.6/drivers/base/cpu.c	2011-11-15 14:52:42.742852411 +0800
+@@ -125,7 +125,7 @@ static ssize_t show_crash_notes(struct s
+ 	 * boot up and this data does not change there after. Hence this
+ 	 * operation should be safe. No locking required.
+ 	 */
+-	addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpunum));
++	addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpunum), cpunum);
+ 	rc = sprintf(buf, "%Lx\n", addr);
+ 	return rc;
+ }
+--- linux-2.6.orig/include/linux/percpu.h	2011-11-15 11:06:18.000000000 +0800
++++ linux-2.6/include/linux/percpu.h	2011-11-15 14:53:28.352605321 +0800
+@@ -160,7 +160,7 @@ extern void __init percpu_init_late(void
+ 
+ extern void __percpu *__alloc_percpu(size_t size, size_t align);
+ extern void free_percpu(void __percpu *__pdata);
+-extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
++extern phys_addr_t per_cpu_ptr_to_phys(void *addr, int cpunum);
+ 
+ #define alloc_percpu(type)	\
+ 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type), __alignof__(type))
+--- linux-2.6.orig/mm/percpu.c	2011-11-15 11:06:19.000000000 +0800
++++ linux-2.6/mm/percpu.c	2011-11-15 14:59:56.927166899 +0800
+@@ -971,6 +971,7 @@ bool is_kernel_percpu_address(unsigned l
+ /**
+  * per_cpu_ptr_to_phys - convert translated percpu address to physical address
+  * @addr: the address to be converted to physical address
++ * @cpunum: the cpu number of percpu address
+  *
+  * Given @addr which is dereferenceable address obtained via one of
+  * percpu access macros, this function translates it into its physical
+@@ -980,34 +981,12 @@ bool is_kernel_percpu_address(unsigned l
+  * RETURNS:
+  * The physical address for @addr.
+  */
+-phys_addr_t per_cpu_ptr_to_phys(void *addr)
++phys_addr_t per_cpu_ptr_to_phys(void *addr, int cpunum)
+ {
+ 	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
+-	bool in_first_chunk = false;
+-	unsigned long first_start, first_end;
+-	unsigned int cpu;
++	void *start = per_cpu_ptr(base, cpunum);
+ 
+-	/*
+-	 * The following test on first_start/end isn't strictly
+-	 * necessary but will speed up lookups of addresses which
+-	 * aren't in the first chunk.
+-	 */
+-	first_start = pcpu_chunk_addr(pcpu_first_chunk, pcpu_first_unit_cpu, 0);
+-	first_end = pcpu_chunk_addr(pcpu_first_chunk, pcpu_last_unit_cpu,
+-				    pcpu_unit_pages);
+-	if ((unsigned long)addr >= first_start &&
+-	    (unsigned long)addr < first_end) {
+-		for_each_possible_cpu(cpu) {
+-			void *start = per_cpu_ptr(base, cpu);
+-
+-			if (addr >= start && addr < start + pcpu_unit_size) {
+-				in_first_chunk = true;
+-				break;
+-			}
+-		}
+-	}
+-
+-	if (in_first_chunk) {
++	if (addr >= start && addr < start + pcpu_unit_size) {
+ 		if (!is_vmalloc_addr(addr))
+ 			return __pa(addr);
+ 		else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
