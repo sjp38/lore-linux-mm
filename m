@@ -1,44 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BFF66B0069
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 06:54:43 -0500 (EST)
-Date: Wed, 16 Nov 2011 11:54:35 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: Crash when memset of shared mapped memory in ARM
-Message-ID: <20111116115435.GI4942@mudshark.cambridge.arm.com>
-References: <CAJ8eaTzOtgMzcZeRr6f=+WhtsykK1NZraOGBPoqGncwcAGcTyQ@mail.gmail.com>
- <20111116084547.GG9581@n2100.arm.linux.org.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 44B0C6B006E
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 07:04:58 -0500 (EST)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Wed, 16 Nov 2011 17:28:36 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAGBtLjq3817712
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 17:25:22 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAGBtLos012110
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 22:55:21 +1100
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Subject: [PATCH v2] PM/Memory-hotplug: Avoid task freezing failures
+Date: Wed, 16 Nov 2011 17:25:23 +0530
+Message-ID: <20111116115515.25945.35368.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111116084547.GG9581@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: naveen yadav <yad.naveen@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: rjw@sisk.pl
+Cc: pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, tj@kernel.org, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-(Replying to Russell so as to lose the -request addresses)
+The lock_system_sleep() function is used in the memory hotplug code at
+several places in order to implement mutual exclusion with hibernation.
+However, this function tries to acquire the 'pm_mutex' lock using
+mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
+get the lock. This would lead to task freezing failures and hence
+hibernation failure as a consequence, even though the hibernation call path
+successfully acquired the lock.
 
-On Wed, Nov 16, 2011 at 08:45:47AM +0000, Russell King - ARM Linux wrote:
-> Please do not spam mailing lists -request addresses when you post.  The
-> -request addresses are there for you to give the mailing list software
-> _instructions_ on what to do with your subscription.  It is not for
-> posts to the mailing list.
+This patch fixes this issue by modifying lock_system_sleep() to use
+mutex_trylock() in a loop until the lock is acquired, instead of using
+mutex_lock(), in order to avoid going to uninterruptible sleep.
+Also, try_to_freeze() is called within the loop, so that we don't cause
+freezing failures due to busy looping.
 
-For what it's worth, I was brave/daft enough to compile and run the testcase
-with an -rc1 kernel and Linaro 11.09 filesystem on the quad A9 Versatile
-Express:
+v2: Tejun pointed problems with using mutex_lock_interruptible() in a
+    while loop, when signals not related to freezing are involved.
+    So, replaced it with mutex_trylock().
 
-root@dancing-fool:~# ./yad
-mmap: addr 0x20000000
-root@dancing-fool:~# ./yad
-shm_open: File exists
-mmap: addr 0x20000000
+Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+---
 
-Looks like I'm missing the fireworks, despite the weirdy MAP_SHARED |
-MAP_FIXED mmap flags.
+ include/linux/suspend.h |   14 +++++++++++++-
+ 1 files changed, 13 insertions(+), 1 deletions(-)
 
-Will
+diff --git a/include/linux/suspend.h b/include/linux/suspend.h
+index 57a6924..c2b5aab 100644
+--- a/include/linux/suspend.h
++++ b/include/linux/suspend.h
+@@ -5,6 +5,7 @@
+ #include <linux/notifier.h>
+ #include <linux/init.h>
+ #include <linux/pm.h>
++#include <linux/freezer.h>
+ #include <linux/mm.h>
+ #include <asm/errno.h>
+ 
+@@ -380,7 +381,18 @@ static inline void unlock_system_sleep(void) {}
+ 
+ static inline void lock_system_sleep(void)
+ {
+-	mutex_lock(&pm_mutex);
++	/*
++	 * We should not use mutex_lock() here because, in case we fail to
++	 * acquire the lock, it would put us to sleep in TASK_UNINTERRUPTIBLE
++	 * state, which would lead to task freezing failures. As a
++	 * consequence, hibernation would fail (even though it had acquired
++	 * the 'pm_mutex' lock).
++	 *
++	 * We should use try_to_freeze() in the while loop so that we don't
++	 * cause freezing failures due to busy looping.
++	 */
++	while (!mutex_trylock(&pm_mutex))
++		try_to_freeze();
+ }
+ 
+ static inline void unlock_system_sleep(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
