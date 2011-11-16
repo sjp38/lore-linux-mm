@@ -1,89 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 586DA6B002D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 16:08:39 -0500 (EST)
-Received: by iaek3 with SMTP id k3so1603765iae.14
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 13:08:36 -0800 (PST)
-Date: Wed, 16 Nov 2011 13:08:33 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 299CA6B002D
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 16:39:07 -0500 (EST)
+Received: by iaek3 with SMTP id k3so1647830iae.14
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 13:39:05 -0800 (PST)
+Date: Wed, 16 Nov 2011 13:39:02 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed for
- mempolicy or disjoint nodemask
-Message-ID: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
+In-Reply-To: <20111116095244.GM27150@suse.de>
+Message-ID: <alpine.DEB.2.00.1111161332330.16596@chino.kir.corp.google.com>
+References: <20111114140421.GA27150@suse.de> <alpine.DEB.2.00.1111151332160.26232@chino.kir.corp.google.com> <20111116095244.GM27150@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Miao Xie <miaox@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-c0ff7453bb5c ("cpuset,mm: fix no node to alloc memory when changing
-cpuset's mems") adds get_mems_allowed() to prevent the set of allowed
-nodes from changing for a thread.  This causes any update to a set of
-allowed nodes to stall until put_mems_allowed() is called.
+On Wed, 16 Nov 2011, Mel Gorman wrote:
 
-This stall is unncessary, however, if at least one node remains unchanged
-in the update to the set of allowed nodes.  This was addressed by
-89e8a244b97e ("cpusets: avoid looping when storing to mems_allowed if one
-node remains set"), but it's still possible that an empty nodemask may be
-read from a mempolicy because the old nodemask may be remapped to the new
-nodemask during rebind.  To prevent this, only avoid the stall if there
-is no mempolicy for the thread being changed.
+> Good point. I agree that it would be more consistent although
+> there is still the risk of infinite looping with __GFP_NOFAIL if
+> storage devices are disabled.
+> 
 
-This is a temporary solution until all reads from mempolicy nodemasks can
-be guaranteed to not be empty without the get_mems_allowed()
-synchronization.
+Yeah, that's always been possible even regardless of the state of storage 
+devices.  If a task has access to memory reserves via TIF_MEMDIE, 
+__alloc_pages_high_priority() will just loop indefinitely anyway for these 
+allocations.  While users of __GFP_NOFAIL accept that it won't return NULL 
+as long as they have __GFP_WAIT (which they all do), then they should also 
+accept the fact that it may never return at all.
 
-Also moves the check for nodemask intersection inside task_lock() so that
-tsk->mems_allowed cannot change.
+> Colin reported elsewhere in this thread that "the particular allocation
+> that usually causes the problem is the pgd_alloc for page tables when
+> re-enabling the 2nd cpu during resume". On X86, those allocations are using
+> the flags
+> 
+> GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
+> 
+> so they should not be trapped in an infinite loop due to __GFP_NOFAIL.
+> On ARM, they use GFP_KERNEL so should also be ok.
+> 
 
-Reported-by: Miao Xie <miaox@cn.fujitsu.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- kernel/cpuset.c |   17 +++++++++++------
- 1 files changed, 11 insertions(+), 6 deletions(-)
+The __GFP_REPEAT is concerning because there's a high liklihood that 
+!__GFP_FS as a result of suspend will never cause enough pages to be 
+reclaimed so the necessary threshold will be reached to exit from its own 
+self-induced infinite loop.  So if we go forward with failing allocations 
+attempted without __GFP_IO and __GFP_FS that are !__GFP_NOFAIL, then we 
+should also add that __GFP_REPEAT is a no-op without __GFP_IO or __GFP_FS.
 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -949,7 +949,7 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
- static void cpuset_change_task_nodemask(struct task_struct *tsk,
- 					nodemask_t *newmems)
- {
--	bool masks_disjoint = !nodes_intersects(*newmems, tsk->mems_allowed);
-+	bool need_loop;
- 
- repeat:
- 	/*
-@@ -962,6 +962,14 @@ repeat:
- 		return;
- 
- 	task_lock(tsk);
-+	/*
-+	 * Determine if a loop is necessary if another thread is doing
-+	 * get_mems_allowed().  If at least one node remains unchanged and
-+	 * tsk does not have a mempolicy, then an empty nodemask will not be
-+	 * possible when mems_allowed is larger than a word.
-+	 */
-+	need_loop = tsk->mempolicy ||
-+			!nodes_intersects(*newmems, tsk->mems_allowed);
- 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
- 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
- 
-@@ -981,12 +989,9 @@ repeat:
- 
- 	/*
- 	 * Allocation of memory is very fast, we needn't sleep when waiting
--	 * for the read-side.  No wait is necessary, however, if at least one
--	 * node remains unchanged and tsk has a mempolicy that could store an
--	 * empty nodemask.
-+	 * for the read-side.
- 	 */
--	while (masks_disjoint && tsk->mempolicy &&
--			ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
-+	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
- 		task_unlock(tsk);
- 		if (!task_curr(tsk))
- 			yield();
+> David, is this what you meant? This patch includes all the
+> documentation-related updates that were discussed in this thread as well
+> as updated the check in mm/swapfile.c for hibernation.
+> 
+> ==== CUT HERE ====
+> mm: avoid livelock on !__GFP_FS allocations v2
+> 
+> Changelog since V1
+>   o Move PM check to should_alloc_retry (David Rientjes)
+>   o Add some additional documentation
+> 
+> Colin Cross reported;
+> 
+>   Under the following conditions, __alloc_pages_slowpath can loop forever:
+>   gfp_mask & __GFP_WAIT is true
+>   gfp_mask & __GFP_FS is false
+>   reclaim and compaction make no progress
+>   order <= PAGE_ALLOC_COSTLY_ORDER
+> 
+>   These conditions happen very often during suspend and resume,
+>   when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
+>   allocations into __GFP_WAIT.
+> 
+>   The oom killer is not run because gfp_mask & __GFP_FS is false,
+>   but should_alloc_retry will always return true when order is less
+>   than PAGE_ALLOC_COSTLY_ORDER.
+> 
+> In his fix, he avoided retrying the allocation if reclaim made no
+> progress and __GFP_FS was not set. The problem is that this would
+> result in GFP_NOIO allocations failing that previously succeeded
+> which would be very unfortunate.
+> 
+> The big difference between GFP_NOIO and suspend converting GFP_KERNEL
+> to behave like GFP_NOIO is that normally flushers will be cleaning
+> pages and kswapd reclaims pages allowing GFP_NOIO to succeed after
+> a short delay. The same does not necessarily apply during suspend as
+> the storage device may be suspended.
+> 
+> This patch special cases the suspend case to fail the page allocation
+> if reclaim cannot make progress and adds some documentation on how
+> gfp_allowed_mask is currently used. Failing allocations like this
+> may cause suspend to abort but that is better than a livelock.
+> 
+> [mgorman@suse.de: Rework fix to be suspend specific]
+> [rientjes@google.com: Move suspended device check to should_alloc_retry]
+> Reported-by: Colin Cross <ccross@android.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Acked-by: David Rientjes <rientjes@google.com>
+
+Thanks Mel!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
