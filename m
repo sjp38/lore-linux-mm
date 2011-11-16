@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3F16B0069
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 02:12:18 -0500 (EST)
-Received: by bke17 with SMTP id 17so240153bke.14
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 23:12:15 -0800 (PST)
-Date: Wed, 16 Nov 2011 09:12:10 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [Patch] tmpfs: add fallocate support
-In-Reply-To: <4EC361C0.7040309@redhat.com>
-Message-ID: <alpine.LFD.2.02.1111160911320.2446@tux.localdomain>
-References: <1321346525-10187-1-git-send-email-amwang@redhat.com> <CAOJsxLEXbWbEhqX2YfzcQhyLJrY0H2ifCJCvGkoFHZsYAZEMPA@mail.gmail.com> <4EC361C0.7040309@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 84CA06B006C
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 02:12:25 -0500 (EST)
+Message-ID: <4EC3624B.4080805@redhat.com>
+Date: Wed, 16 Nov 2011 15:12:11 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [Patch] tmpfs: add fallocate support
+References: <1321346525-10187-1-git-send-email-amwang@redhat.com> <20111116101846.5b017d1e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111116101846.5b017d1e.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, kay.sievers@vrfy.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Wed, 16 Nov 2011, Cong Wang wrote:
->> What's the use case for this?
+ao? 2011a1'11ae??16ae?JPY 09:18, KAMEZAWA Hiroyuki a??e??:
 >
-> Systemd needs it, see http://lkml.org/lkml/2011/10/20/275.
-> I am adding Kay into Cc.
+> Hmm.. Doesn't this duplicate shmem_getpage_gfp() ? Can't you split/share codes ?
+>
 
-The post doesn't mention why it needs it, though.
+Yeah, you are right... I will split the code.
 
- 			Pekka
+Thanks for review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
