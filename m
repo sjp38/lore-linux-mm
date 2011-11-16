@@ -1,58 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D048D6B002D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 09:51:31 -0500 (EST)
-Date: Wed, 16 Nov 2011 09:49:59 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [GIT PULL] mm: frontswap (for 3.2 window)
-Message-ID: <20111116144959.GA11487@phenom.dumpdata.com>
-References: <20111027215243.GA31644@infradead.org>
- <1319785956.3235.7.camel@lappy>
- <CAOzbF4fnD=CGR-nizZoBxmFSuAjFC3uAHf3wDj5RLneJvJhrOQ@mail.gmail.comCAOJsxLGOTw7rtFnqeHvzFxifA0QgPVDHZzrEo=-uB2Gkrvp=JQ@mail.gmail.com>
- <552d2067-474d-4aef-a9a4-89e5fd8ef84f@default20111031181651.GF3466@redhat.com>
- <60592afd-97aa-4eaf-b86b-f6695d31c7f1@default>
- <20111031223717.GI3466@redhat.com>
- <1b2e4f74-7058-4712-85a7-84198723e3ee@default4EB1AD53.2000600@redhat.com>
- <cb397723-5297-493d-9bbd-522a6400a5a6@default>
- <4EC29367.9040106@redhat.com>
- <4EC2A274.8080801@goop.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E06156B002D
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 10:07:56 -0500 (EST)
+Date: Wed, 16 Nov 2011 15:07:50 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
+ allocations
+Message-ID: <20111116150750.GO27150@suse.de>
+References: <20111110151211.523fa185.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
+ <20111111101414.GJ3083@suse.de>
+ <20111114154408.10de1bc7.akpm@linux-foundation.org>
+ <20111115132513.GF27150@suse.de>
+ <alpine.DEB.2.00.1111151303230.23579@chino.kir.corp.google.com>
+ <20111115234845.GK27150@suse.de>
+ <alpine.DEB.2.00.1111151554190.3781@chino.kir.corp.google.com>
+ <20111116041350.GA3306@redhat.com>
+ <20111116133056.GC3306@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4EC2A274.8080801@goop.org>
+In-Reply-To: <20111116133056.GC3306@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Rik van Riel <riel@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@kernel.org>, Cyclonus J <cyclonusj@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Hellwig <hch@infradead.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, ngupta@vflare.org, Chris Mason <chris.mason@oracle.com>, JBeulich@novell.com, Dave Hansen <dave@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 15, 2011 at 09:33:40AM -0800, Jeremy Fitzhardinge wrote:
-> On 11/15/2011 08:29 AM, Rik van Riel wrote:
-> > On 11/02/2011 05:14 PM, Dan Magenheimer wrote:
-> >
-> >> It occurs to me that batching could be done locally without
-> >> changing the in-kernel "API" (i.e. frontswap_ops)... the
-> >> guest-side KVM tmem-backend-driver could do the compression
-> >> into guest-side memory and make a single
-> >> hypercall=vmexit/vmenter whenever it has collected enough for
-> >> a batch.
-> >
-> > That seems like the best way to do it, indeed.
-> >
-> > Do the current hooks allow that mode of operation,
-> > or do the hooks only return after the entire operation
-> > has completed?
+On Wed, Nov 16, 2011 at 02:30:56PM +0100, Andrea Arcangeli wrote:
+> On Wed, Nov 16, 2011 at 05:13:50AM +0100, Andrea Arcangeli wrote:
+> > After checking my current thp vmstat I think Andrew was right and we
+> > backed out for a good reason before. I'm getting significantly worse
+> > success rate, not sure why it was a small reduction in success rate
+> > but hey I cannot exclude I may have broke something with some other
+> > patch. I've been running it together with a couple more changes. If
+> > it's this change that reduced the success rate, I'm afraid going
+> > always async is not ok.
 > 
-> The APIs are synchronous, but need only return once the memory has been
-> dealt with in some way.  If you were batching before making a hypercall,
-> then the implementation would just have to make a copy into its private
-> memory and you'd have to make sure that lookups on batched but
-> unsubmitted pages work.
-> 
-> (It's been a while since I've looked at these patches, but I'm assuming
-> nothing fundamental has changed about them lately.)
+> I wonder if the high failure rate when shutting off "sync compaction"
+> and forcing only "async compaction" for THP (your patch queued in -mm)
+> is also because of ISOLATE_CLEAN being set in compaction from commit
+> 39deaf8. ISOLATE_CLEAN skipping PageDirty means all tmpfs/anon pages
+> added to swapcache (or removed from swapcache which sets the dirty bit
+> on the page because the pte may be mapped clean) are skipped entirely
+> by async compaction for no good reason.
 
-Yup, what you describe is possible, and nothing fundamental has changed about
-them.
+Good point! Even though these pages can be migrated without IO or
+incurring a sync, we are skipping over them. I'm still
+looking at passing sync down to ->migratepages and as part of that,
+ISOLATE_CLEAN will need new smarts.
+
+> That can't possibly be ok,
+> because those don't actually require any I/O or blocking to be
+> migrated. PageDirty is a "blocking/IO" operation only for filebacked
+> pages. So I think we must revert 39deaf8, instead of cleaning it up
+> with my cleanup posted in Message-Id 20111115020831.GF4414@redhat.com .
+> 
+
+It would be preferable if the pages that would block during migration
+could be identified in advance but that may be unrealistic. What may be
+a better compromise is to only isolate PageDirty pages with a
+->migratepage callback.
+
+> ISOLATED_CLEAN still looks right for may_writepage, for reclaim dirty
+> bit set on the page is a I/O event, for migrate it's not if it's
+> tmpfs/anon.
+> 
+> Did you run your compaction tests with some swap activity?
+> 
+
+Some, but not intensive.
+
+> Reducing the async compaction effectiveness while there's some swap
+> activity then also leads in more frequently than needed running sync
+> compaction and page reclaim.
+> 
+> I'm hopeful however that by running just 2 passes of migrate_pages
+> main loop with the "avoid overwork in migrate sync mode" patch, we can
+> fix the excessive hanging. If that works number of passes could
+> actually be a tunable, and setting it to 1 (instead of 2) would then
+> provide 100% "async compaction" behavior again. And if somebody
+> prefers to stick to 10 he can... so then he can do trylock pass 0,
+> lock_page pass1, wait_writeback pass2, wait pin pass3, finally migrate
+> pass4. (something 2 passes alone won't allow). So making the migrate
+> passes/force-threshold tunable (maybe only for the new sync=2
+> migration mode) could be good idea. Or we could just return to sync
+> true/false and have the migration tunable affect everything but that
+> would alter the reliability of sys_move_pages and other numa things
+> too, where I guess 10 passes are ok. This is why I added a sync=2 mode
+> for migrate.
+
+I am vaguely concerned that this will just make the stalling harder to
+reproduce and diagnose. While you investigate this route, I'm going to
+keep investigating using only async migration for THP and having async
+compaction move pages it can migrate without blocking.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
