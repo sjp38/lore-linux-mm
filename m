@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id CC05C6B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 20:09:43 -0500 (EST)
-Subject: Re: [patch v2 4/4]thp: improve order in lru list for split huge
- page
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 093596B006E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 20:14:38 -0500 (EST)
+Subject: Re: [patch]slub: add missed accounting
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111115181901.GK4414@redhat.com>
-References: <1321340661.22361.297.camel@sli10-conroe>
-	 <20111115181901.GK4414@redhat.com>
+In-Reply-To: <1320994454.22361.259.camel@sli10-conroe>
+References: <1320994454.22361.259.camel@sli10-conroe>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 16 Nov 2011 09:19:26 +0800
-Message-ID: <1321406366.22361.299.camel@sli10-conroe>
+Date: Wed, 16 Nov 2011 09:24:21 +0800
+Message-ID: <1321406661.22361.302.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
 
-On Wed, 2011-11-16 at 02:19 +0800, Andrea Arcangeli wrote:
-> On Tue, Nov 15, 2011 at 03:04:21PM +0800, Shaohua Li wrote:
-> > Put the tail subpages of an isolated hugepage under splitting in the
-> > lru reclaim head as they supposedly should be isolated too next.
-> > 
-> > Queues the subpages in physical order in the lru for non isolated
-> > hugepages under splitting. That might provide some theoretical cache
-> > benefit to the buddy allocator later.
-> > 
-> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+looks I got Christoph's email address wrong, fixed it.
+
+On Fri, 2011-11-11 at 14:54 +0800, Shaohua Li wrote:
+> With per-cpu partial list, slab is added to partial list first and then moved
+> to node list. The __slab_free() code path for add/remove_partial is almost
+> deprecated(except for slub debug). But we forget to account add/remove_partial
+> when move per-cpu partial pages to node list, so the statistics for such events
+> are always 0. Add corresponding accounting.
 > 
-> Perfect all 4 patches. You've been reading my mind because I was
-> thinking it'd be good to merge these 4 which are strightforward
-> before going into 5/5.
-yep, I'm thinking to post that one separately, they are not related
-anyway. Still working on it.
+> This is against the patch "slub: use correct parameter to add a page to
+> partial list tail"
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> ---
+>  mm/slub.c |    7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
+> 
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2011-11-11 14:43:38.000000000 +0800
+> +++ linux/mm/slub.c	2011-11-11 14:43:40.000000000 +0800
+> @@ -1901,11 +1901,14 @@ static void unfreeze_partials(struct kme
+>  			}
+>  
+>  			if (l != m) {
+> -				if (l == M_PARTIAL)
+> +				if (l == M_PARTIAL) {
+>  					remove_partial(n, page);
+> -				else
+> +					stat(s, FREE_REMOVE_PARTIAL);
+> +				} else {
+>  					add_partial(n, page,
+>  						DEACTIVATE_TO_TAIL);
+> +					stat(s, FREE_ADD_PARTIAL);
+> +				}
+>  
+>  				l = m;
+>  			}
+> 
 
-Thanks,
-Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
