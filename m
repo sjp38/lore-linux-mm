@@ -1,51 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 470006B0069
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 05:09:53 -0500 (EST)
-Received: by faas10 with SMTP id s10so1744267faa.14
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 02:09:39 -0800 (PST)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BFF66B0069
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 06:54:43 -0500 (EST)
+Date: Wed, 16 Nov 2011 11:54:35 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: Crash when memset of shared mapped memory in ARM
+Message-ID: <20111116115435.GI4942@mudshark.cambridge.arm.com>
+References: <CAJ8eaTzOtgMzcZeRr6f=+WhtsykK1NZraOGBPoqGncwcAGcTyQ@mail.gmail.com>
+ <20111116084547.GG9581@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <4EC264AA.30306@redhat.com>
-References: <4EB3FA89.6090601@redhat.com>
-	<4EC264AA.30306@redhat.com>
-Date: Wed, 16 Nov 2011 15:39:39 +0530
-Message-ID: <CAKTCnzkczaSo==AJREX1LtbBeeybn3fsKS84ibbgc_FEMbedFg@mail.gmail.com>
-Subject: Re: [RFC PATCH V2] Enforce RSS+Swap rlimit
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111116084547.GG9581@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: naveen yadav <yad.naveen@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, Nov 15, 2011 at 6:40 PM, Jerome Marchand <jmarchan@redhat.com> wrote:
->
-> Change since V1: rebase on 3.2-rc1
->
-> Currently RSS rlimit is not enforced. We can not forbid a process to exceeds
-> its RSS limit and allow it swap out. That would hurts the performance of all
-> system, even when memory resources are plentiful.
->
-> Therefore, instead of enforcing a limit on rss usage alone, this patch enforces
-> a limit on rss+swap value. This is similar to memsw limits of cgroup.
-> If a process rss+swap usage exceeds RLIMIT_RSS max limit, he received a SIGBUS
-> signal.
->
-> My tests show that code in do_anonymous_page() and __do_fault() indeed prevents
-> processes to get more memory than the limit and I haven't seen any adverse
-> effect, but so far, I have no test coverage of the code in do_wp_page(). I'm
-> not sure how to test it.
->
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+(Replying to Russell so as to lose the -request addresses)
 
-I think we need the get_mm_rss* definitions need to be revisited and
-agreed upon. I am afraid it cannot be simple addition, since
+On Wed, Nov 16, 2011 at 08:45:47AM +0000, Russell King - ARM Linux wrote:
+> Please do not spam mailing lists -request addresses when you post.  The
+> -request addresses are there for you to give the mailing list software
+> _instructions_ on what to do with your subscription.  It is not for
+> posts to the mailing list.
 
-1. It does not account for shared pages
-2. If we enforce a limit without accounting for sharing, we might
-enforce wrong limits
+For what it's worth, I was brave/daft enough to compile and run the testcase
+with an -rc1 kernel and Linaro 11.09 filesystem on the quad A9 Versatile
+Express:
 
-Balbir
+root@dancing-fool:~# ./yad
+mmap: addr 0x20000000
+root@dancing-fool:~# ./yad
+shm_open: File exists
+mmap: addr 0x20000000
+
+Looks like I'm missing the fireworks, despite the weirdy MAP_SHARED |
+MAP_FIXED mmap flags.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
