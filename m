@@ -1,105 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 299CA6B002D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 16:39:07 -0500 (EST)
-Received: by iaek3 with SMTP id k3so1647830iae.14
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 13:39:05 -0800 (PST)
-Date: Wed, 16 Nov 2011 13:39:02 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E29026B006E
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 16:44:22 -0500 (EST)
+Received: by yenm10 with SMTP id m10so284944yen.14
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 13:44:20 -0800 (PST)
+Date: Wed, 16 Nov 2011 13:44:17 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] mm: avoid livelock on !__GFP_FS allocations
-In-Reply-To: <20111116095244.GM27150@suse.de>
-Message-ID: <alpine.DEB.2.00.1111161332330.16596@chino.kir.corp.google.com>
-References: <20111114140421.GA27150@suse.de> <alpine.DEB.2.00.1111151332160.26232@chino.kir.corp.google.com> <20111116095244.GM27150@suse.de>
+In-Reply-To: <alpine.LFD.2.02.1111160908310.2446@tux.localdomain>
+Message-ID: <alpine.DEB.2.00.1111161340010.16596@chino.kir.corp.google.com>
+References: <20111114140421.GA27150@suse.de> <CAEwNFnALUoeh5cEW=XZqy7Aab4hxtE11-mAjWB1c5eddzGuQFA@mail.gmail.com> <20111115173656.GJ27150@suse.de> <20111116002235.GA10958@barrios-laptop.redhat.com> <CAMbhsRSePzsN-4JXEEwFoaa9EhBfHQ11gsjqJCDzV2nonJ0DqQ@mail.gmail.com>
+ <20111116004516.GA13028@barrios-laptop.redhat.com> <alpine.LFD.2.02.1111160908310.2446@tux.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Colin Cross <ccross@android.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Wed, 16 Nov 2011, Mel Gorman wrote:
+On Wed, 16 Nov 2011, Pekka Enberg wrote:
 
-> Good point. I agree that it would be more consistent although
-> there is still the risk of infinite looping with __GFP_NOFAIL if
-> storage devices are disabled.
+> > diff --git a/kernel/power/suspend.c b/kernel/power/suspend.c
+> > index fdd4263..01aa9b5 100644
+> > --- a/kernel/power/suspend.c
+> > +++ b/kernel/power/suspend.c
+> > @@ -297,9 +297,11 @@ int enter_state(suspend_state_t state)
+> >                goto Finish;
+> > 
+> >        pr_debug("PM: Entering %s sleep\n", pm_states[state]);
+> > +       oom_killer_disable();
+> >        pm_restrict_gfp_mask();
+> >        error = suspend_devices_and_enter(state);
+> >        pm_restore_gfp_mask();
+> > +       oom_killer_enable();
+> > 
+> >  Finish:
+> >        pr_debug("PM: Finishing wakeup.\n");
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6e8ecb6..d8c31b7 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2177,9 +2177,9 @@ rebalance:
+> >         * running out of options and have to consider going OOM
+> >         */
+> >        if (!did_some_progress) {
+> > -               if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+> > -                       if (oom_killer_disabled)
+> > +               if (oom_killer_disabled)
+> >                                goto nopage;
+
+You're allowing __GFP_NOFAIL allocations to fail.
+
+> > +               if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+> >                        page = __alloc_pages_may_oom(gfp_mask, order,
+> >                                        zonelist, high_zoneidx,
+> >                                        nodemask, preferred_zone,
+> > 
+> 
+> I'd prefer something like this. The whole 'gfp_allowed_flags' thing was
+> designed to make GFP_KERNEL work during boot time where it's obviously safe to
+> do that. I really don't think that's going to work suspend cleanly.
 > 
 
-Yeah, that's always been possible even regardless of the state of storage 
-devices.  If a task has access to memory reserves via TIF_MEMDIE, 
-__alloc_pages_high_priority() will just loop indefinitely anyway for these 
-allocations.  While users of __GFP_NOFAIL accept that it won't return NULL 
-as long as they have __GFP_WAIT (which they all do), then they should also 
-accept the fact that it may never return at all.
+Adding Rafael to the cc.
 
-> Colin reported elsewhere in this thread that "the particular allocation
-> that usually causes the problem is the pgd_alloc for page tables when
-> re-enabling the 2nd cpu during resume". On X86, those allocations are using
-> the flags
-> 
-> GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
-> 
-> so they should not be trapped in an infinite loop due to __GFP_NOFAIL.
-> On ARM, they use GFP_KERNEL so should also be ok.
-> 
-
-The __GFP_REPEAT is concerning because there's a high liklihood that 
-!__GFP_FS as a result of suspend will never cause enough pages to be 
-reclaimed so the necessary threshold will be reached to exit from its own 
-self-induced infinite loop.  So if we go forward with failing allocations 
-attempted without __GFP_IO and __GFP_FS that are !__GFP_NOFAIL, then we 
-should also add that __GFP_REPEAT is a no-op without __GFP_IO or __GFP_FS.
-
-> David, is this what you meant? This patch includes all the
-> documentation-related updates that were discussed in this thread as well
-> as updated the check in mm/swapfile.c for hibernation.
-> 
-> ==== CUT HERE ====
-> mm: avoid livelock on !__GFP_FS allocations v2
-> 
-> Changelog since V1
->   o Move PM check to should_alloc_retry (David Rientjes)
->   o Add some additional documentation
-> 
-> Colin Cross reported;
-> 
->   Under the following conditions, __alloc_pages_slowpath can loop forever:
->   gfp_mask & __GFP_WAIT is true
->   gfp_mask & __GFP_FS is false
->   reclaim and compaction make no progress
->   order <= PAGE_ALLOC_COSTLY_ORDER
-> 
->   These conditions happen very often during suspend and resume,
->   when pm_restrict_gfp_mask() effectively converts all GFP_KERNEL
->   allocations into __GFP_WAIT.
-> 
->   The oom killer is not run because gfp_mask & __GFP_FS is false,
->   but should_alloc_retry will always return true when order is less
->   than PAGE_ALLOC_COSTLY_ORDER.
-> 
-> In his fix, he avoided retrying the allocation if reclaim made no
-> progress and __GFP_FS was not set. The problem is that this would
-> result in GFP_NOIO allocations failing that previously succeeded
-> which would be very unfortunate.
-> 
-> The big difference between GFP_NOIO and suspend converting GFP_KERNEL
-> to behave like GFP_NOIO is that normally flushers will be cleaning
-> pages and kswapd reclaims pages allowing GFP_NOIO to succeed after
-> a short delay. The same does not necessarily apply during suspend as
-> the storage device may be suspended.
-> 
-> This patch special cases the suspend case to fail the page allocation
-> if reclaim cannot make progress and adds some documentation on how
-> gfp_allowed_mask is currently used. Failing allocations like this
-> may cause suspend to abort but that is better than a livelock.
-> 
-> [mgorman@suse.de: Rework fix to be suspend specific]
-> [rientjes@google.com: Move suspended device check to should_alloc_retry]
-> Reported-by: Colin Cross <ccross@android.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks Mel!
+This has been done since 2.6.34 and presumably has been working quite 
+well.  I don't have a specific objection to gfp_allowed_flags to be used 
+outside of boot since it seems plausible that there are system-level 
+contexts that would need different behavior in the page allocator and this 
+does it effectively without major surgery or a slower fastpath.  Suspend 
+is using it just like boot does before irqs are enabled, so I don't have 
+an objection to it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
