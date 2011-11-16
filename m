@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8330B6B006E
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 20:15:15 -0500 (EST)
-Received: by eye4 with SMTP id 4so8357571eye.14
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2011 17:15:12 -0800 (PST)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4F86B0070
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2011 20:15:20 -0500 (EST)
+Message-ID: <4EC2FDA9.6050401@jp.fujitsu.com>
+Date: Tue, 15 Nov 2011 19:02:49 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20111115144943.GJ30922@google.com>
-References: <20111115083646.GA21468@darkstar.nay.redhat.com>
-	<20111115144943.GJ30922@google.com>
-Date: Wed, 16 Nov 2011 09:15:12 +0800
-Message-ID: <CABqxG0dNoXjpOtug62TLX+as0CAt_niQc=msZTh+heLv8zLQyg@mail.gmail.com>
-Subject: Re: [PATCCH percpu: add cpunum param in per_cpu_ptr_to_phys
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC PATCH V2] Enforce RSS+Swap rlimit
+References: <4EB3FA89.6090601@redhat.com> <4EC264AA.30306@redhat.com>
+In-Reply-To: <4EC264AA.30306@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Dave Young <dyoung@redhat.com>, gregkh@suse.de, cl@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: jmarchan@redhat.com
+Cc: bsingharora@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 15, 2011 at 10:49 PM, Tejun Heo <tj@kernel.org> wrote:
-> On Tue, Nov 15, 2011 at 04:36:46PM +0800, Dave Young wrote:
->> per_cpu_ptr_to_phys iterate all cpu to get the phy addr
->> let's leave the caller to pass the cpu number to it.
->>
->> Actually in the only one user show_crash_notes,
->> cpunum is provided already before calling this.
->>
->> Signed-off-by: Dave Young <dyoung@redhat.com>
->
-> Does this matter? =C2=A0If it's not a performance critical path, I'd rath=
-er
-> keep the generic funtionality.
+On 11/15/2011 8:10 AM, Jerome Marchand wrote:
+> 
+> Change since V1: rebase on 3.2-rc1
+> 
+> Currently RSS rlimit is not enforced. We can not forbid a process to exceeds
+> its RSS limit and allow it swap out. That would hurts the performance of all
+> system, even when memory resources are plentiful.
+> 
+> Therefore, instead of enforcing a limit on rss usage alone, this patch enforces
+> a limit on rss+swap value. This is similar to memsw limits of cgroup.
+> If a process rss+swap usage exceeds RLIMIT_RSS max limit, he received a SIGBUS
+> signal. 
 
-Hi, why not? the code is redundant, it's an improvement of the code, isn't =
-it?
-Also, kernel code size will be smaller.
+No good idea.
+ - RLIMIT_RSS has clear definition and this patch break it. you should makes
+   another rlimit at least.
+ - SIGBUS can be ignored. rlimit shouldn't ignorable.
 
->
-> Thanks.
->
-> --
-> tejun
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
---=20
-Regards
-Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
