@@ -1,102 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E06156B002D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 10:07:56 -0500 (EST)
-Date: Wed, 16 Nov 2011 15:07:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111116150750.GO27150@suse.de>
-References: <20111110151211.523fa185.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
- <20111111101414.GJ3083@suse.de>
- <20111114154408.10de1bc7.akpm@linux-foundation.org>
- <20111115132513.GF27150@suse.de>
- <alpine.DEB.2.00.1111151303230.23579@chino.kir.corp.google.com>
- <20111115234845.GK27150@suse.de>
- <alpine.DEB.2.00.1111151554190.3781@chino.kir.corp.google.com>
- <20111116041350.GA3306@redhat.com>
- <20111116133056.GC3306@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20111116133056.GC3306@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2485D6B002D
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 10:42:15 -0500 (EST)
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: [PATCH] mm,x86: remove debug_pagealloc_enabled
+Date: Wed, 16 Nov 2011 16:43:52 +0100
+Message-Id: <1321458232-6823-1-git-send-email-sgruszka@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Stanislaw Gruszka <sgruszka@redhat.com>
 
-On Wed, Nov 16, 2011 at 02:30:56PM +0100, Andrea Arcangeli wrote:
-> On Wed, Nov 16, 2011 at 05:13:50AM +0100, Andrea Arcangeli wrote:
-> > After checking my current thp vmstat I think Andrew was right and we
-> > backed out for a good reason before. I'm getting significantly worse
-> > success rate, not sure why it was a small reduction in success rate
-> > but hey I cannot exclude I may have broke something with some other
-> > patch. I've been running it together with a couple more changes. If
-> > it's this change that reduced the success rate, I'm afraid going
-> > always async is not ok.
-> 
-> I wonder if the high failure rate when shutting off "sync compaction"
-> and forcing only "async compaction" for THP (your patch queued in -mm)
-> is also because of ISOLATE_CLEAN being set in compaction from commit
-> 39deaf8. ISOLATE_CLEAN skipping PageDirty means all tmpfs/anon pages
-> added to swapcache (or removed from swapcache which sets the dirty bit
-> on the page because the pte may be mapped clean) are skipped entirely
-> by async compaction for no good reason.
+When (no)bootmem finish operation, it pass pages to buddy allocator.
+Since debug_pagealloc_enabled is not set, we will do not protect pages,
+what is not what we want with CONFIG_DEBUG_PAGEALLOC=y.
 
-Good point! Even though these pages can be migrated without IO or
-incurring a sync, we are skipping over them. I'm still
-looking at passing sync down to ->migratepages and as part of that,
-ISOLATE_CLEAN will need new smarts.
+To fix remove debug_pagealloc_enabled. That variable was introduced by
+commit 12d6f21e "x86: do not PSE on CONFIG_DEBUG_PAGEALLOC=y" to get
+more CPA (change page attribude) code testing. But currently we have
+CONFIG_CPA_DEBUG, which test CPA.
 
-> That can't possibly be ok,
-> because those don't actually require any I/O or blocking to be
-> migrated. PageDirty is a "blocking/IO" operation only for filebacked
-> pages. So I think we must revert 39deaf8, instead of cleaning it up
-> with my cleanup posted in Message-Id 20111115020831.GF4414@redhat.com .
-> 
+Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+---
+ arch/x86/mm/pageattr.c |    6 ------
+ include/linux/mm.h     |   10 ----------
+ init/main.c            |    5 -----
+ mm/debug-pagealloc.c   |    3 ---
+ 4 files changed, 0 insertions(+), 24 deletions(-)
 
-It would be preferable if the pages that would block during migration
-could be identified in advance but that may be unrealistic. What may be
-a better compromise is to only isolate PageDirty pages with a
-->migratepage callback.
-
-> ISOLATED_CLEAN still looks right for may_writepage, for reclaim dirty
-> bit set on the page is a I/O event, for migrate it's not if it's
-> tmpfs/anon.
-> 
-> Did you run your compaction tests with some swap activity?
-> 
-
-Some, but not intensive.
-
-> Reducing the async compaction effectiveness while there's some swap
-> activity then also leads in more frequently than needed running sync
-> compaction and page reclaim.
-> 
-> I'm hopeful however that by running just 2 passes of migrate_pages
-> main loop with the "avoid overwork in migrate sync mode" patch, we can
-> fix the excessive hanging. If that works number of passes could
-> actually be a tunable, and setting it to 1 (instead of 2) would then
-> provide 100% "async compaction" behavior again. And if somebody
-> prefers to stick to 10 he can... so then he can do trylock pass 0,
-> lock_page pass1, wait_writeback pass2, wait pin pass3, finally migrate
-> pass4. (something 2 passes alone won't allow). So making the migrate
-> passes/force-threshold tunable (maybe only for the new sync=2
-> migration mode) could be good idea. Or we could just return to sync
-> true/false and have the migration tunable affect everything but that
-> would alter the reliability of sys_move_pages and other numa things
-> too, where I guess 10 passes are ok. This is why I added a sync=2 mode
-> for migrate.
-
-I am vaguely concerned that this will just make the stalling harder to
-reproduce and diagnose. While you investigate this route, I'm going to
-keep investigating using only async migration for THP and having async
-compaction move pages it can migrate without blocking.
-
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index f9e5267..5031eef 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1334,12 +1334,6 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
+ 	}
+ 
+ 	/*
+-	 * If page allocator is not up yet then do not call c_p_a():
+-	 */
+-	if (!debug_pagealloc_enabled)
+-		return;
+-
+-	/*
+ 	 * The return value is ignored as the calls cannot fail.
+ 	 * Large pages for identity mappings are not used at boot time
+ 	 * and hence no memory allocations during large page split.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3dc3a8c..0a22db1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1537,23 +1537,13 @@ static inline void vm_stat_account(struct mm_struct *mm,
+ #endif /* CONFIG_PROC_FS */
+ 
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-extern int debug_pagealloc_enabled;
+-
+ extern void kernel_map_pages(struct page *page, int numpages, int enable);
+-
+-static inline void enable_debug_pagealloc(void)
+-{
+-	debug_pagealloc_enabled = 1;
+-}
+ #ifdef CONFIG_HIBERNATION
+ extern bool kernel_page_present(struct page *page);
+ #endif /* CONFIG_HIBERNATION */
+ #else
+ static inline void
+ kernel_map_pages(struct page *page, int numpages, int enable) {}
+-static inline void enable_debug_pagealloc(void)
+-{
+-}
+ #ifdef CONFIG_HIBERNATION
+ static inline bool kernel_page_present(struct page *page) { return true; }
+ #endif /* CONFIG_HIBERNATION */
+diff --git a/init/main.c b/init/main.c
+index 217ed23..99c4ba3 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -282,10 +282,6 @@ static int __init unknown_bootoption(char *param, char *val)
+ 	return 0;
+ }
+ 
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-int __read_mostly debug_pagealloc_enabled = 0;
+-#endif
+-
+ static int __init init_setup(char *str)
+ {
+ 	unsigned int i;
+@@ -597,7 +593,6 @@ asmlinkage void __init start_kernel(void)
+ 	}
+ #endif
+ 	page_cgroup_init();
+-	enable_debug_pagealloc();
+ 	debug_objects_mem_init();
+ 	kmemleak_init();
+ 	setup_per_cpu_pageset();
+diff --git a/mm/debug-pagealloc.c b/mm/debug-pagealloc.c
+index 7cea557..789ff70 100644
+--- a/mm/debug-pagealloc.c
++++ b/mm/debug-pagealloc.c
+@@ -95,9 +95,6 @@ static void unpoison_pages(struct page *page, int n)
+ 
+ void kernel_map_pages(struct page *page, int numpages, int enable)
+ {
+-	if (!debug_pagealloc_enabled)
+-		return;
+-
+ 	if (enable)
+ 		unpoison_pages(page, numpages);
+ 	else
 -- 
-Mel Gorman
-SUSE Labs
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
