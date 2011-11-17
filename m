@@ -1,170 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5676F6B0072
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 20:34:17 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A848D3EE0BC
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 10:34:13 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 907F545DE54
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 10:34:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A95245DE4F
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 10:34:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5820C1DB8041
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 10:34:13 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 176871DB8037
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 10:34:13 +0900 (JST)
-Date: Thu, 17 Nov 2011 10:33:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
-Message-Id: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1B86B0074
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2011 21:50:35 -0500 (EST)
+Received: by iaek3 with SMTP id k3so2038596iae.14
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2011 18:50:31 -0800 (PST)
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of vma_merge succeeding in copy_vma
+Date: Thu, 17 Nov 2011 10:49:24 +0800
+References: <1320082040-1190-1-git-send-email-aarcange@redhat.com> <20111116140042.GD3306@redhat.com> <alpine.LSU.2.00.1111161540060.1861@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1111161540060.1861@sister.anvils>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201111171049.24779.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, mhocko@suse.cz, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <bsingharora@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+
+On Thursday 17 November 2011 08:16:57 Hugh Dickins wrote:
+> On Wed, 16 Nov 2011, Andrea Arcangeli wrote:
+> > On Wed, Nov 09, 2011 at 02:25:42AM +0100, Andrea Arcangeli wrote:
+> > > Also note, if we find a way to enforce orderings in the prio tree (not
+> > > sure if it's possible, apparently it's already using list_add_tail
+> > > so..), then we could also remove the i_mmap_lock from mremap and fork.
+> >=20
+> > I'm not optimistic we can enforce ordering there. Being a tree it's
+> > walked in range order.
+> >=20
+> > I thought of another solution that would avoid having to reorder the
+> > list in mremap and avoid the i_mmap_mutex to be added to fork (and
+> > then we can remove it from mremap too). The solution is to rmap_walk
+> > twice. I mean two loops over the same_anon_vma for those rmap walks
+> > that must be reliable (that includes two calls of
+> > unmap_mapping_range). For both same_anon_vma and prio tree.
+> >=20
+> > Reading truncate_pagecache I see two loops already and a comment
+> > saying it's for fork(), to avoid leaking ptes in the child. So fork is
+> > probably ok already without having to take the i_mmap_mutex, but then
+> > I wonder why that also doesn't fix mremap if we do two loops there and
+> > why that i_mmap_mutex is really needed in mremap considering those two
+> > calls already present in truncate_pagecache. I wonder if that was a
+> > "theoretical" fix that missed the fact truncate already walks the prio
+> > tree twice, so it doesn't matter if the rmap_walk goes in the opposite
+> > direction of move_page_tables? That i_mmap_lock in mremap (now
+> > i_mmap_mutex) is there since start of git history. The double loop was
+> > introduced in d00806b183152af6d24f46f0c33f14162ca1262a. So it's very
+> > possible that i_mmap_mutex is now useless (after
+> > d00806b183152af6d24f46f0c33f14162ca1262a) and the fix for fork, was
+> > already taking care of mremap too and that i_mmap_mutex can now be
+> > removed.
+>=20
+> As you found, the mremap locking long predates truncation's double unmap.
+>=20
+> That's an interesting point, and you may be right - though, what about
+> the *very* unlikely case where unmap_mapping_range looks at new vma
+> when pte is in old, then at old vma when pte is in new, then
+> move_page_tables runs out of memory and cannot complete, then the
+> second unmap_mapping_range looks at old vma while pte is still in new
+> (I guess this needs some other activity to have jumbled the prio_tree,
+> and may just be impossible), then at new (to be abandoned) vma after
+> pte has moved back to old.
+>=20
+> Probably not an everyday occurrence :)
+>=20
+> But, setting that aside, I've always thought of that second call to
+> unmap_mapping_range() as a regrettable expedient that we should try
+> to eliminate e.g. by checking for private mappings in the first pass,
+> and skipping the second call if there were none.
+>=20
+> But since nobody ever complained about that added overhead, I never
+> got around to bothering; and you may consider the i_mmap_mutex in
+> move_ptes a more serious unnecessary overhead.
+>=20
+> By the way, you mention "a comment saying it's for fork()": I don't
+> find "fork" anywhere in mm/truncate.c, my understanding is in this
+> comment (probably mine) from truncate_pagecache():
+
+I think you guys are talking about two different COWs:
+
+Andrea's question is that if a new VMA is created by fork() between
+the two loops and PTEs are getting copied.
+
+And you are refering to the new PTEs get COWed by __do_fault() in=20
+the same VMA before the cache pages are really dropped.
+
+=46rom my point of view, the two loops there are really fork()=20
+irrelevant, as you said, they are only for missed COWed ptes in the=20
+same VMA before a cache page is really blind for find_get_page().=20
 
 
-I'll send this again when mm is shipped.
-I sometimes see mem_cgroup_split_huge_fixup() in perf report and noticed
-it's very slow. This fixes it. Any comments are welcome.
 
-==
-Subject: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
 
-at split_huge_page(), mem_cgroup_split_huge_fixup() is called to
-handle page_cgroup modifcations. It takes move_lock_page_cgroup()
-and modify page_cgroup and LRU accounting jobs and called
-HPAGE_PMD_SIZE - 1 times.
+As for Andrea's reasoning, I think I deem this racing story as below:
 
-But thinking again,
-  - compound_lock() is held at move_accout...then, it's not necessary
-    to take move_lock_page_cgroup().
-  - LRU is locked and all tail pages will go into the same LRU as
-    head is now on.
-  - page_cgroup is contiguous in huge page range.
+1. fork() is safe without tree lock/mutex after the second loop, the=20
+reason is just why it's safe for the try_to_unmap_file: the new VMA is
+really linked as list tail in a *same* tree node as the old VMA in=20
+vma prio_tree. The old and new are traveled by vma_prio_tree_foreach()=20
+in a proper order. And fork() does not include a error path requiring=20
+backward page table copy operation which needs a reverse order.
 
-This patch fixes mem_cgroup_split_huge_fixup() as to be called once per
-hugepage and reduce costs for spliting.
+2. Partial mremap is not safe for this without tree lock/mutex, because the=
+ src
+and dst VMA are different prio_tree nodes, and their order are not meant to=
+=20
+be screwed.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/memcontrol.h |    5 ++---
- mm/huge_memory.c           |    3 ++-
- mm/memcontrol.c            |   32 ++++++++++++++++----------------
- 3 files changed, 20 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index b87068a..0a22a19 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -154,7 +154,7 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg);
- 
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
-+void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
- 
- #ifdef CONFIG_DEBUG_VM
-@@ -357,8 +357,7 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
- 	return 0;
- }
- 
--static inline void mem_cgroup_split_huge_fixup(struct page *head,
--						struct page *tail)
-+static inline void mem_cgroup_split_huge_fixup(struct page *head)
- {
- }
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4298aba..aa6cdae 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1207,6 +1207,8 @@ static void __split_huge_page_refcount(struct page *page)
- 	/* prevent PageLRU to go away from under us, and freeze lru stats */
- 	spin_lock_irq(&zone->lru_lock);
- 	compound_lock(page);
-+	/* complete memcg works before add pages to LRU */
-+	mem_cgroup_split_huge_fixup(page);
- 
- 	for (i = 1; i < HPAGE_PMD_NR; i++) {
- 		struct page *page_tail = page + i;
-@@ -1278,7 +1280,6 @@ static void __split_huge_page_refcount(struct page *page)
- 		BUG_ON(!PageDirty(page_tail));
- 		BUG_ON(!PageSwapBacked(page_tail));
- 
--		mem_cgroup_split_huge_fixup(page, page_tail);
- 
- 		lru_add_page_tail(zone, page, page_tail);
- 	}
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6aff93c..99101f1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2523,38 +2523,38 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- /*
-  * Because tail pages are not marked as "used", set it. We're under
-  * zone->lru_lock, 'splitting on pmd' and compund_lock.
-+ * charge/uncharge will be never happen and move_account() is done under
-+ * compound_lock(), so we don't have to take care of races.
-  */
--void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
-+void mem_cgroup_split_huge_fixup(struct page *head)
- {
- 	struct page_cgroup *head_pc = lookup_page_cgroup(head);
--	struct page_cgroup *tail_pc = lookup_page_cgroup(tail);
--	unsigned long flags;
-+	struct page_cgroup *pc;
-+	int i;
- 
- 	if (mem_cgroup_disabled())
- 		return;
--	/*
--	 * We have no races with charge/uncharge but will have races with
--	 * page state accounting.
--	 */
--	move_lock_page_cgroup(head_pc, &flags);
-+	for (i = 1; i < HPAGE_PMD_NR; i++) {
-+		pc = head_pc + i;
-+		pc->mem_cgroup = head_pc->mem_cgroup;
-+		smp_wmb();/* see __commit_charge() */
-+		/*
-+		 * LRU flags cannot be copied because we need to add tail
-+		 * page to LRU by generic call and our hooks will be called.
-+		 */
-+		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
-+	}
- 
--	tail_pc->mem_cgroup = head_pc->mem_cgroup;
--	smp_wmb(); /* see __commit_charge() */
- 	if (PageCgroupAcctLRU(head_pc)) {
- 		enum lru_list lru;
- 		struct mem_cgroup_per_zone *mz;
--
- 		/*
--		 * LRU flags cannot be copied because we need to add tail
--		 *.page to LRU by generic call and our hook will be called.
- 		 * We hold lru_lock, then, reduce counter directly.
- 		 */
- 		lru = page_lru(head);
- 		mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
--		MEM_CGROUP_ZSTAT(mz, lru) -= 1;
-+		MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
- 	}
--	tail_pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
--	move_unlock_page_cgroup(head_pc, &flags);
- }
- #endif
- 
--- 
-1.7.4.1
 
+Nai
+
+>=20
+> 	/*
+> 	 * unmap_mapping_range is called twice, first simply for
+> 	 * efficiency so that truncate_inode_pages does fewer
+> 	 * single-page unmaps.  However after this first call, and
+> 	 * before truncate_inode_pages finishes, it is possible for
+> 	 * private pages to be COWed, which remain after
+> 	 * truncate_inode_pages finishes, hence the second
+> 	 * unmap_mapping_range call must be made for correctness.
+> 	 */
+>=20
+> The second call was not (I think) necessary when we relied upon
+> truncate_count, but became necessary once Nick relied upon page lock
+> (the page lock on the file page providing no guarantee for the COWed
+> page).
+>=20
+> Hugh
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
