@@ -1,72 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AB236B0069
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 03:22:49 -0500 (EST)
-Date: Thu, 17 Nov 2011 09:22:42 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: cleanup the comment for head/tail pages of compound
- pages in mm/page_alloc.c
-Message-ID: <20111117082148.GA30544@tiehlicka.suse.cz>
-References: <4EC21D78.4080508@gmail.com>
- <20111115132409.GA7551@tiehlicka.suse.cz>
- <4EC2FE33.7030905@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 560FA6B0069
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 03:31:09 -0500 (EST)
+Message-ID: <4EC4C603.8050704@cn.fujitsu.com>
+Date: Thu, 17 Nov 2011 16:29:55 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4EC2FE33.7030905@gmail.com>
+Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
+ for mempolicy or disjoint nodemask
+References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, trivial@kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-[CCing trivial tree]
+On Wed, 16 Nov 2011 13:08:33 -0800 (pst), David Rientjes wrote:
+> c0ff7453bb5c ("cpuset,mm: fix no node to alloc memory when changing
+> cpuset's mems") adds get_mems_allowed() to prevent the set of allowed
+> nodes from changing for a thread.  This causes any update to a set of
+> allowed nodes to stall until put_mems_allowed() is called.
+> 
+> This stall is unncessary, however, if at least one node remains unchanged
+> in the update to the set of allowed nodes.  This was addressed by
+> 89e8a244b97e ("cpusets: avoid looping when storing to mems_allowed if one
+> node remains set"), but it's still possible that an empty nodemask may be
+> read from a mempolicy because the old nodemask may be remapped to the new
+> nodemask during rebind.  To prevent this, only avoid the stall if there
+> is no mempolicy for the thread being changed.
+> 
+> This is a temporary solution until all reads from mempolicy nodemasks can
+> be guaranteed to not be empty without the get_mems_allowed()
+> synchronization.
+> 
+> Also moves the check for nodemask intersection inside task_lock() so that
+> tsk->mems_allowed cannot change.
+> 
+> Reported-by: Miao Xie <miaox@cn.fujitsu.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Unquoted patch at https://lkml.org/lkml/2011/11/15/402
+Oh~, David
 
-On Wed 16-11-11 08:05:07, Wang Sheng-Hui wrote:
-[...]
-> Thanks, Michal.
-> 
-> New patch generated.
-> 
-> 
-> [PATCH] mm: cleanup the comment for head/tail pages of compound pages in mm/page_alloc.c
-> 
-> Only tail pages point at the head page using their ->first_page fields.
-> 
-> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+I find these is another problem, please take account of the following case:
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+  2-3 -> 1-2 -> 0-1
+
+the user change mems_allowed twice continuously, the task may see the empty
+mems_allowed.
+
+So, it is still dangerous.
+
+Thanks
+Miao
 
 > ---
->  mm/page_alloc.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+>  kernel/cpuset.c |   17 +++++++++++------
+>  1 files changed, 11 insertions(+), 6 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6e8ecb6..e7dd848 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -332,8 +332,8 @@ out:
->   *
->   * The remaining PAGE_SIZE pages are called "tail pages".
->   *
-> - * All pages have PG_compound set.  All pages have their ->private pointing at
-> - * the head page (even the head page has this).
-> + * All pages have PG_compound set.  All tail pages have their ->first_page
-> + * pointing at the head page.
->   *
->   * The first tail page's ->lru.next holds the address of the compound page's
->   * put_page() function.  Its ->lru.prev holds the order of allocation.
-> -- 
-> 1.7.1
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+> --- a/kernel/cpuset.c
+> +++ b/kernel/cpuset.c
+> @@ -949,7 +949,7 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
+>  static void cpuset_change_task_nodemask(struct task_struct *tsk,
+>  					nodemask_t *newmems)
+>  {
+> -	bool masks_disjoint = !nodes_intersects(*newmems, tsk->mems_allowed);
+> +	bool need_loop;
+>  
+>  repeat:
+>  	/*
+> @@ -962,6 +962,14 @@ repeat:
+>  		return;
+>  
+>  	task_lock(tsk);
+> +	/*
+> +	 * Determine if a loop is necessary if another thread is doing
+> +	 * get_mems_allowed().  If at least one node remains unchanged and
+> +	 * tsk does not have a mempolicy, then an empty nodemask will not be
+> +	 * possible when mems_allowed is larger than a word.
+> +	 */
+> +	need_loop = tsk->mempolicy ||
+> +			!nodes_intersects(*newmems, tsk->mems_allowed);
+>  	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+>  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+>  
+> @@ -981,12 +989,9 @@ repeat:
+>  
+>  	/*
+>  	 * Allocation of memory is very fast, we needn't sleep when waiting
+> -	 * for the read-side.  No wait is necessary, however, if at least one
+> -	 * node remains unchanged and tsk has a mempolicy that could store an
+> -	 * empty nodemask.
+> +	 * for the read-side.
+>  	 */
+> -	while (masks_disjoint && tsk->mempolicy &&
+> -			ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+> +	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+>  		task_unlock(tsk);
+>  		if (!task_curr(tsk))
+>  			yield();
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
