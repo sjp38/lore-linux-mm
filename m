@@ -1,148 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 93CB06B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 03:14:52 -0500 (EST)
-Received: by faas10 with SMTP id s10so5418941faa.14
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 00:14:48 -0800 (PST)
-Message-ID: <4EC613F4.6060104@openvz.org>
-Date: Fri, 18 Nov 2011 12:14:44 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: abort inode pruning if it has active pages
-References: <20111116134747.8958.11569.stgit@zurg> <20111117163016.d98ef860.akpm@linux-foundation.org>
-In-Reply-To: <20111117163016.d98ef860.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E35FD6B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 03:43:50 -0500 (EST)
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <20111118075521.GB1615@x4.trippels.de>
+References: <20111118072519.GA1615@x4.trippels.de>
+	 <20111118075521.GB1615@x4.trippels.de>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 18 Nov 2011 16:43:57 +0800
+Message-ID: <1321605837.30341.551.camel@debian>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-Andrew Morton wrote:
-> On Wed, 16 Nov 2011 17:47:47 +0300
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
->> Inode cache pruning can throw out some usefull data from page cache.
->> This patch aborts inode invalidation and keep inode alive if it still has
->> active pages.
->>
->
-> hm, I suppose so.
->
-> I also suppose there are various risks related to failing to reclaim
-> inodes due to ongoing userspace activity and then running out of lowmem
-> pages.
+> > 
+> > The dirty flag comes from a bunch of unrelated xfs patches from Christoph, that
+> > I'm testing right now.
 
-Ok, I think we can bypass active-page protection if CONFIG_HIGHMEM=y and
-there is no __GFP_HIGHMEM in gfp_mask.
+Where is the xfs patchset? I am wondering if it is due to slub code. It
+is also possible xfs set a incorrect page flags. 
 
->
->> It improves interaction between inode cache and page cache.
->
-> Well, this is the key part of the patch and it is the thing which we
-> are most interested in.  But you didn't tell us anything about it!
->
-> So please, provide us with much more detailed information on the
-> observed benefits.
+> > 
+> > Please also see my previous post: http://thread.gmane.org/gmane.linux.kernel/1215023
+> > It looks like something is scribbling over memory.
+> > 
+> > This machine uses ECC, so bit-flips should be impossible.
+> 
+> CC'ing netdev@vger.kernel.org and Eric Dumazet.
+> 
 
-Currently this is based only on thought experiment.
-I think rising pginodesteal and kswapd_inodesteal in /proc/vstat is sign of
-inefficient memory reclaiming, because page-cache lru has a much more detailed
-information about memory activity.
-
-I plan to run some containers related tests/benchmarks,
-something like multiple heavy-loaded web-servers.
-
->
->>
->> diff --git a/fs/inode.c b/fs/inode.c
->> index 1f6c48d..8d55a63 100644
->> --- a/fs/inode.c
->> +++ b/fs/inode.c
->> @@ -663,8 +663,8 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
->>   			spin_unlock(&inode->i_lock);
->>   			spin_unlock(&sb->s_inode_lru_lock);
->>   			if (remove_inode_buffers(inode))
->> -				reap += invalidate_mapping_pages(&inode->i_data,
->> -								0, -1);
->> +				reap += invalidate_inode_inactive_pages(
->> +						&inode->i_data, 0, -1);
->>   			iput(inode);
->>   			spin_lock(&sb->s_inode_lru_lock);
->>
->> diff --git a/include/linux/fs.h b/include/linux/fs.h
->> index 0c4df26..05875d7 100644
->> --- a/include/linux/fs.h
->> +++ b/include/linux/fs.h
->> @@ -2211,6 +2211,8 @@ extern int invalidate_partition(struct gendisk *, int);
->>   #endif
->>   unsigned long invalidate_mapping_pages(struct address_space *mapping,
->>   					pgoff_t start, pgoff_t end);
->> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
->> +					pgoff_t start, pgoff_t end);
->>
->>   static inline void invalidate_remote_inode(struct inode *inode)
->>   {
->> diff --git a/mm/truncate.c b/mm/truncate.c
->> index 632b15e..ac739bc 100644
->> --- a/mm/truncate.c
->> +++ b/mm/truncate.c
->> @@ -379,6 +379,52 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->>   EXPORT_SYMBOL(invalidate_mapping_pages);
->>
->>   /*
->> + * This is like invalidate_mapping_pages(),
->> + * except it aborts invalidation at the first active page.
->> + */
->> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
->> +					    pgoff_t start, pgoff_t end)
->> +{
->> +	struct pagevec pvec;
->> +	pgoff_t index = start;
->> +	unsigned long ret;
->> +	unsigned long count = 0;
->> +	int i;
->> +
->> +	pagevec_init(&pvec, 0);
->> +	while (index<= end&&  pagevec_lookup(&pvec, mapping, index,
->> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
->> +
->> +		mem_cgroup_uncharge_start();
->> +		for (i = 0; i<  pagevec_count(&pvec); i++) {
->> +			struct page *page = pvec.pages[i];
->> +
->> +			if (PageActive(page)) {
->> +				index = end;
->> +				break;
->> +			}
->> +
->> +			/* We rely upon deletion not changing page->index */
->> +			index = page->index;
->> +			if (index>  end)
->> +				break;
->> +
->> +			if (!trylock_page(page))
->> +				continue;
->> +			WARN_ON(page->index != index);
->> +			ret = invalidate_inode_page(page);
->> +			unlock_page(page);
->> +			count += ret;
->> +		}
->> +		pagevec_release(&pvec);
->> +		mem_cgroup_uncharge_end();
->> +		cond_resched();
->> +		index++;
->> +	}
->> +	return count;
->> +}
->
-> We shouldn't just copy-n-paste invalidate_mapping_pages() like this.
-> Can't we share the function by passing in a pointer to a callback
-> function (invalidate_inode_page or a new
-> invalidate_inode_page_unless_it_is_active).
->
-
-Ok, I'll think how to implement this more accurate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
