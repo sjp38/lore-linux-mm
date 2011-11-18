@@ -1,76 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 74D396B002D
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 14:51:23 -0500 (EST)
-Date: Fri, 18 Nov 2011 14:51:07 -0500 (EST)
-Message-Id: <20111118.145107.1788849543768712319.davem@davemloft.net>
-Subject: Re: [Devel] Re: [PATCH v5 00/10] per-cgroup tcp memory pressure
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <4EC6B457.4010502@parallels.com>
-References: <1321381632.3021.57.camel@dabdike.int.hansenpartnership.com>
-	<20111117.163501.1963137869848419475.davem@davemloft.net>
-	<4EC6B457.4010502@parallels.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BDB4B6B002D
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 15:00:13 -0500 (EST)
+Date: Fri, 18 Nov 2011 11:59:55 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] mm/vmalloc.c: eliminate extra loop in
+ pcpu_get_vm_areas error path
+Message-Id: <20111118115955.410af035.akpm@linux-foundation.org>
+In-Reply-To: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
+References: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: glommer@parallels.com
-Cc: jbottomley@parallels.com, eric.dumazet@gmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, linux-mm@kvack.org, devel@openvz.org, kirill@shutemov.name, gthelen@google.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Glauber Costa <glommer@parallels.com>
-Date: Fri, 18 Nov 2011 17:39:03 -0200
+On Fri, 18 Nov 2011 17:13:50 +0530
+Kautuk Consul <consul.kautuk@gmail.com> wrote:
 
-> On 11/17/2011 07:35 PM, David Miller wrote:
->> From: James Bottomley<jbottomley@parallels.com>
->> Date: Tue, 15 Nov 2011 18:27:12 +0000
->>
->>> Ping on this, please.  We're blocked on this patch set until we can
->>> get
->>> an ack that the approach is acceptable to network people.
->>
->> __sk_mem_schedule is now more expensive, because instead of
->> short-circuiting
->> the majority of the function's logic when "allocated<=
->> prot->sysctl_mem[0]"
->> and immediately returning 1, the whole rest of the function is run.
+> If either of the vas or vms arrays are not properly kzalloced,
+> then the code jumps to the err_free label.
 > 
-> Not the whole rest of the function. Rather, just the other two
-> tests. But that's the behavior we need since if your parent is on
-> pressure, you should be as well. How do you feel if we'd also provide
-> two versions for this:
-> 1) non-cgroup, try to return 1 as fast as we can
-> 2) cgroup, also check your parents.
-
-Fair enough.
-
-> How about we make the jump_label only used for sockets (which is basic
-> what we have now, just need a clear name to indicate that), and then
-> enable it not when the first non-root cgroup is created, but when the
-> first one sets the limit to something different than unlimited?
+> The err_free label runs a loop to check and free each of the array
+> members of the vas and vms arrays which is not required for this
+> situation as none of the array members have been allocated till this
+> point.
 > 
-> Of course to that point, we'd be accounting only to the root
-> structures,
-> but I guess this is not a big deal.
-
-This sounds good for now.
-
->> TCP specific stuff in mm/memcontrol.c, at best that's not nice at all.
+> Eliminate the extra loop we have to go through by introducing a new
+> label err_free2 and then jumping to it.
 > 
-> How crucial is that?
+> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+> ---
+>  mm/vmalloc.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index b669aa6..1a0d4e2 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -2352,7 +2352,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+>  	vms = kzalloc(sizeof(vms[0]) * nr_vms, GFP_KERNEL);
+>  	vas = kzalloc(sizeof(vas[0]) * nr_vms, GFP_KERNEL);
+>  	if (!vas || !vms)
+> -		goto err_free;
+> +		goto err_free2;
+>  
+>  	for (area = 0; area < nr_vms; area++) {
+>  		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);
+> @@ -2455,6 +2455,7 @@ err_free:
+>  		if (vms)
+>  			kfree(vms[area]);
+>  	}
+> +err_free2:
+>  	kfree(vas);
+>  	kfree(vms);
+>  	return NULL;
 
-It's a big deal.  We've been working for years to yank protocol specific
-things even out of net/core/*.c, it simply doesn't belong there.
+Which means we can also do the below, yes?  (please check my homework!)
 
-I'd even be happier if you had to create a net/ipv4/tcp_memcg.c and
-include/net/tcp_memcg.h
+--- a/mm/vmalloc.c~mm-vmallocc-eliminate-extra-loop-in-pcpu_get_vm_areas-error-path-fix
++++ a/mm/vmalloc.c
+@@ -2449,10 +2449,8 @@ found:
+ 
+ err_free:
+ 	for (area = 0; area < nr_vms; area++) {
+-		if (vas)
+-			kfree(vas[area]);
+-		if (vms)
+-			kfree(vms[area]);
++		kfree(vas[area]);
++		kfree(vms[area]);
+ 	}
+ err_free2:
+ 	kfree(vas);
+_
 
-> Thing is that as far as I am concerned, all the
-> memcg people
- ...
-
-What the memcg people want is entirely their problem, especially if it
-involves crapping up non-networking files with protocol specific junk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
