@@ -1,57 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 739186B00B1
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:39:04 -0500 (EST)
-Received: by ggnq1 with SMTP id q1so3043462ggn.14
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 03:39:02 -0800 (PST)
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Subject: [PATCH 1/1] mm/vmalloc.c: eliminate extra loop in pcpu_get_vm_areas error path
-Date: Fri, 18 Nov 2011 17:13:50 +0530
-Message-Id: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E3B6B00B3
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:39:38 -0500 (EST)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 18 Nov 2011 17:09:31 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBcCJ84071468
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 17:08:12 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBcAbc027382
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:38:11 +1100
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Fri, 18 Nov 2011 16:42:09 +0530
+Message-Id: <20111118111209.10512.44161.sendpatchset@srdronam.in.ibm.com>
+In-Reply-To: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+Subject: [PATCH v7 3.2-rc2 27/30] uprobes: x86: introduce xol_was_trapped()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-If either of the vas or vms arrays are not properly kzalloced,
-then the code jumps to the err_free label.
 
-The err_free label runs a loop to check and free each of the array
-members of the vas and vms arrays which is not required for this
-situation as none of the array members have been allocated till this
-point.
+Postpone the signals until we execute the probed insn. This is
+simply wrong if xol insn traps and generates the signal itself. Say,
+SIGILL/SIGSEGV/etc.
 
-Eliminate the extra loop we have to go through by introducing a new
-label err_free2 and then jumping to it.
+Adds xol_was_trapped() to detect this case. It assumes that anything
+like do_page_fault/do_trap/etc sets thread.trap_no != -1.
 
-Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+We add uprobe_task_arch_info->saved_trap_no and change
+pre_xol/post_xol to save/restore thread.trap_no, xol_was_trapped()
+simply checks that ->trap_no is not equal to UPROBE_TRAP_NO == -1
+set by pre_xol().
+
+Original-patch-from: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index b669aa6..1a0d4e2 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -2352,7 +2352,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 	vms = kzalloc(sizeof(vms[0]) * nr_vms, GFP_KERNEL);
- 	vas = kzalloc(sizeof(vas[0]) * nr_vms, GFP_KERNEL);
- 	if (!vas || !vms)
--		goto err_free;
-+		goto err_free2;
+Changelog (since v6)
+- added x86 specific hook for aborting xol.
+
+ arch/x86/include/asm/uprobes.h |    7 ++++++-
+ arch/x86/kernel/uprobes.c      |   33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+index 99d7d4b..6a47024 100644
+--- a/arch/x86/include/asm/uprobes.h
++++ b/arch/x86/include/asm/uprobes.h
+@@ -39,16 +39,21 @@ struct uprobe_arch_info {
  
- 	for (area = 0; area < nr_vms; area++) {
- 		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);
-@@ -2455,6 +2455,7 @@ err_free:
- 		if (vms)
- 			kfree(vms[area]);
+ struct uprobe_task_arch_info {
+ 	unsigned long saved_scratch_register;
++	unsigned long saved_trap_no;
+ };
+ #else
+ struct uprobe_arch_info {};
+-struct uprobe_task_arch_info {};
++struct uprobe_task_arch_info {
++	unsigned long saved_trap_no;
++};
+ #endif
+ struct uprobe;
+ extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+ extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
+ extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
+ extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
++extern bool xol_was_trapped(struct task_struct *tsk);
+ extern int uprobe_exception_notify(struct notifier_block *self,
+ 				       unsigned long val, void *data);
++extern void abort_xol(struct pt_regs *regs, struct uprobe *uprobe);
+ #endif	/* _ASM_UPROBES_H */
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+index 0792fc8..3f0eb4e 100644
+--- a/arch/x86/kernel/uprobes.c
++++ b/arch/x86/kernel/uprobes.c
+@@ -409,6 +409,8 @@ void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr)
+ 	regs->ip = vaddr;
+ }
+ 
++#define	UPROBE_TRAP_NO	-1ul
++
+ /*
+  * pre_xol - prepare to execute out of line.
+  * @uprobe: the probepoint information.
+@@ -424,6 +426,9 @@ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ {
+ 	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
+ 
++	tskinfo->saved_trap_no = current->thread.trap_no;
++	current->thread.trap_no = UPROBE_TRAP_NO;
++
+ 	regs->ip = current->utask->xol_vaddr;
+ 	if (uprobe->fixups & UPROBES_FIX_RIP_AX) {
+ 		tskinfo->saved_scratch_register = regs->ax;
+@@ -439,6 +444,11 @@ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ #else
+ int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ {
++	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
++
++	tskinfo->saved_trap_no = current->thread.trap_no;
++	current->thread.trap_no = UPROBE_TRAP_NO;
++
+ 	regs->ip = current->utask->xol_vaddr;
+ 	return 0;
+ }
+@@ -494,7 +504,8 @@ static void handle_riprel_post_xol(struct uprobe *uprobe,
+ 		 * Fall through to handle stuff like "jmpq *...(%rip)" and
+ 		 * "callq *...(%rip)".
+ 		 */
+-		*correction += 4;
++		if (correction)
++			*correction += 4;
  	}
-+err_free2:
- 	kfree(vas);
- 	kfree(vms);
- 	return NULL;
--- 
-1.7.6
+ }
+ #else
+@@ -504,6 +515,14 @@ static void handle_riprel_post_xol(struct uprobe *uprobe,
+ }
+ #endif
+ 
++bool xol_was_trapped(struct task_struct *tsk)
++{
++	if (tsk->thread.trap_no != UPROBE_TRAP_NO)
++		return true;
++
++	return false;
++}
++
+ /*
+  * Called after single-stepping. To avoid the SMP problems that can
+  * occur when we temporarily put back the original opcode to
+@@ -534,6 +553,9 @@ int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
+ 	int result = 0;
+ 	long correction;
+ 
++	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NO);
++
++	current->thread.trap_no = utask->tskinfo.saved_trap_no;
+ 	correction = (long)(utask->vaddr - utask->xol_vaddr);
+ 	handle_riprel_post_xol(uprobe, regs, &correction);
+ 	if (uprobe->fixups & UPROBES_FIX_IP)
+@@ -571,3 +593,12 @@ int uprobe_exception_notify(struct notifier_block *self,
+ 	}
+ 	return ret;
+ }
++
++void abort_xol(struct pt_regs *regs, struct uprobe *uprobe)
++{
++	struct uprobe_task *utask = current->utask;
++
++	current->thread.trap_no = utask->tskinfo.saved_trap_no;
++	handle_riprel_post_xol(uprobe, regs, NULL);
++	set_instruction_pointer(regs, utask->vaddr);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
