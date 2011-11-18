@@ -1,111 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C81E6B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 02:55:26 -0500 (EST)
-Date: Fri, 18 Nov 2011 08:55:21 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-Message-ID: <20111118075521.GB1615@x4.trippels.de>
-References: <20111118072519.GA1615@x4.trippels.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 93CB06B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 03:14:52 -0500 (EST)
+Received: by faas10 with SMTP id s10so5418941faa.14
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 00:14:48 -0800 (PST)
+Message-ID: <4EC613F4.6060104@openvz.org>
+Date: Fri, 18 Nov 2011 12:14:44 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111118072519.GA1615@x4.trippels.de>
+Subject: Re: [PATCH RFC] mm: abort inode pruning if it has active pages
+References: <20111116134747.8958.11569.stgit@zurg> <20111117163016.d98ef860.akpm@linux-foundation.org>
+In-Reply-To: <20111117163016.d98ef860.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Alex Shi <alex.shi@intel.com>, netdev@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 2011.11.18 at 08:25 +0100, Markus Trippelsdorf wrote:
-> This happend during boot this morning:
-> 
-> Nov 18 07:57:12 x4 kernel: XFS (sdb2): Ending clean mount
-> Nov 18 07:57:12 x4 kernel: VFS: Mounted root (xfs filesystem) readonly on device 8:18.
-> Nov 18 07:57:12 x4 kernel: devtmpfs: mounted
-> Nov 18 07:57:12 x4 kernel: Freeing unused kernel memory: 436k freed
-> Nov 18 07:57:12 x4 kernel: Write protecting the kernel read-only data: 8192k
-> Nov 18 07:57:12 x4 kernel: Freeing unused kernel memory: 1220k freed
-> Nov 18 07:57:12 x4 kernel: Freeing unused kernel memory: 132k freed
-> Nov 18 07:57:12 x4 kernel: XFS (sda): Mounting Filesystem
-> Nov 18 07:57:12 x4 kernel: XFS (sda): Ending clean mount
-> Nov 18 07:57:12 x4 kernel: ATL1E 0000:02:00.0: irq 40 for MSI/MSI-X
-> Nov 18 07:57:12 x4 kernel: ATL1E 0000:02:00.0: eth0: NIC Link is Up <100 Mbps Full Duplex>
-> Nov 18 07:57:12 x4 kernel: ATL1E 0000:02:00.0: eth0: NIC Link is Up <100 Mbps Full Duplex>
-> Nov 18 07:57:13 x4 kernel: Adding 2097148k swap on /var/tmp/swap/swapfile.  Priority:-1 extents:2 across:2634672k
-> Nov 18 07:57:16 x4 kernel: ------------[ cut here ]------------
-> Nov 18 07:57:16 x4 kernel: WARNING: at mm/slub.c:3357 ksize+0xa5/0xb0()
-> Nov 18 07:57:16 x4 kernel: Hardware name: System Product Name
-> Nov 18 07:57:16 x4 kernel: Pid: 1539, comm: wmii Not tainted 3.2.0-rc2-00057-ga9098b3-dirty #60
-> Nov 18 07:57:16 x4 kernel: Call Trace:                                                                                                               Nov 18 07:57:16 x4 kernel: [<ffffffff8106cb75>] warn_slowpath_common+0x75/0xb0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8106cc75>] warn_slowpath_null+0x15/0x20
-> Nov 18 07:57:16 x4 kernel: [<ffffffff81103985>] ksize+0xa5/0xb0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141e3ee>] __alloc_skb+0x7e/0x210
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141b75e>] sock_alloc_send_pskb+0x1be/0x300
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141a5d2>] ? sock_wfree+0x52/0x60                                                                               Nov 18 07:57:16 x4 kernel: [<ffffffff8141b8b0>] sock_alloc_send_skb+0x10/0x20                                                                        Nov 18 07:57:16 x4 kernel: [<ffffffff814a3c61>] unix_stream_sendmsg+0x261/0x420
-> Nov 18 07:57:16 x4 kernel: [<ffffffff814176ff>] sock_aio_write+0xdf/0x100                                                                            Nov 18 07:57:16 x4 kernel: [<ffffffff81417620>] ? sock_aio_read+0x110/0x110
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110b6ca>] do_sync_readv_writev+0xca/0x110
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110b7fb>] ? rw_copy_check_uvector+0x6b/0x130
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110a8a6>] ? do_sync_read+0xd6/0x110                                                                            Nov 18 07:57:16 x4 kernel: [<ffffffff8110b996>] do_readv_writev+0xd6/0x1e0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110bb20>] vfs_writev+0x30/0x60                                                                                 Nov 18 07:57:16 x4 kernel: [<ffffffff8110bc25>] sys_writev+0x45/0x90
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8111d8d1>] ? sys_poll+0x71/0x110
-> Nov 18 07:57:16 x4 kernel: [<ffffffff814ca5fb>] system_call_fastpath+0x16/0x1b
-> Nov 18 07:57:16 x4 kernel: ---[ end trace 320a3cfbcb373e9a ]---
-> Nov 18 07:57:16 x4 kernel: ------------[ cut here ]------------
-> Nov 18 07:57:16 x4 kernel: kernel BUG at mm/slub.c:3413!
-> Nov 18 07:57:16 x4 kernel: invalid opcode: 0000 [#1] PREEMPT SMP
-> Nov 18 07:57:16 x4 kernel: CPU 1
-> Nov 18 07:57:16 x4 kernel: Pid: 1500, comm: X Tainted: G        W    3.2.0-rc2-00057-ga9098b3-dirty #60 System manufacturer System Product Name/M4A78T-E
-> Nov 18 07:57:16 x4 kernel: RIP: 0010:[<ffffffff81103ac1>]  [<ffffffff81103ac1>] kfree+0x131/0x140
-> Nov 18 07:57:16 x4 kernel: RSP: 0018:ffff88020fbc1b88  EFLAGS: 00010246
-> Nov 18 07:57:16 x4 kernel: RAX: 4000000000000000 RBX: ffff880200000000 RCX: 0000000000000304
-> Nov 18 07:57:16 x4 kernel: RDX: ffffffff7fffffff RSI: 0000000000000282 RDI: ffff880200000000
-> Nov 18 07:57:16 x4 kernel: RBP: ffff88020fbc1ba8 R08: 0000000000000304 R09: ffffea0008000000
-> Nov 18 07:57:16 x4 kernel: R10: 00000000005d6ba0 R11: 0000000000003246 R12: ffff880213570700
-> Nov 18 07:57:16 x4 kernel: R13: ffffffff8141e8c0 R14: ffff880213570700 R15: ffff880216bba3a0
-> Nov 18 07:57:16 x4 kernel: FS:  00007fdc1da79880(0000) GS:ffff88021fc80000(0000) knlGS:0000000000000000
-> Nov 18 07:57:16 x4 kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> Nov 18 07:57:16 x4 kernel: CR2: 0000000001b39a98 CR3: 000000020fbfc000 CR4: 00000000000006e0
-> Nov 18 07:57:16 x4 kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> Nov 18 07:57:16 x4 kernel: DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Nov 18 07:57:16 x4 kernel: Process X (pid: 1500, threadinfo ffff88020fbc0000, task ffff880216bba3a0)
-> Nov 18 07:57:16 x4 kernel: Stack:
-> Nov 18 07:57:16 x4 kernel: 0000000000000000 ffff880213570700 ffff880213570700 0000000000000000
-> Nov 18 07:57:16 x4 kernel: ffff88020fbc1bc8 ffffffff8141e8c0 ffff880213570700 ffff880213570700
-> Nov 18 07:57:16 x4 kernel: ffff88020fbc1be8 ffffffff8141e8e9 ffff880200000000 ffff880213570700
-> Nov 18 07:57:16 x4 kernel: Call Trace:
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141e8c0>] skb_release_data+0xf0/0x100
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141e8e9>] skb_release_all+0x19/0x20
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141e901>] __kfree_skb+0x11/0xa0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8141e9b6>] consume_skb+0x26/0xa0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff814a5614>] unix_stream_recvmsg+0x2c4/0x790
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8111c1c0>] ? __pollwait+0xf0/0xf0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff814175f4>] sock_aio_read+0xe4/0x110
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110a8a6>] do_sync_read+0xd6/0x110
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8108fa64>] ? enqueue_hrtimer+0x24/0xc0
-> Nov 18 07:57:16 x4 kernel: [<ffffffff81090303>] ? hrtimer_start+0x13/0x20
-> Nov 18 07:57:16 x4 kernel: [<ffffffff810714ac>] ? do_setitimer+0x1bc/0x240
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110b095>] vfs_read+0x135/0x160
-> Nov 18 07:57:16 x4 kernel: [<ffffffff8110b375>] sys_read+0x45/0x90
-> Nov 18 07:57:16 x4 kernel: [<ffffffff814ca5fb>] system_call_fastpath+0x16/0x1b
-> Nov 18 07:57:16 x4 kernel: Code: e9 3d ff ff ff 48 89 da 4c 89 ce e8 51 fe 3b 00 e9 77 ff ff ff 49 f7 01 00 c0 00 00 74 0d 4c 89 cf e8 64 24 fd ff e9 61 ff ff ff <0f> 0b 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 53 48
-> Nov 18 07:57:16 x4 kernel: RIP  [<ffffffff81103ac1>] kfree+0x131/0x140
-> Nov 18 07:57:16 x4 kernel: RSP <ffff88020fbc1b88>
-> Nov 18 07:57:16 x4 kernel: ---[ end trace 320a3cfbcb373e9b ]---
-> Nov 18 08:01:30 x4 kernel: SysRq : Emergency Sync
-> Nov 18 08:01:30 x4 kernel: Emergency Sync complete
-> 
-> The dirty flag comes from a bunch of unrelated xfs patches from Christoph, that
-> I'm testing right now.
-> 
-> Please also see my previous post: http://thread.gmane.org/gmane.linux.kernel/1215023
-> It looks like something is scribbling over memory.
-> 
-> This machine uses ECC, so bit-flips should be impossible.
+Andrew Morton wrote:
+> On Wed, 16 Nov 2011 17:47:47 +0300
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> Inode cache pruning can throw out some usefull data from page cache.
+>> This patch aborts inode invalidation and keep inode alive if it still has
+>> active pages.
+>>
+>
+> hm, I suppose so.
+>
+> I also suppose there are various risks related to failing to reclaim
+> inodes due to ongoing userspace activity and then running out of lowmem
+> pages.
 
-CC'ing netdev@vger.kernel.org and Eric Dumazet.
+Ok, I think we can bypass active-page protection if CONFIG_HIGHMEM=y and
+there is no __GFP_HIGHMEM in gfp_mask.
 
--- 
-Markus
+>
+>> It improves interaction between inode cache and page cache.
+>
+> Well, this is the key part of the patch and it is the thing which we
+> are most interested in.  But you didn't tell us anything about it!
+>
+> So please, provide us with much more detailed information on the
+> observed benefits.
+
+Currently this is based only on thought experiment.
+I think rising pginodesteal and kswapd_inodesteal in /proc/vstat is sign of
+inefficient memory reclaiming, because page-cache lru has a much more detailed
+information about memory activity.
+
+I plan to run some containers related tests/benchmarks,
+something like multiple heavy-loaded web-servers.
+
+>
+>>
+>> diff --git a/fs/inode.c b/fs/inode.c
+>> index 1f6c48d..8d55a63 100644
+>> --- a/fs/inode.c
+>> +++ b/fs/inode.c
+>> @@ -663,8 +663,8 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+>>   			spin_unlock(&inode->i_lock);
+>>   			spin_unlock(&sb->s_inode_lru_lock);
+>>   			if (remove_inode_buffers(inode))
+>> -				reap += invalidate_mapping_pages(&inode->i_data,
+>> -								0, -1);
+>> +				reap += invalidate_inode_inactive_pages(
+>> +						&inode->i_data, 0, -1);
+>>   			iput(inode);
+>>   			spin_lock(&sb->s_inode_lru_lock);
+>>
+>> diff --git a/include/linux/fs.h b/include/linux/fs.h
+>> index 0c4df26..05875d7 100644
+>> --- a/include/linux/fs.h
+>> +++ b/include/linux/fs.h
+>> @@ -2211,6 +2211,8 @@ extern int invalidate_partition(struct gendisk *, int);
+>>   #endif
+>>   unsigned long invalidate_mapping_pages(struct address_space *mapping,
+>>   					pgoff_t start, pgoff_t end);
+>> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
+>> +					pgoff_t start, pgoff_t end);
+>>
+>>   static inline void invalidate_remote_inode(struct inode *inode)
+>>   {
+>> diff --git a/mm/truncate.c b/mm/truncate.c
+>> index 632b15e..ac739bc 100644
+>> --- a/mm/truncate.c
+>> +++ b/mm/truncate.c
+>> @@ -379,6 +379,52 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+>>   EXPORT_SYMBOL(invalidate_mapping_pages);
+>>
+>>   /*
+>> + * This is like invalidate_mapping_pages(),
+>> + * except it aborts invalidation at the first active page.
+>> + */
+>> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
+>> +					    pgoff_t start, pgoff_t end)
+>> +{
+>> +	struct pagevec pvec;
+>> +	pgoff_t index = start;
+>> +	unsigned long ret;
+>> +	unsigned long count = 0;
+>> +	int i;
+>> +
+>> +	pagevec_init(&pvec, 0);
+>> +	while (index<= end&&  pagevec_lookup(&pvec, mapping, index,
+>> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+>> +
+>> +		mem_cgroup_uncharge_start();
+>> +		for (i = 0; i<  pagevec_count(&pvec); i++) {
+>> +			struct page *page = pvec.pages[i];
+>> +
+>> +			if (PageActive(page)) {
+>> +				index = end;
+>> +				break;
+>> +			}
+>> +
+>> +			/* We rely upon deletion not changing page->index */
+>> +			index = page->index;
+>> +			if (index>  end)
+>> +				break;
+>> +
+>> +			if (!trylock_page(page))
+>> +				continue;
+>> +			WARN_ON(page->index != index);
+>> +			ret = invalidate_inode_page(page);
+>> +			unlock_page(page);
+>> +			count += ret;
+>> +		}
+>> +		pagevec_release(&pvec);
+>> +		mem_cgroup_uncharge_end();
+>> +		cond_resched();
+>> +		index++;
+>> +	}
+>> +	return count;
+>> +}
+>
+> We shouldn't just copy-n-paste invalidate_mapping_pages() like this.
+> Can't we share the function by passing in a pointer to a callback
+> function (invalidate_inode_page or a new
+> invalidate_inode_page_unless_it_is_active).
+>
+
+Ok, I'll think how to implement this more accurate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
