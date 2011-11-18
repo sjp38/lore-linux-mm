@@ -1,103 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7ADE86B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 05:40:15 -0500 (EST)
-From: Cong Wang <amwang@redhat.com>
-Subject: [V2 PATCH] tmpfs: add fallocate support
-Date: Fri, 18 Nov 2011 18:39:50 +0800
-Message-Id: <1321612791-4764-1-git-send-email-amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 85D296B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:33:05 -0500 (EST)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 18 Nov 2011 11:31:06 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBTRwT3223758
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:29:34 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBWcDp030739
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:32:39 +1100
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Fri, 18 Nov 2011 16:36:31 +0530
+Message-Id: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+Subject: [PATCH v7 3.2-rc2 0/30] uprobes patchset with perf probe support
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, WANG Cong <amwang@redhat.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-It seems that systemd needs tmpfs to support fallocate,
-see http://lkml.org/lkml/2011/10/20/275. This patch adds
-fallocate support to tmpfs.
 
-As we already have shmem_truncate_range(), it is also easy
-to add FALLOC_FL_PUNCH_HOLE support too.
+This patchset implements Uprobes which enables you to dynamically probe
+any routine in a user space application and collect information
+non-disruptively.
 
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Lennart Poettering <lennart@poettering.net>
-Cc: Kay Sievers <kay.sievers@vrfy.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: WANG Cong <amwang@redhat.com>
+This patchset resolves most of the comments on the previous posting
+(https://lkml.org/lkml/2011/11/10/408) patchset applies on top of
+commit cfcfc9eca2b
 
----
- mm/shmem.c |   43 +++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 43 insertions(+), 0 deletions(-)
+This patchset depends on bulkref patch from Paul McKenney
+https://lkml.org/lkml/2011/11/2/365 and enable interrupts before
+calling do_notify_resume on i686 patch
+https://lkml.org/lkml/2011/10/25/265.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index d672250..96bf619 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -30,6 +30,7 @@
- #include <linux/mm.h>
- #include <linux/export.h>
- #include <linux/swap.h>
-+#include <linux/falloc.h>
- 
- static struct vfsmount *shm_mnt;
- 
-@@ -1431,6 +1432,47 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
- 	return error;
- }
- 
-+static long shmem_fallocate(struct file *file, int mode,
-+				loff_t offset, loff_t len)
-+{
-+	struct inode *inode = file->f_path.dentry->d_inode;
-+	pgoff_t start = offset >> PAGE_CACHE_SHIFT;
-+	pgoff_t end = DIV_ROUND_UP((offset + len), PAGE_CACHE_SIZE);
-+	pgoff_t index = start;
-+	loff_t i_size = i_size_read(inode);
-+	struct page *page = NULL;
-+	int ret = 0;
-+
-+	mutex_lock(&inode->i_mutex);
-+	if (mode & FALLOC_FL_PUNCH_HOLE) {
-+		if (!(offset > i_size || (end << PAGE_CACHE_SHIFT) > i_size))
-+			shmem_truncate_range(inode, offset,
-+					     (end << PAGE_CACHE_SHIFT) - 1);
-+		goto unlock;
-+	}
-+
-+	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
-+		ret = inode_newsize_ok(inode, (offset + len));
-+		if (ret)
-+			goto unlock;
-+	}
-+
-+	while (index < end) {
-+		ret = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
-+		if (ret)
-+			goto unlock;
-+		if (page)
-+			unlock_page(page);
-+		index++;
-+	}
-+	if (!(mode & FALLOC_FL_KEEP_SIZE) && (index << PAGE_CACHE_SHIFT) > i_size)
-+		i_size_write(inode, index << PAGE_CACHE_SHIFT);
-+
-+unlock:
-+	mutex_unlock(&inode->i_mutex);
-+	return ret;
-+}
-+
- static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
- {
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
-@@ -2286,6 +2328,7 @@ static const struct file_operations shmem_file_operations = {
- 	.fsync		= noop_fsync,
- 	.splice_read	= shmem_file_splice_read,
- 	.splice_write	= generic_file_splice_write,
-+	.fallocate	= shmem_fallocate,
- #endif
- };
- 
+uprobes git is hosted at git://github.com/srikard/linux.git
+with branch inode_uprobes_v32rc2.
+(The previous patchset posted to lkml has been rebased to 3.2-rc2 is also
+available at branch inode_uprobes_v32rc2_prev. This is to help the
+reviewers of the previous patchsets to quickly identify the changes.)
+
+Uprobes Patches
+This patchset implements inode based uprobes which are specified as
+<file>:<offset> where offset is the offset from start of the map.
+
+When a uprobe is registered, Uprobes makes a copy of the probed
+instruction, replaces the first byte(s) of the probed instruction with a
+breakpoint instruction. (Uprobes uses background page replacement
+mechanism and ensures that the breakpoint affects only that process.)
+
+When a CPU hits the breakpoint instruction, Uprobes gets notified of
+trap and finds the associated uprobe. It then executes the associated
+handler. Uprobes single-steps its copy of the probed instruction and
+resumes execution of the probed process at the instruction following the
+probepoint. Instruction copies to be single-stepped are stored in a
+per-mm "execution out of line (XOL) area". Currently XOL area is
+allocated as one page vma.
+
+For previous postings: please refer: https://lkml.org/lkml/2011/9/20/123
+https://lkml.org/lkml/2011/6/7/232 https://lkml.org/lkml/2011/4/1/176
+http://lkml.org/lkml/2011/3/14/171/ http://lkml.org/lkml/2010/12/16/65
+http://lkml.org/lkml/2010/8/25/165 http://lkml.org/lkml/2010/7/27/121
+http://lkml.org/lkml/2010/7/12/67 http://lkml.org/lkml/2010/7/8/239
+http://lkml.org/lkml/2010/6/29/299 http://lkml.org/lkml/2010/6/14/41
+http://lkml.org/lkml/2010/3/20/107 and http://lkml.org/lkml/2010/5/18/307
+
+This patchset is a rework based on suggestions from discussions on lkml
+in September, March and January 2010 (http://lkml.org/lkml/2010/1/11/92,
+http://lkml.org/lkml/2010/1/27/19, http://lkml.org/lkml/2010/3/20/107
+and http://lkml.org/lkml/2010/3/31/199 ). This implementation of uprobes
+doesnt depend on utrace.
+
+Advantages of uprobes over conventional debugging include:
+
+1. Non-disruptive.
+Unlike current ptrace based mechanisms, uprobes tracing wouldnt
+involve signals, stopping threads and context switching between the
+tracer and tracee.
+
+2. Much better handling of multithreaded programs because of XOL.
+Current ptrace based mechanisms use single stepping inline, i.e they
+copy back the original instruction on hitting a breakpoint.  In such
+mechanisms tracers have to stop all the threads on a breakpoint hit or
+tracers will not be able to handle all hits to the location of
+interest. Uprobes uses execution out of line, where the instruction to
+be traced is analysed at the time of breakpoint insertion and a copy
+of instruction is stored at a different location.  On breakpoint hit,
+uprobes jumps to that copied location and singlesteps the same
+instruction and does the necessary fixups post singlestepping.
+
+3. Multiple tracers for an application.
+Multiple uprobes based tracer could work in unison to trace an
+application. There could one tracer that could be interested in
+generic events for a particular set of process. While there could be
+another tracer that is just interested in one specific event of a
+particular process thats part of the previous set of process.
+
+4. Corelating events from kernels and userspace.
+Uprobes could be used with other tools like kprobes, tracepoints or as
+part of higher level tools like perf to give a consolidated set of
+events from kernel and userspace.  In future we could look at a single
+backtrace showing application, library and kernel calls.
+
+Changes from last patchset:
+- Rebased to Linus's 3.2-rc2 (cfcfc9eca2b)
+- abort_xol does arch specific cleanups.
+- added nop optimization.
+
+Here is the list of TODO Items.
+
+- Prefiltering (i.e filtering at the time of probe insertion)
+- Return probes.
+- Support for other architectures.
+- Uprobes booster.
+- replace macro W with bits in inat table.
+
+Please refer "[PATCH 3.2-rc2 21/30] tracing: uprobes trace_event interface".
+
+Please refer "[PATCH 3.2-rc2 23/30] perf: perf interface for uprobes".
+
+Please do provide your valuable comments.
+
+Thanks in advance.
+Srikar
+
+Srikar Dronamraju (30)
+ 0: Uprobes patchset with perf probe support
+ 1: uprobes: Auxillary routines to insert, find, delete uprobes
+ 2: Uprobes: Allow multiple consumers for an uprobe.
+ 3: Uprobes: register/unregister probes.
+ 4: uprobes: Define hooks for mmap/munmap.
+ 5: Uprobes: copy of the original instruction.
+ 6: Uprobes: define fixups.
+ 7: Uprobes: uprobes arch info
+ 8: x86: analyze instruction and determine fixups.
+ 9: Uprobes: Background page replacement.
+10: x86: Set instruction pointer.
+11: x86: Introduce TIF_UPROBE FLAG.
+12: Uprobes: Handle breakpoint and Singlestep
+13: x86: define a x86 specific exception notifier.
+14: uprobe: register exception notifier
+15: x86: Define x86_64 specific uprobe_task_arch_info structure
+16: uprobes: Introduce uprobe_task_arch_info structure.
+17: x86: arch specific hooks for pre/post singlestep handling.
+18: uprobes: slot allocation.
+19: tracing: modify is_delete, is_return from ints to bool.
+20: tracing: Extract out common code for kprobes/uprobes traceevents.
+21: tracing: uprobes trace_event interface
+22: perf: rename target_module to target
+23: perf: perf interface for uprobes
+24: perf: show possible probes in a given executable file or library.
+25: uprobes: call post_xol() unconditionally
+26: uprobes: introduce uprobe_deny_signal()
+27: uprobes: x86: introduce xol_was_trapped()
+28: uprobes: introduce UTASK_SSTEP_TRAPPED logic
+29: uprobes: Introduce uprobe flags
+30: x86: skip singlestep where possible
+
+
+ Documentation/trace/uprobetracer.txt    |   93 ++
+ arch/Kconfig                            |    3 +
+ arch/x86/Kconfig                        |    5 +-
+ arch/x86/include/asm/thread_info.h      |    2 +
+ arch/x86/include/asm/uprobes.h          |   59 ++
+ arch/x86/kernel/Makefile                |    1 +
+ arch/x86/kernel/signal.c                |    6 +
+ arch/x86/kernel/uprobes.c               |  648 +++++++++++++
+ include/linux/mm_types.h                |    5 +
+ include/linux/sched.h                   |    4 +
+ include/linux/uprobes.h                 |  178 ++++
+ kernel/Makefile                         |    1 +
+ kernel/fork.c                           |   15 +
+ kernel/signal.c                         |    3 +
+ kernel/trace/Kconfig                    |   20 +
+ kernel/trace/Makefile                   |    2 +
+ kernel/trace/trace.h                    |    5 +
+ kernel/trace/trace_kprobe.c             |  899 +------------------
+ kernel/trace/trace_probe.c              |  785 ++++++++++++++++
+ kernel/trace/trace_probe.h              |  161 ++++
+ kernel/trace/trace_uprobe.c             |  768 ++++++++++++++++
+ kernel/uprobes.c                        | 1500 +++++++++++++++++++++++++++++++
+ mm/mmap.c                               |   33 +-
+ tools/perf/Documentation/perf-probe.txt |   14 +
+ tools/perf/builtin-probe.c              |   49 +-
+ tools/perf/util/probe-event.c           |  411 +++++++--
+ tools/perf/util/probe-event.h           |   12 +-
+ tools/perf/util/symbol.c                |    8 +
+ tools/perf/util/symbol.h                |    1 +
+ 29 files changed, 4710 insertions(+), 981 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
