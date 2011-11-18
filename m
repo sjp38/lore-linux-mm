@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 771206B002D
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 18:31:33 -0500 (EST)
-Received: by bke17 with SMTP id 17so5363761bke.14
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 15:31:30 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D6C86B002D
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 18:49:27 -0500 (EST)
+Received: by ggnq1 with SMTP id q1so3974791ggn.14
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 15:49:25 -0800 (PST)
+Date: Fri, 18 Nov 2011 15:49:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
+ for mempolicy or disjoint nodemask
+In-Reply-To: <4EC62AEA.2030602@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <op.v45u6zyy3l0zgt@mpn-glaptop>
-References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
- <CA+K6fF6SH6BNoKgwArcqvyav4b=C5SGvymo5LS3akfD_yE_beg@mail.gmail.com> <op.v45u6zyy3l0zgt@mpn-glaptop>
-From: sandeep patil <psandeep.s@gmail.com>
-Date: Fri, 18 Nov 2011 15:30:49 -0800
-Message-ID: <CA+K6fF6iDivqmN9kfY34tWNg+g_rYBBmyS_Mxb6gvLuSgA2JyQ@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCHv17 0/11] Contiguous Memory Allocator
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2011/11/18 Michal Nazarewicz <mina86@mina86.com>:
-> On Fri, 18 Nov 2011 22:20:48 +0100, sandeep patil <psandeep.s@gmail.com>
-> wrote:
->>
->> I am running a simple test to allocate contiguous regions and write a lo=
-g
->> on
->> in a file on sdcard simultaneously. I can reproduce this migration failu=
-re
->> 100%
->> times with it.
->> when I tracked the pages that failed to migrate, I found them on the
->> buffer head lru
->> list with a reference held on the buffer_head in the page, which
->> causes drop_buffers()
->> to fail.
->>
->> So, i guess my question is, until all the migration failures are
->> tracked down and fixed,
->> is there a plan to retry the contiguous allocation from a new range in
->> the CMA region?
->
-> No. =A0Current CMA implementation will stick to the same range of pages a=
-lso
-> on consequent allocations of the same size.
->
+On Fri, 18 Nov 2011, Miao Xie wrote:
 
-Doesn't that mean the drivers that fail to allocate from contiguous DMA reg=
-ion
-will fail, if the migration fails?
+> >> I find these is another problem, please take account of the following case:
+> >>
+> >>   2-3 -> 1-2 -> 0-1
+> >>
+> >> the user change mems_allowed twice continuously, the task may see the empty
+> >> mems_allowed.
+> >>
+> >> So, it is still dangerous.
+> >>
+> > 
+> > With this patch, we're protected by task_lock(tsk) to determine whether we 
+> > want to take the exception, i.e. whether need_loop is false, and the 
+> > setting of tsk->mems_allowed.  So this would see the nodemask change at 
+> > the individual steps from 2-3 -> 1-2 -> 0-1, not some inconsistent state 
+> > in between or directly from 2-3 -> 0-1.  The only time we don't hold 
+> > task_lock(tsk) to change tsk->mems_allowed is when tsk == current and in 
+> > that case we're not concerned about intermediate reads to its own nodemask 
+> > while storing to a mask where MAX_NUMNODES > BITS_PER_LONG.
+> > 
+> > Thus, there's no problem here with regard to such behavior if we exclude 
+> > mempolicies, which this patch does.
+> > 
+> 
+> No.
+> When the task does memory allocation, it access its mems_allowed without
+> task_lock(tsk), and it may be blocked after it check 0-1 bits. And then, the
+> user changes mems_allowed twice continuously(2-3(initial state) -> 1-2 -> 0-1),
+> After that, the task is woke up and it see the empty mems_allowed.
+> 
 
-~ sandeep
+I'm confused, you're concerned on a kernel where 
+MAX_NUMNODES > BITS_PER_LONG about thread A reading a partial 
+tsk->mems_allowed, being preempted, meanwhile thread B changes 
+tsk->mems_allowed by taking cgroup_mutex, taking task_lock(tsk), setting 
+the intersecting nodemask, releasing both, taking them again, changing the 
+nodemask again to be disjoint, then the thread A waking up and finishing 
+its read and seeing an intersecting nodemask because it is now disjoint 
+from the first read?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
