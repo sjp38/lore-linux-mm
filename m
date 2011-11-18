@@ -1,77 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD7F6B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:35:27 -0500 (EST)
-Date: Fri, 18 Nov 2011 17:35:21 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
-Message-ID: <20111118163521.GD23223@tiehlicka.suse.cz>
-References: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 760AB6B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:43:25 -0500 (EST)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LUV009047S9BT@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 18 Nov 2011 16:43:21 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LUV009437S8YA@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 18 Nov 2011 16:43:21 +0000 (GMT)
+Date: Fri, 18 Nov 2011 17:43:08 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH 01/11] mm: page_alloc: handle MIGRATE_ISOLATE in
+ free_pcppages_bulk()
+In-reply-to: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1321634598-16859-2-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <bsingharora@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Thu 17-11-11 10:33:08, KAMEZAWA Hiroyuki wrote:
-> 
-> I'll send this again when mm is shipped.
-> I sometimes see mem_cgroup_split_huge_fixup() in perf report and noticed
-> it's very slow. This fixes it. Any comments are welcome.
-> 
-> ==
-> Subject: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
-> 
-> at split_huge_page(), mem_cgroup_split_huge_fixup() is called to
-> handle page_cgroup modifcations. It takes move_lock_page_cgroup()
-> and modify page_cgroup and LRU accounting jobs and called
-> HPAGE_PMD_SIZE - 1 times.
-> 
-> But thinking again,
->   - compound_lock() is held at move_accout...then, it's not necessary
->     to take move_lock_page_cgroup().
->   - LRU is locked and all tail pages will go into the same LRU as
->     head is now on.
->   - page_cgroup is contiguous in huge page range.
-> 
-> This patch fixes mem_cgroup_split_huge_fixup() as to be called once per
-> hugepage and reduce costs for spliting.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+From: Michal Nazarewicz <mina86@mina86.com>
 
-Yes, looks good. Andrew already took the patch, but just in case
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+If page is on PCP list while pageblock it belongs to gets isolated,
+the page's private still holds the old migrate type.  This means
+that free_pcppages_bulk() will put the page on a freelist of the
+old migrate type instead of MIGRATE_ISOLATE.
 
-Just one really minor comment bellow
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6aff93c..99101f1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2523,38 +2523,38 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  /*
->   * Because tail pages are not marked as "used", set it. We're under
->   * zone->lru_lock, 'splitting on pmd' and compund_lock.
+This commit changes that by explicitly checking whether page's
+pageblock's migrate type is MIGRATE_ISOLATE and if it is, overwrites
+page's private data.
 
-typo that could be fixed to make grep happier
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+---
+ mm/page_alloc.c |   12 ++++++++++++
+ 1 files changed, 12 insertions(+), 0 deletions(-)
 
-> + * charge/uncharge will be never happen and move_account() is done under
-> + * compound_lock(), so we don't have to take care of races.
->   */
-> -void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
-> +void mem_cgroup_split_huge_fixup(struct page *head)
-
-Thanks!
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9dd443d..58d1a2e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -628,6 +628,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			page = list_entry(list->prev, struct page, lru);
+ 			/* must delete as __free_one_page list manipulates */
+ 			list_del(&page->lru);
++
++			/*
++			 * When page is isolated in set_migratetype_isolate()
++			 * function it's page_private is not changed since the
++			 * function has no way of knowing if it can touch it.
++			 * This means that when a page is on PCP list, it's
++			 * page_private no longer matches the desired migrate
++			 * type.
++			 */
++			if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
++				set_page_private(page, MIGRATE_ISOLATE);
++
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+ 			__free_one_page(page, zone, 0, page_private(page));
+ 			trace_mm_page_pcpu_drain(page, 0, page_private(page));
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
