@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC4F6B0073
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 07:02:06 -0500 (EST)
-Date: Fri, 18 Nov 2011 13:02:01 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-Message-ID: <20111118120201.GA1642@x4.trippels.de>
-References: <20111118072519.GA1615@x4.trippels.de>
- <20111118075521.GB1615@x4.trippels.de>
- <1321605837.30341.551.camel@debian>
- <20111118085436.GC1615@x4.trippels.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D34BA6B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 07:50:03 -0500 (EST)
+Date: Fri, 18 Nov 2011 13:52:02 +0100
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: [PATCH] mm,x86: remove debug_pagealloc_enabled
+Message-ID: <20111118125201.GC2203@redhat.com>
+References: <1321458232-6823-1-git-send-email-sgruszka@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111118085436.GC1615@x4.trippels.de>
+In-Reply-To: <1321458232-6823-1-git-send-email-sgruszka@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Alex,Shi" <alex.shi@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: linux-mm@kvack.org, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 2011.11.18 at 09:54 +0100, Markus Trippelsdorf wrote:
-> On 2011.11.18 at 16:43 +0800, Alex,Shi wrote:
-> > > > 
-> > > > The dirty flag comes from a bunch of unrelated xfs patches from Christoph, that
-> > > > I'm testing right now.
-> > 
-> > Where is the xfs patchset? I am wondering if it is due to slub code. 
+On Wed, Nov 16, 2011 at 04:43:52PM +0100, Stanislaw Gruszka wrote:
+> When (no)bootmem finish operation, it pass pages to buddy allocator.
+> Since debug_pagealloc_enabled is not set, we will do not protect pages,
+> what is not what we want with CONFIG_DEBUG_PAGEALLOC=y.
+> 
+> To fix remove debug_pagealloc_enabled. That variable was introduced by
+> commit 12d6f21e "x86: do not PSE on CONFIG_DEBUG_PAGEALLOC=y" to get
+> more CPA (change page attribude) code testing. But currently we have
+> CONFIG_CPA_DEBUG, which test CPA.
 
-I begin to wonder if this might be the result of a compiler bug. 
-The kernel in question was compiled with gcc version 4.7.0 20111117. And
-there was commit to the gcc repository today that looks suspicious:
-http://gcc.gnu.org/viewcvs?view=revision&revision=181466
+Note this is more like fix than cleanup. Without patch, pages are not
+protected until they are allocated and then freed again, what may
+not happen if system is not used intensively.
 
-Will have to dig deeper, but if this turns out to be the cause of the
-issue, I apologize for the noise.
+If that patch can not be accepted, I think we should just go through
+all free pages and mark then as not-presen in enable_debug_pagealloc()
 
--- 
-Markus
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
