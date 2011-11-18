@@ -1,82 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BDB4B6B002D
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 15:00:13 -0500 (EST)
-Date: Fri, 18 Nov 2011 11:59:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] mm/vmalloc.c: eliminate extra loop in
- pcpu_get_vm_areas error path
-Message-Id: <20111118115955.410af035.akpm@linux-foundation.org>
-In-Reply-To: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
-References: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E594E6B002D
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 16:09:50 -0500 (EST)
+Date: Sat, 19 Nov 2011 08:09:41 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: remove struct reclaim_state
+Message-ID: <20111118210941.GK7046@dastard>
+References: <20111118092806.21688.8662.stgit@zurg>
+ <20111118095644.GJ7046@dastard>
+ <4EC62E46.6080503@openvz.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4EC62E46.6080503@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, 18 Nov 2011 17:13:50 +0530
-Kautuk Consul <consul.kautuk@gmail.com> wrote:
-
-> If either of the vas or vms arrays are not properly kzalloced,
-> then the code jumps to the err_free label.
+On Fri, Nov 18, 2011 at 02:07:02PM +0400, Konstantin Khlebnikov wrote:
+> Dave Chinner wrote:
+> >On Fri, Nov 18, 2011 at 01:28:06PM +0300, Konstantin Khlebnikov wrote:
+> >>Memory reclaimer want to know how much pages was reclaimed during shrinking slabs.
+> >>Currently there is special struct reclaim_state with single counter and pointer from
+> >>task-struct. Let's store counter direcly on task struct and account freed pages
+> >>unconditionally. This will reduce stack usage and simplify code in reclaimer and slab.
+> >>
+> >>Logic in do_try_to_free_pages() is slightly changed, but this is ok.
+> >>Nobody calls shrink_slab() explicitly before do_try_to_free_pages(),
+> >
+> >Except for drop_slab() and shake_page()....
 > 
-> The err_free label runs a loop to check and free each of the array
-> members of the vas and vms arrays which is not required for this
-> situation as none of the array members have been allocated till this
-> point.
-> 
-> Eliminate the extra loop we have to go through by introducing a new
-> label err_free2 and then jumping to it.
-> 
-> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
-> ---
->  mm/vmalloc.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index b669aa6..1a0d4e2 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2352,7 +2352,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
->  	vms = kzalloc(sizeof(vms[0]) * nr_vms, GFP_KERNEL);
->  	vas = kzalloc(sizeof(vas[0]) * nr_vms, GFP_KERNEL);
->  	if (!vas || !vms)
-> -		goto err_free;
-> +		goto err_free2;
->  
->  	for (area = 0; area < nr_vms; area++) {
->  		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);
-> @@ -2455,6 +2455,7 @@ err_free:
->  		if (vms)
->  			kfree(vms[area]);
->  	}
-> +err_free2:
->  	kfree(vas);
->  	kfree(vms);
->  	return NULL;
+> Indeed, but they do not care about accounting reclaimed pages and
+> they do not call do_try_to_free_pages() after all.
 
-Which means we can also do the below, yes?  (please check my homework!)
+Right, so you're effectively leaving a landmine for someone to trip
+over - anyone that cares about accounting during shrink_slab needs
+to zero the value first.  The current code makes this obvious by not
+having a reclaim structure in the cases where callers don't care
+about accounting - after your change the correct usage is
+undocumented....
 
---- a/mm/vmalloc.c~mm-vmallocc-eliminate-extra-loop-in-pcpu_get_vm_areas-error-path-fix
-+++ a/mm/vmalloc.c
-@@ -2449,10 +2449,8 @@ found:
- 
- err_free:
- 	for (area = 0; area < nr_vms; area++) {
--		if (vas)
--			kfree(vas[area]);
--		if (vms)
--			kfree(vms[area]);
-+		kfree(vas[area]);
-+		kfree(vms[area]);
- 	}
- err_free2:
- 	kfree(vas);
-_
+Cheers,
 
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
