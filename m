@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 596BC6B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 09:47:03 -0500 (EST)
-Received: by eye4 with SMTP id 4so4449677eye.14
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:47:00 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAONaPpHybQL38PSq-hux5X44zuHDCQg=8L1fb+geWv00ktQq7g@mail.gmail.com>
-References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
-	<CAONaPpGQdpNDT9EuTq_xian+bRFDUsLn7AgjtG-=y0C6-9fDTQ@mail.gmail.com>
-	<CAONaPpHybQL38PSq-hux5X44zuHDCQg=8L1fb+geWv00ktQq7g@mail.gmail.com>
-Date: Fri, 18 Nov 2011 22:46:59 +0800
-Message-ID: <CAJd=RBAxq4knDnehEXEy+yWYRwXp5ukwkNvgssKPLr+HrgUnPg@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E112C6B006E
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 10:07:47 -0500 (EST)
+Date: Fri, 18 Nov 2011 16:07:42 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH] hugetlb: detect race if fail to COW
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Message-ID: <20111118150742.GA23223@tiehlicka.suse.cz>
+References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Kacur <jkacur@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-T24gRnJpLCBOb3YgMTgsIDIwMTEgYXQgMTA6MjEgUE0sIEpvaG4gS2FjdXIgPGprYWN1ckByZWRo
-YXQuY29tPiB3cm90ZToKPiBPbiBGcmksIE5vdiAxOCwgMjAxMSBhdCAzOjE2IFBNLCBKb2huIEth
-Y3VyIDxqa2FjdXJAcmVkaGF0LmNvbT4gd3JvdGU6Cj4+IE9uIEZyaSwgTm92IDE4LCAyMDExIGF0
-IDM6MDQgUE0sIEhpbGxmIERhbnRvbiA8ZGhpbGxmQGdtYWlsLmNvbT4gd3JvdGU6Cj4+PiBJbiB0
-aGUgZXJyb3IgcGF0aCB0aGF0IHdlIGZhaWwgdG8gYWxsb2NhdGUgbmV3IGh1Z2UgcGFnZSwgYmVm
-b3JlIHRyeSBhZ2Fpbiwgd2UKPj4+IGhhdmUgdG8gY2hlY2sgcmFjZSBzaW5jZSBwYWdlX3RhYmxl
-X2xvY2sgaXMgcmUtYWNxdWlyZWQuCj4+Pgo+Pj4gSWYgcmFjaW5nLCBvdXIgam9iIGlzIGRvbmUu
-Cj4+Pgo+Pj4gU2lnbmVkLW9mZi1ieTogSGlsbGYgRGFudG9uIDxkaGlsbGZAZ21haWwuY29tPgo+
-Pj4gLS0tCj4+Pgo+Pj4gLS0tIGEvbW0vaHVnZXRsYi5jIMKgIMKgIMKgRnJpIE5vdiAxOCAyMToz
-ODozMCAyMDExCj4+PiArKysgYi9tbS9odWdldGxiLmMgwqAgwqAgwqBGcmkgTm92IDE4IDIxOjQ4
-OjE1IDIwMTEKPj4+IEBAIC0yNDA3LDcgKzI0MDcsMTQgQEAgcmV0cnlfYXZvaWRjb3B5Ogo+Pj4g
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBCVUdfT04ocGFn
-ZV9jb3VudChvbGRfcGFnZSkgIT0gMSk7Cj4+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoEJVR19PTihodWdlX3B0ZV9ub25lKHB0ZSkpOwo+Pj4gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzcGluX2xvY2soJm1tLT5w
-YWdlX3RhYmxlX2xvY2spOwo+Pj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCBnb3RvIHJldHJ5X2F2b2lkY29weTsKPj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcHRlcCA9IGh1Z2VfcHRlX29mZnNldChtbSwgYWRk
-cmVzcyAmIGh1Z2VfcGFnZV9tYXNrKGgpKTsKPj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGxpa2VseShwdGVfc2FtZShodWdlX3B0ZXBfZ2V0KHB0
-ZXApLCBwdGUpKSkKPj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgZ290byByZXRyeV9hdm9pZGNvcHk7Cj4+PiArIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8qCj4+PiArIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiByYWNlIG9jY3VycyB3aGlsZSByZS1h
-Y3F1aXJpbmcgcGFnZV90YWJsZV9sb2NrLCBhbmQKPj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAqIG91ciBqb2IgaXMgZG9uZS4KPj4+ICsgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAqLwo+Pj4gKyDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gMDsKPj4+IMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgfQo+Pj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqBXQVJOX09OX09OQ0UoMSk7Cj4+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oH0KPj4KPj4KPj4gSSdtIG5vdCBzdXJlIGFib3V0IHRoZSB2ZXJhY2l0eSBvZiB0aGUgcmFjZSBj
-b25kaXRpb24sIGJ1dCB5b3UgYmV0dGVyCj4+IGRvIHNwaW5fdW5sb2NrIGJlZm9yZSB5b3UgcmV0
-dXJuLgo+Pgo+Cj4gVWdoLCBzb3JyeSBmb3IgdGhlIG5vaXNlLCBJIHNlZSB0aGF0J3Mgbm90IGhv
-dyBpdCB3b3JrcyBoZXJlLgoKV2VsY29tZTopCg==
+On Fri 18-11-11 22:04:37, Hillf Danton wrote:
+> In the error path that we fail to allocate new huge page, before try again, we
+> have to check race since page_table_lock is re-acquired.
+
+I do not think we can race here because we are serialized by
+hugetlb_instantiation_mutex AFAIU. Without this lock, however, we could
+fall into avoidcopy and shortcut despite the fact that other thread has
+already did the job.
+
+The mutex usage is not obvious in hugetlb_cow so maybe we want to be
+explicit about it (either a comment or do the recheck).
+
+> 
+> If racing, our job is done.
+> 
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> ---
+> 
+> --- a/mm/hugetlb.c	Fri Nov 18 21:38:30 2011
+> +++ b/mm/hugetlb.c	Fri Nov 18 21:48:15 2011
+> @@ -2407,7 +2407,14 @@ retry_avoidcopy:
+>  				BUG_ON(page_count(old_page) != 1);
+>  				BUG_ON(huge_pte_none(pte));
+>  				spin_lock(&mm->page_table_lock);
+> -				goto retry_avoidcopy;
+> +				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+> +				if (likely(pte_same(huge_ptep_get(ptep), pte)))
+> +					goto retry_avoidcopy;
+> +				/*
+> +				 * race occurs while re-acquiring page_table_lock, and
+> +				 * our job is done.
+> +				 */
+> +				return 0;
+>  			}
+>  			WARN_ON_ONCE(1);
+>  		}
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
