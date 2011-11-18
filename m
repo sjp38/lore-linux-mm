@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B0CB46B0093
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:43:36 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 1D0E16B0080
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:43:39 -0500 (EST)
 Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LUV009047S9BT@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 18 Nov 2011 16:43:21 +0000 (GMT)
+ with ESMTP id <0LUV0039N7SBGR@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 18 Nov 2011 16:43:25 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LUV00HSK7S9NC@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 18 Nov 2011 16:43:21 +0000 (GMT)
-Date: Fri, 18 Nov 2011 17:43:10 +0100
+ 2004)) with ESMTPA id <0LUV003NU7SA39@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 18 Nov 2011 16:43:23 +0000 (GMT)
+Date: Fri, 18 Nov 2011 17:43:18 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 03/11] mm: mmzone: introduce zone_pfn_same_memmap()
+Subject: [PATCH 11/11] ARM: Samsung: use CMA for 2 memory banks for s5p-mfc
+ device
 In-reply-to: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1321634598-16859-4-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1321634598-16859-12-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -25,67 +26,86 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-From: Michal Nazarewicz <mina86@mina86.com>
+Replace custom memory bank initialization using memblock_reserve and
+dma_declare_coherent with a single call to CMA's dma_declare_contiguous.
 
-This commit introduces zone_pfn_same_memmap() function which checkes
-whether two PFNs within the same zone have struct pages within the
-same memmap.  This check is needed because in general pointer
-arithmetic on struct pages may lead to invalid pointers.
-
-On memory models that are not affected, zone_pfn_same_memmap() is
-defined as always returning true so the call should be optimised
-at compile time.
-
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/mmzone.h |   16 ++++++++++++++++
- mm/compaction.c        |    5 ++++-
- 2 files changed, 20 insertions(+), 1 deletions(-)
+ arch/arm/plat-s5p/dev-mfc.c |   51 ++++++-------------------------------------
+ 1 files changed, 7 insertions(+), 44 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 188cb2f..84e07d0 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1166,6 +1166,22 @@ static inline int memmap_valid_within(unsigned long pfn,
+diff --git a/arch/arm/plat-s5p/dev-mfc.c b/arch/arm/plat-s5p/dev-mfc.c
+index a30d36b..fcb8400 100644
+--- a/arch/arm/plat-s5p/dev-mfc.c
++++ b/arch/arm/plat-s5p/dev-mfc.c
+@@ -14,6 +14,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/platform_device.h>
+ #include <linux/dma-mapping.h>
++#include <linux/dma-contiguous.h>
+ #include <linux/memblock.h>
+ #include <linux/ioport.h>
+ 
+@@ -22,52 +23,14 @@
+ #include <plat/irqs.h>
+ #include <plat/mfc.h>
+ 
+-struct s5p_mfc_reserved_mem {
+-	phys_addr_t	base;
+-	unsigned long	size;
+-	struct device	*dev;
+-};
+-
+-static struct s5p_mfc_reserved_mem s5p_mfc_mem[2] __initdata;
+-
+ void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
+ 				phys_addr_t lbase, unsigned int lsize)
+ {
+-	int i;
+-
+-	s5p_mfc_mem[0].dev = &s5p_device_mfc_r.dev;
+-	s5p_mfc_mem[0].base = rbase;
+-	s5p_mfc_mem[0].size = rsize;
+-
+-	s5p_mfc_mem[1].dev = &s5p_device_mfc_l.dev;
+-	s5p_mfc_mem[1].base = lbase;
+-	s5p_mfc_mem[1].size = lsize;
+-
+-	for (i = 0; i < ARRAY_SIZE(s5p_mfc_mem); i++) {
+-		struct s5p_mfc_reserved_mem *area = &s5p_mfc_mem[i];
+-		if (memblock_remove(area->base, area->size)) {
+-			printk(KERN_ERR "Failed to reserve memory for MFC device (%ld bytes at 0x%08lx)\n",
+-			       area->size, (unsigned long) area->base);
+-			area->base = 0;
+-		}
+-	}
+-}
+-
+-static int __init s5p_mfc_memory_init(void)
+-{
+-	int i;
+-
+-	for (i = 0; i < ARRAY_SIZE(s5p_mfc_mem); i++) {
+-		struct s5p_mfc_reserved_mem *area = &s5p_mfc_mem[i];
+-		if (!area->base)
+-			continue;
++	if (dma_declare_contiguous(&s5p_device_mfc_r.dev, rsize, rbase, 0))
++		printk(KERN_ERR "Failed to reserve memory for MFC device (%u bytes at 0x%08lx)\n",
++		       rsize, (unsigned long) rbase);
+ 
+-		if (dma_declare_coherent_memory(area->dev, area->base,
+-				area->base, area->size,
+-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0)
+-			printk(KERN_ERR "Failed to declare coherent memory for MFC device (%ld bytes at 0x%08lx)\n",
+-			       area->size, (unsigned long) area->base);
+-	}
+-	return 0;
++	if (dma_declare_contiguous(&s5p_device_mfc_l.dev, lsize, lbase, 0))
++		printk(KERN_ERR "Failed to reserve memory for MFC device (%u bytes at 0x%08lx)\n",
++		       rsize, (unsigned long) rbase);
  }
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
- 
-+#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
-+/*
-+ * Both PFNs must be from the same zone!  If this function returns
-+ * true, pfn_to_page(pfn1) + (pfn2 - pfn1) == pfn_to_page(pfn2).
-+ */
-+static inline bool zone_pfn_same_memmap(unsigned long pfn1, unsigned long pfn2)
-+{
-+	return pfn_to_section_nr(pfn1) == pfn_to_section_nr(pfn2);
-+}
-+
-+#else
-+
-+#define zone_pfn_same_memmap(pfn1, pfn2) (true)
-+
-+#endif
-+
- #endif /* !__GENERATING_BOUNDS.H */
- #endif /* !__ASSEMBLY__ */
- #endif /* _LINUX_MMZONE_H */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 6afae0e..09c9702 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -111,7 +111,10 @@ skip:
- 
- next:
- 		pfn += isolated;
--		page += isolated;
-+		if (zone_pfn_same_memmap(pfn - isolated, pfn))
-+			page += isolated;
-+		else
-+			page = pfn_to_page(pfn);
- 	}
- 
- 	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+-device_initcall(s5p_mfc_memory_init);
 -- 
 1.7.1.569.g6f426
 
