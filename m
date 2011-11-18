@@ -1,129 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C97696B0069
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 19:30:18 -0500 (EST)
-Date: Thu, 17 Nov 2011 16:30:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] mm: abort inode pruning if it has active pages
-Message-Id: <20111117163016.d98ef860.akpm@linux-foundation.org>
-In-Reply-To: <20111116134747.8958.11569.stgit@zurg>
-References: <20111116134747.8958.11569.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2008F6B0069
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2011 20:42:09 -0500 (EST)
+Received: by vcbfo1 with SMTP id fo1so2114181vcb.14
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2011 17:42:05 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20111117184252.GK3306@redhat.com>
+References: <20111104235603.GT18879@redhat.com>
+	<CAPQyPG5i87VcnwU5UoKiT6_=tzqO_NOPXFvyEooA1Orbe_ztGQ@mail.gmail.com>
+	<20111105013317.GU18879@redhat.com>
+	<CAPQyPG5Y1e2dac38OLwZAinWb6xpPMWCya2vTaWLPi9+vp1JXQ@mail.gmail.com>
+	<20111107131413.GA18279@suse.de>
+	<20111107154235.GE3249@redhat.com>
+	<20111107162808.GA3083@suse.de>
+	<20111109012542.GC5075@redhat.com>
+	<20111116140042.GD3306@redhat.com>
+	<alpine.LSU.2.00.1111161540060.1861@sister.anvils>
+	<20111117184252.GK3306@redhat.com>
+Date: Fri, 18 Nov 2011 09:42:05 +0800
+Message-ID: <CAPQyPG7MvO8Qw3jrOMShQcG5Z-RwbzpKnu-AheoS6aRYNhW14w@mail.gmail.com>
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+ vma_merge succeeding in copy_vma
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Wed, 16 Nov 2011 17:47:47 +0300
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+On Fri, Nov 18, 2011 at 2:42 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hi Hugh,
+>
+> On Wed, Nov 16, 2011 at 04:16:57PM -0800, Hugh Dickins wrote:
+>> As you found, the mremap locking long predates truncation's double unmap.
+>>
+>> That's an interesting point, and you may be right - though, what about
+>> the *very* unlikely case where unmap_mapping_range looks at new vma
+>> when pte is in old, then at old vma when pte is in new, then
+>> move_page_tables runs out of memory and cannot complete, then the
+>> second unmap_mapping_range looks at old vma while pte is still in new
+>> (I guess this needs some other activity to have jumbled the prio_tree,
+>> and may just be impossible), then at new (to be abandoned) vma after
+>> pte has moved back to old.
+>
+> I tend to think it should still work fine. The second loop is needed
+> to take care of the "reverse" order. If the first move_page_tables is
+> not in order the second move_page_tables will be in order. So it
+> should catch it. If the first move_page_tables is in order, the double
+> loop will catch any skip in the second move_page_tables.
 
-> Inode cache pruning can throw out some usefull data from page cache.
-> This patch aborts inode invalidation and keep inode alive if it still has
-> active pages.
-> 
 
-hm, I suppose so.
+First of all, I believe that at the POSIX level, it's ok for
+truncate_inode_page()
+not scanning  COWed pages, since basically we does not provide any guarantee
+for privately mapped file pages for this behavior. But missing a file
+mapped pte after its
+cache page is already removed from the the page cache is a
+fundermental malfuntion for
+a shared mapping when some threads see the file cache page is gone
+while some thread
+is still r/w from/to it! No matter how short the gap between
+truncate_inode_page() and
+the second loop, this is wrong.
 
-I also suppose there are various risks related to failing to reclaim
-inodes due to ongoing userspace activity and then running out of lowmem
-pages.
+Second, even if the we don't care about this POSIX flaw that may
+introduce, a pte can still
+missed by the second loop. mremap can happen serveral times during
+these non-atomic
+firstpass-trunc-secondpass operations, a proper events can happily
+make the wrong order
+for every scan, and miss them all -- That's just what in Hugh's mind
+in the post you just
+replied. Without lock and proper ordering( which patial mremap cannot provide),
+this *will* happen.
 
-> It improves interaction between inode cache and page cache.
+You may disagree with me and have that locking removed, and I am
+already have that
+one line patch prepared waiting fora bug bumpping up again, what a
+cheap patch submission!
 
-Well, this is the key part of the patch and it is the thing which we
-are most interested in.  But you didn't tell us anything about it!
+:P
 
-So please, provide us with much more detailed information on the
-observed benefits.
 
-> 
-> diff --git a/fs/inode.c b/fs/inode.c
-> index 1f6c48d..8d55a63 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -663,8 +663,8 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
->  			spin_unlock(&inode->i_lock);
->  			spin_unlock(&sb->s_inode_lru_lock);
->  			if (remove_inode_buffers(inode))
-> -				reap += invalidate_mapping_pages(&inode->i_data,
-> -								0, -1);
-> +				reap += invalidate_inode_inactive_pages(
-> +						&inode->i_data, 0, -1);
->  			iput(inode);
->  			spin_lock(&sb->s_inode_lru_lock);
->  
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 0c4df26..05875d7 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2211,6 +2211,8 @@ extern int invalidate_partition(struct gendisk *, int);
->  #endif
->  unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  					pgoff_t start, pgoff_t end);
-> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
-> +					pgoff_t start, pgoff_t end);
->  
->  static inline void invalidate_remote_inode(struct inode *inode)
->  {
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index 632b15e..ac739bc 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -379,6 +379,52 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  EXPORT_SYMBOL(invalidate_mapping_pages);
->  
->  /*
-> + * This is like invalidate_mapping_pages(),
-> + * except it aborts invalidation at the first active page.
-> + */
-> +unsigned long invalidate_inode_inactive_pages(struct address_space *mapping,
-> +					    pgoff_t start, pgoff_t end)
-> +{
-> +	struct pagevec pvec;
-> +	pgoff_t index = start;
-> +	unsigned long ret;
-> +	unsigned long count = 0;
-> +	int i;
-> +
-> +	pagevec_init(&pvec, 0);
-> +	while (index <= end && pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-> +
-> +		mem_cgroup_uncharge_start();
-> +		for (i = 0; i < pagevec_count(&pvec); i++) {
-> +			struct page *page = pvec.pages[i];
-> +
-> +			if (PageActive(page)) {
-> +				index = end;
-> +				break;
-> +			}
-> +
-> +			/* We rely upon deletion not changing page->index */
-> +			index = page->index;
-> +			if (index > end)
-> +				break;
-> +
-> +			if (!trylock_page(page))
-> +				continue;
-> +			WARN_ON(page->index != index);
-> +			ret = invalidate_inode_page(page);
-> +			unlock_page(page);
-> +			count += ret;
-> +		}
-> +		pagevec_release(&pvec);
-> +		mem_cgroup_uncharge_end();
-> +		cond_resched();
-> +		index++;
-> +	}
-> +	return count;
-> +}
+Thanks,
 
-We shouldn't just copy-n-paste invalidate_mapping_pages() like this. 
-Can't we share the function by passing in a pointer to a callback
-function (invalidate_inode_page or a new
-invalidate_inode_page_unless_it_is_active).
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
