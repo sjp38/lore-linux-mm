@@ -1,87 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 236116B006C
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 12:59:28 -0500 (EST)
-Date: Fri, 18 Nov 2011 18:59:23 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: Do not stall in synchronous compaction for THP
- allocations
-Message-ID: <20111118175923.GD3579@redhat.com>
-References: <20111110151211.523fa185.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1111101536330.2194@chino.kir.corp.google.com>
- <20111111101414.GJ3083@suse.de>
- <20111114154408.10de1bc7.akpm@linux-foundation.org>
- <20111115132513.GF27150@suse.de>
- <alpine.DEB.2.00.1111151303230.23579@chino.kir.corp.google.com>
- <20111115234845.GK27150@suse.de>
- <alpine.DEB.2.00.1111151554190.3781@chino.kir.corp.google.com>
- <20111116041350.GA3306@redhat.com>
- <20111116133056.GC3306@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111116133056.GC3306@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BC83B6B002D
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 14:39:49 -0500 (EST)
+Date: Fri, 18 Nov 2011 11:39:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hugetlb: detect race if fail to COW
+Message-Id: <20111118113946.6563fd08.akpm@linux-foundation.org>
+In-Reply-To: <20111118161128.GC23223@tiehlicka.suse.cz>
+References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
+	<20111118150742.GA23223@tiehlicka.suse.cz>
+	<CAJd=RBCOK9tis-bF87Csn70miRDqLtCUiZmDH2hnc8i_9+KtNw@mail.gmail.com>
+	<20111118161128.GC23223@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 16, 2011 at 02:30:56PM +0100, Andrea Arcangeli wrote:
-> On Wed, Nov 16, 2011 at 05:13:50AM +0100, Andrea Arcangeli wrote:
-> > After checking my current thp vmstat I think Andrew was right and we
-> > backed out for a good reason before. I'm getting significantly worse
-> > success rate, not sure why it was a small reduction in success rate
-> > but hey I cannot exclude I may have broke something with some other
-> > patch. I've been running it together with a couple more changes. If
-> > it's this change that reduced the success rate, I'm afraid going
-> > always async is not ok.
+On Fri, 18 Nov 2011 17:11:28 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Fri 18-11-11 23:23:12, Hillf Danton wrote:
+> > On Fri, Nov 18, 2011 at 11:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Fri 18-11-11 22:04:37, Hillf Danton wrote:
+> > >> In the error path that we fail to allocate new huge page, before try again, we
+> > >> have to check race since page_table_lock is re-acquired.
+> > >
+> > > I do not think we can race here because we are serialized by
+> > > hugetlb_instantiation_mutex AFAIU. Without this lock, however, we could
+> > > fall into avoidcopy and shortcut despite the fact that other thread has
+> > > already did the job.
+> > >
+> > > The mutex usage is not obvious in hugetlb_cow so maybe we want to be
+> > > explicit about it (either a comment or do the recheck).
+> > >
+> > 
+> > Then the following check is unnecessary, no?
 > 
-> I wonder if the high failure rate when shutting off "sync compaction"
-> and forcing only "async compaction" for THP (your patch queued in -mm)
-> is also because of ISOLATE_CLEAN being set in compaction from commit
-> 39deaf8. ISOLATE_CLEAN skipping PageDirty means all tmpfs/anon pages
+> Hmm, thinking about it some more, I guess we have to recheck because we
+> can still race with page migration. So we need you patch.
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-I think I tracked down the source of the thp allocation
-regression. They're commit e0887c19b2daa140f20ca8104bdc5740f39dbb86
-and e0c23279c9f800c403f37511484d9014ac83adec. They're also wrong
-because compaction_suitable doesn't check that there is enough free
-memory in the number of "movable" pageblocks.
+So we need a new changelog.  How does this look?
 
-I'm going to test this not sure if it helps. But the more free memory
-the more likely compaction succeeds, so there's still a risk we're
-reducing the compaction success.
 
-With the two commits above reverted my compaction success rate returns
-near 100%, with the two commits above applied it goes to <50%... Now
-we'll see what happens with the below patch.
+From: Hillf Danton <dhillf@gmail.com>
+Subject: hugetlb: detect race upon page allocation failure during COW
 
-===
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] compaction: correct reverse check for compaction_deferred
+In the error path where we failed to allocate a new huge page, we should
+check whether a racing thread has added this page for us while this thread
+waited for the page_table_lock.
 
-Otherwise when compaction is deferred, reclaim stops to, leading to
-high failure rate of high order allocations.
+We are serialized by hugetlb_instantiation_mutex on the pagefault patch
+but this race can occur when another thread is performing page migration.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <jweiner@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/vmscan.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f7f7677..ce745f0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2144,8 +2144,8 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
- 				 * allocations.
- 				 */
- 				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
--					(compaction_suitable(zone, sc->order) ||
--					 compaction_deferred(zone))) {
-+				    (compaction_suitable(zone, sc->order) &&
-+				     !compaction_deferred(zone))) {
- 					should_abort_reclaim = true;
- 					continue;
- 				}
+ mm/hugetlb.c |    9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff -puN mm/hugetlb.c~hugetlb-detect-race-upon-page-allocation-failure-during-cow mm/hugetlb.c
+--- a/mm/hugetlb.c~hugetlb-detect-race-upon-page-allocation-failure-during-cow
++++ a/mm/hugetlb.c
+@@ -2407,7 +2407,14 @@ retry_avoidcopy:
+ 				BUG_ON(page_count(old_page) != 1);
+ 				BUG_ON(huge_pte_none(pte));
+ 				spin_lock(&mm->page_table_lock);
+-				goto retry_avoidcopy;
++				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
++				if (likely(pte_same(huge_ptep_get(ptep), pte)))
++					goto retry_avoidcopy;
++				/*
++				 * race occurs while re-acquiring page_table_lock, and
++				 * our job is done.
++				 */
++				return 0;
+ 			}
+ 			WARN_ON_ONCE(1);
+ 		}
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
