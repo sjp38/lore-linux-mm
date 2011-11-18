@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 650876B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 08:37:07 -0500 (EST)
-Date: Fri, 18 Nov 2011 13:37:00 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm,x86: remove debug_pagealloc_enabled
-Message-ID: <20111118133700.GB20840@suse.de>
-References: <1321458232-6823-1-git-send-email-sgruszka@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1CA6B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 09:04:41 -0500 (EST)
+Received: by wwf10 with SMTP id 10so4304965wwf.26
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:04:37 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1321458232-6823-1-git-send-email-sgruszka@redhat.com>
+Date: Fri, 18 Nov 2011 22:04:37 +0800
+Message-ID: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
+Subject: [PATCH] hugetlb: detect race if fail to COW
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 16, 2011 at 04:43:52PM +0100, Stanislaw Gruszka wrote:
-> When (no)bootmem finish operation, it pass pages to buddy allocator.
-> Since debug_pagealloc_enabled is not set, we will do not protect pages,
-> what is not what we want with CONFIG_DEBUG_PAGEALLOC=y.
-> 
-> To fix remove debug_pagealloc_enabled. That variable was introduced by
-> commit 12d6f21e "x86: do not PSE on CONFIG_DEBUG_PAGEALLOC=y" to get
-> more CPA (change page attribude) code testing. But currently we have
-> CONFIG_CPA_DEBUG, which test CPA.
-> 
-> Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+In the error path that we fail to allocate new huge page, before try again, we
+have to check race since page_table_lock is re-acquired.
 
-If no one objects to the impact on CPA testing, I see no problem with
-this. I would assume that many bugs related to CPA would be rattled out
-by now
+If racing, our job is done.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
--- 
-Mel Gorman
-SUSE Labs
+--- a/mm/hugetlb.c	Fri Nov 18 21:38:30 2011
++++ b/mm/hugetlb.c	Fri Nov 18 21:48:15 2011
+@@ -2407,7 +2407,14 @@ retry_avoidcopy:
+ 				BUG_ON(page_count(old_page) != 1);
+ 				BUG_ON(huge_pte_none(pte));
+ 				spin_lock(&mm->page_table_lock);
+-				goto retry_avoidcopy;
++				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
++				if (likely(pte_same(huge_ptep_get(ptep), pte)))
++					goto retry_avoidcopy;
++				/*
++				 * race occurs while re-acquiring page_table_lock, and
++				 * our job is done.
++				 */
++				return 0;
+ 			}
+ 			WARN_ON_ONCE(1);
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
