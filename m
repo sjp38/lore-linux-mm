@@ -1,204 +1,398 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ABA196B0096
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:36:14 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 285AC6B0075
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:36:35 -0500 (EST)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 18 Nov 2011 11:34:41 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBWsXw3104920
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:32:54 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBa56J004709
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:36:06 +1100
+	Fri, 18 Nov 2011 11:31:25 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBXBka3424310
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:33:11 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBaK2A005887
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:36:21 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Fri, 18 Nov 2011 16:39:59 +0530
-Message-Id: <20111118110959.10512.69516.sendpatchset@srdronam.in.ibm.com>
+Date: Fri, 18 Nov 2011 16:40:14 +0530
+Message-Id: <20111118111014.10512.99729.sendpatchset@srdronam.in.ibm.com>
 In-Reply-To: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
 References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH v7 3.2-rc2 17/30] x86: arch specific hooks for pre/post singlestep handling.
+Subject: [PATCH v7 3.2-rc2 18/30] uprobes: slot allocation.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
 
-Hooks for handling pre singlestepping and post singlestepping.
+One page of slots are allocated per mm.
+On a probehit one free slot is acquired and released after
+singlestep operation completes.
 
 Signed-off-by: Jim Keniston <jkenisto@us.ibm.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/uprobes.h |    2 +
- arch/x86/kernel/uprobes.c      |  135 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 137 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index cf794bf..99d7d4b 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -47,6 +47,8 @@ struct uprobe_task_arch_info {};
- struct uprobe;
- extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
- extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
-+extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
- extern int uprobe_exception_notify(struct notifier_block *self,
- 				       unsigned long val, void *data);
- #endif	/* _ASM_UPROBES_H */
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 2ee5ddc..0792fc8 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -25,6 +25,7 @@
- #include <linux/sched.h>
- #include <linux/ptrace.h>
- #include <linux/uprobes.h>
-+#include <linux/uaccess.h>
+Changelog (since v5)
+- no more spin lock needed for slot allocation.
+- use install_special_mapping to add a vma. (previous approach used
+  init_creds)
+- set uprobes_xol_area while holding map_sem exclusively.
+
+ include/linux/mm_types.h |    2 
+ include/linux/uprobes.h  |   24 +++++
+ kernel/fork.c            |    2 
+ kernel/uprobes.c         |  215 +++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 240 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 544a0b6..2595c9c 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -12,6 +12,7 @@
+ #include <linux/completion.h>
+ #include <linux/cpumask.h>
+ #include <linux/page-debug-flags.h>
++#include <linux/uprobes.h>
+ #include <asm/page.h>
+ #include <asm/mmu.h>
  
- #include <linux/kdebug.h>
- #include <asm/insn.h>
-@@ -409,6 +410,140 @@ void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr)
+@@ -391,6 +392,7 @@ struct mm_struct {
+ #endif
+ #ifdef CONFIG_UPROBES
+ 	atomic_t mm_uprobes_count;
++	struct uprobes_xol_area *uprobes_xol_area;
+ #endif
+ };
+ 
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+index c1378a9..add5222 100644
+--- a/include/linux/uprobes.h
++++ b/include/linux/uprobes.h
+@@ -90,6 +90,26 @@ struct uprobe_task {
+ 	struct uprobe *active_uprobe;
+ };
+ 
++/*
++ * On a breakpoint hit, thread contests for a slot.  It free the
++ * slot after singlestep.  Only definite number of slots are
++ * allocated.
++ */
++
++struct uprobes_xol_area {
++	wait_queue_head_t wq;	/* if all slots are busy */
++	atomic_t slot_count;	/* currently in use slots */
++	unsigned long *bitmap;	/* 0 = free slot */
++	struct page *page;
++
++	/*
++	 * We keep the vma's vm_start rather than a pointer to the vma
++	 * itself.  The probed process or a naughty kernel module could make
++	 * the vma go away, and we must handle that reasonably gracefully.
++	 */
++	unsigned long vaddr;		/* Page(s) of instruction slots */
++};
++
+ #ifdef CONFIG_UPROBES
+ extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
+ 							unsigned long vaddr);
+@@ -101,6 +121,7 @@ extern int register_uprobe(struct inode *inode, loff_t offset,
+ extern void unregister_uprobe(struct inode *inode, loff_t offset,
+ 				struct uprobe_consumer *consumer);
+ extern void free_uprobe_utask(struct task_struct *tsk);
++extern void free_uprobes_xol_area(struct mm_struct *mm);
+ extern int mmap_uprobe(struct vm_area_struct *vma);
+ extern void munmap_uprobe(struct vm_area_struct *vma);
+ extern unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs);
+@@ -134,5 +155,8 @@ static inline unsigned long get_uprobe_bkpt_addr(struct pt_regs *regs)
+ static inline void free_uprobe_utask(struct task_struct *tsk)
+ {
+ }
++static inline void free_uprobes_xol_area(struct mm_struct *mm)
++{
++}
+ #endif /* CONFIG_UPROBES */
+ #endif	/* _LINUX_UPROBES_H */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index a03f436..c605f2a 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -558,6 +558,7 @@ void mmput(struct mm_struct *mm)
+ 	might_sleep();
+ 
+ 	if (atomic_dec_and_test(&mm->mm_users)) {
++		free_uprobes_xol_area(mm);
+ 		exit_aio(mm);
+ 		ksm_exit(mm);
+ 		khugepaged_exit(mm); /* must run before exit_mmap */
+@@ -746,6 +747,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+ #endif
+ #ifdef CONFIG_UPROBES
+ 	atomic_set(&mm->mm_uprobes_count, 0);
++	mm->uprobes_xol_area = NULL;
+ #endif
+ 
+ 	if (!mm_init(mm, tsk))
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index b9e1932..b440acd 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -33,6 +33,9 @@
+ #include <linux/kdebug.h>	/* notifier mechanism */
+ #include <linux/uprobes.h>
+ 
++#define UINSNS_PER_PAGE	(PAGE_SIZE/UPROBES_XOL_SLOT_BYTES)
++#define MAX_UPROBES_XOL_SLOTS UINSNS_PER_PAGE
++
+ static bulkref_t uprobes_srcu;
+ static struct rb_root uprobes_tree = RB_ROOT;
+ static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
+@@ -1051,6 +1054,201 @@ void munmap_uprobe(struct vm_area_struct *vma)
+ 	return;
+ }
+ 
++/* Slot allocation for XOL */
++static int xol_add_vma(struct uprobes_xol_area *area)
++{
++	struct mm_struct *mm;
++	int ret;
++
++	area->page = alloc_page(GFP_HIGHUSER);
++	if (!area->page)
++		return -ENOMEM;
++
++	mm = current->mm;
++	down_write(&mm->mmap_sem);
++	ret = -EALREADY;
++	if (mm->uprobes_xol_area)
++		goto fail;
++
++	ret = -ENOMEM;
++
++	/* Try to map as high as possible, this is only a hint. */
++	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
++							PAGE_SIZE, 0, 0);
++	if (area->vaddr & ~PAGE_MASK) {
++		ret = area->vaddr;
++		goto fail;
++	}
++
++	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
++				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO,
++				&area->page);
++	if (ret)
++		goto fail;
++
++	smp_wmb();	/* pairs with get_uprobes_xol_area() */
++	mm->uprobes_xol_area = area;
++	ret = 0;
++
++fail:
++	up_write(&mm->mmap_sem);
++	if (ret)
++		__free_page(area->page);
++
++	return ret;
++}
++
++static struct uprobes_xol_area *get_uprobes_xol_area(struct mm_struct *mm)
++{
++	struct uprobes_xol_area *area = mm->uprobes_xol_area;
++	smp_read_barrier_depends();/* pairs with wmb in xol_add_vma() */
++	return area;
++}
++
++/*
++ * xol_alloc_area - Allocate process's uprobes_xol_area.
++ * This area will be used for storing instructions for execution out of
++ * line.
++ *
++ * Returns the allocated area or NULL.
++ */
++static struct uprobes_xol_area *xol_alloc_area(void)
++{
++	struct uprobes_xol_area *area;
++
++	area = kzalloc(sizeof(*area), GFP_KERNEL);
++	if (unlikely(!area))
++		return NULL;
++
++	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
++								GFP_KERNEL);
++
++	if (!area->bitmap)
++		goto fail;
++
++	init_waitqueue_head(&area->wq);
++	if (!xol_add_vma(area))
++		return area;
++
++fail:
++	kfree(area->bitmap);
++	kfree(area);
++	return get_uprobes_xol_area(current->mm);
++}
++
++/*
++ * free_uprobes_xol_area - Free the area allocated for slots.
++ */
++void free_uprobes_xol_area(struct mm_struct *mm)
++{
++	struct uprobes_xol_area *area = mm->uprobes_xol_area;
++
++	if (!area)
++		return;
++
++	put_page(area->page);
++	kfree(area->bitmap);
++	kfree(area);
++}
++
++/*
++ *  - search for a free slot.
++ */
++static unsigned long xol_take_insn_slot(struct uprobes_xol_area *area)
++{
++	unsigned long slot_addr;
++	int slot_nr;
++
++	do {
++		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
++		if (slot_nr < UINSNS_PER_PAGE) {
++			if (!test_and_set_bit(slot_nr, area->bitmap))
++				break;
++
++			slot_nr = UINSNS_PER_PAGE;
++			continue;
++		}
++		wait_event(area->wq,
++			(atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
++	} while (slot_nr >= UINSNS_PER_PAGE);
++
++	slot_addr = area->vaddr + (slot_nr * UPROBES_XOL_SLOT_BYTES);
++	atomic_inc(&area->slot_count);
++	return slot_addr;
++}
++
++/*
++ * xol_get_insn_slot - If was not allocated a slot, then
++ * allocate a slot.
++ * Returns the allocated slot address or 0.
++ */
++static unsigned long xol_get_insn_slot(struct uprobe *uprobe,
++					unsigned long slot_addr)
++{
++	struct uprobes_xol_area *area;
++	unsigned long offset;
++	void *vaddr;
++
++	area = get_uprobes_xol_area(current->mm);
++	if (!area) {
++		area = xol_alloc_area();
++		if (!area)
++			return 0;
++	}
++	current->utask->xol_vaddr = xol_take_insn_slot(area);
++
++	/*
++	 * Initialize the slot if xol_vaddr points to valid
++	 * instruction slot.
++	 */
++	if (unlikely(!current->utask->xol_vaddr))
++		return 0;
++
++	current->utask->vaddr = slot_addr;
++	offset = current->utask->xol_vaddr & ~PAGE_MASK;
++	vaddr = kmap_atomic(area->page);
++	memcpy(vaddr + offset, uprobe->insn, MAX_UINSN_BYTES);
++	kunmap_atomic(vaddr);
++	return current->utask->xol_vaddr;
++}
++
++/*
++ * xol_free_insn_slot - If slot was earlier allocated by
++ * @xol_get_insn_slot(), make the slot available for
++ * subsequent requests.
++ */
++static void xol_free_insn_slot(struct task_struct *tsk)
++{
++	struct uprobes_xol_area *area;
++	unsigned long vma_end;
++	unsigned long slot_addr;
++
++	if (!tsk->mm || !tsk->mm->uprobes_xol_area || !tsk->utask)
++		return;
++
++	slot_addr = tsk->utask->xol_vaddr;
++
++	if (unlikely(!slot_addr || IS_ERR_VALUE(slot_addr)))
++		return;
++
++	area = tsk->mm->uprobes_xol_area;
++	vma_end = area->vaddr + PAGE_SIZE;
++	if (area->vaddr <= slot_addr && slot_addr < vma_end) {
++		int slot_nr;
++		unsigned long offset = slot_addr - area->vaddr;
++
++		slot_nr = offset / UPROBES_XOL_SLOT_BYTES;
++		if (slot_nr >= UINSNS_PER_PAGE)
++			return;
++
++		clear_bit(slot_nr, area->bitmap);
++		atomic_dec(&area->slot_count);
++		if (waitqueue_active(&area->wq))
++			wake_up(&area->wq);
++		tsk->utask->xol_vaddr = 0;
++	}
++}
++
+ /**
+  * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
+  * @regs: Reflects the saved state of the task after it has hit a breakpoint
+@@ -1079,6 +1277,7 @@ void free_uprobe_utask(struct task_struct *tsk)
+ 	if (utask->active_uprobe)
+ 		put_uprobe(utask->active_uprobe);
+ 
++	xol_free_insn_slot(tsk);
+ 	kfree(utask);
+ 	tsk->utask = NULL;
+ }
+@@ -1108,7 +1307,8 @@ static struct uprobe_task *add_utask(void)
+ static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
+ 				unsigned long vaddr)
+ {
+-	/* TODO: Yet to be implemented */
++	if (xol_get_insn_slot(uprobe, vaddr) && !pre_xol(uprobe, regs))
++		return 0;
+ 	return -EFAULT;
+ }
+ 
+@@ -1118,8 +1318,16 @@ static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
+  */
+ static bool sstep_complete(struct uprobe *uprobe, struct pt_regs *regs)
+ {
+-	/* TODO: Yet to be implemented */
+-	return false;
++	unsigned long vaddr = instruction_pointer(regs);
++
++	/*
++	 * If we have executed out of line, Instruction pointer
++	 * cannot be same as virtual address of XOL slot.
++	 */
++	if (vaddr == current->utask->xol_vaddr)
++		return false;
++	post_xol(uprobe, regs);
++	return true;
  }
  
  /*
-+ * pre_xol - prepare to execute out of line.
-+ * @uprobe: the probepoint information.
-+ * @regs: reflects the saved user state of @tsk.
-+ *
-+ * If we're emulating a rip-relative instruction, save the contents
-+ * of the scratch register and store the target address in that register.
-+ *
-+ * Returns true if @uprobe->opcode is @bkpt_insn.
-+ */
-+#ifdef CONFIG_X86_64
-+int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
-+
-+	regs->ip = current->utask->xol_vaddr;
-+	if (uprobe->fixups & UPROBES_FIX_RIP_AX) {
-+		tskinfo->saved_scratch_register = regs->ax;
-+		regs->ax = current->utask->vaddr;
-+		regs->ax += uprobe->arch_info.rip_rela_target_address;
-+	} else if (uprobe->fixups & UPROBES_FIX_RIP_CX) {
-+		tskinfo->saved_scratch_register = regs->cx;
-+		regs->cx = current->utask->vaddr;
-+		regs->cx += uprobe->arch_info.rip_rela_target_address;
-+	}
-+	return 0;
-+}
-+#else
-+int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	regs->ip = current->utask->xol_vaddr;
-+	return 0;
-+}
-+#endif
-+
-+/*
-+ * Called by post_xol() to adjust the return address pushed by a call
-+ * instruction executed out of line.
-+ */
-+static int adjust_ret_addr(unsigned long sp, long correction)
-+{
-+	int rasize, ncopied;
-+	long ra = 0;
-+
-+	if (is_32bit_app(current))
-+		rasize = 4;
-+	else
-+		rasize = 8;
-+
-+	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	ra += correction;
-+	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	return 0;
-+}
-+
-+#ifdef CONFIG_X86_64
-+static bool is_riprel_insn(struct uprobe *uprobe)
-+{
-+	return ((uprobe->fixups &
-+			(UPROBES_FIX_RIP_AX | UPROBES_FIX_RIP_CX)) != 0);
-+}
-+
-+static void handle_riprel_post_xol(struct uprobe *uprobe,
-+			struct pt_regs *regs, long *correction)
-+{
-+	if (is_riprel_insn(uprobe)) {
-+		struct uprobe_task_arch_info *tskinfo;
-+		tskinfo = &current->utask->tskinfo;
-+
-+		if (uprobe->fixups & UPROBES_FIX_RIP_AX)
-+			regs->ax = tskinfo->saved_scratch_register;
-+		else
-+			regs->cx = tskinfo->saved_scratch_register;
-+		/*
-+		 * The original instruction includes a displacement, and so
-+		 * is 4 bytes longer than what we've just single-stepped.
-+		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-+		 * "callq *...(%rip)".
-+		 */
-+		*correction += 4;
-+	}
-+}
-+#else
-+static void handle_riprel_post_xol(struct uprobe *uprobe,
-+			struct pt_regs *regs, long *correction)
-+{
-+}
-+#endif
-+
-+/*
-+ * Called after single-stepping. To avoid the SMP problems that can
-+ * occur when we temporarily put back the original opcode to
-+ * single-step, we single-stepped a copy of the instruction.
-+ *
-+ * This function prepares to resume execution after the single-step.
-+ * We have to fix things up as follows:
-+ *
-+ * Typically, the new ip is relative to the copied instruction.  We need
-+ * to make it relative to the original instruction (FIX_IP).  Exceptions
-+ * are return instructions and absolute or indirect jump or call instructions.
-+ *
-+ * If the single-stepped instruction was a call, the return address that
-+ * is atop the stack is the address following the copied instruction.  We
-+ * need to make it the address following the original instruction (FIX_CALL).
-+ *
-+ * If the original instruction was a rip-relative instruction such as
-+ * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
-+ * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
-+ * We need to restore the contents of the scratch register and adjust
-+ * the ip, keeping in mind that the instruction we executed is 4 bytes
-+ * shorter than the original instruction (since we squeezed out the offset
-+ * field).  (FIX_RIP_AX or FIX_RIP_CX)
-+ */
-+int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask = current->utask;
-+	int result = 0;
-+	long correction;
-+
-+	correction = (long)(utask->vaddr - utask->xol_vaddr);
-+	handle_riprel_post_xol(uprobe, regs, &correction);
-+	if (uprobe->fixups & UPROBES_FIX_IP)
-+		regs->ip += correction;
-+	if (uprobe->fixups & UPROBES_FIX_CALL)
-+		result = adjust_ret_addr(regs->sp, correction);
-+	return result;
-+}
-+
-+/*
-  * Wrapper routine for handling exceptions.
-  */
- int uprobe_exception_notify(struct notifier_block *self,
+@@ -1176,6 +1384,7 @@ void uprobe_notify_resume(struct pt_regs *regs)
+ 			utask->active_uprobe = NULL;
+ 			utask->state = UTASK_RUNNING;
+ 			user_disable_single_step(current);
++			xol_free_insn_slot(current);
+ 		}
+ 	}
+ 	return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
