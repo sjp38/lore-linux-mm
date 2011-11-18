@@ -1,247 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0087C6B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:33:51 -0500 (EST)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7286B006C
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 06:33:59 -0500 (EST)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 18 Nov 2011 17:03:37 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBXZ202461798
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 17:03:35 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBXYNL023593
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:33:35 +1100
+	Fri, 18 Nov 2011 17:03:49 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAIBXjKN4501514
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 17:03:45 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAIBXiVa024019
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 17:03:45 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Fri, 18 Nov 2011 16:37:33 +0530
-Message-Id: <20111118110733.10512.11835.sendpatchset@srdronam.in.ibm.com>
+Date: Fri, 18 Nov 2011 16:37:43 +0530
+Message-Id: <20111118110743.10512.50949.sendpatchset@srdronam.in.ibm.com>
 In-Reply-To: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
 References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH v7 3.2-rc2 5/30] uprobes: copy of the original instruction.
+Subject: [PATCH v7 3.2-rc2 6/30] uprobes: define fixups.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
 
-When inserting the first probepoint, save a copy of the original
-instruction.  This copy is later used for fixup analysis, copied to the slot
-on probe-hit and for restoring the original instruction.
+During the first insertion of a probepoint, instruction is analyzed for
+fixups and cached in the per-uprobe struct. On a probehit, the cached
+fixup is used. Fixup analysis and caching is done in arch-specific
+code.
 
+Signed-off-by: Jim Keniston <jkenisto@us.ibm.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
-
-Changelog: (Since v5)
-- Uprobes no more depends on MM_OWNER; No reference to task_structs
-  while inserting/removing a probe.
-- Uses read_mapping_page instead of grab_cache_page so that the pages
-  have valid content.
-
- include/linux/uprobes.h |   12 +++++
- kernel/uprobes.c        |  111 +++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 113 insertions(+), 10 deletions(-)
+ include/linux/uprobes.h |   12 ++++++++++++
+ 1 files changed, 12 insertions(+), 0 deletions(-)
 
 diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index b4de058..fa2b663 100644
+index fa2b663..dd308fa 100644
 --- a/include/linux/uprobes.h
 +++ b/include/linux/uprobes.h
-@@ -26,6 +26,12 @@
- #include <linux/rbtree.h>
+@@ -33,6 +33,17 @@ struct vm_area_struct;
+ #define MAX_UINSN_BYTES 4
+ #endif
  
- struct vm_area_struct;
-+#ifdef CONFIG_ARCH_SUPPORTS_UPROBES
-+#include <asm/uprobes.h>
-+#else
++#define uprobe_opcode_sz sizeof(uprobe_opcode_t)
 +
-+#define MAX_UINSN_BYTES 4
-+#endif
- 
++/* Post-execution fixups.  Some architectures may define others. */
++
++/* No fixup needed */
++#define UPROBES_FIX_NONE	0x0
++/* Adjust IP back to vicinity of actual insn */
++#define UPROBES_FIX_IP	0x1
++/* Adjust the return address of a call insn */
++#define UPROBES_FIX_CALL	0x2
++
  struct uprobe_consumer {
  	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
-@@ -46,9 +52,15 @@ struct uprobe {
- 	struct uprobe_consumer	*consumers;
+ 	/*
+@@ -53,6 +64,7 @@ struct uprobe {
  	struct inode		*inode;		/* Also hold a ref to inode */
  	loff_t			offset;
-+	int			copy;
-+	u8			insn[MAX_UINSN_BYTES];
+ 	int			copy;
++	u16			fixups;
+ 	u8			insn[MAX_UINSN_BYTES];
  };
  
- #ifdef CONFIG_UPROBES
-+extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
-+							unsigned long vaddr);
-+extern int __weak set_orig_insn(struct mm_struct *mm, struct uprobe *uprobe,
-+					unsigned long vaddr, bool verify);
- extern int register_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer);
- extern void unregister_uprobe(struct inode *inode, loff_t offset,
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 1baae40..f4574fd 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -23,6 +23,7 @@
- 
- #include <linux/kernel.h>
- #include <linux/highmem.h>
-+#include <linux/pagemap.h>	/* read_mapping_page */
- #include <linux/slab.h>
- #include <linux/sched.h>
- #include <linux/uprobes.h>
-@@ -82,6 +83,20 @@ static bool valid_vma(struct vm_area_struct *vma, bool is_reg)
- 	return false;
- }
- 
-+int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
-+						unsigned long vaddr)
-+{
-+	/* placeholder: yet to be implemented */
-+	return 0;
-+}
-+
-+int __weak set_orig_insn(struct mm_struct *mm, struct uprobe *uprobe,
-+					unsigned long vaddr, bool verify)
-+{
-+	/* placeholder: yet to be implemented */
-+	return 0;
-+}
-+
- static int match_uprobe(struct uprobe *l, struct uprobe *r)
- {
- 	if (l->inode < r->inode)
-@@ -251,8 +266,71 @@ static bool del_consumer(struct uprobe *uprobe,
- 	return ret;
- }
- 
--static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
-+static int __copy_insn(struct address_space *mapping,
-+			struct vm_area_struct *vma, char *insn,
-+			unsigned long nbytes, unsigned long offset)
-+{
-+	struct file *filp = vma->vm_file;
-+	struct page *page;
-+	void *vaddr;
-+	unsigned long off1;
-+	unsigned long idx;
-+
-+	if (!filp)
-+		return -EINVAL;
-+
-+	idx = (unsigned long)(offset >> PAGE_CACHE_SHIFT);
-+	off1 = offset &= ~PAGE_MASK;
-+
-+	/*
-+	 * Ensure that the page that has the original instruction is
-+	 * populated and in page-cache.
-+	 */
-+	page = read_mapping_page(mapping, idx, filp);
-+	if (IS_ERR(page))
-+		return -ENOMEM;
-+
-+	vaddr = kmap_atomic(page);
-+	memcpy(insn, vaddr + off1, nbytes);
-+	kunmap_atomic(vaddr);
-+	page_cache_release(page);
-+	return 0;
-+}
-+
-+static int copy_insn(struct uprobe *uprobe, struct vm_area_struct *vma,
-+					unsigned long addr)
-+{
-+	struct address_space *mapping;
-+	int bytes;
-+	unsigned long nbytes;
-+
-+	addr &= ~PAGE_MASK;
-+	nbytes = PAGE_SIZE - addr;
-+	mapping = uprobe->inode->i_mapping;
-+
-+	/* Instruction at end of binary; copy only available bytes */
-+	if (uprobe->offset + MAX_UINSN_BYTES > uprobe->inode->i_size)
-+		bytes = uprobe->inode->i_size - uprobe->offset;
-+	else
-+		bytes = MAX_UINSN_BYTES;
-+
-+	/* Instruction at the page-boundary; copy bytes in second page */
-+	if (nbytes < bytes) {
-+		if (__copy_insn(mapping, vma, uprobe->insn + nbytes,
-+				bytes - nbytes, uprobe->offset + nbytes))
-+			return -ENOMEM;
-+
-+		bytes = nbytes;
-+	}
-+	return __copy_insn(mapping, vma, uprobe->insn, bytes, uprobe->offset);
-+}
-+
-+static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
-+				struct vm_area_struct *vma, loff_t vaddr)
- {
-+	unsigned long addr;
-+	int ret = -EINVAL;
-+
- 	/*
- 	 * Probe is to be deleted;
- 	 * Dont know if somebody already inserted the probe;
-@@ -261,15 +339,27 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
- 	if (!uprobe->consumers)
- 		return -EEXIST;
- 
--	atomic_inc(&mm->mm_uprobes_count);
--	return 0;
-+	addr = (unsigned long)vaddr;
-+	if (!uprobe->copy) {
-+		ret = copy_insn(uprobe, vma, addr);
-+		if (ret)
-+			return ret;
-+
-+		/* TODO : Analysis and verification of instruction */
-+		uprobe->copy = 1;
-+	}
-+	ret = set_bkpt(mm, uprobe, addr);
-+	if (!ret)
-+		atomic_inc(&mm->mm_uprobes_count);
-+
-+	return ret;
- }
- 
--static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe)
-+static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
-+							loff_t vaddr)
- {
--	/* Placeholder: Yet to be implemented */
--	atomic_dec(&mm->mm_uprobes_count);
--	return;
-+	if (!set_orig_insn(mm, uprobe, (unsigned long)vaddr, true))
-+		atomic_dec(&mm->mm_uprobes_count);
- }
- 
- static void delete_uprobe(struct uprobe *uprobe)
-@@ -385,7 +475,7 @@ static int __register_uprobe(struct inode *inode, loff_t offset,
- 			mmput(mm);
- 			continue;
- 		}
--		ret = install_breakpoint(mm, uprobe);
-+		ret = install_breakpoint(mm, uprobe, vma, vi->vaddr);
- 		up_read(&mm->mmap_sem);
- 		mmput(mm);
- 		if (ret && ret == -EEXIST)
-@@ -436,7 +526,7 @@ static void __unregister_uprobe(struct inode *inode, loff_t offset,
- 			mmput(mm);
- 			continue;
- 		}
--		remove_breakpoint(mm, uprobe);
-+		remove_breakpoint(mm, uprobe, vi->vaddr);
- 		up_read(&mm->mmap_sem);
- 		mmput(mm);
- 	}
-@@ -627,7 +717,8 @@ int mmap_uprobe(struct vm_area_struct *vma)
- 				put_uprobe(uprobe);
- 				continue;
- 			}
--			ret = install_breakpoint(vma->vm_mm, uprobe);
-+			ret = install_breakpoint(vma->vm_mm, uprobe, vma,
-+								vaddr);
- 			if (ret == -EEXIST) {
- 				atomic_inc(&vma->vm_mm->mm_uprobes_count);
- 				ret = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
