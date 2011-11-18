@@ -1,113 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1D0E16B0080
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:43:39 -0500 (EST)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LUV0039N7SBGR@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 18 Nov 2011 16:43:25 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LUV003NU7SA39@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 18 Nov 2011 16:43:23 +0000 (GMT)
-Date: Fri, 18 Nov 2011 17:43:18 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 11/11] ARM: Samsung: use CMA for 2 memory banks for s5p-mfc
- device
-In-reply-to: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1321634598-16859-12-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
-References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C5CA6B0075
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 11:58:49 -0500 (EST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [RFC PATCH 0/5] Reduce compaction-related stalls and improve asynchronous migration of dirty pages v3
+Date: Fri, 18 Nov 2011 16:58:39 +0000
+Message-Id: <1321635524-8586-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>
 
-Replace custom memory bank initialization using memblock_reserve and
-dma_declare_coherent with a single call to CMA's dma_declare_contiguous.
+This series is against 3.2-rc2 and follows on from discussions on "mm:
+Do not stall in synchronous compaction for THP allocations". That
+patch eliminated stalls due to compaction which sometimes resulted
+in user-visible interactivity problems on browsers. The downside was
+that THP success allocation rates were lower because dirty pages were
+not being migrated.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- arch/arm/plat-s5p/dev-mfc.c |   51 ++++++-------------------------------------
- 1 files changed, 7 insertions(+), 44 deletions(-)
+This series is an RFC on how we can migrate more dirty pages with
+asynchronous compaction.  The intention is to maximise transparent
+hugepage availability while minimising stalls. This does not rule out
+the possibility of having a tunable to enable synchronous compaction
+at a time when a user is willing to stall waiting on huge pages and
+to disable khugepaged.
 
-diff --git a/arch/arm/plat-s5p/dev-mfc.c b/arch/arm/plat-s5p/dev-mfc.c
-index a30d36b..fcb8400 100644
---- a/arch/arm/plat-s5p/dev-mfc.c
-+++ b/arch/arm/plat-s5p/dev-mfc.c
-@@ -14,6 +14,7 @@
- #include <linux/interrupt.h>
- #include <linux/platform_device.h>
- #include <linux/dma-mapping.h>
-+#include <linux/dma-contiguous.h>
- #include <linux/memblock.h>
- #include <linux/ioport.h>
- 
-@@ -22,52 +23,14 @@
- #include <plat/irqs.h>
- #include <plat/mfc.h>
- 
--struct s5p_mfc_reserved_mem {
--	phys_addr_t	base;
--	unsigned long	size;
--	struct device	*dev;
--};
--
--static struct s5p_mfc_reserved_mem s5p_mfc_mem[2] __initdata;
--
- void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
- 				phys_addr_t lbase, unsigned int lsize)
- {
--	int i;
--
--	s5p_mfc_mem[0].dev = &s5p_device_mfc_r.dev;
--	s5p_mfc_mem[0].base = rbase;
--	s5p_mfc_mem[0].size = rsize;
--
--	s5p_mfc_mem[1].dev = &s5p_device_mfc_l.dev;
--	s5p_mfc_mem[1].base = lbase;
--	s5p_mfc_mem[1].size = lsize;
--
--	for (i = 0; i < ARRAY_SIZE(s5p_mfc_mem); i++) {
--		struct s5p_mfc_reserved_mem *area = &s5p_mfc_mem[i];
--		if (memblock_remove(area->base, area->size)) {
--			printk(KERN_ERR "Failed to reserve memory for MFC device (%ld bytes at 0x%08lx)\n",
--			       area->size, (unsigned long) area->base);
--			area->base = 0;
--		}
--	}
--}
--
--static int __init s5p_mfc_memory_init(void)
--{
--	int i;
--
--	for (i = 0; i < ARRAY_SIZE(s5p_mfc_mem); i++) {
--		struct s5p_mfc_reserved_mem *area = &s5p_mfc_mem[i];
--		if (!area->base)
--			continue;
-+	if (dma_declare_contiguous(&s5p_device_mfc_r.dev, rsize, rbase, 0))
-+		printk(KERN_ERR "Failed to reserve memory for MFC device (%u bytes at 0x%08lx)\n",
-+		       rsize, (unsigned long) rbase);
- 
--		if (dma_declare_coherent_memory(area->dev, area->base,
--				area->base, area->size,
--				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0)
--			printk(KERN_ERR "Failed to declare coherent memory for MFC device (%ld bytes at 0x%08lx)\n",
--			       area->size, (unsigned long) area->base);
--	}
--	return 0;
-+	if (dma_declare_contiguous(&s5p_device_mfc_l.dev, lsize, lbase, 0))
-+		printk(KERN_ERR "Failed to reserve memory for MFC device (%u bytes at 0x%08lx)\n",
-+		       rsize, (unsigned long) rbase);
- }
--device_initcall(s5p_mfc_memory_init);
+Patch 1 partially reverts commit 39deaf85 to allow migration to isolate
+	dirty pages.
+
+Patch 2 notes that the /proc/sys/vm/compact_memory handler is not using
+	synchronous compaction when it should be.
+
+Patch 3 prevents THP allocations using synchronous compaction as this
+	can result in user-visible stalls. More details on the stalls
+	are in the changelog.
+
+Patch 4 adds a sync parameter to the migratepage callback. It is up
+	to the callback to migrate that page without blocking if
+	sync==false. For example, fallback_migrate_page will not
+	call writepage if sync==false
+
+Patch 5 restores filter-awareness to isolate_lru_page for migration.
+	In practice, it means that pages under writeback and pages
+	without a ->migratepage callback will not be isolated
+	for migration.
+
+This has been lightly tested and nothing horrible fell out
+but I need to think a lot more more on patch 4 to see if
+buffer_migrate_lock_buffers() is really doing the right thing for
+async compaction and if the backout logic is correct. Stalls due
+to compaction were eliminated and hugepage allocation success rates
+were more or less the same. I'm running a more comprehensive set of
+tests over the weekend to see if the warning in patch 4 triggers
+in particular and what the allocation success rates look like for
+different loads.
+
+Andrea, I didn't pick up your "move ISOLATE_CLEAN setting out of
+compaction_migratepages loop" but obviously could if this series gains
+any traction. This is also orthogonal to your "improve synchronous
+compaction" idea but obviously if the stalls from sync compaction could
+be significantly reduced, it would still not collide with this series
+that improves the migration of dirty pages for asynchronous compaction.
+If your approach works, it would replace patch 3 from this series.
+
+ fs/btrfs/disk-io.c      |    2 +-
+ fs/nfs/internal.h       |    2 +-
+ fs/nfs/write.c          |    4 +-
+ include/linux/fs.h      |    9 +++-
+ include/linux/gfp.h     |   11 +++++
+ include/linux/migrate.h |    2 +-
+ include/linux/mmzone.h  |    2 +
+ mm/compaction.c         |    3 +-
+ mm/migrate.c            |  106 ++++++++++++++++++++++++++++++++---------------
+ mm/page_alloc.c         |    9 ++++-
+ mm/vmscan.c             |   36 +++++++++++++++-
+ 11 files changed, 140 insertions(+), 46 deletions(-)
+
 -- 
-1.7.1.569.g6f426
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
