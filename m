@@ -1,37 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5D76B0069
-	for <linux-mm@kvack.org>; Sat, 19 Nov 2011 09:15:13 -0500 (EST)
-Received: by ghrr17 with SMTP id r17so1960473ghr.14
-        for <linux-mm@kvack.org>; Sat, 19 Nov 2011 06:15:10 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6086B0069
+	for <linux-mm@kvack.org>; Sat, 19 Nov 2011 13:09:34 -0500 (EST)
+Received: by bke17 with SMTP id 17so6293516bke.14
+        for <linux-mm@kvack.org>; Sat, 19 Nov 2011 10:09:30 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [Linaro-mm-sig] [PATCHv17 0/11] Contiguous Memory Allocator
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+ <CA+K6fF6SH6BNoKgwArcqvyav4b=C5SGvymo5LS3akfD_yE_beg@mail.gmail.com>
+ <op.v45u6zyy3l0zgt@mpn-glaptop>
+ <CA+K6fF6iDivqmN9kfY34tWNg+g_rYBBmyS_Mxb6gvLuSgA2JyQ@mail.gmail.com>
+Date: Sat, 19 Nov 2011 19:09:23 +0100
 MIME-Version: 1.0
-In-Reply-To: <20111119100326.GA27967@infradead.org>
-References: <1321612791-4764-1-git-send-email-amwang@redhat.com> <20111119100326.GA27967@infradead.org>
-From: Kay Sievers <kay.sievers@vrfy.org>
-Date: Sat, 19 Nov 2011 15:14:48 +0100
-Message-ID: <CAPXgP10q8Fba3vr0zf-XBBaRPwjP7MyJ=-QRL45_8WC-vtotOg@mail.gmail.com>
-Subject: Re: [V2 PATCH] tmpfs: add fallocate support
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v47gpxi03l0zgt@mpn-glaptop>
+In-Reply-To: <CA+K6fF6iDivqmN9kfY34tWNg+g_rYBBmyS_Mxb6gvLuSgA2JyQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: sandeep patil <psandeep.s@gmail.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Dave
+ Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA
+ Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sat, Nov 19, 2011 at 11:03, Christoph Hellwig <hch@infradead.org> wrote:
-> On Fri, Nov 18, 2011 at 06:39:50PM +0800, Cong Wang wrote:
->> It seems that systemd needs tmpfs to support fallocate,
->> see http://lkml.org/lkml/2011/10/20/275. This patch adds
->> fallocate support to tmpfs.
->
-> What for exactly? =C2=A0Please explain why preallocating on tmpfs would
-> make any sense.
+>> On Fri, 18 Nov 2011 22:20:48 +0100, sandeep patil wrote:
+>>> So, i guess my question is, until all the migration failures are
+>>> tracked down and fixed, is there a plan to retry the contiguous
+>>> allocation from a new range in the CMA region?
 
-To be able to safely use mmap(), regarding SIGBUS, on files on the
-/dev/shm filesystem. The glibc fallback loop for -ENOSYS on fallocate
-is just ugly.
+> 2011/11/18 Michal Nazarewicz <mina86@mina86.com>:
+>> No.  Current CMA implementation will stick to the same range of pages=
+ also
+>> on consequent allocations of the same size.
 
-Kay
+On Sat, 19 Nov 2011 00:30:49 +0100, sandeep patil <psandeep.s@gmail.com>=
+ wrote:
+> Doesn't that mean the drivers that fail to allocate from contiguous DM=
+A region
+> will fail, if the migration fails?
+
+Yes.
+
+I have some ideas how that could be mitigated.  The easiest would be to =
+try
+another region to allocate from on failure.  More complicated could be t=
+o try
+and wait for the I/O transfer to finish.  I'll try to work on it during
+upcoming week.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
