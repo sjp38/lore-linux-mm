@@ -1,402 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D7DFF6B006C
-	for <linux-mm@kvack.org>; Sat, 19 Nov 2011 03:59:13 -0500 (EST)
-Received: by vcbfo1 with SMTP id fo1so4040381vcb.14
-        for <linux-mm@kvack.org>; Sat, 19 Nov 2011 00:59:11 -0800 (PST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id C6DBE6B0069
+	for <linux-mm@kvack.org>; Sat, 19 Nov 2011 04:15:12 -0500 (EST)
+Received: by vcbfo1 with SMTP id fo1so4049521vcb.14
+        for <linux-mm@kvack.org>; Sat, 19 Nov 2011 01:15:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1321635524-8586-5-git-send-email-mgorman@suse.de>
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
-	<1321635524-8586-5-git-send-email-mgorman@suse.de>
-Date: Sat, 19 Nov 2011 16:59:10 +0800
-Message-ID: <CAPQyPG4GTccLroA2NsdQK_PH1_KB3dD1v3m1FzenCeDW-8qb+g@mail.gmail.com>
-Subject: Re: [PATCH 4/5] mm: compaction: Determine if dirty pages can be
- migreated without blocking within ->migratepage
+In-Reply-To: <20111118021714.GP3306@redhat.com>
+References: <20111105013317.GU18879@redhat.com>
+	<CAPQyPG5Y1e2dac38OLwZAinWb6xpPMWCya2vTaWLPi9+vp1JXQ@mail.gmail.com>
+	<20111107131413.GA18279@suse.de>
+	<20111107154235.GE3249@redhat.com>
+	<20111107162808.GA3083@suse.de>
+	<20111109012542.GC5075@redhat.com>
+	<20111116140042.GD3306@redhat.com>
+	<alpine.LSU.2.00.1111161540060.1861@sister.anvils>
+	<20111117184252.GK3306@redhat.com>
+	<CAPQyPG7MvO8Qw3jrOMShQcG5Z-RwbzpKnu-AheoS6aRYNhW14w@mail.gmail.com>
+	<20111118021714.GP3306@redhat.com>
+Date: Sat, 19 Nov 2011 17:15:10 +0800
+Message-ID: <CAPQyPG5GXOb1o5DjkTcjqbes=R_0BP8LR2fZDYroORn_-uE1AQ@mail.gmail.com>
+Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
+ vma_merge succeeding in copy_vma
 From: Nai Xia <nai.xia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
 
-On Sat, Nov 19, 2011 at 12:58 AM, Mel Gorman <mgorman@suse.de> wrote:
-> Asynchronous compaction is when allocating transparent hugepages to
-> avoid blocking for long periods of time. Due to reports of stalling,
-> synchronous compaction is never used but this impacts allocation
-> success rates. When deciding whether to migrate dirty pages, the
-> following check is made
+On Fri, Nov 18, 2011 at 10:17 AM, Andrea Arcangeli <aarcange@redhat.com> wr=
+ote:
+> On Fri, Nov 18, 2011 at 09:42:05AM +0800, Nai Xia wrote:
+>> First of all, I believe that at the POSIX level, it's ok for
+>> truncate_inode_page()
+>> not scanning =A0COWed pages, since basically we does not provide any gua=
+rantee
+>> for privately mapped file pages for this behavior. But missing a file
+>> mapped pte after its
+>> cache page is already removed from the the page cache is a
 >
-> =A0 =A0 =A0 =A0if (PageDirty(page) && !sync &&
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mapping->a_ops->migratepage !=3D migrate_p=
-age)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rc =3D -EBUSY;
+> I also exclude there is a case that would break, but it's safer to
+> keep things as is, in case somebody depends on segfault trapping.
 >
-> This skips over all pages using buffer_migrate_page() even though
-> it is possible to migrate some of these pages without blocking. This
-> patch updates the ->migratepage callback with a "sync" parameter. It
-> is the resposibility of the callback to gracefully fail migration of
-> the page if it cannot be achieved without blocking.
+>> fundermental malfuntion for
+>> a shared mapping when some threads see the file cache page is gone
+>> while some thread
+>> is still r/w from/to it! No matter how short the gap between
+>> truncate_inode_page() and
+>> the second loop, this is wrong.
 >
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
-> =A0fs/btrfs/disk-io.c =A0 =A0 =A0| =A0 =A02 +-
-> =A0fs/nfs/internal.h =A0 =A0 =A0 | =A0 =A02 +-
-> =A0fs/nfs/write.c =A0 =A0 =A0 =A0 =A0| =A0 =A04 +-
-> =A0include/linux/fs.h =A0 =A0 =A0| =A0 =A09 +++-
-> =A0include/linux/migrate.h | =A0 =A02 +-
-> =A0mm/migrate.c =A0 =A0 =A0 =A0 =A0 =A0| =A0106 +++++++++++++++++++++++++=
-+++++++---------------
-> =A06 files changed, 83 insertions(+), 42 deletions(-)
+> Truncate will destroy the info on disk too... so if somebody is
+> writing to a mapping which points beyond the end of the i_size
+> concurrently with truncate, the result is undefined. The write may
+> well reach the page but then the page is discared. Or you may get
+> SIGBUS before the write.
 >
-> diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-> index 62afe5c..f841f00 100644
-> --- a/fs/btrfs/disk-io.c
-> +++ b/fs/btrfs/disk-io.c
-> @@ -872,7 +872,7 @@ static int btree_submit_bio_hook(struct inode *inode,=
- int rw, struct bio *bio,
+>> Second, even if the we don't care about this POSIX flaw that may
+>> introduce, a pte can still
+>> missed by the second loop. mremap can happen serveral times during
+>> these non-atomic
+>> firstpass-trunc-secondpass operations, a proper events can happily
+>> make the wrong order
+>> for every scan, and miss them all -- That's just what in Hugh's mind
+>> in the post you just
+>> replied. Without lock and proper ordering( which patial mremap cannot pr=
+ovide),
+>> this *will* happen.
 >
-> =A0#ifdef CONFIG_MIGRATION
-> =A0static int btree_migratepage(struct address_space *mapping,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struc=
-t page *page)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struc=
-t page *page, bool sync)
-> =A0{
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * we can't safely write a btree page from here,
-> diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
-> index c1a1bd8..d0c460f 100644
-> --- a/fs/nfs/internal.h
-> +++ b/fs/nfs/internal.h
-> @@ -328,7 +328,7 @@ void nfs_commit_release_pages(struct nfs_write_data *=
-data);
->
-> =A0#ifdef CONFIG_MIGRATION
-> =A0extern int nfs_migrate_page(struct address_space *,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page *);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page *, bool);
-> =A0#else
-> =A0#define nfs_migrate_page NULL
-> =A0#endif
-> diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-> index 1dda78d..33475df 100644
-> --- a/fs/nfs/write.c
-> +++ b/fs/nfs/write.c
-> @@ -1711,7 +1711,7 @@ out_error:
->
-> =A0#ifdef CONFIG_MIGRATION
-> =A0int nfs_migrate_page(struct address_space *mapping, struct page *newpa=
-ge,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *page)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *page, bool sync)
-> =A0{
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * If PagePrivate is set, then the page is currently assoc=
-iated with
-> @@ -1726,7 +1726,7 @@ int nfs_migrate_page(struct address_space *mapping,=
- struct page *newpage,
->
-> =A0 =A0 =A0 =A0nfs_fscache_release_page(page, GFP_KERNEL);
->
-> - =A0 =A0 =A0 return migrate_page(mapping, newpage, page);
-> + =A0 =A0 =A0 return migrate_page(mapping, newpage, page, sync);
-> =A0}
-> =A0#endif
->
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 0c4df26..67f8e46 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -609,9 +609,12 @@ struct address_space_operations {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0loff_t offset, unsigned lo=
-ng nr_segs);
-> =A0 =A0 =A0 =A0int (*get_xip_mem)(struct address_space *, pgoff_t, int,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0void **, unsigned long *);
-> - =A0 =A0 =A0 /* migrate the contents of a page to the specified target *=
-/
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* migrate the contents of a page to the specified target=
-. If sync
-> + =A0 =A0 =A0 =A0* is false, it must not block. If it needs to block, ret=
-urn -EBUSY
-> + =A0 =A0 =A0 =A0*/
-> =A0 =A0 =A0 =A0int (*migratepage) (struct address_space *,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page =
-*);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page =
-*, bool);
-> =A0 =A0 =A0 =A0int (*launder_page) (struct page *);
-> =A0 =A0 =A0 =A0int (*is_partially_uptodate) (struct page *, read_descript=
-or_t *,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0unsigned long);
-> @@ -2577,7 +2580,7 @@ extern int generic_check_addressable(unsigned, u64)=
-;
->
-> =A0#ifdef CONFIG_MIGRATION
-> =A0extern int buffer_migrate_page(struct address_space *,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page=
- *, struct page *);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page=
- *, struct page *, bool);
-> =A0#else
-> =A0#define buffer_migrate_page NULL
-> =A0#endif
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index e39aeec..14e6d2a 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -11,7 +11,7 @@ typedef struct page *new_page_t(struct page *, unsigned=
- long private, int **);
->
-> =A0extern void putback_lru_pages(struct list_head *l);
-> =A0extern int migrate_page(struct address_space *,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page =
-*);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *, struct page =
-*, bool);
-> =A0extern int migrate_pages(struct list_head *l, new_page_t x,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long private, boo=
-l offlining,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bool sync);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 578e291..8395697 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -415,7 +415,7 @@ EXPORT_SYMBOL(fail_migrate_page);
-> =A0* Pages are locked upon entry and exit.
-> =A0*/
-> =A0int migrate_page(struct address_space *mapping,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struct page *page)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struct page *page, bo=
-ol sync)
-> =A0{
-> =A0 =A0 =A0 =A0int rc;
->
-> @@ -432,19 +432,60 @@ int migrate_page(struct address_space *mapping,
-> =A0EXPORT_SYMBOL(migrate_page);
->
-> =A0#ifdef CONFIG_BLOCK
-> +
-> +/* Returns true if all buffers are successfully locked */
-> +bool buffer_migrate_lock_buffers(struct buffer_head *head, bool sync)
-> +{
-> + =A0 =A0 =A0 struct buffer_head *bh =3D head;
-> +
-> + =A0 =A0 =A0 /* Simple case, sync compaction */
-> + =A0 =A0 =A0 if (sync) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 do {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 get_bh(bh);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 lock_buffer(bh);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bh =3D bh->b_this_page;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 } while (bh !=3D head);
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
-> + =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 /* async case, we cannot block on lock_buffer so use tryloc=
-k_buffer */
-> + =A0 =A0 =A0 do {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 get_bh(bh);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!trylock_buffer(bh)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We failed to lock the =
-buffer and cannot stall in
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* async migration. Relea=
-se the taken locks
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct buffer_head *failed_=
-bh =3D bh;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bh =3D head;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 do {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unlock_buff=
-er(bh);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 put_bh(bh);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bh =3D bh->=
-b_this_page;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } while (bh !=3D failed_bh)=
-;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 bh =3D bh->b_this_page;
-> + =A0 =A0 =A0 } while (bh !=3D head);
-> + =A0 =A0 =A0 return true;
-> +}
-> +
-> =A0/*
-> =A0* Migration function for pages with buffers. This function can only be=
- used
-> =A0* if the underlying filesystem guarantees that no other references to =
-"page"
-> =A0* exist.
-> =A0*/
-> =A0int buffer_migrate_page(struct address_space *mapping,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struct page *page)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *newpage, struct page *page, bo=
-ol sync)
-> =A0{
-> =A0 =A0 =A0 =A0struct buffer_head *bh, *head;
-> =A0 =A0 =A0 =A0int rc;
->
-> =A0 =A0 =A0 =A0if (!page_has_buffers(page))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return migrate_page(mapping, newpage, page)=
-;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return migrate_page(mapping, newpage, page,=
- sync);
->
-> =A0 =A0 =A0 =A0head =3D page_buffers(page);
->
-> @@ -453,13 +494,18 @@ int buffer_migrate_page(struct address_space *mappi=
-ng,
-> =A0 =A0 =A0 =A0if (rc)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return rc;
->
-> - =A0 =A0 =A0 bh =3D head;
-> - =A0 =A0 =A0 do {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 get_bh(bh);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 lock_buffer(bh);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 bh =3D bh->b_this_page;
-> -
-> - =A0 =A0 =A0 } while (bh !=3D head);
-> + =A0 =A0 =A0 if (!buffer_migrate_lock_buffers(head, sync)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We have to revert the radix tree updat=
-e. If this returns
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* non-zero, it either means that the pag=
-e count changed
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* which "can't happen" or the slot chang=
-ed from underneath
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* us in which case someone operated on a=
- page that did not
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* have buffers fully migrated which is a=
-larming so warn
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* that it happened.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON(migrate_page_move_mapping(mapping, =
-page, newpage));
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
+> There won't be more than one mremap running concurrently from the same
+> process (we must enforce it by making sure anon_vma lock and
+> i_mmap_lock are both taken at least once in copy_vma, they're already
+> both taken in fork, they should already be taken in all common cases
+> in copy_vma so for all cases it's going to be a L1 exclusive cacheline
+> already). I don't exclude there may be some case that won't take the
+> locks in vma_adjust though, we should check it, if we decide to relay
+> on the double loop, but it'd be a simple addition if needed.
 
-If this migrate_page_move_mapping() really fails, seems disk IO will be nee=
-ded
-to bring the previously already cached page back, I wonder if we should mak=
-e the
-double check for the two conditions of "page refs is ok " and "all bh
-trylocked"
-before doing radix_tree_replace_slot() ? which I think does not
-involve IO on the
-error path.
+I mean it's not the concurrent mremap, it's mremap() can be done several
+times between these 3-stage scans, since we don't take the mmap_sem
+of the scanned VMAs, they are valid to do so. And without proper ordering
+and locks/mutex it's possible for these 3-stage scans racing with these
+mremap() s and a ghost PTE just jumps back and force and misses all
+these scans.
 
+>
+> I'm more concerned about the pte pointing to the orphaned pagecache
+> that would materialize for a little while because of
+> unmap+truncate+unmap instead of unmap+unmap+truncate (but the latter
+> order is needed for the COWs).
+>
+>> You may disagree with me and have that locking removed, and I am
+>> already have that
+>> one line patch prepared waiting fora bug bumpping up again, what a
+>> cheap patch submission!
+>
+> Well I'm not yet sure it's good idea to remove the i_mmap_mutex, or if
+> we should just add the anon_vma lock in mremap and add the i_mmap_lock
+> in fork (to avoid the orphaned pagecache left mapped in the child
+> which already may happen unless there's some i_mmap_lock belonging to
+> the same inode taken after copy_page_range returns until we return to
+> userland and child can run, and I don't think we can relay on the
+> order of the prio tree in fork. Fork is safe for anon pages because
+> there we can relay on the order of the same_anon_vma list.
+>
+> I think clearing up if this orphaned pagecache is dangerous would be a
+> good start. If too complex we just add the i_mmap_lock around
+> copy_page_range in fork if vma->vm_file is set. If you instead think
+> we can deal with the orphaned pagecache we can add a dummy lock/unlock
+> of i_mmap_mutex in copy_vma vma_merge succeeding case (short critical
+> section and not common common case) and remove the i_mmap_mutex around
+> move_page_tables (common case) overall speeding up mremap and not
+> degrading fork.
+>
+
+I am actually feel comfortable either direction you take :)
+
+But I do think orphaned pagecache is not a good idea,
+don't you see there is a "BUG_ON(page_mapped(page))"
+in __delete_from_page_cache()? Do you really plan to
+remove this line?
 
 Nai
-
-> + =A0 =A0 =A0 }
->
-> =A0 =A0 =A0 =A0ClearPagePrivate(page);
-> =A0 =A0 =A0 =A0set_page_private(newpage, page_private(page));
-> @@ -536,10 +582,13 @@ static int writeout(struct address_space *mapping, =
-struct page *page)
-> =A0* Default handling if a filesystem does not provide a migration functi=
-on.
-> =A0*/
-> =A0static int fallback_migrate_page(struct address_space *mapping,
-> - =A0 =A0 =A0 struct page *newpage, struct page *page)
-> + =A0 =A0 =A0 struct page *newpage, struct page *page, bool sync)
-> =A0{
-> - =A0 =A0 =A0 if (PageDirty(page))
-> + =A0 =A0 =A0 if (PageDirty(page)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!sync)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return writeout(mapping, page);
-> + =A0 =A0 =A0 }
->
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * Buffers may be managed in a filesystem specific way.
-> @@ -549,7 +598,7 @@ static int fallback_migrate_page(struct address_space=
- *mapping,
-> =A0 =A0 =A0 =A0 =A0 =A0!try_to_release_page(page, GFP_KERNEL))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EAGAIN;
->
-> - =A0 =A0 =A0 return migrate_page(mapping, newpage, page);
-> + =A0 =A0 =A0 return migrate_page(mapping, newpage, page, sync);
-> =A0}
->
-> =A0/*
-> @@ -585,29 +634,18 @@ static int move_to_new_page(struct page *newpage, s=
-truct page *page,
->
-> =A0 =A0 =A0 =A0mapping =3D page_mapping(page);
-> =A0 =A0 =A0 =A0if (!mapping)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D migrate_page(mapping, newpage, page)=
-;
-> - =A0 =A0 =A0 else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D migrate_page(mapping, newpage, page,=
- sync);
-> + =A0 =A0 =A0 else if (mapping->a_ops->migratepage)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Do not writeback pages if !sync and mi=
-gratepage is
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* not pointing to migrate_page() which i=
-s nonblocking
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* (swapcache/tmpfs uses migratepage =3D =
-migrate_page).
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Most pages have a mapping and most fil=
-esystems provide a
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* migratepage callback. Anonymous pages =
-are part of swap
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* space which also has its own migratepa=
-ge callback. This
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* is the most common path for page migra=
-tion.
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (PageDirty(page) && !sync &&
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mapping->a_ops->migratepage !=3D mi=
-grate_page)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D -EBUSY;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 else if (mapping->a_ops->migratepage)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Most pages have a mapp=
-ing and most filesystems
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* should provide a migra=
-tion function. Anonymous
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* pages are part of swap=
- space which also has its
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* own migration function=
-. This is the most common
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* path for page migratio=
-n.
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D mapping->a_ops->migr=
-atepage(mapping,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 newpage, page);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D fallback_migrate_pag=
-e(mapping, newpage, page);
-> - =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D mapping->a_ops->migratepage(mapping,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 newpage, page, sync);
-> + =A0 =A0 =A0 else
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rc =3D fallback_migrate_page(mapping, newpa=
-ge, page, sync);
->
-> =A0 =A0 =A0 =A0if (rc) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0newpage->mapping =3D NULL;
-> --
-> 1.7.3.4
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
