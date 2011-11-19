@@ -1,63 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C1826B0069
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:27:03 -0500 (EST)
-Received: by wwf10 with SMTP id 10so5233836wwf.26
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 19:26:59 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CE216B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:32:56 -0500 (EST)
+Received: by wwf10 with SMTP id 10so5237867wwf.26
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 19:32:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20111118113946.6563fd08.akpm@linux-foundation.org>
-References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
-	<20111118150742.GA23223@tiehlicka.suse.cz>
-	<CAJd=RBCOK9tis-bF87Csn70miRDqLtCUiZmDH2hnc8i_9+KtNw@mail.gmail.com>
-	<20111118161128.GC23223@tiehlicka.suse.cz>
-	<20111118113946.6563fd08.akpm@linux-foundation.org>
-Date: Sat, 19 Nov 2011 11:26:59 +0800
-Message-ID: <CAJd=RBCem0hw8w1ehNZnzb6OMqn1xsqT9yczgDag0ydp9mavCw@mail.gmail.com>
-Subject: Re: [PATCH] hugetlb: detect race if fail to COW
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20111118115955.410af035.akpm@linux-foundation.org>
+References: <1321616630-28281-1-git-send-email-consul.kautuk@gmail.com>
+	<20111118115955.410af035.akpm@linux-foundation.org>
+Date: Fri, 18 Nov 2011 22:32:52 -0500
+Message-ID: <CAFPAmTRU7=LyoEMWnAkm4ZDz9G6wwUsPr=iHP7rEkU1zJ_JDEQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm/vmalloc.c: eliminate extra loop in
+ pcpu_get_vm_areas error path
+From: "kautuk.c @samsung.com" <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Nov 19, 2011 at 3:39 AM, Andrew Morton
+Oh yes, I missed that out. :)
+
+We should also do that.
+
+Do you need me to redo this patch with this change ?
+Although, I do notice that you seem to have already accepted this patch.
+
+
+On Fri, Nov 18, 2011 at 2:59 PM, Andrew Morton
 <akpm@linux-foundation.org> wrote:
-> On Fri, 18 Nov 2011 17:11:28 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri, 18 Nov 2011 17:13:50 +0530
+> Kautuk Consul <consul.kautuk@gmail.com> wrote:
 >
->> On Fri 18-11-11 23:23:12, Hillf Danton wrote:
->> > On Fri, Nov 18, 2011 at 11:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
->> > > On Fri 18-11-11 22:04:37, Hillf Danton wrote:
->> > >> In the error path that we fail to allocate new huge page, before tr=
-y again, we
->> > >> have to check race since page_table_lock is re-acquired.
->> > >
->> > > I do not think we can race here because we are serialized by
->> > > hugetlb_instantiation_mutex AFAIU. Without this lock, however, we co=
-uld
->> > > fall into avoidcopy and shortcut despite the fact that other thread =
-has
->> > > already did the job.
->> > >
->> > > The mutex usage is not obvious in hugetlb_cow so maybe we want to be
->> > > explicit about it (either a comment or do the recheck).
->> > >
->> >
->> > Then the following check is unnecessary, no?
+>> If either of the vas or vms arrays are not properly kzalloced,
+>> then the code jumps to the err_free label.
 >>
->> Hmm, thinking about it some more, I guess we have to recheck because we
->> can still race with page migration. So we need you patch.
+>> The err_free label runs a loop to check and free each of the array
+>> members of the vas and vms arrays which is not required for this
+>> situation as none of the array members have been allocated till this
+>> point.
 >>
->> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>> Eliminate the extra loop we have to go through by introducing a new
+>> label err_free2 and then jumping to it.
+>>
+>> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+>> ---
+>> =A0mm/vmalloc.c | =A0 =A03 ++-
+>> =A01 files changed, 2 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index b669aa6..1a0d4e2 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -2352,7 +2352,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigne=
+d long *offsets,
+>> =A0 =A0 =A0 vms =3D kzalloc(sizeof(vms[0]) * nr_vms, GFP_KERNEL);
+>> =A0 =A0 =A0 vas =3D kzalloc(sizeof(vas[0]) * nr_vms, GFP_KERNEL);
+>> =A0 =A0 =A0 if (!vas || !vms)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 goto err_free;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto err_free2;
+>>
+>> =A0 =A0 =A0 for (area =3D 0; area < nr_vms; area++) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 vas[area] =3D kzalloc(sizeof(struct vmap_are=
+a), GFP_KERNEL);
+>> @@ -2455,6 +2455,7 @@ err_free:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (vms)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(vms[area]);
+>> =A0 =A0 =A0 }
+>> +err_free2:
+>> =A0 =A0 =A0 kfree(vas);
+>> =A0 =A0 =A0 kfree(vms);
+>> =A0 =A0 =A0 return NULL;
 >
-> So we need a new changelog. =C2=A0How does this look?
+> Which means we can also do the below, yes? =A0(please check my homework!)
 >
-Thanks Andrew and Michal:)
-
-Best regards
-Hillf
+> --- a/mm/vmalloc.c~mm-vmallocc-eliminate-extra-loop-in-pcpu_get_vm_areas-=
+error-path-fix
+> +++ a/mm/vmalloc.c
+> @@ -2449,10 +2449,8 @@ found:
+>
+> =A0err_free:
+> =A0 =A0 =A0 =A0for (area =3D 0; area < nr_vms; area++) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (vas)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(vas[area]);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (vms)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(vms[area]);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(vas[area]);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(vms[area]);
+> =A0 =A0 =A0 =A0}
+> =A0err_free2:
+> =A0 =A0 =A0 =A0kfree(vas);
+> _
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
