@@ -1,37 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A346B002D
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 18:53:05 -0500 (EST)
-Received: by yenm10 with SMTP id m10so4023855yen.14
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 15:53:03 -0800 (PST)
-Date: Fri, 18 Nov 2011 15:53:00 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 for-3.2-rc3] cpusets: stall when updating mems_allowed
- for mempolicy or disjoint nodemask
-In-Reply-To: <20111117160019.c8bd45ba.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1111181549460.24487@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <20111117142213.2b34469d.akpm@linux-foundation.org> <alpine.DEB.2.00.1111171507340.9933@chino.kir.corp.google.com> <20111117160019.c8bd45ba.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1826B0069
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2011 22:27:03 -0500 (EST)
+Received: by wwf10 with SMTP id 10so5233836wwf.26
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2011 19:26:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20111118113946.6563fd08.akpm@linux-foundation.org>
+References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
+	<20111118150742.GA23223@tiehlicka.suse.cz>
+	<CAJd=RBCOK9tis-bF87Csn70miRDqLtCUiZmDH2hnc8i_9+KtNw@mail.gmail.com>
+	<20111118161128.GC23223@tiehlicka.suse.cz>
+	<20111118113946.6563fd08.akpm@linux-foundation.org>
+Date: Sat, 19 Nov 2011 11:26:59 +0800
+Message-ID: <CAJd=RBCem0hw8w1ehNZnzb6OMqn1xsqT9yczgDag0ydp9mavCw@mail.gmail.com>
+Subject: Re: [PATCH] hugetlb: detect race if fail to COW
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 17 Nov 2011, Andrew Morton wrote:
+On Sat, Nov 19, 2011 at 3:39 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 18 Nov 2011 17:11:28 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+>
+>> On Fri 18-11-11 23:23:12, Hillf Danton wrote:
+>> > On Fri, Nov 18, 2011 at 11:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>> > > On Fri 18-11-11 22:04:37, Hillf Danton wrote:
+>> > >> In the error path that we fail to allocate new huge page, before tr=
+y again, we
+>> > >> have to check race since page_table_lock is re-acquired.
+>> > >
+>> > > I do not think we can race here because we are serialized by
+>> > > hugetlb_instantiation_mutex AFAIU. Without this lock, however, we co=
+uld
+>> > > fall into avoidcopy and shortcut despite the fact that other thread =
+has
+>> > > already did the job.
+>> > >
+>> > > The mutex usage is not obvious in hugetlb_cow so maybe we want to be
+>> > > explicit about it (either a comment or do the recheck).
+>> > >
+>> >
+>> > Then the following check is unnecessary, no?
+>>
+>> Hmm, thinking about it some more, I guess we have to recheck because we
+>> can still race with page migration. So we need you patch.
+>>
+>> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>
+> So we need a new changelog. =C2=A0How does this look?
+>
+Thanks Andrew and Michal:)
 
-> Nothing in this changelog makes me understand why you think we need this
-> change in 3.2.  What are the user-visible effects of this change?
-> 
-
-Kernels where MAX_NUMNODES > BITS_PER_LONG may temporarily see an empty 
-nodemask in a tsk's mempolicy if its previous nodemask is remapped onto a 
-new set of allowed cpuset nodes where the two nodemasks, as a result of 
-the remap, are now disjoint.  This fix is a bandaid so that we never 
-optimize the stores to tsk->mems_allowed because they intersect if tsk 
-also has an existing mempolicy, so that prevents the possibility of seeing 
-an empty nodemask during rebind.  For 3.3, I'd like to ensure that 
-remapping any mempolicy's nodemask will never result in an empty nodemask.
+Best regards
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
