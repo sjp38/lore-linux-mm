@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 08CE16B006C
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0D7A36B0070
 	for <linux-mm@kvack.org>; Sat, 19 Nov 2011 14:54:37 -0500 (EST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/8] mm: compaction: Allow compaction to isolate dirty pages
-Date: Sat, 19 Nov 2011 20:54:13 +0100
-Message-Id: <1321732460-14155-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 2/8] mm: compaction: Use synchronous compaction for /proc/sys/vm/compact_memory
+Date: Sat, 19 Nov 2011 20:54:14 +0100
+Message-Id: <1321732460-14155-3-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1321635524-8586-1-git-send-email-mgorman@suse.de>
 References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,40 +15,30 @@ Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara 
 
 From: Mel Gorman <mgorman@suse.de>
 
-Commit [39deaf85: mm: compaction: make isolate_lru_page() filter-aware]
-noted that compaction does not migrate dirty or writeback pages and
-that is was meaningless to pick the page and re-add it to the LRU list.
-
-What was missed during review is that asynchronous migration moves
-dirty pages if their ->migratepage callback is migrate_page() because
-these can be moved without blocking. This potentially impacted
-hugepage allocation success rates by a factor depending on how many
-dirty pages are in the system.
-
-This patch partially reverts 39deaf85 to allow migration to isolate
-dirty pages again. This increases how much compaction disrupts the
-LRU but that is addressed later in the series.
+When asynchronous compaction was introduced, the
+/proc/sys/vm/compact_memory handler should have been updated to always
+use synchronous compaction. This did not happen so this patch addresses
+it. The assumption is if a user writes to /proc/sys/vm/compact_memory,
+they are willing for that process to stall.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/compaction.c |    3 ---
- 1 files changed, 0 insertions(+), 3 deletions(-)
+ mm/compaction.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 899d956..237560e 100644
+index 237560e..615502b 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -349,9 +349,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 			continue;
- 		}
+@@ -666,6 +666,7 @@ static int compact_node(int nid)
+ 			.nr_freepages = 0,
+ 			.nr_migratepages = 0,
+ 			.order = -1,
++			.sync = true,
+ 		};
  
--		if (!cc->sync)
--			mode |= ISOLATE_CLEAN;
--
- 		/* Try isolate the page */
- 		if (__isolate_lru_page(page, mode, 0) != 0)
- 			continue;
+ 		zone = &pgdat->node_zones[zoneid];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
