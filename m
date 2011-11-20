@@ -1,67 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 681C46B0069
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 16:39:21 -0500 (EST)
-Received: by iaek3 with SMTP id k3so8564429iae.14
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 13:39:19 -0800 (PST)
-Date: Sun, 20 Nov 2011 13:39:12 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [V2 PATCH] tmpfs: add fallocate support
-In-Reply-To: <CAPXgP10q8Fba3vr0zf-XBBaRPwjP7MyJ=-QRL45_8WC-vtotOg@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1111201322310.1264@sister.anvils>
-References: <1321612791-4764-1-git-send-email-amwang@redhat.com> <20111119100326.GA27967@infradead.org> <CAPXgP10q8Fba3vr0zf-XBBaRPwjP7MyJ=-QRL45_8WC-vtotOg@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4902A6B0069
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 18:01:42 -0500 (EST)
+Received: by iaek3 with SMTP id k3so8651856iae.14
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 15:01:38 -0800 (PST)
+Date: Sun, 20 Nov 2011 15:01:35 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [rfc 01/18] slub: Get rid of the node field
+In-Reply-To: <20111111200725.634567005@linux.com>
+Message-ID: <alpine.DEB.2.00.1111201458520.30815@chino.kir.corp.google.com>
+References: <20111111200711.156817886@linux.com> <20111111200725.634567005@linux.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-594298835-1321825155=:1264"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kay Sievers <kay.sievers@vrfy.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Eric Dumazet <eric.dumazet@gmail.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Fri, 11 Nov 2011, Christoph Lameter wrote:
 
---8323584-594298835-1321825155=:1264
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> The node field is always page_to_nid(c->page). So its rather easy to
+> replace. Note that there will be additional overhead in various hot paths
+> due to the need to mask a set of bits in page->flags and shift the
+> result.
+> 
 
-On Sat, 19 Nov 2011, Kay Sievers wrote:
-> On Sat, Nov 19, 2011 at 11:03, Christoph Hellwig <hch@infradead.org> wrot=
-e:
-> > On Fri, Nov 18, 2011 at 06:39:50PM +0800, Cong Wang wrote:
-> >> It seems that systemd needs tmpfs to support fallocate,
-> >> see http://lkml.org/lkml/2011/10/20/275. This patch adds
-> >> fallocate support to tmpfs.
-> >
-> > What for exactly? =C2=A0Please explain why preallocating on tmpfs would
-> > make any sense.
->=20
-> To be able to safely use mmap(), regarding SIGBUS, on files on the
-> /dev/shm filesystem. The glibc fallback loop for -ENOSYS on fallocate
-> is just ugly.
-
-The fallback for -EOPNOTSUPP?
-
-Being unfamiliar with glibc, I failed to find the internal_fallocate()
-that it appears to use when the filesystem doesn't support the call;
-so I don't know if I would agree with you that it's uglier than doing
-the same(?) in the kernel.
-
-But since the present situation is that tmpfs has one interface to
-punching holes, madvise(MADV_REMOVE), that IBM were pushing 5 years ago;
-but ext4 (and others) now a fallocate(FALLOC_FL_PUNCH_HOLE) interface
-which IBM have been pushing this year: we do want to normalize that
-situation and make them all behave the same way.
-
-And if tmpfs is going to support fallocate(FALLOC_FL_PUNCH_HOLE),
-looking at Amerigo's much more attractive V2 patch, it would seem
-to me perverse to permit the deallocation but fail the allocation.
-
-The principle of least surprise argues that we grant your wish:
-provided it doesn't grow much more complicated once I look more
-closely.
-
-Hugh
---8323584-594298835-1321825155=:1264--
+This certainly does add overhead to the fastpath just by checking 
+node_match() if we're doing kmalloc_node(), and that overhead might be 
+higher than you expect if NODE_NOT_IN_PAGE_FLAGS.  Storing the node in 
+kmem_cache_cpu was always viewed as an optimization, not sure why you'd 
+want to get rid of it?  The changelog at least doesn't mention any 
+motivation.  Do we need to shrink that struct for something else later or 
+something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
