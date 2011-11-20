@@ -1,195 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BD5596B0069
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 05:21:35 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH v3] PM/Memory-hotplug: Avoid task freezing failures
-Date: Sun, 20 Nov 2011 11:24:17 +0100
-References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com> <201111192257.19763.rjw@sisk.pl> <4EC8984E.30005@linux.vnet.ibm.com>
-In-Reply-To: <4EC8984E.30005@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1FFC16B0069
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 16:22:20 -0500 (EST)
+Received: by iaek3 with SMTP id k3so8545153iae.14
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 13:22:17 -0800 (PST)
+Date: Sun, 20 Nov 2011 13:22:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [V2 PATCH] tmpfs: add fallocate support
+In-Reply-To: <1321612791-4764-1-git-send-email-amwang@redhat.com>
+Message-ID: <alpine.LSU.2.00.1111201300340.1264@sister.anvils>
+References: <1321612791-4764-1-git-send-email-amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201111201124.17528.rjw@sisk.pl>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, tj@kernel.org, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 
-On Sunday, November 20, 2011, Srivatsa S. Bhat wrote:
-> On 11/20/2011 03:27 AM, Rafael J. Wysocki wrote:
-> > On Thursday, November 17, 2011, Srivatsa S. Bhat wrote:
-> >> The lock_system_sleep() function is used in the memory hotplug code at
-> >> several places in order to implement mutual exclusion with hibernation.
-> >> However, this function tries to acquire the 'pm_mutex' lock using
-> >> mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
-> >> get the lock. This would lead to task freezing failures and hence
-> >> hibernation failure as a consequence, even though the hibernation call path
-> >> successfully acquired the lock.
-> >>
-> >> This patch fixes this issue by modifying lock_system_sleep() to use
-> >> mutex_trylock() in a loop until the lock is acquired, instead of using
-> >> mutex_lock(), in order to avoid going to uninterruptible sleep.
-> >> Also, we use msleep() to avoid busy looping and breaking expectations
-> >> that we go to sleep when we fail to acquire the lock.
-> >> And we also call try_to_freeze() in order to cooperate with the freezer,
-> >> without which we would end up in almost the same situation as mutex_lock(),
-> >> due to uninterruptible sleep caused by msleep().
-> >>
-> >> v3: Tejun suggested avoiding busy-looping by adding an msleep() since
-> >>     it is not guaranteed that we will get frozen immediately.
-> >>
-> >> v2: Tejun pointed problems with using mutex_lock_interruptible() in a
-> >>     while loop, when signals not related to freezing are involved.
-> >>     So, replaced it with mutex_trylock().
-> >>
-> >> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-> >> ---
-> >>
-> >>  include/linux/suspend.h |   37 ++++++++++++++++++++++++++++++++++++-
-> >>  1 files changed, 36 insertions(+), 1 deletions(-)
-> >>
-> >> diff --git a/include/linux/suspend.h b/include/linux/suspend.h
-> >> index 57a6924..0af3048 100644
-> >> --- a/include/linux/suspend.h
-> >> +++ b/include/linux/suspend.h
-> >> @@ -5,6 +5,8 @@
-> >>  #include <linux/notifier.h>
-> >>  #include <linux/init.h>
-> >>  #include <linux/pm.h>
-> >> +#include <linux/freezer.h>
-> >> +#include <linux/delay.h>
-> >>  #include <linux/mm.h>
-> >>  #include <asm/errno.h>
-> >>  
-> >> @@ -380,7 +382,40 @@ static inline void unlock_system_sleep(void) {}
-> >>  
-> >>  static inline void lock_system_sleep(void)
-> >>  {
-> >> -	mutex_lock(&pm_mutex);
-> >> +	/*
-> >> +	 * "To sleep, or not to sleep, that is the question!"
-> >> +	 *
-> >> +	 * We should not use mutex_lock() here because, in case we fail to
-> >> +	 * acquire the lock, it would put us to sleep in TASK_UNINTERRUPTIBLE
-> >> +	 * state, which would lead to task freezing failures. As a
-> >> +	 * consequence, hibernation would fail (even though it had acquired
-> >> +	 * the 'pm_mutex' lock).
-> >> +	 * Using mutex_lock_interruptible() in a loop is not a good idea,
-> >> +	 * because we could end up treating non-freezing signals badly.
-> >> +	 * So we use mutex_trylock() in a loop instead.
-> >> +	 *
-> >> +	 * Also, we add try_to_freeze() to the loop, to co-operate with the
-> >> +	 * freezer, to avoid task freezing failures due to busy-looping.
-> >> +	 *
-> >> +	 * But then, since it is not guaranteed that we will get frozen
-> >> +	 * rightaway, we could keep spinning for some time, breaking the
-> >> +	 * expectation that we go to sleep when we fail to acquire the lock.
-> >> +	 * So we add an msleep() to the loop, to dampen the spin (but we are
-> >> +	 * careful enough not to sleep for too long at a stretch, lest the
-> >> +	 * freezer whine and give up again!).
-> >> +	 *
-> >> +	 * Now that we no longer busy-loop, try_to_freeze() becomes all the
-> >> +	 * more important, due to a subtle reason: if we don't cooperate with
-> >> +	 * the freezer at this point, we could end up in a situation very
-> >> +	 * similar to mutex_lock() due to the usage of msleep() (which sleeps
-> >> +	 * uninterruptibly).
-> >> +	 *
-> >> +	 * Phew! What a delicate balance!
-> >> +	 */
-> >> +	while (!mutex_trylock(&pm_mutex)) {
-> >> +		try_to_freeze();
-> >> +		msleep(10);
-> > 
-> > The number here seems to be somewhat arbitrary.  Is there any reason not to
-> > use 100 or any other number?
-> > 
-> 
-> Short answer:
-> 
-> The number is not arbitrary. It is designed to match the frequency at which
-> the freezer re-tries to freeze tasks in a loop for 20 seconds (after which
-> it gives up).
+On Fri, 18 Nov 2011, Cong Wang wrote:
 
-So that should be documented too, right?  Perhaps there should be a #define
-for that number.
+> It seems that systemd needs tmpfs to support fallocate,
+> see http://lkml.org/lkml/2011/10/20/275. This patch adds
+> fallocate support to tmpfs.
+> 
+> As we already have shmem_truncate_range(), it is also easy
+> to add FALLOC_FL_PUNCH_HOLE support too.
 
-> Long answer:
-> 
-> Let us define 'time-to-freeze-this-task' as the duration of time between the
-> setting of TIF_FREEZE flag for this task (after the task enters the while
-> loop in this patch) and the time at which this task is considered frozen
-> by the freezer.
-> 
-> There are 2 constraints we are trying to handle here:
-> 
-> [And let us see extreme case solutions for these constraints, to start with]
-> 
-> 1. We want task freezing to be fast, to make hibernation fast.
-> Hence, we don't want to use msleep() here at all, just the
-> try_to_freeze() within the while loop would fit well.
-> 
-> 2. As Tejun suggested, considering that we might not get frozen immediately,
-> we don't want to hurt cpu power management during that time. So, we
-> want to sleep when possible. Which means we can sleep for ~20 seconds at a
-> stretch and still manage to prevent freezing failures.
-> 
-> But obviously we need to strike a balance between these 2 contradictions.
-> Hence, we observe that the freezer goes in a loop and tries to freeze
-> tasks, and waits for 10ms before retrying (and continues this procedure
-> for 20 seconds).
-> 
-> Since we want time-to-freeze-this-task as small as possible, we have to
-> minimize the number of iterations the freezer does waiting for us.
-> Hence we choose to sleep for 10ms, which means, in the worst case,
-> our time-to-freeze-task will be one iteration of the freezer, IOW 10ms.
-> [That way, actually sleeping for 9ms would do best, but we probably don't
-> want to get that specific here, or should we?]
-> 
-> I think I have given a slight hint about this issue in the comment as well...
-> 
-> I prefer not to #define 10 and use it in freezer's loop and in this above
-> msleep() because, good design means, "Keep the freezer internals internal
-> to the freezer!". But all of us agree that this patch is only a temporary
-> hack (which unfortunately needs to know about freezer's internal working)..
-> and also that, we need to fix this whole issue at a design level sooner
-> or later.
-> So having 10ms msleep(), as well as hard-coding this value here, are both
-> justified, IMHO.
-> 
-> As for the comment, I don't know if I should be expanding that "slight hint"
-> into a full-fledged explanation, since Tejun is already complaining about
-> its verbosity ;-)
-> 
-> By the way, for somebody who is looking from a purely memory-hotplug point
-> of view and is not that familiar with the freezer, the "slight hint" in
-> the comment "careful enough not to sleep for too long at a stretch...
-> freezing failure..." is supposed to be interpreted as : "Oh when does
-> freezing fail? Let me look up the freezer code.. ah, 20 seconds.
-> By the way, I spot a 10ms sleep in the freezer loop as well..
-> Oh yes, *now* it all makes sense!" :-)
-> 
-> Or perhaps, adding the same justification I gave above (about the 10ms
-> sleep) to the changelog should do, right?
-> 
-> >> +	}
-> >>  }
-> >>  
-> >>  static inline void unlock_system_sleep(void)
-> > 
+Thank you, this version looks much much nicer.
 
-Well, let's not add temporary hacks, especially as fragile as this one.
+I wouldn't call it bug-free (don't you need a page_cache_release
+after the unlock_page?), and I won't be reviewing it and testing it
+for a week or two - there's a lot about the semantics of fallocate
+and punch-hole that's not obvious, and I'll have to study the mail
+threads discussing them before checking your patch.
 
-Why don't we simply open code what we need using a proper wait queue
-and waiting for an event?
+First question that springs to mind (to which I shall easily find
+an answer): is it actually acceptable for fallocate() to return
+-ENOSPC when it has already completed a part of the work?
 
-So, have something like transition_in_progress (I believe there already is
-something like that somewhere), set it to 'true' under pm_mutex in
-lock_system_sleep(), possibly waiting for it to become 'false' properly
-(using interruptible sleep with try_to_freeze()) and reset it to 'false' (under pm_mutex) in unlock_system_sleep()?
+But so long as the details don't end up complicating this
+significantly, since we anyway want to regularize the punch-hole
+situation by giving tmpfs the same interface to it as other filesystems,
+I now think it would be a bit perverse to disallow the original
+fallocate functionality that you implement here in-kernel.
 
-Rafael
+Thanks,
+Hugh
+
+> 
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Cc: Lennart Poettering <lennart@poettering.net>
+> Cc: Kay Sievers <kay.sievers@vrfy.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: WANG Cong <amwang@redhat.com>
+> 
+> ---
+>  mm/shmem.c |   43 +++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 43 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index d672250..96bf619 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -30,6 +30,7 @@
+>  #include <linux/mm.h>
+>  #include <linux/export.h>
+>  #include <linux/swap.h>
+> +#include <linux/falloc.h>
+>  
+>  static struct vfsmount *shm_mnt;
+>  
+> @@ -1431,6 +1432,47 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
+>  	return error;
+>  }
+>  
+> +static long shmem_fallocate(struct file *file, int mode,
+> +				loff_t offset, loff_t len)
+> +{
+> +	struct inode *inode = file->f_path.dentry->d_inode;
+> +	pgoff_t start = offset >> PAGE_CACHE_SHIFT;
+> +	pgoff_t end = DIV_ROUND_UP((offset + len), PAGE_CACHE_SIZE);
+> +	pgoff_t index = start;
+> +	loff_t i_size = i_size_read(inode);
+> +	struct page *page = NULL;
+> +	int ret = 0;
+> +
+> +	mutex_lock(&inode->i_mutex);
+> +	if (mode & FALLOC_FL_PUNCH_HOLE) {
+> +		if (!(offset > i_size || (end << PAGE_CACHE_SHIFT) > i_size))
+> +			shmem_truncate_range(inode, offset,
+> +					     (end << PAGE_CACHE_SHIFT) - 1);
+> +		goto unlock;
+> +	}
+> +
+> +	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
+> +		ret = inode_newsize_ok(inode, (offset + len));
+> +		if (ret)
+> +			goto unlock;
+> +	}
+> +
+> +	while (index < end) {
+> +		ret = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
+> +		if (ret)
+> +			goto unlock;
+> +		if (page)
+> +			unlock_page(page);
+> +		index++;
+> +	}
+> +	if (!(mode & FALLOC_FL_KEEP_SIZE) && (index << PAGE_CACHE_SHIFT) > i_size)
+> +		i_size_write(inode, index << PAGE_CACHE_SHIFT);
+> +
+> +unlock:
+> +	mutex_unlock(&inode->i_mutex);
+> +	return ret;
+> +}
+> +
+>  static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
+>  {
+>  	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
+> @@ -2286,6 +2328,7 @@ static const struct file_operations shmem_file_operations = {
+>  	.fsync		= noop_fsync,
+>  	.splice_read	= shmem_file_splice_read,
+>  	.splice_write	= generic_file_splice_write,
+> +	.fallocate	= shmem_fallocate,
+>  #endif
+>  };
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
