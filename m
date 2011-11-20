@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF4F6B006E
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 18:24:51 -0500 (EST)
-Received: by iaek3 with SMTP id k3so8677246iae.14
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 15:24:49 -0800 (PST)
-Date: Sun, 20 Nov 2011 15:24:46 -0800 (PST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C0A6B0070
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 18:27:30 -0500 (EST)
+Received: by iaek3 with SMTP id k3so8679811iae.14
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 15:27:28 -0800 (PST)
+Date: Sun, 20 Nov 2011 15:27:25 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [rfc 05/18] slub: Simplify control flow in __slab_alloc()
-In-Reply-To: <20111111200728.365224076@linux.com>
-Message-ID: <alpine.DEB.2.00.1111201524350.30815@chino.kir.corp.google.com>
-References: <20111111200711.156817886@linux.com> <20111111200728.365224076@linux.com>
+Subject: Re: [rfc 06/18] slub: Use page variable instead of c->page.
+In-Reply-To: <20111111200729.024403984@linux.com>
+Message-ID: <alpine.DEB.2.00.1111201527130.30815@chino.kir.corp.google.com>
+References: <20111111200711.156817886@linux.com> <20111111200729.024403984@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,9 @@ Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, tj@
 
 On Fri, 11 Nov 2011, Christoph Lameter wrote:
 
-> Simplify control flow.
+> The kmem_cache_cpu object pointed to by c will become
+> volatile with the lockless patches later so extract
+> the c->page pointer at certain times.
 > 
 > Signed-off-by: Christoph Lameter <cl@linux.com>
 
