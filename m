@@ -1,60 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 82A836B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:00:33 -0500 (EST)
-Date: Mon, 21 Nov 2011 20:00:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/8] readahead stats/tracing, backwards prefetching and
- more
-Message-ID: <20111121120027.GD8895@localhost>
-References: <20111121091819.394895091@intel.com>
- <20111121095638.GA5084@infradead.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F696B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:23:06 -0500 (EST)
+Date: Mon, 21 Nov 2011 13:23:03 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] hugetlb: detect race if fail to COW
+Message-ID: <20111121122303.GA13594@tiehlicka.suse.cz>
+References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
+ <20111118150742.GA23223@tiehlicka.suse.cz>
+ <CAJd=RBCOK9tis-bF87Csn70miRDqLtCUiZmDH2hnc8i_9+KtNw@mail.gmail.com>
+ <20111118161128.GC23223@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111121095638.GA5084@infradead.org>
+In-Reply-To: <20111118161128.GC23223@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Nov 21, 2011 at 05:56:38PM +0800, Christoph Hellwig wrote:
-> On Mon, Nov 21, 2011 at 05:18:19PM +0800, Wu Fengguang wrote:
-> > Andrew,
+On Fri 18-11-11 17:11:28, Michal Hocko wrote:
+> On Fri 18-11-11 23:23:12, Hillf Danton wrote:
+> > On Fri, Nov 18, 2011 at 11:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Fri 18-11-11 22:04:37, Hillf Danton wrote:
+> > >> In the error path that we fail to allocate new huge page, before try again, we
+> > >> have to check race since page_table_lock is re-acquired.
+> > >
+> > > I do not think we can race here because we are serialized by
+> > > hugetlb_instantiation_mutex AFAIU. Without this lock, however, we could
+> > > fall into avoidcopy and shortcut despite the fact that other thread has
+> > > already did the job.
+> > >
+> > > The mutex usage is not obvious in hugetlb_cow so maybe we want to be
+> > > explicit about it (either a comment or do the recheck).
+> > >
 > > 
-> > I'm getting around to pick up the readahead works again :-)
-> > 
-> > This first series is mainly to add some debug facilities, to support the long
-> > missed backwards prefetching capability, and some old patches that somehow get
-> > delayed (shame me).
-> > 
-> > The next step would be to better handle the readahead thrashing situations.
-> > That would require rewriting part of the algorithms, this is why I'd like to
-> > keep the backwards prefetching simple and stupid for now.
-> > 
-> > When (almost) free of readahead thrashing, we'll be in a good position to lift
-> > the default readahead size. Which I suspect would be the single most efficient
-> > way to improve performance for the large volumes of casually maintained Linux
-> > file servers.
+> > Then the following check is unnecessary, no?
 > 
-> Btw, if you work actively in that area I have a todo list item I was
-> planning to look into sooner or later:  instead of embedding the ra
-> state into the struct file allocate it dynamically.  That way files that
-> either don't use the pagecache, or aren't read from won't need have to
-> pay the price for increasing struct file size, and if we have to we
-> could enlarge it more easily.
+> Hmm, thinking about it some more, I guess we have to recheck because we
+> can still race with page migration. So we need you patch.
 
-Agreed. That's good to have, please allow me to move it into my todo list :)
+OK, so looked at it again and we cannot race with page migration because
+the page is locked (by unmap_and_move_*page) migration and we have the
+old page locked here as well (hugetlb_fault).
 
-> Besides removing f_version in the common
-> struct file and also allocting f_owner separately that seem to be the
-> easiest ways to get struct file size down.
+Or am I missing something?
 
-Yeah, there seems no much code accessing fown_struct.
-I may consider that when I'm at file_ra_state, but no promise ;)
-
-Thanks,
-Fengguang
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
