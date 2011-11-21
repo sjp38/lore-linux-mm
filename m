@@ -1,34 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A77956B006C
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 05:00:09 -0500 (EST)
-Date: Mon, 21 Nov 2011 05:00:04 -0500
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 87B9F6B006C
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 05:01:45 -0500 (EST)
+Date: Mon, 21 Nov 2011 05:01:37 -0500
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/8] block: limit default readahead size for small devices
-Message-ID: <20111121100004.GB5084@infradead.org>
+Subject: Re: [PATCH 2/8] readahead: make default readahead size a kernel
+ parameter
+Message-ID: <20111121100137.GC5084@infradead.org>
 References: <20111121091819.394895091@intel.com>
- <20111121093846.121502745@intel.com>
+ <20111121093846.251104145@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111121093846.121502745@intel.com>
+In-Reply-To: <20111121093846.251104145@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Li Shaohua <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Ankit Jain <radical@gmail.com>, Dave Chinner <david@fromorbit.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Mon, Nov 21, 2011 at 05:18:20PM +0800, Wu Fengguang wrote:
-> This looks reasonable: smaller device tend to be slower (USB sticks as
-> well as micro/mobile/old hard disks).
+On Mon, Nov 21, 2011 at 05:18:21PM +0800, Wu Fengguang wrote:
+> From: Nikanth Karthikesan <knikanth@suse.de>
 > 
-> Given that the non-rotational attribute is not always reported, we can
-> take disk size as a max readahead size hint. This patch uses a formula
-> that generates the following concrete limits:
+> Add new kernel parameter "readahead=", which allows user to override
+> the static VM_MAX_READAHEAD=128kb.
 
-Given that you mentioned the rotational flag and device size in this
-mail, as well as benchmarking with an intel SSD  -  did you measure
-how useful large read ahead sizes still are with highend Flash device
-that have extremly high read IOP rates?
+Is a boot-time paramter really such a good idea?  I would at least make
+it a sysctl so that it's run-time controllable, including beeing able
+to set it from initscripts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
