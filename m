@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 67E276B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 05:24:59 -0500 (EST)
-Received: by faas10 with SMTP id s10so7668151faa.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 02:24:56 -0800 (PST)
-Subject: Re: [BUG] 3.2-rc2: BUG kmalloc-8: Redzone overwritten
-From: Sasha Levin <levinsasha928@gmail.com>
-In-Reply-To: <1321870915.2552.22.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-References: <1321866845.3831.7.camel@lappy>
-	 <1321870529.2552.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <1321870915.2552.22.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 21 Nov 2011 12:22:47 +0200
-Message-ID: <1321870967.8173.1.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C1426B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 05:43:07 -0500 (EST)
+Date: Mon, 21 Nov 2011 11:42:50 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
+Message-ID: <20111121104250.GI1770@cmpxchg.org>
+References: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: David Miller <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mhocko@suse.cz, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Mon, 2011-11-21 at 11:21 +0100, Eric Dumazet wrote:
-> Le lundi 21 novembre 2011 a 11:15 +0100, Eric Dumazet a ecrit :
+On Thu, Nov 17, 2011 at 10:33:08AM +0900, KAMEZAWA Hiroyuki wrote:
 > 
-> > 
-> > Hmm, trinity tries to crash decnet ;)
-> > 
-> > Maybe we should remove this decnet stuff for good instead of tracking
-> > all bugs just for the record. Is there anybody still using decnet ?
-> > 
-> > For example dn_start_slow_timer() starts a timer without holding a
-> > reference on struct sock, this is highly suspect.
-> > 
-> > [PATCH] decnet: proper socket refcounting
-> > 
-> > Better use sk_reset_timer() / sk_stop_timer() helpers to make sure we
-> > dont access already freed/reused memory later.
-> > 
-> > Reported-by: Sasha Levin <levinsasha928@gmail.com>
-> > Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+> I'll send this again when mm is shipped.
+> I sometimes see mem_cgroup_split_huge_fixup() in perf report and noticed
+> it's very slow. This fixes it. Any comments are welcome.
 > 
-> Hmm, I forgot to remove the sock_hold(sk) call from dn_slow_timer(),
-> here is V2 :
+> ==
+> Subject: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
 > 
-> [PATCH] decnet: proper socket refcounting
+> at split_huge_page(), mem_cgroup_split_huge_fixup() is called to
+> handle page_cgroup modifcations. It takes move_lock_page_cgroup()
+> and modify page_cgroup and LRU accounting jobs and called
+> HPAGE_PMD_SIZE - 1 times.
 > 
-> Better use sk_reset_timer() / sk_stop_timer() helpers to make sure we
-> dont access already freed/reused memory later.
+> But thinking again,
+>   - compound_lock() is held at move_accout...then, it's not necessary
+>     to take move_lock_page_cgroup().
+>   - LRU is locked and all tail pages will go into the same LRU as
+>     head is now on.
+>   - page_cgroup is contiguous in huge page range.
 > 
-> Reported-by: Sasha Levin <levinsasha928@gmail.com>
-> Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
-> ---
+> This patch fixes mem_cgroup_split_huge_fixup() as to be called once per
+> hugepage and reduce costs for spliting.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-[snip]
+I agree with the changes, but since you are resending it anyway: I
+think removing the move_lock and switching the hook to take care of
+all tail pages in one go are two logical steps.  Would you mind
+breaking it up into separate patches?
 
-Applied locally and running same tests as before, will update with
-results.
+In any case,
 
--- 
-
-Sasha.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
