@@ -1,68 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 276B26B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 17:27:23 -0500 (EST)
-Date: Mon, 21 Nov 2011 14:27:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Fix virtual address handling in hugetlb fault
-Message-Id: <20111121142720.a5b62c9c.akpm@linux-foundation.org>
-In-Reply-To: <20111121194832.a0026d3e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20111121194832.a0026d3e.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 498726B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 17:38:57 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH v4] PM / Memory-hotplug: Avoid task freezing failures
+Date: Mon, 21 Nov 2011 23:41:39 +0100
+References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com> <4ECA94A6.90500@linux.vnet.ibm.com> <20111121182319.GG15314@google.com>
+In-Reply-To: <20111121182319.GG15314@google.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201111212341.39359.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, n-horiguchi@ah.jp.nec.com
+To: Tejun Heo <tj@kernel.org>
+Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Chen Gong <gong.chen@linux.intel.com>
 
-On Mon, 21 Nov 2011 19:48:32 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> >From 7c29389be2890c6b6934a80b4841d07a7014fe26 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 21 Nov 2011 19:45:27 +0900
-> Subject: [PATCH] Fix virtual address handling in hugetlb fault
+On Monday, November 21, 2011, Tejun Heo wrote:
+> On Mon, Nov 21, 2011 at 11:42:54PM +0530, Srivatsa S. Bhat wrote:
+> > The lock_system_sleep() function is used in the memory hotplug code at
+> > several places in order to implement mutual exclusion with hibernation.
+> > However, this function tries to acquire the 'pm_mutex' lock using
+> > mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
+> > get the lock. This would lead to task freezing failures and hence
+> > hibernation failure as a consequence, even though the hibernation call path
+> > successfully acquired the lock.
+> > 
+> > But it is to be noted that, since this task tries to acquire pm_mutex, if it
+> > blocks due to this, we are *100% sure* that this task is not going to run
+> > as long as hibernation sequence is in progress, since hibernation releases
+> > 'pm_mutex' only at the very end, when everything is done.
+> > And this means, this task is going to be anyway blocked for much more longer
+> > than what the freezer intends to achieve; which means, freezing and thawing
+> > doesn't really make any difference to this task!
+> > 
+> > So, to fix freezing failures, we just ask the freezer to skip freezing this
+> > task, since it is already "frozen enough".
+> > 
+> > But instead of calling freezer_do_not_count() and freezer_count() as it is,
+> > we use only the relevant parts of those functions, because restrictions
+> > such as 'the task should be a userspace one' etc., might not be relevant in
+> > this scenario.
+> > 
+> > v4: Redesigned the whole fix, to ask the freezer to skip freezing the task
+> >     which is blocked trying to acquire 'pm_mutex' lock.
+> > 
+> > v3: Tejun suggested avoiding busy-looping by adding an msleep() since
+> >     it is not guaranteed that we will get frozen immediately.
+> > 
+> > v2: Tejun pointed problems with using mutex_lock_interruptible() in a
+> >     while loop, when signals not related to freezing are involved.
+> >     So, replaced it with mutex_trylock().
+> > 
+> > Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 > 
-> handle_mm_fault() passes 'faulted' address to hugetlb_fault().
-> Then, the address is not aligned to hugepage boundary.
+> Acked-by: Tejun Heo <tj@kernel.org>
 > 
-> Most of functions for hugetlb pages are aware of that and
-> calculate an alignment by itself. Some functions as copy_user_huge_page(),
-> and clear_huge_page() doesn't handle alignment by themselves.
-> 
-> This patch make hugeltb_fault() to calculate the alignment and pass
-> aligned addresss (top address of a faulted hugepage) to functions.
-> 
+> Thanks a lot. :)
 
-Does this actually fix any known user-visible misbehaviour?
+Applied to linux-pm/linux-next.
 
-It sounds like the code is masking addresses in a lot of different
-places.  It would be better to do it once, at the top level.  Perhaps
-this patch makes some of the existing masking obsolete?
-
-> index bb28a5f..af37337 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2629,6 +2629,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
->  	struct hstate *h = hstate_vma(vma);
->  
-> +	address = address & huge_page_mask(h);
-
---- a/mm/hugetlb.c~mm-hugetlbc-fix-virtual-address-handling-in-hugetlb-fault-fix
-+++ a/mm/hugetlb.c
-@@ -2639,7 +2639,7 @@ int hugetlb_fault(struct mm_struct *mm, 
- 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
- 	struct hstate *h = hstate_vma(vma);
- 
--	address = address & huge_page_mask(h);
-+	address &= huge_page_mask(h);
- 
- 	ptep = huge_pte_offset(mm, address);
- 	if (ptep) {
-
-is a bit more readable, IMO.
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
