@@ -1,98 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 427616B0070
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 18:32:13 -0500 (EST)
-Received: by iaek3 with SMTP id k3so8684867iae.14
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2011 15:32:10 -0800 (PST)
-Date: Sun, 20 Nov 2011 15:32:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [rfc 00/18] slub: irqless/lockless slow allocation paths
-In-Reply-To: <1321465534.4182.37.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Message-ID: <alpine.DEB.2.00.1111201531190.30815@chino.kir.corp.google.com>
-References: <20111111200711.156817886@linux.com> <1321465198.4182.35.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <1321465534.4182.37.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id DA7776B0069
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2011 19:13:31 -0500 (EST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cyeoh@au1.ibm.com>;
+	Mon, 21 Nov 2011 00:11:28 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAL0DGgf4800618
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:13:16 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAL0DGDA007190
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:13:16 +1100
+Date: Mon, 21 Nov 2011 10:43:13 +1030
+From: Christopher Yeoh <cyeoh@au1.ibm.com>
+Subject: Re: Cross Memory Attach v3
+Message-ID: <20111121104313.63c7f796@cyeoh-System-Product-Name>
+In-Reply-To: <CAMuHMdWAhn7M8o0qY4pz3W1tyyKEcNY_YQL_6JuAPCcjL5vS1A@mail.gmail.com>
+References: <20110719003537.16b189ae@lilo>
+	<CAMuHMdWAhn7M8o0qY4pz3W1tyyKEcNY_YQL_6JuAPCcjL5vS1A@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, David Miller <davem@davemloft.net>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, tj@kernel.org, Metathronius Galabant <m.galabant@googlemail.com>, Matt Mackall <mpm@selenic.com>, Adrian Drzewiecki <z@drze.net>, Shaohua Li <shaohua.li@intel.com>, Alex Shi <alex.shi@intel.com>, linux-mm@kvack.org, netdev <netdev@vger.kernel.org>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, linux-arch@vger.kernel.org, Linux/m68k <linux-m68k@vger.kernel.org>
 
-On Wed, 16 Nov 2011, Eric Dumazet wrote:
+Hi Geert,
 
-> > Adding SLUB_STATS gives :
-> > 
-> > $ cd /sys/kernel/slab/skbuff_head_cache ; grep . *
-> > aliases:6
-> > align:8
-> > grep: alloc_calls: Function not implemented
-> > alloc_fastpath:89181782 C0=89173048 C1=1599 C2=1357 C3=2140 C4=802 C5=675 C6=638 C7=1523
-> > alloc_from_partial:412658 C0=412658
-> > alloc_node_mismatch:0
-> > alloc_refill:593417 C0=593189 C1=19 C2=15 C3=24 C4=51 C5=18 C6=17 C7=84
-> > alloc_slab:2831313 C0=2831285 C1=2 C2=2 C3=2 C4=2 C5=12 C6=4 C7=4
-> > alloc_slowpath:4430371 C0=4430112 C1=20 C2=17 C3=25 C4=57 C5=31 C6=21 C7=88
-> > cache_dma:0
-> > cmpxchg_double_cpu_fail:0
-> > cmpxchg_double_fail:1 C0=1
-> > cpu_partial:30
-> > cpu_partial_alloc:592991 C0=592981 C2=1 C4=5 C5=2 C6=1 C7=1
-> > cpu_partial_free:4429836 C0=592981 C1=25 C2=19 C3=23 C4=3836767 C5=6 C6=8 C7=7
-> > cpuslab_flush:0
-> > cpu_slabs:107
-> > deactivate_bypass:3836954 C0=3836923 C1=1 C2=2 C3=1 C4=6 C5=13 C6=4 C7=4
-> > deactivate_empty:2831168 C4=2831168
-> > deactivate_full:0
-> > deactivate_remote_frees:0
-> > deactivate_to_head:0
-> > deactivate_to_tail:0
-> > destroy_by_rcu:0
-> > free_add_partial:0
-> > grep: free_calls: Function not implemented
-> > free_fastpath:21192924 C0=21186268 C1=1420 C2=1204 C3=1966 C4=572 C5=349 C6=380 C7=765
-> > free_frozen:67988498 C0=516 C1=121 C2=85 C3=841 C4=67986468 C5=215 C6=76 C7=176
-> > free_remove_partial:18 C4=18
-> > free_slab:2831186 C4=2831186
-> > free_slowpath:71825749 C0=609 C1=146 C2=104 C3=864 C4=71823538 C5=221 C6=84 C7=183
-> > hwcache_align:0
-> > min_partial:5
-> > objects:2494
-> > object_size:192
-> > objects_partial:121
-> > objs_per_slab:21
-> > order:0
-> > order_fallback:0
-> > partial:14
-> > poison:0
-> > reclaim_account:0
-> > red_zone:0
-> > reserved:0
-> > sanity_checks:0
-> > slabs:127
-> > slabs_cpu_partial:99(99) C1=25(25) C2=18(18) C3=23(23) C4=16(16) C5=4(4) C6=7(7) C7=6(6)
-> > slab_size:192
-> > store_user:0
-> > total_objects:2667
-> > trace:0
-> > 
+On Sun, 20 Nov 2011 11:16:17 +0100
+Geert Uytterhoeven <geert@linux-m68k.org> wrote:
+> On Mon, Jul 18, 2011 at 17:05, Christopher Yeoh <cyeoh@au1.ibm.com>
+> wrote:
+> > For arch maintainers there are some simple tests to be able to
+> > quickly verify that the syscalls are working correctly here:
 > 
-> And the SLUB stats for the 2048 bytes slab is even worse : About every
-> alloc/free is slow path
+> I'm wiring up these new syscalls on m68k.
 > 
-> $ cd /sys/kernel/slab/:t-0002048 ; grep . *
-> aliases:0
-> align:8
-> grep: alloc_calls: Function not implemented
-> alloc_fastpath:8199220 C0=8196915 C1=306 C2=63 C3=297 C4=319 C5=550
-> C6=722 C7=48
-> alloc_from_partial:13931406 C0=13931401 C3=1 C5=4
-> alloc_node_mismatch:0
-> alloc_refill:70871657 C0=70871629 C1=2 C3=3 C4=9 C5=11 C6=3
-> alloc_slab:1335 C0=1216 C1=17 C2=2 C3=15 C4=17 C5=22 C6=44 C7=2
-> alloc_slowpath:155455299 C0=155455144 C1=18 C2=1 C3=21 C4=27 C5=40 C6=47
-> C7=1
+> > http://ozlabs.org/~cyeoh/cma/cma-test-20110718.tgz
+> 
+> The included README talks about:
+> 
+>     setup_process_readv_simple
+>     setup_process_readv_iovec
+>    setup_process_writev
+> 
+> while the actual test executables are called:
+> 
+>     setup_process_vm_readv_simple
+>     setup_process_vm_readv_iovec
+>     setup_process_vm_writev
 
-I certainly sympathize with your situation; these stats are even worse 
-with netperf TCP_RR where slub regresses very heavily against slab.
+Oops. Have fixed this and uploaded a new version
+
+ http://ozlabs.org/~cyeoh/cma/cma-test-20111121.tgz
+
+It also includes another minor change (see below)
+
+> On m68k (ARAnyM), the first and third test succeed. The second one
+> fails, though:
+> 
+> # Setting up target with num iovecs 10, test buffer size 100000
+> Target process is setup
+> Run the following to test:
+> ./t_process_vm_readv_iovec 1574 10 0x800030b0 89 0x80003110 38302
+> 0x8000c6b8 22423 0x80011e58 18864 0x80016810 583 0x80016a60 8054
+> 0x800189e0 3417 0x80019740 368 0x800198b8 897 0x80019c40 7003
+> 
+> and in the other window:
+> 
+> # ./t_process_vm_readv_iovec 1574 10 0x800030b0 89 0x80003110 38302
+> 0x8000c6b8 22423 0x80011e58 18864 0x80016810 583 0x80016a60 8054
+> 0x800189e0 3417 0x80019740 368 0x800198b8 897 0x80019c40 7003
+> copy_from_process failed: Invalid argument
+
+That should say process_vm_readv instead of copy_from_process. The
+error message is fixed in the just updated test.
+
+> error code: 29
+> #
+> 
+> Any suggestions?
+> 
+
+Given that the first and third tests succeed, I think the problem is
+with the iovec parameters. The -EINVAL is most likely coming from
+rw_copy_check_uvector. Any chance that something bad is
+happening to lvec/liovcnt or rvec/riovcnt in the wireup? 
+
+The iovecs are checked in process_vm_rw before the core of the
+process_vm_readv/writev code is called so should be easy to confirm if
+this is the problem.
+
+The other couple of places where it could possibly come from is that
+for some reason the flags parameter ends up being non zero or when
+looking up the task the mm is NULL. But given that the first and second
+tests succeed I think its unlikely that either of these is the cause.
+
+Regards,
+
+Chris
+-- 
+cyeoh@au.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
