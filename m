@@ -1,72 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9B76B006E
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:19:36 -0500 (EST)
-Date: Mon, 21 Nov 2011 11:19:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/5] mm: compaction: Determine if dirty pages can be
- migreated without blocking within ->migratepage
-Message-ID: <20111121111931.GB19415@suse.de>
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
- <1321635524-8586-5-git-send-email-mgorman@suse.de>
- <CAPQyPG4GTccLroA2NsdQK_PH1_KB3dD1v3m1FzenCeDW-8qb+g@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C73B16B006E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:24:16 -0500 (EST)
+Date: Mon, 21 Nov 2011 19:24:09 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/8] block: limit default readahead size for small
+ devices
+Message-ID: <20111121112409.GA8895@localhost>
+References: <20111121091819.394895091@intel.com>
+ <20111121093846.121502745@intel.com>
+ <20111121100004.GB5084@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPQyPG4GTccLroA2NsdQK_PH1_KB3dD1v3m1FzenCeDW-8qb+g@mail.gmail.com>
+In-Reply-To: <20111121100004.GB5084@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "Li, Shaohua" <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Sat, Nov 19, 2011 at 04:59:10PM +0800, Nai Xia wrote:
-> > <SNIP>
-> > @@ -453,13 +494,18 @@ int buffer_migrate_page(struct address_space *mapping,
-> >        if (rc)
-> >                return rc;
-> >
-> > -       bh = head;
-> > -       do {
-> > -               get_bh(bh);
-> > -               lock_buffer(bh);
-> > -               bh = bh->b_this_page;
-> > -
-> > -       } while (bh != head);
-> > +       if (!buffer_migrate_lock_buffers(head, sync)) {
-> > +               /*
-> > +                * We have to revert the radix tree update. If this returns
-> > +                * non-zero, it either means that the page count changed
-> > +                * which "can't happen" or the slot changed from underneath
-> > +                * us in which case someone operated on a page that did not
-> > +                * have buffers fully migrated which is alarming so warn
-> > +                * that it happened.
-> > +                */
-> > +               WARN_ON(migrate_page_move_mapping(mapping, page, newpage));
-> > +               return -EBUSY;
+On Mon, Nov 21, 2011 at 06:00:04PM +0800, Christoph Hellwig wrote:
+> On Mon, Nov 21, 2011 at 05:18:20PM +0800, Wu Fengguang wrote:
+> > This looks reasonable: smaller device tend to be slower (USB sticks as
+> > well as micro/mobile/old hard disks).
+> > 
+> > Given that the non-rotational attribute is not always reported, we can
+> > take disk size as a max readahead size hint. This patch uses a formula
+> > that generates the following concrete limits:
 > 
-> If this migrate_page_move_mapping() really fails, seems disk IO will be needed
-> to bring the previously already cached page back,
+> Given that you mentioned the rotational flag and device size in this
+> mail, as well as benchmarking with an intel SSD  -  did you measure
+> how useful large read ahead sizes still are with highend Flash device
+> that have extremly high read IOP rates?
 
-Aside from that, I couldn't see a way of handling the case where the
-page had an elevated count due to a speculative lookup.
+I don't know -- I don't have access to such highend devices.
 
-> I wonder if we should make the
-> double check for the two conditions of "page refs is ok " and "all bh
-> trylocked"
-> before doing radix_tree_replace_slot() ? which I think does not
-> involve IO on the
-> error path.
-> 
+However the patch changelog has the simple test script. It would be
+high appreciated if someone can help collect the data :)
 
-I reached the same conclusion when figuring out how to backout of the
-the elevated page count case. In an updated patch,
-migrate_page_move_mapping() returns with buffers locked in the async
-case.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
