@@ -1,88 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E146B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:51:37 -0500 (EST)
-Date: Mon, 21 Nov 2011 11:51:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/8] mm: check if we isolated a compound page during
- lumpy scan
-Message-ID: <20111121115131.GC19415@suse.de>
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
- <1321732460-14155-4-git-send-email-aarcange@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 82A836B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:00:33 -0500 (EST)
+Date: Mon, 21 Nov 2011 20:00:27 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/8] readahead stats/tracing, backwards prefetching and
+ more
+Message-ID: <20111121120027.GD8895@localhost>
+References: <20111121091819.394895091@intel.com>
+ <20111121095638.GA5084@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1321732460-14155-4-git-send-email-aarcange@redhat.com>
+In-Reply-To: <20111121095638.GA5084@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Sat, Nov 19, 2011 at 08:54:15PM +0100, Andrea Arcangeli wrote:
-> Properly take into account if we isolated a compound page during the
-> lumpy scan in reclaim and break the loop if we've isolated enough.
+On Mon, Nov 21, 2011 at 05:56:38PM +0800, Christoph Hellwig wrote:
+> On Mon, Nov 21, 2011 at 05:18:19PM +0800, Wu Fengguang wrote:
+> > Andrew,
+> > 
+> > I'm getting around to pick up the readahead works again :-)
+> > 
+> > This first series is mainly to add some debug facilities, to support the long
+> > missed backwards prefetching capability, and some old patches that somehow get
+> > delayed (shame me).
+> > 
+> > The next step would be to better handle the readahead thrashing situations.
+> > That would require rewriting part of the algorithms, this is why I'd like to
+> > keep the backwards prefetching simple and stupid for now.
+> > 
+> > When (almost) free of readahead thrashing, we'll be in a good position to lift
+> > the default readahead size. Which I suspect would be the single most efficient
+> > way to improve performance for the large volumes of casually maintained Linux
+> > file servers.
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->  1 files changed, 6 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a1893c0..3421746 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1183,13 +1183,16 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  				break;
->  
->  			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
-> +				unsigned int isolated_pages;
->  				list_move(&cursor_page->lru, dst);
->  				mem_cgroup_del_lru(cursor_page);
-> -				nr_taken += hpage_nr_pages(page);
+> Btw, if you work actively in that area I have a todo list item I was
+> planning to look into sooner or later:  instead of embedding the ra
+> state into the struct file allocate it dynamically.  That way files that
+> either don't use the pagecache, or aren't read from won't need have to
+> pay the price for increasing struct file size, and if we have to we
+> could enlarge it more easily.
 
-nr_taken was already being updated correctly.
+Agreed. That's good to have, please allow me to move it into my todo list :)
 
-> -				nr_lumpy_taken++;
-> +				isolated_pages = hpage_nr_pages(page);
-> +				nr_taken += isolated_pages;
-> +				nr_lumpy_taken += isolated_pages;
+> Besides removing f_version in the common
+> struct file and also allocting f_owner separately that seem to be the
+> easiest ways to get struct file size down.
 
-nr_lumpy_taken was not, and this patch corrects it.
+Yeah, there seems no much code accessing fown_struct.
+I may consider that when I'm at file_ra_state, but no promise ;)
 
->  				if (PageDirty(cursor_page))
-> -					nr_lumpy_dirty++;
-> +					nr_lumpy_dirty += isolated_pages;
-
-nr_lumpy_dirty was not, and this patch corrects it.
-
-However, the nr_lumpy_* variables here are not of critical importance
-as they only are used by a trace point. Fixing them is nice but
-functionally changes nothing.
-
->  				scan++;
-> +				pfn += isolated_pages-1;
-
-This is more important. With the current code the next page encountered
-after a THP page is isolated will be a tail page, not on the LRU
-and will cause the loop to break as __isolate_lru_page will return
-EINVAL. With this change, the next PFN encountered will really be
-the next PFN of interest.
-
-That said, the impact of this change is low. For THP allocations,
-pfn += isolated_pages-1 will bring pfn past end_pfn so with or without
-the page, we break the loop after isolating a THP. For lower-order
-allocations, pfn+= isolated_pages-1 will also bring pfn past end_pfn.
-This patch does help the case where the allocation is for a page larger
-than a THP but that is very rare.
-
-Hence, while I think the patch is correct, the changelog is misleading
-as it does not have a large impact on breaking the loop if we've
-isolated enough. To really break if we've isolated enough, you'd also
-need 
-
-scan += isolated_pages-1
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
