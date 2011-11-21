@@ -1,83 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AF85C6B006C
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D65766B0070
 	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 04:40:58 -0500 (EST)
-Message-Id: <20111121093847.015852579@intel.com>
-Date: Mon, 21 Nov 2011 17:18:27 +0800
+Message-Id: <20111121093846.251104145@intel.com>
+Date: Mon, 21 Nov 2011 17:18:21 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 8/8] readahead: dont do start-of-file readahead after lseek()
+Subject: [PATCH 2/8] readahead: make default readahead size a kernel parameter
 References: <20111121091819.394895091@intel.com>
-Content-Disposition: inline; filename=readahead-lseek.patch
+Content-Disposition: inline; filename=readahead-kernel-parameter.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Ankit Jain <radical@gmail.com>, Dave Chinner <david@fromorbit.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-Some applications (eg. blkid, id3tool etc.) seek around the file
-to get information. For example, blkid does
+From: Nikanth Karthikesan <knikanth@suse.de>
 
-	     seek to	0
-	     read	1024
-	     seek to	1536
-	     read	16384
+Add new kernel parameter "readahead=", which allows user to override
+the static VM_MAX_READAHEAD=128kb.
 
-The start-of-file readahead heuristic is wrong for them, whose
-access pattern can be identified by lseek() calls.
-
-So test-and-set a READAHEAD_LSEEK flag on lseek() and don't
-do start-of-file readahead on seeing it. Proposed by Linus.
-
+CC: Ankit Jain <radical@gmail.com>
+CC: Dave Chinner <david@fromorbit.com>
+CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/read_write.c    |    4 ++++
- include/linux/fs.h |    1 +
- mm/readahead.c     |    3 +++
- 3 files changed, 8 insertions(+)
+ Documentation/kernel-parameters.txt |    6 ++++++
+ block/blk-core.c                    |    3 +--
+ fs/fuse/inode.c                     |    2 +-
+ mm/readahead.c                      |   19 +++++++++++++++++++
+ 4 files changed, 27 insertions(+), 3 deletions(-)
 
---- linux-next.orig/mm/readahead.c	2011-11-20 22:02:01.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-11-20 22:02:03.000000000 +0800
-@@ -629,6 +629,8 @@ ondemand_readahead(struct address_space 
- 	 * start of file
- 	 */
- 	if (!offset) {
-+		if ((ra->ra_flags & READAHEAD_LSEEK) && req_size < max)
-+			goto random_read;
- 		ra_set_pattern(ra, RA_PATTERN_INITIAL);
- 		goto initial_readahead;
- 	}
-@@ -707,6 +709,7 @@ ondemand_readahead(struct address_space 
- 	if (try_context_readahead(mapping, ra, offset, req_size, max))
- 		goto readit;
+--- linux-next.orig/Documentation/kernel-parameters.txt	2011-10-19 11:11:14.000000000 +0800
++++ linux-next/Documentation/kernel-parameters.txt	2011-11-20 11:09:56.000000000 +0800
+@@ -2245,6 +2245,12 @@ bytes respectively. Such letter suffixes
+ 			Run specified binary instead of /init from the ramdisk,
+ 			used for early userspace startup. See initrd.
  
-+random_read:
- 	/*
- 	 * standalone, small random read
- 	 */
---- linux-next.orig/fs/read_write.c	2011-11-20 22:02:01.000000000 +0800
-+++ linux-next/fs/read_write.c	2011-11-20 22:02:03.000000000 +0800
-@@ -47,6 +47,10 @@ static loff_t lseek_execute(struct file 
- 		file->f_pos = offset;
- 		file->f_version = 0;
- 	}
++	readahead=nn[KM]
++			Default max readahead size for block devices.
 +
-+	if (!(file->f_ra.ra_flags & READAHEAD_LSEEK))
-+		file->f_ra.ra_flags |= READAHEAD_LSEEK;
++			This default max readahead size may be overrode
++			in some cases, notably NFS, btrfs and software RAID.
 +
- 	return offset;
- }
+ 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
+ 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
+ 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
+--- linux-next.orig/block/blk-core.c	2011-11-08 10:18:16.000000000 +0800
++++ linux-next/block/blk-core.c	2011-11-20 10:49:33.000000000 +0800
+@@ -462,8 +462,7 @@ struct request_queue *blk_alloc_queue_no
+ 	if (!q)
+ 		return NULL;
  
---- linux-next.orig/include/linux/fs.h	2011-11-20 22:02:01.000000000 +0800
-+++ linux-next/include/linux/fs.h	2011-11-20 22:02:03.000000000 +0800
-@@ -952,6 +952,7 @@ struct file_ra_state {
- /* ra_flags bits */
- #define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
- #define	READAHEAD_MMAP		0x00010000
-+#define	READAHEAD_LSEEK		0x00020000 /* be conservative after lseek() */
+-	q->backing_dev_info.ra_pages =
+-			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++	q->backing_dev_info.ra_pages = default_backing_dev_info.ra_pages;
+ 	q->backing_dev_info.state = 0;
+ 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+ 	q->backing_dev_info.name = "block";
+--- linux-next.orig/fs/fuse/inode.c	2011-11-08 10:18:39.000000000 +0800
++++ linux-next/fs/fuse/inode.c	2011-11-20 10:50:12.000000000 +0800
+@@ -878,7 +878,7 @@ static int fuse_bdi_init(struct fuse_con
+ 	int err;
  
- #define READAHEAD_PATTERN_SHIFT	28
- #define READAHEAD_PATTERN	0xf0000000
+ 	fc->bdi.name = "fuse";
+-	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++	fc->bdi.ra_pages = default_backing_dev_info.ra_pages;
+ 	/* fuse does it's own writeback accounting */
+ 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+ 
+--- linux-next.orig/mm/readahead.c	2011-11-20 10:48:57.000000000 +0800
++++ linux-next/mm/readahead.c	2011-11-20 11:09:22.000000000 +0800
+@@ -18,6 +18,25 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
+ 
++static int __init config_readahead_size(char *str)
++{
++	unsigned long bytes;
++
++	if (!str)
++		return -EINVAL;
++	bytes = memparse(str, &str);
++	if (*str != '\0')
++		return -EINVAL;
++
++	/* missed 'k'/'m' suffixes? */
++	if (bytes && bytes < PAGE_CACHE_SIZE)
++		return -EINVAL;
++
++	default_backing_dev_info.ra_pages = bytes / PAGE_CACHE_SIZE;
++	return 0;
++}
++early_param("readahead", config_readahead_size);
++
+ /*
+  * Initialise a struct file's readahead state.  Assumes that the caller has
+  * memset *ra to zero.
 
 
 --
