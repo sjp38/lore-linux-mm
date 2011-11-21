@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BFFA6B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 17:23:45 -0500 (EST)
-Received: by iaek3 with SMTP id k3so10485978iae.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 14:23:43 -0800 (PST)
-Date: Mon, 21 Nov 2011 14:23:32 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] ksm: use FAULT_FLAG_ALLOW_RETRY in breaking COW
-In-Reply-To: <CAJd=RBBa-ZoZ3GhYQ-aM=TJ9Zw6ZSu177PWw+s8+zyFnzyUV_w@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1111211413460.1879@sister.anvils>
-References: <CAJd=RBDP_z68Ewvw_O_dMxOnE0=weXqt+1FQy85_n76HAEdFHg@mail.gmail.com> <alpine.LSU.2.00.1111201923330.1806@sister.anvils> <CAJd=RBBa-ZoZ3GhYQ-aM=TJ9Zw6ZSu177PWw+s8+zyFnzyUV_w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 276B26B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 17:27:23 -0500 (EST)
+Date: Mon, 21 Nov 2011 14:27:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Fix virtual address handling in hugetlb fault
+Message-Id: <20111121142720.a5b62c9c.akpm@linux-foundation.org>
+In-Reply-To: <20111121194832.a0026d3e.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20111121194832.a0026d3e.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, n-horiguchi@ah.jp.nec.com
 
-On Mon, 21 Nov 2011, Hillf Danton wrote:
-> On Mon, Nov 21, 2011 at 12:16 PM, Hugh Dickins <hughd@google.com> wrote:
+On Mon, 21 Nov 2011 19:48:32 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> >From 7c29389be2890c6b6934a80b4841d07a7014fe26 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Mon, 21 Nov 2011 19:45:27 +0900
+> Subject: [PATCH] Fix virtual address handling in hugetlb fault
 > 
-> After reading your reply and the comments in break_ksm(), if the patch does
-> not mess up
-> 	"The important thing is to not let VM_MERGEABLE be cleared while any
-> 	 such pages might remain in the area",
-> and
-> 	"because handle_mm_fault() may back out if there's
-> 	 any difficulty e.g. if pte accessed bit gets updated concurrently",
+> handle_mm_fault() passes 'faulted' address to hugetlb_fault().
+> Then, the address is not aligned to hugepage boundary.
 > 
-> then if the path in which lock_page_or_retry() is called is not involved,
-> mmap_sem is not upped, so the patch has nearly same behavior with break_ksm.
+> Most of functions for hugetlb pages are aware of that and
+> calculate an alignment by itself. Some functions as copy_user_huge_page(),
+> and clear_huge_page() doesn't handle alignment by themselves.
 > 
-> And the overhead of the patch, I think, could match break_ksm.
+> This patch make hugeltb_fault() to calculate the alignment and pass
+> aligned addresss (top address of a faulted hugepage) to functions.
 > 
-> With dozen cases of writers of mmap_sem in the mm directory, the patch looks
-> more flexible in rare and rare corners.
 
-But what's the point in enlarging the kernel, adding code to make
-break_cow() look more complicated, when there's no way in which the
-addition can make an improvement?
+Does this actually fix any known user-visible misbehaviour?
 
-Adding in a FAULT_FLAG_ALLOW_RETRY flag is not enough for mmap_sem
-to be dropped for retry: you'd need a lock_page_or_retry() on the
-faulting path and I do not see that here - please point it out to
-me if you can see it.
+It sounds like the code is masking addresses in a lot of different
+places.  It would be better to do it once, at the top level.  Perhaps
+this patch makes some of the existing masking obsolete?
 
-(And I'll be somewhat sceptical if you respond with patches adding
-lock_page_or_retry() all over, in order to meet this objection!)
+> index bb28a5f..af37337 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2629,6 +2629,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+>  	struct hstate *h = hstate_vma(vma);
+>  
+> +	address = address & huge_page_mask(h);
 
-Hugh
+--- a/mm/hugetlb.c~mm-hugetlbc-fix-virtual-address-handling-in-hugetlb-fault-fix
++++ a/mm/hugetlb.c
+@@ -2639,7 +2639,7 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
+ 
+-	address = address & huge_page_mask(h);
++	address &= huge_page_mask(h);
+ 
+ 	ptep = huge_pte_offset(mm, address);
+ 	if (ptep) {
+
+is a bit more readable, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
