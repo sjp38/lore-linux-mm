@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 728E46B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:47:19 -0500 (EST)
-Date: Mon, 21 Nov 2011 13:47:15 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/8] block: limit default readahead size for small devices
-Message-ID: <20111121124715.GD24062@one.firstfloor.org>
-References: <20111121091819.394895091@intel.com> <20111121093846.121502745@intel.com> <20111121100004.GB5084@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 195666B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:57:23 -0500 (EST)
+Date: Mon, 21 Nov 2011 12:57:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 6/8] Revert "mm: compaction: make isolate_lru_page()
+ filter-aware"
+Message-ID: <20111121125717.GE19415@suse.de>
+References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
+ <1321732460-14155-7-git-send-email-aarcange@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20111121100004.GB5084@infradead.org>
+In-Reply-To: <1321732460-14155-7-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Li Shaohua <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org
 
-On Mon, Nov 21, 2011 at 05:00:04AM -0500, Christoph Hellwig wrote:
-> On Mon, Nov 21, 2011 at 05:18:20PM +0800, Wu Fengguang wrote:
-> > Given that the non-rotational attribute is not always reported, we can
-> > take disk size as a max readahead size hint. This patch uses a formula
-> > that generates the following concrete limits:
+On Sat, Nov 19, 2011 at 08:54:18PM +0100, Andrea Arcangeli wrote:
+> This reverts commit
+> 39deaf8585152f1a35c1676d3d7dc6ae0fb65967.
 > 
-> Given that you mentioned the rotational flag and device size in this
-> mail, as well as benchmarking with an intel SSD  -  did you measure
-> how useful large read ahead sizes still are with highend Flash device
-> that have extremly high read IOP rates?
+> PageDirty is non blocking for compaction (unlike for
+> mm/vmscan.c:may_writepage) so async compaction should include it.
+> 
 
-The more the IOPs the larger the "window" you need to keep everything
-going I suspect.
+It blocks if fallback_migrate_page() is used which happens if the
+underlying filesystem does not support ->migratepage.
 
--Andi
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
