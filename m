@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 00A0A6B0074
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 13:36:53 -0500 (EST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 679156B0088
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 13:36:55 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/7] mm: compaction: Allow compaction to isolate dirty pages
-Date: Mon, 21 Nov 2011 18:36:42 +0000
-Message-Id: <1321900608-27687-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/7] mm: compaction: Use synchronous compaction for /proc/sys/vm/compact_memory
+Date: Mon, 21 Nov 2011 18:36:43 +0000
+Message-Id: <1321900608-27687-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1321900608-27687-1-git-send-email-mgorman@suse.de>
 References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,41 +13,30 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-Commit [39deaf85: mm: compaction: make isolate_lru_page() filter-aware]
-noted that compaction does not migrate dirty or writeback pages and
-that is was meaningless to pick the page and re-add it to the LRU list.
-
-What was missed during review is that asynchronous migration moves
-dirty pages if their ->migratepage callback is migrate_page() because
-these can be moved without blocking. This potentially impacted
-hugepage allocation success rates by a factor depending on how many
-dirty pages are in the system.
-
-This patch partially reverts 39deaf85 to allow migration to isolate
-dirty pages again. This increases how much compaction disrupts the
-LRU but that is addressed later in the series.
+When asynchronous compaction was introduced, the
+/proc/sys/vm/compact_memory handler should have been updated to always
+use synchronous compaction. This did not happen so this patch addresses
+it. The assumption is if a user writes to /proc/sys/vm/compact_memory,
+they are willing for that process to stall.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/compaction.c |    3 ---
- 1 files changed, 0 insertions(+), 3 deletions(-)
+ mm/compaction.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 899d956..237560e 100644
+index 237560e..615502b 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -349,9 +349,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 			continue;
- 		}
+@@ -666,6 +666,7 @@ static int compact_node(int nid)
+ 			.nr_freepages = 0,
+ 			.nr_migratepages = 0,
+ 			.order = -1,
++			.sync = true,
+ 		};
  
--		if (!cc->sync)
--			mode |= ISOLATE_CLEAN;
--
- 		/* Try isolate the page */
- 		if (__isolate_lru_page(page, mode, 0) != 0)
- 			continue;
+ 		zone = &pgdat->node_zones[zoneid];
 -- 
 1.7.3.4
 
