@@ -1,99 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id DCEA66B0072
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 04:40:58 -0500 (EST)
-Message-Id: <20111121093846.887841399@intel.com>
-Date: Mon, 21 Nov 2011 17:18:26 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 181726B0073
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 04:40:59 -0500 (EST)
+Message-Id: <20111121093846.378529145@intel.com>
+Date: Mon, 21 Nov 2011 17:18:22 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 7/8] readahead: basic support for backwards prefetching
+Subject: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
 References: <20111121091819.394895091@intel.com>
-Content-Disposition: inline; filename=readahead-backwards.patch
+Content-Disposition: inline; filename=readahead-flags.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Li Shaohua <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
 
-Add the backwards prefetching feature. It's pretty simple if we don't
-support async prefetching and interleaved reads.
+Introduce a readahead flags field and embed the existing mmap_miss in it
+(mainly to save space).
 
-Here is the behavior with an 8-page read sequence from 10000 down to 0.
-(The readahead size is a bit large since it's an NFS mount.)
+It will be possible to lose the flags in race conditions, however the
+impact should be limited.  For the race to happen, there must be two
+threads sharing the same file descriptor to be in page fault or
+readahead at the same time.
 
-readahead-random(dev=0:16, ino=3948605, req=10000+8, ra=10000+8-0, async=0) = 8
-readahead-backwards(dev=0:16, ino=3948605, req=9992+8, ra=9968+32-0, async=0) = 32
-readahead-backwards(dev=0:16, ino=3948605, req=9960+8, ra=9840+128-0, async=0) = 128
-readahead-backwards(dev=0:16, ino=3948605, req=9832+8, ra=9584+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9576+8, ra=9072+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9064+8, ra=8048+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8040+8, ra=6128+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6120+8, ra=4208+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4200+8, ra=2288+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2280+8, ra=368+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=360+8, ra=0+368-0, async=0) = 368
+Note that it has always been racy for "page faults" at the same time.
 
-And a simple 1-page read sequence from 10000 down to 0.
-
-readahead-random(dev=0:16, ino=3948605, req=10000+1, ra=10000+1-0, async=0) = 1
-readahead-backwards(dev=0:16, ino=3948605, req=9999+1, ra=9996+4-0, async=0) = 4
-readahead-backwards(dev=0:16, ino=3948605, req=9995+1, ra=9980+16-0, async=0) = 16
-readahead-backwards(dev=0:16, ino=3948605, req=9979+1, ra=9916+64-0, async=0) = 64
-readahead-backwards(dev=0:16, ino=3948605, req=9915+1, ra=9660+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9659+1, ra=9148+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9147+1, ra=8124+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8123+1, ra=6204+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6203+1, ra=4284+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4283+1, ra=2364+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2363+1, ra=444+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=443+1, ra=0+444-0, async=0) = 444
+And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
+Which may change some concrete readahead behavior, but won't really
+impact overall I/O performance.
 
 CC: Andi Kleen <andi@firstfloor.org>
-CC: Li Shaohua <shaohua.li@intel.com>
+CC: Steven Whitehouse <swhiteho@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/fs.h |    1 +
- mm/readahead.c     |   14 ++++++++++++++
- 2 files changed, 15 insertions(+)
+ include/linux/fs.h |   31 ++++++++++++++++++++++++++++++-
+ mm/filemap.c       |    9 ++-------
+ 2 files changed, 32 insertions(+), 8 deletions(-)
 
---- linux-next.orig/include/linux/fs.h	2011-11-21 17:17:44.000000000 +0800
-+++ linux-next/include/linux/fs.h	2011-11-21 17:17:47.000000000 +0800
-@@ -964,6 +964,7 @@ enum readahead_pattern {
- 	RA_PATTERN_SUBSEQUENT,
- 	RA_PATTERN_CONTEXT,
- 	RA_PATTERN_MMAP_AROUND,
-+	RA_PATTERN_BACKWARDS,
- 	RA_PATTERN_FADVISE,
- 	RA_PATTERN_OVERSIZE,
- 	RA_PATTERN_RANDOM,
---- linux-next.orig/mm/readahead.c	2011-11-21 17:17:45.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-11-21 17:17:47.000000000 +0800
-@@ -23,6 +23,7 @@ static const char * const ra_pattern_nam
- 	[RA_PATTERN_SUBSEQUENT]         = "subsequent",
- 	[RA_PATTERN_CONTEXT]            = "context",
- 	[RA_PATTERN_MMAP_AROUND]        = "around",
-+	[RA_PATTERN_BACKWARDS]          = "backwards",
- 	[RA_PATTERN_FADVISE]            = "fadvise",
- 	[RA_PATTERN_OVERSIZE]           = "oversize",
- 	[RA_PATTERN_RANDOM]             = "random",
-@@ -686,6 +687,19 @@ ondemand_readahead(struct address_space 
+--- linux-next.orig/include/linux/fs.h	2011-11-20 11:30:55.000000000 +0800
++++ linux-next/include/linux/fs.h	2011-11-20 11:48:53.000000000 +0800
+@@ -945,10 +945,39 @@ struct file_ra_state {
+ 					   there are only # of pages ahead */
+ 
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+-	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
++	unsigned int ra_flags;
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+ 
++/* ra_flags bits */
++#define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
++
++/*
++ * Don't do ra_flags++ directly to avoid possible overflow:
++ * the ra fields can be accessed concurrently in a racy way.
++ */
++static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
++{
++	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
++
++	/* the upper bound avoids banging the cache line unnecessarily */
++	if (miss < READAHEAD_MMAP_MISS) {
++		miss++;
++		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
++	}
++	return miss;
++}
++
++static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
++{
++	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
++
++	if (miss) {
++		miss--;
++		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
++	}
++}
++
+ /*
+  * Check if @index falls in the readahead windows.
+  */
+--- linux-next.orig/mm/filemap.c	2011-11-20 11:30:55.000000000 +0800
++++ linux-next/mm/filemap.c	2011-11-20 11:48:29.000000000 +0800
+@@ -1597,15 +1597,11 @@ static void do_sync_mmap_readahead(struc
+ 		return;
  	}
  
+-	/* Avoid banging the cache line if not needed */
+-	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
+-		ra->mmap_miss++;
+-
  	/*
-+	 * backwards reading
-+	 */
-+	if (offset < ra->start && offset + req_size >= ra->start) {
-+		ra_set_pattern(ra, RA_PATTERN_BACKWARDS);
-+		ra->size = get_next_ra_size(ra, max);
-+		if (ra->size > ra->start)
-+			ra->size = ra->start;
-+		ra->async_size = 0;
-+		ra->start -= ra->size;
-+		goto readit;
-+	}
-+
-+	/*
- 	 * Query the page cache and look for the traces(cached history pages)
- 	 * that a sequential stream would leave behind.
+ 	 * Do we miss much more than hit in this file? If so,
+ 	 * stop bothering with read-ahead. It will only hurt.
  	 */
+-	if (ra->mmap_miss > MMAP_LOTSAMISS)
++	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
+ 		return;
+ 
+ 	/*
+@@ -1633,8 +1629,7 @@ static void do_async_mmap_readahead(stru
+ 	/* If we don't want any read-ahead, don't bother */
+ 	if (VM_RandomReadHint(vma))
+ 		return;
+-	if (ra->mmap_miss > 0)
+-		ra->mmap_miss--;
++	ra_mmap_miss_dec(ra);
+ 	if (PageReadahead(page))
+ 		page_cache_async_readahead(mapping, ra, file,
+ 					   page, offset, ra->ra_pages);
 
 
 --
