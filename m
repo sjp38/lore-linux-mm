@@ -1,68 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DAF86B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:40:13 -0500 (EST)
-Received: by iaek3 with SMTP id k3so10004972iae.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 08:40:11 -0800 (PST)
-Date: Mon, 21 Nov 2011 08:40:06 -0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4466B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:48:05 -0500 (EST)
+Received: by qadc11 with SMTP id c11so376728qad.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 08:48:02 -0800 (PST)
+Date: Mon, 21 Nov 2011 08:47:58 -0800
 From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH v3] PM/Memory-hotplug: Avoid task freezing failures
-Message-ID: <20111121164006.GB15314@google.com>
+Message-ID: <20111121164758.GC15314@google.com>
 References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com>
  <201111192257.19763.rjw@sisk.pl>
- <4EC8984E.30005@linux.vnet.ibm.com>
- <201111201124.17528.rjw@sisk.pl>
- <4EC9D557.9090008@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4EC9D557.9090008@linux.vnet.ibm.com>
+In-Reply-To: <201111192257.19763.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-Hello, Srivatsa.
+Hello, Rafael.
 
-On Mon, Nov 21, 2011 at 10:06:39AM +0530, Srivatsa S. Bhat wrote:
-> void lock_system_sleep(void)
-> {
-> 	/* simplified freezer_do_not_count() */
-> 	current->flags |= PF_FREEZER_SKIP;
+On Sat, Nov 19, 2011 at 10:57:19PM +0100, Rafael J. Wysocki wrote:
+> > +	while (!mutex_trylock(&pm_mutex)) {
+> > +		try_to_freeze();
+> > +		msleep(10);
 > 
-> 	mutex_lock(&pm_mutex);
-> 
-> }
-> 
-> void unlock_system_sleep(void)
-> {
-> 	mutex_unlock(&pm_mutex);
-> 
-> 	/* simplified freezer_count() */
-> 	current->flags &= ~PF_FREEZER_SKIP;
-> 
-> }
-> 
-> We probably don't want the restriction that freezer_do_not_count() and
-> freezer_count() work only for userspace tasks. So I have open coded
-> the relevant parts of those functions here.
-> 
-> I haven't tested this solution yet. Let me know if this solution looks
-> good and I'll send it out as a patch after testing and analyzing some
-> corner cases, if any.
+> The number here seems to be somewhat arbitrary.  Is there any reason not to
+> use 100 or any other number?
 
-Ooh ooh, I definitely like this one much better.  Oleg did something
-similar w/ wait_event_freezekillable() too.  On related notes,
+This is a bit moot at this point but, at least for me, yeah, it's a
+number I pulled out of my ass.  That said, I think it's a good number
+to pull out of ass for userland visible retry delays for the following
+reasons.
 
-* I think it would be better to remove direct access to pm_mutex and
-  use [un]lock_system_sleep() universally.  I don't think hinging it
-  on CONFIG_HIBERNATE_CALLBACKS buys us anything.
+* It's a good number - 10! which happens to match the number of
+  fingers I have!  Isn't that just weird? @.@
 
-* In the longer term, we should be able to toggle PF_NOFREEZE instead
-  as SKIP doesn't mean anything different.  We'll probably need a
-  better API tho.  But for now SKIP should work fine.
+* For modern hardware of most classes, repeating not-so-complex stuff
+  every 10ms for a while isn't taxing (or even noticeable) at all.
 
-Thank you.
+* Sub 10ms delays usually aren't noticeable to human beings even when
+  several of them are staggered.  This is very different when you get
+  to 100ms range.
+
+ie. going from 1ms to 10ms doesn't cost you too much in terms of human
+noticeable latency (for this type of situations anyway) but going from
+10ms to 100ms does.  In terms of computational cost, the reverse is
+somewhat true too.  So, yeah, I think 10ms is a good out-of-ass number
+for this type of delays.
+
+Thanks.
 
 -- 
 tejun
