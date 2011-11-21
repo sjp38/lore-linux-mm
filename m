@@ -1,100 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B00C76B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 18:01:18 -0500 (EST)
-Date: Mon, 21 Nov 2011 15:01:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
-Message-Id: <20111121150116.094cf194.akpm@linux-foundation.org>
-In-Reply-To: <20111121093846.378529145@intel.com>
-References: <20111121091819.394895091@intel.com>
-	<20111121093846.378529145@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 22AB06B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 18:10:43 -0500 (EST)
+Received: by ghrr17 with SMTP id r17so4329642ghr.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 15:10:40 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAJd=RBDP_z68Ewvw_O_dMxOnE0=weXqt+1FQy85_n76HAEdFHg@mail.gmail.com>
+References: <CAJd=RBDP_z68Ewvw_O_dMxOnE0=weXqt+1FQy85_n76HAEdFHg@mail.gmail.com>
+Date: Mon, 21 Nov 2011 15:10:39 -0800
+Message-ID: <CANN689EDDy9PTSvt10Gk3jiW-QjQpsZmCnrqoTwmPecEQYT2Ew@mail.gmail.com>
+Subject: Re: [PATCH] ksm: use FAULT_FLAG_ALLOW_RETRY in breaking COW
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
-On Mon, 21 Nov 2011 17:18:22 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Sat, Nov 19, 2011 at 3:50 AM, Hillf Danton <dhillf@gmail.com> wrote:
+> The flag, FAULT_FLAG_ALLOW_RETRY, was introduced by the patch,
+>
+> =A0 =A0 =A0 =A0mm: retry page fault when blocking on disk transfer
+> =A0 =A0 =A0 =A0commit: d065bd810b6deb67d4897a14bfe21f8eb526ba99
+>
+> for reducing mmap_sem hold times that are caused by waiting for disk
+> transfers when accessing file mapped VMAs.
+>
+> To break COW, handle_mm_fault() is repeated with mmap_sem held, where
+> the introduced flag could be used again.
+>
+> The straight way is to add changes in break_ksm(), but the function could=
+ be
+> under write-mode mmap_sem, so it has to be dupilcated.
+>
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
 
-> Introduce a readahead flags field and embed the existing mmap_miss in it
-> (mainly to save space).
+I have to concur with Hugh here - FAULT_FLAG_ALLOW_RETRY was
+introduced to avoid holding mmap_sem while we block on a disk read,
+but you shouldn't hit this case in the break COW case, so there seems
+to be little point in adding the flag there.
 
-What an ugly patch.
-
-> It will be possible to lose the flags in race conditions, however the
-> impact should be limited.  For the race to happen, there must be two
-> threads sharing the same file descriptor to be in page fault or
-> readahead at the same time.
-> 
-> Note that it has always been racy for "page faults" at the same time.
-> 
-> And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
-> Which may change some concrete readahead behavior, but won't really
-> impact overall I/O performance.
-> 
-> CC: Andi Kleen <andi@firstfloor.org>
-> CC: Steven Whitehouse <swhiteho@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/fs.h |   31 ++++++++++++++++++++++++++++++-
->  mm/filemap.c       |    9 ++-------
->  2 files changed, 32 insertions(+), 8 deletions(-)
-> 
-> --- linux-next.orig/include/linux/fs.h	2011-11-20 11:30:55.000000000 +0800
-> +++ linux-next/include/linux/fs.h	2011-11-20 11:48:53.000000000 +0800
-> @@ -945,10 +945,39 @@ struct file_ra_state {
->  					   there are only # of pages ahead */
->  
->  	unsigned int ra_pages;		/* Maximum readahead window */
-> -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
-> +	unsigned int ra_flags;
-
-And it doesn't actually save any space, unless ra_flags gets used for
-something else in a subsequent patch.  And if it does, perhaps ra_flags
-should be ulong, which is compatible with the bitops.h code.
-
-Or perhaps we should use a bitfield and let the compiler do the work.
-
->  	loff_t prev_pos;		/* Cache last read() position */
->  };
->  
-> +/* ra_flags bits */
-> +#define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
-> +
-> +/*
-> + * Don't do ra_flags++ directly to avoid possible overflow:
-> + * the ra fields can be accessed concurrently in a racy way.
-> + */
-> +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
-> +{
-> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> +
-> +	/* the upper bound avoids banging the cache line unnecessarily */
-> +	if (miss < READAHEAD_MMAP_MISS) {
-> +		miss++;
-> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> +	}
-> +	return miss;
-> +}
-> +
-> +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
-> +{
-> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> +
-> +	if (miss) {
-> +		miss--;
-> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> +	}
-> +}
-
-It's strange that ra_mmap_miss_inc() returns the new value whereas
-ra_mmap_miss_dec() returns void.
-
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
