@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D4466B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:48:05 -0500 (EST)
-Received: by qadc11 with SMTP id c11so376728qad.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 08:48:02 -0800 (PST)
-Date: Mon, 21 Nov 2011 08:47:58 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3] PM/Memory-hotplug: Avoid task freezing failures
-Message-ID: <20111121164758.GC15314@google.com>
-References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com>
- <201111192257.19763.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201111192257.19763.rjw@sisk.pl>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 420976B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 11:52:40 -0500 (EST)
+Received: by bke17 with SMTP id 17so8772676bke.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 08:52:36 -0800 (PST)
+Message-ID: <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Mon, 21 Nov 2011 17:52:33 +0100
+In-Reply-To: <20111121161036.GA1679@x4.trippels.de>
+References: <20111118085436.GC1615@x4.trippels.de>
+	 <20111118120201.GA1642@x4.trippels.de> <1321836285.30341.554.camel@debian>
+	 <20111121080554.GB1625@x4.trippels.de>
+	 <20111121082445.GD1625@x4.trippels.de>
+	 <1321866988.2552.10.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121131531.GA1679@x4.trippels.de>
+	 <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121153621.GA1678@x4.trippels.de>
+	 <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121161036.GA1679@x4.trippels.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, tj@kernel.org
 
-Hello, Rafael.
+Le lundi 21 novembre 2011 A  17:10 +0100, Markus Trippelsdorf a A(C)crit :
 
-On Sat, Nov 19, 2011 at 10:57:19PM +0100, Rafael J. Wysocki wrote:
-> > +	while (!mutex_trylock(&pm_mutex)) {
-> > +		try_to_freeze();
-> > +		msleep(10);
+> Sure. This one happend with CONFIG_DEBUG_PAGEALLOC=y:
 > 
-> The number here seems to be somewhat arbitrary.  Is there any reason not to
-> use 100 or any other number?
+> [drm] Initialized radeon 2.11.0 20080528 for 0000:01:05.0 on minor 0
+> loop: module loaded
+> ahci 0000:00:11.0: version 3.0
+> ahci 0000:00:11.0: PCI INT A -> GSI 22 (level, low) -> IRQ 22
+> ahci 0000:00:11.0: AHCI 0001.0100 32 slots 6 ports 3 Gbps 0x3f impl SATA mode
+> ahci 0000:00:11.0: flags: 64bit ncq sntf ilck pm led clo pmp pio slum part ccc 
+> scsi0 : ahci
+> scsi1 : ahci
+> =============================================================================
+> BUG task_struct: Poison overwritten
+> -----------------------------------------------------------------------------
 
-This is a bit moot at this point but, at least for me, yeah, it's a
-number I pulled out of my ass.  That said, I think it's a good number
-to pull out of ass for userland visible retry delays for the following
-reasons.
+Unfortunately thats the same problem, not catched by DEBUG_PAGEALLOC
+because freed page is immediately reused.
 
-* It's a good number - 10! which happens to match the number of
-  fingers I have!  Isn't that just weird? @.@
+We should keep pages in free list longer, to have a bigger window.
 
-* For modern hardware of most classes, repeating not-so-complex stuff
-  every 10ms for a while isn't taxing (or even noticeable) at all.
+Hmm...
 
-* Sub 10ms delays usually aren't noticeable to human beings even when
-  several of them are staggered.  This is very different when you get
-  to 100ms range.
+Please try following patch :
 
-ie. going from 1ms to 10ms doesn't cost you too much in terms of human
-noticeable latency (for this type of situations anyway) but going from
-10ms to 100ms does.  In terms of computational cost, the reverse is
-somewhat true too.  So, yeah, I think 10ms is a good out-of-ass number
-for this type of delays.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9dd443d..b8932a6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1196,7 +1196,7 @@ void free_hot_cold_page(struct page *page, int cold)
+ 	}
+ 
+ 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+-	if (cold)
++	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) || cold)
+ 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+ 	else
+ 		list_add(&page->lru, &pcp->lists[migratetype]);
 
-Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
