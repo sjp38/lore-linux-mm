@@ -1,133 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E72A06B006E
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:03:03 -0500 (EST)
-Subject: Re: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <20111121093846.378529145@intel.com>
-References: <20111121091819.394895091@intel.com>
-	 <20111121093846.378529145@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 21 Nov 2011 11:04:27 +0000
-Message-ID: <1321873467.2710.17.camel@menhir>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1CE7B6B006E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:10:29 -0500 (EST)
+Date: Mon, 21 Nov 2011 12:09:54 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: [patch] mm: memcg: shorten preempt-disabled section around event
+ checks
+Message-ID: <20111121110954.GE1771@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Yong Zhang <yong.zhang0@gmail.com>, Luis Henriques <henrix@camandro.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+-rt ran into a problem with the soft limit spinlock inside the
+non-preemptible section, because that is sleeping inside an atomic
+context.  But I think it makes sense for vanilla, too, to keep the
+non-preemptible section as short as possible.  Also, -3 lines.
 
-I'm not quite sure why you copied me in to this patch, but I've had a
-look at it and it seems ok to me. Some of the other patches in this
-series look as if they might be rather useful for the GFS2 dir readahead
-code though, so I'll be keeping an eye on developments in this area,
+Yong, Luis, could you add your Tested-bys?
 
-Acked-by: Steven Whitehouse <swhiteho@redhat.com>
+---
+Only the ratelimit checks themselves have to run with preemption
+disabled, the resulting actions - checking for usage thresholds,
+updating the soft limit tree - can and should run with preemption
+enabled.
 
-Steve.
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Reported-by: Yong Zhang <yong.zhang0@gmail.com>
+Reported-by: Luis Henriques <henrix@camandro.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+---
+ mm/memcontrol.c |   73 ++++++++++++++++++++++++++----------------------------
+ 1 files changed, 35 insertions(+), 38 deletions(-)
 
-On Mon, 2011-11-21 at 17:18 +0800, Wu Fengguang wrote:
-> plain text document attachment (readahead-flags.patch)
-> Introduce a readahead flags field and embed the existing mmap_miss in it
-> (mainly to save space).
-> 
-> It will be possible to lose the flags in race conditions, however the
-> impact should be limited.  For the race to happen, there must be two
-> threads sharing the same file descriptor to be in page fault or
-> readahead at the same time.
-> 
-> Note that it has always been racy for "page faults" at the same time.
-> 
-> And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
-> Which may change some concrete readahead behavior, but won't really
-> impact overall I/O performance.
-> 
-> CC: Andi Kleen <andi@firstfloor.org>
-> CC: Steven Whitehouse <swhiteho@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/fs.h |   31 ++++++++++++++++++++++++++++++-
->  mm/filemap.c       |    9 ++-------
->  2 files changed, 32 insertions(+), 8 deletions(-)
-> 
-> --- linux-next.orig/include/linux/fs.h	2011-11-20 11:30:55.000000000 +0800
-> +++ linux-next/include/linux/fs.h	2011-11-20 11:48:53.000000000 +0800
-> @@ -945,10 +945,39 @@ struct file_ra_state {
->  					   there are only # of pages ahead */
->  
->  	unsigned int ra_pages;		/* Maximum readahead window */
-> -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
-> +	unsigned int ra_flags;
->  	loff_t prev_pos;		/* Cache last read() position */
->  };
->  
-> +/* ra_flags bits */
-> +#define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
-> +
-> +/*
-> + * Don't do ra_flags++ directly to avoid possible overflow:
-> + * the ra fields can be accessed concurrently in a racy way.
-> + */
-> +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
-> +{
-> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> +
-> +	/* the upper bound avoids banging the cache line unnecessarily */
-> +	if (miss < READAHEAD_MMAP_MISS) {
-> +		miss++;
-> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> +	}
-> +	return miss;
-> +}
-> +
-> +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
-> +{
-> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> +
-> +	if (miss) {
-> +		miss--;
-> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> +	}
-> +}
-> +
->  /*
->   * Check if @index falls in the readahead windows.
->   */
-> --- linux-next.orig/mm/filemap.c	2011-11-20 11:30:55.000000000 +0800
-> +++ linux-next/mm/filemap.c	2011-11-20 11:48:29.000000000 +0800
-> @@ -1597,15 +1597,11 @@ static void do_sync_mmap_readahead(struc
->  		return;
->  	}
->  
-> -	/* Avoid banging the cache line if not needed */
-> -	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
-> -		ra->mmap_miss++;
-> -
->  	/*
->  	 * Do we miss much more than hit in this file? If so,
->  	 * stop bothering with read-ahead. It will only hurt.
->  	 */
-> -	if (ra->mmap_miss > MMAP_LOTSAMISS)
-> +	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
->  		return;
->  
->  	/*
-> @@ -1633,8 +1629,7 @@ static void do_async_mmap_readahead(stru
->  	/* If we don't want any read-ahead, don't bother */
->  	if (VM_RandomReadHint(vma))
->  		return;
-> -	if (ra->mmap_miss > 0)
-> -		ra->mmap_miss--;
-> +	ra_mmap_miss_dec(ra);
->  	if (PageReadahead(page))
->  		page_cache_async_readahead(mapping, ra, file,
->  					   page, offset, ra->ra_pages);
-> 
-> 
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6aff93c..8e62d3e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -683,37 +683,32 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
+ 	return total;
+ }
+ 
+-static bool __memcg_event_check(struct mem_cgroup *memcg, int target)
++static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
++				       enum mem_cgroup_events_target target)
+ {
+ 	unsigned long val, next;
+ 
+ 	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+ 	next = __this_cpu_read(memcg->stat->targets[target]);
+ 	/* from time_after() in jiffies.h */
+-	return ((long)next - (long)val < 0);
+-}
+-
+-static void __mem_cgroup_target_update(struct mem_cgroup *memcg, int target)
+-{
+-	unsigned long val, next;
+-
+-	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+-
+-	switch (target) {
+-	case MEM_CGROUP_TARGET_THRESH:
+-		next = val + THRESHOLDS_EVENTS_TARGET;
+-		break;
+-	case MEM_CGROUP_TARGET_SOFTLIMIT:
+-		next = val + SOFTLIMIT_EVENTS_TARGET;
+-		break;
+-	case MEM_CGROUP_TARGET_NUMAINFO:
+-		next = val + NUMAINFO_EVENTS_TARGET;
+-		break;
+-	default:
+-		return;
++	if ((long)next - (long)val < 0) {
++		switch (target) {
++		case MEM_CGROUP_TARGET_THRESH:
++			next = val + THRESHOLDS_EVENTS_TARGET;
++			break;
++		case MEM_CGROUP_TARGET_SOFTLIMIT:
++			next = val + SOFTLIMIT_EVENTS_TARGET;
++			break;
++		case MEM_CGROUP_TARGET_NUMAINFO:
++			next = val + NUMAINFO_EVENTS_TARGET;
++			break;
++		default:
++			break;
++		}
++		__this_cpu_write(memcg->stat->targets[target], next);
++		return true;
+ 	}
+-
+-	__this_cpu_write(memcg->stat->targets[target], next);
++	return false;
+ }
+ 
+ /*
+@@ -724,25 +719,27 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ {
+ 	preempt_disable();
+ 	/* threshold event is triggered in finer grain than soft limit */
+-	if (unlikely(__memcg_event_check(memcg, MEM_CGROUP_TARGET_THRESH))) {
++	if (unlikely(mem_cgroup_event_ratelimit(memcg,
++						MEM_CGROUP_TARGET_THRESH))) {
++		bool do_softlimit, do_numainfo;
++
++		do_softlimit = mem_cgroup_event_ratelimit(memcg,
++						MEM_CGROUP_TARGET_SOFTLIMIT);
++#if MAX_NUMNODES > 1
++		do_numainfo = mem_cgroup_event_ratelimit(memcg,
++						MEM_CGROUP_TARGET_NUMAINFO);
++#endif
++		preempt_enable();
++
+ 		mem_cgroup_threshold(memcg);
+-		__mem_cgroup_target_update(memcg, MEM_CGROUP_TARGET_THRESH);
+-		if (unlikely(__memcg_event_check(memcg,
+-			     MEM_CGROUP_TARGET_SOFTLIMIT))) {
++		if (unlikely(do_softlimit))
+ 			mem_cgroup_update_tree(memcg, page);
+-			__mem_cgroup_target_update(memcg,
+-						   MEM_CGROUP_TARGET_SOFTLIMIT);
+-		}
+ #if MAX_NUMNODES > 1
+-		if (unlikely(__memcg_event_check(memcg,
+-			MEM_CGROUP_TARGET_NUMAINFO))) {
++		if (unlikely(do_numainfo))
+ 			atomic_inc(&memcg->numainfo_events);
+-			__mem_cgroup_target_update(memcg,
+-				MEM_CGROUP_TARGET_NUMAINFO);
+-		}
+ #endif
+-	}
+-	preempt_enable();
++	} else
++		preempt_enable();
+ }
+ 
+ static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
