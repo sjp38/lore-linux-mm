@@ -1,55 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E6FA96B006E
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:00:14 -0500 (EST)
-Received: by faas10 with SMTP id s10so7710636faa.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 03:00:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 21 Nov 2011 16:30:11 +0530
-Message-ID: <CAKTCnzk81UiqVHGcTcN_0iyG8dw=-wC6jo8ME7g303PQFKDM3w@mail.gmail.com>
-Subject: Re: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E72A06B006E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:03:03 -0500 (EST)
+Subject: Re: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <20111121093846.378529145@intel.com>
+References: <20111121091819.394895091@intel.com>
+	 <20111121093846.378529145@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 21 Nov 2011 11:04:27 +0000
+Message-ID: <1321873467.2710.17.camel@menhir>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, mhocko@suse.cz, Andrea Arcangeli <aarcange@redhat.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Nov 17, 2011 at 7:03 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
-> I'll send this again when mm is shipped.
-> I sometimes see mem_cgroup_split_huge_fixup() in perf report and noticed
-> it's very slow. This fixes it. Any comments are welcome.
->
+Hi,
 
-How do you see this - what tests?
+I'm not quite sure why you copied me in to this patch, but I've had a
+look at it and it seems ok to me. Some of the other patches in this
+series look as if they might be rather useful for the GFS2 dir readahead
+code though, so I'll be keeping an eye on developments in this area,
 
-> =3D=3D
-> Subject: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
->
-> at split_huge_page(), mem_cgroup_split_huge_fixup() is called to
-> handle page_cgroup modifcations. It takes move_lock_page_cgroup()
-> and modify page_cgroup and LRU accounting jobs and called
-> HPAGE_PMD_SIZE - 1 times.
->
-> But thinking again,
-> =A0- compound_lock() is held at move_accout...then, it's not necessary
-> =A0 =A0to take move_lock_page_cgroup().
-> =A0- LRU is locked and all tail pages will go into the same LRU as
-> =A0 =A0head is now on.
-> =A0- page_cgroup is contiguous in huge page range.
->
-> This patch fixes mem_cgroup_split_huge_fixup() as to be called once per
-> hugepage and reduce costs for spliting.
+Acked-by: Steven Whitehouse <swhiteho@redhat.com>
 
-The change seems reasonable, I am working on a test setup and hope to
-test it soon
+Steve.
 
-Balbir
+On Mon, 2011-11-21 at 17:18 +0800, Wu Fengguang wrote:
+> plain text document attachment (readahead-flags.patch)
+> Introduce a readahead flags field and embed the existing mmap_miss in it
+> (mainly to save space).
+> 
+> It will be possible to lose the flags in race conditions, however the
+> impact should be limited.  For the race to happen, there must be two
+> threads sharing the same file descriptor to be in page fault or
+> readahead at the same time.
+> 
+> Note that it has always been racy for "page faults" at the same time.
+> 
+> And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
+> Which may change some concrete readahead behavior, but won't really
+> impact overall I/O performance.
+> 
+> CC: Andi Kleen <andi@firstfloor.org>
+> CC: Steven Whitehouse <swhiteho@redhat.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  include/linux/fs.h |   31 ++++++++++++++++++++++++++++++-
+>  mm/filemap.c       |    9 ++-------
+>  2 files changed, 32 insertions(+), 8 deletions(-)
+> 
+> --- linux-next.orig/include/linux/fs.h	2011-11-20 11:30:55.000000000 +0800
+> +++ linux-next/include/linux/fs.h	2011-11-20 11:48:53.000000000 +0800
+> @@ -945,10 +945,39 @@ struct file_ra_state {
+>  					   there are only # of pages ahead */
+>  
+>  	unsigned int ra_pages;		/* Maximum readahead window */
+> -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
+> +	unsigned int ra_flags;
+>  	loff_t prev_pos;		/* Cache last read() position */
+>  };
+>  
+> +/* ra_flags bits */
+> +#define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
+> +
+> +/*
+> + * Don't do ra_flags++ directly to avoid possible overflow:
+> + * the ra fields can be accessed concurrently in a racy way.
+> + */
+> +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
+> +{
+> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
+> +
+> +	/* the upper bound avoids banging the cache line unnecessarily */
+> +	if (miss < READAHEAD_MMAP_MISS) {
+> +		miss++;
+> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
+> +	}
+> +	return miss;
+> +}
+> +
+> +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
+> +{
+> +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
+> +
+> +	if (miss) {
+> +		miss--;
+> +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
+> +	}
+> +}
+> +
+>  /*
+>   * Check if @index falls in the readahead windows.
+>   */
+> --- linux-next.orig/mm/filemap.c	2011-11-20 11:30:55.000000000 +0800
+> +++ linux-next/mm/filemap.c	2011-11-20 11:48:29.000000000 +0800
+> @@ -1597,15 +1597,11 @@ static void do_sync_mmap_readahead(struc
+>  		return;
+>  	}
+>  
+> -	/* Avoid banging the cache line if not needed */
+> -	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
+> -		ra->mmap_miss++;
+> -
+>  	/*
+>  	 * Do we miss much more than hit in this file? If so,
+>  	 * stop bothering with read-ahead. It will only hurt.
+>  	 */
+> -	if (ra->mmap_miss > MMAP_LOTSAMISS)
+> +	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
+>  		return;
+>  
+>  	/*
+> @@ -1633,8 +1629,7 @@ static void do_async_mmap_readahead(stru
+>  	/* If we don't want any read-ahead, don't bother */
+>  	if (VM_RandomReadHint(vma))
+>  		return;
+> -	if (ra->mmap_miss > 0)
+> -		ra->mmap_miss--;
+> +	ra_mmap_miss_dec(ra);
+>  	if (PageReadahead(page))
+>  		page_cache_async_readahead(mapping, ra, file,
+>  					   page, offset, ra->ra_pages);
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
