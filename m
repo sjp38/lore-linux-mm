@@ -1,94 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E436B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 13:13:06 -0500 (EST)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Mon, 21 Nov 2011 23:43:01 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pALICuuF4505776
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 23:42:57 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pALICui9012857
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 05:12:56 +1100
-Message-ID: <4ECA94A6.90500@linux.vnet.ibm.com>
-Date: Mon, 21 Nov 2011 23:42:54 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BC26B006E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 13:23:26 -0500 (EST)
+Received: by vbbfq11 with SMTP id fq11so3662118vbb.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 10:23:25 -0800 (PST)
+Date: Mon, 21 Nov 2011 10:23:19 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v4] PM / Memory-hotplug: Avoid task freezing failures
+Message-ID: <20111121182319.GG15314@google.com>
+References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com>
+ <201111192257.19763.rjw@sisk.pl>
+ <4EC8984E.30005@linux.vnet.ibm.com>
+ <201111201124.17528.rjw@sisk.pl>
+ <4EC9D557.9090008@linux.vnet.ibm.com>
+ <20111121164006.GB15314@google.com>
+ <4ECA84A8.5030005@linux.vnet.ibm.com>
+ <4ECA94A6.90500@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH v4] PM / Memory-hotplug: Avoid task freezing failures
-References: <20111117083042.11419.19871.stgit@srivatsabhat.in.ibm.com> <201111192257.19763.rjw@sisk.pl> <4EC8984E.30005@linux.vnet.ibm.com> <201111201124.17528.rjw@sisk.pl> <4EC9D557.9090008@linux.vnet.ibm.com> <20111121164006.GB15314@google.com> <4ECA84A8.5030005@linux.vnet.ibm.com>
-In-Reply-To: <4ECA84A8.5030005@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4ECA94A6.90500@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, pavel@ucw.cz, lenb@kernel.org, ak@linux.intel.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Chen Gong <gong.chen@linux.intel.com>
 
-The lock_system_sleep() function is used in the memory hotplug code at
-several places in order to implement mutual exclusion with hibernation.
-However, this function tries to acquire the 'pm_mutex' lock using
-mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
-get the lock. This would lead to task freezing failures and hence
-hibernation failure as a consequence, even though the hibernation call path
-successfully acquired the lock.
+On Mon, Nov 21, 2011 at 11:42:54PM +0530, Srivatsa S. Bhat wrote:
+> The lock_system_sleep() function is used in the memory hotplug code at
+> several places in order to implement mutual exclusion with hibernation.
+> However, this function tries to acquire the 'pm_mutex' lock using
+> mutex_lock() and hence blocks in TASK_UNINTERRUPTIBLE state if it doesn't
+> get the lock. This would lead to task freezing failures and hence
+> hibernation failure as a consequence, even though the hibernation call path
+> successfully acquired the lock.
+> 
+> But it is to be noted that, since this task tries to acquire pm_mutex, if it
+> blocks due to this, we are *100% sure* that this task is not going to run
+> as long as hibernation sequence is in progress, since hibernation releases
+> 'pm_mutex' only at the very end, when everything is done.
+> And this means, this task is going to be anyway blocked for much more longer
+> than what the freezer intends to achieve; which means, freezing and thawing
+> doesn't really make any difference to this task!
+> 
+> So, to fix freezing failures, we just ask the freezer to skip freezing this
+> task, since it is already "frozen enough".
+> 
+> But instead of calling freezer_do_not_count() and freezer_count() as it is,
+> we use only the relevant parts of those functions, because restrictions
+> such as 'the task should be a userspace one' etc., might not be relevant in
+> this scenario.
+> 
+> v4: Redesigned the whole fix, to ask the freezer to skip freezing the task
+>     which is blocked trying to acquire 'pm_mutex' lock.
+> 
+> v3: Tejun suggested avoiding busy-looping by adding an msleep() since
+>     it is not guaranteed that we will get frozen immediately.
+> 
+> v2: Tejun pointed problems with using mutex_lock_interruptible() in a
+>     while loop, when signals not related to freezing are involved.
+>     So, replaced it with mutex_trylock().
+> 
+> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 
-But it is to be noted that, since this task tries to acquire pm_mutex, if it
-blocks due to this, we are *100% sure* that this task is not going to run
-as long as hibernation sequence is in progress, since hibernation releases
-'pm_mutex' only at the very end, when everything is done.
-And this means, this task is going to be anyway blocked for much more longer
-than what the freezer intends to achieve; which means, freezing and thawing
-doesn't really make any difference to this task!
+Acked-by: Tejun Heo <tj@kernel.org>
 
-So, to fix freezing failures, we just ask the freezer to skip freezing this
-task, since it is already "frozen enough".
+Thanks a lot. :)
 
-But instead of calling freezer_do_not_count() and freezer_count() as it is,
-we use only the relevant parts of those functions, because restrictions
-such as 'the task should be a userspace one' etc., might not be relevant in
-this scenario.
-
-v4: Redesigned the whole fix, to ask the freezer to skip freezing the task
-    which is blocked trying to acquire 'pm_mutex' lock.
-
-v3: Tejun suggested avoiding busy-looping by adding an msleep() since
-    it is not guaranteed that we will get frozen immediately.
-
-v2: Tejun pointed problems with using mutex_lock_interruptible() in a
-    while loop, when signals not related to freezing are involved.
-    So, replaced it with mutex_trylock().
-
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
-
- include/linux/suspend.h |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
-
-diff --git a/include/linux/suspend.h b/include/linux/suspend.h
-index 57a6924..1f7fff4 100644
---- a/include/linux/suspend.h
-+++ b/include/linux/suspend.h
-@@ -380,12 +380,16 @@ static inline void unlock_system_sleep(void) {}
- 
- static inline void lock_system_sleep(void)
- {
-+	/* simplified freezer_do_not_count() */
-+	current->flags |= PF_FREEZER_SKIP;
- 	mutex_lock(&pm_mutex);
- }
- 
- static inline void unlock_system_sleep(void)
- {
- 	mutex_unlock(&pm_mutex);
-+	/* simplified freezer_count() */
-+	current->flags &= ~PF_FREEZER_SKIP;
- }
- #endif
- 
-
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
