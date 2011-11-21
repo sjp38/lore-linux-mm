@@ -1,50 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 63F266B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 09:01:19 -0500 (EST)
-Subject: Re: [PATCH 6/8] readahead: add debug tracing event
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20111121093846.764030336@intel.com>
-References: <20111121091819.394895091@intel.com>
-	 <20111121093846.764030336@intel.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 689606B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 09:16:13 -0500 (EST)
+Received: by bke17 with SMTP id 17so8516000bke.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 06:16:10 -0800 (PST)
+Message-ID: <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Mon, 21 Nov 2011 15:16:06 +0100
+In-Reply-To: <20111121131531.GA1679@x4.trippels.de>
+References: <20111118072519.GA1615@x4.trippels.de>
+	 <20111118075521.GB1615@x4.trippels.de> <1321605837.30341.551.camel@debian>
+	 <20111118085436.GC1615@x4.trippels.de>
+	 <20111118120201.GA1642@x4.trippels.de> <1321836285.30341.554.camel@debian>
+	 <20111121080554.GB1625@x4.trippels.de>
+	 <20111121082445.GD1625@x4.trippels.de>
+	 <1321866988.2552.10.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121131531.GA1679@x4.trippels.de>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 21 Nov 2011 09:01:15 -0500
-Message-ID: <1321884075.20742.5.camel@frodo>
+Content-Transfer-Encoding: 8bit
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 
-On Mon, 2011-11-21 at 17:18 +0800, Wu Fengguang wrote:
-> plain text document attachment (readahead-tracer.patch)
-> This is very useful for verifying whether the algorithms are working
-> to our expectaions.
+Le lundi 21 novembre 2011 A  14:15 +0100, Markus Trippelsdorf a A(C)crit :
+
+> I've enabled CONFIG_SLUB_DEBUG_ON and this is what happend:
 > 
-> Example output:
-> 
-> # echo 1 > /debug/tracing/events/vfs/readahead/enable
-> # cp test-file /dev/null
-> # cat /debug/tracing/trace  # trimmed output
-> readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
-> readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
-> readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
-> readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
-> readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
-> readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
-> 
-> CC: Ingo Molnar <mingo@elte.hu>
-> CC: Jens Axboe <jens.axboe@oracle.com>
-> CC: Steven Rostedt <rostedt@goodmis.org>
 
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Thanks
 
--- Steve
+Please continue to provide more samples.
 
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+There is something wrong somewhere, but where exactly, its hard to say.
+
+Something is keeping a pointer to freed memory and reuse it while memory
+had been reused.
+
+Are you using hugepages ?
+
 
 
 --
