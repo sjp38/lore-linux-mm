@@ -1,60 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B478B6B006E
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:36:30 -0500 (EST)
-Date: Mon, 21 Nov 2011 12:36:24 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/8] mm: compaction: defer compaction only with
- sync_migration
-Message-ID: <20111121123624.GD19415@suse.de>
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
- <1321732460-14155-5-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+	by kanga.kvack.org (Postfix) with ESMTP id 728E46B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:47:19 -0500 (EST)
+Date: Mon, 21 Nov 2011 13:47:15 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 1/8] block: limit default readahead size for small devices
+Message-ID: <20111121124715.GD24062@one.firstfloor.org>
+References: <20111121091819.394895091@intel.com> <20111121093846.121502745@intel.com> <20111121100004.GB5084@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1321732460-14155-5-git-send-email-aarcange@redhat.com>
+In-Reply-To: <20111121100004.GB5084@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Li Shaohua <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Sat, Nov 19, 2011 at 08:54:16PM +0100, Andrea Arcangeli wrote:
-> Let only sync migration drive the
-> compaction_deferred()/defer_compaction() logic. So sync migration
-> isn't prevented to run if async migration fails. Without sync
-> migration pages requiring migrate.c:writeout() or a ->migratepage
-> operation (that isn't migrate_page) can't me migrated, and that has
-> the effect of polluting the movable pageblock with pages that won't be
-> migrated by async migration, so it's fundamental to guarantee sync
-> compaction will be run too before failing.
+On Mon, Nov 21, 2011 at 05:00:04AM -0500, Christoph Hellwig wrote:
+> On Mon, Nov 21, 2011 at 05:18:20PM +0800, Wu Fengguang wrote:
+> > Given that the non-rotational attribute is not always reported, we can
+> > take disk size as a max readahead size hint. This patch uses a formula
+> > that generates the following concrete limits:
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  mm/page_alloc.c |   50 ++++++++++++++++++++++++++++++--------------------
->  1 files changed, 30 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9dd443d..2229f7d 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1891,7 +1891,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  {
->  	struct page *page;
->  
-> -	if (!order || compaction_deferred(preferred_zone))
-> +	if (!order)
->  		return NULL;
->  
+> Given that you mentioned the rotational flag and device size in this
+> mail, as well as benchmarking with an intel SSD  -  did you measure
+> how useful large read ahead sizes still are with highend Flash device
+> that have extremly high read IOP rates?
 
-What is the motivation for moving the compation_deferred()
-check to __alloc_pages_slowpath()? If compaction was deferred
-for async compaction, we try direct reclaim as the linear isolation
-might succeed where compaction failed and compaction will likely be
-skipped again the second time around.
+The more the IOPs the larger the "window" you need to keep everything
+going I suspect.
 
-If anything, entering direct reclaim for THP when compaction is deferred
-is wrong as it also potentially stalls for a long period of time
-in reclaim
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
