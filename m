@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F696B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:23:06 -0500 (EST)
-Date: Mon, 21 Nov 2011 13:23:03 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] hugetlb: detect race if fail to COW
-Message-ID: <20111121122303.GA13594@tiehlicka.suse.cz>
-References: <CAJd=RBC+p8033bHNfP=WQ2SU1Y1zRpj+FEi9FdjuFKkjF_=_iA@mail.gmail.com>
- <20111118150742.GA23223@tiehlicka.suse.cz>
- <CAJd=RBCOK9tis-bF87Csn70miRDqLtCUiZmDH2hnc8i_9+KtNw@mail.gmail.com>
- <20111118161128.GC23223@tiehlicka.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B478B6B006E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 07:36:30 -0500 (EST)
+Date: Mon, 21 Nov 2011 12:36:24 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/8] mm: compaction: defer compaction only with
+ sync_migration
+Message-ID: <20111121123624.GD19415@suse.de>
+References: <1321635524-8586-1-git-send-email-mgorman@suse.de>
+ <1321732460-14155-5-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20111118161128.GC23223@tiehlicka.suse.cz>
+In-Reply-To: <1321732460-14155-5-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org
 
-On Fri 18-11-11 17:11:28, Michal Hocko wrote:
-> On Fri 18-11-11 23:23:12, Hillf Danton wrote:
-> > On Fri, Nov 18, 2011 at 11:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > > On Fri 18-11-11 22:04:37, Hillf Danton wrote:
-> > >> In the error path that we fail to allocate new huge page, before try again, we
-> > >> have to check race since page_table_lock is re-acquired.
-> > >
-> > > I do not think we can race here because we are serialized by
-> > > hugetlb_instantiation_mutex AFAIU. Without this lock, however, we could
-> > > fall into avoidcopy and shortcut despite the fact that other thread has
-> > > already did the job.
-> > >
-> > > The mutex usage is not obvious in hugetlb_cow so maybe we want to be
-> > > explicit about it (either a comment or do the recheck).
-> > >
-> > 
-> > Then the following check is unnecessary, no?
+On Sat, Nov 19, 2011 at 08:54:16PM +0100, Andrea Arcangeli wrote:
+> Let only sync migration drive the
+> compaction_deferred()/defer_compaction() logic. So sync migration
+> isn't prevented to run if async migration fails. Without sync
+> migration pages requiring migrate.c:writeout() or a ->migratepage
+> operation (that isn't migrate_page) can't me migrated, and that has
+> the effect of polluting the movable pageblock with pages that won't be
+> migrated by async migration, so it's fundamental to guarantee sync
+> compaction will be run too before failing.
 > 
-> Hmm, thinking about it some more, I guess we have to recheck because we
-> can still race with page migration. So we need you patch.
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/page_alloc.c |   50 ++++++++++++++++++++++++++++++--------------------
+>  1 files changed, 30 insertions(+), 20 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9dd443d..2229f7d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1891,7 +1891,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>  {
+>  	struct page *page;
+>  
+> -	if (!order || compaction_deferred(preferred_zone))
+> +	if (!order)
+>  		return NULL;
+>  
 
-OK, so looked at it again and we cannot race with page migration because
-the page is locked (by unmap_and_move_*page) migration and we have the
-old page locked here as well (hugetlb_fault).
+What is the motivation for moving the compation_deferred()
+check to __alloc_pages_slowpath()? If compaction was deferred
+for async compaction, we try direct reclaim as the linear isolation
+might succeed where compaction failed and compaction will likely be
+skipped again the second time around.
 
-Or am I missing something?
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+If anything, entering direct reclaim for THP when compaction is deferred
+is wrong as it also potentially stalls for a long period of time
+in reclaim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
