@@ -1,37 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C62616B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 16:59:35 -0500 (EST)
-Message-ID: <4ECAC9C8.5040202@redhat.com>
-Date: Mon, 21 Nov 2011 16:59:36 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 935AC6B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 17:13:35 -0500 (EST)
+Received: by iaek3 with SMTP id k3so10475659iae.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 14:13:33 -0800 (PST)
+Date: Mon, 21 Nov 2011 14:13:22 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [V2 PATCH] tmpfs: add fallocate support
+In-Reply-To: <20111121101059.GB17887@infradead.org>
+Message-ID: <alpine.LSU.2.00.1111211405121.1879@sister.anvils>
+References: <1321612791-4764-1-git-send-email-amwang@redhat.com> <20111119100326.GA27967@infradead.org> <CAPXgP10q8Fba3vr0zf-XBBaRPwjP7MyJ=-QRL45_8WC-vtotOg@mail.gmail.com> <alpine.LSU.2.00.1111201322310.1264@sister.anvils>
+ <20111121101059.GB17887@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/8] mm: compaction: avoid overwork in migrate sync mode
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de> <1321732460-14155-6-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1321732460-14155-6-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Josef Bacik <josef@redhat.com>, Kay Sievers <kay.sievers@vrfy.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On 11/19/2011 02:54 PM, Andrea Arcangeli wrote:
-> Add a lightweight sync migration (sync == 2) mode that avoids overwork
-> so more suitable to be used by compaction to provide lower latency but
+On Mon, 21 Nov 2011, Christoph Hellwig wrote:
+> On Sun, Nov 20, 2011 at 01:39:12PM -0800, Hugh Dickins wrote:
+> 
+> > But since the present situation is that tmpfs has one interface to
+> > punching holes, madvise(MADV_REMOVE), that IBM were pushing 5 years ago;
+> > but ext4 (and others) now a fallocate(FALLOC_FL_PUNCH_HOLE) interface
+> > which IBM have been pushing this year: we do want to normalize that
+> > situation and make them all behave the same way.
+> 
+> FALLOC_FL_PUNCH_HOLE was added by Josef Bacik, who happens to work for
+> Red Hat, but I doubt he was pushing any corporate agenda there, he was
+> mostly making btrfs catch up with the 15 year old XFS hole punching
+> ioctl.
 
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -552,7 +552,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->   		nr_migrate = cc->nr_migratepages;
->   		err = migrate_pages(&cc->migratepages, compaction_alloc,
->   				(unsigned long)cc, false,
-> -				cc->sync);
-> +				cc->sync ? 2 : 0);
+Yeah, my apologies to Josef and to IBM and to XFS
+for my regrettable little outburst of snarkiness :(
 
-Great idea, but it would be good if these numbers got
-a symbolic name so people trying to learn the code can
-figure it out a little easier.
+> 
+> 
+> > And if tmpfs is going to support fallocate(FALLOC_FL_PUNCH_HOLE),
+> > looking at Amerigo's much more attractive V2 patch, it would seem
+> > to me perverse to permit the deallocation but fail the allocation.
+> 
+> Agreed.
+
+Thanks a lot for useful info, and saving me looking up the ENOSPC issue.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
