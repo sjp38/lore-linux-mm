@@ -1,81 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 692376B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 05:14:57 -0500 (EST)
-Date: Tue, 22 Nov 2011 10:14:51 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
- use by compaction
-Message-ID: <20111122101451.GJ19415@suse.de>
-References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
- <1321900608-27687-8-git-send-email-mgorman@suse.de>
- <1321945011.22361.335.camel@sli10-conroe>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1321945011.22361.335.camel@sli10-conroe>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 579026B0069
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 06:09:39 -0500 (EST)
+Received: by eye4 with SMTP id 4so42549eye.14
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 03:09:36 -0800 (PST)
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Subject: [PATCH v4 0/5] Reduce cross CPU IPI interference
+Date: Tue, 22 Nov 2011 13:08:43 +0200
+Message-Id: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
 
-On Tue, Nov 22, 2011 at 02:56:51PM +0800, Shaohua Li wrote:
-> On Tue, 2011-11-22 at 02:36 +0800, Mel Gorman wrote:
-> > This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIGHT
-> > mode that avoids writing back pages to backing storage. Async
-> > compaction maps to MIGRATE_ASYNC while sync compaction maps to
-> > MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
-> > hotplug, MIGRATE_SYNC is used.
-> > 
-> > This avoids sync compaction stalling for an excessive length of time,
-> > particularly when copying files to a USB stick where there might be
-> > a large number of dirty pages backed by a filesystem that does not
-> > support ->writepages.
-> Hi,
-> from my understanding, with this, even writes
-> to /proc/sys/vm/compact_memory doesn't wait for pageout, is this
-> intended?
+We have lots of infrastructure in place to partition a multi-core system such that we have a group of CPUs that are dedicated to specific task: cgroups, scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel code will some time interrupt all CPUs in the system via IPIs for various needs. These IPIs are useful and cannot be avoided altogether, but in certain cases it is possible to interrupt only specific CPUs that have useful work to
+do and not the entire system.
 
-For the moment yes so that manual and automatic compaction behave
-similarly. For example, if one runs a workload that periodically
-tries to fault transparent hugepages and it steadily gets X huge
-pages and running manual compaction gets more, it can indicate a bug
-in how and when compaction runs. If manual compaction is significantly
-different, the comparison is not as useful. I know this is a bit weak
-as an example but right now there is no strong motivation right now
-for manual compaction to use MIGRATE_SYNC.
+This patch set, inspired by discussions with Peter Zijlstra and Frederic Weisbecker when testing the nohz task patch set, is a first stab at trying to explore doing this by locating the places where such global IPI calls are being made and turning a global IPI into an IPI for a specific group of CPUs.  The purpose of the patch set is to get feedback if this is the right way to go for dealing with this issue and indeed, if the issue is even worth dealing with at all. Based on the feedback from this patch set I plan to offer further patches that address similar issue in other code paths.
 
-> on the other hand, MIGRATE_SYNC_LIGHT now waits for pagelock and buffer
-> lock, so could wait on page read. page read and page out have the same
-> latency, why takes them different?
-> 
+The patch creates an on_each_cpu_mask infrastructure API (derived from existing arch specific versions in Tile and Arm) and uses it to turn two global
+IPI invocation to per CPU group invocations.
 
-That's a very reasonable question.
+This 4rd version incorporates three efficiency and code style changes based on Christoph L. feedback. 
 
-To date, the stalls that were reported to be a problem were related to
-heavy writing workloads. Workloads are naturally throttled on reads
-but not necessarily on writes and the IO scheduler priorities sync
-reads over writes which contributes to keeping stalls due to page
-reads low.  In my own tests, there have been no significant stalls
-due to waiting on page reads. I accept this may be because the stall
-threshold I record is too low.
+- Remove un-needed check for per cpu cpu_slab pointer.
+  It is guranteed to always be there.
 
-Still, I double checked an old USB copy based test to see what the
-compaction-related stalls really were.
+- Renamed pageset variable to pcp to match code style.
 
-58 seconds	waiting on PageWriteback
-22 seconds	waiting on generic_make_request calling ->writepage
+- Itereate on cpus first, then zones in the inner loop
+  This has a chance to have us better memory locality and so a better cache access pattern.
 
+The patch was compiled for arm and boot tested on x86 in UP, SMP, with and without
+CONFIG_CPUMASK_OFFSTACK and was further tested by running hackbench on x86 in
+SMP mode in a 4 CPUs VM with no obvious regressions.
 
-These are total times, each stall was about 2-5 seconds and very rough
-estimates. There were no other sources of stalls that had compaction
-in the stacktrace I'm rerunning to gather more accurate stall times
-and for a workload similar to Andrea's and will see if page reads
-crop up as a major source of stalls.
+I also artificially exercised SLUB flush_all via the debug interface and observed
+the difference in IPI count across processors with and without the patch - from
+an IPI on all processors but one without the patch to a subset (and often no IPI
+at all) with the patch.
 
--- 
-Mel Gorman
-SUSE Labs
+I further used fault injection framework to force cpumask alloction failures for
+CPUMASK_OFFSTACK=y cases and triggering the code using slub sys debug interface
+and running ./hackbench 1000 for page_alloc, with no critical failures.
+
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: Russell King <linux@arm.linux.org.uk>
+CC: linux-mm@kvack.org
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Matt Mackall <mpm@selenic.com>
+CC: Sasha Levin <levinsasha928@gmail.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: Andi Kleen <andi@firstfloor.org>
+
+Gilad Ben-Yossef (5):
+  smp: Introduce a generic on_each_cpu_mask function
+  arm: Move arm over to generic on_each_cpu_mask
+  tile: Move tile to use generic on_each_cpu_mask
+  slub: Only IPI CPUs that have per cpu obj to flush
+  mm: Only IPI CPUs to drain local pages if they exist
+
+ arch/arm/kernel/smp_tlb.c   |   20 +++++---------------
+ arch/tile/include/asm/smp.h |    7 -------
+ arch/tile/kernel/smp.c      |   19 -------------------
+ include/linux/smp.h         |   16 ++++++++++++++++
+ kernel/smp.c                |   20 ++++++++++++++++++++
+ mm/page_alloc.c             |   18 +++++++++++++++++-
+ mm/slub.c                   |   15 ++++++++++++++-
+ 7 files changed, 72 insertions(+), 43 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
