@@ -1,165 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D5CA96B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 21:09:19 -0500 (EST)
-Received: by iaek3 with SMTP id k3so10719189iae.14
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 18:09:17 -0800 (PST)
-Date: Tue, 22 Nov 2011 10:09:08 +0800
-From: Yong Zhang <yong.zhang0@gmail.com>
-Subject: Re: [patch] mm: memcg: shorten preempt-disabled section around event
- checks
-Message-ID: <20111122020908.GA20256@zhy>
-Reply-To: Yong Zhang <yong.zhang0@gmail.com>
-References: <20111121110954.GE1771@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20111121110954.GE1771@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E85656B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 21:17:41 -0500 (EST)
+Message-ID: <1321928235.13860.31.camel@pasglop>
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 22 Nov 2011 13:17:15 +1100
+In-Reply-To: <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
+References: <20111121131531.GA1679@x4.trippels.de>
+	 <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121153621.GA1678@x4.trippels.de>
+	 <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121161036.GA1679@x4.trippels.de>
+	 <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121173556.GA1673@x4.trippels.de>
+	 <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <20111121185215.GA1673@x4.trippels.de>
+	 <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop>
+	 <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Luis Henriques <henrix@camandro.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Kujau <lists@nerdbynature.de>
+Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-On Mon, Nov 21, 2011 at 12:09:54PM +0100, Johannes Weiner wrote:
-> -rt ran into a problem with the soft limit spinlock inside the
-> non-preemptible section, because that is sleeping inside an atomic
-> context.  But I think it makes sense for vanilla, too, to keep the
-> non-preemptible section as short as possible.  Also, -3 lines.
+On Mon, 2011-11-21 at 16:21 -0800, Christian Kujau wrote:
+> On Tue, 22 Nov 2011 at 07:27, Benjamin Herrenschmidt wrote:
+> > Note that I hit a similar looking crash (sorry, I couldn't capture a
+> > backtrace back then) on a PowerMac G5 (ppc64) while doing a large rsync
+> > transfer yesterday with -rc2-something (cfcfc9ec) and 
+> > Christian Kujau (CC) seems to be able to reproduce something similar on
+> > some other ppc platform (Christian, what is your setup ?)
 > 
-> Yong, Luis, could you add your Tested-bys?
+> I seem to hit it with heavy disk & cpu IO is in progress on this PowerBook 
+> G4. Full dmesg & .config: http://nerdbynature.de/bits/3.2.0-rc1/oops/
+> 
+> I've enabled some debug options and now it really points to slub.c:2166
+> 
+>    http://nerdbynature.de/bits/3.2.0-rc1/oops/oops4m.jpg
+> 
+> With debug options enabled I'm currently in the xmon debugger, not sure 
+> what to make of it yet, I'll try to get something useful out of it :)
 
-Seems my reply is a bit late since akpm has queued it up.
-Anyway,
-Tested-by: Yong Zhang <yong.zhang0@gmail.com>
+Is your powerbook one of those who can actually use xmon ? (ie, keyboard
+is working ? If it's usb it won't but if it's adb it will).
 
-> 
-> ---
-> Only the ratelimit checks themselves have to run with preemption
-> disabled, the resulting actions - checking for usage thresholds,
-> updating the soft limit tree - can and should run with preemption
-> enabled.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> Reported-by: Yong Zhang <yong.zhang0@gmail.com>
-> Reported-by: Luis Henriques <henrix@camandro.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> ---
->  mm/memcontrol.c |   73 ++++++++++++++++++++++++++----------------------------
->  1 files changed, 35 insertions(+), 38 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6aff93c..8e62d3e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -683,37 +683,32 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
->  	return total;
->  }
->  
-> -static bool __memcg_event_check(struct mem_cgroup *memcg, int target)
-> +static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
-> +				       enum mem_cgroup_events_target target)
->  {
->  	unsigned long val, next;
->  
->  	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
->  	next = __this_cpu_read(memcg->stat->targets[target]);
->  	/* from time_after() in jiffies.h */
-> -	return ((long)next - (long)val < 0);
-> -}
-> -
-> -static void __mem_cgroup_target_update(struct mem_cgroup *memcg, int target)
-> -{
-> -	unsigned long val, next;
-> -
-> -	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
-> -
-> -	switch (target) {
-> -	case MEM_CGROUP_TARGET_THRESH:
-> -		next = val + THRESHOLDS_EVENTS_TARGET;
-> -		break;
-> -	case MEM_CGROUP_TARGET_SOFTLIMIT:
-> -		next = val + SOFTLIMIT_EVENTS_TARGET;
-> -		break;
-> -	case MEM_CGROUP_TARGET_NUMAINFO:
-> -		next = val + NUMAINFO_EVENTS_TARGET;
-> -		break;
-> -	default:
-> -		return;
-> +	if ((long)next - (long)val < 0) {
-> +		switch (target) {
-> +		case MEM_CGROUP_TARGET_THRESH:
-> +			next = val + THRESHOLDS_EVENTS_TARGET;
-> +			break;
-> +		case MEM_CGROUP_TARGET_SOFTLIMIT:
-> +			next = val + SOFTLIMIT_EVENTS_TARGET;
-> +			break;
-> +		case MEM_CGROUP_TARGET_NUMAINFO:
-> +			next = val + NUMAINFO_EVENTS_TARGET;
-> +			break;
-> +		default:
-> +			break;
-> +		}
-> +		__this_cpu_write(memcg->stat->targets[target], next);
-> +		return true;
->  	}
-> -
-> -	__this_cpu_write(memcg->stat->targets[target], next);
-> +	return false;
->  }
->  
->  /*
-> @@ -724,25 +719,27 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->  {
->  	preempt_disable();
->  	/* threshold event is triggered in finer grain than soft limit */
-> -	if (unlikely(__memcg_event_check(memcg, MEM_CGROUP_TARGET_THRESH))) {
-> +	if (unlikely(mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_THRESH))) {
-> +		bool do_softlimit, do_numainfo;
-> +
-> +		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_SOFTLIMIT);
-> +#if MAX_NUMNODES > 1
-> +		do_numainfo = mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_NUMAINFO);
-> +#endif
-> +		preempt_enable();
-> +
->  		mem_cgroup_threshold(memcg);
-> -		__mem_cgroup_target_update(memcg, MEM_CGROUP_TARGET_THRESH);
-> -		if (unlikely(__memcg_event_check(memcg,
-> -			     MEM_CGROUP_TARGET_SOFTLIMIT))) {
-> +		if (unlikely(do_softlimit))
->  			mem_cgroup_update_tree(memcg, page);
-> -			__mem_cgroup_target_update(memcg,
-> -						   MEM_CGROUP_TARGET_SOFTLIMIT);
-> -		}
->  #if MAX_NUMNODES > 1
-> -		if (unlikely(__memcg_event_check(memcg,
-> -			MEM_CGROUP_TARGET_NUMAINFO))) {
-> +		if (unlikely(do_numainfo))
->  			atomic_inc(&memcg->numainfo_events);
-> -			__mem_cgroup_target_update(memcg,
-> -				MEM_CGROUP_TARGET_NUMAINFO);
-> -		}
->  #endif
-> -	}
-> -	preempt_enable();
-> +	} else
-> +		preempt_enable();
->  }
->  
->  static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+You probably landed there too late tho, after the corruption happened.
 
--- 
-Only stand for myself
+What would be useful would be to see if you can reproduce with SLAB
+and/or after backing out the cpu partial functionality.
+
+Cheers,
+Ben.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
