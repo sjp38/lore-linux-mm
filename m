@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6FEDB6B00B9
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:55:09 -0500 (EST)
-Date: Tue, 22 Nov 2011 15:55:07 -0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 20C466B00BB
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:59:04 -0500 (EST)
+Date: Tue, 22 Nov 2011 15:59:01 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm/memblock.c: return -ENOMEM instead of -ENXIO on
- failure of debugfs_create_dir in memblock_init_debugfs
-Message-Id: <20111122155507.af6c10e9.akpm@linux-foundation.org>
-In-Reply-To: <4EB9DEF6.4080905@gmail.com>
-References: <4EB9DEF6.4080905@gmail.com>
+Subject: Re: [PATCH 2/2] cleanup: convert the int cnt to unsigned long in
+ mm/memblock.c
+Message-Id: <20111122155901.e7b23dce.akpm@linux-foundation.org>
+In-Reply-To: <4EBA0D3D.1090808@gmail.com>
+References: <4EB9DF0B.7050004@gmail.com>
+	<4EBA0D3D.1090808@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,35 +18,25 @@ List-ID: <linux-mm.kvack.org>
 To: Wang Sheng-Hui <shhuiw@gmail.com>
 Cc: yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 09 Nov 2011 10:01:26 +0800
+On Wed, 09 Nov 2011 13:18:53 +0800
 Wang Sheng-Hui <shhuiw@gmail.com> wrote:
 
-> On the failure of debugfs_create_dir, we should return -ENOMEM
-> instead of -ENXIO.
-> 
-> The patch is against 3.1.
-> 
-> 
-> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
-> ---
->  mm/memblock.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index ccbf973..4d4d5ee 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -852,7 +852,7 @@ static int __init memblock_init_debugfs(void)
+> @@ -111,7 +112,7 @@ static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_
+>  static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
+>  			phys_addr_t align, phys_addr_t start, phys_addr_t end)
 >  {
->  	struct dentry *root = debugfs_create_dir("memblock", NULL);
->  	if (!root)
-> -		return -ENXIO;
-> +		return -ENOMEM;
->  	debugfs_create_file("memory", S_IRUGO, root, &memblock.memory, &memblock_debug_fops);
->  	debugfs_create_file("reserved", S_IRUGO, root, &memblock.reserved, &memblock_debug_fops);
+> -	long i;
+> +	unsigned long i;
+>  
+>  	BUG_ON(0 == size);
 
-Well, we don't know what we should return because
-debugfs_create_file() is misdesigned - it should return an ERR_PTR.
+This change to memblock_find_base() can cause this loop:
+
+	for (i = memblock.memory.cnt - 1; i >= 0; i--) {
+
+to become infinite under some circumstances.
+
+I stopped reading at that point.  Changes like this require much care.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
