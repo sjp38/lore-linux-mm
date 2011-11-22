@@ -1,152 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C7DCF6B006E
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 12:21:30 -0500 (EST)
-Received: by faas10 with SMTP id s10so863459faa.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:21:27 -0800 (PST)
-Message-ID: <1321982484.18002.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Subject: Re: slub: Lockout validation scans during freeing of object
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Tue, 22 Nov 2011 18:21:24 +0100
-In-Reply-To: <alpine.DEB.2.00.1111221052130.28197@router.home>
-References: <alpine.DEB.2.00.1111221033350.28197@router.home>
-	 <alpine.DEB.2.00.1111221040300.28197@router.home>
-	 <alpine.DEB.2.00.1111221052130.28197@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Mime-Version: 1.0
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8056B0072
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 12:30:27 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so586982vbb.14
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:30:24 -0800 (PST)
+Date: Wed, 23 Nov 2011 02:30:18 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 5/7] mm: compaction: make isolate_lru_page() filter-aware
+ again
+Message-ID: <20111122173018.GD15253@barrios-laptop.redhat.com>
+References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
+ <1321900608-27687-6-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1321900608-27687-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Christian Kujau <lists@nerdbynature.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-Le mardi 22 novembre 2011 A  10:53 -0600, Christoph Lameter a A(C)crit :
-> A bit heavy handed locking but this should do the trick.
+On Mon, Nov 21, 2011 at 06:36:46PM +0000, Mel Gorman wrote:
+> Commit [39deaf85: mm: compaction: make isolate_lru_page() filter-aware]
+> noted that compaction does not migrate dirty or writeback pages and
+> that is was meaningless to pick the page and re-add it to the LRU list.
+> This had to be partially reverted because some dirty pages can be
+> migrated by compaction without blocking.
 > 
-> Subject: slub: Lockout validation scans during freeing of object
+> This patch updates "mm: compaction: make isolate_lru_page" by skipping
+> over pages that migration has no possibility of migrating to minimise
+> LRU disruption.
 > 
-> Slab validation can run right now while the slab free paths prepare
-> the redzone fields etc around the objects in preparation of the
-> actual freeing of the object. This can lead to false positives.
-> 
-> Take the node lock unconditionally during free so that the validation
-> can examine objects without them being disturbed by freeing operations.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->  mm/slub.c |   12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
+>  include/linux/mmzone.h |    2 ++
+>  mm/compaction.c        |    3 +++
+>  mm/vmscan.c            |   36 ++++++++++++++++++++++++++++++++++--
+>  3 files changed, 39 insertions(+), 2 deletions(-)
 > 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2011-11-22 10:42:19.000000000 -0600
-> +++ linux-2.6/mm/slub.c	2011-11-22 10:44:34.000000000 -0600
-> @@ -2391,8 +2391,15 @@ static void __slab_free(struct kmem_cach
-> 
->  	stat(s, FREE_SLOWPATH);
-> 
-> -	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
-> -		return;
-> +	if (kmem_cache_debug(s)) {
-> +
-> +		/* Lock out any concurrent validate_slab calls */
-> +		n = get_node(s, page_to_nid(page));
-> +		spin_lock_irqsave(&n->list_lock, flags);
-> +
-> +		if (!free_debug_processing(s, page, x, addr))
-> +			goto out;
-> +	}
-> 
->  	do {
->  		prior = page->freelist;
-> @@ -2471,6 +2478,7 @@ static void __slab_free(struct kmem_cach
->  			stat(s, FREE_ADD_PARTIAL);
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 188cb2f..ac5b522 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -173,6 +173,8 @@ static inline int is_unevictable_lru(enum lru_list l)
+>  #define ISOLATE_CLEAN		((__force isolate_mode_t)0x4)
+>  /* Isolate unmapped file */
+>  #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
+> +/* Isolate for asynchronous migration */
+> +#define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
+>  
+>  /* LRU Isolation modes. */
+>  typedef unsigned __bitwise__ isolate_mode_t;
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 615502b..0379263 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -349,6 +349,9 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  			continue;
 >  		}
->  	}
-> +out:
->  	spin_unlock_irqrestore(&n->list_lock, flags);
->  	return;
-> 
+>  
+> +		if (!cc->sync)
+> +			mode |= ISOLATE_ASYNC_MIGRATE;
+> +
+>  		/* Try isolate the page */
+>  		if (__isolate_lru_page(page, mode, 0) != 0)
+>  			continue;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3421746..28df0ed 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1061,8 +1061,40 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+>  
+>  	ret = -EBUSY;
+>  
+> -	if ((mode & ISOLATE_CLEAN) && (PageDirty(page) || PageWriteback(page)))
+> -		return ret;
+> +	/*
+> +	 * To minimise LRU disruption, the caller can indicate that it only
+> +	 * wants to isolate pages it will be able to operate on without
+> +	 * blocking - clean pages for the most part.
+> +	 *
+> +	 * ISOLATE_CLEAN means that only clean pages should be isolated. This
+> +	 * is used by reclaim when it is cannot write to backing storage
+> +	 *
+> +	 * ISOLATE_ASYNC_MIGRATE is used to indicate that it only wants to pages
+> +	 * that it is possible to migrate without blocking with a ->migratepage
+> +	 * handler
+> +	 */
+> +	if (mode & (ISOLATE_CLEAN|ISOLATE_ASYNC_MIGRATE)) {
+> +		/* All the caller can do on PageWriteback is block */
+> +		if (PageWriteback(page))
+> +			return ret;
+> +
+> +		if (PageDirty(page)) {
+> +			struct address_space *mapping;
+> +
+> +			/* ISOLATE_CLEAN means only clean pages */
+> +			if (mode & ISOLATE_CLEAN)
+> +				return ret;
+> +
+> +			/*
+> +			 * Only the ->migratepage callback knows if a dirty
+> +			 * page can be migrated without blocking. Skip the
+> +			 * page unless there is a ->migratepage callback.
+> +			 */
+> +			mapping = page_mapping(page);
+> +			if (!mapping || !mapping->a_ops->migratepage)
 
-
-This seems better, but I still have some warnings :
-
-[  162.117574] SLUB: selinux_inode_security 136 slabs counted but counter=137
-[  179.879907] SLUB: task_xstate 1 slabs counted but counter=2
-[  179.881745] SLUB: vm_area_struct 47 slabs counted but counter=48
-[  180.381964] SLUB: kmalloc-64 46 slabs counted but counter=47
-[  192.366437] SLUB: vm_area_struct 82 slabs counted but counter=83
-[  195.016732] SLUB: names_cache 3 slabs counted but counter=4
-[  196.073166] SLUB: dentry 623 slabs counted but counter=624
-[  196.093857] SLUB: names_cache 3 slabs counted but counter=4
-[  196.631420] SLUB: names_cache 5 slabs counted but counter=6
-[  198.760180] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  198.773492] SLUB: names_cache 5 slabs counted but counter=6
-[  198.783637] SLUB: selinux_inode_security 403 slabs counted but counter=404
-[  201.717932] SLUB: filp 53 slabs counted but counter=54
-[  202.984756] SLUB: filp 40 slabs counted but counter=41
-[  203.819525] SLUB: task_xstate 3 slabs counted but counter=4
-[  205.699916] SLUB: cfq_io_context 1 slabs counted but counter=2
-[  206.526646] SLUB: skbuff_head_cache 4 slabs counted but counter=5
-[  208.431951] SLUB: names_cache 3 slabs counted but counter=4
-[  210.672056] SLUB: vm_area_struct 88 slabs counted but counter=89
-[  213.160055] SLUB: vm_area_struct 94 slabs counted but counter=95
-[  215.604856] SLUB: cfq_queue 1 slabs counted but counter=2
-[  217.872494] SLUB: filp 56 slabs counted but counter=57
-[  220.184599] SLUB: names_cache 3 slabs counted but counter=4
-[  221.783732] SLUB: anon_vma_chain 53 slabs counted but counter=54
-[  221.816662] SLUB: kmalloc-16 66 slabs counted but counter=67
-[  221.828582] SLUB: names_cache 3 slabs counted but counter=4
-[  221.848231] SLUB: vm_area_struct 99 slabs counted but counter=100
-[  224.125411] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  224.126313] SLUB: kmalloc-16 67 slabs counted but counter=68
-[  224.138768] SLUB: names_cache 3 slabs counted but counter=4
-[  224.921409] SLUB: anon_vma 36 slabs counted but counter=37
-[  224.927833] SLUB: buffer_head 294 slabs counted but counter=295
-[  226.473891] SLUB: kmalloc-16 67 slabs counted but counter=68
-[  228.801716] SLUB: names_cache 5 slabs counted but counter=6
-[  229.610225] SLUB: filp 47 slabs counted but counter=48
-[  232.050811] SLUB: filp 53 slabs counted but counter=54
-[  235.835888] SLUB: names_cache 3 slabs counted but counter=4
-[  236.625318] SLUB: filp 48 slabs counted but counter=49
-[  236.634563] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  236.635667] SLUB: kmalloc-16 67 slabs counted but counter=68
-[  237.500016] SLUB: radix_tree_node 100 slabs counted but counter=101
-[  238.248677] SLUB: filp 48 slabs counted but counter=49
-[  239.097674] SLUB: filp 49 slabs counted but counter=50
-[  239.975020] SLUB: names_cache 3 slabs counted but counter=4
-[  241.569766] SLUB: vm_area_struct 102 slabs counted but counter=103
-[  242.388502] SLUB: names_cache 5 slabs counted but counter=6
-[  243.152519] SLUB: anon_vma_chain 56 slabs counted but counter=57
-[  245.661970] SLUB: filp 49 slabs counted but counter=50
-[  247.298004] SLUB: filp 48 slabs counted but counter=50
-[  248.851148] SLUB: journal_handle 3 slabs counted but counter=4
-[  249.674320] SLUB: names_cache 3 slabs counted but counter=4
-[  250.414476] SLUB: bio-0 24 slabs counted but counter=25
-[  250.461655] SLUB: kmalloc-96 49 slabs counted but counter=50
-[  250.477188] SLUB: sgpool-16 0 slabs counted but counter=1
-[  251.298554] SLUB: kmalloc-32 9 slabs counted but counter=10
-[  252.096119] SLUB: names_cache 3 slabs counted but counter=4
-[  256.179892] SLUB: filp 58 slabs counted but counter=59
-[  256.188385] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  257.040508] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  258.704236] SLUB: buffer_head 502 slabs counted but counter=503
-[  258.745777] SLUB: kmalloc-32 9 slabs counted but counter=10
-[  258.752285] SLUB: names_cache 3 slabs counted but counter=4
-[  260.412312] SLUB: filp 54 slabs counted but counter=56
-[  261.213526] SLUB: filp 44 slabs counted but counter=45
-[  262.846810] SLUB: kmalloc-16 31 slabs counted but counter=32
-[  262.859062] SLUB: names_cache 5 slabs counted but counter=6
-[  262.881728] SLUB: task_xstate 3 slabs counted but counter=4
-[  263.672055] SLUB: filp 54 slabs counted but counter=55
-[  266.191191] SLUB: kmalloc-16 30 slabs counted but counter=31
-[  266.203799] SLUB: names_cache 5 slabs counted but counter=6
-[  268.486964] SLUB: filp 52 slabs counted but counter=53
-[  268.509446] SLUB: names_cache 5 slabs counted but counter=6
-[  269.365745] SLUB: vm_area_struct 88 slabs counted but counter=89
-
-
+I didn't review 4/7 carefully yet.
+In case of page_mapping is NULL, move_to_new_page calls migrate_page
+which is non-blocking function. So, I guess it could be migrated without blocking.
+ 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
