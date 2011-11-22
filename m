@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 711616B00B1
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:01:53 -0500 (EST)
-Received: by ywa12 with SMTP id 12so913693ywa.22
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 15:01:46 -0800 (PST)
-From: Shawn Bohrer <sbohrer@rgmadvisors.com>
-Subject: [PATCH resend] fadvise: only initiate writeback for specified range with FADV_DONTNEED
-Date: Tue, 22 Nov 2011 17:01:17 -0600
-Message-Id: <1322002877-5464-1-git-send-email-sbohrer@rgmadvisors.com>
-In-Reply-To: <20111101150555.GC19965@redhat.com>
-References: <20111101150555.GC19965@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id F0C386B00B3
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:08:00 -0500 (EST)
+Date: Tue, 22 Nov 2011 15:07:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch v2 3/4]thp: add tlb_remove_pmd_tlb_entry
+Message-Id: <20111122150758.b05d90d9.akpm@linux-foundation.org>
+In-Reply-To: <1321340658.22361.296.camel@sli10-conroe>
+References: <1321340658.22361.296.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shawn Bohrer <sbohrer@rgmadvisors.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-Previously POSIX_FADV_DONTNEED would start writeback for the entire file
-when the bdi was not write congested.  This negatively impacts
-performance if the file contians dirty pages outside of the requested
-range.  This change uses __filemap_fdatawrite_range() to only initiate
-writeback for the requested range.
+On Tue, 15 Nov 2011 15:04:18 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
-Signed-off-by: Shawn Bohrer <sbohrer@rgmadvisors.com>
----
+> --- linux.orig/include/asm-generic/tlb.h	2011-11-15 09:39:11.000000000 +0800
+> +++ linux/include/asm-generic/tlb.h	2011-11-15 09:39:23.000000000 +0800
+> @@ -139,6 +139,20 @@ static inline void tlb_remove_page(struc
+>  		__tlb_remove_tlb_entry(tlb, ptep, address);	\
+>  	} while (0)
+>  
+> +/**
+> + * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
+> + * This is a nop so far, because only x86 needs it.
+> + */
+> +#ifndef __tlb_remove_pmd_tlb_entry
+> +#define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
+> +#endif
+> +
+> +#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)		\
+> +	do {							\
+> +		tlb->need_flush = 1;				\
+> +		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);	\
+> +	} while (0)
+> +
 
-Andrew is this something you could apply?
-
- mm/fadvise.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 8d723c9..469491e 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -117,7 +117,8 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
- 		break;
- 	case POSIX_FADV_DONTNEED:
- 		if (!bdi_write_congested(mapping->backing_dev_info))
--			filemap_flush(mapping);
-+			__filemap_fdatawrite_range(mapping, offset, endbyte,
-+						   WB_SYNC_NONE);
- 
- 		/* First and last FULL page! */
- 		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
--- 
-1.7.6
-
-
-
----------------------------------------------------------------
-This email, along with any attachments, is confidential. If you 
-believe you received this message in error, please contact the 
-sender immediately and delete all copies of the message.  
-Thank you.
+Is there any reason why we cannot implement tlb_remove_pmd_tlb_entry()
+as a nice, typesafe C function?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
