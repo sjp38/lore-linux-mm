@@ -1,44 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 982D46B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:22:10 -0500 (EST)
-Date: Mon, 21 Nov 2011 16:21:49 -0800 (PST)
-From: Christian Kujau <lists@nerdbynature.de>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-In-Reply-To: <1321907275.13860.12.camel@pasglop>
-Message-ID: <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-References: <20111121131531.GA1679@x4.trippels.de>  <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121153621.GA1678@x4.trippels.de>  <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121161036.GA1679@x4.trippels.de>
-  <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121173556.GA1673@x4.trippels.de>  <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121185215.GA1673@x4.trippels.de>
-  <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B3D326B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:33:53 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 88F203EE0B5
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:33:49 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A00C45DE56
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:33:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49C7445DE59
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:33:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2434BE08003
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:33:49 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E474B1DB804C
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:33:48 +0900 (JST)
+Date: Tue, 22 Nov 2011 09:32:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Fix virtual address handling in hugetlb fault
+Message-Id: <20111122093238.9bdbee39.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111121142720.a5b62c9c.akpm@linux-foundation.org>
+References: <20111121194832.a0026d3e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111121142720.a5b62c9c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, n-horiguchi@ah.jp.nec.com
 
-On Tue, 22 Nov 2011 at 07:27, Benjamin Herrenschmidt wrote:
-> Note that I hit a similar looking crash (sorry, I couldn't capture a
-> backtrace back then) on a PowerMac G5 (ppc64) while doing a large rsync
-> transfer yesterday with -rc2-something (cfcfc9ec) and 
-> Christian Kujau (CC) seems to be able to reproduce something similar on
-> some other ppc platform (Christian, what is your setup ?)
+On Mon, 21 Nov 2011 14:27:20 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-I seem to hit it with heavy disk & cpu IO is in progress on this PowerBook 
-G4. Full dmesg & .config: http://nerdbynature.de/bits/3.2.0-rc1/oops/
+> On Mon, 21 Nov 2011 19:48:32 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > >From 7c29389be2890c6b6934a80b4841d07a7014fe26 Mon Sep 17 00:00:00 2001
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Date: Mon, 21 Nov 2011 19:45:27 +0900
+> > Subject: [PATCH] Fix virtual address handling in hugetlb fault
+> > 
+> > handle_mm_fault() passes 'faulted' address to hugetlb_fault().
+> > Then, the address is not aligned to hugepage boundary.
+> > 
+> > Most of functions for hugetlb pages are aware of that and
+> > calculate an alignment by itself. Some functions as copy_user_huge_page(),
+> > and clear_huge_page() doesn't handle alignment by themselves.
+> > 
+> > This patch make hugeltb_fault() to calculate the alignment and pass
+> > aligned addresss (top address of a faulted hugepage) to functions.
+> > 
+> 
+> Does this actually fix any known user-visible misbehaviour?
+> 
 
-I've enabled some debug options and now it really points to slub.c:2166
+I just found this at reading codes. And I know 'vaddr' is ignored
+in most of per-arch implemantation of clear_user_highpage().
+It seems, in some arch, vaddr is used for flushing cache. Now,
+CONFIG_HUGETLBFS can be set on x86,powerpc,ia64,mips,sh,sparc,tile. (by grep)
 
-   http://nerdbynature.de/bits/3.2.0-rc1/oops/oops4m.jpg
+it seems mips and sh uses vaddr in clear_user_(high)page.
 
-With debug options enabled I'm currently in the xmon debugger, not sure 
-what to make of it yet, I'll try to get something useful out of it :)
 
-Christian.
--- 
-BOFH excuse #399:
 
-We are a 100% Microsoft Shop.
+> It sounds like the code is masking addresses in a lot of different
+> places.  It would be better to do it once, at the top level.  Perhaps
+> this patch makes some of the existing masking obsolete?
+> 
+
+I think so. 
+I'd like to check it and post an additional fix if this patch goes.
+
+
+> > index bb28a5f..af37337 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2629,6 +2629,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+> >  	struct hstate *h = hstate_vma(vma);
+> >  
+> > +	address = address & huge_page_mask(h);
+> 
+> --- a/mm/hugetlb.c~mm-hugetlbc-fix-virtual-address-handling-in-hugetlb-fault-fix
+> +++ a/mm/hugetlb.c
+> @@ -2639,7 +2639,7 @@ int hugetlb_fault(struct mm_struct *mm, 
+>  	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+>  	struct hstate *h = hstate_vma(vma);
+>  
+> -	address = address & huge_page_mask(h);
+> +	address &= huge_page_mask(h);
+>  
+>  	ptep = huge_pte_offset(mm, address);
+>  	if (ptep) {
+> 
+> is a bit more readable, IMO.
+> 
+Sure.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
