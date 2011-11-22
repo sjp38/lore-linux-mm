@@ -1,100 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE6F6B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 21:08:18 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 50BFD3EE0AE
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 11:08:15 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D039145DE6E
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 11:08:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AFDA345DE68
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 11:08:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 988841DB8044
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 11:08:14 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 37FCC1DB8038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 11:08:14 +0900 (JST)
-Date: Tue, 22 Nov 2011 11:07:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Devel] Re: [PATCH v5 00/10] per-cgroup tcp memory pressure
-Message-Id: <20111122110707.377ff8ef.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4EC6B457.4010502@parallels.com>
-References: <1320679595-21074-1-git-send-email-glommer@parallels.com>
-	<4EBAC04F.1010901@parallels.com>
-	<1321381632.3021.57.camel@dabdike.int.hansenpartnership.com>
-	<20111117.163501.1963137869848419475.davem@davemloft.net>
-	<4EC6B457.4010502@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D5CA96B0069
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 21:09:19 -0500 (EST)
+Received: by iaek3 with SMTP id k3so10719189iae.14
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 18:09:17 -0800 (PST)
+Date: Tue, 22 Nov 2011 10:09:08 +0800
+From: Yong Zhang <yong.zhang0@gmail.com>
+Subject: Re: [patch] mm: memcg: shorten preempt-disabled section around event
+ checks
+Message-ID: <20111122020908.GA20256@zhy>
+Reply-To: Yong Zhang <yong.zhang0@gmail.com>
+References: <20111121110954.GE1771@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20111121110954.GE1771@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: David Miller <davem@davemloft.net>, jbottomley@parallels.com, eric.dumazet@gmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, linux-mm@kvack.org, devel@openvz.org, kirill@shutemov.name, gthelen@google.com
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Luis Henriques <henrix@camandro.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 18 Nov 2011 17:39:03 -0200
-Glauber Costa <glommer@parallels.com> wrote:
-
-> On 11/17/2011 07:35 PM, David Miller wrote:
-> > TCP specific stuff in mm/memcontrol.c, at best that's not nice at all.
+On Mon, Nov 21, 2011 at 12:09:54PM +0100, Johannes Weiner wrote:
+> -rt ran into a problem with the soft limit spinlock inside the
+> non-preemptible section, because that is sleeping inside an atomic
+> context.  But I think it makes sense for vanilla, too, to keep the
+> non-preemptible section as short as possible.  Also, -3 lines.
 > 
-> How crucial is that? Thing is that as far as I am concerned, all the 
-> memcg people really want the inner layout of struct mem_cgroup to be 
-> private to memcontrol.c 
+> Yong, Luis, could you add your Tested-bys?
 
-This is just because memcg is just related to memory management and I don't
-want it be wide spreaded, 'struct mem_cgroup' has been changed often.
+Seems my reply is a bit late since akpm has queued it up.
+Anyway,
+Tested-by: Yong Zhang <yong.zhang0@gmail.com>
 
-But I don't like to have TCP code in memcgroup.c.
-
-New idea is welcome.
-
-> This means that at some point, we need to have
-> at least a wrapper in memcontrol.c that is able to calculate the offset
-> of the tcp structure, and since most functions are actually quite 
-> simple, that would just make us do more function calls.
 > 
-> Well, an alternative to that would be to use a void pointer in the newly 
-> added struct cg_proto to an already parsed memcg-related field
-> (in this case tcp_memcontrol), that would be passed to the functions
-> instead of the whole memcg structure. Do you think this would be 
-> preferable ?
+> ---
+> Only the ratelimit checks themselves have to run with preemption
+> disabled, the resulting actions - checking for usage thresholds,
+> updating the soft limit tree - can and should run with preemption
+> enabled.
 > 
-like this ?
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> Reported-by: Yong Zhang <yong.zhang0@gmail.com>
+> Reported-by: Luis Henriques <henrix@camandro.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> ---
+>  mm/memcontrol.c |   73 ++++++++++++++++++++++++++----------------------------
+>  1 files changed, 35 insertions(+), 38 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6aff93c..8e62d3e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -683,37 +683,32 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
+>  	return total;
+>  }
+>  
+> -static bool __memcg_event_check(struct mem_cgroup *memcg, int target)
+> +static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
+> +				       enum mem_cgroup_events_target target)
+>  {
+>  	unsigned long val, next;
+>  
+>  	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+>  	next = __this_cpu_read(memcg->stat->targets[target]);
+>  	/* from time_after() in jiffies.h */
+> -	return ((long)next - (long)val < 0);
+> -}
+> -
+> -static void __mem_cgroup_target_update(struct mem_cgroup *memcg, int target)
+> -{
+> -	unsigned long val, next;
+> -
+> -	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+> -
+> -	switch (target) {
+> -	case MEM_CGROUP_TARGET_THRESH:
+> -		next = val + THRESHOLDS_EVENTS_TARGET;
+> -		break;
+> -	case MEM_CGROUP_TARGET_SOFTLIMIT:
+> -		next = val + SOFTLIMIT_EVENTS_TARGET;
+> -		break;
+> -	case MEM_CGROUP_TARGET_NUMAINFO:
+> -		next = val + NUMAINFO_EVENTS_TARGET;
+> -		break;
+> -	default:
+> -		return;
+> +	if ((long)next - (long)val < 0) {
+> +		switch (target) {
+> +		case MEM_CGROUP_TARGET_THRESH:
+> +			next = val + THRESHOLDS_EVENTS_TARGET;
+> +			break;
+> +		case MEM_CGROUP_TARGET_SOFTLIMIT:
+> +			next = val + SOFTLIMIT_EVENTS_TARGET;
+> +			break;
+> +		case MEM_CGROUP_TARGET_NUMAINFO:
+> +			next = val + NUMAINFO_EVENTS_TARGET;
+> +			break;
+> +		default:
+> +			break;
+> +		}
+> +		__this_cpu_write(memcg->stat->targets[target], next);
+> +		return true;
+>  	}
+> -
+> -	__this_cpu_write(memcg->stat->targets[target], next);
+> +	return false;
+>  }
+>  
+>  /*
+> @@ -724,25 +719,27 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+>  {
+>  	preempt_disable();
+>  	/* threshold event is triggered in finer grain than soft limit */
+> -	if (unlikely(__memcg_event_check(memcg, MEM_CGROUP_TARGET_THRESH))) {
+> +	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+> +						MEM_CGROUP_TARGET_THRESH))) {
+> +		bool do_softlimit, do_numainfo;
+> +
+> +		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+> +						MEM_CGROUP_TARGET_SOFTLIMIT);
+> +#if MAX_NUMNODES > 1
+> +		do_numainfo = mem_cgroup_event_ratelimit(memcg,
+> +						MEM_CGROUP_TARGET_NUMAINFO);
+> +#endif
+> +		preempt_enable();
+> +
+>  		mem_cgroup_threshold(memcg);
+> -		__mem_cgroup_target_update(memcg, MEM_CGROUP_TARGET_THRESH);
+> -		if (unlikely(__memcg_event_check(memcg,
+> -			     MEM_CGROUP_TARGET_SOFTLIMIT))) {
+> +		if (unlikely(do_softlimit))
+>  			mem_cgroup_update_tree(memcg, page);
+> -			__mem_cgroup_target_update(memcg,
+> -						   MEM_CGROUP_TARGET_SOFTLIMIT);
+> -		}
+>  #if MAX_NUMNODES > 1
+> -		if (unlikely(__memcg_event_check(memcg,
+> -			MEM_CGROUP_TARGET_NUMAINFO))) {
+> +		if (unlikely(do_numainfo))
+>  			atomic_inc(&memcg->numainfo_events);
+> -			__mem_cgroup_target_update(memcg,
+> -				MEM_CGROUP_TARGET_NUMAINFO);
+> -		}
+>  #endif
+> -	}
+> -	preempt_enable();
+> +	} else
+> +		preempt_enable();
+>  }
+>  
+>  static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-struct mem_cgroup_sub_controls {
-	struct mem_cgroup *mem;
-	union {
-		struct tcp_mem_control tcp;
-	} data;
-};
-/* for loosely coupled controls for memcg */
-struct memcg_sub_controls_function
-{
-	struct memcg_sub_controls	(*create)(struct mem_cgroup *);
-	struct memcg_sub_controls	(*destroy)(struct mem_cgroup *);
-}
-
-int register_memcg_sub_controls(char *name, 
-		struct memcg_sub_controls_function *abis);
-
-
-struct mem_cgroup {
-	.....
-	.....
-	/* Root memcg will have no sub_controls! */
-	struct memcg_sub_controls	*sub_controls[NR_MEMCG_SUB_CONTROLS];
-}
-
-
-Maybe some functions should be exported. 
-
-Thanks,
--Kame
-
+-- 
+Only stand for myself
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
