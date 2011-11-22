@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DE23E6B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:52:51 -0500 (EST)
-Received: by ywp17 with SMTP id 17so319592ywp.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 06:52:51 -0800 (PST)
-Message-ID: <1321973567.2474.17.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E89156B0069
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 10:02:32 -0500 (EST)
+Date: Tue, 22 Nov 2011 09:02:27 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Tue, 22 Nov 2011 15:52:47 +0100
-In-Reply-To: <alpine.DEB.2.00.1111220844400.25785@router.home>
-References: <20111121161036.GA1679@x4.trippels.de>
-	  <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	  <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	  <20111121173556.GA1673@x4.trippels.de>
-	  <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20111121185215.GA1673@x4.trippels.de>
-	  <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop>
-	  <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-	  <alpine.DEB.2.00.1111212105330.19606@router.home>
-	  <20111122084513.GA1688@x4.trippels.de>
-	 <1321954729.2474.4.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <1321955185.2474.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <alpine.DEB.2.00.1111220844400.25785@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Mime-Version: 1.0
+In-Reply-To: <1321973567.2474.17.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Message-ID: <alpine.DEB.2.00.1111220900330.25785@router.home>
+References: <20111121161036.GA1679@x4.trippels.de>   <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>   <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>   <20111121173556.GA1673@x4.trippels.de>   <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+  <20111121185215.GA1673@x4.trippels.de>   <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop>   <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>   <alpine.DEB.2.00.1111212105330.19606@router.home>   <20111122084513.GA1688@x4.trippels.de>
+  <1321954729.2474.4.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <1321955185.2474.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <alpine.DEB.2.00.1111220844400.25785@router.home> <1321973567.2474.17.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-315387018-1321974150=:25785"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
 Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Christian Kujau <lists@nerdbynature.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-Le mardi 22 novembre 2011 A  08:46 -0600, Christoph Lameter a A(C)crit :
-> On Tue, 22 Nov 2011, Eric Dumazet wrote:
-> 
-> > I trigger a bug in less than 10 secondes, with this running while a
-> > "make -j16 " kernel build is run.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+---1463811839-315387018-1321974150=:25785
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+
+On Tue, 22 Nov 2011, Eric Dumazet wrote:
+
+> Le mardi 22 novembre 2011 =C3=A0 08:46 -0600, Christoph Lameter a =C3=A9c=
+rit :
+> > On Tue, 22 Nov 2011, Eric Dumazet wrote:
 > >
-> > while :; do slabinfo -v; done
-> 
-> Hmm.... Yeah there was limited testing on the debug features. There could
-> be something amiss there. Need to review the validation interactions with
-> the new code.
-> 
-> 
+> > > I trigger a bug in less than 10 secondes, with this running while a
+> > > "make -j16 " kernel build is run.
+> > >
+> > > while :; do slabinfo -v; done
+> >
+> > Hmm.... Yeah there was limited testing on the debug features. There cou=
+ld
+> > be something amiss there. Need to review the validation interactions wi=
+th
+> > the new code.
+> >
+> >
+>
+> Hmm... yes, we probably should take a look.
 
-Hmm... yes, we probably should take a look.
+Allright there is an obvious issue if debugging is off since the lockless
+paths do not take the page lock in that case but the validation logic
+does. Did you run the test with debugging on or off?
+
+Not sure what the solution is but the simplest would be to disable
+validation if lockless is active.
 
 
+
+---1463811839-315387018-1321974150=:25785--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
