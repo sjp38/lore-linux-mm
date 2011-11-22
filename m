@@ -1,75 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A759E6B00A5
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 16:58:18 -0500 (EST)
-Message-ID: <1321999085.14573.2.camel@pasglop>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 23 Nov 2011 08:58:05 +1100
-In-Reply-To: <1321948113.27077.24.camel@edumazet-laptop>
-References: <20111121131531.GA1679@x4.trippels.de>
-	 <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20111121153621.GA1678@x4.trippels.de>
-	 <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20111121161036.GA1679@x4.trippels.de>
-	 <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20111121173556.GA1673@x4.trippels.de>
-	 <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	 <20111121185215.GA1673@x4.trippels.de>
-	 <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop>
-	 <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-	 <alpine.DEB.2.00.1111212105330.19606@router.home>
-	 <1321948113.27077.24.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EA8776B00A7
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 17:02:23 -0500 (EST)
+Date: Tue, 22 Nov 2011 17:02:18 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: Re: block: initialize request_queue's numa node during allocation
+Message-ID: <20111122220218.GA17543@redhat.com>
+References: <4ECB5C80.8080609@redhat.com>
+ <alpine.DEB.2.00.1111220140470.4306@chino.kir.corp.google.com>
+ <20111122152739.GA5663@redhat.com>
+ <20111122211954.GA17120@redhat.com>
+ <alpine.DEB.2.00.1111221342320.2621@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1111221342320.2621@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Christian Kujau <lists@nerdbynature.de>, Markus Trippelsdorf <markus@trippelsdorf.de>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
-On Tue, 2011-11-22 at 08:48 +0100, Eric Dumazet wrote:
-> Le lundi 21 novembre 2011 A  21:18 -0600, Christoph Lameter a A(C)crit :
-> 
-> > Hmmm... That means that c->page points to page not frozen. Per cpu
-> > partial pages are frozen until they are reused or until the partial list
-> > is flushed.
-> > 
-> > Does this ever happen on x86 or only on other platforms? In put_cpu_partial() the
-> > this_cpu_cmpxchg really needs really to be irq safe. this_cpu_cmpxchg is
-> > only preempt safe.
-> > 
-> > Index: linux-2.6/mm/slub.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/slub.c	2011-11-21 21:15:41.575673204 -0600
-> > +++ linux-2.6/mm/slub.c	2011-11-21 21:16:33.442336849 -0600
-> > @@ -1969,7 +1969,7 @@
-> >  		page->pobjects = pobjects;
-> >  		page->next = oldpage;
-> > 
-> > -	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-> > +	} while (irqsafe_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-> >  	stat(s, CPU_PARTIAL_FREE);
-> >  	return pobjects;
-> >  }
-> > 
-> 
-> For x86, I wonder if our !X86_FEATURE_CX16 support is correct on SMP
-> machines.
-> 
-> this_cpu_cmpxchg16b_emu() claims to be IRQ safe, but may be buggy...
-> 
-> Could we have somewhere a NMI handler calling kmalloc() ?
+On Tue, Nov 22 2011 at  4:45pm -0500,
+David Rientjes <rientjes@google.com> wrote:
 
-Christian and I are on ppc, which uses the generic implementation of
-this_cpu_cmpxchg() which is not irq safe. So the above patch is needed
-regardless.
+> On Tue, 22 Nov 2011, Mike Snitzer wrote:
+> 
+> > From: Mike Snitzer <snitzer@redhat.com>
+> > Subject: block: initialize request_queue's numa node during allocation
+> > 
+> > Set request_queue's node in blk_alloc_queue_node() rather than
+> > blk_init_allocated_queue_node().  This avoids blk_throtl_init() using
+> > q->node before it is initialized.
+> > 
+> > Rename blk_init_allocated_queue_node() to blk_init_allocated_queue().
+> > 
+> > Signed-off-by: Mike Snitzer <snitzer@redhat.com>
+> 
+> When I debug an issue and suggest a patch to fix it in addition to 
+> suggesting the possible cleanup for blk_init_allocated_queue_node(), I 
+> don't expect that you'll just take it and claim it as your own, sheesh.
 
-Christian, can you try it see if that helps in your case ?
+Sorry I pissed you off.  But I'm not that hard up for credit.  I was
+just looking to make sure proper _code_ changes occurred ;)  I didn't
+take enough time to fully appreciate the long road you've travelled on
+this.
 
-Cheers,
-Ben.
+Jens, I'll defer to David to post a proper patch header.  David please
+claim the patch and its contents as your own in v2.  But feel free to
+add my Signed-off-by.
+
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
