@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 55FF26B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:37:38 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 96D493EE0BD
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:37:35 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CCB645DE4F
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:37:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6067745DE4D
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:37:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5166AE18001
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:37:35 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 198251DB802F
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:37:35 +0900 (JST)
-Date: Tue, 22 Nov 2011 09:36:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] fix mem_cgroup_split_huge_fixup to work efficiently.
-Message-Id: <20111122093622.eba8bbef.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CAKTCnzk81UiqVHGcTcN_0iyG8dw=-wC6jo8ME7g303PQFKDM3w@mail.gmail.com>
-References: <20111117103308.063f78df.kamezawa.hiroyu@jp.fujitsu.com>
-	<CAKTCnzk81UiqVHGcTcN_0iyG8dw=-wC6jo8ME7g303PQFKDM3w@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 54ABB6B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:43:01 -0500 (EST)
+Date: Mon, 21 Nov 2011 16:42:47 -0800 (PST)
+From: Christian Kujau <lists@nerdbynature.de>
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+In-Reply-To: <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
+Message-ID: <alpine.DEB.2.01.1111211638140.8000@trent.utfs.org>
+References: <20111121131531.GA1679@x4.trippels.de>  <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121153621.GA1678@x4.trippels.de>  <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121161036.GA1679@x4.trippels.de>
+  <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121173556.GA1673@x4.trippels.de>  <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121185215.GA1673@x4.trippels.de>
+  <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop> <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, mhocko@suse.cz, Andrea Arcangeli <aarcange@redhat.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-On Mon, 21 Nov 2011 16:30:11 +0530
-Balbir Singh <bsingharora@gmail.com> wrote:
+On Mon, 21 Nov 2011 at 16:21, Christian Kujau wrote:
+> With debug options enabled I'm currently in the xmon debugger, not sure 
+> what to make of it yet, I'll try to get something useful out of it :)
 
-> On Thu, Nov 17, 2011 at 7:03 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > I'll send this again when mm is shipped.
-> > I sometimes see mem_cgroup_split_huge_fixup() in perf report and noticed
-> > it's very slow. This fixes it. Any comments are welcome.
-> >
-> 
-> How do you see this - what tests?
-> 
-Sometimes. By applications calling fork() or mremap(), mprotect(), which
-will cause split_huge_page(). 
-But not 100% reporoducable, yet.
+Only screenshots, see the *xmon jpegs in:
+
+   http://nerdbynature.de/bits/3.2.0-rc1/oops/
+
+> SLAB does not have the same capabilities to detect corruption.
+> You can disable most the cpu partial functionality by setting
+>       /sys/kernel/slab/*/cpu_partial
+> to 0
+
+I'll try to reproduce with those set to 0 (I'm on UP here, in case that 
+matters).
 
 Thanks,
--Kame
+Christian.
+-- 
+BOFH excuse #296:
+
+The hardware bus needs a new token.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
