@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 18DF96B0069
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 22:18:57 -0500 (EST)
-Date: Mon, 21 Nov 2011 21:18:52 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-In-Reply-To: <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-Message-ID: <alpine.DEB.2.00.1111212105330.19606@router.home>
-References: <20111121131531.GA1679@x4.trippels.de>  <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121153621.GA1678@x4.trippels.de>  <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121161036.GA1679@x4.trippels.de>
-  <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121173556.GA1673@x4.trippels.de>  <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121185215.GA1673@x4.trippels.de>
-  <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop> <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 641B06B0069
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 00:05:59 -0500 (EST)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 22 Nov 2011 00:05:39 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAM54dP9312826
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 00:04:39 -0500
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAM54CMO004676
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 22:04:14 -0700
+Date: Tue, 22 Nov 2011 10:33:30 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 0/30] uprobes patchset with perf probe
+ support
+Message-ID: <20111122050330.GA24807@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Kujau <lists@nerdbynature.de>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Mon, 21 Nov 2011, Christian Kujau wrote:
+Hi Ingo, Thomas, Linus, Stephen, Peter,
 
-> On Tue, 22 Nov 2011 at 07:27, Benjamin Herrenschmidt wrote:
-> > Note that I hit a similar looking crash (sorry, I couldn't capture a
-> > backtrace back then) on a PowerMac G5 (ppc64) while doing a large rsync
-> > transfer yesterday with -rc2-something (cfcfc9ec) and
-> > Christian Kujau (CC) seems to be able to reproduce something similar on
-> > some other ppc platform (Christian, what is your setup ?)
->
-> I seem to hit it with heavy disk & cpu IO is in progress on this PowerBook
-> G4. Full dmesg & .config: http://nerdbynature.de/bits/3.2.0-rc1/oops/
->
-> I've enabled some debug options and now it really points to slub.c:2166
+> This patchset resolves most of the comments on the previous posting
+> (https://lkml.org/lkml/2011/11/10/408) patchset applies on top of
+> commit cfcfc9eca2b
+> 
+> This patchset depends on bulkref patch from Paul McKenney
+> https://lkml.org/lkml/2011/11/2/365 and enable interrupts before
+> calling do_notify_resume on i686 patch
+> https://lkml.org/lkml/2011/10/25/265.
+> 
+> uprobes git is hosted at git://github.com/srikard/linux.git
+> with branch inode_uprobes_v32rc2.
+> (The previous patchset posted to lkml has been rebased to 3.2-rc2 is also
+> available at branch inode_uprobes_v32rc2_prev. This is to help the
+> reviewers of the previous patchsets to quickly identify the changes.)
+> 
+> Uprobes Patches
+> This patchset implements inode based uprobes which are specified as
+> <file>:<offset> where offset is the offset from start of the map.
 
-Hmmm... That means that c->page points to page not frozen. Per cpu
-partial pages are frozen until they are reused or until the partial list
-is flushed.
+Given that uprobes has been reviewed several times on LKML and all
+comments till now have been addressed, can we push uprobes into either
+-tip or -next. This will help people to test and give more feedback and
+also provide a way for it to be pushed into 3.3. This also helps in
+resolving and pushing fixes faster.
 
-Does this ever happen on x86 or only on other platforms? In put_cpu_partial() the
-this_cpu_cmpxchg really needs really to be irq safe. this_cpu_cmpxchg is
-only preempt safe.
+If you have concerns, can you please voice them?
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2011-11-21 21:15:41.575673204 -0600
-+++ linux-2.6/mm/slub.c	2011-11-21 21:16:33.442336849 -0600
-@@ -1969,7 +1969,7 @@
- 		page->pobjects = pobjects;
- 		page->next = oldpage;
-
--	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-+	} while (irqsafe_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
- 	stat(s, CPU_PARTIAL_FREE);
- 	return pobjects;
- }
-
-x
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
