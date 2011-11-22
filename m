@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 54ABB6B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:43:01 -0500 (EST)
-Date: Mon, 21 Nov 2011 16:42:47 -0800 (PST)
-From: Christian Kujau <lists@nerdbynature.de>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-In-Reply-To: <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-Message-ID: <alpine.DEB.2.01.1111211638140.8000@trent.utfs.org>
-References: <20111121131531.GA1679@x4.trippels.de>  <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121153621.GA1678@x4.trippels.de>  <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121161036.GA1679@x4.trippels.de>
-  <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121173556.GA1673@x4.trippels.de>  <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>  <20111121185215.GA1673@x4.trippels.de>
-  <20111121195113.GA1678@x4.trippels.de> <1321907275.13860.12.camel@pasglop> <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 154806B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:48:51 -0500 (EST)
+Received: by ggnq2 with SMTP id q2so771923ggn.2
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2011 16:48:49 -0800 (PST)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH] memcg: fix the document of pgpgin/pgpgout
+Date: Mon, 21 Nov 2011 16:48:45 -0800
+Message-Id: <1321922925-14930-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 21 Nov 2011 at 16:21, Christian Kujau wrote:
-> With debug options enabled I'm currently in the xmon debugger, not sure 
-> what to make of it yet, I'll try to get something useful out of it :)
+The two memcg stats pgpgin/pgpgout have different meaning than the ones in
+vmstat, which indicates that we picked a bad naming for them. It might be late
+to change the stat name, but better documentation is always helpful.
 
-Only screenshots, see the *xmon jpegs in:
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ Documentation/cgroups/memory.txt |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
-   http://nerdbynature.de/bits/3.2.0-rc1/oops/
-
-> SLAB does not have the same capabilities to detect corruption.
-> You can disable most the cpu partial functionality by setting
->       /sys/kernel/slab/*/cpu_partial
-> to 0
-
-I'll try to reproduce with those set to 0 (I'm on UP here, in case that 
-matters).
-
-Thanks,
-Christian.
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index cc0ebc5..eb6a911 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -386,8 +386,11 @@ memory.stat file includes following statistics
+ cache		- # of bytes of page cache memory.
+ rss		- # of bytes of anonymous and swap cache memory.
+ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+-pgpgin		- # of pages paged in (equivalent to # of charging events).
+-pgpgout		- # of pages paged out (equivalent to # of uncharging events).
++pgpgin		- # of charging events to the memory cgroup. The charging
++		event happens each time a page is accounted as either mapped
++		anon page(RSS) or cache page(Page Cache) to the cgroup.
++pgpgout		- # of uncharging events to the memory cgroup. The uncharging
++		event happens each time a page is unaccounted from the cgroup.
+ swap		- # of bytes of swap usage
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+ 		LRU list.
 -- 
-BOFH excuse #296:
-
-The hardware bus needs a new token.
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
