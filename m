@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E6B0A6B00B7
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:40:26 -0500 (EST)
-Date: Tue, 22 Nov 2011 15:40:23 -0800
+	by kanga.kvack.org (Postfix) with SMTP id 6FEDB6B00B9
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 18:55:09 -0500 (EST)
+Date: Tue, 22 Nov 2011 15:55:07 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2 4/4]thp: improve order in lru list for split huge
- page
-Message-Id: <20111122154023.bf631f7e.akpm@linux-foundation.org>
-In-Reply-To: <1321340661.22361.297.camel@sli10-conroe>
-References: <1321340661.22361.297.camel@sli10-conroe>
+Subject: Re: [PATCH 1/2] mm/memblock.c: return -ENOMEM instead of -ENXIO on
+ failure of debugfs_create_dir in memblock_init_debugfs
+Message-Id: <20111122155507.af6c10e9.akpm@linux-foundation.org>
+In-Reply-To: <4EB9DEF6.4080905@gmail.com>
+References: <4EB9DEF6.4080905@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>
+To: Wang Sheng-Hui <shhuiw@gmail.com>
+Cc: yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 15 Nov 2011 15:04:21 +0800
-Shaohua Li <shaohua.li@intel.com> wrote:
+On Wed, 09 Nov 2011 10:01:26 +0800
+Wang Sheng-Hui <shhuiw@gmail.com> wrote:
 
-> Put the tail subpages of an isolated hugepage under splitting in the
-> lru reclaim head as they supposedly should be isolated too next.
+> On the failure of debugfs_create_dir, we should return -ENOMEM
+> instead of -ENXIO.
 > 
-> Queues the subpages in physical order in the lru for non isolated
-> hugepages under splitting. That might provide some theoretical cache
-> benefit to the buddy allocator later.
+> The patch is against 3.1.
 > 
-> ...
->
-> --- linux.orig/mm/swap.c	2011-11-14 16:12:03.000000000 +0800
-> +++ linux/mm/swap.c	2011-11-15 09:15:33.000000000 +0800
-> @@ -684,7 +684,7 @@ void lru_add_page_tail(struct zone* zone
->  		if (likely(PageLRU(page)))
->  			head = page->lru.prev;
->  		else
-> -			head = &zone->lru[lru].list;
-> +			head = zone->lru[lru].list.prev;
->  		__add_page_to_lru_list(zone, page_tail, lru, head);
->  	} else {
->  		SetPageUnevictable(page_tail);
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+> ---
+>  mm/memblock.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index ccbf973..4d4d5ee 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -852,7 +852,7 @@ static int __init memblock_init_debugfs(void)
+>  {
+>  	struct dentry *root = debugfs_create_dir("memblock", NULL);
+>  	if (!root)
+> -		return -ENXIO;
+> +		return -ENOMEM;
+>  	debugfs_create_file("memory", S_IRUGO, root, &memblock.memory, &memblock_debug_fops);
+>  	debugfs_create_file("reserved", S_IRUGO, root, &memblock.reserved, &memblock_debug_fops);
 
-This conflicts with changes in Johannes's "mm: collect LRU list heads
-into struct lruvec":
-
-@@ -674,10 +673,10 @@ void lru_add_page_tail(struct zone* zone
- 		}
- 		update_page_reclaim_stat(zone, page_tail, file, active);
- 		if (likely(PageLRU(page)))
--			head = page->lru.prev;
-+			__add_page_to_lru_list(zone, page_tail, lru,
-+					       page->lru.prev);
- 		else
--			head = &zone->lru[lru].list;
--		__add_page_to_lru_list(zone, page_tail, lru, head);
-+			add_page_to_lru_list(zone, page_tail, lru);
- 	} else {
- 		SetPageUnevictable(page_tail);
- 		add_page_to_lru_list(zone, page_tail, LRU_UNEVICTABLE);
-
+Well, we don't know what we should return because
+debugfs_create_file() is misdesigned - it should return an ERR_PTR.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
