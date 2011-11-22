@@ -1,174 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A326B002D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:53:47 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 167643EE0BD
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:53:45 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E995F45DD6E
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:53:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D416D45DE67
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:53:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C67FF1DB803F
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:53:44 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 880191DB802C
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:53:44 +0900 (JST)
-Date: Tue, 22 Nov 2011 09:52:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm: memcg: shorten preempt-disabled section around
- event checks
-Message-Id: <20111122095223.0baefec9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111121110954.GE1771@redhat.com>
-References: <20111121110954.GE1771@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id A828E6B002D
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 19:55:37 -0500 (EST)
+Message-ID: <4ECAF309.60908@redhat.com>
+Date: Mon, 21 Nov 2011 19:55:37 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: compaction: make buffer cache __GFP_MOVABLE
+References: <1321635524-8586-1-git-send-email-mgorman@suse.de> <1321635524-8586-5-git-send-email-mgorman@suse.de> <20111118213530.GA6323@redhat.com> <20111121111726.GA19415@suse.de> <20111121224545.GC8397@redhat.com>
+In-Reply-To: <20111121224545.GC8397@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Yong Zhang <yong.zhang0@gmail.com>, Luis Henriques <henrix@camandro.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On Mon, 21 Nov 2011 12:09:54 +0100
-Johannes Weiner <jweiner@redhat.com> wrote:
-
-> -rt ran into a problem with the soft limit spinlock inside the
-> non-preemptible section, because that is sleeping inside an atomic
-> context.  But I think it makes sense for vanilla, too, to keep the
-> non-preemptible section as short as possible.  Also, -3 lines.
-> 
-> Yong, Luis, could you add your Tested-bys?
-> 
+On 11/21/2011 05:45 PM, Andrea Arcangeli wrote:
+> On Mon, Nov 21, 2011 at 11:17:26AM +0000, Mel Gorman wrote:
+>> On Fri, Nov 18, 2011 at 10:35:30PM +0100, Andrea Arcangeli wrote:
+>>> folks who wants low latency or no memory overhead should simply
+>>> disable compaction.
+>>
+>> That strikes me as being somewhat heavy handed. Compaction should be as
+>> low latency as possible.
+>
+> Yes I was meaning in the very short term. Optimizations are always
+> possible :) we've just to sort out some issues (as previous part of
+> the email discussed).
+>
+>> There might be some confusion on what commits were for. Commit
+>> [e0887c19: vmscan: limit direct reclaim for higher order allocations]
+>> was not about low latency but more about reclaim/compaction reclaiming
+>> too much memory. IIRC, Rik's main problem was that there was too much
+>> memory free on his machine when THP was enabled.
+>>
+>>> the __GFP_NO_KSWAPD check too should be dropped I think,
+>>
+>> Only if we can get rid of the major stalls. I haven't looked closely at
+>> your series yet but I'll be searching for a replacment for patch 3 of
+>> this series in it.
+>
+> I reduced the migrate loops, for both async and sync compactions. I
+> doubt it'll be very effective but it may help a bit.
+>
+> Also this one I also suggest it in the short term.
+>
+> I mean until async migrate can deal with all type of pages (the issues
+> you're trying to fix) the __GFP_NO_KSWAPD check would not be reliable
+> enough as part of the movable zone wouldn't be movable. It'd defeat
+> the reliability from the movable pageblock in compaction context. And
+> I doubt a more advanced async compaction will be ok for 3.2, so I
+> don't think 3.2 should have the __GFP_NO_KSWAPD and I tend to back
+> Andrew's argument. My patch OTOH that only reduces the loops and
+> doesn't alter the movable pageblock semantics in compaction context,
+> sounds safer. It won't help equally well though.
+>
+>> Ok. It's not even close to what I was testing but I can move to this
+>> test so we're looking at the same thing for allocation success rates.
+>
+> Note I guess we also need the below. This also should fix by practical
+> means Rik's trouble (he was using KVM without O_DIRECT on raw
+> blkdev). That explains why he experienced too much reclaim, the VM had
+> no choice but to do reclaim because the blkdev cache was not staying
+> in the movable pageblocks preventing compaction effectiveness (and
+> likely they used lots of ram).
+>
+> We may still have to limit reclaim but not like the patch that went
+> upstream implements. When compaction_suitable is happy about the
+> wmarks, the compaction loop isn't still as reliable as it could be in
+> the movable zone, and doing more reclaim helps a lot, the more free
+> pages the more compaction goes ahead and has a change to compact more
+> stuff before the two scans meets in the middle. With Rik we thought
+> about a way to do just a no-swapping reclaim to shrink caches like
+> slab.
+>
+> I mean the cp /dev/sda /dev/null scenario that happens without the
+> below patch can still materialize in a fileserver with very large slab
+> caches. We still have to invoke reclaim, maybe not too heavy, we
+> shouldn't end up swapping, basically it should be a light reclaim (the
+> opposite of lumpy reclaim). But with the current check upstream
+> reclaim practically won't run at all if compaction fails, so it's
+> normal the success rate goes down a lot. (btw I didn't verify yet at
+> runtime if migration succeeds on the blkdev pagecache)
+>
+> ====
+> mm: block_dev pagecache is movable
+>
+> Allow block_dev pagecache to go in movable pageblocks. If compaction
+> fails reclaim is invoked. So with raw devices being used without
+> O_DIRECT, reclaim would run too much and because the cache pages would
+> get mixed with slab and other not movable entities, the compaction
+> reliability would decrease.
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 > ---
-> Only the ratelimit checks themselves have to run with preemption
-> disabled, the resulting actions - checking for usage thresholds,
-> updating the soft limit tree - can and should run with preemption
-> enabled.
-> 
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-> Reported-by: Yong Zhang <yong.zhang0@gmail.com>
-> Reported-by: Luis Henriques <henrix@camandro.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
+>   fs/block_dev.c |    2 +-
+>   1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/fs/block_dev.c b/fs/block_dev.c
+> index b07f1da..f7111c4 100644
+> --- a/fs/block_dev.c
+> +++ b/fs/block_dev.c
+> @@ -565,7 +565,7 @@ struct block_device *bdget(dev_t dev)
+>   		inode->i_rdev = dev;
+>   		inode->i_bdev = bdev;
+>   		inode->i_data.a_ops =&def_blk_aops;
+> -		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
+> +		mapping_set_gfp_mask(&inode->i_data, GFP_USER|__GFP_MOVABLE);
+>   		inode->i_data.backing_dev_info =&default_backing_dev_info;
+>   		spin_lock(&bdev_lock);
+>   		list_add(&bdev->bd_list,&all_bdevs);
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-> ---
->  mm/memcontrol.c |   73 ++++++++++++++++++++++++++----------------------------
->  1 files changed, 35 insertions(+), 38 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6aff93c..8e62d3e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -683,37 +683,32 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
->  	return total;
->  }
->  
-> -static bool __memcg_event_check(struct mem_cgroup *memcg, int target)
-> +static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
-> +				       enum mem_cgroup_events_target target)
->  {
->  	unsigned long val, next;
->  
->  	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
->  	next = __this_cpu_read(memcg->stat->targets[target]);
->  	/* from time_after() in jiffies.h */
-> -	return ((long)next - (long)val < 0);
-> -}
-> -
-> -static void __mem_cgroup_target_update(struct mem_cgroup *memcg, int target)
-> -{
-> -	unsigned long val, next;
-> -
-> -	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
-> -
-> -	switch (target) {
-> -	case MEM_CGROUP_TARGET_THRESH:
-> -		next = val + THRESHOLDS_EVENTS_TARGET;
-> -		break;
-> -	case MEM_CGROUP_TARGET_SOFTLIMIT:
-> -		next = val + SOFTLIMIT_EVENTS_TARGET;
-> -		break;
-> -	case MEM_CGROUP_TARGET_NUMAINFO:
-> -		next = val + NUMAINFO_EVENTS_TARGET;
-> -		break;
-> -	default:
-> -		return;
-> +	if ((long)next - (long)val < 0) {
-> +		switch (target) {
-> +		case MEM_CGROUP_TARGET_THRESH:
-> +			next = val + THRESHOLDS_EVENTS_TARGET;
-> +			break;
-> +		case MEM_CGROUP_TARGET_SOFTLIMIT:
-> +			next = val + SOFTLIMIT_EVENTS_TARGET;
-> +			break;
-> +		case MEM_CGROUP_TARGET_NUMAINFO:
-> +			next = val + NUMAINFO_EVENTS_TARGET;
-> +			break;
-> +		default:
-> +			break;
-> +		}
-> +		__this_cpu_write(memcg->stat->targets[target], next);
-> +		return true;
->  	}
-> -
-> -	__this_cpu_write(memcg->stat->targets[target], next);
-> +	return false;
->  }
->  
->  /*
-> @@ -724,25 +719,27 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->  {
->  	preempt_disable();
->  	/* threshold event is triggered in finer grain than soft limit */
-> -	if (unlikely(__memcg_event_check(memcg, MEM_CGROUP_TARGET_THRESH))) {
-> +	if (unlikely(mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_THRESH))) {
-> +		bool do_softlimit, do_numainfo;
-> +
-> +		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_SOFTLIMIT);
-> +#if MAX_NUMNODES > 1
-> +		do_numainfo = mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_NUMAINFO);
-> +#endif
-> +		preempt_enable();
-> +
->  		mem_cgroup_threshold(memcg);
-> -		__mem_cgroup_target_update(memcg, MEM_CGROUP_TARGET_THRESH);
-> -		if (unlikely(__memcg_event_check(memcg,
-> -			     MEM_CGROUP_TARGET_SOFTLIMIT))) {
-> +		if (unlikely(do_softlimit))
->  			mem_cgroup_update_tree(memcg, page);
-> -			__mem_cgroup_target_update(memcg,
-> -						   MEM_CGROUP_TARGET_SOFTLIMIT);
-> -		}
->  #if MAX_NUMNODES > 1
-> -		if (unlikely(__memcg_event_check(memcg,
-> -			MEM_CGROUP_TARGET_NUMAINFO))) {
-> +		if (unlikely(do_numainfo))
->  			atomic_inc(&memcg->numainfo_events);
-> -			__mem_cgroup_target_update(memcg,
-> -				MEM_CGROUP_TARGET_NUMAINFO);
-> -		}
->  #endif
-> -	}
-> -	preempt_enable();
-> +	} else
-> +		preempt_enable();
->  }
->  
->  static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+Maybe prettier done by defining a GFP_USER_MOVABLE in the
+proper include file and using that?
+
+Still, we need this fix.
+
+I believe this is safe because all the users of buffer cache
+pages already need to protect the page against getting
+reclaimed (by taking a refcount), which also protects against
+migration.
+
+Only pages without an extra refcount (not in current use by
+anyone) can be migrated.
+
+I do not believe this change could break any filesystem, but
+adding linux-fsdevel to the CC anyway just to check...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
