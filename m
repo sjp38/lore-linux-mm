@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 641B06B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 00:05:59 -0500 (EST)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 22 Nov 2011 00:05:39 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAM54dP9312826
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 00:04:39 -0500
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAM54CMO004676
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2011 22:04:14 -0700
-Date: Tue, 22 Nov 2011 10:33:30 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 3.2-rc2 0/30] uprobes patchset with perf probe
- support
-Message-ID: <20111122050330.GA24807@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id BC8E06B0069
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 00:39:40 -0500 (EST)
+Message-ID: <4ECB3587.3020909@redhat.com>
+Date: Tue, 22 Nov 2011 13:39:19 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+Subject: Re: [V2 PATCH] tmpfs: add fallocate support
+References: <1321612791-4764-1-git-send-email-amwang@redhat.com> <alpine.LSU.2.00.1111201300340.1264@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1111201300340.1264@sister.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 
-Hi Ingo, Thomas, Linus, Stephen, Peter,
+ao? 2011a1'11ae??21ae?JPY 05:22, Hugh Dickins a??e??:
+> On Fri, 18 Nov 2011, Cong Wang wrote:
+>
+>> It seems that systemd needs tmpfs to support fallocate,
+>> see http://lkml.org/lkml/2011/10/20/275. This patch adds
+>> fallocate support to tmpfs.
+>>
+>> As we already have shmem_truncate_range(), it is also easy
+>> to add FALLOC_FL_PUNCH_HOLE support too.
+>
+> Thank you, this version looks much much nicer.
+>
+> I wouldn't call it bug-free (don't you need a page_cache_release
+> after the unlock_page?), and I won't be reviewing it and testing it
+> for a week or two - there's a lot about the semantics of fallocate
+> and punch-hole that's not obvious, and I'll have to study the mail
+> threads discussing them before checking your patch.
 
-> This patchset resolves most of the comments on the previous posting
-> (https://lkml.org/lkml/2011/11/10/408) patchset applies on top of
-> commit cfcfc9eca2b
-> 
-> This patchset depends on bulkref patch from Paul McKenney
-> https://lkml.org/lkml/2011/11/2/365 and enable interrupts before
-> calling do_notify_resume on i686 patch
-> https://lkml.org/lkml/2011/10/25/265.
-> 
-> uprobes git is hosted at git://github.com/srikard/linux.git
-> with branch inode_uprobes_v32rc2.
-> (The previous patchset posted to lkml has been rebased to 3.2-rc2 is also
-> available at branch inode_uprobes_v32rc2_prev. This is to help the
-> reviewers of the previous patchsets to quickly identify the changes.)
-> 
-> Uprobes Patches
-> This patchset implements inode based uprobes which are specified as
-> <file>:<offset> where offset is the offset from start of the map.
+Yeah, sorry, I missed unlock_page()...
 
-Given that uprobes has been reviewed several times on LKML and all
-comments till now have been addressed, can we push uprobes into either
--tip or -next. This will help people to test and give more feedback and
-also provide a way for it to be pushed into 3.3. This also helps in
-resolving and pushing fixes faster.
+>
+> First question that springs to mind (to which I shall easily find
+> an answer): is it actually acceptable for fallocate() to return
+> -ENOSPC when it has already completed a part of the work?
 
-If you have concerns, can you please voice them?
+Ah, good point, I will fix this as what Christoph suggested.
 
--- 
-Thanks and Regards
-Srikar
+>
+> But so long as the details don't end up complicating this
+> significantly, since we anyway want to regularize the punch-hole
+> situation by giving tmpfs the same interface to it as other filesystems,
+> I now think it would be a bit perverse to disallow the original
+> fallocate functionality that you implement here in-kernel.
+>
+
+Ok, I think you mean you are fine to accept it now?
+
+Anyway, thanks a lot for your comments!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
