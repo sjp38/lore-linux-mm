@@ -1,26 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5CC496B0074
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 12:40:57 -0500 (EST)
-Date: Tue, 22 Nov 2011 11:40:48 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slub: Lockout validation scans during freeing of object
-In-Reply-To: <1321982484.18002.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Message-ID: <alpine.DEB.2.00.1111221139240.28197@router.home>
-References: <alpine.DEB.2.00.1111221033350.28197@router.home>  <alpine.DEB.2.00.1111221040300.28197@router.home>  <alpine.DEB.2.00.1111221052130.28197@router.home> <1321982484.18002.6.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id CF4426B0080
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 12:51:02 -0500 (EST)
+Received: by vcbfk26 with SMTP id fk26so656878vcb.14
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 09:51:00 -0800 (PST)
+Date: Wed, 23 Nov 2011 02:50:55 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 6/7] mm: page allocator: Limit when direct reclaim is
+ used when compaction is deferred
+Message-ID: <20111122175055.GE15253@barrios-laptop.redhat.com>
+References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
+ <1321900608-27687-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1321900608-27687-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Christian Kujau <lists@nerdbynature.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 22 Nov 2011, Eric Dumazet wrote:
+On Mon, Nov 21, 2011 at 06:36:47PM +0000, Mel Gorman wrote:
+> If compaction is deferred, we enter direct reclaim to try reclaim the
+> pages that way. For small high-orders, this has a reasonable chance
+> of success. However, if the caller as specified __GFP_NO_KSWAPD to
+> limit the disruption to the system, it makes more sense to fail the
+> allocation rather than stall the caller in direct reclaim. This patch
+> will skip direct reclaim if compaction is deferred and the caller
+> specifies __GFP_NO_KSWAPD.
+> 
+> Async compaction only considers a subset of pages so it is possible for
+> compaction to be deferred prematurely and not enter direct reclaim even
+> in cases where it should. To compensate for this, this patch also defers
+> compaction only if sync compaction failed.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Minchan Kim <minchan.kim@gmail.com>
 
-> This seems better, but I still have some warnings :
+It does make sense to me. 
 
-Trying to reproduce with a kernel configured to do preempt. This is
-actually quite interesting since its always off by 1.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
