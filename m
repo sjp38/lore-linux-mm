@@ -1,120 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 33CE96B00C8
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 07:47:54 -0500 (EST)
-Date: Wed, 23 Nov 2011 20:47:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
-Message-ID: <20111123124745.GB7174@localhost>
-References: <20111121091819.394895091@intel.com>
- <20111121093846.378529145@intel.com>
- <20111121150116.094cf194.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FDFC6B00CA
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 07:51:35 -0500 (EST)
+Received: by vcbfk26 with SMTP id fk26so1683590vcb.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 04:51:34 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111121150116.094cf194.akpm@linux-foundation.org>
+In-Reply-To: <20111123110041.GM19415@suse.de>
+References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
+	<1321900608-27687-8-git-send-email-mgorman@suse.de>
+	<1321945011.22361.335.camel@sli10-conroe>
+	<CAPQyPG4DQCxDah5VYMU6PNgeuD_3WJ-zm8XpL7V7BK8hAF8OJg@mail.gmail.com>
+	<20111123110041.GM19415@suse.de>
+Date: Wed, 23 Nov 2011 20:51:34 +0800
+Message-ID: <CAPQyPG50Fme_zU3awoSbSxPN69S+gEEMSSEYQOYRNqBJd7H-aA@mail.gmail.com>
+Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
+ use by compaction
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Nov 21, 2011 at 03:01:16PM -0800, Andrew Morton wrote:
-> On Mon, 21 Nov 2011 17:18:22 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > Introduce a readahead flags field and embed the existing mmap_miss in it
-> > (mainly to save space).
-> 
-> What an ugly patch.
+On Wed, Nov 23, 2011 at 7:00 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Wed, Nov 23, 2011 at 10:01:53AM +0800, Nai Xia wrote:
+>> On Tue, Nov 22, 2011 at 2:56 PM, Shaohua Li <shaohua.li@intel.com> wrote=
+:
+>> > On Tue, 2011-11-22 at 02:36 +0800, Mel Gorman wrote:
+>> >> This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIG=
+HT
+>> >> mode that avoids writing back pages to backing storage. Async
+>> >> compaction maps to MIGRATE_ASYNC while sync compaction maps to
+>> >> MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
+>> >> hotplug, MIGRATE_SYNC is used.
+>> >>
+>> >> This avoids sync compaction stalling for an excessive length of time,
+>> >> particularly when copying files to a USB stick where there might be
+>> >> a large number of dirty pages backed by a filesystem that does not
+>> >> support ->writepages.
+>> > Hi,
+>> > from my understanding, with this, even writes
+>> > to /proc/sys/vm/compact_memory doesn't wait for pageout, is this
+>> > intended?
+>> > on the other hand, MIGRATE_SYNC_LIGHT now waits for pagelock and buffe=
+r
+>> > lock, so could wait on page read. page read and page out have the same
+>> > latency, why takes them different?
+>>
+>> So for the problem you raised, I think my suggestion to Mel is to adopt =
+the
+>> following logic:
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0if (!trylock_page(page) && !PageUptodate(page))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 we are quite likely to block=
+ on read, so we
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 depend on yet another MIGRAT=
+E_SYNC_MODE to decide
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if we really want to lock_pa=
+ge() and wait for this IO.
+>>
+>> How do you think ?
+>>
+>
+> Where are you adding this check?
+>
+> If you mean in __unmap_and_move(), the check is unnecessary unless
+> another subsystem starts using sync-light compaction. With this series,
+> only direct compaction cares about MIGRATE_SYNC_LIGHT. If the page is
 
-Indeed..
 
-> > It will be possible to lose the flags in race conditions, however the
-> > impact should be limited.  For the race to happen, there must be two
-> > threads sharing the same file descriptor to be in page fault or
-> > readahead at the same time.
-> > 
-> > Note that it has always been racy for "page faults" at the same time.
-> > 
-> > And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
-> > Which may change some concrete readahead behavior, but won't really
-> > impact overall I/O performance.
-> > 
-> > CC: Andi Kleen <andi@firstfloor.org>
-> > CC: Steven Whitehouse <swhiteho@redhat.com>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  include/linux/fs.h |   31 ++++++++++++++++++++++++++++++-
-> >  mm/filemap.c       |    9 ++-------
-> >  2 files changed, 32 insertions(+), 8 deletions(-)
-> > 
-> > --- linux-next.orig/include/linux/fs.h	2011-11-20 11:30:55.000000000 +0800
-> > +++ linux-next/include/linux/fs.h	2011-11-20 11:48:53.000000000 +0800
-> > @@ -945,10 +945,39 @@ struct file_ra_state {
-> >  					   there are only # of pages ahead */
-> >  
-> >  	unsigned int ra_pages;		/* Maximum readahead window */
-> > -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
-> > +	unsigned int ra_flags;
-> 
-> And it doesn't actually save any space, unless ra_flags gets used for
-> something else in a subsequent patch.  And if it does, perhaps ra_flags
+Oh, Yes, I think I did not pay enough attention that direction compaction
+is the *only* user after I saw your comment on MIGRATE_SYNC_LIGHT
+of "allow blocking on most operations".... I guess Shaohua also missed
+this point too....
 
-Because it's a preparation patch. There will be more fields defined later.
+Then MIGRATE_SYNC_LIGHT now is solely  for ruling out writeout for
+dirty pages. My suggestion would be reserved for future if anyone
+doing originally async compaction becomes willing to wait some time for
+transient page locking to improve success rate.
 
-> should be ulong, which is compatible with the bitops.h code.
-> Or perhaps we should use a bitfield and let the compiler do the work.
 
-What if we do
-
-        u16     mmap_miss;
-        u16     ra_flags;
-
-That would get rid of this patch. I'd still like to pack the various
-flags as well as pattern into one single ra_flags, which makes it
-convenient to pass things around (as one single parameter).
-
-> >  	loff_t prev_pos;		/* Cache last read() position */
-> >  };
-> >  
-> > +/* ra_flags bits */
-> > +#define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
-> > +
-> > +/*
-> > + * Don't do ra_flags++ directly to avoid possible overflow:
-> > + * the ra fields can be accessed concurrently in a racy way.
-> > + */
-> > +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
-> > +{
-> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> > +
-> > +	/* the upper bound avoids banging the cache line unnecessarily */
-> > +	if (miss < READAHEAD_MMAP_MISS) {
-> > +		miss++;
-> > +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> > +	}
-> > +	return miss;
-> > +}
-> > +
-> > +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
-> > +{
-> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> > +
-> > +	if (miss) {
-> > +		miss--;
-> > +		ra->ra_flags = miss | (ra->ra_flags & ~READAHEAD_MMAP_MISS);
-> > +	}
-> > +}
-> 
-> It's strange that ra_mmap_miss_inc() returns the new value whereas
-> ra_mmap_miss_dec() returns void.
-
-Simply because no one need to check the return value of ra_mmap_miss_dec()...
-But yeah it's good to make them look symmetry.
-
-Thanks,
-Fengguang
+> not up to date, it is also locked during the IO and unlocked after
+> setting Uptodate in the IO completion handler.
+>
+> As the page is locked, compaction will fail trylock_page, do the
+> PF_MEMALLOC check and bail as it is not safe for direct compaction
+> to call lock_page as the comment in __unmap_and_move explains. This
+> should avoid the stall.
+>
+> Did I misunderstand your suggestion?
+>
+> --
+> Mel Gorman
+> SUSE Labs
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
