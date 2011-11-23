@@ -1,48 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E616B00BF
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 20:26:09 -0500 (EST)
-Received: by iaek3 with SMTP id k3so1203323iae.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 17:26:07 -0800 (PST)
-Date: Tue, 22 Nov 2011 17:26:05 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, debug: test for online nid when allocating on single
- node
-Message-ID: <alpine.DEB.2.00.1111221724550.18644@chino.kir.corp.google.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6A96B00C1
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 20:36:32 -0500 (EST)
+Message-ID: <4ECC4E1B.9050405@tilera.com>
+Date: Tue, 22 Nov 2011 20:36:27 -0500
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v4 0/5] Reduce cross CPU IPI interference
+References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
 
-Calling alloc_pages_exact_node() means the allocation only passes the
-zonelist of a single node into the page allocator.  If that node isn't
-online, it's zonelist may never have been initialized causing a strange
-oops that may not immediately be clear.
+On 11/22/2011 6:08 AM, Gilad Ben-Yossef wrote:
+> We have lots of infrastructure in place to partition a multi-core system such that we have a group of CPUs that are dedicated to specific task: cgroups, scheduler and interrupt affinity and cpuisol boot parameter. Still, kernel code will some time interrupt all CPUs in the system via IPIs for various needs. These IPIs are useful and cannot be avoided altogether, but in certain cases it is possible to interrupt only specific CPUs that have useful work to
+> do and not the entire system.
+>
+> This patch set, inspired by discussions with Peter Zijlstra and Frederic Weisbecker when testing the nohz task patch set, is a first stab at trying to explore doing this by locating the places where such global IPI calls are being made and turning a global IPI into an IPI for a specific group of CPUs.  The purpose of the patch set is to get feedback if this is the right way to go for dealing with this issue and indeed, if the issue is even worth dealing with at all. Based on the feedback from this patch set I plan to offer further patches that address similar issue in other code paths.
+>
+> The patch creates an on_each_cpu_mask infrastructure API (derived from existing arch specific versions in Tile and Arm) and uses it to turn two global
+> IPI invocation to per CPU group invocations.
 
-I recently debugged an issue where node 0 wasn't online and an allocator
-was passing 0 to alloc_pages_exact_node() and it resulted in a NULL
-pointer on zonelist->_zoneref.  If CONFIG_DEBUG_VM is enabled, though, it
-would be nice to catch this a bit earlier.
+Acked-by: Chris Metcalf <cmetcalf@tilera.com>
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/gfp.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+I think this kind of work is very important as more and more processing
+moves to isolated cpus that need protection from miscellaneous kernel
+interrupts.  Keep at it! :-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -313,7 +313,7 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
- {
--	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
- 
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
- }
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
