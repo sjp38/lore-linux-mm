@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 58C926B00D1
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 08:35:29 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/5] mm: filemap: pass __GFP_WRITE from grab_cache_page_write_begin()
-Date: Wed, 23 Nov 2011 14:34:17 +0100
-Message-Id: <1322055258-3254-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
-References: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D6EC16B00DB
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 08:38:34 -0500 (EST)
+Date: Thu, 24 Nov 2011 00:38:14 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH v7 3.2-rc2 0/30] uprobes patchset with perf probe
+ support
+Message-Id: <20111124003814.0c18b5a17eeb348f1a5e1cbc@canb.auug.org.au>
+In-Reply-To: <20111123132051.GA23497@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	<20111122050330.GA24807@linux.vnet.ibm.com>
+	<20111123014945.5e6cfbf57f7664b3bc1ee2e3@canb.auug.org.au>
+	<20111123132051.GA23497@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Thu__24_Nov_2011_00_38_14_+1100_R5vJCqvezS3LO_wM"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, mailsrikar@gmail.com, "H. Peter Anvin" <hpa@zytor.com>
 
-From: Johannes Weiner <jweiner@redhat.com>
+--Signature=_Thu__24_Nov_2011_00_38_14_+1100_R5vJCqvezS3LO_wM
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Tell the page allocator that pages allocated through
-grab_cache_page_write_begin() are expected to become dirty soon.
+Hi Srikar,
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
----
- mm/filemap.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
+On Wed, 23 Nov 2011 18:50:51 +0530 Srikar Dronamraju <srikar@linux.vnet.ibm=
+.com> wrote:
+>
+> I have relooked at the commit messages.=20
+> Have also resolve Dan Carpenter's comments on git log --oneline=20
+> not showing properly.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c0018f2..5344dec 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2354,8 +2354,11 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
- 					pgoff_t index, unsigned flags)
- {
- 	int status;
-+	gfp_t gfp_mask;
- 	struct page *page;
- 	gfp_t gfp_notmask = 0;
-+
-+	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
- 	if (flags & AOP_FLAG_NOFS)
- 		gfp_notmask = __GFP_FS;
- repeat:
-@@ -2363,7 +2366,7 @@ repeat:
- 	if (page)
- 		goto found;
- 
--	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
-+	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
- 	if (!page)
- 		return NULL;
- 	status = add_to_page_cache_lru(page, mapping, index,
--- 
-1.7.6.4
+Looks better, thanks.
+
+> I have created a for-next branch at git://github.com/srikard/linux.git.
+
+Thanks, I have switched to that.
+
+> My kernel.org account isnt re-activated yet because I still need to
+> complete key-signing. I will try to get that done at the earliest.
+> Till then, I would have to host on github.
+
+That's ok.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Thu__24_Nov_2011_00_38_14_+1100_R5vJCqvezS3LO_wM
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBCAAGBQJOzPdGAAoJEECxmPOUX5FE8EIP/3pvl0lu0KP3qI5VPba8vlc/
+LiEIp0xf2akBPQC59pSkXL5s6z7R715zhHB855rZ0kGtnA06TtanUqurxNawmJwG
+xdGZkz+vKPJsnsIbZQSDujvvAhZia4/kNQ5YhvshtQlCyG2jlfGDZhAToVfyjXVY
+zMFSInRckO4KbBPdQdQ8TulkT4/rgaFCl4ZOXWdbNQasCmrXfH58P+DGMtpjHtR1
+5ead+Y+VMgYgz0AeEnNNC9T34cRXRv0jGhEhducpPlUoArpZw9HKYQv8W+dWEroL
+kwQjjQRbS3CJI5SQaoZ2SbK/+IhKuQXFDk/kj8gjsR7mDNvgUWmbtdbqJG3SfYcy
+0FRm4llOENo5vCwb3Y69+GW42HowFSmq007KXbnQTIfNy37SDEUK281+UIDFLEH/
+sXWHbSQHKVOpaodvRG+hoFV6B1i1+n0Uu7TPpKo6YGSJNw0YbqcUk75CAfrqpXQC
+QU7uBjmV3a6dEqJ2w+0B0KS5ThgVU+kbkC+J7E/ar5ric2hmV2IqInW+3CnKbBGe
+uTFofQ1A06y+/I5ESCkLCf97uCBrJI07x/i7dQBiDTdAAS4bK9Fq3bfbEOVUc5se
+HUXURIm85ig4WN6UoiGLESU/h6wd4feBCJBYRlmZIovlfmFY1Ejgp+IJaOnd6pgq
+qkY6kAzl/ERg38ty2bQV
+=jAhR
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__24_Nov_2011_00_38_14_+1100_R5vJCqvezS3LO_wM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
