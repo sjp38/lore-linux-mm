@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2612E6B008C
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 18:58:38 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AFAF73EE0B6
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:58:34 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9436245DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:58:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B80B45DE4E
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:58:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C7031DB803C
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:58:34 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BC751DB8038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:58:34 +0900 (JST)
-Date: Thu, 24 Nov 2011 08:57:26 +0900
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 322AC6B008C
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 18:59:43 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AB2073EE0BC
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:59:39 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 913C945DEEE
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:59:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78F7545DEED
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:59:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BF201DB803F
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:59:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CAA01DB803C
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:59:39 +0900 (JST)
+Date: Thu, 24 Nov 2011 08:58:36 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 1/8] mm: oom_kill: remove memcg argument from
- oom_kill_task()
-Message-Id: <20111124085726.067197b0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322062951-1756-2-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: unify remaining mem_cont, mem, etc. variable
+ names to memcg
+Message-Id: <20111124085836.d484c43f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322062951-1756-3-git-send-email-hannes@cmpxchg.org>
 References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
-	<1322062951-1756-2-git-send-email-hannes@cmpxchg.org>
+	<1322062951-1756-3-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,17 +33,14 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 Nov 2011 16:42:24 +0100
+On Wed, 23 Nov 2011 16:42:25 +0100
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
 > From: Johannes Weiner <jweiner@redhat.com>
 > 
-> The memcg argument of oom_kill_task() hasn't been used since 341aea2
-> 'oom-kill: remove boost_dying_task_prio()'.  Kill it.
-> 
 > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
