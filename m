@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 172D76B009F
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 16:31:45 -0500 (EST)
-Received: by dye36 with SMTP id 36so176010dye.14
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 13:31:42 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: use of alloc_bootmem for a PCI-e device
-References: <9AF7658D-FEDB-479A-8D4F-A54264363CB4@gmail.com>
- <op.v5ey7hv93l0zgt@mpn-glaptop>
- <DEF7AFA8-9119-4FD7-915E-FB8572F06F02@gmail.com>
-Date: Wed, 23 Nov 2011 22:31:40 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6681A6B00AB
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:20:31 -0500 (EST)
+Received: by ywm14 with SMTP id 14so1317407ywm.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 14:20:29 -0800 (PST)
+Date: Wed, 23 Nov 2011 14:20:12 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
+In-Reply-To: <CAOJsxLH2foaRHYoPgRufu_J8B-YEvQ8aJNuQqHOPNj9YFvAubw@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1111231407170.2573@sister.anvils>
+References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <CAHGf_=rOYkEGHakyHpihopMg2VtVfDV7XvC_QGs_kj6HgDmBRA@mail.gmail.com> <CAOJsxLH2foaRHYoPgRufu_J8B-YEvQ8aJNuQqHOPNj9YFvAubw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v5e4q2ug3l0zgt@mpn-glaptop>
-In-Reply-To: <DEF7AFA8-9119-4FD7-915E-FB8572F06F02@gmail.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-143952957-1322086825=:2573"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Francois Dagenais <jeff.dagenais@gmail.com>
-Cc: linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
 
-> On Nov 23, 2011, at 14:31, Michal Nazarewicz wrote:
->> One trick that you might try to use (even though it's a bit hackish) =
-is to
->> pass ram=3D### on Linux command line where the number passed is actua=
-l memory
->> minus size of the buffer you need.  Other then that, you might take a=
- look
->> at CMA (CMAv17 it was sent last week or so to linux-mm) which in one =
-of the
->> initialisation steps needs to grab memory regions.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-On Wed, 23 Nov 2011 22:21:15 +0100, Jean-Francois Dagenais <jeff.dagenai=
-s@gmail.com> wrote:
-> Looks like it can do what I want. Are there any mainline merge plans?
+--8323584-143952957-1322086825=:2573
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-There are plans...  Execution is uncertain. ;)
+On Wed, 23 Nov 2011, Pekka Enberg wrote:
+> On Wed, Nov 23, 2011 at 9:59 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >> +
+> >> + =A0 =A0 =A0 goto unlock;
+> >> +
+> >> +undo:
+> >> + =A0 =A0 =A0 while (index > start) {
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shmem_truncate_page(inode, index);
+> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 index--;
+> >
+> > Hmmm...
+> > seems too aggressive truncate if the file has pages before starting fal=
+locate.
+> > but I have no idea to make better undo. ;)
+>=20
+> Why do we need to undo anyway?
 
-> Unless I am mistaken, because of SWIOTLB, only x86_32 is supported, co=
-rrect?
->
-> Since I want to allocate the buffer once at startup, then keep it unti=
-l shutdown,
-> can you suggest a simpler, less flexible alternative?
+One answer comes earlier in this thread:
 
-Oh no, I wouldn't recommend using the full CMA for your purpose, but no =
-matter
-there is a piece of code that does what you need.  Marek has added suppo=
-rt for
-Intel so it should work for you as well, even though I have had a chance=
- to
-run that piece yet.
+On Mon, Nov 21, 2011, Christoph Hellwig write:
+> On Sun, Nov 20, 2011 at 01:22:10PM -0800, Hugh Dickins wrote:
+> > First question that springs to mind (to which I shall easily find
+> > an answer): is it actually acceptable for fallocate() to return
+> > -ENOSPC when it has already completed a part of the work?
+>=20
+> No, it must undo all allocations if it returns ENOSPC.
 
-You are interested in parts of patch 8[1] (namely dma_declare_contiguous=
-()
-function) and the last hunk of patch 9[2] (namely the part where
-dma_contiguous_reserve() is called).
+Another answer would be: if fallocate() had been defined to return
+the length that has been successfully allocated (as write() returns
+the length written), then it would be reasonable to return partial
+length instead of failing with ENOSPC, and not undo.  But it was
+defined to return -1 on failure or 0 on success, so cannot report
+partial success.
 
-[1] http://article.gmane.org/gmane.linux.kernel.mm/70321
-[2] http://article.gmane.org/gmane.linux.kernel.mm/70318
+Another answer would be: if the disk is near full, it's not good
+for a fallocate() to fail with -ENOSPC while nonetheless grabbing
+all the remaining blocks; even worse if another fallocate() were
+racing with it.
 
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Hugh
+--8323584-143952957-1322086825=:2573--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
