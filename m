@@ -1,66 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC056B00AF
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:14:43 -0500 (EST)
-Date: Wed, 23 Nov 2011 09:14:38 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: slub: use irqsafe_cpu_cmpxchg for put_cpu_partial
-In-Reply-To: <CAOJsxLGWTRuwQ04Mg26fNhZEmo7yVXG5vSZgF7Q5GESCk65odA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1111230907330.16139@router.home>
-References: <20111121131531.GA1679@x4.trippels.de> <20111121153621.GA1678@x4.trippels.de> <1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <20111121161036.GA1679@x4.trippels.de> <1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <20111121173556.GA1673@x4.trippels.de> <1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <20111121185215.GA1673@x4.trippels.de> <20111121195113.GA1678@x4.trippels.de>
- <1321907275.13860.12.camel@pasglop> <alpine.DEB.2.01.1111211617220.8000@trent.utfs.org> <alpine.DEB.2.00.1111212105330.19606@router.home> <1321948113.27077.24.camel@edumazet-laptop> <1321999085.14573.2.camel@pasglop> <alpine.DEB.2.01.1111221511070.8000@trent.utfs.org>
- <1322007501.14573.15.camel@pasglop> <alpine.DEB.2.01.1111222145470.8000@trent.utfs.org> <CAOJsxLGWTRuwQ04Mg26fNhZEmo7yVXG5vSZgF7Q5GESCk65odA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1055D6B00B3
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:23:23 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so1842353vbb.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 07:23:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20111123150810.GO19415@suse.de>
+References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
+	<1321900608-27687-8-git-send-email-mgorman@suse.de>
+	<1321945011.22361.335.camel@sli10-conroe>
+	<CAPQyPG4DQCxDah5VYMU6PNgeuD_3WJ-zm8XpL7V7BK8hAF8OJg@mail.gmail.com>
+	<20111123110041.GM19415@suse.de>
+	<CAPQyPG588_q1diT8KyPirUD9MLME6SanO-cSw1twzhFiTBWgCw@mail.gmail.com>
+	<20111123134512.GN19415@suse.de>
+	<CAPQyPG6b-MiysHnEadWRX729_q7G=_mYozSR+OatS-TLs_Sw_Q@mail.gmail.com>
+	<20111123150810.GO19415@suse.de>
+Date: Wed, 23 Nov 2011 23:23:19 +0800
+Message-ID: <CAPQyPG58cjEQ8jPFhxGB6URcFoNt=NBC1L+T8aEWVUtPfBNh-Q@mail.gmail.com>
+Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
+ use by compaction
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christian Kujau <lists@nerdbynature.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Eric Dumazet <eric.dumazet@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 23 Nov 2011, Pekka Enberg wrote:
-
-> 2011/11/23 Christian Kujau <lists@nerdbynature.de>:
-> > OK, with Christoph's patch applied, 3.2.0-rc2-00274-g6fe4c6d-dirty survives
-> > on this machine, with the disk & cpu workload that caused the machine to
-> > panic w/o the patch. Load was at 4-5 this time, which is expected for this
-> > box. I'll run a few more tests later on, but it seems ok for now.
-> >
-> > I couldn't resist and ran "slabinfo" anyway (after the workload!) - the
-> > box survived, nothing was printed in syslog either. Output attached.
+On Wed, Nov 23, 2011 at 11:08 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Wed, Nov 23, 2011 at 10:35:37PM +0800, Nai Xia wrote:
+>> On Wed, Nov 23, 2011 at 9:45 PM, Mel Gorman <mgorman@suse.de> wrote:
+>> > On Wed, Nov 23, 2011 at 09:05:08PM +0800, Nai Xia wrote:
+>> >> > <SNIP>
+>> >> >
+>> >> > Where are you adding this check?
+>> >> >
+>> >> > If you mean in __unmap_and_move(), the check is unnecessary unless
+>> >> > another subsystem starts using sync-light compaction. With this ser=
+ies,
+>> >> > only direct compaction cares about MIGRATE_SYNC_LIGHT. If the page =
+is
+>> >>
+>> >> But I am still a little bit confused that if MIGRATE_SYNC_LIGHT is on=
+ly
+>> >> used by direct compaction and =A0another mode can be used by it:
+>> >> MIGRATE_ASYNC also does not write dirty pages, then why not also
+>> >> do an (current->flags & PF_MEMALLOC) test before writing out pages,
+>> >
+>> > Why would it be necessary?
+>> > Why would it be better than what is there now?
+>>
+>> I mean, if
+>> =A0 =A0MIGRATE_SYNC_LIGHT --> (current->flags & PF_MEMALLOC) and
+>> =A0 =A0MIGRATE_SYNC_LIGHT --> no dirty writeback, and (current->flags & =
+PF_MEMALLOC)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 --> (MIGRATE_SYNC_LIGHT || M=
+IGRATE_ASYNC)
+>> =A0 =A0MIGRATE_ASYNC =A0 =A0 =A0--> no dirty writeback, then
+>> why not simply =A0(current->flags & PF_MEMALLOC) ---> no dirty writeback
+>> and keep the sync meaning as it was?
+>>
 >
-> Christoph, Eric, would you mind sending me the final patches that
-> Christian tested? Maybe CC David too for extra pair of eyes.
+> Ok, I see what you mean. Instead of making MIGRATE_SYNC_LIGHT part of
+> the API, we could instead special case within migrate.c how to behave if
+> MIGRATE_SYNC && PF_MEMALLOC.
 
-I think he only tested the patch that he showed us. Here is the patch
-cleaned up. Do you Want me to feed you the debug fixes patch by patch as
-well?
+Yeah~
 
-Subject: slub: use irqsafe_cpu_cmpxchg for put_cpu_partial
+>
+> This would be functionally equivalent and satisfy THP users
+> but I do not see it as being easier to understand or easier
+> to maintain than updating the API. If someone in the future
+> wanted to use migration without significant stalls without
+> being PF_MEMALLOC, they would need to update the API like this.
+> There are no users like this today but automatic NUMA migration
+> might want to leverage something like MIGRATE_SYNC_LIGHT
+> (http://comments.gmane.org/gmane.linux.kernel.mm/70239)
 
-The cmpxchg must be irq safe. The fallback for this_cpu_cmpxchg only
-disables preemption which results in per cpu partial page operation
-potentially failing on non x86 platforms.
+I see.
+So could I say that might be the time and users for my suggestion of
+page uptodate check to fit into?
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2011-11-23 09:10:48.000000000 -0600
-+++ linux-2.6/mm/slub.c	2011-11-23 09:10:57.000000000 -0600
-@@ -1969,7 +1969,7 @@ int put_cpu_partial(struct kmem_cache *s
- 		page->pobjects = pobjects;
- 		page->next = oldpage;
+Thanks,
 
--	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-+	} while (irqsafe_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
- 	stat(s, CPU_PARTIAL_FREE);
- 	return pobjects;
- }
+Nai
+>
+> --
+> Mel Gorman
+> SUSE Labs
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
