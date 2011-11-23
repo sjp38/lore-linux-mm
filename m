@@ -1,103 +1,347 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 844186B00B2
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 06:39:44 -0500 (EST)
-Date: Wed, 23 Nov 2011 12:39:39 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
- use by compaction
-Message-ID: <20111123113939.GC9775@quack.suse.cz>
-References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
- <20111122101451.GJ19415@suse.de>
- <20111122115427.GA8058@quack.suse.cz>
- <201111222159.24987.nai.xia@gmail.com>
- <20111122191302.GF8058@quack.suse.cz>
- <CAPQyPG6EComwoD7+SS7qDqU-G5OYrHbAWJG0gfmJPh9_2N=RZA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A00946B00BC
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 07:19:02 -0500 (EST)
+Date: Wed, 23 Nov 2011 20:18:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/8] block: limit default readahead size for small
+ devices
+Message-ID: <20111123121842.GA7174@localhost>
+References: <20111121091819.394895091@intel.com>
+ <20111121093846.121502745@intel.com>
+ <20111121145247.0e37dc36.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPQyPG6EComwoD7+SS7qDqU-G5OYrHbAWJG0gfmJPh9_2N=RZA@mail.gmail.com>
+In-Reply-To: <20111121145247.0e37dc36.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Li Shaohua <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Wed 23-11-11 06:44:23, Nai Xia wrote:
-> >> So that amounts to the following calculation that is important to the
-> >> statistical stall time for the compaction:
-> >>
-> >>      page_nr *  average_stall_window_time
-> >>
-> >> where average_stall_window_time is the window for a page between
-> >> NotUptoDate ---> UptoDate or Dirty --> Clean. And page_nr is the
-> >> number of pages in stall window for read or write.
-> >>
-> >> So for general cases,
-> >> Fact 1) may ensure that the page_nr is smaller for read, while
-> >> fact 2) may ensure the same for average_locking_window_time.
-> >  Well, page_nr really depends on the load. If the workload is only reads,
-> > clearly number of read pages is going to be higher than number of written
-> > pages. Once workload does heavy writing, I agree number of pages under
-> > writeback is likely going to be higher.
+On Mon, Nov 21, 2011 at 02:52:47PM -0800, Andrew Morton wrote:
+> On Mon, 21 Nov 2011 17:18:20 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> Think about process A linearly scans 100MB mapped file pages
-> area for read, and another process B linearly writes to a same sized area.
-> If there is no readahead, the read page in stall window in memory is only
-> *one* page each time.
-  Yes, I understand this. But in a situation where there is *no* process
-writing and *hundred* processes reading, you clearly have more pages locked
-for reading than for writing. All I wanted to say is that your broad
-statement that the number of pages read from disk is lower than the number
-of pages written is not true in general. It depends on the workload.
+> > Linus reports a _really_ small & slow (505kB, 15kB/s) USB device,
+> > on which blkid runs unpleasantly slow. He manages to optimize the blkid
+> > reads down to 1kB+16kB, but still kernel read-ahead turns it into 48kB.
+> > 
+> >      lseek 0,    read 1024   => readahead 4 pages (start of file)
+> 
+> I'm disturbed that the code did a 4 page (16kbyte?) readahead after an
+> lseek.  Given the high probability that the next read will occur after
+> a second lseek, that's a mistake.
 
-> However, 100MB dirty pages can be hold in memory
-> waiting to be write which may stall the compaction for fallback_migrate_page().
-> Even for buffer_migrate_page() these pages are much more likely to get locked
-> by other behaviors like you said for IO submission,etc.
-> 
-> I was not sure about readahead, of course,  I only theoretically
-> expected its still not
-> comparable to the totally async write behavior.
-> 
-> >
-> >> I am not sure this will be the same case for all workloads,
-> >> don't know if Mel has tested large readahead workloads which
-> >> has more async read IOs and less writebacks.
-> >>
-> >> But theoretically I expect things are not that bad even for large
-> >> readahead, because readahead is triggered by the readahead TAG in
-> >> linear order, which means for a process to generating readahead IO,
-> >> its speed is still somewhat govened by the read IO speed. While
-> >> for a process writing to a file mapped memory area, it may well
-> >> exceed the speed of its backing-store writing speed.
-> >>
-> >>
-> >> Aside from that, I think the relation between page locking and
-> >> page read is not 1-to-1, in other words, there maybe quite some
-> >> transient page locking is caused by mmap and then page fault into
-> >> already good-state pages requiring no IO at all. For these
-> >> transient page lockings I think it's reasonable to have light
-> >> waiting.
-> >  Definitely there are other lockings than for read. E.g. to write a page,
-> > we lock it first, submit IO (which can actually block waiting for request
-> > to get freed), set PageWriteback, and unlock the page. And there are more
-> > transient ones like you mention above...
-> 
-> Yes, you are right.
-> But I think we were talking about distinguishing page locking from page read
-> IO?
-> 
-> Well, I might also want to suggest that do an early dirty test before
-> taking the lock...but, I expect page NotUpToDate is much more likely an
-> indication that we are going to block for IO on the following page lock.
-> Dirty test is not that strong. Do you agree ?
-  Yes, I agree with this.
+Agreed.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> Was an lseek to offset 0 special-cased?
+
+Yup, as you see in the last patch :)
+
+> >      lseek 1536, read 16384  => readahead 8 pages (page contiguous)
+> > 
+> > The readahead heuristics involved here are reasonable ones in general.
+> > So it's good to fix blkid with fadvise(RANDOM), as Linus already did.
+> > 
+> > For the kernel part, Linus suggests:
+> >   So maybe we could be less aggressive about read-ahead when the size of
+> >   the device is small? Turning a 16kB read into a 64kB one is a big deal,
+> >   when it's about 15% of the whole device!
+> > 
+> > This looks reasonable: smaller device tend to be slower (USB sticks as
+> > well as micro/mobile/old hard disks).
+> 
+> Spose so.  Obviously there are other characteristics which should be
+> considered when choosing a readaahead size, but one of them can be disk
+> size and that's what this change does.
+
+The other characteristics includes memory size, disk throughput,
+latency and (unfortunately) above all the real workload and its
+sensitivity to IO latencies.
+
+The disk throughput and latency would be better than disk size,
+however the former is not that easy to measure. Disk size is readily
+available w/o any cost, hence this patch.
+
+> In a better world, userspace would run a
+> work-out-what-readahead-size-to-use script each time a distro is
+> installed and when new storage devices are added/detected.  Userspace
+> would then remember that readahead size for subsequent bootups.
+> 
+> In the real world, we shovel guaranteed-to-be-wrong guesswork into the
+> kernel and everyone just uses the results.  Sigh.
+
+Heh. Disk characters should be measurable with some efforts.
+However I won't even try to guess the workload and user demands...
+
+Practically, I would choose a meaningful default size (512KB or 1MB)
+for the majority and reduce it on small memory/slow disk systems (this
+patch does the easy work based on disk size).
+
+> > --- linux-next.orig/block/genhd.c	2011-10-31 00:13:51.000000000 +0800
+> > +++ linux-next/block/genhd.c	2011-11-18 11:27:08.000000000 +0800
+> > @@ -623,6 +623,26 @@ void add_disk(struct gendisk *disk)
+> >  	WARN_ON(retval);
+> >  
+> >  	disk_add_events(disk);
+> > +
+> > +	/*
+> > +	 * Limit default readahead size for small devices.
+> > +	 *        disk size    readahead size
+> > +	 *               1M                8k
+> > +	 *               4M               16k
+> > +	 *              16M               32k
+> > +	 *              64M               64k
+> > +	 *             256M              128k
+> > +	 *               1G              256k
+> > +	 *               4G              512k
+> > +	 *              16G             1024k
+> > +	 *              64G             2048k
+> > +	 *             256G             4096k
+> > +	 */
+> > +	if (get_capacity(disk)) {
+> > +		unsigned long size = get_capacity(disk) >> 9;
+> 
+> get_capacity() returns sector_t.  This expression will overflow with a
+> 2T disk.  I'm not sure if we successfully support 2T disks on 32-bit
+> machines, but changes like this will guarantee that we don't :)
+
+Good catch! I'll change the type to size_t.
+
+> > +		size = 1UL << (ilog2(size) / 2);
+> 
+> I think there's a rounddown_pow_of_two() hiding in that expression?
+
+Yeah, added a line of comment for that.
+
+> > +		bdi->ra_pages = min(bdi->ra_pages, size);
+> 
+> I don't have a clue why that min() is in there.  It needs a comment,
+> please.
+
+It's actually explained in the comment by word "Limit", I'll change it
+to "Scale down" to make it more obvious.
+
+Thanks,
+Fengguang
+---
+Subject: block: limit default readahead size for small devices
+Date: Fri Nov 18 11:27:12 CST 2011
+
+Linus reports a _really_ small & slow (505kB, 15kB/s) USB device,
+on which blkid runs unpleasantly slow. He manages to optimize the blkid
+reads down to 1kB+16kB, but still kernel read-ahead turns it into 48kB.
+
+     lseek 0,    read 1024   => readahead 4 pages (start of file)
+     lseek 1536, read 16384  => readahead 8 pages (page contiguous)
+
+The readahead heuristics involved here are reasonable ones in general.
+So it's good to fix blkid with fadvise(RANDOM), as Linus already did.
+
+For the kernel part, Linus suggests:
+  So maybe we could be less aggressive about read-ahead when the size of
+  the device is small? Turning a 16kB read into a 64kB one is a big deal,
+  when it's about 15% of the whole device!
+
+This looks reasonable: smaller device tend to be slower (USB sticks as
+well as micro/mobile/old hard disks).
+
+Given that the non-rotational attribute is not always reported, we can
+take disk size as a max readahead size hint. This patch uses a formula
+that generates the following concrete limits:
+
+        disk size    readahead size
+     (scale by 4)      (scale by 2)
+               1M                8k
+               4M               16k
+              16M               32k
+              64M               64k
+             256M              128k
+        --------------------------- (*)
+               1G              256k
+               4G              512k
+              16G             1024k
+              64G             2048k
+             256G             4096k
+
+(*) Since the default readahead size is 128k, this limit only takes
+effect for devices whose size is less than 256M.
+
+The formula is determined on the following data, collected by script:
+
+	#!/bin/sh
+
+	# please make sure BDEV is not mounted or opened by others
+	BDEV=sdb
+
+	for rasize in 4 16 32 64 128 256 512 1024 2048 4096 8192
+	do
+		echo $rasize > /sys/block/$BDEV/queue/read_ahead_kb
+		time dd if=/dev/$BDEV of=/dev/null bs=4k count=102400
+	done
+
+The principle is, the formula shall not limit readahead size to such a
+degree that will impact some device's sequential read performance.
+
+The Intel SSD is special in that its throughput increases steadily with
+larger readahead size. However it may take years for Linux to increase
+its default readahead size to 2MB, so we don't take it seriously in the
+formula.
+
+SSD 80G Intel x25-M SSDSA2M080 (reported by Li Shaohua)
+
+	rasize	1st run		2nd run
+	----------------------------------
+	  4k	123 MB/s	122 MB/s
+	 16k  	153 MB/s	153 MB/s
+	 32k	161 MB/s	162 MB/s
+	 64k	167 MB/s	168 MB/s
+	128k	197 MB/s	197 MB/s
+	256k	217 MB/s	217 MB/s
+	512k	238 MB/s	234 MB/s
+	  1M	251 MB/s	248 MB/s
+	  2M	259 MB/s	257 MB/s
+==>	  4M	269 MB/s	264 MB/s
+	  8M	266 MB/s	266 MB/s
+
+Note that ==> points to the readahead size that yields plateau throughput.
+
+SSD 22G MARVELL SD88SA02 MP1F (reported by Jens Axboe)
+
+	rasize  1st             2nd
+	--------------------------------
+	  4k     41 MB/s         41 MB/s
+	 16k     85 MB/s         81 MB/s
+	 32k    102 MB/s        109 MB/s
+	 64k    125 MB/s        144 MB/s
+	128k    183 MB/s        185 MB/s
+	256k    216 MB/s        216 MB/s
+	512k    216 MB/s        236 MB/s
+	1024k   251 MB/s        252 MB/s
+	  2M    258 MB/s        258 MB/s
+==>       4M    266 MB/s        266 MB/s
+	  8M    266 MB/s        266 MB/s
+
+SSD 30G SanDisk SATA 5000
+
+	  4k	29.6 MB/s	29.6 MB/s	29.6 MB/s
+	 16k	52.1 MB/s	52.1 MB/s	52.1 MB/s
+	 32k	61.5 MB/s	61.5 MB/s	61.5 MB/s
+	 64k	67.2 MB/s	67.2 MB/s	67.1 MB/s
+	128k	71.4 MB/s	71.3 MB/s	71.4 MB/s
+	256k	73.4 MB/s	73.4 MB/s	73.3 MB/s
+==>	512k	74.6 MB/s	74.6 MB/s	74.6 MB/s
+	  1M	74.7 MB/s	74.6 MB/s	74.7 MB/s
+	  2M	76.1 MB/s	74.6 MB/s	74.6 MB/s
+
+USB stick 32G Teclast CoolFlash idVendor=1307, idProduct=0165
+
+	  4k	7.9 MB/s 	7.9 MB/s 	7.9 MB/s
+	 16k	17.9 MB/s	17.9 MB/s	17.9 MB/s
+	 32k	24.5 MB/s	24.5 MB/s	24.5 MB/s
+	 64k	28.7 MB/s	28.7 MB/s	28.7 MB/s
+	128k	28.8 MB/s	28.9 MB/s	28.9 MB/s
+==>	256k	30.5 MB/s	30.5 MB/s	30.5 MB/s
+	512k	30.9 MB/s	31.0 MB/s	30.9 MB/s
+	  1M	31.0 MB/s	30.9 MB/s	30.9 MB/s
+	  2M	30.9 MB/s	30.9 MB/s	30.9 MB/s
+
+USB stick 4G SanDisk  Cruzer idVendor=0781, idProduct=5151
+
+	  4k	6.4 MB/s 	6.4 MB/s 	6.4 MB/s
+	 16k	13.4 MB/s	13.4 MB/s	13.2 MB/s
+	 32k	17.8 MB/s	17.9 MB/s	17.8 MB/s
+	 64k	21.3 MB/s	21.3 MB/s	21.2 MB/s
+	128k	21.4 MB/s	21.4 MB/s	21.4 MB/s
+==>	256k	23.3 MB/s	23.2 MB/s	23.2 MB/s
+	512k	23.3 MB/s	23.8 MB/s	23.4 MB/s
+	  1M	23.8 MB/s	23.4 MB/s	23.3 MB/s
+	  2M	23.4 MB/s	23.2 MB/s	23.4 MB/s
+
+USB stick 2G idVendor=0204, idProduct=6025 SerialNumber: 08082005000113
+
+	  4k	6.7 MB/s 	6.9 MB/s 	6.7 MB/s
+	 16k	11.7 MB/s	11.7 MB/s	11.7 MB/s
+	 32k	12.4 MB/s	12.4 MB/s	12.4 MB/s
+   	 64k	13.4 MB/s	13.4 MB/s	13.4 MB/s
+	128k	13.4 MB/s	13.4 MB/s	13.4 MB/s
+==>	256k	13.6 MB/s	13.6 MB/s	13.6 MB/s
+	512k	13.7 MB/s	13.7 MB/s	13.7 MB/s
+	  1M	13.7 MB/s	13.7 MB/s	13.7 MB/s
+	  2M	13.7 MB/s	13.7 MB/s	13.7 MB/s
+
+64 MB, USB full speed (collected by Clemens Ladisch)
+Bus 003 Device 003: ID 08ec:0011 M-Systems Flash Disk Pioneers DiskOnKey
+
+	4KB:    139.339 s, 376 kB/s
+	16KB:   81.0427 s, 647 kB/s
+	32KB:   71.8513 s, 730 kB/s
+==>	64KB:   67.3872 s, 778 kB/s
+	128KB:  67.5434 s, 776 kB/s
+	256KB:  65.9019 s, 796 kB/s
+	512KB:  66.2282 s, 792 kB/s
+	1024KB: 67.4632 s, 777 kB/s
+	2048KB: 69.9759 s, 749 kB/s
+
+An unnamed SD card (Yakui):
+
+         4k     195.873 s,  5.5 MB/s
+         8k     123.425 s,  8.7 MB/s
+         16k    86.6425 s, 12.4 MB/s
+         32k    66.7519 s, 16.1 MB/s
+==>      64k    58.5262 s, 18.3 MB/s
+         128k   59.3847 s, 18.1 MB/s
+         256k   59.3188 s, 18.1 MB/s
+         512k   59.0218 s, 18.2 MB/s
+
+CC: Li Shaohua <shaohua.li@intel.com>
+CC: Clemens Ladisch <clemens@ladisch.de>
+Acked-by: Jens Axboe <axboe@kernel.dk>
+Acked-by: Rik van Riel <riel@redhat.com>
+Tested-by: Vivek Goyal <vgoyal@redhat.com>
+Tested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ block/genhd.c |   20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+--- linux-next.orig/block/genhd.c	2011-11-21 20:32:56.000000000 +0800
++++ linux-next/block/genhd.c	2011-11-23 20:11:23.000000000 +0800
+@@ -578,6 +578,7 @@ exit:
+ void add_disk(struct gendisk *disk)
+ {
+ 	struct backing_dev_info *bdi;
++	size_t size;
+ 	dev_t devt;
+ 	int retval;
+ 
+@@ -623,6 +624,25 @@ void add_disk(struct gendisk *disk)
+ 	WARN_ON(retval);
+ 
+ 	disk_add_events(disk);
++
++	/*
++	 * Scale down default readahead size for small devices.
++	 *        disk size    readahead size
++	 *               1M                8k
++	 *               4M               16k
++	 *              16M               32k
++	 *              64M               64k
++	 *             255M               64k (the round down effect)
++	 *             256M              128k
++	 *               1G              256k
++	 *               4G              512k
++	 *              16G             1024k
++	 */
++	size = get_capacity(disk);
++	if (size) {
++		size = 1 << (ilog2(size >> 9) / 2);
++		bdi->ra_pages = min(bdi->ra_pages, size);
++	}
+ }
+ EXPORT_SYMBOL(add_disk);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
