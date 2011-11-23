@@ -1,49 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id F08506B00A2
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 03:04:58 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0E98B3EE0B6
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:56 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E374045DF4B
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C820045DF47
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA46EE08003
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F811DB8040
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
-Date: Wed, 23 Nov 2011 17:03:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: add task name to warn_scan_unevictable()
- messages
-Message-Id: <20111123170319.cc668d61.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
-References: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5F8676B00C0
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 03:53:59 -0500 (EST)
+From: Cong Wang <amwang@redhat.com>
+Subject: [V3 PATCH 1/2] tmpfs: add fallocate support
+Date: Wed, 23 Nov 2011 16:53:30 +0800
+Message-Id: <1322038412-29013-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "Andrew Morton (commit_signer:71/87=82%)" <akpm@linux-foundation.org>, "Mel Gorman (commit_signer:39/87=45%)" <mgorman@suse.de>, "Minchan Kim (commit_signer:32/87=37%)" <minchan.kim@gmail.com>, "Johannes Weiner (commit_signer:21/87=24%)" <jweiner@redhat.com>, "open
- list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, WANG Cong <amwang@redhat.com>, linux-mm@kvack.org
 
-On Wed, 23 Nov 2011 00:55:20 -0500
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Systemd needs tmpfs to support fallocate [1], to be able
+to safely use mmap(), regarding SIGBUS, on files on the
+/dev/shm filesystem. The glibc fallback loop for -ENOSYS
+on fallocate is just ugly.
 
-> If we need to know a usecase, caller program name is critical important.
-> Show it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-seems nice.
+This patch adds fallocate support to tmpfs, and as we
+already have shmem_truncate_range(), it is also easy to
+add FALLOC_FL_PUNCH_HOLE support too.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+1. http://lkml.org/lkml/2011/10/20/275
+
+V2->V3:
+a) Read i_size directly after holding i_mutex;
+b) Call page_cache_release() too after shmem_getpage();
+c) Undo previous changes when -ENOSPC.
+
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Lennart Poettering <lennart@poettering.net>
+Cc: Kay Sievers <kay.sievers@vrfy.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: WANG Cong <amwang@redhat.com>
+
+---
+ mm/shmem.c |   65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 65 insertions(+), 0 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d672250..65f7a27 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -30,6 +30,7 @@
+ #include <linux/mm.h>
+ #include <linux/export.h>
+ #include <linux/swap.h>
++#include <linux/falloc.h>
+ 
+ static struct vfsmount *shm_mnt;
+ 
+@@ -1431,6 +1432,69 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
+ 	return error;
+ }
+ 
++static void shmem_truncate_page(struct inode *inode, pgoff_t index)
++{
++	loff_t start = index << PAGE_CACHE_SHIFT;
++	loff_t end = ((index + 1) << PAGE_CACHE_SHIFT) - 1;
++	shmem_truncate_range(inode, start, end);
++}
++
++static long shmem_fallocate(struct file *file, int mode,
++				loff_t offset, loff_t len)
++{
++	struct inode *inode = file->f_path.dentry->d_inode;
++	pgoff_t start = offset >> PAGE_CACHE_SHIFT;
++	pgoff_t end = DIV_ROUND_UP((offset + len), PAGE_CACHE_SIZE);
++	pgoff_t index = start;
++	loff_t i_size;
++	struct page *page = NULL;
++	int ret = 0;
++
++	mutex_lock(&inode->i_mutex);
++	i_size = inode->i_size;
++	if (mode & FALLOC_FL_PUNCH_HOLE) {
++		if (!(offset > i_size || (end << PAGE_CACHE_SHIFT) > i_size))
++			shmem_truncate_range(inode, offset,
++					     (end << PAGE_CACHE_SHIFT) - 1);
++		goto unlock;
++	}
++
++	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
++		ret = inode_newsize_ok(inode, (offset + len));
++		if (ret)
++			goto unlock;
++	}
++
++	while (index < end) {
++		ret = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
++		if (ret) {
++			if (ret == -ENOSPC)
++				goto undo;
++			else
++				goto unlock;
++		}
++		if (page) {
++			unlock_page(page);
++			page_cache_release(page);
++		}
++		index++;
++	}
++	if (!(mode & FALLOC_FL_KEEP_SIZE) && (index << PAGE_CACHE_SHIFT) > i_size)
++		i_size_write(inode, index << PAGE_CACHE_SHIFT);
++
++	goto unlock;
++
++undo:
++	while (index > start) {
++		shmem_truncate_page(inode, index);
++		index--;
++	}
++
++unlock:
++	mutex_unlock(&inode->i_mutex);
++	return ret;
++}
++
+ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
+ {
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
+@@ -2286,6 +2350,7 @@ static const struct file_operations shmem_file_operations = {
+ 	.fsync		= noop_fsync,
+ 	.splice_read	= shmem_file_splice_read,
+ 	.splice_write	= generic_file_splice_write,
++	.fallocate	= shmem_fallocate,
+ #endif
+ };
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
