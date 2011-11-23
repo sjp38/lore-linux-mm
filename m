@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 203CC6B00C2
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:42:59 -0500 (EST)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B56716B00CA
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:43:02 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/8] mm: oom_kill: remove memcg argument from oom_kill_task()
-Date: Wed, 23 Nov 2011 16:42:24 +0100
-Message-Id: <1322062951-1756-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 5/8] mm: memcg: remove unneeded checks from newpage_charge()
+Date: Wed, 23 Nov 2011 16:42:28 +0100
+Message-Id: <1322062951-1756-6-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
 References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,36 +15,40 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@sus
 
 From: Johannes Weiner <jweiner@redhat.com>
 
-The memcg argument of oom_kill_task() hasn't been used since 341aea2
-'oom-kill: remove boost_dying_task_prio()'.  Kill it.
+All callsites pass in freshly allocated pages and a valid mm.  As a
+result, all checks pertaining the page's mapcount, page->mapping or
+the fallback to init_mm are unneeded.
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 ---
- mm/oom_kill.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ mm/memcontrol.c |   13 +------------
+ 1 files changed, 1 insertions(+), 12 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 471dedb..fd9e303 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -423,7 +423,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- }
- 
- #define K(x) ((x) << (PAGE_SHIFT-10))
--static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-+static int oom_kill_task(struct task_struct *p)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d4d139a..0d10be4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2679,19 +2679,8 @@ int mem_cgroup_newpage_charge(struct page *page,
  {
- 	struct task_struct *q;
- 	struct mm_struct *mm;
-@@ -522,7 +522,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		}
- 	} while_each_thread(p, t);
- 
--	return oom_kill_task(victim, mem);
-+	return oom_kill_task(victim);
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+-	/*
+-	 * If already mapped, we don't have to account.
+-	 * If page cache, page->mapping has address_space.
+-	 * But page->mapping may have out-of-use anon_vma pointer,
+-	 * detecit it by PageAnon() check. newly-mapped-anon's page->mapping
+-	 * is NULL.
+-  	 */
+-	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
+-		return 0;
+-	if (unlikely(!mm))
+-		mm = &init_mm;
+ 	return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_MAPPED);
++					MEM_CGROUP_CHARGE_TYPE_MAPPED);
  }
  
- /*
+ static void
 -- 
 1.7.6.4
 
