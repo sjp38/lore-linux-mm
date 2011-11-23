@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D74916B00CB
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 04:19:39 -0500 (EST)
-Date: Wed, 23 Nov 2011 09:19:33 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/7] mm: compaction: make isolate_lru_page() filter-aware
- again
-Message-ID: <20111123091933.GL19415@suse.de>
-References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
- <1321900608-27687-6-git-send-email-mgorman@suse.de>
- <20111122173018.GD15253@barrios-laptop.redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 076A46B00C2
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 04:59:39 -0500 (EST)
+Message-ID: <4ECCC407.3040700@kernel.dk>
+Date: Wed, 23 Nov 2011 10:59:35 +0100
+From: Jens Axboe <axboe@kernel.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20111122173018.GD15253@barrios-laptop.redhat.com>
+Subject: Re: [patch v2 for-3.2] block: initialize request_queue's numa node
+ during allocation
+References: <4ECB5C80.8080609@redhat.com> <alpine.DEB.2.00.1111220140470.4306@chino.kir.corp.google.com> <20111122152739.GA5663@redhat.com> <20111122211954.GA17120@redhat.com> <alpine.DEB.2.00.1111221342320.2621@chino.kir.corp.google.com> <20111122220218.GA17543@redhat.com> <alpine.DEB.2.00.1111221703590.18644@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1111221703590.18644@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, stable@vger.kernel.org
 
-On Wed, Nov 23, 2011 at 02:30:18AM +0900, Minchan Kim wrote:
-> > <SNIP>
-> > +	/*
-> > +	 * To minimise LRU disruption, the caller can indicate that it only
-> > +	 * wants to isolate pages it will be able to operate on without
-> > +	 * blocking - clean pages for the most part.
-> > +	 *
-> > +	 * ISOLATE_CLEAN means that only clean pages should be isolated. This
-> > +	 * is used by reclaim when it is cannot write to backing storage
-> > +	 *
-> > +	 * ISOLATE_ASYNC_MIGRATE is used to indicate that it only wants to pages
-> > +	 * that it is possible to migrate without blocking with a ->migratepage
-> > +	 * handler
-> > +	 */
-> > +	if (mode & (ISOLATE_CLEAN|ISOLATE_ASYNC_MIGRATE)) {
-> > +		/* All the caller can do on PageWriteback is block */
-> > +		if (PageWriteback(page))
-> > +			return ret;
-> > +
-> > +		if (PageDirty(page)) {
-> > +			struct address_space *mapping;
-> > +
-> > +			/* ISOLATE_CLEAN means only clean pages */
-> > +			if (mode & ISOLATE_CLEAN)
-> > +				return ret;
-> > +
-> > +			/*
-> > +			 * Only the ->migratepage callback knows if a dirty
-> > +			 * page can be migrated without blocking. Skip the
-> > +			 * page unless there is a ->migratepage callback.
-> > +			 */
-> > +			mapping = page_mapping(page);
-> > +			if (!mapping || !mapping->a_ops->migratepage)
+On 2011-11-23 02:14, David Rientjes wrote:
+> From: Mike Snitzer <snitzer@redhat.com>
 > 
-> I didn't review 4/7 carefully yet.
+> struct request_queue is allocated with __GFP_ZERO so its "node" field is 
+> zero before initialization.  This causes an oops if node 0 is offline in 
+> the page allocator because its zonelists are not initialized.  From Dave 
+> Young's dmesg:
+> 
+> 	SRAT: Node 1 PXM 2 0-d0000000
+> 	SRAT: Node 1 PXM 2 100000000-330000000
+> 	SRAT: Node 0 PXM 1 330000000-630000000
+> 	Initmem setup node 1 0000000000000000-000000000affb000
+> 	...
+> 	Built 1 zonelists in Node order, mobility grouping on.
+> 	...
+> 	BUG: unable to handle kernel paging request at 0000000000001c08
+> 	IP: [<ffffffff8111c355>] __alloc_pages_nodemask+0xb5/0x870
+> 
+> and __alloc_pages_nodemask+0xb5 translates to a NULL pointer on 
+> zonelist->_zonerefs.
+> 
+> The fix is to initialize q->node at the time of allocation so the correct 
+> node is passed to the slab allocator later.
+> 
+> Since blk_init_allocated_queue_node() is no longer needed, merge it with 
+> blk_init_allocated_queue().
 
-Thanks for reviewing the others.
-
-> In case of page_mapping is NULL, move_to_new_page calls migrate_page
-> which is non-blocking function. So, I guess it could be migrated without blocking.
->  
-
-Well spotted
-
-                        /*
-                         * Only pages without mappings or that have a
-                         * ->migratepage callback are possible to
-                         * migrate without blocking
-                         */
-                        mapping = page_mapping(page);
-                        if (mapping && !mapping->a_ops->migratepage)
-                                return ret;
+Thanks, queued for current release.
 
 -- 
-Mel Gorman
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
