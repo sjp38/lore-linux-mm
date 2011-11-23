@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5EF076B00CD
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 15:31:53 -0500 (EST)
-Date: Wed, 23 Nov 2011 12:31:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/8] readahead: replace ra->mmap_miss with ra->ra_flags
-Message-Id: <20111123123150.8a1ac462.akpm@linux-foundation.org>
-In-Reply-To: <20111123124745.GB7174@localhost>
-References: <20111121091819.394895091@intel.com>
-	<20111121093846.378529145@intel.com>
-	<20111121150116.094cf194.akpm@linux-foundation.org>
-	<20111123124745.GB7174@localhost>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id A28766B00CD
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 15:52:39 -0500 (EST)
+Message-ID: <1322081530.14799.97.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 5/30] uprobes: copy of the original
+ instruction.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Wed, 23 Nov 2011 21:52:10 +0100
+In-Reply-To: <1322077748.20742.68.camel@frodo>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	 <20111118110733.10512.11835.sendpatchset@srdronam.in.ibm.com>
+	 <1322073616.14799.96.camel@twins> <1322077748.20742.68.camel@frodo>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Wed, 23 Nov 2011 20:47:45 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Wed, 2011-11-23 at 14:49 -0500, Steven Rostedt wrote:
+> On Wed, 2011-11-23 at 19:40 +0100, Peter Zijlstra wrote:
+> > On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> > > +               /* TODO : Analysis and verification of instruction */
+> >=20
+> > As in refuse to set a breakpoint on an instruction we can't deal with?
+> >=20
+> > Do we care? The worst case we'll crash the program, but if we're allowe=
+d
+> > setting uprobes we already have enough privileges to do that anyway,
+> > right?
+>=20
+> Well, I wouldn't be happy if I was running a server, and needed to
+> analyze something it was doing, and because I screwed up the location of
+> my probe, I crash the server, made lots of people unhappy and lose my
+> job over it.
+>=20
+> I think we do care, but it can be a TODO item.
 
-> > should be ulong, which is compatible with the bitops.h code.
-> > Or perhaps we should use a bitfield and let the compiler do the work.
-> 
-> What if we do
-> 
->         u16     mmap_miss;
->         u16     ra_flags;
-> 
-> That would get rid of this patch. I'd still like to pack the various
-> flags as well as pattern into one single ra_flags, which makes it
-> convenient to pass things around (as one single parameter).
+But but but, why not let userspace sort it? And if you're going to
+provide the kernel with inode:offset data yourself, you're already well
+aware of wtf you're doing.
 
-I'm not sure that this will improve things much...
-
-Again, how does the code look if you use a bitfield and let the
-compiler do the worK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
