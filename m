@@ -1,75 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EA436B00BA
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 06:00:51 -0500 (EST)
-Date: Wed, 23 Nov 2011 11:00:41 +0000
-From: Mel Gorman <mgorman@suse.de>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 844186B00B2
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 06:39:44 -0500 (EST)
+Date: Wed, 23 Nov 2011 12:39:39 +0100
+From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
  use by compaction
-Message-ID: <20111123110041.GM19415@suse.de>
+Message-ID: <20111123113939.GC9775@quack.suse.cz>
 References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
- <1321900608-27687-8-git-send-email-mgorman@suse.de>
- <1321945011.22361.335.camel@sli10-conroe>
- <CAPQyPG4DQCxDah5VYMU6PNgeuD_3WJ-zm8XpL7V7BK8hAF8OJg@mail.gmail.com>
+ <20111122101451.GJ19415@suse.de>
+ <20111122115427.GA8058@quack.suse.cz>
+ <201111222159.24987.nai.xia@gmail.com>
+ <20111122191302.GF8058@quack.suse.cz>
+ <CAPQyPG6EComwoD7+SS7qDqU-G5OYrHbAWJG0gfmJPh9_2N=RZA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAPQyPG4DQCxDah5VYMU6PNgeuD_3WJ-zm8XpL7V7BK8hAF8OJg@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPQyPG6EComwoD7+SS7qDqU-G5OYrHbAWJG0gfmJPh9_2N=RZA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nai Xia <nai.xia@gmail.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 23, 2011 at 10:01:53AM +0800, Nai Xia wrote:
-> On Tue, Nov 22, 2011 at 2:56 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> > On Tue, 2011-11-22 at 02:36 +0800, Mel Gorman wrote:
-> >> This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIGHT
-> >> mode that avoids writing back pages to backing storage. Async
-> >> compaction maps to MIGRATE_ASYNC while sync compaction maps to
-> >> MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
-> >> hotplug, MIGRATE_SYNC is used.
+On Wed 23-11-11 06:44:23, Nai Xia wrote:
+> >> So that amounts to the following calculation that is important to the
+> >> statistical stall time for the compaction:
 > >>
-> >> This avoids sync compaction stalling for an excessive length of time,
-> >> particularly when copying files to a USB stick where there might be
-> >> a large number of dirty pages backed by a filesystem that does not
-> >> support ->writepages.
-> > Hi,
-> > from my understanding, with this, even writes
-> > to /proc/sys/vm/compact_memory doesn't wait for pageout, is this
-> > intended?
-> > on the other hand, MIGRATE_SYNC_LIGHT now waits for pagelock and buffer
-> > lock, so could wait on page read. page read and page out have the same
-> > latency, why takes them different?
+> >>      page_nr *  average_stall_window_time
+> >>
+> >> where average_stall_window_time is the window for a page between
+> >> NotUptoDate ---> UptoDate or Dirty --> Clean. And page_nr is the
+> >> number of pages in stall window for read or write.
+> >>
+> >> So for general cases,
+> >> Fact 1) may ensure that the page_nr is smaller for read, while
+> >> fact 2) may ensure the same for average_locking_window_time.
+> >  Well, page_nr really depends on the load. If the workload is only reads,
+> > clearly number of read pages is going to be higher than number of written
+> > pages. Once workload does heavy writing, I agree number of pages under
+> > writeback is likely going to be higher.
 > 
-> So for the problem you raised, I think my suggestion to Mel is to adopt the
-> following logic:
+> Think about process A linearly scans 100MB mapped file pages
+> area for read, and another process B linearly writes to a same sized area.
+> If there is no readahead, the read page in stall window in memory is only
+> *one* page each time.
+  Yes, I understand this. But in a situation where there is *no* process
+writing and *hundred* processes reading, you clearly have more pages locked
+for reading than for writing. All I wanted to say is that your broad
+statement that the number of pages read from disk is lower than the number
+of pages written is not true in general. It depends on the workload.
+
+> However, 100MB dirty pages can be hold in memory
+> waiting to be write which may stall the compaction for fallback_migrate_page().
+> Even for buffer_migrate_page() these pages are much more likely to get locked
+> by other behaviors like you said for IO submission,etc.
 > 
->            if (!trylock_page(page) && !PageUptodate(page))
->                       we are quite likely to block on read, so we
->                       depend on yet another MIGRATE_SYNC_MODE to decide
->                       if we really want to lock_page() and wait for this IO.
+> I was not sure about readahead, of course,  I only theoretically
+> expected its still not
+> comparable to the totally async write behavior.
 > 
-> How do you think ?
+> >
+> >> I am not sure this will be the same case for all workloads,
+> >> don't know if Mel has tested large readahead workloads which
+> >> has more async read IOs and less writebacks.
+> >>
+> >> But theoretically I expect things are not that bad even for large
+> >> readahead, because readahead is triggered by the readahead TAG in
+> >> linear order, which means for a process to generating readahead IO,
+> >> its speed is still somewhat govened by the read IO speed. While
+> >> for a process writing to a file mapped memory area, it may well
+> >> exceed the speed of its backing-store writing speed.
+> >>
+> >>
+> >> Aside from that, I think the relation between page locking and
+> >> page read is not 1-to-1, in other words, there maybe quite some
+> >> transient page locking is caused by mmap and then page fault into
+> >> already good-state pages requiring no IO at all. For these
+> >> transient page lockings I think it's reasonable to have light
+> >> waiting.
+> >  Definitely there are other lockings than for read. E.g. to write a page,
+> > we lock it first, submit IO (which can actually block waiting for request
+> > to get freed), set PageWriteback, and unlock the page. And there are more
+> > transient ones like you mention above...
 > 
+> Yes, you are right.
+> But I think we were talking about distinguishing page locking from page read
+> IO?
+> 
+> Well, I might also want to suggest that do an early dirty test before
+> taking the lock...but, I expect page NotUpToDate is much more likely an
+> indication that we are going to block for IO on the following page lock.
+> Dirty test is not that strong. Do you agree ?
+  Yes, I agree with this.
 
-Where are you adding this check?
-
-If you mean in __unmap_and_move(), the check is unnecessary unless
-another subsystem starts using sync-light compaction. With this series,
-only direct compaction cares about MIGRATE_SYNC_LIGHT. If the page is
-not up to date, it is also locked during the IO and unlocked after
-setting Uptodate in the IO completion handler.
-
-As the page is locked, compaction will fail trylock_page, do the
-PF_MEMALLOC check and bail as it is not safe for direct compaction
-to call lock_page as the comment in __unmap_and_move explains. This
-should avoid the stall.
-
-Did I misunderstand your suggestion?
-
+								Honza
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
