@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B56716B00CA
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:43:02 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD406B00CD
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:43:03 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 5/8] mm: memcg: remove unneeded checks from newpage_charge()
-Date: Wed, 23 Nov 2011 16:42:28 +0100
-Message-Id: <1322062951-1756-6-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/8] mm: memcg: clean up fault accounting
+Date: Wed, 23 Nov 2011 16:42:26 +0100
+Message-Id: <1322062951-1756-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
 References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,40 +15,50 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@sus
 
 From: Johannes Weiner <jweiner@redhat.com>
 
-All callsites pass in freshly allocated pages and a valid mm.  As a
-result, all checks pertaining the page's mapcount, page->mapping or
-the fallback to init_mm are unneeded.
+The fault accounting functions have a single, memcg-internal user, so
+they don't need to be global.  In fact, their one-line bodies can be
+directly folded into the caller.  And since faults happen one at a
+time, use this_cpu_inc() directly instead of this_cpu_add(foo, 1).
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 ---
- mm/memcontrol.c |   13 +------------
- 1 files changed, 1 insertions(+), 12 deletions(-)
+ mm/memcontrol.c |   14 ++------------
+ 1 files changed, 2 insertions(+), 12 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d4d139a..0d10be4 100644
+index 473b99f..d825af9 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2679,19 +2679,8 @@ int mem_cgroup_newpage_charge(struct page *page,
- {
- 	if (mem_cgroup_disabled())
- 		return 0;
--	/*
--	 * If already mapped, we don't have to account.
--	 * If page cache, page->mapping has address_space.
--	 * But page->mapping may have out-of-use anon_vma pointer,
--	 * detecit it by PageAnon() check. newly-mapped-anon's page->mapping
--	 * is NULL.
--  	 */
--	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
--		return 0;
--	if (unlikely(!mm))
--		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED);
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED);
+@@ -589,16 +589,6 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+ 	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAPOUT], val);
  }
  
- static void
+-void mem_cgroup_pgfault(struct mem_cgroup *memcg, int val)
+-{
+-	this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGFAULT], val);
+-}
+-
+-void mem_cgroup_pgmajfault(struct mem_cgroup *memcg, int val)
+-{
+-	this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT], val);
+-}
+-
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ 					    enum mem_cgroup_events_index idx)
+ {
+@@ -913,10 +903,10 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+ 
+ 	switch (idx) {
+ 	case PGMAJFAULT:
+-		mem_cgroup_pgmajfault(memcg, 1);
++		this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGFAULT]);
+ 		break;
+ 	case PGFAULT:
+-		mem_cgroup_pgfault(memcg, 1);
++		this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT]);
+ 		break;
+ 	default:
+ 		BUG();
 -- 
 1.7.6.4
 
