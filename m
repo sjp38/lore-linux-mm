@@ -1,96 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A453C6B00D8
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:43:19 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 7/8] mm: memcg: modify PageCgroupAcctLRU non-atomically
-Date: Wed, 23 Nov 2011 16:42:30 +0100
-Message-Id: <1322062951-1756-8-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
-References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
+	by kanga.kvack.org (Postfix) with ESMTP id F1B086B00C2
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 10:57:14 -0500 (EST)
+Date: Wed, 23 Nov 2011 15:57:07 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 7/7] mm: compaction: Introduce sync-light migration for
+ use by compaction
+Message-ID: <20111123155707.GP19415@suse.de>
+References: <1321900608-27687-1-git-send-email-mgorman@suse.de>
+ <1321900608-27687-8-git-send-email-mgorman@suse.de>
+ <1321945011.22361.335.camel@sli10-conroe>
+ <CAPQyPG4DQCxDah5VYMU6PNgeuD_3WJ-zm8XpL7V7BK8hAF8OJg@mail.gmail.com>
+ <20111123110041.GM19415@suse.de>
+ <CAPQyPG588_q1diT8KyPirUD9MLME6SanO-cSw1twzhFiTBWgCw@mail.gmail.com>
+ <20111123134512.GN19415@suse.de>
+ <CAPQyPG6b-MiysHnEadWRX729_q7G=_mYozSR+OatS-TLs_Sw_Q@mail.gmail.com>
+ <20111123150810.GO19415@suse.de>
+ <CAPQyPG58cjEQ8jPFhxGB6URcFoNt=NBC1L+T8aEWVUtPfBNh-Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAPQyPG58cjEQ8jPFhxGB6URcFoNt=NBC1L+T8aEWVUtPfBNh-Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-From: Johannes Weiner <jweiner@redhat.com>
+On Wed, Nov 23, 2011 at 11:23:19PM +0800, Nai Xia wrote:
+> > <SNIP>
+> > This would be functionally equivalent and satisfy THP users
+> > but I do not see it as being easier to understand or easier
+> > to maintain than updating the API. If someone in the future
+> > wanted to use migration without significant stalls without
+> > being PF_MEMALLOC, they would need to update the API like this.
+> > There are no users like this today but automatic NUMA migration
+> > might want to leverage something like MIGRATE_SYNC_LIGHT
+> > (http://comments.gmane.org/gmane.linux.kernel.mm/70239)
+> 
+> I see.
+> So could I say that might be the time and users for my suggestion of
+> page uptodate check to fit into?
+> 
 
-This bit is protected by zone->lru_lock, there is no need for locked
-operations when setting and clearing it.
+Yes, at that point checking for PageUptodate may be necessary depending
+on their requirements.
 
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
----
- include/linux/page_cgroup.h |   16 ++++++++++++----
- mm/memcontrol.c             |    4 ++--
- 2 files changed, 14 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index aaa60da..a0bc9d0 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -57,14 +57,23 @@ static inline int PageCgroup##uname(struct page_cgroup *pc)	\
- #define SETPCGFLAG(uname, lname)			\
- static inline void SetPageCgroup##uname(struct page_cgroup *pc)\
- 	{ set_bit(PCG_##lname, &pc->flags);  }
-+#define __SETPCGFLAG(uname, lname)			\
-+static inline void __SetPageCgroup##uname(struct page_cgroup *pc)\
-+	{ __set_bit(PCG_##lname, &pc->flags);  }
- 
- #define CLEARPCGFLAG(uname, lname)			\
- static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ clear_bit(PCG_##lname, &pc->flags);  }
-+#define __CLEARPCGFLAG(uname, lname)			\
-+static inline void __ClearPageCgroup##uname(struct page_cgroup *pc)	\
-+	{ __clear_bit(PCG_##lname, &pc->flags);  }
- 
- #define TESTCLEARPCGFLAG(uname, lname)			\
- static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
-+#define __TESTCLEARPCGFLAG(uname, lname)			\
-+static inline int __TestClearPageCgroup##uname(struct page_cgroup *pc)	\
-+	{ return __test_and_clear_bit(PCG_##lname, &pc->flags);  }
- 
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
-@@ -75,11 +84,10 @@ TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
- SETPCGFLAG(Used, USED)
- 
--SETPCGFLAG(AcctLRU, ACCT_LRU)
--CLEARPCGFLAG(AcctLRU, ACCT_LRU)
-+__SETPCGFLAG(AcctLRU, ACCT_LRU)
-+__CLEARPCGFLAG(AcctLRU, ACCT_LRU)
- TESTPCGFLAG(AcctLRU, ACCT_LRU)
--TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
--
-+__TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
- 
- SETPCGFLAG(FileMapped, FILE_MAPPED)
- CLEARPCGFLAG(FileMapped, FILE_MAPPED)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b9a3b94..51aba19 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -995,7 +995,7 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
- 		/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
- 		smp_rmb();
- 		memcg = pc->mem_cgroup;
--		SetPageCgroupAcctLRU(pc);
-+		__SetPageCgroupAcctLRU(pc);
- 	} else
- 		memcg = root_mem_cgroup;
- 	mz = page_cgroup_zoneinfo(memcg, page);
-@@ -1031,7 +1031,7 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
- 	 * LRU-accounting happened against pc->mem_cgroup or
- 	 * root_mem_cgroup.
- 	 */
--	if (TestClearPageCgroupAcctLRU(pc)) {
-+	if (__TestClearPageCgroupAcctLRU(pc)) {
- 		VM_BUG_ON(!pc->mem_cgroup);
- 		memcg = pc->mem_cgroup;
- 	} else
 -- 
-1.7.6.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
