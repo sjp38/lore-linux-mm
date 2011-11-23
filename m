@@ -1,45 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E95C6B00CF
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 14:17:01 -0500 (EST)
-Received: by yenm12 with SMTP id m12so2329856yen.14
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 11:16:59 -0800 (PST)
-Date: Wed, 23 Nov 2011 11:16:47 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] fs: wire up .truncate_range and .fallocate
-In-Reply-To: <20111123103829.GA23168@lst.de>
-Message-ID: <alpine.LSU.2.00.1111231107430.2226@sister.anvils>
-References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <1322038412-29013-2-git-send-email-amwang@redhat.com> <20111123103829.GA23168@lst.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8E6966B00C8
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 14:25:00 -0500 (EST)
+Subject: Re: [PATCH v7 3.2-rc2 19/30] tracing: modify is_delete, is_return
+ from ints to bool.
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20111118111029.10512.12844.sendpatchset@srdronam.in.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	 <20111118111029.10512.12844.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 23 Nov 2011 14:24:55 -0500
+Message-ID: <1322076295.20742.62.camel@frodo>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Wed, 23 Nov 2011, Christoph Hellwig wrote:
+On Fri, 2011-11-18 at 16:40 +0530, Srikar Dronamraju wrote:
+> is_delete and is_return can take atmost 2 values and
+> are better of being a boolean than a int.
+
+I'm fine with this.
+
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
+
+-- Steve
+
 > 
-> It also seems like all fallocate implementaions for far got away
-> without the unmap_mapping_range, so either people didn't test them
-> hard enough, or tmpfs doesn't need it either.  I fear the former
-> is true.
+> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> ---
 
-They're saved by the funny little one-by-one unmap_mapping_range()
-fallback in truncate_inode_page().  It's inefficient (in those rare
-cases when someone is punching a hole somewhere that's mapped) and
-we ought to do better, but we don't have an actual bug there.
-
-Hugh
-
-int truncate_inode_page(struct address_space *mapping, struct page *page)
-{
-	if (page_mapped(page)) {
-		unmap_mapping_range(mapping,
-				   (loff_t)page->index << PAGE_CACHE_SHIFT,
-				   PAGE_CACHE_SIZE, 0);
-	}
-	return truncate_complete_page(mapping, page);
-}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
