@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DD46B00A7
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 01:23:51 -0500 (EST)
-Received: by faas10 with SMTP id s10so1726751faa.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 22:23:47 -0800 (PST)
-Date: Wed, 23 Nov 2011 08:23:31 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to
- flush
-In-Reply-To: <1321960128-15191-5-git-send-email-gilad@benyossef.com>
-Message-ID: <alpine.LFD.2.02.1111230822270.1773@tux.localdomain>
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com> <1321960128-15191-5-git-send-email-gilad@benyossef.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DBC5A6B00AA
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 01:24:18 -0500 (EST)
+Received: by vcbfk26 with SMTP id fk26so1330754vcb.14
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 22:24:16 -0800 (PST)
+Date: Wed, 23 Nov 2011 15:24:05 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] vmscan: add task name to warn_scan_unevictable() messages
+Message-ID: <20111123062405.GA25067@barrios-laptop.redhat.com>
+References: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, apkm@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 
-On Tue, 22 Nov 2011, Gilad Ben-Yossef wrote:
-> static void flush_all(struct kmem_cache *s)
-> {
-> -	on_each_cpu(flush_cpu_slab, s, 1);
-> +	cpumask_var_t cpus;
-> +	struct kmem_cache_cpu *c;
-> +	int cpu;
-> +
-> +	if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
+On Wed, Nov 23, 2011 at 12:55:20AM -0500, KOSAKI Motohiro wrote:
+> If we need to know a usecase, caller program name is critical important.
+> Show it.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c |    5 +++--
+>  1 files changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a1893c0..29d163e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3448,9 +3448,10 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+>  static void warn_scan_unevictable_pages(void)
+>  {
+>  	printk_once(KERN_WARNING
+> -		    "The scan_unevictable_pages sysctl/node-interface has been "
+> +		    "%s: The scan_unevictable_pages sysctl/node-interface has been "
+>  		    "disabled for lack of a legitimate use case.  If you have "
+> -		    "one, please send an email to linux-mm@kvack.org.\n");
+> +		    "one, please send an email to linux-mm@kvack.org.\n",
+> +		    current->comm);
+>  }
 
-__GFP_NOWARN too maybe?
+Just nitpick:
+How about using WARN_ONCE instead of custom warning?
+It can show more exact call path as well as comm.
+I guess it's more noticible to users.
+Anyway, either is okay to me.
 
-> +		for_each_online_cpu(cpu) {
-> +			c = per_cpu_ptr(s->cpu_slab, cpu);
-> +			if (c->page)
-> +				cpumask_set_cpu(cpu, cpus);
-> +		}
-> +		on_each_cpu_mask(cpus, flush_cpu_slab, s, 1);
-> +		free_cpumask_var(cpus);
-> +	} else
-> +		on_each_cpu(flush_cpu_slab, s, 1);
-> }
-
-Acked-by: Pekka Enberg <penberg@kernel.org>
-
-I can't take the patch because it depends on a new API introduced in the 
-first patch.
-
-I'm CC'ing Andrew.
-
- 			Pekka
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
