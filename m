@@ -1,91 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 77F156B00C1
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 02:45:12 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so1302531vbb.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 23:45:11 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3CB5E6B00C4
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 02:50:11 -0500 (EST)
+Message-ID: <4ECCA578.6020700@cn.fujitsu.com>
+Date: Wed, 23 Nov 2011 15:49:12 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-In-Reply-To: <1321960128-15191-6-git-send-email-gilad@benyossef.com>
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
-	<1321960128-15191-6-git-send-email-gilad@benyossef.com>
-Date: Wed, 23 Nov 2011 09:45:10 +0200
-Message-ID: <CAOJsxLG1dCkUb=_08Sry+p8X6LzjFjA8wgoFmHL=xexJfQTUxg@mail.gmail.com>
-Subject: Re: [PATCH v4 5/5] mm: Only IPI CPUs to drain local pages if they exist
-From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
+ for mempolicy or disjoint nodemask
+References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com> <4ECC5FC8.9070500@cn.fujitsu.com> <alpine.DEB.2.00.1111221902300.30008@chino.kir.corp.google.com> <4ECC7B1E.6020108@cn.fujitsu.com> <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 22, 2011 at 1:08 PM, Gilad Ben-Yossef <gilad@benyossef.com> wro=
-te:
-> Calculate a cpumask of CPUs with per-cpu pages in any zone and only send =
-an IPI requesting CPUs to drain these pages to the buddy allocator if they =
-actually have pages when asked to flush.
->
-> The code path of memory allocation failure for CPUMASK_OFFSTACK=3Dy confi=
-g was tested using fault injection framework.
->
-> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> CC: Chris Metcalf <cmetcalf@tilera.com>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> CC: Frederic Weisbecker <fweisbec@gmail.com>
-> CC: Russell King <linux@arm.linux.org.uk>
-> CC: linux-mm@kvack.org
-> CC: Pekka Enberg <penberg@kernel.org>
-> CC: Matt Mackall <mpm@selenic.com>
-> CC: Sasha Levin <levinsasha928@gmail.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Andi Kleen <andi@firstfloor.org>
+On Tue, 22 Nov 2011 22:25:46 -0800 (pst), David Rientjes wrote:
+> On Wed, 23 Nov 2011, Miao Xie wrote:
+> 
+>> This is a good idea. But I worry that oom will happen easily, because we do
+>> direct reclamation and compact by mems_allowed.
+>>
+> 
+> Memory compaction actually iterates through each zone regardless of 
+> whether it's allowed or not in the current context.  Recall that the 
+> nodemask passed into __alloc_pages_nodemask() is non-NULL only when there 
+> is a mempolicy that restricts the allocations by MPOL_BIND.  That nodemask 
+> is not protected by get_mems_allowed(), so there's no change in 
+> compaction's behavior with my patch.
 
-I'm adding Mel and Andrew to CC.
+That nodemask is also protected by get_mems_allowed().
 
-> ---
-> =A0mm/page_alloc.c | =A0 18 +++++++++++++++++-
-> =A01 files changed, 17 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9dd443d..a3efdf1 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1119,7 +1119,23 @@ void drain_local_pages(void *arg)
-> =A0*/
-> =A0void drain_all_pages(void)
-> =A0{
-> - =A0 =A0 =A0 on_each_cpu(drain_local_pages, NULL, 1);
-> + =A0 =A0 =A0 int cpu;
-> + =A0 =A0 =A0 struct zone *zone;
-> + =A0 =A0 =A0 cpumask_var_t cpus;
-> + =A0 =A0 =A0 struct per_cpu_pageset *pcp;
-> +
-> + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
+> Direct reclaim does, however, require mems_allowed staying constant 
+> without the risk of early oom as you mentioned.  It has its own 
+> get_mems_allowed(), though, so it doesn't have the opportunity to change 
+> until returning to the page allocator.  It's possible that mems_allowed 
+> will be different on the next call to get_pages_from_freelist() but we 
+> don't know anything about that context: it's entirely possible that the 
+> set of new mems has an abundance of free memory or are completely depleted 
+> as well.  So there's no strict need for consistency between the set of 
+> allowed nodes during reclaim and the subsequent allocation attempt.  All 
+> we care about is that reclaim has a consistent set of allowed nodes to 
+> determine whether it's making progress or not.
+> 
 
-__GFP_NOWARN
-
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_populated_zone(zon=
-e) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pcp =3D per=
-_cpu_ptr(zone->pageset, cpu);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pcp->pc=
-p.count)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 cpumask_set_cpu(cpu, cpus);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu_mask(cpus, drain_local_pages, N=
-ULL, 1);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cpumask_var(cpus);
-> + =A0 =A0 =A0 } else
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu(drain_local_pages, NULL, 1);
-> =A0}
->
-> =A0#ifdef CONFIG_HIBERNATION
-
-Acked-by: Pekka Enberg <penberg@kernel.org>
+Agree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
