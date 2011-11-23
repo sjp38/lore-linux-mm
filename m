@@ -1,156 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1646B00C5
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 03:54:35 -0500 (EST)
-From: Cong Wang <amwang@redhat.com>
-Subject: [PATCH 2/2] fs: wire up .truncate_range and .fallocate
-Date: Wed, 23 Nov 2011 16:53:31 +0800
-Message-Id: <1322038412-29013-2-git-send-email-amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA396B00C9
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 04:07:00 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so1351585vbb.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 01:06:58 -0800 (PST)
+MIME-Version: 1.0
 In-Reply-To: <1322038412-29013-1-git-send-email-amwang@redhat.com>
 References: <1322038412-29013-1-git-send-email-amwang@redhat.com>
+Date: Wed, 23 Nov 2011 11:06:57 +0200
+Message-ID: <CAOJsxLGeGyU26AUwzajwFO_o+PEajN6SFfoQqnLf2iOfw+YeZw@mail.gmail.com>
+Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, WANG Cong <amwang@redhat.com>, Matthew Wilcox <matthew@wil.cx>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-As Hugh suggested, with FALLOC_FL_PUNCH_HOLE, we can use do_fallocate()
-to implement madvise_remove and finally remove .truncate_range call back.
+On Wed, Nov 23, 2011 at 10:53 AM, Cong Wang <amwang@redhat.com> wrote:
+> Systemd needs tmpfs to support fallocate [1], to be able
+> to safely use mmap(), regarding SIGBUS, on files on the
+> /dev/shm filesystem. The glibc fallback loop for -ENOSYS
+> on fallocate is just ugly.
+>
+> This patch adds fallocate support to tmpfs, and as we
+> already have shmem_truncate_range(), it is also easy to
+> add FALLOC_FL_PUNCH_HOLE support too.
+>
+> 1. http://lkml.org/lkml/2011/10/20/275
+>
+> V2->V3:
+> a) Read i_size directly after holding i_mutex;
+> b) Call page_cache_release() too after shmem_getpage();
+> c) Undo previous changes when -ENOSPC.
+>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Cc: Lennart Poettering <lennart@poettering.net>
+> Cc: Kay Sievers <kay.sievers@vrfy.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: WANG Cong <amwang@redhat.com>
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Christoph Hellwig <hch@lst.de>
-Signed-off-by: WANG Cong <amwang@redhat.com>
+Looks reasonable to me.
 
----
- include/linux/fs.h |    1 -
- include/linux/mm.h |    3 ++-
- mm/madvise.c       |    8 +++++---
- mm/shmem.c         |    1 -
- mm/truncate.c      |   21 +++++++++++++--------
- 5 files changed, 20 insertions(+), 14 deletions(-)
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e313022..266df73 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1635,7 +1635,6 @@ struct inode_operations {
- 	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
- 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
- 	int (*removexattr) (struct dentry *, const char *);
--	void (*truncate_range)(struct inode *, loff_t, loff_t);
- 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
- 		      u64 len);
- } ____cacheline_aligned;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3dc3a8c..a47f744 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -951,7 +951,8 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
- extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
- extern void truncate_setsize(struct inode *inode, loff_t newsize);
- extern int vmtruncate(struct inode *inode, loff_t offset);
--extern int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end);
-+extern int vmtruncate_file_range(struct file *file, struct inode *inode,
-+			loff_t offset, loff_t end);
- 
- int truncate_inode_page(struct address_space *mapping, struct page *page);
- int generic_error_remove_page(struct address_space *mapping, struct page *page);
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 74bf193..05610d3 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -194,7 +194,8 @@ static long madvise_remove(struct vm_area_struct *vma,
- 				struct vm_area_struct **prev,
- 				unsigned long start, unsigned long end)
- {
--	struct address_space *mapping;
-+	struct file *file;
-+	struct inode *inode;
- 	loff_t offset, endoff;
- 	int error;
- 
-@@ -211,7 +212,8 @@ static long madvise_remove(struct vm_area_struct *vma,
- 	if ((vma->vm_flags & (VM_SHARED|VM_WRITE)) != (VM_SHARED|VM_WRITE))
- 		return -EACCES;
- 
--	mapping = vma->vm_file->f_mapping;
-+	file = vma->vm_file;
-+	inode = file->f_mapping->host;
- 
- 	offset = (loff_t)(start - vma->vm_start)
- 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
-@@ -220,7 +222,7 @@ static long madvise_remove(struct vm_area_struct *vma,
- 
- 	/* vmtruncate_range needs to take i_mutex */
- 	up_read(&current->mm->mmap_sem);
--	error = vmtruncate_range(mapping->host, offset, endoff);
-+	error = vmtruncate_file_range(file, inode, offset, endoff);
- 	down_read(&current->mm->mmap_sem);
- 	return error;
- }
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 65f7a27..fce5667 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2356,7 +2356,6 @@ static const struct file_operations shmem_file_operations = {
- 
- static const struct inode_operations shmem_inode_operations = {
- 	.setattr	= shmem_setattr,
--	.truncate_range	= shmem_truncate_range,
- #ifdef CONFIG_TMPFS_XATTR
- 	.setxattr	= shmem_setxattr,
- 	.getxattr	= shmem_getxattr,
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 632b15e..7c46539 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -20,6 +20,7 @@
- #include <linux/buffer_head.h>	/* grr. try_to_release_page,
- 				   do_invalidatepage */
- #include <linux/cleancache.h>
-+#include <linux/falloc.h>
- #include "internal.h"
- 
- 
-@@ -602,24 +603,28 @@ int vmtruncate(struct inode *inode, loff_t newsize)
- }
- EXPORT_SYMBOL(vmtruncate);
- 
--int vmtruncate_range(struct inode *inode, loff_t lstart, loff_t lend)
-+int vmtruncate_file_range(struct file *file, struct inode *inode,
-+		     loff_t lstart, loff_t lend)
- {
- 	struct address_space *mapping = inode->i_mapping;
- 	loff_t holebegin = round_up(lstart, PAGE_SIZE);
- 	loff_t holelen = 1 + lend - holebegin;
-+	int err;
- 
--	/*
--	 * If the underlying filesystem is not going to provide
--	 * a way to truncate a range of blocks (punch a hole) -
--	 * we should return failure right now.
--	 */
--	if (!inode->i_op->truncate_range)
-+	if (!file->f_op->fallocate)
- 		return -ENOSYS;
- 
- 	mutex_lock(&inode->i_mutex);
- 	inode_dio_wait(inode);
- 	unmap_mapping_range(mapping, holebegin, holelen, 1);
--	inode->i_op->truncate_range(inode, lstart, lend);
-+	mutex_unlock(&inode->i_mutex);
-+
-+	err = do_fallocate(file, FALLOC_FL_KEEP_SIZE|FALLOC_FL_PUNCH_HOLE,
-+		     holebegin, holelen);
-+	if (err)
-+		return err;
-+
-+	mutex_lock(&inode->i_mutex);
- 	/* unmap again to remove racily COWed private pages */
- 	unmap_mapping_range(mapping, holebegin, holelen, 1);
- 	mutex_unlock(&inode->i_mutex);
--- 
-1.7.4.4
+Did someone actually test this with systemd?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
