@@ -1,86 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BFAFB6B00B2
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 21:52:51 -0500 (EST)
-Message-ID: <4ECC5FC8.9070500@cn.fujitsu.com>
-Date: Wed, 23 Nov 2011 10:51:52 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
-MIME-Version: 1.0
-Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
- for mempolicy or disjoint nodemask
-References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9DD6D6B00B7
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 22:14:11 -0500 (EST)
+Subject: Re: [patch v2 4/4]thp: improve order in lru list for split huge
+ page
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20111122154023.bf631f7e.akpm@linux-foundation.org>
+References: <1321340661.22361.297.camel@sli10-conroe>
+	 <20111122154023.bf631f7e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 23 Nov 2011 11:24:35 +0800
+Message-ID: <1322018675.22361.339.camel@sli10-conroe>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <jweiner@redhat.com>
 
-On Fri, 18 Nov 2011 15:49:22 -0800 (pst), David Rientjes wrote:
-> On Fri, 18 Nov 2011, Miao Xie wrote:
+On Wed, 2011-11-23 at 07:40 +0800, Andrew Morton wrote:
+> On Tue, 15 Nov 2011 15:04:21 +0800
+> Shaohua Li <shaohua.li@intel.com> wrote:
 > 
->>>> I find these is another problem, please take account of the following case:
->>>>
->>>>   2-3 -> 1-2 -> 0-1
->>>>
->>>> the user change mems_allowed twice continuously, the task may see the empty
->>>> mems_allowed.
->>>>
->>>> So, it is still dangerous.
->>>>
->>>
->>> With this patch, we're protected by task_lock(tsk) to determine whether we 
->>> want to take the exception, i.e. whether need_loop is false, and the 
->>> setting of tsk->mems_allowed.  So this would see the nodemask change at 
->>> the individual steps from 2-3 -> 1-2 -> 0-1, not some inconsistent state 
->>> in between or directly from 2-3 -> 0-1.  The only time we don't hold 
->>> task_lock(tsk) to change tsk->mems_allowed is when tsk == current and in 
->>> that case we're not concerned about intermediate reads to its own nodemask 
->>> while storing to a mask where MAX_NUMNODES > BITS_PER_LONG.
->>>
->>> Thus, there's no problem here with regard to such behavior if we exclude 
->>> mempolicies, which this patch does.
->>>
->>
->> No.
->> When the task does memory allocation, it access its mems_allowed without
->> task_lock(tsk), and it may be blocked after it check 0-1 bits. And then, the
->> user changes mems_allowed twice continuously(2-3(initial state) -> 1-2 -> 0-1),
->> After that, the task is woke up and it see the empty mems_allowed.
->>
+> > Put the tail subpages of an isolated hugepage under splitting in the
+> > lru reclaim head as they supposedly should be isolated too next.
+> > 
+> > Queues the subpages in physical order in the lru for non isolated
+> > hugepages under splitting. That might provide some theoretical cache
+> > benefit to the buddy allocator later.
+> > 
+> > ...
+> >
+> > --- linux.orig/mm/swap.c	2011-11-14 16:12:03.000000000 +0800
+> > +++ linux/mm/swap.c	2011-11-15 09:15:33.000000000 +0800
+> > @@ -684,7 +684,7 @@ void lru_add_page_tail(struct zone* zone
+> >  		if (likely(PageLRU(page)))
+> >  			head = page->lru.prev;
+> >  		else
+> > -			head = &zone->lru[lru].list;
+> > +			head = zone->lru[lru].list.prev;
+> >  		__add_page_to_lru_list(zone, page_tail, lru, head);
+> >  	} else {
+> >  		SetPageUnevictable(page_tail);
 > 
-> I'm confused, you're concerned on a kernel where 
-> MAX_NUMNODES > BITS_PER_LONG about thread A reading a partial 
-> tsk->mems_allowed, being preempted, meanwhile thread B changes 
-> tsk->mems_allowed by taking cgroup_mutex, taking task_lock(tsk), setting 
-> the intersecting nodemask, releasing both, taking them again, changing the 
-> nodemask again to be disjoint, then the thread A waking up and finishing 
-> its read and seeing an intersecting nodemask because it is now disjoint 
-> from the first read?
+> This conflicts with changes in Johannes's "mm: collect LRU list heads
+> into struct lruvec":
 > 
+> @@ -674,10 +673,10 @@ void lru_add_page_tail(struct zone* zone
+>  		}
+>  		update_page_reclaim_stat(zone, page_tail, file, active);
+>  		if (likely(PageLRU(page)))
+> -			head = page->lru.prev;
+> +			__add_page_to_lru_list(zone, page_tail, lru,
+> +					       page->lru.prev);
+>  		else
+> -			head = &zone->lru[lru].list;
+> -		__add_page_to_lru_list(zone, page_tail, lru, head);
+> +			add_page_to_lru_list(zone, page_tail, lru);
+>  	} else {
+>  		SetPageUnevictable(page_tail);
+>  		add_page_to_lru_list(zone, page_tail, LRU_UNEVICTABLE);
+Here is the patch applied to linux-next.
 
-(I am sorry for the late reply, I was on leave for the past few days.)
+Put the tail subpages of an isolated hugepage under splitting in the
+lru reclaim head as they supposedly should be isolated too next.
 
-Yes, what you said is right.
-But in fact, on the kernel where MAX_NUMNODES <= BITS_PER_LONG, the same problem
-can also occur.
-	task1			task1's mems	task2
-	alloc page		2-3
-	  alloc on node1? NO	2-3
-				2-3		change mems from 2-3 to 1-2
-				1-2		rebind task1's mpol
-				1-2		  set new bits
-				1-2		change mems from 0-1 to 0
-				1-2		rebind task1's mpol
-				0-1		  set new bits
-	  alloc on node2? NO	0-1
-	  ...
-	can't alloc page
-	  goto oom
+Queues the subpages in physical order in the lru for non isolated
+hugepages under splitting. That might provide some theoretical cache
+benefit to the buddy allocator later.
 
-Thanks
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c |    5 ++---
+ mm/swap.c        |    2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+Index: linux/mm/huge_memory.c
+===================================================================
+--- linux.orig/mm/huge_memory.c	2011-11-23 10:47:16.000000000 +0800
++++ linux/mm/huge_memory.c	2011-11-23 11:22:55.000000000 +0800
+@@ -1228,7 +1228,6 @@ static int __split_huge_page_splitting(s
+ static void __split_huge_page_refcount(struct page *page)
+ {
+ 	int i;
+-	unsigned long head_index = page->index;
+ 	struct zone *zone = page_zone(page);
+ 	int zonestat;
+ 	int tail_count = 0;
+@@ -1237,7 +1236,7 @@ static void __split_huge_page_refcount(s
+ 	spin_lock_irq(&zone->lru_lock);
+ 	compound_lock(page);
+ 
+-	for (i = 1; i < HPAGE_PMD_NR; i++) {
++	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
+ 		struct page *page_tail = page + i;
+ 
+ 		/* tail_page->_mapcount cannot change */
+@@ -1300,7 +1299,7 @@ static void __split_huge_page_refcount(s
+ 		BUG_ON(page_tail->mapping);
+ 		page_tail->mapping = page->mapping;
+ 
+-		page_tail->index = ++head_index;
++		page_tail->index = page->index + i;
+ 
+ 		BUG_ON(!PageAnon(page_tail));
+ 		BUG_ON(!PageUptodate(page_tail));
+Index: linux/mm/swap.c
+===================================================================
+--- linux.orig/mm/swap.c	2011-11-23 10:58:05.000000000 +0800
++++ linux/mm/swap.c	2011-11-23 11:06:38.000000000 +0800
+@@ -681,7 +681,7 @@ void lru_add_page_tail(struct zone* zone
+ 		if (likely(PageLRU(page)))
+ 			list_add(&page_tail->lru, page->lru.prev);
+ 		else
+-			list_add(&page_tail->lru, &lruvec->lists[lru]);
++			list_add(&page_tail->lru, lruvec->lists[lru].prev);
+ 		__mod_zone_page_state(zone, NR_LRU_BASE + lru,
+ 				      hpage_nr_pages(page_tail));
+ 	} else {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
