@@ -1,51 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EC7A26B00BE
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 22:19:05 -0500 (EST)
-Subject: Re: [patch v2 3/4]thp: add tlb_remove_pmd_tlb_entry
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 232C76B00C0
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2011 22:25:59 -0500 (EST)
+Subject: Re: [RFC]numa: improve I/O performance by optimizing numa
+ interleave allocation
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111122150758.b05d90d9.akpm@linux-foundation.org>
-References: <1321340658.22361.296.camel@sli10-conroe>
-	 <20111122150758.b05d90d9.akpm@linux-foundation.org>
+In-Reply-To: <1321839585.22361.328.camel@sli10-conroe>
+References: <1321600332.22361.309.camel@sli10-conroe>
+	 <20111118173013.GB25022@alboin.amr.corp.intel.com>
+	 <1321839585.22361.328.camel@sli10-conroe>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 23 Nov 2011 11:29:30 +0800
-Message-ID: <1322018970.22361.343.camel@sli10-conroe>
+Date: Wed, 23 Nov 2011 11:36:23 +0800
+Message-ID: <1322019383.22361.346.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>
 
-On Wed, 2011-11-23 at 07:07 +0800, Andrew Morton wrote:
-> On Tue, 15 Nov 2011 15:04:18 +0800
-> Shaohua Li <shaohua.li@intel.com> wrote:
+On Mon, 2011-11-21 at 09:39 +0800, Shaohua Li wrote:
+> On Sat, 2011-11-19 at 01:30 +0800, Andi Kleen wrote:
+> > On Fri, Nov 18, 2011 at 03:12:12PM +0800, Shaohua Li wrote:
+> > > If mem plicy is interleaves, we will allocated pages from nodes in a round
+> > > robin way. This surely can do interleave fairly, but not optimal.
+> > > 
+> > > Say the pages will be used for I/O later. Interleave allocation for two pages
+> > > are allocated from two nodes, so the pages are not physically continuous. Later
+> > > each page needs one segment for DMA scatter-gathering. But maxium hardware
+> > > segment number is limited. The non-continuous pages will use up maxium
+> > > hardware segment number soon and we can't merge I/O to bigger DMA. Allocating
+> > > pages from one node hasn't such issue. The memory allocator pcp list makes
+> > > we can get physically continuous pages in several alloc quite likely.
+> > 
+> > FWIW it depends a lot on the IO hardware if the SG limitation
+> > really makes a measurable difference for IO performance. I saw some wins from 
+> > clustering using the IOMMU before, but that was a long time ago. I wouldn't 
+> > consider it a truth without strong numbers, and then also only
+> > for that particular device measured.
+> > 
+> > My understanding is that modern IO devices like NHM Express will
+> > be faster at large SG lists.
+> This is a LSI SAS1068E HBA card attaching some hard disks. The
+> clustering has real benefit here. I/O throughput increases 3% or so.
+> Not sure about NHM Express, wondering why large SG list could be faster.
+> doesn't large SG means large DMA descriptor?
 > 
-> > --- linux.orig/include/asm-generic/tlb.h	2011-11-15 09:39:11.000000000 +0800
-> > +++ linux/include/asm-generic/tlb.h	2011-11-15 09:39:23.000000000 +0800
-> > @@ -139,6 +139,20 @@ static inline void tlb_remove_page(struc
-> >  		__tlb_remove_tlb_entry(tlb, ptep, address);	\
-> >  	} while (0)
-> >  
-> > +/**
-> > + * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
-> > + * This is a nop so far, because only x86 needs it.
-> > + */
-> > +#ifndef __tlb_remove_pmd_tlb_entry
-> > +#define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
-> > +#endif
-> > +
-> > +#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)		\
-> > +	do {							\
-> > +		tlb->need_flush = 1;				\
-> > +		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);	\
-> > +	} while (0)
-> > +
+> > > So can we make both interleave fairness and continuous allocation happy?
+> > > Simplily we can adjust the round robin algorithm. We switch to another node
+> > > after several (N) allocation happens. If N isn't too big, we can still get
+> > > fair allocation. And we get N continuous pages. I use N=8 in below patch.
+> > > I thought 8 isn't too big for modern NUMA machine. Applications which use
+> > > interleave are unlikely run short time, so I thought fairness still works.
+> > 
+> > It depends a lot on the CPU access pattern.
+> > 
+> > Some workloads seem to do reasonable well with 2MB huge page interleaving.
+> > But others actually prefer the cache line interleaving supplied by 
+> > the BIOS.
+> > 
+> > So you can have a trade off between IO and CPU performance.
+> > When in doubt I usually opt for CPU performance by default.
+> Can you elaborate this more? the cache line interleaving can only be
+> supplied by BIOS. OS can provide N*PAGE_SIZE interleave. I'm wondering
+> what's the difference for example a 4k or 8k interleave for CPU
+> performance. Actually if adjacent pages interleaved in two nodes could
+> be in the same coloring, while two adjacent pages allocated from one
+> node not. So clustering could be more cache efficient from coloring
+> point of view.
 > 
-> Is there any reason why we cannot implement tlb_remove_pmd_tlb_entry()
-> as a nice, typesafe C function?
-no particular reason. I just followed tlb_remove_tlb_entry. all existing
-codes in the file are not c function.
+> > I definitely wouldn't make it default, but if there are workloads
+> > that benefits a lot it could be an additional parameter to the
+> > interleave policy.
+> Christoph suggested the same way. the problem is we need change the API,
+> right? And how are users supposed to use it? It would be difficult to
+> determine the correct parameter.
+> 
+> If 8 pages clustering is too big, maybe we can use small. I guess a 2
+> pages clustering is a big win too.
+> 
+> And I didn't change the allocation with a VMA case, which is supposed to
+> be used for anonymous pages.
+I tried a 2 pages clustering, it has the same effect like 8 page
+clustering in my test environment.
+would making the clustering a config option or sysctl be better?
+
+Thanks,
+Shaohua
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
