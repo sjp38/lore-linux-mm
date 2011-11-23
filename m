@@ -1,53 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3CB5E6B00C4
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 02:50:11 -0500 (EST)
-Message-ID: <4ECCA578.6020700@cn.fujitsu.com>
-Date: Wed, 23 Nov 2011 15:49:12 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D746B00C6
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 02:52:49 -0500 (EST)
+Received: by ywm14 with SMTP id 14so261633ywm.14
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 23:52:48 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
- for mempolicy or disjoint nodemask
-References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com> <4ECC5FC8.9070500@cn.fujitsu.com> <alpine.DEB.2.00.1111221902300.30008@chino.kir.corp.google.com> <4ECC7B1E.6020108@cn.fujitsu.com> <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com>
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAOJsxLFJimmLDev2UjgTYam37zv90gWGnKTPvjKOBre4_Uv81A@mail.gmail.com>
+References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
+	<1321960128-15191-5-git-send-email-gilad@benyossef.com>
+	<alpine.LFD.2.02.1111230822270.1773@tux.localdomain>
+	<CAOJsxLFJimmLDev2UjgTYam37zv90gWGnKTPvjKOBre4_Uv81A@mail.gmail.com>
+Date: Wed, 23 Nov 2011 09:52:47 +0200
+Message-ID: <CAOtvUMfYw-QNCq+zXZZrZJaz-i--HSpeH_mdPgN7Bc0Z=u+TjQ@mail.gmail.com>
+Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to flush
+From: Gilad Ben-Yossef <gilad@benyossef.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 22 Nov 2011 22:25:46 -0800 (pst), David Rientjes wrote:
-> On Wed, 23 Nov 2011, Miao Xie wrote:
-> 
->> This is a good idea. But I worry that oom will happen easily, because we do
->> direct reclamation and compact by mems_allowed.
+On Wed, Nov 23, 2011 at 8:57 AM, Pekka Enberg <penberg@kernel.org> wrote:
+> On Wed, Nov 23, 2011 at 8:23 AM, Pekka Enberg <penberg@kernel.org> wrote:
+>> On Tue, 22 Nov 2011, Gilad Ben-Yossef wrote:
+>>>
+>>> static void flush_all(struct kmem_cache *s)
+>>> {
+>>> - =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
+>>> + =A0 =A0 =A0 cpumask_var_t cpus;
+>>> + =A0 =A0 =A0 struct kmem_cache_cpu *c;
+>>> + =A0 =A0 =A0 int cpu;
+>>> +
+>>> + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
 >>
-> 
-> Memory compaction actually iterates through each zone regardless of 
-> whether it's allowed or not in the current context.  Recall that the 
-> nodemask passed into __alloc_pages_nodemask() is non-NULL only when there 
-> is a mempolicy that restricts the allocations by MPOL_BIND.  That nodemask 
-> is not protected by get_mems_allowed(), so there's no change in 
-> compaction's behavior with my patch.
+>> __GFP_NOWARN too maybe?
+>>
 
-That nodemask is also protected by get_mems_allowed().
+Right, the allocation failure here is harmless. I should probably do
+the same for the page_alloc.c case as well.
 
-> Direct reclaim does, however, require mems_allowed staying constant 
-> without the risk of early oom as you mentioned.  It has its own 
-> get_mems_allowed(), though, so it doesn't have the opportunity to change 
-> until returning to the page allocator.  It's possible that mems_allowed 
-> will be different on the next call to get_pages_from_freelist() but we 
-> don't know anything about that context: it's entirely possible that the 
-> set of new mems has an abundance of free memory or are completely depleted 
-> as well.  So there's no strict need for consistency between the set of 
-> allowed nodes during reclaim and the subsequent allocation attempt.  All 
-> we care about is that reclaim has a consistent set of allowed nodes to 
-> determine whether it's making progress or not.
-> 
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 c =3D per_cpu_ptr(s->cpu_=
+slab, cpu);
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (c->page)
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_s=
+et_cpu(cpu, cpus);
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu_mask(cpus, flush_cpu_slab, s,=
+ 1);
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cpumask_var(cpus);
+>>> + =A0 =A0 =A0 } else
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
+>>> }
+>>
+>> Acked-by: Pekka Enberg <penberg@kernel.org>
+>>
+>> I can't take the patch because it depends on a new API introduced in the
+>> first patch.
+>>
+>> I'm CC'ing Andrew.
 
-Agree.
+Thanks!
+
+There's a git tree of these over at: git://github.com/gby/linux.git
+branch ipi_noise_v4 in case that helps.
+
+I will send v5 (and create a new git branch for it) with the above
+changes and the Arm patch  description update once I get an Ack from
+Russel K.
+
+Cheers,
+Gilad
+
+>
+
+
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"Unfortunately, cache misses are an equal opportunity pain provider."
+-- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
