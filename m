@@ -1,92 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D746B00C6
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 02:52:49 -0500 (EST)
-Received: by ywm14 with SMTP id 14so261633ywm.14
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2011 23:52:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAOJsxLFJimmLDev2UjgTYam37zv90gWGnKTPvjKOBre4_Uv81A@mail.gmail.com>
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
-	<1321960128-15191-5-git-send-email-gilad@benyossef.com>
-	<alpine.LFD.2.02.1111230822270.1773@tux.localdomain>
-	<CAOJsxLFJimmLDev2UjgTYam37zv90gWGnKTPvjKOBre4_Uv81A@mail.gmail.com>
-Date: Wed, 23 Nov 2011 09:52:47 +0200
-Message-ID: <CAOtvUMfYw-QNCq+zXZZrZJaz-i--HSpeH_mdPgN7Bc0Z=u+TjQ@mail.gmail.com>
-Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id F08506B00A2
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 03:04:58 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0E98B3EE0B6
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:56 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E374045DF4B
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C820045DF47
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA46EE08003
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F811DB8040
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:04:55 +0900 (JST)
+Date: Wed, 23 Nov 2011 17:03:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] vmscan: add task name to warn_scan_unevictable()
+ messages
+Message-Id: <20111123170319.cc668d61.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
+References: <1322027721-23677-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Andrew Morton (commit_signer:71/87=82%)" <akpm@linux-foundation.org>, "Mel Gorman (commit_signer:39/87=45%)" <mgorman@suse.de>, "Minchan Kim (commit_signer:32/87=37%)" <minchan.kim@gmail.com>, "Johannes Weiner (commit_signer:21/87=24%)" <jweiner@redhat.com>, "open
+ list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 23, 2011 at 8:57 AM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Wed, Nov 23, 2011 at 8:23 AM, Pekka Enberg <penberg@kernel.org> wrote:
->> On Tue, 22 Nov 2011, Gilad Ben-Yossef wrote:
->>>
->>> static void flush_all(struct kmem_cache *s)
->>> {
->>> - =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
->>> + =A0 =A0 =A0 cpumask_var_t cpus;
->>> + =A0 =A0 =A0 struct kmem_cache_cpu *c;
->>> + =A0 =A0 =A0 int cpu;
->>> +
->>> + =A0 =A0 =A0 if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
->>
->> __GFP_NOWARN too maybe?
->>
+On Wed, 23 Nov 2011 00:55:20 -0500
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Right, the allocation failure here is harmless. I should probably do
-the same for the page_alloc.c case as well.
+> If we need to know a usecase, caller program name is critical important.
+> Show it.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+seems nice.
 
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 c =3D per_cpu_ptr(s->cpu_=
-slab, cpu);
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (c->page)
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_s=
-et_cpu(cpu, cpus);
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu_mask(cpus, flush_cpu_slab, s,=
- 1);
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cpumask_var(cpus);
->>> + =A0 =A0 =A0 } else
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 on_each_cpu(flush_cpu_slab, s, 1);
->>> }
->>
->> Acked-by: Pekka Enberg <penberg@kernel.org>
->>
->> I can't take the patch because it depends on a new API introduced in the
->> first patch.
->>
->> I'm CC'ing Andrew.
-
-Thanks!
-
-There's a git tree of these over at: git://github.com/gby/linux.git
-branch ipi_noise_v4 in case that helps.
-
-I will send v5 (and create a new git branch for it) with the above
-changes and the Arm patch  description update once I get an Ack from
-Russel K.
-
-Cheers,
-Gilad
-
->
-
-
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
