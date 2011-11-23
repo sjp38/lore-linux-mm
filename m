@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A28766B00CD
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 15:52:39 -0500 (EST)
-Message-ID: <1322081530.14799.97.camel@twins>
-Subject: Re: [PATCH v7 3.2-rc2 5/30] uprobes: copy of the original
- instruction.
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 23 Nov 2011 21:52:10 +0100
-In-Reply-To: <1322077748.20742.68.camel@frodo>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110733.10512.11835.sendpatchset@srdronam.in.ibm.com>
-	 <1322073616.14799.96.camel@twins> <1322077748.20742.68.camel@frodo>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B536B0095
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 16:11:28 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so2324369vbb.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 13:11:27 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAHGf_=rOYkEGHakyHpihopMg2VtVfDV7XvC_QGs_kj6HgDmBRA@mail.gmail.com>
+References: <1322038412-29013-1-git-send-email-amwang@redhat.com>
+	<CAHGf_=rOYkEGHakyHpihopMg2VtVfDV7XvC_QGs_kj6HgDmBRA@mail.gmail.com>
+Date: Wed, 23 Nov 2011 23:11:26 +0200
+Message-ID: <CAOJsxLH2foaRHYoPgRufu_J8B-YEvQ8aJNuQqHOPNj9YFvAubw@mail.gmail.com>
+Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
 
-On Wed, 2011-11-23 at 14:49 -0500, Steven Rostedt wrote:
-> On Wed, 2011-11-23 at 19:40 +0100, Peter Zijlstra wrote:
-> > On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
-> > > +               /* TODO : Analysis and verification of instruction */
-> >=20
-> > As in refuse to set a breakpoint on an instruction we can't deal with?
-> >=20
-> > Do we care? The worst case we'll crash the program, but if we're allowe=
-d
-> > setting uprobes we already have enough privileges to do that anyway,
-> > right?
->=20
-> Well, I wouldn't be happy if I was running a server, and needed to
-> analyze something it was doing, and because I screwed up the location of
-> my probe, I crash the server, made lots of people unhappy and lose my
-> job over it.
->=20
-> I think we do care, but it can be a TODO item.
+On Wed, Nov 23, 2011 at 9:59 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> +
+>> + =A0 =A0 =A0 goto unlock;
+>> +
+>> +undo:
+>> + =A0 =A0 =A0 while (index > start) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shmem_truncate_page(inode, index);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 index--;
+>
+> Hmmm...
+> seems too aggressive truncate if the file has pages before starting fallo=
+cate.
+> but I have no idea to make better undo. ;)
 
-But but but, why not let userspace sort it? And if you're going to
-provide the kernel with inode:offset data yourself, you're already well
-aware of wtf you're doing.
+Why do we need to undo anyway?
 
+                                Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
