@@ -1,28 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 228536B0099
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 00:52:27 -0500 (EST)
-Message-ID: <4ECDDB86.5000208@redhat.com>
-Date: Thu, 24 Nov 2011 13:52:06 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 842E76B008C
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 01:09:42 -0500 (EST)
+Received: by faas10 with SMTP id s10so3316332faa.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:09:39 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
-References: <1322038412-29013-1-git-send-email-amwang@redhat.com>	<20111124105245.b252c65f.kamezawa.hiroyu@jp.fujitsu.com>	<CAHGf_=oD0Coc=k5kAAQoP=GqK+nc0jd3qq3TmLZaitSjH-ZPmQ@mail.gmail.com>	<20111124120126.9361b2c9.kamezawa.hiroyu@jp.fujitsu.com>	<4ECDB87A.90106@redhat.com> <20111124132349.ca862c9e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111124132349.ca862c9e.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
+References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
+Date: Thu, 24 Nov 2011 11:39:39 +0530
+Message-ID: <CAKTCnzk0Jzq+o1Qv9hOO5ssO7U_xe1ZqUaWDhWEeJAQQPjPudg@mail.gmail.com>
+Subject: Re: [patch 0/8] mm: memcg fixlets for 3.3
+From: Balbir Singh <bsingharora@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-于 2011年11月24日 12:23, KAMEZAWA Hiroyuki 写道:
-> 
-> thank you for checking. So, at failure path, original data should not be
-> cleared, either.
-> 
+On Wed, Nov 23, 2011 at 9:12 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+>
+> Here are some minor memcg-related cleanups and optimizations, nothing
+> too exciting. =A0The bulk of the diffstat comes from renaming the
+> remaining variables to describe a (struct mem_cgroup *) to "memcg".
+> The rest cuts down on the (un)charge fastpaths, as people start to get
+> annoyed by those functions showing up in the profiles of their their
+> non-memcg workloads. =A0More is to come, but I wanted to get the more
+> obvious bits out of the way.
 
-Yes, sure, I will fix that.
+Hi, Johannes
+
+The renaming was a separate patch sent from Raghavendra as well, not
+sure if you've seen it. What tests are you using to test these
+patches?
+
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
