@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AC4116B0096
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 01:45:37 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so2657295vbb.14
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:45:35 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 004D56B0096
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 01:50:00 -0500 (EST)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 23 Nov 2011 23:49:58 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAO6nsLP110572
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 23:49:54 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAO6nrHq020476
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 23:49:54 -0700
+Date: Thu, 24 Nov 2011 12:18:53 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: Fwd: uprobes: register/unregister probes.
+Message-ID: <20111124064853.GA28065@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <hYuXv-26J-3@gated-at.bofh.it>
+ <hYuXw-26J-5@gated-at.bofh.it>
+ <i0o1A-7sd-9@gated-at.bofh.it>
+ <fe077f71-dce6-40cf-988c-cc35bf4c7ae1@o11g2000prg.googlegroups.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.01.1111231025180.8000@trent.utfs.org>
-References: <20111121131531.GA1679@x4.trippels.de>
-	<1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121161036.GA1679@x4.trippels.de>
-	<1321894353.10470.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<1321895706.10470.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121173556.GA1673@x4.trippels.de>
-	<1321900743.10470.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121185215.GA1673@x4.trippels.de>
-	<20111121195113.GA1678@x4.trippels.de>
-	<1321907275.13860.12.camel@pasglop>
-	<alpine.DEB.2.01.1111211617220.8000@trent.utfs.org>
-	<alpine.DEB.2.00.1111212105330.19606@router.home>
-	<1321948113.27077.24.camel@edumazet-laptop>
-	<1321999085.14573.2.camel@pasglop>
-	<alpine.DEB.2.01.1111221511070.8000@trent.utfs.org>
-	<1322007501.14573.15.camel@pasglop>
-	<alpine.DEB.2.01.1111222145470.8000@trent.utfs.org>
-	<CAOJsxLGWTRuwQ04Mg26fNhZEmo7yVXG5vSZgF7Q5GESCk65odA@mail.gmail.com>
-	<alpine.DEB.2.00.1111230907330.16139@router.home>
-	<alpine.DEB.2.01.1111231025180.8000@trent.utfs.org>
-Date: Thu, 24 Nov 2011 08:45:33 +0200
-Message-ID: <CAOJsxLHhxLGKwuBO=e2+c5bu4i32Hr8ztWifVtxhwYS9BR0cxQ@mail.gmail.com>
-Subject: Re: slub: use irqsafe_cpu_cmpxchg for put_cpu_partial
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <fe077f71-dce6-40cf-988c-cc35bf4c7ae1@o11g2000prg.googlegroups.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Kujau <lists@nerdbynature.de>
-Cc: Christoph Lameter <cl@linux.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Eric Dumazet <eric.dumazet@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
+To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, tulasidhard@gmail.com, Jim Keniston <jkenisto@linux.vnet.ibm.com>
 
-> On Wed, 23 Nov 2011 at 09:14, Christoph Lameter wrote:
->> I think he only tested the patch that he showed us.
+> 
+> On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> > +#define UPROBES_HASH_SZ        13
+> > +/* serialize (un)register */
+> > +static struct mutex uprobes_mutex[UPROBES_HASH_SZ];
+> > +#define uprobes_hash(v)        (&uprobes_mutex[((unsigned long)(v)) %\
+> > +                                               UPROBES_HASH_SZ])
+> 
+> Was there any reason to for using this hasing scheme, say over hash.h?
 
-On Wed, Nov 23, 2011 at 8:33 PM, Christian Kujau <lists@nerdbynature.de> wr=
-ote:
-> Yes, that's the (only) one I tested so far. I did some overnight testing
-> (rsync'ing to the external disk again) for 6hrs and ran "slabinfo" every
-> 30s during the run: http://nerdbynature.de/bits/3.2.0-rc1/oops/slabinfo-1=
-.txt.xz
->
-> The machine is still up & running. So for me, your patch fixes it!
->
-> =A0Tested-by: Christian Kujau <lists@nerdbynature.de>
+There is no specific reason for choosing this hashing scheme over the
+current. I just say ext4_aio_mutex in fs/ext4/ext4.h and did something
+similar.
 
-Applied, thanks!
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
