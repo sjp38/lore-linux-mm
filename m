@@ -1,38 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 08C676B0075
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 20:27:32 -0500 (EST)
-Message-ID: <4ECD9D43.6090202@cn.fujitsu.com>
-Date: Thu, 24 Nov 2011 09:26:27 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 65C246B0095
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 20:52:13 -0500 (EST)
+Received: by iaek3 with SMTP id k3so3082017iae.14
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 17:52:11 -0800 (PST)
+Date: Wed, 23 Nov 2011 17:52:08 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
  for mempolicy or disjoint nodemask
-References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com> <4ECC5FC8.9070500@cn.fujitsu.com> <alpine.DEB.2.00.1111221902300.30008@chino.kir.corp.google.com> <4ECC7B1E.6020108@cn.fujitsu.com> <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com> <4ECCA578.6020700@cn.fujitsu.com> <alpine.DEB.2.00.1111231425030.5261@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1111231425030.5261@chino.kir.corp.google.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <4ECD9D43.6090202@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1111231751480.9042@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com>
+ <4ECC5FC8.9070500@cn.fujitsu.com> <alpine.DEB.2.00.1111221902300.30008@chino.kir.corp.google.com> <4ECC7B1E.6020108@cn.fujitsu.com> <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com> <4ECCA578.6020700@cn.fujitsu.com>
+ <alpine.DEB.2.00.1111231425030.5261@chino.kir.corp.google.com> <4ECD9D43.6090202@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Miao Xie <miaox@cn.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 23 Nov 2011 14:26:40 -0800 (pst), David Rientjes wrote:
-> On Wed, 23 Nov 2011, Miao Xie wrote:
+On Thu, 24 Nov 2011, Miao Xie wrote:
+
+> Memory compaction will see an empty nodemask and do nothing, and then
+> we may fail to get several contiguous pages.
 > 
->> That nodemask is also protected by get_mems_allowed().
->>
-> 
-> So what's the problem with the patch? 
 
-Memory compaction will see an empty nodemask and do nothing, and then
-we may fail to get several contiguous pages.
-
-
-> Can I add your acked-by?
-
-Sure, no problem.
+Where do we rely on a consistent nodemask for memory compaction?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
