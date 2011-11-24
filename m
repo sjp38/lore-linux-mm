@@ -1,85 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD006B0096
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:12:26 -0500 (EST)
-Date: Thu, 24 Nov 2011 14:11:55 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across zones
-Message-ID: <20111124131155.GB1225@cmpxchg.org>
-References: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
- <1322055258-3254-4-git-send-email-hannes@cmpxchg.org>
- <20111124100755.d8b783a8.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111124100755.d8b783a8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 34F3D6B0098
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 08:12:37 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 24 Nov 2011 18:20:14 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAOCngbv3313828
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 18:19:43 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAOCnenr022173
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 18:19:42 +0530
+Date: Thu, 24 Nov 2011 18:20:15 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 5/30] uprobes: copy of the original
+ instruction.
+Message-ID: <20111124182015.4ef4b86a.srikar@linux.vnet.ibm.com>
+In-Reply-To: <1322073616.14799.96.camel@twins>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	<20111118110733.10512.11835.sendpatchset@srdronam.in.ibm.com>
+	<1322073616.14799.96.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Thu, Nov 24, 2011 at 10:07:55AM +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> 
-> Can I make a question ?
-> 
-> On Wed, 23 Nov 2011 14:34:16 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> 
-> > +		/*
-> > +		 * When allocating a page cache page for writing, we
-> > +		 * want to get it from a zone that is within its dirty
-> > +		 * limit, such that no single zone holds more than its
-> > +		 * proportional share of globally allowed dirty pages.
-> > +		 * The dirty limits take into account the zone's
-> > +		 * lowmem reserves and high watermark so that kswapd
-> > +		 * should be able to balance it without having to
-> > +		 * write pages from its LRU list.
-> > +		 *
-> > +		 * This may look like it could increase pressure on
-> > +		 * lower zones by failing allocations in higher zones
-> > +		 * before they are full.  But the pages that do spill
-> > +		 * over are limited as the lower zones are protected
-> > +		 * by this very same mechanism.  It should not become
-> > +		 * a practical burden to them.
-> > +		 *
-> > +		 * XXX: For now, allow allocations to potentially
-> > +		 * exceed the per-zone dirty limit in the slowpath
-> > +		 * (ALLOC_WMARK_LOW unset) before going into reclaim,
-> > +		 * which is important when on a NUMA setup the allowed
-> > +		 * zones are together not big enough to reach the
-> > +		 * global limit.  The proper fix for these situations
-> > +		 * will require awareness of zones in the
-> > +		 * dirty-throttling and the flusher threads.
-> > +		 */
-> > +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-> > +		    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
-> > +			goto this_zone_full;
-> >  
-> >  		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
-> >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-> 
-> This wil call 
-> 
->                 if (NUMA_BUILD)
->                         zlc_mark_zone_full(zonelist, z);
-> 
-> And this zone will be marked as full. 
-> 
-> IIUC, zlc_clear_zones_full() is called only when direct reclaim ends.
-> So, if no one calls direct-reclaim, 'full' mark may never be cleared
-> even when number of dirty pages goes down to safe level ?
-> I'm sorry if this is alread discussed.
+On Wed, 23 Nov 2011 19:40:16 +0100
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-It does not remember which zones are marked full for longer than a
-second - see zlc_setup() - and also ignores this information when an
-iteration over the zonelist with the cache enabled came up
-empty-handed.
+> On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> > +               /* TODO : Analysis and verification of instruction
+> > */
+> 
+> As in refuse to set a breakpoint on an instruction we can't deal with?
+> 
+> Do we care? The worst case we'll crash the program, but if we're
+> allowed setting uprobes we already have enough privileges to do that
+> anyway, right?
+> 
 
-I thought it would make sense to take advantage of the cache and save
-the zone_dirty_ok() checks against ineligible zones too on subsequent
-iterations.
+I think we should and we do care. 
+That's already implemented in the subsequent patches too.
+For example: we don't a trace breakpoint instruction.
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
