@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 408406B0096
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:45:53 -0500 (EST)
-Date: Thu, 24 Nov 2011 10:45:32 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/8] mm: memcg fixlets for 3.3
-Message-ID: <20111124094532.GF6843@cmpxchg.org>
-References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
- <CAKTCnzk0Jzq+o1Qv9hOO5ssO7U_xe1ZqUaWDhWEeJAQQPjPudg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAKTCnzk0Jzq+o1Qv9hOO5ssO7U_xe1ZqUaWDhWEeJAQQPjPudg@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EBE896B0096
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:50:22 -0500 (EST)
+Message-ID: <1322128199.2921.3.camel@twins>
+Subject: Re: Fwd: uprobes: register/unregister probes.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 24 Nov 2011 10:49:59 +0100
+In-Reply-To: <20111124070303.GB28065@linux.vnet.ibm.com>
+References: <hYuXv-26J-3@gated-at.bofh.it> <hYuXw-26J-5@gated-at.bofh.it>
+	 <i0nRU-7eK-11@gated-at.bofh.it>
+	 <603b0079-5f54-4299-9a9a-a5e237ccca73@l23g2000pro.googlegroups.com>
+	 <20111124070303.GB28065@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, tulasidhard@gmail.com
 
-On Thu, Nov 24, 2011 at 11:39:39AM +0530, Balbir Singh wrote:
-> On Wed, Nov 23, 2011 at 9:12 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >
-> > Here are some minor memcg-related cleanups and optimizations, nothing
-> > too exciting.  The bulk of the diffstat comes from renaming the
-> > remaining variables to describe a (struct mem_cgroup *) to "memcg".
-> > The rest cuts down on the (un)charge fastpaths, as people start to get
-> > annoyed by those functions showing up in the profiles of their their
-> > non-memcg workloads.  More is to come, but I wanted to get the more
-> > obvious bits out of the way.
-> 
-> Hi, Johannes
-> 
-> The renaming was a separate patch sent from Raghavendra as well, not
-> sure if you've seen it.
+On Thu, 2011-11-24 at 12:33 +0530, Srikar Dronamraju wrote:
+> > On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> > > +int register_uprobe(struct inode *inode, loff_t offset,
+> > > +                               struct uprobe_consumer *consumer)
+> > > +{
+> > > +       struct uprobe *uprobe;
+> > > +       int ret =3D -EINVAL;
+> > > +
+> > > +       if (!consumer || consumer->next)
+> > > +               return ret;
+> > > +
+> > > +       inode =3D igrab(inode);
+> >=20
+> > So why are you dealing with !consumer but not with !inode? and why
+> > does
+> > it make sense to allow !consumer at all?
+> >=20
+>=20
+>=20
+> I am not sure if I got your comment correctly.
+>=20
+> I do check for inode just after the igrab.
 
-I did and they are already in -mm, but unless I miss something, those
-were only for memcontrol.[ch].  My patch is for the rest of mm.
+No you don't, you check the return value of igrab(), but you crash hard
+when someone calls register_uprobe(.inode=3DNULL).
 
-> What tests are you using to test these patches?
+> I am actually not dealing with !consumer.
+> If the consumer is NULL, then we dont have any handler to run so why
+> would we want to register such a probe?
 
-I usually run concurrent kernbench jobs in separate memcgs as a smoke
-test with these tools:
+Why allow someone calling register_uprobe(.consumer=3DNULL) to begin with?
+That doesn't make any sense.
 
-	http://git.cmpxchg.org/?p=statutils.git;a=summary
+> Also if consumer->next is Non-NULL, that means that this consumer was
+> already used.  Reusing the consumer, can result in consumers list getting
+> broken into two.
 
-"runtest" takes a job-spec file that looks a bit like RPM spec to
-define works with preparation and cleanup phases, and data collectors.
-The memcg kernbench job I use is in the examples directory.  You just
-need to put separate kernel source directories into place (linux-`seq
--w 04`) and then launch it like this:
-
-	runtest -s memcg-kernbench.load `uname -r`
-
-which will run the test and collect memory.stat of the parent memcg
-every second, which you can then further evaluate with the other
-tools:
-
-	readdict < `uname -r`-memory.stat.data | columns 14 15 | plot
-
-for example, where readdict translates the "key value" lines of
-memory.stat into tables where each value is on its own row.  Columns
-14 and 15 are total_cache and total_rss (find out with cat -n -- yeah,
-still a bit rough).  You need python-matplotlib for plot to work.
-
-Multiple runs can be collected into the same logfiles and then fold
-ever-increasing counters with the "events" tool.  For example, to find
-the average fault count, you would do something like this (19 =
-total_pgfault, 20 = total_pgmajfault):
-
-	for x in `seq 10`; do runtest -s foo.load foo`; done
-	readdict < foo-memory.stat.data | columns 19 20 | events | mean -s
-
-Oh, and workload runtime is always recorded in NAME.time, so
-
-	events < `uname -r`.time
-
-gives you the timings of each run, which you can then further process
-with "mean" or "median" again.
+Yeah, although at that point why be nice about it? Just but a WARN_ON()
+in or so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
