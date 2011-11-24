@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7996E6B00A0
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 21:58:09 -0500 (EST)
-Received: by ghrr17 with SMTP id r17so2729256ghr.14
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 18:58:06 -0800 (PST)
-Message-ID: <4ECDB2B2.2000206@gmail.com>
-Date: Thu, 24 Nov 2011 10:57:54 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] cleanup comment in include/linux/compaction.h for defer_compaction
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 919A36B00A2
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:02:44 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BB0DC3EE0C2
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 12:02:41 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CA0545DF4A
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 12:02:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6060C45DF48
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 12:02:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 50FA31DB8050
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 12:02:41 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 189621DB8053
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 12:02:41 +0900 (JST)
+Date: Thu, 24 Nov 2011 12:01:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
+Message-Id: <20111124120126.9361b2c9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CAHGf_=oD0Coc=k5kAAQoP=GqK+nc0jd3qq3TmLZaitSjH-ZPmQ@mail.gmail.com>
+References: <1322038412-29013-1-git-send-email-amwang@redhat.com>
+	<20111124105245.b252c65f.kamezawa.hiroyu@jp.fujitsu.com>
+	<CAHGf_=oD0Coc=k5kAAQoP=GqK+nc0jd3qq3TmLZaitSjH-ZPmQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
 
-No compact_defer_limit is found in kernel source code.
-Per the code implementation, compact_defer_limit should be
-zone->compact_defer_shift. Cleanup the comment.
+On Wed, 23 Nov 2011 21:46:39 -0500
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- include/linux/compaction.h |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+> >> + A  A  while (index < end) {
+> >> + A  A  A  A  A  A  ret = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
+> >
+> > If the 'page' for index exists before this call, this will return the page without
+> > allocaton.
+> >
+> > Then, the page may not be zero-cleared. I think the page should be zero-cleared.
+> 
+> No. fallocate shouldn't destroy existing data. It only ensure
+> subsequent file access don't make ENOSPC error.
+> 
+      FALLOC_FL_KEEP_SIZE
+              This flag allocates and initializes to zero the disk  space
+              within the range specified by offset and len. ....
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index cc9f7a4..b297a9c 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -32,8 +32,8 @@ extern unsigned long compact_zone_order(struct zone *zone, int order,
- 
- /*
-  * Compaction is deferred when compaction fails to result in a page
-- * allocation success. 1 << compact_defer_limit compactions are skipped up
-- * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
-+ * allocation success. 1 << zone->compact_defer_shift compactions are
-+ * skipped up to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
-  */
- static inline void defer_compaction(struct zone *zone)
- {
--- 
-1.7.1
+just manual is unclear ? it seems that the range [offset, offset+len) is
+zero cleared after the call.
+
+Thanks,
+-kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
