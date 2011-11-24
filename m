@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A1C6B00A7
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:18:30 -0500 (EST)
-Message-ID: <4ECDB778.30006@redhat.com>
-Date: Thu, 24 Nov 2011 11:18:16 +0800
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D85926B00AA
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:22:56 -0500 (EST)
+Message-ID: <4ECDB87A.90106@redhat.com>
+Date: Thu, 24 Nov 2011 11:22:34 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
-References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <alpine.LSU.2.00.1111231100110.2226@sister.anvils>
-In-Reply-To: <alpine.LSU.2.00.1111231100110.2226@sister.anvils>
+References: <1322038412-29013-1-git-send-email-amwang@redhat.com>	<20111124105245.b252c65f.kamezawa.hiroyu@jp.fujitsu.com>	<CAHGf_=oD0Coc=k5kAAQoP=GqK+nc0jd3qq3TmLZaitSjH-ZPmQ@mail.gmail.com> <20111124120126.9361b2c9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111124120126.9361b2c9.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
 
-ao? 2011a1'11ae??24ae?JPY 03:07, Hugh Dickins a??e??:
-> On Wed, 23 Nov 2011, Cong Wang wrote:
->> +
->> +	while (index<  end) {
->> +		ret = shmem_getpage(inode, index,&page, SGP_WRITE, NULL);
->> +		if (ret) {
->> +			if (ret == -ENOSPC)
->> +				goto undo;
-> ...
->> +undo:
->> +	while (index>  start) {
->> +		shmem_truncate_page(inode, index);
->> +		index--;
->> +	}
+ao? 2011a1'11ae??24ae?JPY 11:01, KAMEZAWA Hiroyuki a??e??:
+> On Wed, 23 Nov 2011 21:46:39 -0500
+> KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>  wrote:
 >
-> As I said before, I won't actually be reviewing and testing this for
-> a week or two; but before this goes any further, must point out how
-> wrong it is.  Here you'll be deleting any pages in the range that were
-> already present before the failing fallocate().
+>>>> +     while (index<  end) {
+>>>> +             ret = shmem_getpage(inode, index,&page, SGP_WRITE, NULL);
+>>>
+>>> If the 'page' for index exists before this call, this will return the page without
+>>> allocaton.
+>>>
+>>> Then, the page may not be zero-cleared. I think the page should be zero-cleared.
+>>
+>> No. fallocate shouldn't destroy existing data. It only ensure
+>> subsequent file access don't make ENOSPC error.
+>>
+>        FALLOC_FL_KEEP_SIZE
+>                This flag allocates and initializes to zero the disk  space
+>                within the range specified by offset and len. ....
+>
+> just manual is unclear ? it seems that the range [offset, offset+len) is
+> zero cleared after the call.
 
-Ah, I totally missed this. So, is there any way to tell if the page
-gotten from shmem_getpage() is newly allocated or not?
+I think we should fix the man page, because at least ext4 doesn't clear
+the original contents,
 
-I will dig the code...
-
-Thanks.
+% echo hi > /tmp/foobar
+% fallocate -n -l 1 -o 10 /tmp/foobar
+% hexdump -Cv /tmp/foobar
+00000000  68 69 0a                                          |hi.|
+00000003
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
