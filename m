@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C835E6B008C
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 19:07:25 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 08B0D3EE0B6
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:07:23 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DD95245DE51
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:07:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C6F1B45DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:07:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B885CE08001
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:07:22 +0900 (JST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 381946B008C
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 19:10:21 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D08E83EE0AE
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:10:18 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B7FAC45DF49
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:10:18 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A1CE345DF48
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:10:18 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 968521DB804B
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:10:18 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 842CE1DB8037
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:07:22 +0900 (JST)
-Date: Thu, 24 Nov 2011 09:06:19 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6491D1DB8050
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 09:10:18 +0900 (JST)
+Date: Thu, 24 Nov 2011 09:09:15 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 6/8] mm: memcg: remove unneeded checks from
- uncharge_page()
-Message-Id: <20111124090619.895988e7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322062951-1756-7-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] mm: memcg: modify PageCgroupAcctLRU non-atomically
+Message-Id: <20111124090915.2f6e2e2c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322062951-1756-8-git-send-email-hannes@cmpxchg.org>
 References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
-	<1322062951-1756-7-git-send-email-hannes@cmpxchg.org>
+	<1322062951-1756-8-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,50 +32,23 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 Nov 2011 16:42:29 +0100
+On Wed, 23 Nov 2011 16:42:30 +0100
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
 > From: Johannes Weiner <jweiner@redhat.com>
 > 
-> mem_cgroup_uncharge_page() is only called on either freshly allocated
-> pages without page->mapping or on rmapped PageAnon() pages.  There is
-> no need to check for a page->mapping that is not an anon_vma.
+> This bit is protected by zone->lru_lock, there is no need for locked
+> operations when setting and clearing it.
 > 
 > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
-For making our assumption clearer to readers of codes,
-VM_BUG_ON(page->mapping && !PageAnon(page)) please.
+This atomic ops are for avoiding race with other ops as lock_page_cgroup().
+Or other Set/ClearPageCgroup....
 
-Anyway,
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Do I misunderstand atomic ops v.s. non-atomic ops race ?
 
-
-> ---
->  mm/memcontrol.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 0d10be4..b9a3b94 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2989,8 +2989,6 @@ void mem_cgroup_uncharge_page(struct page *page)
->  	/* early check. */
->  	if (page_mapped(page))
->  		return;
-> -	if (page->mapping && !PageAnon(page))
-> -		return;
->  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED);
->  }
->  
-> -- 
-> 1.7.6.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
