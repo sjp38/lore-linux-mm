@@ -1,36 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4166B0099
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 21:47:03 -0500 (EST)
-Received: by ggnq1 with SMTP id q1so2763322ggn.14
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2011 18:47:00 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3D08B6B009B
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 21:51:55 -0500 (EST)
+Message-ID: <4ECDB10E.1080007@cn.fujitsu.com>
+Date: Thu, 24 Nov 2011 10:50:54 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-In-Reply-To: <20111124105245.b252c65f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <20111124105245.b252c65f.kamezawa.hiroyu@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 23 Nov 2011 21:46:39 -0500
-Message-ID: <CAHGf_=oD0Coc=k5kAAQoP=GqK+nc0jd3qq3TmLZaitSjH-ZPmQ@mail.gmail.com>
-Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
+Subject: Re: [patch for-3.2-rc3] cpusets: stall when updating mems_allowed
+ for mempolicy or disjoint nodemask
+References: <alpine.DEB.2.00.1111161307020.23629@chino.kir.corp.google.com> <4EC4C603.8050704@cn.fujitsu.com> <alpine.DEB.2.00.1111171328120.15918@chino.kir.corp.google.com> <4EC62AEA.2030602@cn.fujitsu.com> <alpine.DEB.2.00.1111181545170.24487@chino.kir.corp.google.com> <4ECC5FC8.9070500@cn.fujitsu.com> <alpine.DEB.2.00.1111221902300.30008@chino.kir.corp.google.com> <4ECC7B1E.6020108@cn.fujitsu.com> <alpine.DEB.2.00.1111222210341.21009@chino.kir.corp.google.com> <4ECCA578.6020700@cn.fujitsu.com> <alpine.DEB.2.00.1111231425030.5261@chino.kir.corp.google.com> <4ECD9D43.6090202@cn.fujitsu.com> <alpine.DEB.2.00.1111231751480.9042@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1111231751480.9042@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Paul Menage <paul@paulmenage.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->> + =A0 =A0 while (index < end) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D shmem_getpage(inode, index, &page, SGP=
-_WRITE, NULL);
->
-> If the 'page' for index exists before this call, this will return the pag=
-e without
-> allocaton.
->
-> Then, the page may not be zero-cleared. I think the page should be zero-c=
-leared.
+On Wed, 23 Nov 2011 17:52:08 -0800 (pst), David Rientjes wrote:
+> On Thu, 24 Nov 2011, Miao Xie wrote:
+> 
+>> Memory compaction will see an empty nodemask and do nothing, and then
+>> we may fail to get several contiguous pages.
+>>
+> 
+> Where do we rely on a consistent nodemask for memory compaction?
 
-No. fallocate shouldn't destroy existing data. It only ensure
-subsequent file access don't make ENOSPC error.
+Maybe I am overcautious.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
