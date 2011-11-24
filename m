@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 74AEE6B00A5
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:16:09 -0500 (EST)
-Message-ID: <4ECDB6E6.40304@redhat.com>
-Date: Thu, 24 Nov 2011 11:15:50 +0800
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B3A1C6B00A7
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2011 22:18:30 -0500 (EST)
+Message-ID: <4ECDB778.30006@redhat.com>
+Date: Thu, 24 Nov 2011 11:18:16 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [V3 PATCH 1/2] tmpfs: add fallocate support
-References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <CAHGf_=rOYkEGHakyHpihopMg2VtVfDV7XvC_QGs_kj6HgDmBRA@mail.gmail.com> <CAOJsxLH2foaRHYoPgRufu_J8B-YEvQ8aJNuQqHOPNj9YFvAubw@mail.gmail.com> <alpine.LSU.2.00.1111231407170.2573@sister.anvils>
-In-Reply-To: <alpine.LSU.2.00.1111231407170.2573@sister.anvils>
+References: <1322038412-29013-1-git-send-email-amwang@redhat.com> <alpine.LSU.2.00.1111231100110.2226@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1111231100110.2226@sister.anvils>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'11ae??24ae?JPY 06:20, Hugh Dickins a??e??:
-> On Wed, 23 Nov 2011, Pekka Enberg wrote:
->>
->> Why do we need to undo anyway?
-...
-> Another answer would be: if fallocate() had been defined to return
-> the length that has been successfully allocated (as write() returns
-> the length written), then it would be reasonable to return partial
-> length instead of failing with ENOSPC, and not undo.  But it was
-> defined to return -1 on failure or 0 on success, so cannot report
-> partial success.
+ao? 2011a1'11ae??24ae?JPY 03:07, Hugh Dickins a??e??:
+> On Wed, 23 Nov 2011, Cong Wang wrote:
+>> +
+>> +	while (index<  end) {
+>> +		ret = shmem_getpage(inode, index,&page, SGP_WRITE, NULL);
+>> +		if (ret) {
+>> +			if (ret == -ENOSPC)
+>> +				goto undo;
+> ...
+>> +undo:
+>> +	while (index>  start) {
+>> +		shmem_truncate_page(inode, index);
+>> +		index--;
+>> +	}
 >
-> Another answer would be: if the disk is near full, it's not good
-> for a fallocate() to fail with -ENOSPC while nonetheless grabbing
-> all the remaining blocks; even worse if another fallocate() were
-> racing with it.
+> As I said before, I won't actually be reviewing and testing this for
+> a week or two; but before this goes any further, must point out how
+> wrong it is.  Here you'll be deleting any pages in the range that were
+> already present before the failing fallocate().
 
-Exactly, fallocate() should not make the bad situation even worse.
+Ah, I totally missed this. So, is there any way to tell if the page
+gotten from shmem_getpage() is newly allocated or not?
+
+I will dig the code...
 
 Thanks.
 
