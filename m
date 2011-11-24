@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 22BE86B0096
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:51:23 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 24 Nov 2011 04:51:21 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAO9ovKA430036
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:50:57 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAO9otOf012670
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:50:56 -0500
-Date: Thu, 24 Nov 2011 15:19:56 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: Fwd: uprobes: register/unregister probes.
-Message-ID: <20111124094956.GC28065@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <hYuXv-26J-3@gated-at.bofh.it>
- <hYuXw-26J-5@gated-at.bofh.it>
- <i0nRU-7eK-11@gated-at.bofh.it>
- <603b0079-5f54-4299-9a9a-a5e237ccca73@l23g2000pro.googlegroups.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B0BB86B0098
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 04:51:35 -0500 (EST)
+Date: Thu, 24 Nov 2011 10:51:24 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/8] mm: memcg: clean up fault accounting
+Message-ID: <20111124095124.GG6843@cmpxchg.org>
+References: <1322062951-1756-1-git-send-email-hannes@cmpxchg.org>
+ <1322062951-1756-4-git-send-email-hannes@cmpxchg.org>
+ <20111124093349.GC26036@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <603b0079-5f54-4299-9a9a-a5e237ccca73@l23g2000pro.googlegroups.com>
+In-Reply-To: <20111124093349.GC26036@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, tulasidhard@gmail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> > +
-> > +       mutex_unlock(uprobes_hash(inode));
-> > +       put_uprobe(uprobe);
-> > +
-> > +reg_out:
-> > +       iput(inode);
-> > +       return ret;
-> > +}
+On Thu, Nov 24, 2011 at 10:33:49AM +0100, Michal Hocko wrote:
+> On Wed 23-11-11 16:42:26, Johannes Weiner wrote:
+> > From: Johannes Weiner <jweiner@redhat.com>
+> > 
+> > The fault accounting functions have a single, memcg-internal user, so
+> > they don't need to be global.  In fact, their one-line bodies can be
+> > directly folded into the caller.  
 > 
-> So if this function returns an error the caller is responsible for
-> cleaning up consumer, otherwise we take responsibility.
+> At first I thought that this doesn't help much because the generated
+> code should be exactly same but thinking about it some more it makes
+> sense.
+> We should have a single place where we account for events. Maybe we
+> should include also accounting done in mem_cgroup_charge_statistics
+> (this would however mean that mem_cgroup_count_vm_event would have to be
+> split). What do you think?
 
-The caller is always responsible to cleanup the consumer. 
-The only field we touch in the consumer is the next; thats because 
-we use to link up the consumers.
+I'm all for unifying all the stats crap into a single place.
+Optimally, we should have been able to put memcg hooks below
+count_vm_event* but maybe that ship has sailed with PGPGIN/PGPGOUT
+having different meanings between memcg and the rest of the system :/
 
--- 
-Thanks and Regards
-Srikar
+Anything in that direction is improvement, IMO.
+
+> > And since faults happen one at a time, use this_cpu_inc() directly
+> > instead of this_cpu_add(foo, 1).
+> 
+> The generated code will be same but it is easier to read, so agreed.
+
+And it fits within 80 columns :-)
+
+> > Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> 
+> Anyway
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
