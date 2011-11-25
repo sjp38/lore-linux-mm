@@ -1,71 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DF476B008A
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 20:01:39 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 594AC3EE0BD
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E50045DE53
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FE6E45DE50
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 10D16E08001
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEC431DB803B
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:34 +0900 (JST)
-Date: Fri, 25 Nov 2011 10:00:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across
- zones
-Message-Id: <20111125100009.a87094fa.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111124131155.GB1225@cmpxchg.org>
-References: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
-	<1322055258-3254-4-git-send-email-hannes@cmpxchg.org>
-	<20111124100755.d8b783a8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111124131155.GB1225@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2056B008A
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 20:21:38 -0500 (EST)
+Received: by wwg38 with SMTP id 38so4342503wwg.26
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2011 17:21:35 -0800 (PST)
+MIME-Version: 1.0
+Date: Fri, 25 Nov 2011 09:21:35 +0800
+Message-ID: <CAKXJSOHu+sQ1NeMsRvFyp2GYoB6g+50boUu=-QvbxxjcqgOAVA@mail.gmail.com>
+Subject: Question about __zone_watermark_ok: why there is a "+ 1" in computing free_pages?
+From: Wang Sheng-Hui <shhuiw@gmail.com>
+Content-Type: multipart/alternative; boundary=e89a8f3b9da554164404b284f9c2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 24 Nov 2011 14:11:55 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+--e89a8f3b9da554164404b284f9c2
+Content-Type: text/plain; charset=ISO-8859-1
 
-> On Thu, Nov 24, 2011 at 10:07:55AM +0900, KAMEZAWA Hiroyuki wrote:
-			goto this_zone_full;
-> > >  
-> > >  		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
-> > >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-> > 
-> > This wil call 
-> > 
-> >                 if (NUMA_BUILD)
-> >                         zlc_mark_zone_full(zonelist, z);
-> > 
-> > And this zone will be marked as full. 
-> > 
-> > IIUC, zlc_clear_zones_full() is called only when direct reclaim ends.
-> > So, if no one calls direct-reclaim, 'full' mark may never be cleared
-> > even when number of dirty pages goes down to safe level ?
-> > I'm sorry if this is alread discussed.
-> 
-> It does not remember which zones are marked full for longer than a
-> second - see zlc_setup() - and also ignores this information when an
-> iteration over the zonelist with the cache enabled came up
-> empty-handed.
-> 
-Ah, thank you for clarification.
-I understand how zlc_active/did_zlc_setup/zlc_setup()...complicated ;)
+In line 1459, we have "free_pages -= (1 << order) + 1;".
+Suppose allocating one 0-order page, here we'll get
+    free_pages -= 1 + 1
+I wonder why there is a "+ 1"?
 
-Thanks,
--Kame
+1448/*
+1449 * Return true if free pages are above 'mark'. This takes into account
+the order
+1450 * of the allocation.
+1451 */
+1452static bool __zone_watermark_ok(struct zone *z, int order, unsigned
+long mark,
+1453                      int classzone_idx, int alloc_flags, long
+free_pages)
+1454{
+1455        /* free_pages my go negative - that's OK */
+1456        long min = mark;
+1457        int o;
+1458
+1459        free_pages -= (1 << order) + 1;
+1460        if (alloc_flags & ALLOC_HIGH)
+1461                min -= min / 2;
+1462        if (alloc_flags & ALLOC_HARDER)
+1463                min -= min / 4;
+1464
+1465        if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+1466                return false;
+1467        for (o = 0; o < order; o++) {
+1468                /* At the next order, this order's pages become
+unavailable */
+1469                free_pages -= z->free_area[o].nr_free << o;
+1470
+1471                /* Require fewer higher order pages to be free */
+1472                min >>= 1;
+1473
+1474                if (free_pages <= min)
+1475                        return false;
+1476        }
+1477        return true;
+1478}
+
+--e89a8f3b9da554164404b284f9c2
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+In line 1459, we have &quot;free_pages -=3D (1 &lt;&lt; order) + 1;&quot;.<=
+br>Suppose allocating one 0-order page, here we&#39;ll get <br>=A0=A0=A0 fr=
+ee_pages -=3D 1 + 1<br>I wonder why there is a &quot;+ 1&quot;?<br><br>1448=
+/*<br>1449 * Return true if free pages are above &#39;mark&#39;. This takes=
+ into account the order<br>
+1450 * of the allocation.<br>1451 */<br>1452static bool __zone_watermark_ok=
+(struct zone *z, int order, unsigned long mark,<br>1453=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 int classzone_idx, int alloc_=
+flags, long free_pages)<br>1454{<br>1455=A0=A0=A0=A0=A0=A0=A0 /* free_pages=
+ my go negative - that&#39;s OK */<br>
+1456=A0=A0=A0=A0=A0=A0=A0 long min =3D mark;<br>1457=A0=A0=A0=A0=A0=A0=A0 i=
+nt o;<br>1458<br>1459=A0=A0=A0=A0=A0=A0=A0 free_pages -=3D (1 &lt;&lt; orde=
+r) + 1;<br>1460=A0=A0=A0=A0=A0=A0=A0 if (alloc_flags &amp; ALLOC_HIGH)<br>1=
+461=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 min -=3D min / 2;<br>1462=
+=A0=A0=A0=A0=A0=A0=A0 if (alloc_flags &amp; ALLOC_HARDER)<br>
+1463=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 min -=3D min / 4;<br>1464=
+<br>1465=A0=A0=A0=A0=A0=A0=A0 if (free_pages &lt;=3D min + z-&gt;lowmem_res=
+erve[classzone_idx])<br>1466=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 r=
+eturn false;<br>1467=A0=A0=A0=A0=A0=A0=A0 for (o =3D 0; o &lt; order; o++) =
+{<br>1468=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 /* At the next order=
+, this order&#39;s pages become unavailable */<br>
+1469=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 free_pages -=3D z-&gt;fre=
+e_area[o].nr_free &lt;&lt; o;<br>1470<br>1471=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0 /* Require fewer higher order pages to be free */<br>1472=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 min &gt;&gt;=3D 1;<br>1473<br=
+>1474=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (free_pages &lt;=3D m=
+in)<br>
+1475=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 r=
+eturn false;<br>1476=A0=A0=A0=A0=A0=A0=A0 }<br>1477=A0=A0=A0=A0=A0=A0=A0 re=
+turn true;<br>1478}<br><br><br>
+
+--e89a8f3b9da554164404b284f9c2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
