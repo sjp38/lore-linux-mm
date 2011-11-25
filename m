@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 254606B008A
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 19:36:54 -0500 (EST)
-Date: Fri, 25 Nov 2011 11:36:33 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/8] readahead: make default readahead size a kernel
- parameter
-Message-ID: <20111125003633.GP2386@dastard>
-References: <20111121091819.394895091@intel.com>
- <20111121093846.251104145@intel.com>
- <20111121100137.GC5084@infradead.org>
- <20111121113540.GB8895@localhost>
- <20111124222822.GG29519@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111124222822.GG29519@quack.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 5DF476B008A
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2011 20:01:39 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 594AC3EE0BD
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E50045DE53
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FE6E45DE50
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 10D16E08001
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:35 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEC431DB803B
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:01:34 +0900 (JST)
+Date: Fri, 25 Nov 2011 10:00:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 3/5] mm: try to distribute dirty pages fairly across
+ zones
+Message-Id: <20111125100009.a87094fa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111124131155.GB1225@cmpxchg.org>
+References: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
+	<1322055258-3254-4-git-send-email-hannes@cmpxchg.org>
+	<20111124100755.d8b783a8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111124131155.GB1225@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Ankit Jain <radical@gmail.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 24, 2011 at 11:28:22PM +0100, Jan Kara wrote:
-> On Mon 21-11-11 19:35:40, Wu Fengguang wrote:
-> > On Mon, Nov 21, 2011 at 06:01:37PM +0800, Christoph Hellwig wrote:
-> > > On Mon, Nov 21, 2011 at 05:18:21PM +0800, Wu Fengguang wrote:
-> > > > From: Nikanth Karthikesan <knikanth@suse.de>
-> > > > 
-> > > > Add new kernel parameter "readahead=", which allows user to override
-> > > > the static VM_MAX_READAHEAD=128kb.
-> > > 
-> > > Is a boot-time paramter really such a good idea?  I would at least
-> > 
-> > It's most convenient to set at boot time, because the default size
-> > will be used to initialize all the block devices.
-> > 
-> > > make it a sysctl so that it's run-time controllable, including
-> > > beeing able to set it from initscripts.
-> > 
-> > Once boot up, it's more natural to set the size one by one, for
-> > example
-> > 
-> >         blockdev --setra 1024 /dev/sda2
-> > or
-> >         echo 512 > /sys/block/sda/queue/read_ahead_kb
-> > 
-> > And you still have the chance to modify the global default, but the
-> > change will only be inherited by newly created devices thereafter:
-> > 
-> >         echo 512 > /sys/devices/virtual/bdi/default/read_ahead_kb
-> > 
-> > The above command is very suitable for use in initscripts.  However
-> > there are no natural way to do sysctl as there is no such a global
-> > value.
->   Well, you can always have an udev rule to set read_ahead_kb to whatever
-> you want. In some respect that looks like a nicer solution to me...
+On Thu, 24 Nov 2011 14:11:55 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-And one that has already been in use for exactly this purpose for
-years. Indeed, it's far more flexible because you can give different
-types of devices different default readahead settings quite easily,
-and it you can set different defaults for just about any tunable
-parameter (e.g. readahead, ctq depth, max IO sizes, etc) in the same
-way.
+> On Thu, Nov 24, 2011 at 10:07:55AM +0900, KAMEZAWA Hiroyuki wrote:
+			goto this_zone_full;
+> > >  
+> > >  		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+> > >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+> > 
+> > This wil call 
+> > 
+> >                 if (NUMA_BUILD)
+> >                         zlc_mark_zone_full(zonelist, z);
+> > 
+> > And this zone will be marked as full. 
+> > 
+> > IIUC, zlc_clear_zones_full() is called only when direct reclaim ends.
+> > So, if no one calls direct-reclaim, 'full' mark may never be cleared
+> > even when number of dirty pages goes down to safe level ?
+> > I'm sorry if this is alread discussed.
+> 
+> It does not remember which zones are marked full for longer than a
+> second - see zlc_setup() - and also ignores this information when an
+> iteration over the zonelist with the cache enabled came up
+> empty-handed.
+> 
+Ah, thank you for clarification.
+I understand how zlc_active/did_zlc_setup/zlc_setup()...complicated ;)
 
-Hence I don't think we should treat default readahead any
-differently from any other configurable storage parameter - we've
-already got places to change the per-device defaults to something
-sensible at boot/discovery time....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
