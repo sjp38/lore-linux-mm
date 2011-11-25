@@ -1,38 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B83F6B008A
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 10:23:41 -0500 (EST)
-Received: from canuck.infradead.org ([2001:4978:20e::1])
-	by merlin.infradead.org with esmtps (Exim 4.76 #1 (Red Hat Linux))
-	id 1RTxcp-0003sN-07
-	for linux-mm@kvack.org; Fri, 25 Nov 2011 15:23:39 +0000
-Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
-	by canuck.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
-	id 1RTxco-00031R-O1
-	for linux-mm@kvack.org; Fri, 25 Nov 2011 15:23:38 +0000
-Subject: Re: [PATCH v7 3.2-rc2 12/30] uprobes: Handle breakpoint and
- Singlestep
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20111118110903.10512.88532.sendpatchset@srdronam.in.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110903.10512.88532.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 25 Nov 2011 16:24:22 +0100
-Message-ID: <1322234662.2535.8.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 539C76B0095
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 11:01:56 -0500 (EST)
+Received: by wwf22 with SMTP id 22so2516221wwf.2
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2011 08:01:51 -0800 (PST)
+Date: Fri, 25 Nov 2011 17:02:54 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [Linaro-mm-sig] [RFC 1/2] dma-buf: Introduce dma buffer sharing
+ mechanism
+Message-ID: <20111125160254.GA3980@phenom.ffwll.local>
+References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
+ <1318325033-32688-2-git-send-email-sumit.semwal@ti.com>
+ <CAPM=9tzAgCSDgdvi=9QZa-gEVXwKp_gpCPTtQ10XS=Z9K4805w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPM=9tzAgCSDgdvi=9QZa-gEVXwKp_gpCPTtQ10XS=Z9K4805w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Dave Airlie <airlied@gmail.com>
+Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, daniel@ffwll.ch
 
-On Fri, 2011-11-18 at 16:39 +0530, Srikar Dronamraju wrote:
+On Fri, Nov 25, 2011 at 02:13:22PM +0000, Dave Airlie wrote:
+> On Tue, Oct 11, 2011 at 10:23 AM, Sumit Semwal <sumit.semwal@ti.com> wrote:
+> > This is the first step in defining a dma buffer sharing mechanism.
+> >
+> > A new buffer object dma_buf is added, with operations and API to allow easy
+> > sharing of this buffer object across devices.
+> >
+> > The framework allows:
+> > - a new buffer-object to be created with fixed size.
+> > - different devices to 'attach' themselves to this buffer, to facilitate
+> >  backing storage negotiation, using dma_buf_attach() API.
+> > - association of a file pointer with each user-buffer and associated
+> >   allocator-defined operations on that buffer. This operation is called the
+> >   'export' operation.
+> > - this exported buffer-object to be shared with the other entity by asking for
+> >   its 'file-descriptor (fd)', and sharing the fd across.
+> > - a received fd to get the buffer object back, where it can be accessed using
+> >   the associated exporter-defined operations.
+> > - the exporter and user to share the scatterlist using get_scatterlist and
+> >   put_scatterlist operations.
+> >
+> > Atleast one 'attach()' call is required to be made prior to calling the
+> > get_scatterlist() operation.
+> >
+> > Couple of building blocks in get_scatterlist() are added to ease introduction
+> > of sync'ing across exporter and users, and late allocation by the exporter.
+> >
+> > mmap() file operation is provided for the associated 'fd', as wrapper over the
+> > optional allocator defined mmap(), to be used by devices that might need one.
+> >
+> > More details are there in the documentation patch.
+> >
+> 
+> Some questions, I've started playing around with using this framework
+> to do buffer sharing between DRM devices,
+> 
+> Why struct scatterlist and not struct sg_table? it seems like I really
+> want to use an sg_table,
 
-> +       consumer = uprobe->consumers;
-> +       for (consumer = uprobe->consumers; consumer;
-> +                                       consumer = consumer->next) { 
+No reason at all besides that intel-gtt is using scatterlist internally
+(and only kludges the sg_table together in an ad-hoc fashion) and so I
+haven't noticed. sg_table for more consistency with the dma api sounds
+good.
 
-that first expression seems redundant..
+> I'm not convinced fd's are really useful over just some idr allocated
+> handle, so far I'm just returning the "fd" to userspace as a handle,
+> and passing it back in the other side, so I'm not really sure what an
+> fd wins us here, apart from the mmap thing which I think shouldn't be
+> here anyways.
+> (if fd's do win us more we should probably record that in the docs patch).
+
+Imo fds are nice because their known and there's already all the
+preexisting infrastructure for them around. And if we ever get fancy with
+e.g. sync objects we can easily add poll support (or some insane ioctls).
+But I agree that "we can mmap" is bust as a reason and should just die.
+-Daniel
+-- 
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
