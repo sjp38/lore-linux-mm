@@ -1,68 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E01C56B0093
-	for <linux-mm@kvack.org>; Sat, 26 Nov 2011 15:49:46 -0500 (EST)
-Date: Sat, 26 Nov 2011 15:49:39 -0500 (EST)
-Message-Id: <20111126.154939.980893642757282901.davem@davemloft.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E34C6B0096
+	for <linux-mm@kvack.org>; Sat, 26 Nov 2011 15:50:33 -0500 (EST)
+Date: Sat, 26 Nov 2011 15:50:28 -0500 (EST)
+Message-Id: <20111126.155028.1986754382924402334.davem@davemloft.net>
 Subject: Re: [BUG] 3.2-rc2: BUG kmalloc-8: Redzone overwritten
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <1322305162.10212.8.camel@edumazet-laptop>
-References: <1321870967.8173.1.camel@lappy>
-	<1322304878.28191.1.camel@sasha>
-	<1322305162.10212.8.camel@edumazet-laptop>
+In-Reply-To: <1321873110.2710.13.camel@menhir>
+References: <1321870529.2552.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<1321870915.2552.22.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<1321873110.2710.13.camel@menhir>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: eric.dumazet@gmail.com
-Cc: levinsasha928@gmail.com, mpm@selenic.com, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: swhiteho@redhat.com
+Cc: eric.dumazet@gmail.com, levinsasha928@gmail.com, mpm@selenic.com, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ccaulfie@redhat.com
 
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Sat, 26 Nov 2011 11:59:22 +0100
+From: Steven Whitehouse <swhiteho@redhat.com>
+Date: Mon, 21 Nov 2011 10:58:30 +0000
 
-> Le samedi 26 novembre 2011 =E0 12:54 +0200, Sasha Levin a =E9crit :
->> > On Mon, 2011-11-21 at 11:21 +0100, Eric Dumazet wrote:
->> > > =
+> I have to say that I've been wondering lately whether it has got to the
+> point where it is no longer useful. Has anybody actually tested it
+> lately against "real" DEC implementations?
 
->> > > Hmm, I forgot to remove the sock_hold(sk) call from dn_slow_time=
-r(),
->> > > here is V2 :
->> > > =
+I doubt it :-)
 
->> > > [PATCH] decnet: proper socket refcounting
->> > > =
+If we can't think of any real reason to keep it around, let's try
+to reach a quirk consensus and I'll toss it from the net-next tree.
 
->> > > Better use sk_reset_timer() / sk_stop_timer() helpers to make su=
-re we
->> > > dont access already freed/reused memory later.
->> > > =
-
->> > > Reported-by: Sasha Levin <levinsasha928@gmail.com>
->> > > Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
->> > > ---
->> > =
-
->> > =
-
->> > Applied locally and running same tests as before, will update with=
-
->> > results.
->> > =
-
->> =
-
->> Looks ok after a couple days of testing.
->> =
-
->> 	Tested-by: Sasha Levin <levinsasha928@gmail.com>
->> =
-
-> =
-
-> Thanks Sasha !
-
-Applied and queued up for -stable, thanks everyone.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
