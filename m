@@ -1,48 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 82AD26B002D
-	for <linux-mm@kvack.org>; Sat, 26 Nov 2011 01:51:41 -0500 (EST)
-Date: Fri, 25 Nov 2011 22:51:36 -0800
-From: Andy Isaacson <adi@hexapodia.org>
-Subject: Re: [PATCH 4/5] mm: compaction: Determine if dirty pages can be
-	migreated without blocking within ->migratepage
-Message-ID: <20111126065136.GA12631@hexapodia.org>
-References: <1321635524-8586-1-git-send-email-mgorman@suse.de> <1321635524-8586-5-git-send-email-mgorman@suse.de> <20111118213530.GA6323@redhat.com> <20111121111726.GA19415@suse.de> <20111121224545.GC8397@redhat.com> <20111122125906.GK19415@suse.de> <20111124011943.GO8397@redhat.com> <20111124122144.GR19415@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111124122144.GR19415@suse.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C52B6B002D
+	for <linux-mm@kvack.org>; Sat, 26 Nov 2011 05:54:47 -0500 (EST)
+Received: by wwg38 with SMTP id 38so6466108wwg.26
+        for <linux-mm@kvack.org>; Sat, 26 Nov 2011 02:54:44 -0800 (PST)
+Subject: Re: [BUG] 3.2-rc2: BUG kmalloc-8: Redzone overwritten
+From: Sasha Levin <levinsasha928@gmail.com>
+In-Reply-To: <1321870967.8173.1.camel@lappy>
+References: <1321866845.3831.7.camel@lappy>
+	 <1321870529.2552.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <1321870915.2552.22.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <1321870967.8173.1.camel@lappy>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Sat, 26 Nov 2011 12:54:38 +0200
+Message-ID: <1322304878.28191.1.camel@sasha>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: David Miller <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>
 
-On Thu, Nov 24, 2011 at 12:21:44PM +0000, Mel Gorman wrote:
-> On Thu, Nov 24, 2011 at 02:19:43AM +0100, Andrea Arcangeli wrote:
-> > Yes also note, ironically this is likely to be a better test for this
-> > without the __GFP_MOVABLE in block_dev.c. Even if we want it fixed,
-> > maybe another source that reduces the non movable pages may be needed then.
+On Mon, 2011-11-21 at 12:22 +0200, Sasha Levin wrote:
+> On Mon, 2011-11-21 at 11:21 +0100, Eric Dumazet wrote:
+> > Le lundi 21 novembre 2011 a 11:15 +0100, Eric Dumazet a ecrit :
 > > 
+> > > 
+> > > Hmm, trinity tries to crash decnet ;)
+> > > 
+> > > Maybe we should remove this decnet stuff for good instead of tracking
+> > > all bugs just for the record. Is there anybody still using decnet ?
+> > > 
+> > > For example dn_start_slow_timer() starts a timer without holding a
+> > > reference on struct sock, this is highly suspect.
+> > > 
+> > > [PATCH] decnet: proper socket refcounting
+> > > 
+> > > Better use sk_reset_timer() / sk_stop_timer() helpers to make sure we
+> > > dont access already freed/reused memory later.
+> > > 
+> > > Reported-by: Sasha Levin <levinsasha928@gmail.com>
+> > > Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+> > 
+> > Hmm, I forgot to remove the sock_hold(sk) call from dn_slow_timer(),
+> > here is V2 :
+> > 
+> > [PATCH] decnet: proper socket refcounting
+> > 
+> > Better use sk_reset_timer() / sk_stop_timer() helpers to make sure we
+> > dont access already freed/reused memory later.
+> > 
+> > Reported-by: Sasha Levin <levinsasha928@gmail.com>
+> > Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+> > ---
 > 
-> I'm also running other tests to avoid tuning for just this test cases.
-> Right now, the list looks like;
+> [snip]
 > 
-> 1. postmark with something creating anonymous mappings in the background
-> 2. plain USB writing while creating anonymous mappings
+> Applied locally and running same tests as before, will update with
+> results.
+> 
 
-I've been testing the original case that started this thread -- writing
-multiple GB to a USB attached, FAT, very slow SD card.
+Looks ok after a couple days of testing.
 
-I'm currently running 7f80850d + "mm: Do not stall in synchronous
-compaction for THP allocations" Mel's original patch.  With this patch I
-cannot reproduce the hangs that I saw.  I haven't retried without the
-patch to confirm that they're reproducible, though.
+	Tested-by: Sasha Levin <levinsasha928@gmail.com>
 
-someone asked about CONFIG_NUMA; I have CONFIG_NUMA=y.
+-- 
 
-I can reboot this weekend; what patches should I test with next?
-
--andy
+Sasha.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
