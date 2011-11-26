@@ -1,56 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D6C226B002D
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 21:26:53 -0500 (EST)
-Received: from /spool/local
-	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 25 Nov 2011 21:26:52 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAQ2QmK1269354
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 21:26:48 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAQ2QlGs024569
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2011 21:26:48 -0500
-Date: Sat, 26 Nov 2011 07:55:36 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 3.2-rc2 9/30] uprobes: Background page replacement.
-Message-ID: <20111126022536.GB3291@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
- <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
- <1322232886.2535.7.camel@laptop>
+	by kanga.kvack.org (Postfix) with SMTP id 82AD26B002D
+	for <linux-mm@kvack.org>; Sat, 26 Nov 2011 01:51:41 -0500 (EST)
+Date: Fri, 25 Nov 2011 22:51:36 -0800
+From: Andy Isaacson <adi@hexapodia.org>
+Subject: Re: [PATCH 4/5] mm: compaction: Determine if dirty pages can be
+	migreated without blocking within ->migratepage
+Message-ID: <20111126065136.GA12631@hexapodia.org>
+References: <1321635524-8586-1-git-send-email-mgorman@suse.de> <1321635524-8586-5-git-send-email-mgorman@suse.de> <20111118213530.GA6323@redhat.com> <20111121111726.GA19415@suse.de> <20111121224545.GC8397@redhat.com> <20111122125906.GK19415@suse.de> <20111124011943.GO8397@redhat.com> <20111124122144.GR19415@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1322232886.2535.7.camel@laptop>
+In-Reply-To: <20111124122144.GR19415@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-11-25 15:54:46]:
-
-> On Fri, 2011-11-18 at 16:38 +0530, Srikar Dronamraju wrote:
-> > +static int read_opcode(struct mm_struct *mm, unsigned long vaddr,
-> > +                                               uprobe_opcode_t *opcode)
-> > +{
-> > +       struct page *page;
-> > +       void *vaddr_new;
-> > +       int ret;
-> > +
-> > +       ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &page, NULL);
-> > +       if (ret <= 0)
-> > +               return ret;
-> > +
-> > +       lock_page(page);
-> > +       vaddr_new = kmap_atomic(page);
-> > +       vaddr &= ~PAGE_MASK;
+On Thu, Nov 24, 2011 at 12:21:44PM +0000, Mel Gorman wrote:
+> On Thu, Nov 24, 2011 at 02:19:43AM +0100, Andrea Arcangeli wrote:
+> > Yes also note, ironically this is likely to be a better test for this
+> > without the __GFP_MOVABLE in block_dev.c. Even if we want it fixed,
+> > maybe another source that reduces the non movable pages may be needed then.
+> > 
 > 
-> BUG_ON(vaddr + uprobe_opcode_sz >= PAGE_SIZE);
+> I'm also running other tests to avoid tuning for just this test cases.
+> Right now, the list looks like;
 > 
+> 1. postmark with something creating anonymous mappings in the background
+> 2. plain USB writing while creating anonymous mappings
 
-Okay, will add BUG_ON.
+I've been testing the original case that started this thread -- writing
+multiple GB to a USB attached, FAT, very slow SD card.
+
+I'm currently running 7f80850d + "mm: Do not stall in synchronous
+compaction for THP allocations" Mel's original patch.  With this patch I
+cannot reproduce the hangs that I saw.  I haven't retried without the
+patch to confirm that they're reproducible, though.
+
+someone asked about CONFIG_NUMA; I have CONFIG_NUMA=y.
+
+I can reboot this weekend; what patches should I test with next?
+
+-andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
