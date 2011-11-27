@@ -1,83 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 457DE6B002D
-	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 01:59:34 -0500 (EST)
-Received: by ywm14 with SMTP id 14so4652310ywm.14
-        for <linux-mm@kvack.org>; Sat, 26 Nov 2011 22:59:30 -0800 (PST)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 363BF6B002D
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 15:50:31 -0500 (EST)
+Message-ID: <4ED2A28E.2070206@redhat.com>
+Date: Sun, 27 Nov 2011 15:50:22 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKMK7uE14gOsTUYZknmSArkzG2zSSbpDeU0dxqAtLVUmvh-5bA@mail.gmail.com>
-References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
-	<1318325033-32688-2-git-send-email-sumit.semwal@ti.com>
-	<CAPM=9tzjO7poyz_uYFFgONxzuTB86kKej8f2XBDHLGdUPZHvjg@mail.gmail.com>
-	<CAPM=9txtWiQuF+jNZXDogCMy+nsM=00Bv3uxAiu5oKnn-KxjAA@mail.gmail.com>
-	<CAKMK7uE14gOsTUYZknmSArkzG2zSSbpDeU0dxqAtLVUmvh-5bA@mail.gmail.com>
-Date: Sun, 27 Nov 2011 00:59:30 -0600
-Message-ID: <CAF6AEGtgjjtVraeji09zKJSTmokmQqfk5S8LfHoMhHJY03dLkg@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC 1/2] dma-buf: Introduce dma buffer sharing mechanism
-From: Rob Clark <robdclark@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 4/5] mm: compaction: Determine if dirty pages can be migreated
+ without blocking within ->migratepage
+References: <1321635524-8586-1-git-send-email-mgorman@suse.de> <1321635524-8586-5-git-send-email-mgorman@suse.de> <20111118213530.GA6323@redhat.com> <20111121111726.GA19415@suse.de> <20111121224545.GC8397@redhat.com> <20111122125906.GK19415@suse.de> <20111124011943.GO8397@redhat.com> <20111124122144.GR19415@suse.de>
+In-Reply-To: <20111124122144.GR19415@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: Dave Airlie <airlied@gmail.com>, Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Nov 26, 2011 at 8:00 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
-> On Fri, Nov 25, 2011 at 17:28, Dave Airlie <airlied@gmail.com> wrote:
->> I've rebuilt my PRIME interface on top of dmabuf to see how it would wor=
-k,
+On 11/24/2011 07:21 AM, Mel Gorman wrote:
+> On Thu, Nov 24, 2011 at 02:19:43AM +0100, Andrea Arcangeli wrote:
+
+>> But funny thing grow_dev_page already sets __GFP_MOVABLE. That's
+>> pretty weird and it's probably source of a few not movable pages in
+>> the movable block. But then many bh are movable... most of them are,
+>> it's just the superblock that isn't.
 >>
->> I've got primed gears running again on top, but I expect all my object
->> lifetime and memory ownership rules need fixing up (i.e. leaks like a
->> sieve).
+>> But considering grow_dev_page sets __GFP_MOVABLE, any worry about pins
+>> from the fs on the block_dev.c pagecache shouldn't be a concern...
 >>
->> http://cgit.freedesktop.org/~airlied/linux/log/?h=3Ddrm-prime-dmabuf
+>
+> Except in quantity. We can cope with some pollution of MIGRATE_MOVABLE
+> but if it gets excessive, it will cause a lot of trouble. Superblock
+> bh's may not be movable but there are not many of them and they are
+> long lived.
+
+We're potentially doomed either way :)
+
+If we allocate a lot of movable pages in non-movable
+blocks, we can end up with a lot of slightly polluted
+blocks even after reclaiming all the reclaimable page
+cache.
+
+If we allocate a few non-movable pages in movable
+blocks, we can end up with the same situation.
+
+Either way, we can potentially end up with a lot of
+memory that cannot be defragmented.
+
+Of course, it could take the mounting of a lot of
+filesystems for this problem to be triggered, but we
+know there are people doing that.
+
+>> __GFP_MOVABLE missing block_dev also was not
+>> so common and it most certainly contributed to a reclaim more
+>> aggressive than it would have happened with that fix. I think you can
+>> push things one at time without urgency here, and I'd prefer maybe if
+>> block_dev patch is applied and the other reversed in vmscan.c or
+>> improved to start limiting only if we're above 8*high or some
+>> percentage check to allow a little more reclaim than rc2 allows
+>
+> The limiting is my current preferred option - at least until it is
+> confirmed that it really is ok to mark block_dev pages movable and that
+> Rik is ok with the revert.
+
+I am fine with replacing the compaction checks with free limit
+checks. Funny enough, the first iteration of the patch I submitted
+to limit reclaim used a free limit check :)
+
+I also suspect we will want to call shrink_slab regardless of
+whether or not a memory zone is already over its free limit for
+direct reclaim, since that has the potential to free an otherwise
+unmovable page.
+
+>> (i.e. no reclaim at all which likely results in a failure in hugepage
+>> allocation). Not unlimited as 3.1 is ok with me but if kswapd can free
+>> a percentage I don't see why reclaim can't (consdiering more free
+>> pages in movable pageblocks are needed to succeed compaction). The
+>> ideal is to improve the compaction rate and at the same time reduce
+>> reclaim aggressiveness. Let's start with the parts that are more
+>> obviously right fixes and that don't risk regressions, we don't want
+>> compaction regressions :).
 >>
->> has the i915/nouveau patches for the kernel to produce the prime interfa=
-ce.
 >
-> I've noticed that your implementations for get_scatterlist (at least
-> for the i915 driver) doesn't return the sg table mapped into the
-> device address space. I've checked and the documentation makes it
-> clear that this should be the case (and we really need this to support
-> certain insane hw), but the get/put_scatterlist names are a bit
-> misleading. Proposal:
->
-> - use struct sg_table instead of scatterlist like you've already done
-> in you branch. Simply more consistent with the dma api.
+> I don't think there are any "obviously right fixes" right now until the
+> block_dev patch is proven to be ok and that reverting does not regress
+> Rik's workload. Going to take time.
 
-yup
+Ironically the test Andrea is measuring THP allocations with
+(dd from /dev/sda to /dev/null) is functionally equivalent to
+me running KVM guests with cache=writethrough directly from
+a block device.
 
-> - rename get/put_scatterlist into map/unmap for consistency with all
-> the map/unmap dma api functions. The attachement would then serve as
-> the abstract cookie to the backing storage, similar to how struct page
-> * works as an abstract cookie for dma_map/unmap_page. The only special
-> thing is that struct device * parameter because that's already part of
-> the attachment.
+The difference is that Andrea is measuring THP allocation
+success rate, while I am watching how well the programs (and
+KVM guests) actually run.
 
-yup
+Not surprisingly, swapping out the working set has a pretty
+catastrophic effect on performance, even if it helps THP
+allocation success :)
 
-> - add new wrapper functions dma_buf_map_attachment and
-> dma_buf_unmap_attachement to hide all the pointer/vtable-chasing that
-> we currently expose to users of this interface.
-
-I thought that was one of the earlier comments on the initial dmabuf
-patch, but either way: yup
-
-BR,
--R
-
-> Comments?
->
-> Cheers, Daniel
-> --
-> Daniel Vetter
-> daniel.vetter@ffwll.ch - +41 (0) 79 364 57 48 - http://blog.ffwll.ch
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-media" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
