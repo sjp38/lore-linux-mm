@@ -1,135 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2B36B006E
-	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 21:25:55 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E99453EE081
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:25:52 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D0A7745DEB5
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:25:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA40945DEB2
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:25:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5131DB803F
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:25:52 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7085E1DB8038
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:25:52 +0900 (JST)
-Date: Mon, 28 Nov 2011 11:24:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 01/10] Basic kernel memory functionality for the
- Memory Controller
-Message-Id: <20111128112441.44a6e166.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322242696-27682-2-git-send-email-glommer@parallels.com>
-References: <1322242696-27682-1-git-send-email-glommer@parallels.com>
-	<1322242696-27682-2-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 66A466B0072
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 21:39:29 -0500 (EST)
+Date: Mon, 28 Nov 2011 10:39:22 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/8] readahead: make default readahead size a kernel
+ parameter
+Message-ID: <20111128023922.GA2141@localhost>
+References: <20111121091819.394895091@intel.com>
+ <20111121093846.251104145@intel.com>
+ <20111121100137.GC5084@infradead.org>
+ <20111121113540.GB8895@localhost>
+ <20111124222822.GG29519@quack.suse.cz>
+ <20111125003633.GP2386@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111125003633.GP2386@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Ankit Jain <radical@gmail.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Fri, 25 Nov 2011 15:38:07 -0200
-Glauber Costa <glommer@parallels.com> wrote:
+On Fri, Nov 25, 2011 at 08:36:33AM +0800, Dave Chinner wrote:
+> On Thu, Nov 24, 2011 at 11:28:22PM +0100, Jan Kara wrote:
+> > On Mon 21-11-11 19:35:40, Wu Fengguang wrote:
+> > > On Mon, Nov 21, 2011 at 06:01:37PM +0800, Christoph Hellwig wrote:
+> > > > On Mon, Nov 21, 2011 at 05:18:21PM +0800, Wu Fengguang wrote:
+> > > > > From: Nikanth Karthikesan <knikanth@suse.de>
+> > > > > 
+> > > > > Add new kernel parameter "readahead=", which allows user to override
+> > > > > the static VM_MAX_READAHEAD=128kb.
+> > > > 
+> > > > Is a boot-time paramter really such a good idea?  I would at least
+> > > 
+> > > It's most convenient to set at boot time, because the default size
+> > > will be used to initialize all the block devices.
+> > > 
+> > > > make it a sysctl so that it's run-time controllable, including
+> > > > beeing able to set it from initscripts.
+> > > 
+> > > Once boot up, it's more natural to set the size one by one, for
+> > > example
+> > > 
+> > >         blockdev --setra 1024 /dev/sda2
+> > > or
+> > >         echo 512 > /sys/block/sda/queue/read_ahead_kb
+> > > 
+> > > And you still have the chance to modify the global default, but the
+> > > change will only be inherited by newly created devices thereafter:
+> > > 
+> > >         echo 512 > /sys/devices/virtual/bdi/default/read_ahead_kb
+> > > 
+> > > The above command is very suitable for use in initscripts.  However
+> > > there are no natural way to do sysctl as there is no such a global
+> > > value.
+> >   Well, you can always have an udev rule to set read_ahead_kb to whatever
+> > you want. In some respect that looks like a nicer solution to me...
+> 
+> And one that has already been in use for exactly this purpose for
+> years. Indeed, it's far more flexible because you can give different
+> types of devices different default readahead settings quite easily,
+> and it you can set different defaults for just about any tunable
+> parameter (e.g. readahead, ctq depth, max IO sizes, etc) in the same
+> way.
 
-> This patch lays down the foundation for the kernel memory component
-> of the Memory Controller.
-> 
-> As of today, I am only laying down the following files:
-> 
->  * memory.independent_kmem_limit
->  * memory.kmem.limit_in_bytes (currently ignored)
->  * memory.kmem.usage_in_bytes (always zero)
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
-> CC: Paul Menage <paul@paulmenage.org>
-> CC: Greg Thelen <gthelen@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   36 ++++++++++++-
->  init/Kconfig                     |   14 +++++
->  mm/memcontrol.c                  |  107 ++++++++++++++++++++++++++++++++++++--
->  3 files changed, 150 insertions(+), 7 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 06eb6d9..bf00cd2 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -44,8 +44,9 @@ Features:
->   - oom-killer disable knob and oom-notifier
->   - Root cgroup has no limit controls.
->  
-> - Kernel memory and Hugepages are not under control yet. We just manage
-> - pages on LRU. To add more controls, we have to take care of performance.
-> + Hugepages is not under control yet. We just manage pages on LRU. To add more
-> + controls, we have to take care of performance. Kernel memory support is work
-> + in progress, and the current version provides basically functionality.
->  
->  Brief summary of control files.
->  
-> @@ -56,8 +57,11 @@ Brief summary of control files.
->  				 (See 5.5 for details)
->   memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
->  				 (See 5.5 for details)
-> + memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
-> +				 (See 2.7 for details)
->   memory.limit_in_bytes		 # set/show limit of memory usage
->   memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
-> + memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
->   memory.failcnt			 # show the number of memory usage hits limits
->   memory.memsw.failcnt		 # show the number of memory+Swap hits limits
->   memory.max_usage_in_bytes	 # show max memory usage recorded
-> @@ -72,6 +76,9 @@ Brief summary of control files.
->   memory.oom_control		 # set/show oom controls.
->   memory.numa_stat		 # show the number of memory usage per numa node
->  
-> + memory.independent_kmem_limit	 # select whether or not kernel memory limits are
-> +				   independent of user limits
-> +
->  1. History
->  
->  The memory controller has a long history. A request for comments for the memory
-> @@ -255,6 +262,31 @@ When oom event notifier is registered, event will be delivered.
->    per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
->    zone->lru_lock, it has no lock of its own.
->  
-> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-> +
-> + With the Kernel memory extension, the Memory Controller is able to limit
-> +the amount of kernel memory used by the system. Kernel memory is fundamentally
-> +different than user memory, since it can't be swapped out, which makes it
-> +possible to DoS the system by consuming too much of this precious resource.
-> +Kernel memory limits are not imposed for the root cgroup.
-> +
-> +Memory limits as specified by the standard Memory Controller may or may not
-> +take kernel memory into consideration. This is achieved through the file
-> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
-> +memory to be controlled separately.
-> +
-> +When kernel memory limits are not independent, the limit values set in
-> +memory.kmem files are ignored.
-> +
-> +Currently no soft limit is implemented for kernel memory. It is future work
-> +to trigger slab reclaim when those limits are reached.
-> +
-> +CAUTION: As of this writing, the kmem extention may prevent tasks from moving
-> +among cgroups. If a task has kmem accounting in a cgroup, the task cannot be
-> +moved until the kmem resource is released. Also, until the resource is fully
-> +released, the cgroup cannot be destroyed. So, please consider your use cases
-> +and set kmem extention config option carefully.
-> +
+I'm interested in this usage, too. Would you share some of your rules?
 
-This seems that memcg 'has' kernel memory limiting feature for all kinds of kmem..
-Could you add a list of "currently controled kmems" section ?
-And update the list in later patch ?
+> Hence I don't think we should treat default readahead any
+> differently from any other configurable storage parameter - we've
+> already got places to change the per-device defaults to something
+> sensible at boot/discovery time....
+
+OK, I'll drop this patch.
 
 Thanks,
--Kame
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
