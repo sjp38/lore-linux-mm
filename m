@@ -1,200 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E336B0080
-	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 21:56:58 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B50F06B0073
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 22:15:54 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9DFF53EE0BD
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 398413EE0C7
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 12:15:51 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E0C645DE9B
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 132DE45DE96
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 12:15:51 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6079E45DE96
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E081B45DE93
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 12:15:50 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E84F1DB8053
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A91A1DB804A
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
-Date: Mon, 28 Nov 2011 11:55:41 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC99B1DB8048
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 12:15:50 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 881A21DB8051
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 12:15:50 +0900 (JST)
+Date: Mon, 28 Nov 2011 12:14:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 02/10] foundations of per-cgroup memory pressure
- controlling.
-Message-Id: <20111128115541.bc8f2ffa.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322242696-27682-3-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v6 04/10] Account tcp memory as kernel memory
+Message-Id: <20111128121418.b66469bf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322242696-27682-5-git-send-email-glommer@parallels.com>
 References: <1322242696-27682-1-git-send-email-glommer@parallels.com>
-	<1322242696-27682-3-git-send-email-glommer@parallels.com>
+	<1322242696-27682-5-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
 
-On Fri, 25 Nov 2011 15:38:08 -0200
+
+Some nitpicks.
+
+On Fri, 25 Nov 2011 15:38:10 -0200
 Glauber Costa <glommer@parallels.com> wrote:
 
-> This patch replaces all uses of struct sock fields' memory_pressure,
-> memory_allocated, sockets_allocated, and sysctl_mem to acessor
-> macros. Those macros can either receive a socket argument, or a mem_cgroup
-> argument, depending on the context they live in.
+> Now that we account and control tcp memory buffers memory for pressure
+> controlling purposes, display this information as part of the normal memcg
+> files and other usages.
 > 
-> Since we're only doing a macro wrapping here, no performance impact at all is
-> expected in the case where we don't have cgroups disabled.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: David S. Miller <davem@davemloft.net>
-> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Eric W. Biederman <ebiederm@xmission.com>
-> CC: Eric Dumazet <eric.dumazet@gmail.com>
-
-I have some comments on the style. Maybe a nitpick but many patches were
-sent for fixing conding style in memcg recently.
-
-+static inline int *sk_memory_pressure(const struct sock *sk)
-+{
-+	return sk->sk_prot->memory_pressure;
-+}
-+
-+static inline long sk_prot_mem(const struct sock *sk, int index)
-+{
-+	long *prot = sk->sk_prot->sysctl_mem;
-+	return prot[index];
-+}
-+
-
-I don't think sk_prot_mem() is an easy to undestand name.
-sk_prot_memory_limit() ?
-
-> +static inline int
-> +kcg_sockets_allocated_sum_positive(struct proto *prot, struct mem_cgroup *cg)
-> +{
-> +	return percpu_counter_sum_positive(prot->sockets_allocated);
-> +}
+ 
+> +extern struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);
+> +extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
 > +
-> +static inline long
-> +kcg_memory_allocated(struct proto *prot, struct mem_cgroup *cg)
-> +{
-> +	return atomic_long_read(prot->memory_allocated);
-> +}
+>  static inline
+>  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+>  {
+> diff --git a/include/net/sock.h b/include/net/sock.h
+> index d802761..da38de2 100644
+> --- a/include/net/sock.h
+> +++ b/include/net/sock.h
+> @@ -65,6 +65,9 @@
+>  #include <net/dst.h>
+>  #include <net/checksum.h>
 >  
+> +int sockets_populate(struct cgroup *cgrp, struct cgroup_subsys *ss);
+> +void sockets_destroy(struct cgroup *cgrp, struct cgroup_subsys *ss);
+> +
+>  /*
 
-I don't like 'kcg'. What it means ? 
-memory_cgrou_prot_socekts_allocated() ? and
-memory_cgroup_prot_memory_allocated() ?
-
-And the variable for memory cgroup should be 'memcg'.
-http://www.spinics.net/lists/linux-mm/msg26781.html
-So, please rename.
-
+Hmm, what is this 'populate' function for ?
+mem_cgroup_sockets_init() ?
 
 
->  #ifdef CONFIG_PROC_FS
->  /* Called with local bh disabled */
-> diff --git a/include/net/tcp.h b/include/net/tcp.h
-> index e147f42..ccaa3b6 100644
+
+>   * This structure really needs to be cleaned up.
+>   * Most of it is for TCP, and not used by any of
+> diff --git a/include/net/tcp_memcg.h b/include/net/tcp_memcg.h
+> new file mode 100644
+> index 0000000..5f5e158
+> --- /dev/null
+> +++ b/include/net/tcp_memcg.h
+> @@ -0,0 +1,17 @@
+> +#ifndef _TCP_MEMCG_H
+> +#define _TCP_MEMCG_H
+> +
+> +struct tcp_memcontrol {
+> +	struct cg_proto cg_proto;
+> +	/* per-cgroup tcp memory pressure knobs */
+> +	struct res_counter tcp_memory_allocated;
+> +	struct percpu_counter tcp_sockets_allocated;
+> +	/* those two are read-mostly, leave them at the end */
+> +	long tcp_prot_mem[3];
+> +	int tcp_memory_pressure;
+> +};
+> +
+> +struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg);
+> +int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);
+> +void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);
+> +#endif /* _TCP_MEMCG_H */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 5f29194..2df5d3c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -49,6 +49,8 @@
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+>  #include "internal.h"
+> +#include <net/sock.h>
+> +#include <net/tcp_memcg.h>
+
+ok, tcp_memcg.h ... some other men may like tcp_memcontrol.h..
+
+>  
+>  #include <asm/uaccess.h>
+>  
 <snip>
 
- 	seq_printf(seq, "RAW: inuse %d\n",
-> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-> index 34f5db1..89a2bfe 100644
-> --- a/net/ipv4/tcp.c
-> +++ b/net/ipv4/tcp.c
-> @@ -319,9 +319,11 @@ EXPORT_SYMBOL(tcp_memory_pressure);
->  
->  void tcp_enter_memory_pressure(struct sock *sk)
+>  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+> @@ -4954,7 +4983,7 @@ static void mem_cgroup_put(struct mem_cgroup *mem)
+>  /*
+>   * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
+>   */
+> -static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
+> +struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
 >  {
-> -	if (!tcp_memory_pressure) {
-> +	int *memory_pressure = sk_memory_pressure(sk);
+>  	if (!mem->res.parent)
+>  		return NULL;
+> @@ -5037,6 +5066,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  		res_counter_init(&mem->res, &parent->res);
+>  		res_counter_init(&mem->memsw, &parent->memsw);
+>  		res_counter_init(&mem->kmem, &parent->kmem);
 > +
 
-Don't you need !memory_pressure check here ?
-
-Hmm, can this function be
-
-+static inline int *sk_memory_pressure(const struct sock *sk)
-+{
-+	return sk->sk_prot->memory_pressure;
-+}
-
-as
-
-static inline bool sk_under_prot_memory_pressure(const struct sock *sk)
-{
-	if (sk->sk_prot->memory_pressure &&
-	    *sk->sk_prot->memory_pressure)
-		return true;
-
-	return false;
-}
-
-and have sk_set/unset_prot_memory_pressure(),  ?
+unnecessary blank line.
 
 
-
-> +	if (!*memory_pressure) {
->  		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURES);
-> -		tcp_memory_pressure = 1;
-> +		*memory_pressure = 1;
->  	}
->  }
->  EXPORT_SYMBOL(tcp_enter_memory_pressure);
-> diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
-> index 52b5c2d..3df862d 100644
-> --- a/net/ipv4/tcp_input.c
-> +++ b/net/ipv4/tcp_input.c
-> @@ -322,7 +322,7 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb)
->  	/* Check #1 */
->  	if (tp->rcv_ssthresh < tp->window_clamp &&
->  	    (int)tp->rcv_ssthresh < tcp_space(sk) &&
-> -	    !tcp_memory_pressure) {
-> +	    !sk_memory_pressure(sk)) {
-
-Don't you need to check !*sk_memory_pressure(sk) ?
-
-
-
->  		int incr;
+>  		/*
+>  		 * We increment refcnt of the parent to ensure that we can
+>  		 * safely access it on res_counter_charge/uncharge.
+> @@ -5053,6 +5083,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	mem->last_scanned_node = MAX_NUMNODES;
+>  	INIT_LIST_HEAD(&mem->oom_notify);
 >  
->  		/* Check #2. Increase window, if skb with such overhead
-> @@ -411,8 +411,8 @@ static void tcp_clamp_window(struct sock *sk)
->  
->  	if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
->  	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
-> -	    !tcp_memory_pressure &&
-> -	    atomic_long_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
-> +	    !sk_memory_pressure(sk) &&
-> +	    sk_memory_allocated(sk) < sk_prot_mem(sk, 0)) {
->  		sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
->  				    sysctl_tcp_rmem[2]);
->  	}
-> @@ -4864,7 +4864,7 @@ static int tcp_prune_queue(struct sock *sk)
->  
->  	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
->  		tcp_clamp_window(sk);
-> -	else if (tcp_memory_pressure)
-> +	else if (sk_memory_pressure(sk))
->  		tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
+> +
+ditto.
 
-Ditto.
+<snip>
 
-
->  
->  	tcp_collapse_ofo_queue(sk);
-> @@ -4930,11 +4930,11 @@ static int tcp_should_expand_sndbuf(const struct sock *sk)
->  		return 0;
->  
->  	/* If we are under global TCP memory pressure, do not expand.  */
-> -	if (tcp_memory_pressure)
-> +	if (sk_memory_pressure(sk))
->  		return 0;
-
-again.
-
-Thanks,
--Kame
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
