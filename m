@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 037576B002D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 09:03:08 -0500 (EST)
-Date: Mon, 28 Nov 2011 15:03:00 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix the document of pgpgin/pgpgout
-Message-ID: <20111128140300.GB20174@tiehlicka.suse.cz>
-References: <1321922925-14930-1-git-send-email-yinghan@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1321922925-14930-1-git-send-email-yinghan@google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0340C6B002D
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 09:14:05 -0500 (EST)
+Message-ID: <1322489609.2921.132.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 9/30] uprobes: Background page replacement.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 28 Nov 2011 15:13:29 +0100
+In-Reply-To: <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	 <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wanlong Gao <gaowanlong@cn.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Mon 21-11-11 16:48:45, Ying Han wrote:
-> The two memcg stats pgpgin/pgpgout have different meaning than the ones in
-> vmstat, which indicates that we picked a bad naming for them. It might be late
-> to change the stat name, but better documentation is always helpful.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
+On Fri, 2011-11-18 at 16:38 +0530, Srikar Dronamraju wrote:
+> +/**
+> + * is_bkpt_insn - check if instruction is breakpoint instruction.
+> + * @insn: instruction to be checked.
+> + * Default implementation of is_bkpt_insn
+> + * Returns true if @insn is a breakpoint instruction.
+> + */
+> +bool __weak is_bkpt_insn(u8 *insn)
+> +{
+> +       return (insn[0] =3D=3D UPROBES_BKPT_INSN);
+>  }=20
 
-If not too late
-Acked-by: Michal Hocko <mhocko@suse.cz>
+This seems wrong, UPROBES_BKPT_INSN basically defined to be of
+uprobe_opcode_t type, not u8.
 
-> ---
->  Documentation/cgroups/memory.txt |    7 +++++--
->  1 files changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index cc0ebc5..eb6a911 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -386,8 +386,11 @@ memory.stat file includes following statistics
->  cache		- # of bytes of page cache memory.
->  rss		- # of bytes of anonymous and swap cache memory.
->  mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
-> -pgpgin		- # of pages paged in (equivalent to # of charging events).
-> -pgpgout		- # of pages paged out (equivalent to # of uncharging events).
-> +pgpgin		- # of charging events to the memory cgroup. The charging
-> +		event happens each time a page is accounted as either mapped
-> +		anon page(RSS) or cache page(Page Cache) to the cgroup.
-> +pgpgout		- # of uncharging events to the memory cgroup. The uncharging
-> +		event happens each time a page is unaccounted from the cgroup.
->  swap		- # of bytes of swap usage
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
->  		LRU list.
-> -- 
-> 1.7.3.1
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+So:
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
+{
+	return *insn =3D=3D UPROBE_BKPT_INSN;
+}
+
+seems like the right way to write this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
