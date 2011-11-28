@@ -1,46 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7570E6B002D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:58:19 -0500 (EST)
-Message-ID: <1322510277.2921.164.camel@twins>
-Subject: Re: [PATCH RFC 0/5] uprobes: kill xol vma
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 28 Nov 2011 20:57:57 +0100
-In-Reply-To: <20111128190614.GA4602@redhat.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111128190614.GA4602@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B8FAB6B0047
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 15:47:33 -0500 (EST)
+Received: from acsinet22.oracle.com (acsinet22.oracle.com [141.146.126.238])
+	by acsinet15.oracle.com (Switch-3.4.4/Switch-3.4.4) with ESMTP id pASKlVOe002446
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 20:47:31 GMT
+Received: from acsmt357.oracle.com (acsmt357.oracle.com [141.146.40.157])
+	by acsinet22.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id pASKlUYV020573
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 20:47:31 GMT
+Received: from abhmt109.oracle.com (abhmt109.oracle.com [141.146.116.61])
+	by acsmt357.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id pASKlPWV001714
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:47:25 -0600
+MIME-Version: 1.0
+Message-ID: <31eb7509-e1dc-47b7-a0a5-8ed9c2493364@default>
+Date: Mon, 28 Nov 2011 12:47:13 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: official linux-mm archive on marc.info dead?
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: linux-mm@kvack.org
 
-On Mon, 2011-11-28 at 20:06 +0100, Oleg Nesterov wrote:
->=20
-> On top of this series, not for inclusion yet, just to explain what
-> I mean. May be someone can test it ;)
->=20
-> This series kills xol_vma. Instead we use the per_cpu-like xol slots.
->=20
-> This is much more simple and efficient. And this of course solves
-> many problems we currently have with xol_vma.
->=20
-> For example, we simply can not trust it. We do not know what actually
-> we are going to execute in UTASK_SSTEP mode. An application can unmap
-> this area and then do mmap(PROT_EXEC|PROT_WRITE, MAP_FIXED) to fool
-> uprobes.
->=20
-> The only disadvantage is that this adds a bit more arch-dependant
-> code.
->=20
-> The main question, can this work? I know very little in this area.
-> And I am not sure if this can be ported to other architectures.
-
-I very much like this approach! I think the provided implementation
-might have some issues, but yeah, using fixmaps and a __switch_to_xtra
-hook to provide per task slots seems very nice indeed!
+The official linux-mm archive at http://marc.info/?l=3Dlinux-mm
+appears to have stopped archiving over a month ago.  Other marc.info
+linux archives (including linux-mm-commits) seem to be still
+up-to-date.  Is this intentional and/or permanent?  Gmane
+is still archiving, but the gmane interface isn't as suitable
+for skimming subjects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
