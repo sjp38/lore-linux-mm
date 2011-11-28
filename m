@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B0736B006C
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:12:28 -0500 (EST)
-Date: Mon, 28 Nov 2011 20:07:14 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2CF9D6B0070
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:12:44 -0500 (EST)
+Date: Mon, 28 Nov 2011 20:07:30 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 3/5] uprobes: introduce uprobe_xol_slots[NR_CPUS]
-Message-ID: <20111128190714.GD4602@redhat.com>
+Subject: [PATCH 4/5] uprobes: teach set_xol_ip() to use uprobe_xol_slots[]
+Message-ID: <20111128190730.GE4602@redhat.com>
 References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com> <20111128190614.GA4602@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -16,91 +16,76 @@ List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-This patch adds uprobe_xol_slots[UPROBES_XOL_SLOT_BYTES][NR_CPUS] array.
-Each CPU has its own slot for xol (used in the next patch).
+Change set_xol_ip() to use uprobe_xol_slots[] per-cpu array to
+"allocate" the insn slot. We do not care if the task migrates to
+another CPU before executing xol insn, set_xol_ip() will be called
+again by uprobe_switch_to(). Likewise, we do not care if the task
+is simply preempted or sleeps.
 
-We "export" this data to the user-space via set_fixmap(PAGE_KERNEL_VSYSCALL).
+IOW, uprobe_xol_slots[CPU] is "owned" by cpu_curr(CPU).
+
+This makes xol_get_insn_slot/xol_free_insn_slot unnecessary, but
+uprobe_notify_resume() should set utask->vaddr. The patch updates
+the callers but doesn't remove this code to simplify the review.
 
 Signed-off-by: Oleg Nesterov <oleg@redhat.com>
 ---
- arch/x86/include/asm/fixmap.h |    9 +++++++++
- arch/x86/kernel/uprobes.c     |   10 ++++++++++
- include/linux/uprobes.h       |    1 +
- kernel/uprobes.c              |    4 ++++
- 4 files changed, 24 insertions(+), 0 deletions(-)
+ kernel/uprobes.c |   16 ++++++++++------
+ 1 files changed, 10 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
-index 460c74e..a902e19 100644
---- a/arch/x86/include/asm/fixmap.h
-+++ b/arch/x86/include/asm/fixmap.h
-@@ -81,6 +81,15 @@ enum fixed_addresses {
- 	VVAR_PAGE,
- 	VSYSCALL_HPET,
- #endif
-+
-+#ifdef CONFIG_UPROBES
-+	#define UPROBES_XOL_SLOT_BYTES  128
-+
-+	UPROBE_XOL_LAST_PAGE,
-+	UPROBE_XOL_FIRST_PAGE = UPROBE_XOL_LAST_PAGE
-+			      + NR_CPUS * UPROBES_XOL_SLOT_BYTES / PAGE_SIZE,
-+#endif
-+
- 	FIX_DBGP_BASE,
- 	FIX_EARLYCON_MEM_BASE,
- #ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 4140137..ebb280c 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -664,3 +664,13 @@ bool can_skip_xol(struct pt_regs *regs, struct uprobe *u)
- 	u->flags &= ~UPROBES_SKIP_SSTEP;
- 	return false;
- }
-+
-+void __init map_uprobe_xol_slots(void *pages)
-+{
-+	int idx = UPROBE_XOL_FIRST_PAGE;
-+
-+	do {
-+		__set_fixmap(idx, __pa(pages), PAGE_KERNEL_VSYSCALL);
-+		pages += PAGE_SIZE;
-+	} while (idx-- != UPROBE_XOL_LAST_PAGE);
-+}
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index d590d66..bb59a66 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -142,6 +142,7 @@ extern bool uprobe_deny_signal(void);
- extern bool __weak can_skip_xol(struct pt_regs *regs, struct uprobe *u);
- extern void __weak set_xol_ip(struct pt_regs *regs);
- extern void uprobe_switch_to(struct task_struct *);
-+extern void map_uprobe_xol_slots(void *);
- #else /* CONFIG_UPROBES is not defined */
- static inline int register_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer)
 diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 9c509dc..20007da 100644
+index 20007da..c9e2f65 100644
 --- a/kernel/uprobes.c
 +++ b/kernel/uprobes.c
-@@ -1342,6 +1342,9 @@ bool __weak can_skip_xol(struct pt_regs *regs, struct uprobe *u)
- 	return false;
- }
+@@ -1285,7 +1285,6 @@ void free_uprobe_utask(struct task_struct *tsk)
+ 	if (utask->active_uprobe)
+ 		put_uprobe(utask->active_uprobe);
  
-+static unsigned char
-+uprobe_xol_slots[UPROBES_XOL_SLOT_BYTES][NR_CPUS] __page_aligned_bss;
-+
+-	xol_free_insn_slot(tsk);
+ 	kfree(utask);
+ 	tsk->utask = NULL;
+ }
+@@ -1347,7 +1346,15 @@ uprobe_xol_slots[UPROBES_XOL_SLOT_BYTES][NR_CPUS] __page_aligned_bss;
+ 
  void __weak set_xol_ip(struct pt_regs *regs)
  {
- 	set_instruction_pointer(regs, current->utask->xol_vaddr);
-@@ -1490,6 +1493,7 @@ static int __init init_uprobes(void)
- 		mutex_init(&uprobes_mmap_mutex[i]);
- 	}
- 	init_bulkref(&uprobes_srcu);
-+	map_uprobe_xol_slots(uprobe_xol_slots);
- 	return register_die_notifier(&uprobe_exception_nb);
+-	set_instruction_pointer(regs, current->utask->xol_vaddr);
++	int cpu = smp_processor_id();
++	struct uprobe_task *utask = current->utask;
++	struct uprobe *uprobe = utask->active_uprobe;
++
++	memcpy(uprobe_xol_slots[cpu], uprobe->insn, MAX_UINSN_BYTES);
++
++	utask->xol_vaddr = fix_to_virt(UPROBE_XOL_FIRST_PAGE)
++				+ UPROBES_XOL_SLOT_BYTES * cpu;
++	set_instruction_pointer(regs, utask->xol_vaddr);
  }
  
+ /*
+@@ -1390,14 +1397,12 @@ void uprobe_notify_resume(struct pt_regs *regs)
+ 				goto cleanup_ret;
+ 		}
+ 		utask->active_uprobe = u;
++		utask->vaddr = probept;
+ 		handler_chain(u, regs);
+ 
+ 		if (u->flags & UPROBES_SKIP_SSTEP && can_skip_xol(regs, u))
+ 			goto cleanup_ret;
+ 
+-		if (!xol_get_insn_slot(u, probept))
+-			goto cleanup_ret;
+-
+ 		if (pre_xol(u, regs))
+ 			goto cleanup_ret;
+ 
+@@ -1419,7 +1424,6 @@ void uprobe_notify_resume(struct pt_regs *regs)
+ 		utask->active_uprobe = NULL;
+ 		utask->state = UTASK_RUNNING;
+ 		user_disable_single_step(current);
+-		xol_free_insn_slot(current);
+ 
+ 		spin_lock_irq(&current->sighand->siglock);
+ 		recalc_sigpending(); /* see uprobe_deny_signal() */
 -- 
 1.5.5.1
 
