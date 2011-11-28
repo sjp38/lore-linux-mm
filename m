@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0340C6B002D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 09:14:05 -0500 (EST)
-Message-ID: <1322489609.2921.132.camel@twins>
-Subject: Re: [PATCH v7 3.2-rc2 9/30] uprobes: Background page replacement.
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 28 Nov 2011 15:13:29 +0100
-In-Reply-To: <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5F4626B002D
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 09:21:20 -0500 (EST)
+Subject: Proposed removal of DECnet support (was: Re: [BUG] 3.2-rc2: BUG
+ kmalloc-8: Redzone overwritten)
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <4ED35B3E.7040105@redhat.com>
+References: <1321870529.2552.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <1321870915.2552.22.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <1321873110.2710.13.camel@menhir>
+	 <20111126.155028.1986754382924402334.davem@davemloft.net>
+	 <4ED35B3E.7040105@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Date: Mon, 28 Nov 2011 14:22:41 +0000
+Message-ID: <1322490161.2711.26.camel@menhir>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Christine Caulfield <ccaulfie@redhat.com>
+Cc: David Miller <davem@davemloft.net>, eric.dumazet@gmail.com, levinsasha928@gmail.com, mpm@selenic.com, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On Fri, 2011-11-18 at 16:38 +0530, Srikar Dronamraju wrote:
-> +/**
-> + * is_bkpt_insn - check if instruction is breakpoint instruction.
-> + * @insn: instruction to be checked.
-> + * Default implementation of is_bkpt_insn
-> + * Returns true if @insn is a breakpoint instruction.
-> + */
-> +bool __weak is_bkpt_insn(u8 *insn)
-> +{
-> +       return (insn[0] =3D=3D UPROBES_BKPT_INSN);
->  }=20
+Hi,
 
-This seems wrong, UPROBES_BKPT_INSN basically defined to be of
-uprobe_opcode_t type, not u8.
+On Mon, 2011-11-28 at 09:58 +0000, Christine Caulfield wrote:
+> On 26/11/11 20:50, David Miller wrote:
+> > From: Steven Whitehouse<swhiteho@redhat.com>
+> > Date: Mon, 21 Nov 2011 10:58:30 +0000
+> >
+> >> I have to say that I've been wondering lately whether it has got to the
+> >> point where it is no longer useful. Has anybody actually tested it
+> >> lately against "real" DEC implementations?
+> >
+> > I doubt it :-)
+> >
+> 
+> DECnet is in use against real DEC implementations - I have checked it 
+> quite recently against a VAX running OpenVMS. How many people are 
+> actually using it for real work is a different question though.
+> 
+Ok, thats useful info.
 
-So:
+> It's also true that it's not really supported by anyone as I orphaned it 
+> some time ago and nobody else seems to care enough to take it over. So 
+> if it's becoming a burden on people doing real kernel work then I don't 
+> think many tears will be wept for its removal.
+> 
+> Chrissie
 
-bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
-{
-	return *insn =3D=3D UPROBE_BKPT_INSN;
-}
+Really the only issue with keeping it around is the maintenance burden I
+think. It doesn't look like anybody wants to take it on, but maybe we
+should give it another few days for someone to speak up, just in case
+they are on holiday or something at the moment.
 
-seems like the right way to write this.
+Also, I've updated the subject of the thread, to make it more obvious
+what is being discussed, as well as bcc'ing it again to the DECnet list,
+
+Steve.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
