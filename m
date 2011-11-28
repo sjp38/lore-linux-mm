@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BF32B6B002D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 10:01:41 -0500 (EST)
-Message-ID: <1322492478.2921.145.camel@twins>
-Subject: Re: [PATCH v7 3.2-rc2 9/30] uprobes: Background page replacement.
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C98916B006E
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 10:30:19 -0500 (EST)
+Message-ID: <1322494194.2921.147.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 3/30] uprobes: register/unregister probes.
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 28 Nov 2011 16:01:18 +0100
-In-Reply-To: <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
+Date: Mon, 28 Nov 2011 16:29:54 +0100
+In-Reply-To: <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
 References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
+	 <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
@@ -17,18 +17,59 @@ List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Fri, 2011-11-18 at 16:38 +0530, Srikar Dronamraju wrote:
->=20
-> Provides Background page replacement by
->  - cow the page that needs replacement.
->  - modify a copy of the cowed page.
->  - replace the cow page with the modified page
->  - flush the page tables.
->=20
-> Also provides additional routines to read an opcode from a given virtual
-> address and for verifying if a instruction is a breakpoint instruction.
+On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> +static void __unregister_uprobe(struct inode *inode, loff_t offset,
+> +                                               struct uprobe *uprobe)
+> +{
+> +       struct list_head try_list;
+> +       struct address_space *mapping;
+> +       struct vma_info *vi, *tmpvi;
+> +       struct vm_area_struct *vma;
+> +       struct mm_struct *mm;
+> +       loff_t vaddr;
+> +
+> +       mapping =3D inode->i_mapping;
+> +       INIT_LIST_HEAD(&try_list);
+> +       while ((vi =3D find_next_vma_info(&try_list, offset,
+> +                                               mapping, false)) !=3D NUL=
+L) {
+> +               if (IS_ERR(vi))
+> +                       break;
 
-You again/still lost the reason why we duplicate bits of mm/ksm.c here.
+So what kind of half-assed state are we left in if we try an unregister
+under memory pressure and how do we deal with that?
+
+> +               mm =3D vi->mm;
+> +               down_read(&mm->mmap_sem);
+> +               vma =3D find_vma(mm, (unsigned long)vi->vaddr);
+> +               if (!vma || !valid_vma(vma, false)) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               vaddr =3D vma->vm_start + offset;
+> +               vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+> +               if (vma->vm_file->f_mapping->host !=3D inode ||
+> +                                               vaddr !=3D vi->vaddr) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               remove_breakpoint(mm);
+> +               up_read(&mm->mmap_sem);
+> +               mmput(mm);
+> +       }
+> +
+> +       list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
+> +               list_del(&vi->probe_list);
+> +               kfree(vi);
+> +       }
+> +       delete_uprobe(uprobe);
+> +}=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
