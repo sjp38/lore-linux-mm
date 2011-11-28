@@ -1,81 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A466B0072
-	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 21:39:29 -0500 (EST)
-Date: Mon, 28 Nov 2011 10:39:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/8] readahead: make default readahead size a kernel
- parameter
-Message-ID: <20111128023922.GA2141@localhost>
-References: <20111121091819.394895091@intel.com>
- <20111121093846.251104145@intel.com>
- <20111121100137.GC5084@infradead.org>
- <20111121113540.GB8895@localhost>
- <20111124222822.GG29519@quack.suse.cz>
- <20111125003633.GP2386@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111125003633.GP2386@dastard>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 28E336B0080
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2011 21:56:58 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9DFF53EE0BD
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E0C645DE9B
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6079E45DE96
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E84F1DB8053
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A91A1DB804A
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 11:56:54 +0900 (JST)
+Date: Mon, 28 Nov 2011 11:55:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v6 02/10] foundations of per-cgroup memory pressure
+ controlling.
+Message-Id: <20111128115541.bc8f2ffa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322242696-27682-3-git-send-email-glommer@parallels.com>
+References: <1322242696-27682-1-git-send-email-glommer@parallels.com>
+	<1322242696-27682-3-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Ankit Jain <radical@gmail.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-On Fri, Nov 25, 2011 at 08:36:33AM +0800, Dave Chinner wrote:
-> On Thu, Nov 24, 2011 at 11:28:22PM +0100, Jan Kara wrote:
-> > On Mon 21-11-11 19:35:40, Wu Fengguang wrote:
-> > > On Mon, Nov 21, 2011 at 06:01:37PM +0800, Christoph Hellwig wrote:
-> > > > On Mon, Nov 21, 2011 at 05:18:21PM +0800, Wu Fengguang wrote:
-> > > > > From: Nikanth Karthikesan <knikanth@suse.de>
-> > > > > 
-> > > > > Add new kernel parameter "readahead=", which allows user to override
-> > > > > the static VM_MAX_READAHEAD=128kb.
-> > > > 
-> > > > Is a boot-time paramter really such a good idea?  I would at least
-> > > 
-> > > It's most convenient to set at boot time, because the default size
-> > > will be used to initialize all the block devices.
-> > > 
-> > > > make it a sysctl so that it's run-time controllable, including
-> > > > beeing able to set it from initscripts.
-> > > 
-> > > Once boot up, it's more natural to set the size one by one, for
-> > > example
-> > > 
-> > >         blockdev --setra 1024 /dev/sda2
-> > > or
-> > >         echo 512 > /sys/block/sda/queue/read_ahead_kb
-> > > 
-> > > And you still have the chance to modify the global default, but the
-> > > change will only be inherited by newly created devices thereafter:
-> > > 
-> > >         echo 512 > /sys/devices/virtual/bdi/default/read_ahead_kb
-> > > 
-> > > The above command is very suitable for use in initscripts.  However
-> > > there are no natural way to do sysctl as there is no such a global
-> > > value.
-> >   Well, you can always have an udev rule to set read_ahead_kb to whatever
-> > you want. In some respect that looks like a nicer solution to me...
+On Fri, 25 Nov 2011 15:38:08 -0200
+Glauber Costa <glommer@parallels.com> wrote:
+
+> This patch replaces all uses of struct sock fields' memory_pressure,
+> memory_allocated, sockets_allocated, and sysctl_mem to acessor
+> macros. Those macros can either receive a socket argument, or a mem_cgroup
+> argument, depending on the context they live in.
 > 
-> And one that has already been in use for exactly this purpose for
-> years. Indeed, it's far more flexible because you can give different
-> types of devices different default readahead settings quite easily,
-> and it you can set different defaults for just about any tunable
-> parameter (e.g. readahead, ctq depth, max IO sizes, etc) in the same
-> way.
+> Since we're only doing a macro wrapping here, no performance impact at all is
+> expected in the case where we don't have cgroups disabled.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: David S. Miller <davem@davemloft.net>
+> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Eric W. Biederman <ebiederm@xmission.com>
+> CC: Eric Dumazet <eric.dumazet@gmail.com>
 
-I'm interested in this usage, too. Would you share some of your rules?
+I have some comments on the style. Maybe a nitpick but many patches were
+sent for fixing conding style in memcg recently.
 
-> Hence I don't think we should treat default readahead any
-> differently from any other configurable storage parameter - we've
-> already got places to change the per-device defaults to something
-> sensible at boot/discovery time....
++static inline int *sk_memory_pressure(const struct sock *sk)
++{
++	return sk->sk_prot->memory_pressure;
++}
++
++static inline long sk_prot_mem(const struct sock *sk, int index)
++{
++	long *prot = sk->sk_prot->sysctl_mem;
++	return prot[index];
++}
++
 
-OK, I'll drop this patch.
+I don't think sk_prot_mem() is an easy to undestand name.
+sk_prot_memory_limit() ?
+
+> +static inline int
+> +kcg_sockets_allocated_sum_positive(struct proto *prot, struct mem_cgroup *cg)
+> +{
+> +	return percpu_counter_sum_positive(prot->sockets_allocated);
+> +}
+> +
+> +static inline long
+> +kcg_memory_allocated(struct proto *prot, struct mem_cgroup *cg)
+> +{
+> +	return atomic_long_read(prot->memory_allocated);
+> +}
+>  
+
+I don't like 'kcg'. What it means ? 
+memory_cgrou_prot_socekts_allocated() ? and
+memory_cgroup_prot_memory_allocated() ?
+
+And the variable for memory cgroup should be 'memcg'.
+http://www.spinics.net/lists/linux-mm/msg26781.html
+So, please rename.
+
+
+
+>  #ifdef CONFIG_PROC_FS
+>  /* Called with local bh disabled */
+> diff --git a/include/net/tcp.h b/include/net/tcp.h
+> index e147f42..ccaa3b6 100644
+<snip>
+
+ 	seq_printf(seq, "RAW: inuse %d\n",
+> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+> index 34f5db1..89a2bfe 100644
+> --- a/net/ipv4/tcp.c
+> +++ b/net/ipv4/tcp.c
+> @@ -319,9 +319,11 @@ EXPORT_SYMBOL(tcp_memory_pressure);
+>  
+>  void tcp_enter_memory_pressure(struct sock *sk)
+>  {
+> -	if (!tcp_memory_pressure) {
+> +	int *memory_pressure = sk_memory_pressure(sk);
+> +
+
+Don't you need !memory_pressure check here ?
+
+Hmm, can this function be
+
++static inline int *sk_memory_pressure(const struct sock *sk)
++{
++	return sk->sk_prot->memory_pressure;
++}
+
+as
+
+static inline bool sk_under_prot_memory_pressure(const struct sock *sk)
+{
+	if (sk->sk_prot->memory_pressure &&
+	    *sk->sk_prot->memory_pressure)
+		return true;
+
+	return false;
+}
+
+and have sk_set/unset_prot_memory_pressure(),  ?
+
+
+
+> +	if (!*memory_pressure) {
+>  		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURES);
+> -		tcp_memory_pressure = 1;
+> +		*memory_pressure = 1;
+>  	}
+>  }
+>  EXPORT_SYMBOL(tcp_enter_memory_pressure);
+> diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+> index 52b5c2d..3df862d 100644
+> --- a/net/ipv4/tcp_input.c
+> +++ b/net/ipv4/tcp_input.c
+> @@ -322,7 +322,7 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb)
+>  	/* Check #1 */
+>  	if (tp->rcv_ssthresh < tp->window_clamp &&
+>  	    (int)tp->rcv_ssthresh < tcp_space(sk) &&
+> -	    !tcp_memory_pressure) {
+> +	    !sk_memory_pressure(sk)) {
+
+Don't you need to check !*sk_memory_pressure(sk) ?
+
+
+
+>  		int incr;
+>  
+>  		/* Check #2. Increase window, if skb with such overhead
+> @@ -411,8 +411,8 @@ static void tcp_clamp_window(struct sock *sk)
+>  
+>  	if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
+>  	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
+> -	    !tcp_memory_pressure &&
+> -	    atomic_long_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
+> +	    !sk_memory_pressure(sk) &&
+> +	    sk_memory_allocated(sk) < sk_prot_mem(sk, 0)) {
+>  		sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
+>  				    sysctl_tcp_rmem[2]);
+>  	}
+> @@ -4864,7 +4864,7 @@ static int tcp_prune_queue(struct sock *sk)
+>  
+>  	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
+>  		tcp_clamp_window(sk);
+> -	else if (tcp_memory_pressure)
+> +	else if (sk_memory_pressure(sk))
+>  		tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
+
+Ditto.
+
+
+>  
+>  	tcp_collapse_ofo_queue(sk);
+> @@ -4930,11 +4930,11 @@ static int tcp_should_expand_sndbuf(const struct sock *sk)
+>  		return 0;
+>  
+>  	/* If we are under global TCP memory pressure, do not expand.  */
+> -	if (tcp_memory_pressure)
+> +	if (sk_memory_pressure(sk))
+>  		return 0;
+
+again.
 
 Thanks,
-Fengguang
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
