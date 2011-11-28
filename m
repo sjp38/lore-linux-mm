@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E99386B002D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:52:23 -0500 (EST)
-Message-ID: <1322509921.2921.159.camel@twins>
-Subject: Re: [PATCH 3/5] uprobes: introduce uprobe_xol_slots[NR_CPUS]
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id DC70F6B002D
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 14:54:08 -0500 (EST)
+Message-ID: <1322510018.2921.161.camel@twins>
+Subject: Re: [PATCH 2/5] uprobes: introduce uprobe_switch_to()
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 28 Nov 2011 20:52:01 +0100
-In-Reply-To: <1322509712.2921.158.camel@twins>
+Date: Mon, 28 Nov 2011 20:53:38 +0100
+In-Reply-To: <20111128190655.GC4602@redhat.com>
 References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111128190614.GA4602@redhat.com> <20111128190714.GD4602@redhat.com>
-	 <1322509712.2921.158.camel@twins>
+	 <20111128190614.GA4602@redhat.com> <20111128190655.GC4602@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
@@ -18,18 +17,38 @@ List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Mon, 2011-11-28 at 20:48 +0100, Peter Zijlstra wrote:
-> On Mon, 2011-11-28 at 20:07 +0100, Oleg Nesterov wrote:
-> > +       UPROBE_XOL_FIRST_PAGE =3D UPROBE_XOL_LAST_PAGE
-> > +                             + NR_CPUS * UPROBES_XOL_SLOT_BYTES / PAGE=
-_SIZE,=20
->=20
-> I think that wants to be:=20
-> 	+ DIV_ROUND_UP(NR_CPUS * UPROBES_XOL_SLOT_BYTES, PAGE_SIZE);
->=20
-> otherwise you'll end up with 0 pages for UP and the sort.
+On Mon, 2011-11-28 at 20:06 +0100, Oleg Nesterov wrote:
+> +void uprobe_switch_to(struct task_struct *curr)
+> +{
+> +       struct uprobe_task *utask =3D curr->utask;
+> +       struct pt_regs *regs =3D task_pt_regs(curr);
+> +
+> +       if (!utask || utask->state !=3D UTASK_SSTEP)
+> +               return;
+> +
+> +       if (!(regs->flags & X86_EFLAGS_TF))
+> +               return;
+> +
+> +       set_xol_ip(regs);
+> +}=20
 
-Ah, no I see, you'll already have the one LAST_PAGE thing.
+> void __weak set_xol_ip(struct pt_regs *regs)
+>  {
+> +       int cpu =3D smp_processor_id();
+> +       struct uprobe_task *utask =3D current->utask;
+> +       struct uprobe *uprobe =3D utask->active_uprobe;
+> +
+> +       memcpy(uprobe_xol_slots[cpu], uprobe->insn, MAX_UINSN_BYTES);
+> +
+> +       utask->xol_vaddr =3D fix_to_virt(UPROBE_XOL_FIRST_PAGE)
+> +                               + UPROBES_XOL_SLOT_BYTES * cpu;
+> +       set_instruction_pointer(regs, utask->xol_vaddr);
+>  }
+
+So uprobe_switch_to() will always reset the IP to the start of the slot?
+That sounds wrong, things like the RIP relative stuff needs multiple
+instructions.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
