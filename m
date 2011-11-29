@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BD066B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 18:43:55 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BA4343EE0AE
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:43:51 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F69845DEB4
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:43:51 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8492745DEAD
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:43:51 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 768C71DB803F
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:43:51 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E3E91DB803B
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:43:51 +0900 (JST)
-Date: Wed, 30 Nov 2011 08:42:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 5/7] mm: page_cgroup: check page_cgroup arrays in
- lookup_page_cgroup() only when necessary
-Message-Id: <20111130084211.15fdefbf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322563925-1667-6-git-send-email-hannes@cmpxchg.org>
-References: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
-	<1322563925-1667-6-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 606006B004D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 19:00:22 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v7 00/10] Request for Inclusion: per-cgroup tcp memory pressure 
+Date: Tue, 29 Nov 2011 21:56:51 -0200
+Message-Id: <1322611021-1730-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-On Tue, 29 Nov 2011 11:52:03 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+Hi,
 
-> lookup_page_cgroup() is usually used only against pages that are used
-> in userspace.
-> 
-> The exception is the CONFIG_DEBUG_VM-only memcg check from the page
-> allocator: it can run on pages without page_cgroup descriptors
-> allocated when the pages are fed into the page allocator for the first
-> time during boot or memory hotplug.
-> 
-> Include the array check only when CONFIG_DEBUG_VM is set and save the
-> unnecessary check in production kernels.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+This patchset implements per-cgroup tcp memory pressure controls. It did not change
+significantly since last submission: rather, it just merges the comments Kame had.
+Most of them are style-related and/or Documentation, but there are two real bugs he
+managed to spot (thanks)
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Please let me know if there is anything else I should address.
 
+
+Glauber Costa (10):
+  Basic kernel memory functionality for the Memory Controller
+  foundations of per-cgroup memory pressure controlling.
+  socket: initial cgroup code.
+  tcp memory pressure controls
+  per-netns ipv4 sysctl_tcp_mem
+  tcp buffer limitation: per-cgroup limit
+  Display current tcp memory allocation in kmem cgroup
+  Display current tcp failcnt in kmem cgroup
+  Display maximum tcp memory allocation in kmem cgroup
+  Disable task moving when using kernel memory accounting
+
+ Documentation/cgroups/memory.txt |   52 +++++++-
+ include/linux/memcontrol.h       |   19 +++
+ include/net/netns/ipv4.h         |    1 +
+ include/net/sock.h               |  298 +++++++++++++++++++++++++++++++++++++-
+ include/net/tcp.h                |    4 +-
+ include/net/tcp_memcontrol.h     |   19 +++
+ init/Kconfig                     |   14 ++
+ mm/memcontrol.c                  |  202 ++++++++++++++++++++++++--
+ net/core/sock.c                  |  120 +++++++++++----
+ net/ipv4/Makefile                |    1 +
+ net/ipv4/af_inet.c               |    2 +
+ net/ipv4/proc.c                  |    7 +-
+ net/ipv4/sysctl_net_ipv4.c       |   65 ++++++++-
+ net/ipv4/tcp.c                   |   11 +-
+ net/ipv4/tcp_input.c             |   12 +-
+ net/ipv4/tcp_ipv4.c              |   13 +-
+ net/ipv4/tcp_memcontrol.c        |  268 ++++++++++++++++++++++++++++++++++
+ net/ipv4/tcp_output.c            |    2 +-
+ net/ipv4/tcp_timer.c             |    2 +-
+ net/ipv6/af_inet6.c              |    2 +
+ net/ipv6/tcp_ipv6.c              |    7 +-
+ 21 files changed, 1036 insertions(+), 85 deletions(-)
+ create mode 100644 include/net/tcp_memcontrol.h
+ create mode 100644 net/ipv4/tcp_memcontrol.c
+
+-- 
+1.7.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
