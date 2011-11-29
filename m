@@ -1,67 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 331B86B0055
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:51:33 -0500 (EST)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2011 02:51:32 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAT7pUmo272696
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:51:30 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAT7pSfW007101
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:51:30 -0500
-Date: Tue, 29 Nov 2011 13:19:48 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 3.2-rc2 9/30] uprobes: Background page replacement.
-Message-ID: <20111129074948.GB13445@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
- <20111118110823.10512.74338.sendpatchset@srdronam.in.ibm.com>
- <1322489609.2921.132.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1322489609.2921.132.camel@twins>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB716B004D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:58:47 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AB5863EE0AE
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 16:58:42 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FD5745DE68
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 16:58:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 748EC45DE4D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 16:58:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 673AF1DB8041
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 16:58:42 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FBD81DB802C
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 16:58:42 +0900 (JST)
+Date: Tue, 29 Nov 2011 16:57:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [V4 PATCH 1/2] tmpfs: add fallocate support
+Message-Id: <20111129165720.6034bf5c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4ED4888E.9040402@redhat.com>
+References: <1322544793-2676-1-git-send-email-amwang@redhat.com>
+	<20111129150210.ad266dd7.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ED4888E.9040402@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-* Peter Zijlstra <peterz@infradead.org> [2011-11-28 15:13:29]:
+On Tue, 29 Nov 2011 15:23:58 +0800
+Cong Wang <amwang@redhat.com> wrote:
 
-> On Fri, 2011-11-18 at 16:38 +0530, Srikar Dronamraju wrote:
-> > +/**
-> > + * is_bkpt_insn - check if instruction is breakpoint instruction.
-> > + * @insn: instruction to be checked.
-> > + * Default implementation of is_bkpt_insn
-> > + * Returns true if @insn is a breakpoint instruction.
-> > + */
-> > +bool __weak is_bkpt_insn(u8 *insn)
-> > +{
-> > +       return (insn[0] == UPROBES_BKPT_INSN);
-> >  } 
+> 于 2011年11月29日 14:02, KAMEZAWA Hiroyuki 写道:
+> >
+> > You can't know whether the 'page' is allocated by alloc_page() in fallocate()
+> > or just found as exiting one.
+> > Then, yourwill corrupt existing pages in error path.
+> > Is it allowed ?
+> >
 > 
-> This seems wrong, UPROBES_BKPT_INSN basically defined to be of
-> uprobe_opcode_t type, not u8.
+> According to the comment,
 > 
-> So:
+> /*
+>   * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
+>   *
+>   * If we allocate a new one we do not mark it dirty. That's up to the
+>   * vm. If we swap it in we mark it dirty since we also free the swap
+>   * entry since a page cannot live in both the swap and page cache
+>   */
 > 
-> bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
-> {
-> 	return *insn == UPROBE_BKPT_INSN;
-> }
-> 
-> seems like the right way to write this.
+> so we can know if the page is newly allocated by checking page dirty bit.
+> Or am I missing something?
 > 
 
-Agree, will fix this. 
-Thanks for bringing this up.
+If swap-in doesn't happen and  a page is found...
 
--- 
-Thanks and Regards
-Srikar
+==
+       page = find_lock_page(mapping, index); <=============== you find a page
+       if (radix_tree_exceptional_entry(page)) {
+                swap = radix_to_swp_entry(page);
+                page = NULL;
+        }
+
+        if (sgp != SGP_WRITE &&
+            ((loff_t)index << PAGE_CACHE_SHIFT) >= i_size_read(inode)) {
+                error = -EINVAL;
+                goto failed;
+        }
+
+        if (page || (sgp == SGP_READ && !swap.val)) {
+                /*
+                 * Once we can get the page lock, it must be uptodate:
+                 * if there were an error in reading back from swap,
+                 * the page would not be inserted into the filecache.
+                 */
+                BUG_ON(page && !PageUptodate(page));
+                *pagep = page; <========================= return here.
+                return 0;
+        }
+==
+Page will not be marked as dirty.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
