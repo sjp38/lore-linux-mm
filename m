@@ -1,35 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 84A0E6B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 12:57:47 -0500 (EST)
-Date: Tue, 29 Nov 2011 18:57:43 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 3/9] readahead: record readahead patterns
-Message-ID: <20111129175743.GP24062@one.firstfloor.org>
-References: <20111129130900.628549879@intel.com> <20111129131456.278516066@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111129131456.278516066@intel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 63D316B004D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 13:03:51 -0500 (EST)
+Received: by ghrr17 with SMTP id r17so8874991ghr.14
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2011 10:03:47 -0800 (PST)
+Message-ID: <4ED51E81.3040304@gmail.com>
+Date: Tue, 29 Nov 2011 10:03:45 -0800
+From: David Daney <ddaney.cavm@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] MIPS: changes in VM core for adding THP
+References: <CAJd=RBB2gSCaJSsFfJXBg2zmgzNjXPAn8OakAZACNG0mv2D7nQ@mail.gmail.com> <20111126173151.GF8397@redhat.com> <4ED51B48.6020202@redhat.com>
+In-Reply-To: <4ED51B48.6020202@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, linux-mm@kvack.org
 
-On Tue, Nov 29, 2011 at 09:09:03PM +0800, Wu Fengguang wrote:
-> Record the readahead pattern in ra->pattern and extend the ra_submit()
-> parameters, to be used by the next readahead tracing/stats patches.
+On 11/29/2011 09:50 AM, Rik van Riel wrote:
+> On 11/26/2011 12:31 PM, Andrea Arcangeli wrote:
+>> On Sat, Nov 26, 2011 at 10:43:15PM +0800, Hillf Danton wrote:
+>>> In VM core, window is opened for MIPS to use THP.
+>>>
+>>> And two simple helper functions are added to easy MIPS a bit.
+>>>
+>>> Signed-off-by: Hillf Danton<dhillf@gmail.com>
+>>> ---
+>>>
+>>> --- a/mm/Kconfig Thu Nov 24 21:12:00 2011
+>>> +++ b/mm/Kconfig Sat Nov 26 22:12:56 2011
+>>> @@ -307,7 +307,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+>>>
+>>> config TRANSPARENT_HUGEPAGE
+>>> bool "Transparent Hugepage Support"
+>>> - depends on X86&& MMU
+>>> + depends on MMU
+>>> select COMPACTION
+>>> help
+>>> Transparent Hugepages allows the kernel to use huge pages and
+>>
+>> Then the build will break for all archs if they enable it, better to
+>> limit the option to those archs that supports it.
+>
+> Would it be an idea to define ARCH_HAVE_HUGEPAGE in the
+> arch specific Kconfig file and test against that in
+> mm/Kconfig ?
+>
 
-I like this, could it be exported it a bit more formally in /proc for 
-each file descriptor?
+I think so, but it would probably be spelled ARCH_HAVE_TRANSPARENT_HUGEPAGE
 
-I could imagine a monitoring tool that you run on a process that
-tells you what pattern state the various file descriptors are in and how
-large the window is. That would be similar to the tools for
-monitoring network connections, which are extremly useful 
-in practice.
+The practice of putting 'depends on X86' in archecture independent 
+Kconfigs should really be discouraged.  It has a real feel of hackyness 
+to it.
 
--Andi
+David Daney
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
