@@ -1,100 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7686B005A
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 06:00:57 -0500 (EST)
-Date: Tue, 29 Nov 2011 12:00:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 5/7] mm: page_cgroup: check page_cgroup arrays in
- lookup_page_cgroup() only when necessary
-Message-ID: <20111129110035.GA6898@tiehlicka.suse.cz>
-References: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
- <1322563925-1667-6-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1322563925-1667-6-git-send-email-hannes@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC606B004D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 06:49:17 -0500 (EST)
+Message-ID: <1322567326.2921.226.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 4/30] uprobes: Define hooks for mmap/munmap.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 29 Nov 2011 12:48:46 +0100
+In-Reply-To: <20111129083322.GD13445@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	 <20111118110723.10512.66282.sendpatchset@srdronam.in.ibm.com>
+	 <1322071812.14799.87.camel@twins>
+	 <20111124134742.GH28065@linux.vnet.ibm.com>
+	 <1322492384.2921.143.camel@twins>
+	 <20111129083322.GD13445@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, tulasidhard@gmail.com
 
-On Tue 29-11-11 11:52:03, Johannes Weiner wrote:
-> lookup_page_cgroup() is usually used only against pages that are used
-> in userspace.
-> 
-> The exception is the CONFIG_DEBUG_VM-only memcg check from the page
-> allocator: it can run on pages without page_cgroup descriptors
-> allocated when the pages are fed into the page allocator for the first
-> time during boot or memory hotplug.
-> 
-> Include the array check only when CONFIG_DEBUG_VM is set and save the
-> unnecessary check in production kernels.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Tue, 2011-11-29 at 14:03 +0530, Srikar Dronamraju wrote:
 
-I was thinking about adding BUG_ON before dereferencing but this
-is questionable because NULL ptr dereference will provide the same
-information except sec. guys might be alerted.
 
-I like the smaller code more of course.
+> install_breakpoints cannot have !consumers to be true when called from
+> register_uprobe. (Since unregister_uprobe() which does the removal of
+> consumer cannot race with register_uprobe().)
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Right, that's the easy case ;-)
 
-> ---
->  mm/page_cgroup.c |   18 ++++++++++++++++--
->  1 files changed, 16 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index a14655d..58405ca 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -28,9 +28,16 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
->  	struct page_cgroup *base;
->  
->  	base = NODE_DATA(page_to_nid(page))->node_page_cgroup;
-> +#ifdef CONFIG_DEBUG_VM
-> +	/*
-> +	 * The sanity checks the page allocator does upon freeing a
-> +	 * page can reach here before the page_cgroup arrays are
-> +	 * allocated when feeding a range of pages to the allocator
-> +	 * for the first time during bootup or memory hotplug.
-> +	 */
->  	if (unlikely(!base))
->  		return NULL;
-> -
-> +#endif
->  	offset = pfn - NODE_DATA(page_to_nid(page))->node_start_pfn;
->  	return base + offset;
->  }
-> @@ -87,9 +94,16 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
->  {
->  	unsigned long pfn = page_to_pfn(page);
->  	struct mem_section *section = __pfn_to_section(pfn);
-> -
-> +#ifdef CONFIG_DEBUG_VM
-> +	/*
-> +	 * The sanity checks the page allocator does upon freeing a
-> +	 * page can reach here before the page_cgroup arrays are
-> +	 * allocated when feeding a range of pages to the allocator
-> +	 * for the first time during bootup or memory hotplug.
-> +	 */
->  	if (!section->page_cgroup)
->  		return NULL;
-> +#endif
->  	return section->page_cgroup + pfn;
->  }
->  
-> -- 
-> 1.7.6.4
-> 
+> Now lets consider mmap_uprobe() being called from vm_adjust(), the
+> preceding unmap_uprobe() has already decremented the count but left the
+> count intact.
+>=20
+> if consumers is NULL, unregister_uprobes() has kicked already in, so
+> there is no point in inserting the probe, Hence we return EEXIST. The
+> following unregister_uprobe() (or the munmap_uprobe() which might race
+> before unregister_uprobe) is also going to decrement the count.  So we
+> have a case where the same breakpoint is accounted as removed twice. To
+> offset this, we pretend as if the breakpoint is around by incrementing
+> the count.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+There's 2 main cases,=20
+	A) vma_adjust() vs unregister_uprobe() and=20
+	B) mmap() vs unregister_uprobe().
+
+The result of A should be -1 reference in total, since we're removing
+the one probe. The result of B should be 0 since we're removing the
+probe and we shouldn't be installing new ones.
+
+A1)
+	vma_adjust()
+	  munmap_uprobe()
+				unregister_uprobe()
+	  mmap_uprobe()
+				  delete_uprobe()
+
+
+	munmap will to -1, mmap will do +1, __unregister_uprobe() which is
+serialized against vma_adjust() will do -1 on either the old or new vma,
+resulting in a grand total of: -1+1-1=3D-1, OK
+
+A2) breakpoint is in old, not in new, again two cases:
+
+A2a) __unregister_uprobe() sees old
+
+	munmap -1, __unregister_uprobe -1, mmap 0: -2 FAIL
+
+A2b) __unregister_uprobe() sees new
+
+	munmap -1, __unregister_uprobe 0, mmap 0: -1 OK
+
+A3) breakpoint is in new, not in old, again two cases:
+
+A3a) __unregister_uprobe() sees old
+
+	munmap 0, __unregister_uprobe 0, mmap: 1: 1 FAIL
+
+A3b) __unregister_uprobe() seed new
+
+	munmap 0, __unregister_uprobe -1, mmap: 1: 0 FAIL
+
+B1)
+				unregister_uprobe()
+	mmap()
+	  mmap_uprobe()
+				  __unregister_uprobe()
+				  delete_uprobe()
+
+	mmap +1, __unregister_uprobe() -1: 0 OK
+
+B2)
+				unregister_uprobe()
+	mmap()
+				  __unregister_uprobe()
+	  mmap_uprobe()
+				  delete_uprobe()
+
+	mmap +1, __unregister_uprobe() 0: +1 FAIL
+
+
+> Would it help if I add an extra check in mmap_uprobe?
+>=20
+> int mmap_uprobe(...) {
+> ....
+> 	       ret =3D install_breakpoint(vma->vm_mm, uprobe);
+> 	       if (ret =3D=3D -EEXIST) {
+> 			if (!read_opcode(vma->vm_mm, vaddr, &opcode) &&
+> 					(opcode =3D=3D UPROBES_BKPT_INSN))
+> 			       atomic_inc(&vma->vm_mm->mm_uprobes_count);
+> 		       ret =3D 0;
+> 	       }=20
+> ....
+> }
+
+> The extra read_opcode check will tell us if the breakpoint is still
+> around and then only increment the count. (As in it will distinguish if
+> the mmap_uprobe is from vm_adjust).
+
+No, I don't see that fixing A2a for example.
+
+Could be I confused myself above, but like said, this stuff hurt brain.
+
+It might just be easiest not to optimize munmap and leave fancy stuff
+for later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
