@@ -1,51 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 41C2F6B004F
+	by kanga.kvack.org (Postfix) with SMTP id C8A8B6B005C
 	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:26:16 -0500 (EST)
-Message-Id: <20111129130900.628549879@intel.com>
-Date: Tue, 29 Nov 2011 21:09:00 +0800
+Message-Id: <20111129131456.405886521@intel.com>
+Date: Tue, 29 Nov 2011 21:09:04 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 0/9] readahead stats/tracing, backwards prefetching and more (v2)
+Subject: [PATCH 4/9] readahead: tag mmap page fault call sites
+References: <20111129130900.628549879@intel.com>
+Content-Disposition: inline; filename=readahead-for-mmap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Andrew,
+Introduce a bit field ra->for_mmap for tagging mmap reads.
+The tag will be cleared immediate after submitting the IO.
 
-This is what the bit fields look like :)
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/fs.h |    1 +
+ mm/filemap.c       |    6 +++++-
+ mm/readahead.c     |    1 +
+ 3 files changed, 7 insertions(+), 1 deletion(-)
 
-Changes since v1:
-- use bit fields: pattern, for_mmap, for_metadata, lseek
-- comment the various readahead patterns
-- drop boot options "readahead=" and "readahead_stats="
-- add for_metadata
-- add snapping to EOF
+--- linux-next.orig/include/linux/fs.h	2011-11-29 10:12:19.000000000 +0800
++++ linux-next/include/linux/fs.h	2011-11-29 10:13:08.000000000 +0800
+@@ -947,6 +947,7 @@ struct file_ra_state {
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+ 	u16 mmap_miss;			/* Cache miss stat for mmap accesses */
+ 	u8 pattern;			/* one of RA_PATTERN_* */
++	unsigned int for_mmap:1;	/* readahead for mmap accesses */
+ 
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+--- linux-next.orig/mm/filemap.c	2011-11-29 09:48:49.000000000 +0800
++++ linux-next/mm/filemap.c	2011-11-29 10:13:08.000000000 +0800
+@@ -1592,6 +1592,7 @@ static void do_sync_mmap_readahead(struc
+ 		return;
+ 
+ 	if (VM_SequentialReadHint(vma)) {
++		ra->for_mmap = 1;
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1611,6 +1612,7 @@ static void do_sync_mmap_readahead(struc
+ 	/*
+ 	 * mmap read-around
+ 	 */
++	ra->for_mmap = 1;
+ 	ra->pattern = RA_PATTERN_MMAP_AROUND;
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+@@ -1636,9 +1638,11 @@ static void do_async_mmap_readahead(stru
+ 		return;
+ 	if (ra->mmap_miss > 0)
+ 		ra->mmap_miss--;
+-	if (PageReadahead(page))
++	if (PageReadahead(page)) {
++		ra->for_mmap = 1;
+ 		page_cache_async_readahead(mapping, ra, file,
+ 					   page, offset, ra->ra_pages);
++	}
+ }
+ 
+ /**
+--- linux-next.orig/mm/readahead.c	2011-11-29 09:48:49.000000000 +0800
++++ linux-next/mm/readahead.c	2011-11-29 10:13:08.000000000 +0800
+@@ -267,6 +267,7 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
++	ra->for_mmap = 0;
+ 	return actual;
+ }
+ 
 
- [PATCH 1/9] block: limit default readahead size for small devices
- [PATCH 2/9] readahead: snap readahead request to EOF
- [PATCH 3/9] readahead: record readahead patterns
- [PATCH 4/9] readahead: tag mmap page fault call sites
- [PATCH 5/9] readahead: tag metadata call sites
- [PATCH 6/9] readahead: add /debug/readahead/stats
- [PATCH 7/9] readahead: add vfs/readahead tracing event
- [PATCH 8/9] readahead: basic support for backwards prefetching
- [PATCH 9/9] readahead: dont do start-of-file readahead after lseek()
-
- block/genhd.c              |   20 ++
- fs/ext3/dir.c              |    1 
- fs/ext4/dir.c              |    1 
- fs/read_write.c            |    3 
- include/linux/fs.h         |   41 +++++
- include/linux/mm.h         |    4 
- include/trace/events/vfs.h |   64 ++++++++
- mm/Kconfig                 |   15 ++
- mm/filemap.c               |    9 -
- mm/readahead.c             |  257 ++++++++++++++++++++++++++++++++++-
- 10 files changed, 404 insertions(+), 11 deletions(-)
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
