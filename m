@@ -1,65 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5356B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 05:32:33 -0500 (EST)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2011 03:32:32 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pATAWRiO148668
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 03:32:27 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pATAWPIe014603
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 03:32:26 -0700
-Date: Tue, 29 Nov 2011 16:00:40 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH RFC 0/5] uprobes: kill xol vma
-Message-ID: <20111129103040.GF13445@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
- <20111128190614.GA4602@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111128190614.GA4602@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 48A896B004F
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 05:52:38 -0500 (EST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 3/7] mm: memcg: clean up fault accounting
+Date: Tue, 29 Nov 2011 11:52:01 +0100
+Message-Id: <1322563925-1667-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
+References: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> 
-> On top of this series, not for inclusion yet, just to explain what
-> I mean. May be someone can test it ;)
-> 
-> This series kills xol_vma. Instead we use the per_cpu-like xol slots.
-> 
-> This is much more simple and efficient. And this of course solves
-> many problems we currently have with xol_vma.
-> 
-> For example, we simply can not trust it. We do not know what actually
-> we are going to execute in UTASK_SSTEP mode. An application can unmap
-> this area and then do mmap(PROT_EXEC|PROT_WRITE, MAP_FIXED) to fool
-> uprobes.
-> 
-> The only disadvantage is that this adds a bit more arch-dependant
-> code.
-> 
-> The main question, can this work? I know very little in this area.
-> And I am not sure if this can be ported to other architectures.
+From: Johannes Weiner <jweiner@redhat.com>
 
-Nice idea. I think this will help us in implementing boosted uprobes if
-tweak a bit.  (i.e having a jump after the actual instruction that gets
-us back to the actual instruction stream). The current method of using a
-first cum-first-serve slot reservation doesnt work for booster because
-we have had to clear the slot in the post processing. 
+The fault accounting functions have a single, memcg-internal user, so
+they don't need to be global.  In fact, their one-line bodies can be
+directly folded into the caller.  And since faults happen one at a
+time, use this_cpu_inc() directly instead of this_cpu_add(foo, 1).
 
-I will apply your patches and test and let you know how it goes. (in a day
-or two).
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+---
+ mm/memcontrol.c |   14 ++------------
+ 1 files changed, 2 insertions(+), 12 deletions(-)
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 473b99f..d825af9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -589,16 +589,6 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+ 	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAPOUT], val);
+ }
+ 
+-void mem_cgroup_pgfault(struct mem_cgroup *memcg, int val)
+-{
+-	this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGFAULT], val);
+-}
+-
+-void mem_cgroup_pgmajfault(struct mem_cgroup *memcg, int val)
+-{
+-	this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT], val);
+-}
+-
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ 					    enum mem_cgroup_events_index idx)
+ {
+@@ -913,10 +903,10 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+ 
+ 	switch (idx) {
+ 	case PGMAJFAULT:
+-		mem_cgroup_pgmajfault(memcg, 1);
++		this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGFAULT]);
+ 		break;
+ 	case PGFAULT:
+-		mem_cgroup_pgfault(memcg, 1);
++		this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT]);
+ 		break;
+ 	default:
+ 		BUG();
 -- 
-Thanks and Regards
-Srikar
+1.7.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
