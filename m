@@ -1,148 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CFE6B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 10:22:33 -0500 (EST)
-Date: Tue, 29 Nov 2011 16:22:28 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 321106B004D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 10:36:16 -0500 (EST)
+Date: Tue, 29 Nov 2011 16:35:52 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 7/9] readahead: add vfs/readahead tracing event
-Message-ID: <20111129152228.GO5635@quack.suse.cz>
+Subject: Re: [PATCH 8/9] readahead: basic support for backwards prefetching
+Message-ID: <20111129153552.GP5635@quack.suse.cz>
 References: <20111129130900.628549879@intel.com>
- <20111129131456.797240894@intel.com>
+ <20111129131456.925952168@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111129131456.797240894@intel.com>
+In-Reply-To: <20111129131456.925952168@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Li Shaohua <shaohua.li@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 29-11-11 21:09:07, Wu Fengguang wrote:
-> This is very useful for verifying whether the readahead algorithms are
-> working to the expectation.
+On Tue 29-11-11 21:09:08, Wu Fengguang wrote:
+> Add the backwards prefetching feature. It's pretty simple if we don't
+> support async prefetching and interleaved reads.
 > 
-> Example output:
+> Here is the behavior with an 8-page read sequence from 10000 down to 0.
+> (The readahead size is a bit large since it's an NFS mount.)
 > 
-> # echo 1 > /debug/tracing/events/vfs/readahead/enable
-> # cp test-file /dev/null
-> # cat /debug/tracing/trace  # trimmed output
-> readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
-> readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
-> readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
-> readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
-> readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
-> readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
+> readahead-random(dev=0:16, ino=3948605, req=10000+8, ra=10000+8-0, async=0) = 8
+> readahead-backwards(dev=0:16, ino=3948605, req=9992+8, ra=9968+32-0, async=0) = 32
+> readahead-backwards(dev=0:16, ino=3948605, req=9960+8, ra=9840+128-0, async=0) = 128
+> readahead-backwards(dev=0:16, ino=3948605, req=9832+8, ra=9584+256-0, async=0) = 256
+> readahead-backwards(dev=0:16, ino=3948605, req=9576+8, ra=9072+512-0, async=0) = 512
+> readahead-backwards(dev=0:16, ino=3948605, req=9064+8, ra=8048+1024-0, async=0) = 1024
+> readahead-backwards(dev=0:16, ino=3948605, req=8040+8, ra=6128+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=6120+8, ra=4208+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=4200+8, ra=2288+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=2280+8, ra=368+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=360+8, ra=0+368-0, async=0) = 368
 > 
-> CC: Ingo Molnar <mingo@elte.hu>
-> CC: Jens Axboe <axboe@kernel.dk>
-> CC: Steven Rostedt <rostedt@goodmis.org>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Acked-by: Rik van Riel <riel@redhat.com>
+> And a simple 1-page read sequence from 10000 down to 0.
+> 
+> readahead-random(dev=0:16, ino=3948605, req=10000+1, ra=10000+1-0, async=0) = 1
+> readahead-backwards(dev=0:16, ino=3948605, req=9999+1, ra=9996+4-0, async=0) = 4
+> readahead-backwards(dev=0:16, ino=3948605, req=9995+1, ra=9980+16-0, async=0) = 16
+> readahead-backwards(dev=0:16, ino=3948605, req=9979+1, ra=9916+64-0, async=0) = 64
+> readahead-backwards(dev=0:16, ino=3948605, req=9915+1, ra=9660+256-0, async=0) = 256
+> readahead-backwards(dev=0:16, ino=3948605, req=9659+1, ra=9148+512-0, async=0) = 512
+> readahead-backwards(dev=0:16, ino=3948605, req=9147+1, ra=8124+1024-0, async=0) = 1024
+> readahead-backwards(dev=0:16, ino=3948605, req=8123+1, ra=6204+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=6203+1, ra=4284+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=4283+1, ra=2364+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=2363+1, ra=444+1920-0, async=0) = 1920
+> readahead-backwards(dev=0:16, ino=3948605, req=443+1, ra=0+444-0, async=0) = 444
+> 
+> CC: Andi Kleen <andi@firstfloor.org>
+> CC: Li Shaohua <shaohua.li@intel.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-  Looks OK.
+  Someone already mentioned this earlier and I don't think I've seen a
+response: Do you have a realistic usecase for this? I don't think I've ever
+seen an application reading file backwards...
 
-  Acked-by: Jan Kara <jack@suse.cz>
+> --- linux-next.orig/include/linux/fs.h	2011-11-29 20:55:27.000000000 +0800
+> +++ linux-next/include/linux/fs.h	2011-11-29 20:57:07.000000000 +0800
+...
+> @@ -676,6 +677,20 @@ ondemand_readahead(struct address_space 
+>  	}
+>  
+>  	/*
+> +	 * backwards reading
+> +	 */
+> +	if (offset < ra->start && offset + req_size >= ra->start) {
+> +		ra->pattern = RA_PATTERN_BACKWARDS;
+> +		ra->size = get_next_ra_size(ra, max);
+> +		max = ra->start;
+> +		if (ra->size > max)
+> +			ra->size = max;
+> +		ra->async_size = 0;
+> +		ra->start -= ra->size;
+  IMHO much more obvious way to write this is:
+ra->size = get_next_ra_size(ra, max);
+if (ra->size > ra->start) {
+  ra->size = ra->start;
+  ra->start = 0;
+} else
+  ra->start -= ra->size;
 
-									Honza
-> ---
->  include/trace/events/vfs.h |   64 +++++++++++++++++++++++++++++++++++
->  mm/readahead.c             |    5 ++
->  2 files changed, 69 insertions(+)
-> 
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux-next/include/trace/events/vfs.h	2011-11-29 20:58:59.000000000 +0800
-> @@ -0,0 +1,64 @@
-> +#undef TRACE_SYSTEM
-> +#define TRACE_SYSTEM vfs
-> +
-> +#if !defined(_TRACE_VFS_H) || defined(TRACE_HEADER_MULTI_READ)
-> +#define _TRACE_VFS_H
-> +
-> +#include <linux/tracepoint.h>
-> +
-> +TRACE_EVENT(readahead,
-> +	TP_PROTO(struct address_space *mapping,
-> +		 pgoff_t offset,
-> +		 unsigned long req_size,
-> +		 enum readahead_pattern pattern,
-> +		 pgoff_t start,
-> +		 unsigned long size,
-> +		 unsigned long async_size,
-> +		 unsigned int actual),
-> +
-> +	TP_ARGS(mapping, offset, req_size, pattern, start, size, async_size,
-> +		actual),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(	dev_t,		dev		)
-> +		__field(	ino_t,		ino		)
-> +		__field(	pgoff_t,	offset		)
-> +		__field(	unsigned long,	req_size	)
-> +		__field(	unsigned int,	pattern		)
-> +		__field(	pgoff_t,	start		)
-> +		__field(	unsigned int,	size		)
-> +		__field(	unsigned int,	async_size	)
-> +		__field(	unsigned int,	actual		)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->dev		= mapping->host->i_sb->s_dev;
-> +		__entry->ino		= mapping->host->i_ino;
-> +		__entry->offset		= offset;
-> +		__entry->req_size	= req_size;
-> +		__entry->pattern	= pattern;
-> +		__entry->start		= start;
-> +		__entry->size		= size;
-> +		__entry->async_size	= async_size;
-> +		__entry->actual		= actual;
-> +	),
-> +
-> +	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
-> +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
-> +			ra_pattern_names[__entry->pattern],
-> +			MAJOR(__entry->dev),
-> +			MINOR(__entry->dev),
-> +			__entry->ino,
-> +			__entry->offset,
-> +			__entry->req_size,
-> +			__entry->start,
-> +			__entry->size,
-> +			__entry->async_size,
-> +			__entry->start > __entry->offset,
-> +			__entry->actual)
-> +);
-> +
-> +#endif /* _TRACE_VFS_H */
-> +
-> +/* This part must be outside protection */
-> +#include <trace/define_trace.h>
-> --- linux-next.orig/mm/readahead.c	2011-11-29 20:58:53.000000000 +0800
-> +++ linux-next/mm/readahead.c	2011-11-29 20:59:20.000000000 +0800
-> @@ -29,6 +29,9 @@ static const char * const ra_pattern_nam
->  	[RA_PATTERN_ALL]                = "all",
->  };
->  
-> +#define CREATE_TRACE_POINTS
-> +#include <trace/events/vfs.h>
-> +
->  /*
->   * Initialise a struct file's readahead state.  Assumes that the caller has
->   * memset *ra to zero.
-> @@ -215,6 +218,8 @@ static inline void readahead_event(struc
->  				for_mmap, for_metadata,
->  				pattern, start, size, async_size, actual);
->  #endif
-> +	trace_readahead(mapping, offset, req_size,
-> +			pattern, start, size, async_size, actual);
->  }
->  
->  
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+								Honza
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
