@@ -1,158 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 996346B004D
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 18:56:39 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 533A33EE0AE
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:56:36 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 35F6445DE58
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:56:36 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C94545DE54
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:56:36 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0ADDFE08001
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:56:36 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC5861DB802F
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 08:56:35 +0900 (JST)
-Date: Tue, 29 Nov 2011 08:55:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 01/10] Basic kernel memory functionality for the
- Memory Controller
-Message-Id: <20111129085518.65befeee.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4ED36A6D.60900@parallels.com>
-References: <1322242696-27682-1-git-send-email-glommer@parallels.com>
-	<1322242696-27682-2-git-send-email-glommer@parallels.com>
-	<20111128112441.44a6e166.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ED36A6D.60900@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 43CFD6B004D
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2011 21:40:22 -0500 (EST)
+Date: Tue, 29 Nov 2011 10:40:15 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 4/8] readahead: record readahead patterns
+Message-ID: <20111129024015.GA19506@localhost>
+References: <20111121091819.394895091@intel.com>
+ <20111121093846.510441032@intel.com>
+ <20111121151919.4b76a475.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111121151919.4b76a475.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, paul@paulmenage.org, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Mon, 28 Nov 2011 09:03:09 -0200
-Glauber Costa <glommer@parallels.com> wrote:
-
-> On 11/28/2011 12:24 AM, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 25 Nov 2011 15:38:07 -0200
-> > Glauber Costa<glommer@parallels.com>  wrote:
-> >
-> >> This patch lays down the foundation for the kernel memory component
-> >> of the Memory Controller.
-> >>
-> >> As of today, I am only laying down the following files:
-> >>
-> >>   * memory.independent_kmem_limit
-> >>   * memory.kmem.limit_in_bytes (currently ignored)
-> >>   * memory.kmem.usage_in_bytes (always zero)
-> >>
-> >> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >> Reviewed-by: Kirill A. Shutemov<kirill@shutemov.name>
-> >> CC: Paul Menage<paul@paulmenage.org>
-> >> CC: Greg Thelen<gthelen@google.com>
-> >> ---
-> >>   Documentation/cgroups/memory.txt |   36 ++++++++++++-
-> >>   init/Kconfig                     |   14 +++++
-> >>   mm/memcontrol.c                  |  107 ++++++++++++++++++++++++++++++++++++--
-> >>   3 files changed, 150 insertions(+), 7 deletions(-)
-> >>
-> >> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> >> index 06eb6d9..bf00cd2 100644
-> >> --- a/Documentation/cgroups/memory.txt
-> >> +++ b/Documentation/cgroups/memory.txt
-> >> @@ -44,8 +44,9 @@ Features:
-> >>    - oom-killer disable knob and oom-notifier
-> >>    - Root cgroup has no limit controls.
-> >>
-> >> - Kernel memory and Hugepages are not under control yet. We just manage
-> >> - pages on LRU. To add more controls, we have to take care of performance.
-> >> + Hugepages is not under control yet. We just manage pages on LRU. To add more
-> >> + controls, we have to take care of performance. Kernel memory support is work
-> >> + in progress, and the current version provides basically functionality.
-> >>
-> >>   Brief summary of control files.
-> >>
-> >> @@ -56,8 +57,11 @@ Brief summary of control files.
-> >>   				 (See 5.5 for details)
-> >>    memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
-> >>   				 (See 5.5 for details)
-> >> + memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
-> >> +				 (See 2.7 for details)
-> >>    memory.limit_in_bytes		 # set/show limit of memory usage
-> >>    memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
-> >> + memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
-> >>    memory.failcnt			 # show the number of memory usage hits limits
-> >>    memory.memsw.failcnt		 # show the number of memory+Swap hits limits
-> >>    memory.max_usage_in_bytes	 # show max memory usage recorded
-> >> @@ -72,6 +76,9 @@ Brief summary of control files.
-> >>    memory.oom_control		 # set/show oom controls.
-> >>    memory.numa_stat		 # show the number of memory usage per numa node
-> >>
-> >> + memory.independent_kmem_limit	 # select whether or not kernel memory limits are
-> >> +				   independent of user limits
-> >> +
-> >>   1. History
-> >>
-> >>   The memory controller has a long history. A request for comments for the memory
-> >> @@ -255,6 +262,31 @@ When oom event notifier is registered, event will be delivered.
-> >>     per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
-> >>     zone->lru_lock, it has no lock of its own.
-> >>
-> >> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-> >> +
-> >> + With the Kernel memory extension, the Memory Controller is able to limit
-> >> +the amount of kernel memory used by the system. Kernel memory is fundamentally
-> >> +different than user memory, since it can't be swapped out, which makes it
-> >> +possible to DoS the system by consuming too much of this precious resource.
-> >> +Kernel memory limits are not imposed for the root cgroup.
-> >> +
-> >> +Memory limits as specified by the standard Memory Controller may or may not
-> >> +take kernel memory into consideration. This is achieved through the file
-> >> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
-> >> +memory to be controlled separately.
-> >> +
-> >> +When kernel memory limits are not independent, the limit values set in
-> >> +memory.kmem files are ignored.
-> >> +
-> >> +Currently no soft limit is implemented for kernel memory. It is future work
-> >> +to trigger slab reclaim when those limits are reached.
-> >> +
-> >> +CAUTION: As of this writing, the kmem extention may prevent tasks from moving
-> >> +among cgroups. If a task has kmem accounting in a cgroup, the task cannot be
-> >> +moved until the kmem resource is released. Also, until the resource is fully
-> >> +released, the cgroup cannot be destroyed. So, please consider your use cases
-> >> +and set kmem extention config option carefully.
-> >> +
-> >
-> > This seems that memcg 'has' kernel memory limiting feature for all kinds of kmem..
-> > Could you add a list of "currently controled kmems" section ?
-> > And update the list in later patch ?
-> >
-> > Thanks,
-> > -Kame
-> >
-> >
-> Hi Kame,
+On Mon, Nov 21, 2011 at 03:19:19PM -0800, Andrew Morton wrote:
+> On Mon, 21 Nov 2011 17:18:23 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> Thanks for your review.
-> Since none of your comments are blockers, I'd prefer to send follow up 
-> patches if you don't mind - assuming Dave won't have any restrictions 
-> himself that would prevent him from picking this series. If I have to 
-> resend it anyway, I'll be more than happy to address them all in my next 
-> submission
+> > Record the readahead pattern in ra_flags and extend the ra_submit()
+> > parameters, to be used by the next readahead tracing/stats patches.
+> > 
+> > 7 patterns are defined:
+> > 
+> >       	pattern			readahead for
+> > -----------------------------------------------------------
+> > 	RA_PATTERN_INITIAL	start-of-file read
+> > 	RA_PATTERN_SUBSEQUENT	trivial sequential read
+> > 	RA_PATTERN_CONTEXT	interleaved sequential read
+> > 	RA_PATTERN_OVERSIZE	oversize read
+> > 	RA_PATTERN_MMAP_AROUND	mmap fault
+> > 	RA_PATTERN_FADVISE	posix_fadvise()
+> > 	RA_PATTERN_RANDOM	random read
 > 
+> It would be useful to spell out in full detail what an "interleaved
+> sequential read" is, and why a read is considered "oversized", etc. 
+> The 'enum readahead_pattern' definition site would be a good place for
+> this.
 
-As you like. But please clarify my comment which pointed out bugs in patch 02/10
-and 06/10 aren't correct.
+Good point, here is the added comments:
+
+/*
+ * Which policy makes decision to do the current read-ahead IO?
+ *
+ * RA_PATTERN_INITIAL           readahead window is initially opened,
+ *                              normally when reading from start of file
+ * RA_PATTERN_SUBSEQUENT        readahead window is pushed forward
+ * RA_PATTERN_CONTEXT           no readahead window available, querying the
+ *                              page cache to decide readahead start/size.
+ *                              This typically happens on interleaved reads (eg.
+ *                              reading pages 0, 1000, 1, 1001, 2, 1002, ...)
+ *                              where one file_ra_state struct is not enough
+ *                              for recording 2+ interleaved sequential read
+ *                              streams.
+ * RA_PATTERN_MMAP_AROUND       read-around on mmap page faults
+ *                              (w/o any sequential/random hints)
+ * RA_PATTERN_BACKWARDS         reverse reading detected
+ * RA_PATTERN_FADVISE           triggered by POSIX_FADV_WILLNEED or FMODE_RANDOM
+ * RA_PATTERN_OVERSIZE          a random read larger than max readahead size,
+ *                              do max readahead to break down the read size
+ * RA_PATTERN_RANDOM            a small random read
+ */
+
+> > Note that random reads will be recorded in file_ra_state now.
+> > This won't deteriorate cache bouncing because the ra->prev_pos update
+> > in do_generic_file_read() already pollutes the data cache, and
+> > filemap_fault() will stop calling into us after MMAP_LOTSAMISS.
+> > 
+> > --- linux-next.orig/include/linux/fs.h	2011-11-20 20:10:48.000000000 +0800
+> > +++ linux-next/include/linux/fs.h	2011-11-20 20:18:29.000000000 +0800
+> > @@ -951,6 +951,39 @@ struct file_ra_state {
+> >  
+> >  /* ra_flags bits */
+> >  #define	READAHEAD_MMAP_MISS	0x000003ff /* cache misses for mmap access */
+> > +#define	READAHEAD_MMAP		0x00010000
+> 
+> Why leave a gap?
+
+Never mind, it's now converted to a bit field :)
+
+> And what is READAHEAD_MMAP anyway?
+
+READAHEAD_MMAP will be set for mmap page faults.
+
+> > +#define READAHEAD_PATTERN_SHIFT	28
+> 
+> Why 28?
+
+Bits 28-32 are for READAHEAD_PATTERN.
+
+Anyway it will be gone when breaking down the ra_flags fields into
+individual variables.
+
+> > +#define READAHEAD_PATTERN	0xf0000000
+> > +
+> > +/*
+> > + * Which policy makes decision to do the current read-ahead IO?
+> > + */
+> > +enum readahead_pattern {
+> > +	RA_PATTERN_INITIAL,
+> > +	RA_PATTERN_SUBSEQUENT,
+> > +	RA_PATTERN_CONTEXT,
+> > +	RA_PATTERN_MMAP_AROUND,
+> > +	RA_PATTERN_FADVISE,
+> > +	RA_PATTERN_OVERSIZE,
+> > +	RA_PATTERN_RANDOM,
+> > +	RA_PATTERN_ALL,		/* for summary stats */
+> > +	RA_PATTERN_MAX
+> > +};
+> 
+> Again, the behaviour is all undocumented.  I see from the code that
+> multiple flags can be set at the same time.  So afacit a file can be
+> marked RANDOM and SUBSEQUENT at the same time, which seems oxymoronic.
+
+Nope, it will be classified into one "pattern" exclusively.
+
+> This reader wants to know what the implications of this are - how the
+> code chooses, prioritises and acts.  But this code doesn't tell me.
+
+Hope the comment addresses this issue. The precise logic happens
+mainly inside ondemand_readahead().
+
+> > +static inline unsigned int ra_pattern(unsigned int ra_flags)
+> > +{
+> > +	unsigned int pattern = ra_flags >> READAHEAD_PATTERN_SHIFT;
+> 
+> OK, no masking is needed because the code silently assumes that arg
+> `ra_flags' came out of an ra_state.ra_flags and it also silently
+> assumes that no higher bits are used in ra_state.ra_flags.
+> 
+> That's a bit of a handgrenade - if someone redoes the flags
+> enumeration, the code will explode.
+
+Yeah sorry for playing with such tricks. Will get rid of this function
+totally and use a plain assign to ra->pattern.
+
+> > +	return min_t(unsigned int, pattern, RA_PATTERN_ALL);
+> > +}
+> 
+> <scratches head>
+> 
+> What the heck is that min_t() doing in there?
+
+Just for safety... not really necessary given correct code.
 
 Thanks,
--Kame
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
