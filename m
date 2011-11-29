@@ -1,140 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 539856B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:24:17 -0500 (EST)
-Message-ID: <4ED4888E.9040402@redhat.com>
-Date: Tue, 29 Nov 2011 15:23:58 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A30106B0055
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:49:59 -0500 (EST)
+Received: from /spool/local
+	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 29 Nov 2011 02:49:53 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAT7nn3c334716
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 02:49:49 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAT7nlUT018065
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 05:49:49 -0200
+Date: Tue, 29 Nov 2011 13:18:07 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 3/30] uprobes: register/unregister probes.
+Message-ID: <20111129074807.GA13445@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+ <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
+ <1322494194.2921.147.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [V4 PATCH 1/2] tmpfs: add fallocate support
-References: <1322544793-2676-1-git-send-email-amwang@redhat.com> <20111129150210.ad266dd7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111129150210.ad266dd7.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: multipart/mixed;
- boundary="------------050609090604090007010505"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1322494194.2921.147.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Hellwig <hch@lst.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-This is a multi-part message in MIME format.
---------------050609090604090007010505
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+* Peter Zijlstra <peterz@infradead.org> [2011-11-28 16:29:54]:
 
-ao? 2011a1'11ae??29ae?JPY 14:02, KAMEZAWA Hiroyuki a??e??:
->
-> You can't know whether the 'page' is allocated by alloc_page() in fallocate()
-> or just found as exiting one.
-> Then, yourwill corrupt existing pages in error path.
-> Is it allowed ?
->
+> On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> > +static void __unregister_uprobe(struct inode *inode, loff_t offset,
+> > +                                               struct uprobe *uprobe)
+> > +{
+> > +       struct list_head try_list;
+> > +       struct address_space *mapping;
+> > +       struct vma_info *vi, *tmpvi;
+> > +       struct vm_area_struct *vma;
+> > +       struct mm_struct *mm;
+> > +       loff_t vaddr;
+> > +
+> > +       mapping = inode->i_mapping;
+> > +       INIT_LIST_HEAD(&try_list);
+> > +       while ((vi = find_next_vma_info(&try_list, offset,
+> > +                                               mapping, false)) != NULL) {
+> > +               if (IS_ERR(vi))
+> > +                       break;
+> 
+> So what kind of half-assed state are we left in if we try an unregister
+> under memory pressure and how do we deal with that?
+> 
 
-According to the comment,
+Agree, Even I had this concern and wanted to see if there are ways to
+deal with this.
 
-/*
-  * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
-  *
-  * If we allocate a new one we do not mark it dirty. That's up to the
-  * vm. If we swap it in we mark it dirty since we also free the swap
-  * entry since a page cannot live in both the swap and page cache
-  */
+- One approach would be pass extra GFG flags while we do allocations
+  atleast in the unregister_uprobe.
 
-so we can know if the page is newly allocated by checking page dirty bit.
-Or am I missing something?
+Drawback of this approach: if the system is already under memory
+pressure we shouldnt exert more pressure by asking it to repeat.
 
-But whoops, I sent a wrong version of this patch, the below one is
-the correct one. Sorry for this.
+- The other approach would be to cache these temporary objects while we
+  insert probes. i.e keep these metadata around.
 
+I am sure you wouldnt want to add additional metadata.
 
---------------050609090604090007010505
-Content-Type: text/plain;
- name="0001-tmpfs-add-fallocate-support.patch"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="0001-tmpfs-add-fallocate-support.patch"
+- Third approach would be to have a completion/worker routine kick in if
+  unregister_uprobe fails due to memory allocations.
 
-U3ViamVjdDogW1Y0IFBBVENIIDEvMl0gdG1wZnM6IGFkZCBmYWxsb2NhdGUgc3VwcG9ydAoK
-U3lzdGVtZCBuZWVkcyB0bXBmcyB0byBzdXBwb3J0IGZhbGxvY2F0ZSBbMV0sIHRvIGJlIGFi
-bGUKdG8gc2FmZWx5IHVzZSBtbWFwKCksIHJlZ2FyZGluZyBTSUdCVVMsIG9uIGZpbGVzIG9u
-IHRoZQovZGV2L3NobSBmaWxlc3lzdGVtLiBUaGUgZ2xpYmMgZmFsbGJhY2sgbG9vcCBmb3Ig
-LUVOT1NZUwpvbiBmYWxsb2NhdGUgaXMganVzdCB1Z2x5LgoKVGhpcyBwYXRjaCBhZGRzIGZh
-bGxvY2F0ZSBzdXBwb3J0IHRvIHRtcGZzLCBhbmQgYXMgd2UKYWxyZWFkeSBoYXZlIHNobWVt
-X3RydW5jYXRlX3JhbmdlKCksIGl0IGlzIGFsc28gZWFzeSB0bwphZGQgRkFMTE9DX0ZMX1BV
-TkNIX0hPTEUgc3VwcG9ydCB0b28uCgoxLiBodHRwOi8vbGttbC5vcmcvbGttbC8yMDExLzEw
-LzIwLzI3NQoKVjMtPlY0OgpIYW5kbGUgJ3VuZG8nIEVOT1NQQyBtb3JlIGNvcnJlY3RseS4K
-ClYyLT5WMzoKYSkgUmVhZCBpX3NpemUgZGlyZWN0bHkgYWZ0ZXIgaG9sZGluZyBpX211dGV4
-OwpiKSBDYWxsIHBhZ2VfY2FjaGVfcmVsZWFzZSgpIHRvbyBhZnRlciBzaG1lbV9nZXRwYWdl
-KCk7CmMpIFVuZG8gcHJldmlvdXMgY2hhbmdlcyB3aGVuIC1FTk9TUEMuCgpDYzogUGVra2Eg
-RW5iZXJnIDxwZW5iZXJnQGtlcm5lbC5vcmc+CkNjOiBDaHJpc3RvcGggSGVsbHdpZyA8aGNo
-QGxzdC5kZT4KQ2M6IEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNvbT4KQ2M6IERhdmUg
-SGFuc2VuIDxkYXZlQGxpbnV4LnZuZXQuaWJtLmNvbT4KQ2M6IExlbm5hcnQgUG9ldHRlcmlu
-ZyA8bGVubmFydEBwb2V0dGVyaW5nLm5ldD4KQ2M6IEtheSBTaWV2ZXJzIDxrYXkuc2lldmVy
-c0B2cmZ5Lm9yZz4KQ2M6IEtPU0FLSSBNb3RvaGlybyA8a29zYWtpLm1vdG9oaXJvQGpwLmZ1
-aml0c3UuY29tPgpTaWduZWQtb2ZmLWJ5OiBXQU5HIENvbmcgPGFtd2FuZ0ByZWRoYXQuY29t
-PgoKLS0tCmNvbW1pdCBjYTA1NWFkMzQzYTBkNjI5ZjhmMWZhZDFkZjMwNzk2ZDIyOTJmNmEy
-CkF1dGhvcjogQ29uZyBXYW5nIDxhbXdhbmdAcmVkaGF0LmNvbT4KRGF0ZTogICBXZWQgTm92
-IDIzIDEzOjE2OjI2IDIwMTEgKzA4MDAKCiAgICB0bXBmczogYWRkIGZhbGxvY2F0ZSBzdXBw
-b3J0Ci0tLQogbW0vc2htZW0uYyB8ICAgOTAgKysrKysrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrCiAxIGZpbGVzIGNoYW5nZWQsIDkw
-IGluc2VydGlvbnMoKyksIDAgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvbW0vc2htZW0u
-YyBiL21tL3NobWVtLmMKaW5kZXggZDY3MjI1MC4uNmE2ZmM2NiAxMDA2NDQKLS0tIGEvbW0v
-c2htZW0uYworKysgYi9tbS9zaG1lbS5jCkBAIC0zMCw2ICszMCw3IEBACiAjaW5jbHVkZSA8
-bGludXgvbW0uaD4KICNpbmNsdWRlIDxsaW51eC9leHBvcnQuaD4KICNpbmNsdWRlIDxsaW51
-eC9zd2FwLmg+CisjaW5jbHVkZSA8bGludXgvZmFsbG9jLmg+CiAKIHN0YXRpYyBzdHJ1Y3Qg
-dmZzbW91bnQgKnNobV9tbnQ7CiAKQEAgLTEwMTYsNiArMTAxNywzNSBAQCBmYWlsZWQ6CiAJ
-cmV0dXJuIGVycm9yOwogfQogCitzdGF0aWMgdm9pZCBzaG1lbV9wdXRwYWdlX25vc3dhcChz
-dHJ1Y3QgaW5vZGUgKmlub2RlLCBwZ29mZl90IGluZGV4LCBib29sIG5ldykKK3sKKwlzdHJ1
-Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZyA9IGlub2RlLT5pX21hcHBpbmc7CisJc3RydWN0
-IHNobWVtX2lub2RlX2luZm8gKmluZm87CisJc3RydWN0IHNobWVtX3NiX2luZm8gKnNiaW5m
-bzsKKwlzdHJ1Y3QgcGFnZSAqcGFnZTsKKworCXBhZ2UgPSBmaW5kX2xvY2tfcGFnZShtYXBw
-aW5nLCBpbmRleCk7CisKKwlpZiAocGFnZSkgeworCQlpbmZvID0gU0hNRU1fSShpbm9kZSk7
-CisJCXNiaW5mbyA9IFNITUVNX1NCKGlub2RlLT5pX3NiKTsKKwkJc2htZW1fYWNjdF9ibG9j
-ayhpbmZvLT5mbGFncyk7CisJCWlmICghbmV3ICYmIFBhZ2VEaXJ0eShwYWdlKSkgeworCQkJ
-Q2xlYXJQYWdlRGlydHkocGFnZSk7CisJCQlkZWxldGVfZnJvbV9wYWdlX2NhY2hlKHBhZ2Up
-OworCQkJc3Bpbl9sb2NrKCZpbmZvLT5sb2NrKTsKKwkJCWluZm8tPmFsbG9jZWQtLTsKKwkJ
-CWlub2RlLT5pX2Jsb2NrcyAtPSBCTE9DS1NfUEVSX1BBR0U7CisJCQlzcGluX3VubG9jaygm
-aW5mby0+bG9jayk7CisJCX0KKwkJaWYgKHNiaW5mby0+bWF4X2Jsb2NrcykKKwkJCXBlcmNw
-dV9jb3VudGVyX2FkZCgmc2JpbmZvLT51c2VkX2Jsb2NrcywgLTEpOworCQlzaG1lbV91bmFj
-Y3RfYmxvY2tzKGluZm8tPmZsYWdzLCAxKTsKKwkJdW5sb2NrX3BhZ2UocGFnZSk7CisJCXBh
-Z2VfY2FjaGVfcmVsZWFzZShwYWdlKTsKKwl9Cit9CisKIHN0YXRpYyBpbnQgc2htZW1fZmF1
-bHQoc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsIHN0cnVjdCB2bV9mYXVsdCAqdm1mKQog
-ewogCXN0cnVjdCBpbm9kZSAqaW5vZGUgPSB2bWEtPnZtX2ZpbGUtPmZfcGF0aC5kZW50cnkt
-PmRfaW5vZGU7CkBAIC0xNDMxLDYgKzE0NjEsNjUgQEAgc3RhdGljIHNzaXplX3Qgc2htZW1f
-ZmlsZV9zcGxpY2VfcmVhZChzdHJ1Y3QgZmlsZSAqaW4sIGxvZmZfdCAqcHBvcywKIAlyZXR1
-cm4gZXJyb3I7CiB9CiAKK3N0YXRpYyBsb25nIHNobWVtX2ZhbGxvY2F0ZShzdHJ1Y3QgZmls
-ZSAqZmlsZSwgaW50IG1vZGUsCisJCQkJbG9mZl90IG9mZnNldCwgbG9mZl90IGxlbikKK3sK
-KwlzdHJ1Y3QgaW5vZGUgKmlub2RlID0gZmlsZS0+Zl9wYXRoLmRlbnRyeS0+ZF9pbm9kZTsK
-KwlwZ29mZl90IHN0YXJ0ID0gb2Zmc2V0ID4+IFBBR0VfQ0FDSEVfU0hJRlQ7CisJcGdvZmZf
-dCBlbmQgPSBESVZfUk9VTkRfVVAoKG9mZnNldCArIGxlbiksIFBBR0VfQ0FDSEVfU0laRSk7
-CisJcGdvZmZfdCBpbmRleCA9IHN0YXJ0OworCWxvZmZfdCBpX3NpemU7CisJc3RydWN0IHBh
-Z2UgKnBhZ2UgPSBOVUxMOworCWludCByZXQgPSAwOworCisJaWYgKElTX1NXQVBGSUxFKGlu
-b2RlKSkKKwkJcmV0dXJuIC1FVFhUQlNZOworCisJbXV0ZXhfbG9jaygmaW5vZGUtPmlfbXV0
-ZXgpOworCWlfc2l6ZSA9IGlub2RlLT5pX3NpemU7CisJaWYgKG1vZGUgJiBGQUxMT0NfRkxf
-UFVOQ0hfSE9MRSkgeworCQlpZiAoIShvZmZzZXQgPiBpX3NpemUgfHwgKGVuZCA8PCBQQUdF
-X0NBQ0hFX1NISUZUKSA+IGlfc2l6ZSkpCisJCQlzaG1lbV90cnVuY2F0ZV9yYW5nZShpbm9k
-ZSwgb2Zmc2V0LAorCQkJCQkgICAgIChlbmQgPDwgUEFHRV9DQUNIRV9TSElGVCkgLSAxKTsK
-KwkJZ290byB1bmxvY2s7CisJfQorCisJaWYgKCEobW9kZSAmIEZBTExPQ19GTF9LRUVQX1NJ
-WkUpKSB7CisJCXJldCA9IGlub2RlX25ld3NpemVfb2soaW5vZGUsIChvZmZzZXQgKyBsZW4p
-KTsKKwkJaWYgKHJldCkKKwkJCWdvdG8gdW5sb2NrOworCX0KKworCXdoaWxlIChpbmRleCA8
-IGVuZCkgeworCQlyZXQgPSBzaG1lbV9nZXRwYWdlKGlub2RlLCBpbmRleCwgJnBhZ2UsIFNH
-UF9XUklURSwgTlVMTCk7CisJCWlmIChyZXQpIHsKKwkJCWlmIChyZXQgPT0gLUVOT1NQQykK
-KwkJCQlnb3RvIHVuZG87CisJCQllbHNlCisJCQkJZ290byB1bmxvY2s7CisJCX0KKwkJaWYg
-KHBhZ2UpIHsKKwkJCXVubG9ja19wYWdlKHBhZ2UpOworCQkJcGFnZV9jYWNoZV9yZWxlYXNl
-KHBhZ2UpOworCQl9CisJCWluZGV4Kys7CisJfQorCWlmICghKG1vZGUgJiBGQUxMT0NfRkxf
-S0VFUF9TSVpFKSAmJiAoaW5kZXggPDwgUEFHRV9DQUNIRV9TSElGVCkgPiBpX3NpemUpCisJ
-CWlfc2l6ZV93cml0ZShpbm9kZSwgaW5kZXggPDwgUEFHRV9DQUNIRV9TSElGVCk7CisKKwln
-b3RvIHVubG9jazsKKwordW5kbzoKKwl3aGlsZSAoaW5kZXggPiBzdGFydCkgeworCQlzaG1l
-bV9wdXRwYWdlX25vc3dhcChpbm9kZSwgaW5kZXgsIHRydWUpOworCQlpbmRleC0tOworCX0K
-KwordW5sb2NrOgorCW11dGV4X3VubG9jaygmaW5vZGUtPmlfbXV0ZXgpOworCXJldHVybiBy
-ZXQ7Cit9CisKIHN0YXRpYyBpbnQgc2htZW1fc3RhdGZzKHN0cnVjdCBkZW50cnkgKmRlbnRy
-eSwgc3RydWN0IGtzdGF0ZnMgKmJ1ZikKIHsKIAlzdHJ1Y3Qgc2htZW1fc2JfaW5mbyAqc2Jp
-bmZvID0gU0hNRU1fU0IoZGVudHJ5LT5kX3NiKTsKQEAgLTIyODYsNiArMjM3NSw3IEBAIHN0
-YXRpYyBjb25zdCBzdHJ1Y3QgZmlsZV9vcGVyYXRpb25zIHNobWVtX2ZpbGVfb3BlcmF0aW9u
-cyA9IHsKIAkuZnN5bmMJCT0gbm9vcF9mc3luYywKIAkuc3BsaWNlX3JlYWQJPSBzaG1lbV9m
-aWxlX3NwbGljZV9yZWFkLAogCS5zcGxpY2Vfd3JpdGUJPSBnZW5lcmljX2ZpbGVfc3BsaWNl
-X3dyaXRlLAorCS5mYWxsb2NhdGUJPSBzaG1lbV9mYWxsb2NhdGUsCiAjZW5kaWYKIH07CiAK
+This looks better than the rest.
 
---------------050609090604090007010505--
+Do you have any other approaches that we could try?
+
+-- 
+thanks and regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
