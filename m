@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E236B0055
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 05:52:40 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 179036B005A
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 05:52:42 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/7] mm: memcg: lookup_page_cgroup (almost) never returns NULL
-Date: Tue, 29 Nov 2011 11:52:02 +0100
-Message-Id: <1322563925-1667-5-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 5/7] mm: page_cgroup: check page_cgroup arrays in lookup_page_cgroup() only when necessary
+Date: Tue, 29 Nov 2011 11:52:03 +0100
+Message-Id: <1322563925-1667-6-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
 References: <1322563925-1667-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,70 +13,62 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Johannes Weiner <jweiner@redhat.com>
+lookup_page_cgroup() is usually used only against pages that are used
+in userspace.
 
-Pages have their corresponding page_cgroup descriptors set up before
-they are used in userspace, and thus managed by a memory cgroup.
+The exception is the CONFIG_DEBUG_VM-only memcg check from the page
+allocator: it can run on pages without page_cgroup descriptors
+allocated when the pages are fed into the page allocator for the first
+time during boot or memory hotplug.
 
-The only time where lookup_page_cgroup() can return NULL is in the
-CONFIG_DEBUG_VM-only page sanity checking code that executes while
-feeding pages into the page allocator for the first time.
+Include the array check only when CONFIG_DEBUG_VM is set and save the
+unnecessary check in production kernels.
 
-Remove the NULL checks against lookup_page_cgroup() results from all
-callsites where we know that corresponding page_cgroup descriptors
-must be allocated, and add a comment to the callsite that actually
-does have to check the return value.
-
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |   11 +++++------
- 1 files changed, 5 insertions(+), 6 deletions(-)
+ mm/page_cgroup.c |   18 ++++++++++++++++--
+ 1 files changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d825af9..8ccb342 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1894,9 +1894,6 @@ void mem_cgroup_update_page_stat(struct page *page,
- 	bool need_unlock = false;
- 	unsigned long uninitialized_var(flags);
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index a14655d..58405ca 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -28,9 +28,16 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
+ 	struct page_cgroup *base;
  
--	if (unlikely(!pc))
--		return;
--
- 	rcu_read_lock();
- 	memcg = pc->mem_cgroup;
- 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
-@@ -2669,8 +2666,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
- 	}
- 
- 	pc = lookup_page_cgroup(page);
--	BUG_ON(!pc); /* XXX: remove this and move pc lookup into commit */
--
- 	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
- 	if (ret || !memcg)
- 		return ret;
-@@ -2942,7 +2937,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	 * Check if our page_cgroup is valid
- 	 */
- 	pc = lookup_page_cgroup(page);
--	if (unlikely(!pc || !PageCgroupUsed(pc)))
-+	if (unlikely(!PageCgroupUsed(pc)))
- 		return NULL;
- 
- 	lock_page_cgroup(pc);
-@@ -3326,6 +3321,10 @@ static struct page_cgroup *lookup_page_cgroup_used(struct page *page)
- 	struct page_cgroup *pc;
- 
- 	pc = lookup_page_cgroup(page);
+ 	base = NODE_DATA(page_to_nid(page))->node_page_cgroup;
++#ifdef CONFIG_DEBUG_VM
 +	/*
-+	 * Can be NULL while feeding pages into the page allocator for
-+	 * the first time, i.e. during boot or memory hotplug.
++	 * The sanity checks the page allocator does upon freeing a
++	 * page can reach here before the page_cgroup arrays are
++	 * allocated when feeding a range of pages to the allocator
++	 * for the first time during bootup or memory hotplug.
 +	 */
- 	if (likely(pc) && PageCgroupUsed(pc))
- 		return pc;
- 	return NULL;
+ 	if (unlikely(!base))
+ 		return NULL;
+-
++#endif
+ 	offset = pfn - NODE_DATA(page_to_nid(page))->node_start_pfn;
+ 	return base + offset;
+ }
+@@ -87,9 +94,16 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
+ {
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct mem_section *section = __pfn_to_section(pfn);
+-
++#ifdef CONFIG_DEBUG_VM
++	/*
++	 * The sanity checks the page allocator does upon freeing a
++	 * page can reach here before the page_cgroup arrays are
++	 * allocated when feeding a range of pages to the allocator
++	 * for the first time during bootup or memory hotplug.
++	 */
+ 	if (!section->page_cgroup)
+ 		return NULL;
++#endif
+ 	return section->page_cgroup + pfn;
+ }
+ 
 -- 
 1.7.6.4
 
