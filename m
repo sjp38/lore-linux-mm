@@ -1,168 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A1CE6B004F
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 20:08:55 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 71BC63EE0BD
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 10:08:52 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51B8B45DEE8
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 10:08:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 21CF445DEEE
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 10:08:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12D371DB803B
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 10:08:52 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4E381DB803F
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 10:08:51 +0900 (JST)
-Date: Wed, 30 Nov 2011 10:07:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v7 03/10] socket: initial cgroup code.
-Message-Id: <20111130100738.553020ba.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1322611021-1730-4-git-send-email-glommer@parallels.com>
-References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
-	<1322611021-1730-4-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Nov 2011 20:14:51 -0500 (EST)
+From: Hank Leininger <hlein@marc.info>
+Subject: RE: official linux-mm archive on marc.info dead?
+In-Reply-To: <8a206e30-df7c-4ba5-b04c-49e0bf964af5@default>
+Message-ID: <Pine.LNX.4.64.1111292007530.10538@marklar.spinoli.org>
+References: <31eb7509-e1dc-47b7-a0a5-8ed9c2493364@default 20111128210731.GC30607@kvack.org>
+ <8a206e30-df7c-4ba5-b04c-49e0bf964af5@default>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-mm@kvack.org, Benjamin LaHaise <bcrl@kvack.org>
 
-On Tue, 29 Nov 2011 21:56:54 -0200
-Glauber Costa <glommer@parallels.com> wrote:
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
 
-> The goal of this work is to move the memory pressure tcp
-> controls to a cgroup, instead of just relying on global
-> conditions.
-> 
-> To avoid excessive overhead in the network fast paths,
-> the code that accounts allocated memory to a cgroup is
-> hidden inside a static_branch(). This branch is patched out
-> until the first non-root cgroup is created. So when nobody
-> is using cgroups, even if it is mounted, no significant performance
-> penalty should be seen.
-> 
-> This patch handles the generic part of the code, and has nothing
-> tcp-specific.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Kirill A. Shutemov<kirill@shutemov.name>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
-> CC: David S. Miller <davem@davemloft.net>
-> CC: Eric W. Biederman <ebiederm@xmission.com>
-> CC: Eric Dumazet <eric.dumazet@gmail.com>
+On Mon, 28 Nov 2011, Dan Magenheimer wrote:
 
-<snip>
+>> Subject: Re: official linux-mm archive on marc.info dead?
+>>
+>> On Mon, Nov 28, 2011 at 12:47:13PM -0800, Dan Magenheimer wrote:
+>>> The official linux-mm archive at http://marc.info/?l=linux-mm
+>>> appears to have stopped archiving over a month ago.  Other marc.info
 
-> +extern struct jump_label_key memcg_socket_limit_enabled;
->  static inline bool sk_has_memory_pressure(const struct sock *sk)
->  {
->  	return sk->sk_prot->memory_pressure != NULL;
-> @@ -873,6 +900,17 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
->  {
->  	if (!sk->sk_prot->memory_pressure)
->  		return false;
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	if (static_branch(&memcg_socket_limit_enabled)) {
-> +		struct cg_proto *cg_proto = sk->sk_cgrp;
-> +
-> +		if (!cg_proto)
-> +			goto nocgroup;
-> +		return !!*cg_proto->memory_pressure;
-> +	} else
+Ah, thanks for pointing this out folks!
 
-What is dangling 'else' for ?
+This looks like leftover damage from an outage we had in October:
+http://marc.info/?q=news
 
+> due to excessive bounces.  Could you please resubscribe as
+> http://marc.info/?l=linux-mm is widely documented as the
+> home of the linux-mm mailing list archives and you are now
+> missing almost six weeks of archives for the list.
 
-> +nocgroup:
-> +#endif
-> +
->  	return !!*sk->sk_prot->memory_pressure;
->  }
->  
-> @@ -880,52 +918,176 @@ static inline void sk_leave_memory_pressure(struct sock *sk)
->  {
->  	int *memory_pressure = sk->sk_prot->memory_pressure;
->  
-> -	if (memory_pressure && *memory_pressure)
-> +	if (!memory_pressure)
-> +		return;
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	if (static_branch(&memcg_socket_limit_enabled)) {
-> +		struct cg_proto *cg_proto = sk->sk_cgrp;
-> +
-> +		if (!cg_proto)
-> +			goto nocgroup;
-> +
-> +		for (; cg_proto; cg_proto = cg_proto->parent)
-> +			if (*cg_proto->memory_pressure)
-> +				*cg_proto->memory_pressure = 0;
-> +	}
-> +nocgroup:
-> +#endif
+Done!  And some new list traffic has started coming in.
 
-Hmm..can't we have a good way for avoiding this #ifdef ?
-
-I guess... as NUMA_BUILD macro in page_alloc.c, you can define
-
-if (HAS_KMEM_LIMIT && static_branch(&.....)).
-
-For example,
-==
-#include <stdio.h>
-
-#define HAS_SPECIAL     0
-
-int main(int argc, char *argv[])
-{
-        if (HAS_SPECIAL)
-                call();
-
-        printf("Hey!");
-}
-==
-
-This can be compiled.
-
-So. I guess...
-
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-#define do_memcg_kmem_account static_branch(&memcg_socket_limit_enabled)
-#else
-#define do_memcg_kmem_account 0
-#endif
-
-maybe good.(not tested.)
-
-
-BTW, I don't think 'goto nocgroup' is good.
-
-
-
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3becb24..12a08bf 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -377,6 +377,40 @@ enum mem_type {
->  #define MEM_CGROUP_RECLAIM_SOFT_BIT	0x2
->  #define MEM_CGROUP_RECLAIM_SOFT		(1 << MEM_CGROUP_RECLAIM_SOFT_BIT)
->  
-> +static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
-> +{
-> +	return (memcg == root_mem_cgroup);
-> +}
-> +
-
-Why do you need this move of definition ?
-
-
+If anyone has mailspool-style backups of the last ~month and a half,
+I'd be glad to bulk-insert them.  (I'm unsure if pulling down in bulk
+from gmane is considered impolite.)
 
 Thanks,
--Kame
+
+Hank Leininger <hlein@marc.info>
+3C2A 4EEE ED36 D136 18F2  1B30 47A8 D14B E13E 9C6A
+-----BEGIN PGP SIGNATURE-----
+
+iQEVAwUBTtWDi0eo0UvhPpxqAQiyyAgAiyAreztKyo9fxG+rpPe5VfEyVHRETQCo
+XW3ORiTu61RWkgQcCsnz+4HSKQHnEwNiyHj6AQR1l1M1OPlIdW2DHJ7muMAlkfGU
+4eLIfQY/nflBx8yJUFrm6gkO2VAA5ndRznLAyCcapez2jgnOtbYfsGNaLu30a/Sg
+JpeSyvrZsDjcb8JF5BctLX+zpZSacwOpNCiGJrlhJsJbjqYeMYNFFS5+nNv8kB7p
+zCMN7SwvayyfFtYyCqm0cAYjlH7OdRkiqbK17KJCiVdTCQx6Ryxns8HxWlvYNU0c
+oCLwos86dPmFp7paAfUaAVfZsgQK16D/0a8mpN5Jc8LoL9CSRFnJ7w==
+=VNwp
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
