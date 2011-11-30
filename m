@@ -1,57 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 29 Nov 2011 21:43:40 -0500 (EST)
-From: Hank Leininger <hlein@marc.info>
-Subject: Re: official linux-mm archive on marc.info dead?
-In-Reply-To: <20111130012314.GA29855@kvack.org>
-Message-ID: <Pine.LNX.4.64.1111292141490.10538@marklar.spinoli.org>
-References: <8a206e30-df7c-4ba5-b04c-49e0bf964af5@default>
- <Pine.LNX.4.64.1111292007530.10538@marklar.spinoli.org> <20111130012314.GA29855@kvack.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 060C66B004D
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 00:33:04 -0500 (EST)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 29 Nov 2011 22:33:02 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAU5WgXK117848
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 22:32:42 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAU5WaY0016192
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 22:32:41 -0700
+Date: Wed, 30 Nov 2011 11:00:44 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 4/30] uprobes: Define hooks for mmap/munmap.
+Message-ID: <20111130053007.GA21514@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+ <20111118110723.10512.66282.sendpatchset@srdronam.in.ibm.com>
+ <1322071812.14799.87.camel@twins>
+ <20111124134742.GH28065@linux.vnet.ibm.com>
+ <1322492384.2921.143.camel@twins>
+ <20111129083322.GD13445@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20111129083322.GD13445@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, tulasidhard@gmail.com
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
+> 
+> int mmap_uprobe(...) {
+> ....
+> 	       ret = install_breakpoint(vma->vm_mm, uprobe);
+> 	       if (ret == -EEXIST) {
+> 			if (!read_opcode(vma->vm_mm, vaddr, &opcode) &&
+> 					(opcode == UPROBES_BKPT_INSN))
+> 			       atomic_inc(&vma->vm_mm->mm_uprobes_count);
+> 		       ret = 0;
+> 	       } 
+> ....
+> }
+> 
 
-On Tue, 29 Nov 2011, Benjamin LaHaise wrote:
+Infact the check for EEXIST and read_opcode in mmap_uprobe() is needed
+for another reason too.
 
-> Hello Hank,
->
-> On Tue, Nov 29, 2011 at 08:14:51PM -0500, Hank Leininger wrote:
->> Done!  And some new list traffic has started coming in.
->>
->> If anyone has mailspool-style backups of the last ~month and a half,
->> I'd be glad to bulk-insert them.  (I'm unsure if pulling down in bulk
->> from gmane is considered impolite.)
->
-> I've put up the Oct & Nov traffic in an mbox format for you at
-> http://www.kvack.org/~bcrl/linux-mm.mbox .  Thanks for fixing this.
+Lets say while unregister_uprobe was around, a thread thats being
+probed, just forked a child and the child called mmap_uprobe.
 
-Thank you!  Pulled down and inserted (it will take a little bit for
-the replicas & the full-text indexing to catch up).
+Now mmap_uprobe might find that the breakpoint is already inserted
+since the pages are shared with the parent. But before
+unregister_uprobe can come around and cleanup, the child can run and hit
+the breakpoint. Since the breakpoint count is 0 for the child, we dont
+expect the child to have hit a breakpoint placed by uprobes, and the
+child gets a SIGTRAP.
 
-If any linux-mm readers have noticed other MARC lists that dried up in
-late October, please contact me privately and I'll fix them, too.
+With this check for read_opcode on EEXIST from install_breakpoint, we
+will know that there is a valid breakpoint underneath and increment
+the count. So on a breakpoint hit, the uprobes notifier does the right
+thing.
 
-Thanks,
+If the unregister_uprobe() had already cleanup the breakpoint in the
+parent, the child's copy would also be clean so read_opcode wont find
+the breakpoint and hence we wont increment the breakpoint.
 
-Hank Leininger <hlein@marc.info>
-3C2A 4EEE ED36 D136 18F2  1B30 47A8 D14B E13E 9C6A
-
-
------BEGIN PGP SIGNATURE-----
-
-iQEVAwUBTtWYXEeo0UvhPpxqAQjYqgf5AT7bz/JE5g7Dn4PcPrt/WE+4UnWC+V25
-6zC+xgpEFL6mg4wZnpbGMZ51vIjEUxiGqtpz9JTFYcYFST84ytMjpFwfb9j2Slpy
-9Lmwyc2EHZbvvvGP6MsLrYKZFzUfv+oGbOjRA1Of/aGnTUazvXmkuJRLkLRj0JGa
-8UMPREv2TBW68DkZz/8HvUrVGkyL01D9rzrFqNuE/NvKx50nGqHaRzx5Cng7Vg1K
-t7ji1+cu/ac9IL6GuYXzFcZejujEczWD3yVGwzejiQZVQUYJRlUQ7dBdSY7/8wc4
-fJcsE3MX2ATIugTBL+Ss9mWvYF7RLPwt/0I/AluQFg2fhX8xCMLCHg==
-=sW1X
------END PGP SIGNATURE-----
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
