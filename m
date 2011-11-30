@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C1DD6B004D
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 06:37:22 -0500 (EST)
-Date: Wed, 30 Nov 2011 12:37:19 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF9B6B004D
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 06:44:46 -0500 (EST)
+Date: Wed, 30 Nov 2011 12:44:38 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/9] readahead: snap readahead request to EOF
-Message-ID: <20111130113719.GC4541@quack.suse.cz>
+Subject: Re: [PATCH 7/9] readahead: add vfs/readahead tracing event
+Message-ID: <20111130114438.GD4541@quack.suse.cz>
 References: <20111129130900.628549879@intel.com>
- <20111129131456.145362960@intel.com>
- <20111129142958.GJ5635@quack.suse.cz>
- <20111130010604.GD11147@localhost>
+ <20111129131456.797240894@intel.com>
+ <20111129152228.GO5635@quack.suse.cz>
+ <20111130004235.GB11147@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111130010604.GD11147@localhost>
+In-Reply-To: <20111130004235.GB11147@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed 30-11-11 09:06:04, Wu Fengguang wrote:
-> >   Hmm, wouldn't it be cleaner to do this already in ondemand_readahead()?
-> > All other updates of readahead window seem to be there.
+On Wed 30-11-11 08:42:35, Wu Fengguang wrote:
+> On Tue, Nov 29, 2011 at 11:22:28PM +0800, Jan Kara wrote:
+> > On Tue 29-11-11 21:09:07, Wu Fengguang wrote:
+> > > This is very useful for verifying whether the readahead algorithms are
+> > > working to the expectation.
+> > > 
+> > > Example output:
+> > > 
+> > > # echo 1 > /debug/tracing/events/vfs/readahead/enable
+> > > # cp test-file /dev/null
+> > > # cat /debug/tracing/trace  # trimmed output
+> > > readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
+> > > readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
+> > > readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
+> > > readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
+> > > readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
+> > > readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
+> > > 
+> > > CC: Ingo Molnar <mingo@elte.hu>
+> > > CC: Jens Axboe <axboe@kernel.dk>
+> > > CC: Steven Rostedt <rostedt@goodmis.org>
+> > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > > Acked-by: Rik van Riel <riel@redhat.com>
+> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> >   Looks OK.
+> > 
+> >   Acked-by: Jan Kara <jack@suse.cz>
 > 
-> Yeah it's not that clean, however the intention is to cover the other
-> call site -- mmap read-around, too.
-  Ah, OK.
+> Thank you.
+> 
+> > > +	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
+> > > +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
+> > > +			ra_pattern_names[__entry->pattern],
+> > > +			MAJOR(__entry->dev),
+> > > +			MINOR(__entry->dev),
+> 
+> One thing I'm not certain is the dev=MAJOR:MINOR. The other option
+> used in many trace events are bdi=BDI_NAME_OR_NUMBER. Will bdi be more
+> suitable here?
+  Probably bdi name will be more consistent (e.g. with writeback) but I
+don't think it makes a big difference in practice.
 
-> > Also shouldn't we
-> > take maximum readahead size into account? Reading 3/2 of max readahead
-> > window seems like a relatively big deal for large files...
-> 
-> Good point, the max readahead size is actually a must, in order to
-> prevent it expanding the readahead size for ever in the backwards
-> reading case.
-> 
-> This limits the size expansion to 1/4 max readahead. That means, if
-> the next expected readahead size will be less than 1/4 max size, it
-> will be merged into the current readahead window to avoid one small IO.
-> 
-> The backwards reading is not special cased here because it's not
-> frequent anyway.
-> 
->  unsigned long ra_submit(struct file_ra_state *ra,
->  		       struct address_space *mapping, struct file *filp)
->  {
-> +	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
-> +	pgoff_t start = ra->start;
-> +	unsigned long size = ra->size;
->  	int actual;
->  
-> +	/* snap to EOF */
-> +	size += min(size, ra->ra_pages / 4);
-  I'd probably choose:
-	size += min(size / 2, ra->ra_pages / 4);
-  to increase current window only to 3/2 and not twice but I don't have a
-strong opinion. Otherwise I think the code is fine now so you can add:
-  Acked-by: Jan Kara <jack@suse.cz>
-
-> +	if (start + size > eof) {
-> +		ra->size = eof - start;
-> +		ra->async_size = 0;
-> +	}
-> +
->  	actual = __do_page_cache_readahead(mapping, filp,
->  					ra->start, ra->size, ra->async_size);
-
-									Honza
+								Honza
+-- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
 
