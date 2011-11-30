@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C2CCA6B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 19:20:17 -0500 (EST)
-Date: Tue, 29 Nov 2011 16:20:14 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/5] mm: exclude reserved pages from dirtyable memory
-Message-Id: <20111129162014.aa290174.akpm@linux-foundation.org>
-In-Reply-To: <1322055258-3254-2-git-send-email-hannes@cmpxchg.org>
-References: <1322055258-3254-1-git-send-email-hannes@cmpxchg.org>
-	<1322055258-3254-2-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3350A6B0055
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 19:24:34 -0500 (EST)
+Date: Wed, 30 Nov 2011 08:24:25 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 8/9] readahead: basic support for backwards prefetching
+Message-ID: <20111130002425.GA8734@localhost>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.925952168@intel.com>
+ <20111129153552.GP5635@quack.suse.cz>
+ <4ED50A63.1010805@draigBrady.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4ED50A63.1010805@draigBrady.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: =?utf-8?Q?P=C3=A1draig?= Brady <P@draigBrady.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Li, Shaohua" <shaohua.li@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 23 Nov 2011 14:34:14 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wed, Nov 30, 2011 at 12:37:55AM +0800, PA!draig Brady wrote:
+> On 11/29/2011 03:35 PM, Jan Kara wrote:
+> >   Someone already mentioned this earlier and I don't think I've seen a
+> > response: Do you have a realistic usecase for this? I don't think I've ever
+> > seen an application reading file backwards...
+> 
+> tac, tail -n$large, ...
 
-> From: Johannes Weiner <jweiner@redhat.com>
-> 
-> The amount of dirtyable pages should not include the full number of
-> free pages: there is a number of reserved pages that the page
-> allocator and kswapd always try to keep free.
-> 
-> The closer (reclaimable pages - dirty pages) is to the number of
-> reserved pages, the more likely it becomes for reclaim to run into
-> dirty pages:
-> 
->        +----------+ ---
->        |   anon   |  |
->        +----------+  |
->        |          |  |
->        |          |  -- dirty limit new    -- flusher new
->        |   file   |  |                     |
->        |          |  |                     |
->        |          |  -- dirty limit old    -- flusher old
->        |          |                        |
->        +----------+                       --- reclaim
->        | reserved |
->        +----------+
->        |  kernel  |
->        +----------+
-> 
-> This patch introduces a per-zone dirty reserve that takes both the
-> lowmem reserve as well as the high watermark of the zone into account,
-> and a global sum of those per-zone values that is subtracted from the
-> global amount of dirtyable pages.  The lowmem reserve is unavailable
-> to page cache allocations and kswapd tries to keep the high watermark
-> free.  We don't want to end up in a situation where reclaim has to
-> clean pages in order to balance zones.
-> 
-> Not treating reserved pages as dirtyable on a global level is only a
-> conceptual fix.  In reality, dirty pages are not distributed equally
-> across zones and reclaim runs into dirty pages on a regular basis.
-> 
-> But it is important to get this right before tackling the problem on a
-> per-zone level, where the distance between reclaim and the dirty pages
-> is mostly much smaller in absolute numbers.
-> 
-> ...
->
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -327,7 +327,8 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
->  			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
->  
->  		x += zone_page_state(z, NR_FREE_PAGES) +
-> -		     zone_reclaimable_pages(z);
-> +		     zone_reclaimable_pages(z) -
-> +		     zone->dirty_balance_reserve;
+Indeed!
+             tac-4425  [000] 73358.419777: readahead: readahead-random(dev=0:16, ino=1548445, req=750+1, ra=750+1-0, async=0) = 1
+             tac-4425  [004] 73358.442030: readahead: readahead-backwards(dev=0:16, ino=1548445, req=748+2, ra=746+5-0, async=0) = 4
+             tac-4425  [004] 73358.443312: readahead: readahead-backwards(dev=0:16, ino=1548445, req=744+2, ra=726+25-0, async=0) = 20
 
-Doesn't compile.  s/zone/z/.
+            tail-4369  [000] 72633.696307: readahead: readahead-random(dev=0:16, ino=1548450, req=750+1, ra=750+1-0, async=0) = 1
+            tail-4369  [004] 72634.042106: readahead: readahead-backwards(dev=0:16, ino=1548450, req=748+2, ra=746+5-0, async=0) = 4
+            tail-4369  [004] 72634.043231: readahead: readahead-backwards(dev=0:16, ino=1548450, req=744+2, ra=726+25-0, async=0) = 20
+            tail-4369  [004] 72634.176216: readahead: readahead-backwards(dev=0:16, ino=1548450, req=724+2, ra=626+125-0, async=0) = 100
 
-Which makes me suspect it wasn't tested on a highmem box.  This is
-rather worrisome, as highmem machines tend to have acute and unique
-zone balancing issues.
+However I see the readahead requests always be snapped to EOF.
+
+So it's obvious the "snap to EOF" logic need some limiting based on
+max readahead size.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
