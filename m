@@ -1,64 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4D97C6B004D
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 19:42:40 -0500 (EST)
-Date: Wed, 30 Nov 2011 08:42:35 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 7/9] readahead: add vfs/readahead tracing event
-Message-ID: <20111130004235.GB11147@localhost>
-References: <20111129130900.628549879@intel.com>
- <20111129131456.797240894@intel.com>
- <20111129152228.GO5635@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111129152228.GO5635@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DF9806B004F
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2011 19:44:27 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F33463EE0BC
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 09:44:23 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D549445DEE6
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 09:44:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ACA0B45DEE1
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 09:44:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F63A1DB803B
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 09:44:23 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D9FF1DB8043
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 09:44:23 +0900 (JST)
+Date: Wed, 30 Nov 2011 09:43:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v7 02/10] foundations of per-cgroup memory pressure
+ controlling.
+Message-Id: <20111130094305.9c69ecd8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1322611021-1730-3-git-send-email-glommer@parallels.com>
+References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
+	<1322611021-1730-3-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-On Tue, Nov 29, 2011 at 11:22:28PM +0800, Jan Kara wrote:
-> On Tue 29-11-11 21:09:07, Wu Fengguang wrote:
-> > This is very useful for verifying whether the readahead algorithms are
-> > working to the expectation.
-> > 
-> > Example output:
-> > 
-> > # echo 1 > /debug/tracing/events/vfs/readahead/enable
-> > # cp test-file /dev/null
-> > # cat /debug/tracing/trace  # trimmed output
-> > readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
-> > readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
-> > readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
-> > readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
-> > readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
-> > readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
-> > 
-> > CC: Ingo Molnar <mingo@elte.hu>
-> > CC: Jens Axboe <axboe@kernel.dk>
-> > CC: Steven Rostedt <rostedt@goodmis.org>
-> > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
->   Looks OK.
+On Tue, 29 Nov 2011 21:56:53 -0200
+Glauber Costa <glommer@parallels.com> wrote:
+
+> This patch replaces all uses of struct sock fields' memory_pressure,
+> memory_allocated, sockets_allocated, and sysctl_mem to acessor
+> macros. Those macros can either receive a socket argument, or a mem_cgroup
+> argument, depending on the context they live in.
 > 
->   Acked-by: Jan Kara <jack@suse.cz>
+> Since we're only doing a macro wrapping here, no performance impact at all is
+> expected in the case where we don't have cgroups disabled.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: David S. Miller <davem@davemloft.net>
+> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Eric W. Biederman <ebiederm@xmission.com>
+> CC: Eric Dumazet <eric.dumazet@gmail.com>
+<snip>
 
-Thank you.
+> +static inline bool
+> +memcg_memory_pressure(struct proto *prot, struct mem_cgroup *memcg)
+> +{
+> +	if (!prot->memory_pressure)
+> +		return false;
+> +	return !!prot->memory_pressure;
+> +}
 
-> > +	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
-> > +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
-> > +			ra_pattern_names[__entry->pattern],
-> > +			MAJOR(__entry->dev),
-> > +			MINOR(__entry->dev),
+I think you should take a deep breath and write patech relaxedly, and do enough test.
 
-One thing I'm not certain is the dev=MAJOR:MINOR. The other option
-used in many trace events are bdi=BDI_NAME_OR_NUMBER. Will bdi be more
-suitable here?
+This should be
+
+	return !!*prot->memory_pressure;
+
+BTW, I don't like to receive tons of everyday-update even if you're in hurry.
+
+
+
+
+
+>  static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
+>  {
+> +	struct mem_cgroup *memcg = mem_cgroup_from_task(current);
+> +
+>  	seq_printf(seq, "%-9s %4u %6d  %6ld   %-3s %6u   %-3s  %-10s "
+>  			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
+>  		   proto->name,
+>  		   proto->obj_size,
+>  		   sock_prot_inuse_get(seq_file_net(seq), proto),
+> -		   proto->memory_allocated != NULL ? atomic_long_read(proto->memory_allocated) : -1L,
+> -		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
+> +		   sock_prot_memory_allocated(proto, memcg),
+> +		   sock_prot_memory_pressure(proto, memcg),
+
+I wonder I should say NO, here. (Networking guys are ok ??)
+
+IIUC, this means there is no way to see aggregated sockstat of all system.
+And the result depends on the cgroup which the caller is under control.
+
+I think you should show aggregated sockstat(global + per-memcg) here and 
+show per-memcg ones via /cgroup interface or add private_sockstat to show
+per cgroup summary.
 
 Thanks,
-Fengguang
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
