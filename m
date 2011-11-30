@@ -1,67 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4266B004D
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 07:26:00 -0500 (EST)
-Message-ID: <1322655933.2921.271.camel@twins>
-Subject: Re: [PATCH v7 3.2-rc2 4/30] uprobes: Define hooks for mmap/munmap.
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 30 Nov 2011 13:25:33 +0100
-In-Reply-To: <20111129162237.GA18380@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110723.10512.66282.sendpatchset@srdronam.in.ibm.com>
-	 <1322071812.14799.87.camel@twins>
-	 <20111124134742.GH28065@linux.vnet.ibm.com>
-	 <1322492384.2921.143.camel@twins>
-	 <20111129083322.GD13445@linux.vnet.ibm.com>
-	 <1322567326.2921.226.camel@twins>
-	 <20111129162237.GA18380@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4487D6B004D
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 08:04:20 -0500 (EST)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
+	Wed, 30 Nov 2011 13:04:16 -0000
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pAUD4CGx2629818
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 13:04:14 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pAUD4BCX008238
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 06:04:12 -0700
+Message-ID: <4ED629CB.401@linux.vnet.ibm.com>
+Date: Wed, 30 Nov 2011 14:04:11 +0100
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/8] readahead: make default readahead size a kernel parameter
+References: <20111121091819.394895091@intel.com> <20111121093846.251104145@intel.com> <20111121100137.GC5084@infradead.org> <20111121113540.GB8895@localhost> <20111124222822.GG29519@quack.suse.cz> <20111125003633.GP2386@dastard> <20111128023922.GA2141@localhost>
+In-Reply-To: <20111128023922.GA2141@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, tulasidhard@gmail.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Ankit Jain <radical@gmail.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Tue, 2011-11-29 at 21:52 +0530, Srikar Dronamraju wrote:
-> The rules that I am using are:=20
->=20
-> mmap_uprobe() increments the count if=20
->         - it successfully adds a breakpoint.
->         - it not add a breakpoint, but sees that there is a underlying
->           breakpoint (via a read_opcode call).
->=20
-> munmap_uprobe() decrements the count if=20
->         - it sees a underlying breakpoint,  (via  a read_opcode call)
->         - Subsequent unregister_uprobe wouldnt find the breakpoint
->           unless a mmap_uprobe kicks in, since the old vma would be
->           dropped just after munmap_uprobe.
->=20
-> register_uprobe increments the count if:
->         - it successfully adds a breakpoint.
->=20
-> unregister_uprobe decrements the count if:
->         - it sees a underlying breakpoint and removes successfully.=20
->                         (via a read_opcode call)
->         - Subsequent munmap_uprobe wouldnt find the breakpoint
->           since there is no underlying breakpoint after the
->           breakpoint removal.=20
 
-The problem I'm having is that such stuff isn't included in the patch
-set.
 
-We've got both comments in the C language and Changelog in our patch
-system, yet you consistently fail to use either to convey useful
-information on non-trivial bits like this.
+On 11/28/2011 03:39 AM, Wu Fengguang wrote:
+> On Fri, Nov 25, 2011 at 08:36:33AM +0800, Dave Chinner wrote:
+>> On Thu, Nov 24, 2011 at 11:28:22PM +0100, Jan Kara wrote:
+>>> On Mon 21-11-11 19:35:40, Wu Fengguang wrote:
+>>>> On Mon, Nov 21, 2011 at 06:01:37PM +0800, Christoph Hellwig wrote:
+>>>>> On Mon, Nov 21, 2011 at 05:18:21PM +0800, Wu Fengguang wrote:
+>>>>>> From: Nikanth Karthikesan<knikanth@suse.de>
+>>>>>>
+[...]
 
-This leaves the reviewer wondering if you've actually considered stuff
-properly, then me actually finding bugs in there does of course
-undermine that even further.
+>>
+>> And one that has already been in use for exactly this purpose for
+>> years. Indeed, it's far more flexible because you can give different
+>> types of devices different default readahead settings quite easily,
+>> and it you can set different defaults for just about any tunable
+>> parameter (e.g. readahead, ctq depth, max IO sizes, etc) in the same
+>> way.
+>
+> I'm interested in this usage, too. Would you share some of your rules?
+>
 
-What I really would like is for this patch set not to have such subtle
-stuff at all, esp. at first. Once its in and its been used a bit we can
-start optimizing and add subtle crap like this.
+FYI - This is an example of a rules Suse delivers in SLES @ s390 for a 
+while now. With little modifications it could be used for all Dave 
+mentioned above.
 
+cat /etc/udev/rules.d/60-readahead.rules
+# 
+ 
+ 
+
+# Rules to set an increased default max readahead size for s390 disk 
+devices 
+ 
+
+# This file should be installed in /etc/udev/rules.d 
+ 
+ 
+
+# 
+ 
+ 
+
+ 
+ 
+ 
+
+SUBSYSTEM!="block", GOTO="ra_end" 
+ 
+ 
+
+ 
+ 
+ 
+
+ACTION!="add", GOTO="ra_end" 
+ 
+ 
+
+# on device add set initial readahead to 512 (instead of in kernel 128) 
+ 
+ 
+
+KERNEL=="sd*[!0-9]", ATTR{queue/read_ahead_kb}="512" 
+ 
+ 
+
+KERNEL=="dasd*[!0-9]", ATTR{queue/read_ahead_kb}="512" 
+ 
+ 
+
+
+LABEL="ra_end"
+
+-- 
+
+Grusse / regards, Christian Ehrhardt
+IBM Linux Technology Center, System z Linux Performance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
