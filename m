@@ -1,31 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 094F36B0047
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 13:53:07 -0500 (EST)
-Date: Wed, 30 Nov 2011 19:47:48 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 947CD6B0047
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 14:03:05 -0500 (EST)
+Date: Wed, 30 Nov 2011 19:57:51 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH RFC 0/5] uprobes: kill xol vma
-Message-ID: <20111130184748.GA7886@redhat.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com> <20111128190614.GA4602@redhat.com> <20111129103040.GF13445@linux.vnet.ibm.com> <20111129182643.GB7339@redhat.com> <91601168bd8039233da8d91a07560f20.squirrel@www.firstfloor.org> <1322670031.2921.286.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 8/30] x86: analyze instruction and determine
+	fixups.
+Message-ID: <20111130185751.GA8160@redhat.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com> <20111118110808.10512.72719.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1322670031.2921.286.camel@twins>
+In-Reply-To: <20111118110808.10512.72719.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On 11/30, Peter Zijlstra wrote:
+On 11/18, Srikar Dronamraju wrote:
 >
-> What we
-> could do though is do a UPROBES_XOL_SLOT_BYTES * nr_cpu_ids bootmem
-> allocation or so.
+> +static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
+> +							struct insn *insn)
+> +{
+> [...snip...]
+> +	if (insn->immediate.nbytes) {
+> +		cursor++;
+> +		memmove(cursor, cursor + insn->displacement.nbytes,
+> +						insn->immediate.nbytes);
+> +	}
+> +	return;
+> +}
 
-Agreed, this looks much better.
+Of course I don not understand this code. But it seems that it can
+rewrite uprobe->insn ?
 
-I'd prefer to do this in a separate patch to keep this change as simple
-as possible.
+If yes, don't we need to save the original insn for unregister_uprobe?
 
 Oleg.
 
