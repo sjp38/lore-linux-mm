@@ -1,123 +1,297 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 555136B006E
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 08:04:36 -0500 (EST)
-Date: Thu, 1 Dec 2011 14:04:31 +0100
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: KSM: numa awareness sysfs knob
-Message-ID: <20111201130430.GA3361@dhcp-27-244.brq.redhat.com>
-References: <1322649446-11437-1-git-send-email-pholasek@redhat.com>
- <20111130154719.57154fdd.akpm@linux-foundation.org>
- <20111201101640.GA2156@dhcp-27-244.brq.redhat.com>
- <201112011940.19022.nai.xia@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201112011940.19022.nai.xia@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E1D226B0070
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 08:21:39 -0500 (EST)
+Message-ID: <1322745659.4699.17.camel@twins>
+Subject: Re: [PATCH v7 3.2-rc2 3/30] uprobes: register/unregister probes.
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 01 Dec 2011 14:20:59 +0100
+In-Reply-To: <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+	 <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
 
-On Thu, 01 Dec 2011, Nai Xia wrote:
+On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
+> +static int __register_uprobe(struct inode *inode, loff_t offset,
+> +                               struct uprobe *uprobe)
+> +{
+> +       struct list_head try_list;
+> +       struct vm_area_struct *vma;
+> +       struct address_space *mapping;
+> +       struct vma_info *vi, *tmpvi;
+> +       struct mm_struct *mm;
+> +       loff_t vaddr;
+> +       int ret =3D 0;
+> +
+> +       mapping =3D inode->i_mapping;
+> +       INIT_LIST_HEAD(&try_list);
+> +       while ((vi =3D find_next_vma_info(&try_list, offset,
+> +                                               mapping, true)) !=3D NULL=
+) {
+> +               if (IS_ERR(vi)) {
+> +                       ret =3D -ENOMEM;
+> +                       break;
+> +               }
+> +               mm =3D vi->mm;
+> +               down_read(&mm->mmap_sem);
+> +               vma =3D find_vma(mm, (unsigned long)vi->vaddr);
+> +               if (!vma || !valid_vma(vma, true)) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               vaddr =3D vma->vm_start + offset;
+> +               vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+> +               if (vma->vm_file->f_mapping->host !=3D inode ||
+> +                                               vaddr !=3D vi->vaddr) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               ret =3D install_breakpoint(mm);
+> +               up_read(&mm->mmap_sem);
+> +               mmput(mm);
+> +               if (ret && ret =3D=3D -EEXIST)
+> +                       ret =3D 0;
+> +               if (!ret)
+> +                       break;
+> +       }
+> +       list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
+> +               list_del(&vi->probe_list);
+> +               kfree(vi);
+> +       }
+> +       return ret;
+> +}
+> +
+> +static void __unregister_uprobe(struct inode *inode, loff_t offset,
+> +                                               struct uprobe *uprobe)
+> +{
+> +       struct list_head try_list;
+> +       struct address_space *mapping;
+> +       struct vma_info *vi, *tmpvi;
+> +       struct vm_area_struct *vma;
+> +       struct mm_struct *mm;
+> +       loff_t vaddr;
+> +
+> +       mapping =3D inode->i_mapping;
+> +       INIT_LIST_HEAD(&try_list);
+> +       while ((vi =3D find_next_vma_info(&try_list, offset,
+> +                                               mapping, false)) !=3D NUL=
+L) {
+> +               if (IS_ERR(vi))
+> +                       break;
+> +               mm =3D vi->mm;
+> +               down_read(&mm->mmap_sem);
+> +               vma =3D find_vma(mm, (unsigned long)vi->vaddr);
+> +               if (!vma || !valid_vma(vma, false)) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               vaddr =3D vma->vm_start + offset;
+> +               vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+> +               if (vma->vm_file->f_mapping->host !=3D inode ||
+> +                                               vaddr !=3D vi->vaddr) {
+> +                       list_del(&vi->probe_list);
+> +                       kfree(vi);
+> +                       up_read(&mm->mmap_sem);
+> +                       mmput(mm);
+> +                       continue;
+> +               }
+> +               remove_breakpoint(mm);
+> +               up_read(&mm->mmap_sem);
+> +               mmput(mm);
+> +       }
+> +
+> +       list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
+> +               list_del(&vi->probe_list);
+> +               kfree(vi);
+> +       }
+> +       delete_uprobe(uprobe);
+> +}=20
 
-> Date: Thu, 1 Dec 2011 19:40:18 +0800
-> From: Nai Xia <nai.xia@gmail.com>
-> To: Petr Holasek <pholasek@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins
->  <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>,
->  linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov
->  <anton@redhat.com>
-> Subject: Re: KSM: numa awareness sysfs knob
-> Reply-To: nai.xia@gmail.com
-> 
-> On Thursday 01 December 2011 18:16:40 Petr Holasek wrote:
-> > On Wed, 30 Nov 2011, Andrew Morton wrote:
-> > 
-> > > Date: Wed, 30 Nov 2011 15:47:19 -0800
-> > > From: Andrew Morton <akpm@linux-foundation.org>
-> > > To: Petr Holasek <pholasek@redhat.com>
-> > > Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli
-> > >  <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-> > >  Anton Arapov <anton@redhat.com>
-> > > Subject: Re: [PATCH] [RFC] KSM: numa awareness sysfs knob
-> > > 
-> > > On Wed, 30 Nov 2011 11:37:26 +0100
-> > > Petr Holasek <pholasek@redhat.com> wrote:
-> > > 
-> > > > Introduce a new sysfs knob /sys/kernel/mm/ksm/max_node_dist, whose
-> > > > value will be used as the limitation for node distance of merged pages.
-> > > > 
-> > > 
-> > > The changelog doesn't really describe why you think Linux needs this
-> > > feature?  What's the reasoning?  Use cases?  What value does it provide?
-> > 
-> > Typical use-case could be a lot of KVM guests on NUMA machine and cpus from
-> > more distant nodes would have significant increase of access latency to the
-> > merged ksm page. I chose sysfs knob for higher scalability.
-> 
-> Seems this consideration for NUMA is sound. 
-> 
-> > 
-> > > 
-> > > > index b392e49..b882140 100644
-> > > > --- a/Documentation/vm/ksm.txt
-> > > > +++ b/Documentation/vm/ksm.txt
-> > > > @@ -58,6 +58,10 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
-> > > >                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
-> > > >                     Default: 20 (chosen for demonstration purposes)
-> > > >  
-> > > > +max_node_dist    - maximum node distance between two pages which could be
-> > > > +                   merged.
-> > > > +                   Default: 255 (without any limitations)
-> > > 
-> > > And this doesn't explain to our users why they might want to alter it,
-> > > and what effects they would see from doing so.  Maybe that's obvious to
-> > > them...
-> > 
-> > Now I can't figure out more extensive description of this feature, but we
-> > could explain it deeply, of course.
-> 
-> However, if we don't know what the number fed into this knob really means, 
-> seems nobody would think of using this knob...
-> 
-> Then why not make this NUMA feature automatically adjusted by some algorithm
-> instread of dropping it to userland?
-> 
-> BTW, the algrothim you already include in this patch seems unstable itself:
-> 
-> Suppose we have three duplicated pages in order: Page_a, Page_b, Page_c with 
-> distance(Page_a, Page_b) == distance(Page_b, Page_c) == 3, 
-> but distance(Page_a, Page_c) == 6 and if max_node_dist == 3, 
-> a stable algorithm should result in Page_a and Page_c being merged to Page_b,
-> independent of the order these pages get scanned. 
-> 
-> But with your patch, if ksmd goes Page_b --> Page_c --> Page_a, will it 
-> result in Page_b being merged to Page_c but Page_a not merged since its 
-> distance to Page_c is 6?
+I already mentioned on IRC that there's a lot of duplication here and
+how to 'solve that'...
 
-Yes, you're right. With this patch, merge order depends only on the order of
-scanning. Use of some algorithm (maybe from graph-theory field?) is a really 
-good point. Although the complexity of code will rise a lot, it maybe the
-best solution for most of usecases when this algorithm would be able to do 
-some heuristics and determine max_distance for merging on its own without 
-any userspace inputs.
+Something like the below, it lost the delete_uprobe() bit, and it adds a
+few XXX marks where we have to deal with -ENOMEM. Also its not been near
+a compiler.
 
-> 
-> It may easy to further deduce that maybe a worst case(or even many cases?) 
-> for your patch will get many many could-be-merged pages not merged simply 
-> because of the sequence they are scanned.
-> 
-> The problem you plan to solve maybe worthwhile, but it may also be much more
-> complex than you expected ;-)
+---
+ kernel/uprobes.c |   78 ++++++++++++++------------------------------------=
+---
+ 1 files changed, 21 insertions(+), 57 deletions(-)
 
-That's the reason why it is only RFC, I mainly wanted to gather your opinions:)
-
->   
-> 
-> BR,
-> 
-> Nai
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 2493191..c57284a 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -622,7 +622,7 @@ static int install_breakpoint(struct mm_struct *mm, str=
+uct uprobe *uprobe,
+ }
+=20
+ static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+-							loff_t vaddr)
++			      struct vm_area_struct *vma, loff_t vaddr)
+ {
+ 	if (!set_orig_insn(mm, uprobe, (unsigned long)vaddr, true))
+ 		atomic_dec(&mm->mm_uprobes_count);
+@@ -713,8 +713,10 @@ static struct vma_info *find_next_vma_info(struct list=
+_head *head,
+ 	return retvi;
+ }
+=20
+-static int __register_uprobe(struct inode *inode, loff_t offset,
+-				struct uprobe *uprobe)
++typedef int (*vma_func_t)(struct mm_struct *mm, struct uprobe *uprobe,
++			  struct vm_area_struct *vma, unsigned long addr);
++
++static int __for_each_vma(struct uprobe *uprobe, vma_func_t func)
+ {
+ 	struct list_head try_list;
+ 	struct vm_area_struct *vma;
+@@ -724,12 +726,12 @@ static int __register_uprobe(struct inode *inode, lof=
+f_t offset,
+ 	loff_t vaddr;
+ 	int ret =3D 0;
+=20
+-	mapping =3D inode->i_mapping;
++	mapping =3D uprobe->inode->i_mapping;
+ 	INIT_LIST_HEAD(&try_list);
+-	while ((vi =3D find_next_vma_info(&try_list, offset,
++	while ((vi =3D find_next_vma_info(&try_list, uprobe->offset,
+ 						mapping, true)) !=3D NULL) {
+ 		if (IS_ERR(vi)) {
+-			ret =3D -ENOMEM;
++			ret =3D PTR_ERR(vi);
+ 			break;
+ 		}
+ 		mm =3D vi->mm;
+@@ -742,9 +744,9 @@ static int __register_uprobe(struct inode *inode, loff_=
+t offset,
+ 			mmput(mm);
+ 			continue;
+ 		}
+-		vaddr =3D vma->vm_start + offset;
++		vaddr =3D vma->vm_start + uprobe->offset;
+ 		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+-		if (vma->vm_file->f_mapping->host !=3D inode ||
++		if (vma->vm_file->f_mapping->host !=3D uprobe->inode ||
+ 						vaddr !=3D vi->vaddr) {
+ 			list_del(&vi->probe_list);
+ 			kfree(vi);
+@@ -752,12 +754,12 @@ static int __register_uprobe(struct inode *inode, lof=
+f_t offset,
+ 			mmput(mm);
+ 			continue;
+ 		}
+-		ret =3D install_breakpoint(mm, uprobe, vma, vi->vaddr);
++		ret =3D func(mm, uprobe, vma, vi->vaddr);
+ 		up_read(&mm->mmap_sem);
+ 		mmput(mm);
+ 		if (ret && ret =3D=3D -EEXIST)
+ 			ret =3D 0;
+-		if (!ret)
++		if (ret)
+ 			break;
+ 	}
+ 	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
+@@ -767,52 +769,14 @@ static int __register_uprobe(struct inode *inode, lof=
+f_t offset,
+ 	return ret;
+ }
+=20
+-static void __unregister_uprobe(struct inode *inode, loff_t offset,
+-						struct uprobe *uprobe)
++static int __register_uprobe(struct uprobe *uprobe)
+ {
+-	struct list_head try_list;
+-	struct address_space *mapping;
+-	struct vma_info *vi, *tmpvi;
+-	struct vm_area_struct *vma;
+-	struct mm_struct *mm;
+-	loff_t vaddr;
+-
+-	mapping =3D inode->i_mapping;
+-	INIT_LIST_HEAD(&try_list);
+-	while ((vi =3D find_next_vma_info(&try_list, offset,
+-						mapping, false)) !=3D NULL) {
+-		if (IS_ERR(vi))
+-			break;
+-		mm =3D vi->mm;
+-		down_read(&mm->mmap_sem);
+-		vma =3D find_vma(mm, (unsigned long)vi->vaddr);
+-		if (!vma || !valid_vma(vma, false)) {
+-			list_del(&vi->probe_list);
+-			kfree(vi);
+-			up_read(&mm->mmap_sem);
+-			mmput(mm);
+-			continue;
+-		}
+-		vaddr =3D vma->vm_start + offset;
+-		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+-		if (vma->vm_file->f_mapping->host !=3D inode ||
+-						vaddr !=3D vi->vaddr) {
+-			list_del(&vi->probe_list);
+-			kfree(vi);
+-			up_read(&mm->mmap_sem);
+-			mmput(mm);
+-			continue;
+-		}
+-		remove_breakpoint(mm, uprobe, vi->vaddr);
+-		up_read(&mm->mmap_sem);
+-		mmput(mm);
+-	}
++	return __for_each_vma(uprobe, install_breakpoint);
++}
+=20
+-	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
+-		list_del(&vi->probe_list);
+-		kfree(vi);
+-	}
+-	delete_uprobe(uprobe);
++static int __unregister_uprobe(struct uprobe *uprobe)
++{
++	return __for_each_vma(uprobe, remove_breakpoint);
+ }
+=20
+ /*
+@@ -852,10 +816,10 @@ int register_uprobe(struct inode *inode, loff_t offse=
+t,
+ 	mutex_lock(uprobes_hash(inode));
+ 	uprobe =3D alloc_uprobe(inode, offset);
+ 	if (uprobe && !add_consumer(uprobe, consumer)) {
+-		ret =3D __register_uprobe(inode, offset, uprobe);
++		ret =3D __register_uprobe(uprobe);
+ 		if (ret) {
+ 			uprobe->consumers =3D NULL;
+-			__unregister_uprobe(inode, offset, uprobe);
++			__unregister_uprobe(uprobe); // -ENOMEM
+ 		} else
+ 			uprobe->flags |=3D UPROBES_RUN_HANDLER;
+ 	}
+@@ -894,7 +858,7 @@ void unregister_uprobe(struct inode *inode, loff_t offs=
+et,
+ 	}
+=20
+ 	if (!uprobe->consumers) {
+-		__unregister_uprobe(inode, offset, uprobe);
++		__unregister_uprobe(uprobe); // XXX -ENOMEM
+ 		uprobe->flags &=3D ~UPROBES_RUN_HANDLER;
+ 	}
+ 	mutex_unlock(uprobes_hash(inode));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
