@@ -1,297 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E1D226B0070
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 08:21:39 -0500 (EST)
-Message-ID: <1322745659.4699.17.camel@twins>
-Subject: Re: [PATCH v7 3.2-rc2 3/30] uprobes: register/unregister probes.
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 01 Dec 2011 14:20:59 +0100
-In-Reply-To: <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
-	 <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 018036B0073
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 08:26:17 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 1 Dec 2011 08:26:16 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pB1DQBVJ236204
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 08:26:12 -0500
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pB1DQ9T2030070
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 06:26:11 -0700
+Date: Thu, 1 Dec 2011 18:54:06 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 4/30] uprobes: Define hooks for mmap/munmap.
+Message-ID: <20111201132406.GI18380@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111118110723.10512.66282.sendpatchset@srdronam.in.ibm.com>
+ <1322071812.14799.87.camel@twins>
+ <20111124134742.GH28065@linux.vnet.ibm.com>
+ <1322492384.2921.143.camel@twins>
+ <20111129083322.GD13445@linux.vnet.ibm.com>
+ <1322567326.2921.226.camel@twins>
+ <20111129162237.GA18380@linux.vnet.ibm.com>
+ <1322655933.2921.271.camel@twins>
+ <20111201054018.GC18380@linux.vnet.ibm.com>
+ <1322739387.4699.10.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1322739387.4699.10.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, tulasidhard@gmail.com
 
-On Fri, 2011-11-18 at 16:37 +0530, Srikar Dronamraju wrote:
-> +static int __register_uprobe(struct inode *inode, loff_t offset,
-> +                               struct uprobe *uprobe)
-> +{
-> +       struct list_head try_list;
-> +       struct vm_area_struct *vma;
-> +       struct address_space *mapping;
-> +       struct vma_info *vi, *tmpvi;
-> +       struct mm_struct *mm;
-> +       loff_t vaddr;
-> +       int ret =3D 0;
-> +
-> +       mapping =3D inode->i_mapping;
-> +       INIT_LIST_HEAD(&try_list);
-> +       while ((vi =3D find_next_vma_info(&try_list, offset,
-> +                                               mapping, true)) !=3D NULL=
-) {
-> +               if (IS_ERR(vi)) {
-> +                       ret =3D -ENOMEM;
-> +                       break;
-> +               }
-> +               mm =3D vi->mm;
-> +               down_read(&mm->mmap_sem);
-> +               vma =3D find_vma(mm, (unsigned long)vi->vaddr);
-> +               if (!vma || !valid_vma(vma, true)) {
-> +                       list_del(&vi->probe_list);
-> +                       kfree(vi);
-> +                       up_read(&mm->mmap_sem);
-> +                       mmput(mm);
-> +                       continue;
-> +               }
-> +               vaddr =3D vma->vm_start + offset;
-> +               vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
-> +               if (vma->vm_file->f_mapping->host !=3D inode ||
-> +                                               vaddr !=3D vi->vaddr) {
-> +                       list_del(&vi->probe_list);
-> +                       kfree(vi);
-> +                       up_read(&mm->mmap_sem);
-> +                       mmput(mm);
-> +                       continue;
-> +               }
-> +               ret =3D install_breakpoint(mm);
-> +               up_read(&mm->mmap_sem);
-> +               mmput(mm);
-> +               if (ret && ret =3D=3D -EEXIST)
-> +                       ret =3D 0;
-> +               if (!ret)
-> +                       break;
-> +       }
-> +       list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
-> +               list_del(&vi->probe_list);
-> +               kfree(vi);
-> +       }
-> +       return ret;
-> +}
-> +
-> +static void __unregister_uprobe(struct inode *inode, loff_t offset,
-> +                                               struct uprobe *uprobe)
-> +{
-> +       struct list_head try_list;
-> +       struct address_space *mapping;
-> +       struct vma_info *vi, *tmpvi;
-> +       struct vm_area_struct *vma;
-> +       struct mm_struct *mm;
-> +       loff_t vaddr;
-> +
-> +       mapping =3D inode->i_mapping;
-> +       INIT_LIST_HEAD(&try_list);
-> +       while ((vi =3D find_next_vma_info(&try_list, offset,
-> +                                               mapping, false)) !=3D NUL=
-L) {
-> +               if (IS_ERR(vi))
-> +                       break;
-> +               mm =3D vi->mm;
-> +               down_read(&mm->mmap_sem);
-> +               vma =3D find_vma(mm, (unsigned long)vi->vaddr);
-> +               if (!vma || !valid_vma(vma, false)) {
-> +                       list_del(&vi->probe_list);
-> +                       kfree(vi);
-> +                       up_read(&mm->mmap_sem);
-> +                       mmput(mm);
-> +                       continue;
-> +               }
-> +               vaddr =3D vma->vm_start + offset;
-> +               vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
-> +               if (vma->vm_file->f_mapping->host !=3D inode ||
-> +                                               vaddr !=3D vi->vaddr) {
-> +                       list_del(&vi->probe_list);
-> +                       kfree(vi);
-> +                       up_read(&mm->mmap_sem);
-> +                       mmput(mm);
-> +                       continue;
-> +               }
-> +               remove_breakpoint(mm);
-> +               up_read(&mm->mmap_sem);
-> +               mmput(mm);
-> +       }
-> +
-> +       list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
-> +               list_del(&vi->probe_list);
-> +               kfree(vi);
-> +       }
-> +       delete_uprobe(uprobe);
-> +}=20
+> > I was following the general convention being used within the kernel to not
+> > bother about the area that we are going to unmap. For example: If a ptraced
+> > area were to be unmapped or remapped, I dont see the breakpoint being
+> > removed and added back. Also if a ptrace process is exitting, we dont go
+> > about removing the installed breakpoints.
+> > 
+> > Also we would still need the check for EEXIST and read_opcode for handling
+> > the fork() case. So even if we add extra line to remove the actual
+> > breakpoint in munmap, It doesnt make the code any more simpler.
+> 
+> Not adding the counter now does though. The whole mm->mm_uprobes_count
+> thing itself is basically an optimization.
+> 
+> Without it we'll get to uprobe_notify_resume() too often, but who cares.
+> And not having to worry about it removes a lot of this complexity.
+> 
+> Then in the patch where you introduce this optimization you can list all
+> the nitty gritty details of mremap/fork and counter balancing.
+> 
 
-I already mentioned on IRC that there's a lot of duplication here and
-how to 'solve that'...
+Okay, I will move the optimization parts into a separate patch and keep
+it at the end of the patchset.
 
-Something like the below, it lost the delete_uprobe() bit, and it adds a
-few XXX marks where we have to deal with -ENOMEM. Also its not been near
-a compiler.
+> Another point, maybe add some comments on how the generic bits of
+> uprobe_notify_resume()/uprobe_bkpt_notifier()/uprobe_post_notifier() etc
+> hang together and what the arch stuff should do. 
+> 
+> Currently I have to flip back and forth between those to figure out what
+> happens.
+> 
+> Having that information also helps validate that x86 does indeed do what
+> is expected and helps other arch maintainers write their code without
+> having to grok wtf x86 does.
+> 
 
----
- kernel/uprobes.c |   78 ++++++++++++++------------------------------------=
----
- 1 files changed, 21 insertions(+), 57 deletions(-)
+Okay, will work towards this.
 
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 2493191..c57284a 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -622,7 +622,7 @@ static int install_breakpoint(struct mm_struct *mm, str=
-uct uprobe *uprobe,
- }
-=20
- static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
--							loff_t vaddr)
-+			      struct vm_area_struct *vma, loff_t vaddr)
- {
- 	if (!set_orig_insn(mm, uprobe, (unsigned long)vaddr, true))
- 		atomic_dec(&mm->mm_uprobes_count);
-@@ -713,8 +713,10 @@ static struct vma_info *find_next_vma_info(struct list=
-_head *head,
- 	return retvi;
- }
-=20
--static int __register_uprobe(struct inode *inode, loff_t offset,
--				struct uprobe *uprobe)
-+typedef int (*vma_func_t)(struct mm_struct *mm, struct uprobe *uprobe,
-+			  struct vm_area_struct *vma, unsigned long addr);
-+
-+static int __for_each_vma(struct uprobe *uprobe, vma_func_t func)
- {
- 	struct list_head try_list;
- 	struct vm_area_struct *vma;
-@@ -724,12 +726,12 @@ static int __register_uprobe(struct inode *inode, lof=
-f_t offset,
- 	loff_t vaddr;
- 	int ret =3D 0;
-=20
--	mapping =3D inode->i_mapping;
-+	mapping =3D uprobe->inode->i_mapping;
- 	INIT_LIST_HEAD(&try_list);
--	while ((vi =3D find_next_vma_info(&try_list, offset,
-+	while ((vi =3D find_next_vma_info(&try_list, uprobe->offset,
- 						mapping, true)) !=3D NULL) {
- 		if (IS_ERR(vi)) {
--			ret =3D -ENOMEM;
-+			ret =3D PTR_ERR(vi);
- 			break;
- 		}
- 		mm =3D vi->mm;
-@@ -742,9 +744,9 @@ static int __register_uprobe(struct inode *inode, loff_=
-t offset,
- 			mmput(mm);
- 			continue;
- 		}
--		vaddr =3D vma->vm_start + offset;
-+		vaddr =3D vma->vm_start + uprobe->offset;
- 		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
--		if (vma->vm_file->f_mapping->host !=3D inode ||
-+		if (vma->vm_file->f_mapping->host !=3D uprobe->inode ||
- 						vaddr !=3D vi->vaddr) {
- 			list_del(&vi->probe_list);
- 			kfree(vi);
-@@ -752,12 +754,12 @@ static int __register_uprobe(struct inode *inode, lof=
-f_t offset,
- 			mmput(mm);
- 			continue;
- 		}
--		ret =3D install_breakpoint(mm, uprobe, vma, vi->vaddr);
-+		ret =3D func(mm, uprobe, vma, vi->vaddr);
- 		up_read(&mm->mmap_sem);
- 		mmput(mm);
- 		if (ret && ret =3D=3D -EEXIST)
- 			ret =3D 0;
--		if (!ret)
-+		if (ret)
- 			break;
- 	}
- 	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
-@@ -767,52 +769,14 @@ static int __register_uprobe(struct inode *inode, lof=
-f_t offset,
- 	return ret;
- }
-=20
--static void __unregister_uprobe(struct inode *inode, loff_t offset,
--						struct uprobe *uprobe)
-+static int __register_uprobe(struct uprobe *uprobe)
- {
--	struct list_head try_list;
--	struct address_space *mapping;
--	struct vma_info *vi, *tmpvi;
--	struct vm_area_struct *vma;
--	struct mm_struct *mm;
--	loff_t vaddr;
--
--	mapping =3D inode->i_mapping;
--	INIT_LIST_HEAD(&try_list);
--	while ((vi =3D find_next_vma_info(&try_list, offset,
--						mapping, false)) !=3D NULL) {
--		if (IS_ERR(vi))
--			break;
--		mm =3D vi->mm;
--		down_read(&mm->mmap_sem);
--		vma =3D find_vma(mm, (unsigned long)vi->vaddr);
--		if (!vma || !valid_vma(vma, false)) {
--			list_del(&vi->probe_list);
--			kfree(vi);
--			up_read(&mm->mmap_sem);
--			mmput(mm);
--			continue;
--		}
--		vaddr =3D vma->vm_start + offset;
--		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
--		if (vma->vm_file->f_mapping->host !=3D inode ||
--						vaddr !=3D vi->vaddr) {
--			list_del(&vi->probe_list);
--			kfree(vi);
--			up_read(&mm->mmap_sem);
--			mmput(mm);
--			continue;
--		}
--		remove_breakpoint(mm, uprobe, vi->vaddr);
--		up_read(&mm->mmap_sem);
--		mmput(mm);
--	}
-+	return __for_each_vma(uprobe, install_breakpoint);
-+}
-=20
--	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
--		list_del(&vi->probe_list);
--		kfree(vi);
--	}
--	delete_uprobe(uprobe);
-+static int __unregister_uprobe(struct uprobe *uprobe)
-+{
-+	return __for_each_vma(uprobe, remove_breakpoint);
- }
-=20
- /*
-@@ -852,10 +816,10 @@ int register_uprobe(struct inode *inode, loff_t offse=
-t,
- 	mutex_lock(uprobes_hash(inode));
- 	uprobe =3D alloc_uprobe(inode, offset);
- 	if (uprobe && !add_consumer(uprobe, consumer)) {
--		ret =3D __register_uprobe(inode, offset, uprobe);
-+		ret =3D __register_uprobe(uprobe);
- 		if (ret) {
- 			uprobe->consumers =3D NULL;
--			__unregister_uprobe(inode, offset, uprobe);
-+			__unregister_uprobe(uprobe); // -ENOMEM
- 		} else
- 			uprobe->flags |=3D UPROBES_RUN_HANDLER;
- 	}
-@@ -894,7 +858,7 @@ void unregister_uprobe(struct inode *inode, loff_t offs=
-et,
- 	}
-=20
- 	if (!uprobe->consumers) {
--		__unregister_uprobe(inode, offset, uprobe);
-+		__unregister_uprobe(uprobe); // XXX -ENOMEM
- 		uprobe->flags &=3D ~UPROBES_RUN_HANDLER;
- 	}
- 	mutex_unlock(uprobes_hash(inode));
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
