@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F07036B008A
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 11:10:28 -0500 (EST)
-Received: by bke17 with SMTP id 17so3219743bke.14
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2011 08:10:26 -0800 (PST)
-Message-ID: <4ED7A6EF.1000705@the2masters.de>
-Date: Thu, 01 Dec 2011 17:10:23 +0100
-From: Stefan Hellermann <stefan@the2masters.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id A466F6B0093
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 12:00:04 -0500 (EST)
+Received: by iapp10 with SMTP id p10so32731iap.14
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2011 09:00:02 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: flatmem broken for nommu? [Was: Re: does non-continuous RAM means
- I need to select the sparse memory model?]
-References: <20111129203010.GA26618@pengutronix.de> <CAOMZO5DX_ZvCOu+pqZpJ7Ni2B=qmSFCZTHnuzKt==OsBsJZH=Q@mail.gmail.com> <20111201105718.GJ26618@pengutronix.de> <20111201153933.GL26618@pengutronix.de>
-In-Reply-To: <20111201153933.GL26618@pengutronix.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Date: Thu, 1 Dec 2011 11:00:02 -0600
+Message-ID: <CAB7xdin_4XJNCxb=e8_4w0ivwHscn12PcsFxSVV0dQ4nKk9uEw@mail.gmail.com>
+Subject: add a vmalloc page into the LRU list
+From: sheng qiu <herbert1984106@gmail.com>
+Content-Type: multipart/alternative; boundary=90e6ba3fd25d881d4304b30ac874
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?Uwe_Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, akpm@linux-foundation.org, linux-arm-kernel@lists.infradead.org
+To: linux-mm <linux-mm@kvack.org>
 
-Am 01.12.2011 16:39, schrieb Uwe Kleine-Konig:
-> Hello,
-> 
-> On Thu, Dec 01, 2011 at 11:57:18AM +0100, Uwe Kleine-Konig wrote:
->> On Tue, Nov 29, 2011 at 10:39:10PM -0200, Fabio Estevam wrote:
->>> 2011/11/29 Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>:
->>>> Hello,
->>>>
->>>> I'm currently working on a new arch port and my current machine has RAM
->>>> at 0x10000000 and 0x80000000. So there is a big hole between the two
->>>> banks. When selecting the sparse memory model it works, but when
->>>> selecting flat the machine runs into a BUG in mark_bootmem() called by
->>>> free_unused_memmap() to free the space between the two banks.
->>>
->>> My understanding is that you have to select ARCH_HAS_HOLES_MEMORYMODEL.
->> I think that is not necessary.
->>  
->>>> Is that expected (meaning I cannot use the flat model)? I currently
->>>> don't have another machine handy that has >1 memory back to test that.
->>>
->>> In case you have access to a MX35PDK you can try on this board as it does have
->>> the memory hole.
->> No I havn't, but I just used a 128MB machine and changed that in the
->> .fixup callback to 64MB + 32MB with a 32MB hole in between and it works
->> fine without ARCH_HAS_HOLES_MEMORYMODEL.
->>
->> I debugged the problem a bit further and one symptom is that
->>
->> 	struct page *mem_map
->>
->> is NULL for me. That looks wrong. I guess this is just broken for nommu.
->> I will dig into that later today.
-> The problem is that the memory for mem_map is allocated using:
-> 
-> 	map = alloc_bootmem_node_nopanic(pgdat, size);
-> 
-> without any error checking. The _nopanic was introduced by commit
-> 
-> 	8f389a99 (mm: use alloc_bootmem_node_nopanic() on really needed path)
-> 
-> I don't understand the commit's log and don't really see why it should
-> be allowed to not panic if the allocation failes here but use a NULL
-> pointer instead.
-> I put the people involved in 8f389a99 on Cc, maybe someone can comment?
-> 
-> Apart from that it seems I cannot use flatmem as is on my machine. It
-> has only 128kiB@0x10000000 + 1MiB@0x80000000 and needs 14MiB to hold the
-> table of "struct page"s. :-(
-> 
-> Best regards
-> Uwe
-> 
-The commit was made after an bug report from me. I have an old x86
-tablet pc with only 8Mb Ram. This machine fails early on bootup without
-this commit. I found an archived message of the bug report here:
-http://comments.gmane.org/gmane.linux.kernel/1135909
+--90e6ba3fd25d881d4304b30ac874
+Content-Type: text/plain; charset=ISO-8859-1
 
-Regards,
-Stefan
+Hi all,
+
+basically vmalloc pages cannot be swap out, so it's not in the LRU list. is
+it possible to add a vmalloc page to the LRU list? so that kernel can stats
+the usage on that page and swap out it if it's not frequently used?
+
+
+Thanks,
+Sheng
+
+-- 
+Sheng Qiu
+Texas A & M University
+Room 302 Wisenbaker
+email: herbert1984106@gmail.com
+College Station, TX 77843-3259
+
+--90e6ba3fd25d881d4304b30ac874
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Hi all,<br><br>basically vmalloc pages cannot be swap out, so it&#39;s not =
+in the LRU list. is it possible to add a vmalloc page to the LRU list? so t=
+hat kernel can stats the usage on that page and swap out it if it&#39;s not=
+ frequently used? <br>
+<br><br>Thanks,<br>Sheng<br clear=3D"all"><br>-- <br>Sheng Qiu<br>Texas A &=
+amp; M University<br>Room 302 Wisenbaker=A0 =A0 <br>email: <a href=3D"mailt=
+o:herbert1984106@gmail.com">herbert1984106@gmail.com</a><br>College Station=
+, TX 77843-3259<br>
+
+
+--90e6ba3fd25d881d4304b30ac874--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
