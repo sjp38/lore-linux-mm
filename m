@@ -1,73 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EB86B0080
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 08:44:04 -0500 (EST)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 1 Dec 2011 06:44:04 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pB1Dhj3C117942
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 06:43:45 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pB1DhdNr020336
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 06:43:41 -0700
-Date: Thu, 1 Dec 2011 19:11:36 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 3.2-rc2 3/30] uprobes: register/unregister probes.
-Message-ID: <20111201134136.GJ18380@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
- <20111118110713.10512.9461.sendpatchset@srdronam.in.ibm.com>
- <1322494194.2921.147.camel@twins>
- <20111129074807.GA13445@linux.vnet.ibm.com>
- <1322563948.2921.199.camel@twins>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8316B0088
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 10:39:41 -0500 (EST)
+Date: Thu, 1 Dec 2011 16:39:33 +0100
+From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: Re: flatmem broken for nommu? [Was: Re: does non-continuous RAM
+ means I need to select the sparse memory model?]
+Message-ID: <20111201153933.GL26618@pengutronix.de>
+References: <20111129203010.GA26618@pengutronix.de>
+ <CAOMZO5DX_ZvCOu+pqZpJ7Ni2B=qmSFCZTHnuzKt==OsBsJZH=Q@mail.gmail.com>
+ <20111201105718.GJ26618@pengutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1322563948.2921.199.camel@twins>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20111201105718.GJ26618@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, Stefan Hellermann <stefan@the2masters.de>, akpm@linux-foundation.org
+Cc: linux-arm-kernel@lists.infradead.org
 
+Hello,
+
+On Thu, Dec 01, 2011 at 11:57:18AM +0100, Uwe Kleine-Konig wrote:
+> On Tue, Nov 29, 2011 at 10:39:10PM -0200, Fabio Estevam wrote:
+> > 2011/11/29 Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>:
+> > > Hello,
+> > >
+> > > I'm currently working on a new arch port and my current machine has RAM
+> > > at 0x10000000 and 0x80000000. So there is a big hole between the two
+> > > banks. When selecting the sparse memory model it works, but when
+> > > selecting flat the machine runs into a BUG in mark_bootmem() called by
+> > > free_unused_memmap() to free the space between the two banks.
+> > 
+> > My understanding is that you have to select ARCH_HAS_HOLES_MEMORYMODEL.
+> I think that is not necessary.
+>  
+> > > Is that expected (meaning I cannot use the flat model)? I currently
+> > > don't have another machine handy that has >1 memory back to test that.
+> > 
+> > In case you have access to a MX35PDK you can try on this board as it does have
+> > the memory hole.
+> No I havn't, but I just used a 128MB machine and changed that in the
+> .fixup callback to 64MB + 32MB with a 32MB hole in between and it works
+> fine without ARCH_HAS_HOLES_MEMORYMODEL.
 > 
-> You could use the stuff from patch 29 to effectively disable the uprobe
-> and return -ENOMEM to whoemever is unregistering. Basically failing the
-> unreg.
+> I debugged the problem a bit further and one symptom is that
 > 
-> That way you can leave the uprobe in existance and half installed but
-> functionally fully disabled. Userspace (assuming we go back that far)
-> can then either re-try the removal later, or even reinstate it by doing
-> a register again or so.
+> 	struct page *mem_map
 > 
-> Its still not pretty, but its better than pretending the unreg
-> completed.
-> 
+> is NULL for me. That looks wrong. I guess this is just broken for nommu.
+> I will dig into that later today.
+The problem is that the memory for mem_map is allocated using:
 
-This approach has its own disadvantages. perf record which does the
-unregister_uprobe() might be get stuck under low memory conditions while
-it tries to complete unregistration. Also the user would be confused if
-the tracer is still collecting information, once the unregister_uprobe
-has returned an error.
+	map = alloc_bootmem_node_nopanic(pgdat, size);
 
-So I would still think using a kworker thread to complete unregistration
-on a low memory condition might be a better solution.
+without any error checking. The _nopanic was introduced by commit
 
-While I work on getting the kworker thread implementation ready, we
-could use delay deleting the probe, set the not_run_handler flag and
-also see if we can remove the breakpoint while the breakpoint is hit.
+	8f389a99 (mm: use alloc_bootmem_node_nopanic() on really needed path)
 
-This way the only worse thing that can happen is the probed processes
-still take a hit.
+I don't understand the commit's log and don't really see why it should
+be allowed to not panic if the allocation failes here but use a NULL
+pointer instead.
+I put the people involved in 8f389a99 on Cc, maybe someone can comment?
 
-If the kworker thread were to face a low memory situation, then it will
-try to schedule another kworker thread or itself again (at a later point
-in time).  I still need to investigate some more on this. 
+Apart from that it seems I cannot use flatmem as is on my machine. It
+has only 128kiB@0x10000000 + 1MiB@0x80000000 and needs 14MiB to hold the
+table of "struct page"s. :-(
+
+Best regards
+Uwe
 
 -- 
-Thanks and Regards
-Srikar
+Pengutronix e.K.                           | Uwe Kleine-Konig            |
+Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
