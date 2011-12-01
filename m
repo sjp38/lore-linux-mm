@@ -1,32 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B7B6B0047
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 16:57:18 -0500 (EST)
-Date: Thu, 1 Dec 2011 16:57:00 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 01/11] mm: export vmalloc_sync_all symbol to GPL modules
-Message-ID: <20111201215700.GA16782@infradead.org>
-References: <1322775683-8741-1-git-send-email-mathieu.desnoyers@efficios.com>
- <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ABA506B0047
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:11:05 -0500 (EST)
+From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: [PATCH RFC] bootmem: micro optimize freeing pages in bulks
+Date: Thu,  1 Dec 2011 23:10:55 +0100
+Message-Id: <1322777455-32315-1-git-send-email-u.kleine-koenig@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Greg KH <greg@kroah.com>, devel@driverdev.osuosl.org, lttng-dev@lists.lttng.org, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, David McCullough <davidm@snapgear.com>, D Jeff Dionne <jeff@uClinux.org>, Greg Ungerer <gerg@snapgear.com>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Dec 01, 2011 at 04:41:13PM -0500, Mathieu Desnoyers wrote:
-> LTTng needs this symbol exported. It calls it to ensure its tracing
-> buffers and allocated data structures never trigger a page fault. This
-> is required to handle page fault handler tracing and NMI tracing
-> gracefully.
+The first entry of bdata->node_bootmem_map holds the data for
+bdata->node_min_pfn up to bdata->node_min_pfn + BITS_PER_LONG - 1. So
+the test for freeing all pages of a single map entry can be slightly
+relaxed.
 
-We:
+Moreover use DIV_ROUND_UP in another place instead of open coding it.
 
- a) don't export symbols unless they have an intree-user
- b) especially don't export something as lowlevel as this one.
+Cc: Johannes Weiner <hannes@saeurebad.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
+---
+Hello,
+
+I'm not sure the current code is correct (and my patch doesn't fix it):
+
+If
+
+	aligned && vec == ~0UL
+
+evalutates to true, but
+
+	start + BITS_PER_LONG <= end
+
+does not (or "< end" resp.) the else branch still frees all BITS_PER_LONG
+pages. Is this intended? If yes, the last check can better be omitted
+resulting in the pages being freed in a bulk.
+If not, the loop in the else branch should only do something like:
+
+	while (vec && off < min(BITS_PER_LONG, end - start)) {
+		...
+
+Having said that please note that I just started today to look into mm/
+so please take my analysis with a grain of salt.
+
+Best regards
+Uwe
+
+ mm/bootmem.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index fc22150..1e7d791 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -56,7 +56,7 @@ early_param("bootmem_debug", bootmem_debug_setup);
+ 
+ static unsigned long __init bootmap_bytes(unsigned long pages)
+ {
+-	unsigned long bytes = (pages + 7) / 8;
++	unsigned long bytes = DIV_ROUND_UP(pages, 8);
+ 
+ 	return ALIGN(bytes, sizeof(long));
+ }
+@@ -197,7 +197,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 		idx = start - bdata->node_min_pfn;
+ 		vec = ~map[idx / BITS_PER_LONG];
+ 
+-		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
++		if (aligned && vec == ~0UL && start + BITS_PER_LONG <= end) {
+ 			int order = ilog2(BITS_PER_LONG);
+ 
+ 			__free_pages_bootmem(pfn_to_page(start), order);
+-- 
+1.7.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
