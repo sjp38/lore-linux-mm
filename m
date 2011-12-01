@@ -1,94 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A98176B004D
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2011 18:47:23 -0500 (EST)
-Date: Wed, 30 Nov 2011 15:47:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [RFC] KSM: numa awareness sysfs knob
-Message-Id: <20111130154719.57154fdd.akpm@linux-foundation.org>
-In-Reply-To: <1322649446-11437-1-git-send-email-pholasek@redhat.com>
-References: <1322649446-11437-1-git-send-email-pholasek@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B62D6B004D
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 00:42:21 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 1 Dec 2011 00:42:19 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pB15gHxI2949306
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 00:42:17 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pB15gFMG023149
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 03:42:17 -0200
+Date: Thu, 1 Dec 2011 11:10:18 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 3.2-rc2 4/30] uprobes: Define hooks for mmap/munmap.
+Message-ID: <20111201054018.GC18380@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
+ <20111118110723.10512.66282.sendpatchset@srdronam.in.ibm.com>
+ <1322071812.14799.87.camel@twins>
+ <20111124134742.GH28065@linux.vnet.ibm.com>
+ <1322492384.2921.143.camel@twins>
+ <20111129083322.GD13445@linux.vnet.ibm.com>
+ <1322567326.2921.226.camel@twins>
+ <20111129162237.GA18380@linux.vnet.ibm.com>
+ <1322655933.2921.271.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1322655933.2921.271.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, tulasidhard@gmail.com
 
-On Wed, 30 Nov 2011 11:37:26 +0100
-Petr Holasek <pholasek@redhat.com> wrote:
-
-> Introduce a new sysfs knob /sys/kernel/mm/ksm/max_node_dist, whose
-> value will be used as the limitation for node distance of merged pages.
+> > The rules that I am using are: 
+> > 
+> > mmap_uprobe() increments the count if 
+> >         - it successfully adds a breakpoint.
+> >         - it not add a breakpoint, but sees that there is a underlying
+> >           breakpoint (via a read_opcode call).
+> > 
+> > munmap_uprobe() decrements the count if 
+> >         - it sees a underlying breakpoint,  (via  a read_opcode call)
+> >         - Subsequent unregister_uprobe wouldnt find the breakpoint
+> >           unless a mmap_uprobe kicks in, since the old vma would be
+> >           dropped just after munmap_uprobe.
+> > 
+> > register_uprobe increments the count if:
+> >         - it successfully adds a breakpoint.
+> > 
+> > unregister_uprobe decrements the count if:
+> >         - it sees a underlying breakpoint and removes successfully. 
+> >                         (via a read_opcode call)
+> >         - Subsequent munmap_uprobe wouldnt find the breakpoint
+> >           since there is no underlying breakpoint after the
+> >           breakpoint removal. 
+> 
+> The problem I'm having is that such stuff isn't included in the patch
+> set.
+> 
+> We've got both comments in the C language and Changelog in our patch
+> system, yet you consistently fail to use either to convey useful
+> information on non-trivial bits like this.
 > 
 
-The changelog doesn't really describe why you think Linux needs this
-feature?  What's the reasoning?  Use cases?  What value does it provide?
+Agree, I will put this as part of comments.
 
-> index b392e49..b882140 100644
-> --- a/Documentation/vm/ksm.txt
-> +++ b/Documentation/vm/ksm.txt
-> @@ -58,6 +58,10 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
->                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
->                     Default: 20 (chosen for demonstration purposes)
->  
-> +max_node_dist    - maximum node distance between two pages which could be
-> +                   merged.
-> +                   Default: 255 (without any limitations)
+> This leaves the reviewer wondering if you've actually considered stuff
+> properly, then me actually finding bugs in there does of course
+> undermine that even further.
+> 
+> What I really would like is for this patch set not to have such subtle
+> stuff at all, esp. at first. Once its in and its been used a bit we can
+> start optimizing and add subtle crap like this.
 
-And this doesn't explain to our users why they might want to alter it,
-and what effects they would see from doing so.  Maybe that's obvious to
-them...
+We actually started the discussion of why we increment the count in
+mmap_uprobe() in EEXIST case (and read_opcode()). It exists for two
+reasons.
+	- To handle fork case (that I wrote in another mail).
+	- To handle mremap.(the case where we are discussing now)
 
->  run              - set 0 to stop ksmd from running but keep merged pages,
->                     set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
->                     set 2 to stop ksmd and unmerge all pages currently merged,
->
-> ...
->
-> +#ifdef CONFIG_NUMA
-> +static inline int node_dist(int from, int to)
-> +{
-> +	int dist = node_distance(from, to);
-> +
-> +	return dist == -1 ? 0 : dist;
-> +}
+I would contend that removing the breakpoint in munmap doesnt amount to
+optimization. Since the start of unmap(), there cannot be another
+remove_breakpoint called for the vma,vaddr tuple, until the vma is
+cleaned up, or the subsequent mmap() is done. So the case of accounting
+for an already decremented count should never occur.
 
-So I spent some time grubbing around trying to work out what a return
-value of -1 from node_distance() means, and wasn't successful.  Perhaps
-an explanatory comment here would have helped.
+I was following the general convention being used within the kernel to not
+bother about the area that we are going to unmap. For example: If a ptraced
+area were to be unmapped or remapped, I dont see the breakpoint being
+removed and added back. Also if a ptrace process is exitting, we dont go
+about removing the installed breakpoints.
 
-> +#else
-> +static inline int node_dist(int from, int to)
-> +{
-> +	return 0;
-> +}
-> +#endif
->
-> ...
->
-> +static ssize_t max_node_dist_store(struct kobject *kobj,
-> +				   struct kobj_attribute *attr,
-> +				   const char *buf, size_t count)
-> +{
-> +	int err;
-> +	unsigned long node_dist;
-> +
-> +	err = kstrtoul(buf, 10, &node_dist);
-> +	if (err || node_dist > 255)
-> +		return -EINVAL;
+Also we would still need the check for EEXIST and read_opcode for handling
+the fork() case. So even if we add extra line to remove the actual
+breakpoint in munmap, It doesnt make the code any more simpler.
 
-If kstrtoul() returned an errno we should propagate that back rather than
-overwriting it with -EINVAL.
-
-> +	ksm_node_distance = node_dist;
-> +
-> +	return count;
-> +}
->
-> ...
->
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
