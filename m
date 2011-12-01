@@ -1,66 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 67C7B6B004D
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 00:54:16 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 1 Dec 2011 00:54:14 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pB15sCOF3485696
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 00:54:12 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pB15sAtf013151
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2011 00:54:11 -0500
-Date: Thu, 1 Dec 2011 11:22:11 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 3.2-rc2 8/30] x86: analyze instruction and determine
- fixups.
-Message-ID: <20111201055211.GD18380@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com>
- <20111118110808.10512.72719.sendpatchset@srdronam.in.ibm.com>
- <20111130185751.GA8160@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1D46B004D
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 00:55:28 -0500 (EST)
+Received: by mail-yw0-f54.google.com with SMTP id 17so1725773ywp.41
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2011 21:55:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20111130185751.GA8160@redhat.com>
+In-Reply-To: <CAB2ybb9Ti-2iz_qDfzMSgDhpUc6UOtGS8wi52nQaxhB-gH=azg@mail.gmail.com>
+References: <1318325033-32688-1-git-send-email-sumit.semwal@ti.com>
+ <1318325033-32688-2-git-send-email-sumit.semwal@ti.com> <CAPM=9tzjO7poyz_uYFFgONxzuTB86kKej8f2XBDHLGdUPZHvjg@mail.gmail.com>
+ <CAPM=9txtWiQuF+jNZXDogCMy+nsM=00Bv3uxAiu5oKnn-KxjAA@mail.gmail.com>
+ <CAKMK7uE14gOsTUYZknmSArkzG2zSSbpDeU0dxqAtLVUmvh-5bA@mail.gmail.com>
+ <CAF6AEGtgjjtVraeji09zKJSTmokmQqfk5S8LfHoMhHJY03dLkg@mail.gmail.com> <CAB2ybb9Ti-2iz_qDfzMSgDhpUc6UOtGS8wi52nQaxhB-gH=azg@mail.gmail.com>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Thu, 1 Dec 2011 11:25:02 +0530
+Message-ID: <CAB2ybb-h7VeUK3iKmPQVvPDKJJJO1XEV9jxZfUew7S37pWkToA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>
+To: Rob Clark <robdclark@gmail.com>
+Cc: Daniel Vetter <daniel@ffwll.ch>, Dave Airlie <airlied@gmail.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org
 
-* Oleg Nesterov <oleg@redhat.com> [2011-11-30 19:57:51]:
-
-> On 11/18, Srikar Dronamraju wrote:
-> >
-> > +static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
-> > +							struct insn *insn)
-> > +{
-> > [...snip...]
-> > +	if (insn->immediate.nbytes) {
-> > +		cursor++;
-> > +		memmove(cursor, cursor + insn->displacement.nbytes,
-> > +						insn->immediate.nbytes);
-> > +	}
-> > +	return;
-> > +}
-> 
-> Of course I don not understand this code. But it seems that it can
-> rewrite uprobe->insn ?
-> 
-
-Yes, we do rewrite the instruction for the RIP relative instructions. 
-But the first byte is still intact.
-
-> If yes, don't we need to save the original insn for unregister_uprobe?
-
-When we unregister, we just put back the least opcode size which
-happens to be the first byte for x86.
-
--- 
-Thanks and Regards
-Srikar
+Hi Dave, Daniel, Rob,
+>
+> On Sun, Nov 27, 2011 at 12:29 PM, Rob Clark <robdclark@gmail.com> wrote:
+>>
+>> On Sat, Nov 26, 2011 at 8:00 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
+>> > On Fri, Nov 25, 2011 at 17:28, Dave Airlie <airlied@gmail.com> wrote:
+>> >> I've rebuilt my PRIME interface on top of dmabuf to see how it would
+>> >> work,
+>> >>
+>> >> I've got primed gears running again on top, but I expect all my objec=
+t
+>> >> lifetime and memory ownership rules need fixing up (i.e. leaks like a
+>> >> sieve).
+>> >>
+>> >> http://cgit.freedesktop.org/~airlied/linux/log/?h=3Ddrm-prime-dmabuf
+>> >>
+>> >> has the i915/nouveau patches for the kernel to produce the prime
+>> >> interface.
+>> >
+>> > I've noticed that your implementations for get_scatterlist (at least
+>> > for the i915 driver) doesn't return the sg table mapped into the
+>> > device address space. I've checked and the documentation makes it
+>> > clear that this should be the case (and we really need this to support
+>> > certain insane hw), but the get/put_scatterlist names are a bit
+>> > misleading. Proposal:
+>> >
+>> > - use struct sg_table instead of scatterlist like you've already done
+>> > in you branch. Simply more consistent with the dma api.
+>>
+>> yup
+>>
+>> > - rename get/put_scatterlist into map/unmap for consistency with all
+>> > the map/unmap dma api functions. The attachement would then serve as
+>> > the abstract cookie to the backing storage, similar to how struct page
+>> > * works as an abstract cookie for dma_map/unmap_page. The only special
+>> > thing is that struct device * parameter because that's already part of
+>> > the attachment.
+>>
+>> yup
+>>
+>> > - add new wrapper functions dma_buf_map_attachment and
+>> > dma_buf_unmap_attachement to hide all the pointer/vtable-chasing that
+>> > we currently expose to users of this interface.
+>>
+>> I thought that was one of the earlier comments on the initial dmabuf
+>> patch, but either way: yup
+>
+Thanks for your comments; I will incorporate all of these in the next
+version I'll send out.
+>>
+>>
+>> BR,
+>> -R
+>
+BR,
+Sumit.
+>>
+>>
+>> > Comments?
+>> >
+>> > Cheers, Daniel
+>> > --
+>> > Daniel Vetter
+>> > daniel.vetter@ffwll.ch - +41 (0) 79 364 57 48 - http://blog.ffwll.ch
+>> > --
+>> > To unsubscribe from this list: send the line "unsubscribe linux-media"
+>> > in
+>> > the body of a message to majordomo@vger.kernel.org
+>> > More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>> >
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
