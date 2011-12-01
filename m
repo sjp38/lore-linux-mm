@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id ECFC16B0047
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:28:15 -0500 (EST)
-Date: Thu, 1 Dec 2011 17:28:03 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 01/11] mm: export vmalloc_sync_all symbol to GPL modules
-Message-ID: <20111201222803.GA10853@infradead.org>
-References: <1322775683-8741-1-git-send-email-mathieu.desnoyers@efficios.com>
- <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
- <20111201215700.GA16782@infradead.org>
- <20111201221337.GB3365@kroah.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FDB06B0047
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:35:37 -0500 (EST)
+Received: by iapp10 with SMTP id p10so562057iap.14
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2011 14:35:34 -0800 (PST)
+Date: Thu, 1 Dec 2011 14:35:31 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [3.2-rc3] OOM killer doesn't kill the obvious memory hog
+In-Reply-To: <20111201124634.GY7046@dastard>
+Message-ID: <alpine.DEB.2.00.1112011432110.27778@chino.kir.corp.google.com>
+References: <20111201093644.GW7046@dastard> <20111201185001.5bf85500.kamezawa.hiroyu@jp.fujitsu.com> <20111201124634.GY7046@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111201221337.GB3365@kroah.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, devel@driverdev.osuosl.org, lttng-dev@lists.lttng.org, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, David McCullough <davidm@snapgear.com>, D Jeff Dionne <jeff@uClinux.org>, Greg Ungerer <gerg@snapgear.com>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Dec 01, 2011 at 02:13:37PM -0800, Greg KH wrote:
-> On Thu, Dec 01, 2011 at 04:57:00PM -0500, Christoph Hellwig wrote:
-> > On Thu, Dec 01, 2011 at 04:41:13PM -0500, Mathieu Desnoyers wrote:
-> > > LTTng needs this symbol exported. It calls it to ensure its tracing
-> > > buffers and allocated data structures never trigger a page fault. This
-> > > is required to handle page fault handler tracing and NMI tracing
-> > > gracefully.
+On Thu, 1 Dec 2011, Dave Chinner wrote:
+
+> > /*
+> >  * /proc/<pid>/oom_score_adj set to OOM_SCORE_ADJ_MIN disables oom killing for
+> >  * pid.
+> >  */
+> > #define OOM_SCORE_ADJ_MIN       (-1000)
 > > 
-> > We:
-> > 
-> >  a) don't export symbols unless they have an intree-user
+> >  
+> > IIUC, this task cannot be killed by oom-killer because of oom_score_adj settings.
 > 
-> lttng is now in-tree in the drivers/staging/ area.  See linux-next for
-> details if you are curious.
+> It's not me or the test suite that setting this, so it's something
+> the kernel must be doing automagically.
+> 
 
-Eww - merging stuff without discussion on lkml is more than evil.
+The kernel does not set oom_score_adj to ever disable oom killing for a 
+thread.  The only time the kernel touches oom_score_adj is when setting it 
+to "1000" in ksm and swap to actually prefer a memory allocator for oom 
+killing.
 
-Either way, it was guaranteed that drivers/staging is considered out of
-tree for core code.  I'm defintively dead set against exporting anything
-for staging and opening that slippery slope.
+It's also possible to change this value via the deprecated 
+/proc/pid/oom_adj interface until it is removed next year.  Check your 
+dmesg for warnings about using the deprecated oom_adj interface or change 
+the printk_once() in oom_adjust_write() to a normal printk() to catch it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
