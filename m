@@ -1,83 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ABA506B0047
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:11:05 -0500 (EST)
-From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: [PATCH RFC] bootmem: micro optimize freeing pages in bulks
-Date: Thu,  1 Dec 2011 23:10:55 +0100
-Message-Id: <1322777455-32315-1-git-send-email-u.kleine-koenig@pengutronix.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 305EF6B0047
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:14:25 -0500 (EST)
+Received: from compute3.internal (compute3.nyi.mail.srv.osa [10.202.2.43])
+	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id E9EFA21FC3
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 17:14:22 -0500 (EST)
+Date: Thu, 1 Dec 2011 14:13:37 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 01/11] mm: export vmalloc_sync_all symbol to GPL modules
+Message-ID: <20111201221337.GB3365@kroah.com>
+References: <1322775683-8741-1-git-send-email-mathieu.desnoyers@efficios.com>
+ <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
+ <20111201215700.GA16782@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111201215700.GA16782@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, devel@driverdev.osuosl.org, lttng-dev@lists.lttng.org, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, David McCullough <davidm@snapgear.com>, D Jeff Dionne <jeff@uClinux.org>, Greg Ungerer <gerg@snapgear.com>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The first entry of bdata->node_bootmem_map holds the data for
-bdata->node_min_pfn up to bdata->node_min_pfn + BITS_PER_LONG - 1. So
-the test for freeing all pages of a single map entry can be slightly
-relaxed.
+On Thu, Dec 01, 2011 at 04:57:00PM -0500, Christoph Hellwig wrote:
+> On Thu, Dec 01, 2011 at 04:41:13PM -0500, Mathieu Desnoyers wrote:
+> > LTTng needs this symbol exported. It calls it to ensure its tracing
+> > buffers and allocated data structures never trigger a page fault. This
+> > is required to handle page fault handler tracing and NMI tracing
+> > gracefully.
+> 
+> We:
+> 
+>  a) don't export symbols unless they have an intree-user
 
-Moreover use DIV_ROUND_UP in another place instead of open coding it.
+lttng is now in-tree in the drivers/staging/ area.  See linux-next for
+details if you are curious.
 
-Cc: Johannes Weiner <hannes@saeurebad.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
----
-Hello,
+>  b) especially don't export something as lowlevel as this one.
 
-I'm not sure the current code is correct (and my patch doesn't fix it):
+Mathieu, there's nothing else you can do to get this information?  Or
+does lttng really want such lowlevel data?
 
-If
+thanks,
 
-	aligned && vec == ~0UL
-
-evalutates to true, but
-
-	start + BITS_PER_LONG <= end
-
-does not (or "< end" resp.) the else branch still frees all BITS_PER_LONG
-pages. Is this intended? If yes, the last check can better be omitted
-resulting in the pages being freed in a bulk.
-If not, the loop in the else branch should only do something like:
-
-	while (vec && off < min(BITS_PER_LONG, end - start)) {
-		...
-
-Having said that please note that I just started today to look into mm/
-so please take my analysis with a grain of salt.
-
-Best regards
-Uwe
-
- mm/bootmem.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index fc22150..1e7d791 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -56,7 +56,7 @@ early_param("bootmem_debug", bootmem_debug_setup);
- 
- static unsigned long __init bootmap_bytes(unsigned long pages)
- {
--	unsigned long bytes = (pages + 7) / 8;
-+	unsigned long bytes = DIV_ROUND_UP(pages, 8);
- 
- 	return ALIGN(bytes, sizeof(long));
- }
-@@ -197,7 +197,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 		idx = start - bdata->node_min_pfn;
- 		vec = ~map[idx / BITS_PER_LONG];
- 
--		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
-+		if (aligned && vec == ~0UL && start + BITS_PER_LONG <= end) {
- 			int order = ilog2(BITS_PER_LONG);
- 
- 			__free_pages_bootmem(pfn_to_page(start), order);
--- 
-1.7.7.1
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
