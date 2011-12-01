@@ -1,165 +1,37 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 1DAF36B004D
-	for <linux-mm@kvack.org>; Sat, 31 Dec 2011 09:55:24 -0500 (EST)
-Received: by werf1 with SMTP id f1so9613919wer.14
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 06:55:22 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4EFCA4F9.7070703@gmail.com>
-References: <CAJd=RBBJG+hLLc3mR-WzByU1gZEcdFUAoZzyir+1A4a0tVnSmg@mail.gmail.com>
-	<4EFCA4F9.7070703@gmail.com>
-Date: Sat, 31 Dec 2011 22:55:22 +0800
-Message-ID: <CAJd=RBCuh=zDLZ7J9sV_p_ghoXP-VX6PEAx01t8p_pziTimxnA@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscam: check page order in isolating lru pages
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 01/11] mm: export vmalloc_sync_all symbol to GPL modules
+Date: Thu, 1 Dec 2011 16:57:00 -0500
+Message-ID: <20111201215700.GA16782__7055.98231074891$1322776654$gmane$org@infradead.org>
+References: <1322775683-8741-1-git-send-email-mathieu.desnoyers@efficios.com>
+ <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1RWEd6-0001k1-TM
+	for glkm-linux-mm-2@m.gmane.org; Thu, 01 Dec 2011 22:57:21 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 01B7B6B0047
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2011 16:57:18 -0500 (EST)
+Content-Disposition: inline
+In-Reply-To: <1322775683-8741-2-git-send-email-mathieu.desnoyers@efficios.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Greg KH <greg@kroah.com>, devel@driverdev.osuosl.org, lttng-dev@lists.lttng.org, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, David McCullough <davidm@snapgear.com>, D Jeff Dionne <jeff@uClinux.org>, Greg Ungerer <gerg@snapgear.com>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 30, 2011 at 1:35 AM, KOSAKI Motohiro
-<kosaki.motohiro@gmail.com> wrote:
-> (12/29/11 7:45 AM), Hillf Danton wrote:
->>
->> Before we try to isolate physically contiguous pages, check for page ord=
-er
->> is
->> added, and if the reclaim order is no larger than page order, we should
->> give up
->> the attempt.
->>
->> Signed-off-by: Hillf Danton<dhillf@gmail.com>
->> Cc: Michal Hocko<mhocko@suse.cz>
->> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Andrew Morton<akpm@linux-foundation.org>
->> Cc: David Rientjes<rientjes@google.com>
->> Cc: Hugh Dickins<hughd@google.com>
->> ---
->>
->> --- a/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Thu Dec 29 20:20:16 2011
->> +++ b/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Thu Dec 29 20:28:14 2011
->> @@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long end=
-_pfn;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long pag=
-e_pfn;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0int zone_id;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned int isolated=
-_pages =3D 0;
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D lru_to_p=
-age(src);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0prefetchw_prev_lr=
-u_page(page, src, flags);
->> @@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case 0:
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0mem_cgroup_lru_del(page);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0list_move(&page->lru, dst);
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 nr_taken +=3D hpage_nr_pages(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 isolated_pages =3D hpage_nr_pages(page);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0break;
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case -EBUSY:
->> @@ -1184,8 +1185,11 @@ static unsigned long isolate_lru_pages(u
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0BUG();
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
->>
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_taken +=3D isolate=
-d_pages;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!order)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0continue;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (isolated_pages !=
-=3D 1&& =C2=A0isolated_pages>=3D (1<< =C2=A0order))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 continue;
->
->
-> strange space alignment. and I don't think we need "isolated_pages !=3D 1=
-"
-> check.
->
-> Otherwise, Looks good to me.
->
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->
+On Thu, Dec 01, 2011 at 04:41:13PM -0500, Mathieu Desnoyers wrote:
+> LTTng needs this symbol exported. It calls it to ensure its tracing
+> buffers and allocated data structures never trigger a page fault. This
+> is required to handle page fault handler tracing and NMI tracing
+> gracefully.
 
-Hi KOSAKI
+We:
 
-It is re-prepared and please review again.
-1, changelog is updated,
-2, the check for page order is refined,
-3, comment is also added.
-
-Thanks
-Hillf
-
-=3D=3D=3Dcut please=3D=3D=3D
-From: Hillf Danton <dhillf@gmail.com>
-Subject: [PATCH] mm: vmscam: check page order in isolating lru pages
-
-Before try to isolate physically contiguous pages, check for page order is
-added, and if it is not regular page, we should give up the attempt.
-
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
----
-
---- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
-+++ b/mm/vmscan.c	Sat Dec 31 22:44:16 2011
-@@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
- 		unsigned long end_pfn;
- 		unsigned long page_pfn;
- 		int zone_id;
-+		unsigned int isolated_pages =3D 1;
-
- 		page =3D lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
-@@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
- 		case 0:
- 			mem_cgroup_lru_del(page);
- 			list_move(&page->lru, dst);
--			nr_taken +=3D hpage_nr_pages(page);
-+			isolated_pages =3D hpage_nr_pages(page);
- 			break;
-
- 		case -EBUSY:
-@@ -1184,8 +1185,12 @@ static unsigned long isolate_lru_pages(u
- 			BUG();
- 		}
-
-+		nr_taken +=3D isolated_pages;
- 		if (!order)
- 			continue;
-+		/* try pfn-based isolation only for regular page */
-+		if (isolated_pages !=3D 1)
-+			continue;
-
- 		/*
- 		 * Attempt to take all pages in the order aligned region
-@@ -1227,7 +1232,6 @@ static unsigned long isolate_lru_pages(u
- 				break;
-
- 			if (__isolate_lru_page(cursor_page, mode, file) =3D=3D 0) {
--				unsigned int isolated_pages;
-
- 				mem_cgroup_lru_del(cursor_page);
- 				list_move(&cursor_page->lru, dst);
+ a) don't export symbols unless they have an intree-user
+ b) especially don't export something as lowlevel as this one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
