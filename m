@@ -1,54 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AD61E6B0047
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 05:07:46 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A29F83EE0BC
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 19:07:43 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 849C845DE4E
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 19:07:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CA4B45DE4D
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 19:07:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 604F11DB8038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 19:07:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 117081DB802C
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 19:07:43 +0900 (JST)
-Date: Fri, 2 Dec 2011 19:06:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
-Message-Id: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BEA1B6B0047
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 05:40:08 -0500 (EST)
+Received: by qao25 with SMTP id 25so894326qao.14
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2011 02:40:06 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20111202095646.GA21070@tiehlicka.suse.cz>
+References: <1322818931-2674-1-git-send-email-lliubbo@gmail.com>
+	<20111202095646.GA21070@tiehlicka.suse.cz>
+Date: Fri, 2 Dec 2011 18:40:06 +0800
+Message-ID: <CAA_GA1cVYx5nFC8ModyZCgUPfg3npJ3Kh47jFiRJvsYsj3Ykvg@mail.gmail.com>
+Subject: Re: [PATCH] page_cgroup: add helper function to get swap_cgroup
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, jweiner@redhat.com, bsingharora@gmail.com
 
-I'm now testing this patch, removing PCG_ACCT_LRU, onto mmotm.
-How do you think ?
+On Fri, Dec 2, 2011 at 5:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri 02-12-11 17:42:11, Bob Liu wrote:
+>> There are multi places need to get swap_cgroup, so add a helper
+>> function:
+>> static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent);
+>> to simple the code.
+>
+> I like the cleanup but I guess we can do a little bit better ;)
+>
+> [...]
+>> +static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent)
+>
+> Add struct swap_cgroup_ctrl ** ctrl parameter
+>
+>> +{
+>> + =C2=A0 =C2=A0 int type =3D swp_type(ent);
+>> + =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
+>> + =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
+>> + =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
+>> + =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
+>> + =C2=A0 =C2=A0 struct page *mappage;
+>> + =C2=A0 =C2=A0 struct swap_cgroup *sc;
+>> +
+>> + =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ctrl)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*ctrl =3D &swap_cg=
+roup_ctrl[type]
+>
+> [...]
+>> @@ -375,20 +393,14 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent=
+,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned sho=
+rt old, unsigned short new)
+>> =C2=A0{
+>> =C2=A0 =C2=A0 =C2=A0 int type =3D swp_type(ent);
+>> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
+>> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
+>> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
+>> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
+>> - =C2=A0 =C2=A0 struct page *mappage;
+>> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned long flags;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned short retval;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
+>> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0sc =3D swap_cgroup_getsc(ent, &ctrl);
+> [...]
+>> @@ -410,20 +422,14 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent=
+,
+>> =C2=A0unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short =
+id)
+>> =C2=A0{
+>> =C2=A0 =C2=A0 =C2=A0 int type =3D swp_type(ent);
+>> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
+>> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
+>> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
+>> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
+>> - =C2=A0 =C2=A0 struct page *mappage;
+>> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned short old;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned long flags;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
+>> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
+>
+> Same here
+>
+> [...]
+>> @@ -440,21 +446,10 @@ unsigned short swap_cgroup_record(swp_entry_t ent,=
+ unsigned short id)
+>> =C2=A0 */
+>> =C2=A0unsigned short lookup_swap_cgroup(swp_entry_t ent)
+>> =C2=A0{
+>> - =C2=A0 =C2=A0 int type =3D swp_type(ent);
+>> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
+>> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
+>> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
+>> - =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
+>> - =C2=A0 =C2=A0 struct page *mappage;
+>> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
+>> - =C2=A0 =C2=A0 unsigned short ret;
+>>
+>> - =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
+>> - =C2=A0 =C2=A0 mappage =3D ctrl->map[idx];
+>> - =C2=A0 =C2=A0 sc =3D page_address(mappage);
+>> - =C2=A0 =C2=A0 sc +=3D pos;
+>> - =C2=A0 =C2=A0 ret =3D sc->id;
+>> - =C2=A0 =C2=A0 return ret;
+>> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
+>> + =C2=A0 =C2=A0 return sc->id;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return swap_cgroup_getsc(ent, NULL)->id;
+>
+> What do you think?
 
-Here is a performance score at running page fault test.
-==
-[Before]
-    11.20%   malloc  [kernel.kallsyms]  [k] clear_page_c
-    ....
-     1.80%   malloc  [kernel.kallsyms]  [k] __mem_cgroup_commit_charge
-     0.94%   malloc  [kernel.kallsyms]  [k] mem_cgroup_lru_add_list
-     0.87%   malloc  [kernel.kallsyms]  [k] mem_cgroup_lru_del_list
+Alright,  i'll send out v2.
+Thanks for your review.
 
-[After]
-    11.66%   malloc  [kernel.kallsyms]  [k] clear_page_c
-    2.17%   malloc  [kernel.kallsyms]  [k] __mem_cgroup_commit_charge
-    0.56%   malloc  [kernel.kallsyms]  [k] mem_cgroup_lru_add_list
-    0.25%   malloc  [kernel.kallsyms]  [k] mem_cgroup_lru_del_list
+--=20
+Regards,
+--Bob
 
-==
-
-seems attractive to me.
-
-==
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
