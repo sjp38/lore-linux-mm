@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 590DA6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 13:12:39 -0500 (EST)
-Message-ID: <4ED914EC.6020500@parallels.com>
-Date: Fri, 2 Dec 2011 16:11:56 -0200
-From: Glauber Costa <glommer@parallels.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E42346B004D
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 14:00:46 -0500 (EST)
+Date: Fri, 2 Dec 2011 11:00:19 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [PATCH v2 RESEND] oom: fix integer overflow of points in
+ oom_badness
+Message-ID: <20111202190019.GA13283@suse.de>
+References: <1320048865-13175-1-git-send-email-fhrbata@redhat.com>
+ <20111202174526.GA11483@dhcp-26-164.brq.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v7 10/10] Disable task moving when using kernel memory
- accounting
-References: <1322611021-1730-1-git-send-email-glommer@parallels.com> <1322611021-1730-11-git-send-email-glommer@parallels.com> <20111130112210.1d979512.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111130112210.1d979512.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111202174526.GA11483@dhcp-26-164.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Frantisek Hrbata <fhrbata@redhat.com>
+Cc: rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, minchan.kim@gmail.com, stable@kernel.org, eteo@redhat.com, pmatouse@redhat.com
 
-On 11/30/2011 12:22 AM, KAMEZAWA Hiroyuki wrote:
-> On Tue, 29 Nov 2011 21:57:01 -0200
-> Glauber Costa<glommer@parallels.com>  wrote:
->
->> Since this code is still experimental, we are leaving the exact
->> details of how to move tasks between cgroups when kernel memory
->> accounting is used as future work.
->>
->> For now, we simply disallow movement if there are any pending
->> accounted memory.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->>   mm/memcontrol.c |   23 ++++++++++++++++++++++-
->>   1 files changed, 22 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index a31a278..dd9a6d9 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -5453,10 +5453,19 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
->>   {
->>   	int ret = 0;
->>   	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
->> +	struct mem_cgroup *from = mem_cgroup_from_task(p);
->> +
->> +#if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)&&  defined(CONFIG_INET)
->> +	if (from != memcg&&  !mem_cgroup_is_root(from)&&
->> +	    res_counter_read_u64(&from->tcp_mem.tcp_memory_allocated, RES_USAGE)) {
->> +		printk(KERN_WARNING "Can't move tasks between cgroups: "
->> +			"Kernel memory held.\n");
->> +		return 1;
->> +	}
->> +#endif
->
-> I wonder....reading all codes again, this is incorrect check.
->
-> Hm, let me cralify. IIUC, in old code, "prevent moving" is because you hold
-> reference count of cgroup, which can cause trouble at rmdir() as leaking refcnt.
-right.
+On Fri, Dec 02, 2011 at 06:45:27PM +0100, Frantisek Hrbata wrote:
+> An integer overflow will happen on 64bit archs if task's sum of rss, swapents
+> and nr_ptes exceeds (2^31)/1000 value. This was introduced by commit
+> 
+> f755a04 oom: use pte pages in OOM score
+> 
+> where the oom score computation was divided into several steps and it's no
+> longer computed as one expression in unsigned long(rss, swapents, nr_pte are
+> unsigned long), where the result value assigned to points(int) is in
+> range(1..1000). So there could be an int overflow while computing
+> 
+> 176          points *= 1000;
+> 
+> and points may have negative value. Meaning the oom score for a mem hog task
+> will be one.
+> 
+> 196          if (points <= 0)
+> 197                  return 1;
+> 
+> For example:
+> [ 3366]     0  3366 35390480 24303939   5       0             0 oom01
+> Out of memory: Kill process 3366 (oom01) score 1 or sacrifice child
+> 
+> Here the oom1 process consumes more than 24303939(rss)*4096~=92GB physical
+> memory, but it's oom score is one.
+> 
+> In this situation the mem hog task is skipped and oom killer kills another and
+> most probably innocent task with oom score greater than one.
+> 
+> The points variable should be of type long instead of int to prevent the int
+> overflow.
+> 
+> Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Oleg Nesterov <oleg@redhat.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Cc: stable@kernel.org [2.6.36+]
 
-> BTW, because socket is a shared resource between cgroup, changes in mm->owner
-> may cause task cgroup moving implicitly. So, if you allow leak of resource
-> here, I guess... you can take mem_cgroup_get() refcnt which is memcg-local and
-> allow rmdir(). Then, this limitation may disappear.
+For what it's worth, the stable address has changed to
+stable@vger.kernel.org so you might want to fix that up in future
+submissions.
 
-Sorry, I didn't fully understand. Can you clarify further?
-If the task is implicitly moved, it will end up calling can_attach as 
-well, right?
+I still catch patches that are tagged with this marking, but you will
+not end up posting stuff to the list this way :)
 
+thanks,
 
->
-> Then, users will be happy but admins will have unseen kernel resource usage in
-> not populated(by rmdir) memcg. Hm, big trouble ?
->
-> Thanks,
-> -Kame
->
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
