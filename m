@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7CA956B004D
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 12:45:35 -0500 (EST)
-Date: Fri, 2 Dec 2011 18:45:27 +0100
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH v2 RESEND] oom: fix integer overflow of points in oom_badness
-Message-ID: <20111202174526.GA11483@dhcp-26-164.brq.redhat.com>
-References: <1320048865-13175-1-git-send-email-fhrbata@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FEBE6B004D
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 12:47:27 -0500 (EST)
+Message-ID: <4ED90F06.102@parallels.com>
+Date: Fri, 2 Dec 2011 15:46:46 -0200
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1320048865-13175-1-git-send-email-fhrbata@redhat.com>
+Subject: Re: [PATCH v7 02/10] foundations of per-cgroup memory pressure controlling.
+References: <1322611021-1730-1-git-send-email-glommer@parallels.com> <1322611021-1730-3-git-send-email-glommer@parallels.com> <20111130094305.9c69ecd8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111130094305.9c69ecd8.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, minchan.kim@gmail.com, stable@kernel.org, eteo@redhat.com, pmatouse@redhat.com, gregkh@suse.de
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-An integer overflow will happen on 64bit archs if task's sum of rss, swapents
-and nr_ptes exceeds (2^31)/1000 value. This was introduced by commit
 
-f755a04 oom: use pte pages in OOM score
+>>   static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
+>>   {
+>> +	struct mem_cgroup *memcg = mem_cgroup_from_task(current);
+>> +
+>>   	seq_printf(seq, "%-9s %4u %6d  %6ld   %-3s %6u   %-3s  %-10s "
+>>   			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
+>>   		   proto->name,
+>>   		   proto->obj_size,
+>>   		   sock_prot_inuse_get(seq_file_net(seq), proto),
+>> -		   proto->memory_allocated != NULL ? atomic_long_read(proto->memory_allocated) : -1L,
+>> -		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
+>> +		   sock_prot_memory_allocated(proto, memcg),
+>> +		   sock_prot_memory_pressure(proto, memcg),
+>
+> I wonder I should say NO, here. (Networking guys are ok ??)
+>
+> IIUC, this means there is no way to see aggregated sockstat of all system.
+> And the result depends on the cgroup which the caller is under control.
+>
+> I think you should show aggregated sockstat(global + per-memcg) here and
+> show per-memcg ones via /cgroup interface or add private_sockstat to show
+> per cgroup summary.
+>
 
-where the oom score computation was divided into several steps and it's no
-longer computed as one expression in unsigned long(rss, swapents, nr_pte are
-unsigned long), where the result value assigned to points(int) is in
-range(1..1000). So there could be an int overflow while computing
+Hi Kame,
 
-176          points *= 1000;
+Yes, the statistics displayed depends on which cgroup you live.
+Also, note that the parent cgroup here is always updated (even when 
+use_hierarchy is set to 0). So it is always possible to grab global 
+statistics, by being in the root cgroup.
 
-and points may have negative value. Meaning the oom score for a mem hog task
-will be one.
+For the others, I believe it to be a question of naturalization. Any 
+tool that is fetching these values is likely interested in the amount of 
+resources available/used. When you are on a cgroup, the amount of 
+resources available/used changes, so that's what you should see.
 
-196          if (points <= 0)
-197                  return 1;
+Also brings the point of resource isolation: if you shouldn't interfere 
+with other set of process' resources, there is no reason for you to see 
+them in the first place.
 
-For example:
-[ 3366]     0  3366 35390480 24303939   5       0             0 oom01
-Out of memory: Kill process 3366 (oom01) score 1 or sacrifice child
-
-Here the oom1 process consumes more than 24303939(rss)*4096~=92GB physical
-memory, but it's oom score is one.
-
-In this situation the mem hog task is skipped and oom killer kills another and
-most probably innocent task with oom score greater than one.
-
-The points variable should be of type long instead of int to prevent the int
-overflow.
-
-Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Oleg Nesterov <oleg@redhat.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Cc: stable@kernel.org [2.6.36+]
----
- mm/oom_kill.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 626303b..e9a1785 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -162,7 +162,7 @@ static bool oom_unkillable_task(struct task_struct *p,
- unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 		      const nodemask_t *nodemask, unsigned long totalpages)
- {
--	int points;
-+	long points;
- 
- 	if (oom_unkillable_task(p, mem, nodemask))
- 		return 0;
--- 
-1.7.6.4
-
---
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-Please read the FAQ at  http://www.tux.org/lkml/
+So given all that, I believe that whenever we talk about resources in a 
+cgroup, we should talk about cgroup-local ones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
