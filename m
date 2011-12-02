@@ -1,129 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BEA1B6B0047
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 05:40:08 -0500 (EST)
-Received: by qao25 with SMTP id 25so894326qao.14
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2011 02:40:06 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20111202095646.GA21070@tiehlicka.suse.cz>
-References: <1322818931-2674-1-git-send-email-lliubbo@gmail.com>
-	<20111202095646.GA21070@tiehlicka.suse.cz>
-Date: Fri, 2 Dec 2011 18:40:06 +0800
-Message-ID: <CAA_GA1cVYx5nFC8ModyZCgUPfg3npJ3Kh47jFiRJvsYsj3Ykvg@mail.gmail.com>
-Subject: Re: [PATCH] page_cgroup: add helper function to get swap_cgroup
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E321D6B0047
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 05:41:24 -0500 (EST)
 From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v2] page_cgroup: add helper function to get swap_cgroup
+Date: Fri, 2 Dec 2011 18:40:27 +0800
+Message-ID: <1322822427-7691-1-git-send-email-lliubbo@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, jweiner@redhat.com, bsingharora@gmail.com
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, jweiner@redhat.com, bsingharora@gmail.com, Bob Liu <lliubbo@gmail.com>
 
-On Fri, Dec 2, 2011 at 5:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Fri 02-12-11 17:42:11, Bob Liu wrote:
->> There are multi places need to get swap_cgroup, so add a helper
->> function:
->> static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent);
->> to simple the code.
->
-> I like the cleanup but I guess we can do a little bit better ;)
->
-> [...]
->> +static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent)
->
-> Add struct swap_cgroup_ctrl ** ctrl parameter
->
->> +{
->> + =C2=A0 =C2=A0 int type =3D swp_type(ent);
->> + =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
->> + =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
->> + =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
->> + =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
->> + =C2=A0 =C2=A0 struct page *mappage;
->> + =C2=A0 =C2=A0 struct swap_cgroup *sc;
->> +
->> + =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ctrl)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*ctrl =3D &swap_cg=
-roup_ctrl[type]
->
-> [...]
->> @@ -375,20 +393,14 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent=
-,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned sho=
-rt old, unsigned short new)
->> =C2=A0{
->> =C2=A0 =C2=A0 =C2=A0 int type =3D swp_type(ent);
->> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
->> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
->> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
->> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
->> - =C2=A0 =C2=A0 struct page *mappage;
->> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
->> =C2=A0 =C2=A0 =C2=A0 unsigned long flags;
->> =C2=A0 =C2=A0 =C2=A0 unsigned short retval;
->>
->> =C2=A0 =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
->> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0sc =3D swap_cgroup_getsc(ent, &ctrl);
-> [...]
->> @@ -410,20 +422,14 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent=
-,
->> =C2=A0unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short =
-id)
->> =C2=A0{
->> =C2=A0 =C2=A0 =C2=A0 int type =3D swp_type(ent);
->> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
->> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
->> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
->> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
->> - =C2=A0 =C2=A0 struct page *mappage;
->> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
->> =C2=A0 =C2=A0 =C2=A0 unsigned short old;
->> =C2=A0 =C2=A0 =C2=A0 unsigned long flags;
->>
->> =C2=A0 =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
->> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
->
-> Same here
->
-> [...]
->> @@ -440,21 +446,10 @@ unsigned short swap_cgroup_record(swp_entry_t ent,=
- unsigned short id)
->> =C2=A0 */
->> =C2=A0unsigned short lookup_swap_cgroup(swp_entry_t ent)
->> =C2=A0{
->> - =C2=A0 =C2=A0 int type =3D swp_type(ent);
->> - =C2=A0 =C2=A0 unsigned long offset =3D swp_offset(ent);
->> - =C2=A0 =C2=A0 unsigned long idx =3D offset / SC_PER_PAGE;
->> - =C2=A0 =C2=A0 unsigned long pos =3D offset & SC_POS_MASK;
->> - =C2=A0 =C2=A0 struct swap_cgroup_ctrl *ctrl;
->> - =C2=A0 =C2=A0 struct page *mappage;
->> =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
->> - =C2=A0 =C2=A0 unsigned short ret;
->>
->> - =C2=A0 =C2=A0 ctrl =3D &swap_cgroup_ctrl[type];
->> - =C2=A0 =C2=A0 mappage =3D ctrl->map[idx];
->> - =C2=A0 =C2=A0 sc =3D page_address(mappage);
->> - =C2=A0 =C2=A0 sc +=3D pos;
->> - =C2=A0 =C2=A0 ret =3D sc->id;
->> - =C2=A0 =C2=A0 return ret;
->> + =C2=A0 =C2=A0 sc =3D swap_cgroup_getsc(ent);
->> + =C2=A0 =C2=A0 return sc->id;
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return swap_cgroup_getsc(ent, NULL)->id;
->
-> What do you think?
+There are multi places need to get swap_cgroup, so add a helper
+function:
+static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
+                                struct swap_cgroup_ctrl **ctrl);
+to simple the code.
 
-Alright,  i'll send out v2.
-Thanks for your review.
+v1 -> v2:
+ - add parameter struct swap_cgroup_ctrl **ctrl suggested by Michal
 
---=20
-Regards,
---Bob
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/page_cgroup.c |   57 ++++++++++++++++++++++-------------------------------
+ 1 files changed, 24 insertions(+), 33 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index f0559e0..1970e8a 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -362,6 +362,27 @@ not_enough_page:
+ 	return -ENOMEM;
+ }
+ 
++static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
++					struct swap_cgroup_ctrl **ctrl)
++{
++	int type = swp_type(ent);
++	unsigned long offset = swp_offset(ent);
++	unsigned long idx = offset / SC_PER_PAGE;
++	unsigned long pos = offset & SC_POS_MASK;
++	struct swap_cgroup_ctrl *temp_ctrl;
++	struct page *mappage;
++	struct swap_cgroup *sc;
++
++	temp_ctrl = &swap_cgroup_ctrl[type];
++	if (ctrl)
++		*ctrl = temp_ctrl;
++
++	mappage = temp_ctrl->map[idx];
++	sc = page_address(mappage);
++	sc += pos;
++	return sc;
++}
++
+ /**
+  * swap_cgroup_cmpxchg - cmpxchg mem_cgroup's id for this swp_entry.
+  * @end: swap entry to be cmpxchged
+@@ -374,21 +395,13 @@ not_enough_page:
+ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+ 					unsigned short old, unsigned short new)
+ {
+-	int type = swp_type(ent);
+-	unsigned long offset = swp_offset(ent);
+-	unsigned long idx = offset / SC_PER_PAGE;
+-	unsigned long pos = offset & SC_POS_MASK;
+ 	struct swap_cgroup_ctrl *ctrl;
+-	struct page *mappage;
+ 	struct swap_cgroup *sc;
+ 	unsigned long flags;
+ 	unsigned short retval;
+ 
+-	ctrl = &swap_cgroup_ctrl[type];
++	sc = swap_cgroup_getsc(ent, &ctrl);
+ 
+-	mappage = ctrl->map[idx];
+-	sc = page_address(mappage);
+-	sc += pos;
+ 	spin_lock_irqsave(&ctrl->lock, flags);
+ 	retval = sc->id;
+ 	if (retval == old)
+@@ -409,21 +422,13 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+  */
+ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+ {
+-	int type = swp_type(ent);
+-	unsigned long offset = swp_offset(ent);
+-	unsigned long idx = offset / SC_PER_PAGE;
+-	unsigned long pos = offset & SC_POS_MASK;
+ 	struct swap_cgroup_ctrl *ctrl;
+-	struct page *mappage;
+ 	struct swap_cgroup *sc;
+ 	unsigned short old;
+ 	unsigned long flags;
+ 
+-	ctrl = &swap_cgroup_ctrl[type];
++	sc = swap_cgroup_getsc(ent, &ctrl);
+ 
+-	mappage = ctrl->map[idx];
+-	sc = page_address(mappage);
+-	sc += pos;
+ 	spin_lock_irqsave(&ctrl->lock, flags);
+ 	old = sc->id;
+ 	sc->id = id;
+@@ -440,21 +445,7 @@ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+  */
+ unsigned short lookup_swap_cgroup(swp_entry_t ent)
+ {
+-	int type = swp_type(ent);
+-	unsigned long offset = swp_offset(ent);
+-	unsigned long idx = offset / SC_PER_PAGE;
+-	unsigned long pos = offset & SC_POS_MASK;
+-	struct swap_cgroup_ctrl *ctrl;
+-	struct page *mappage;
+-	struct swap_cgroup *sc;
+-	unsigned short ret;
+-
+-	ctrl = &swap_cgroup_ctrl[type];
+-	mappage = ctrl->map[idx];
+-	sc = page_address(mappage);
+-	sc += pos;
+-	ret = sc->id;
+-	return ret;
++	return swap_cgroup_getsc(ent, NULL)->id;
+ }
+ 
+ int swap_cgroup_swapon(int type, unsigned long max_pages)
+-- 
+1.7.0.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
