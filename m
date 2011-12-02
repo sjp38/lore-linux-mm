@@ -1,262 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C5C6B004F
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 03:58:59 -0500 (EST)
-From: Sumit Semwal <sumit.semwal@ti.com>
-Subject: [RFC v2 2/2] dma-buf: Documentation for buffer sharing framework
-Date: Fri, 2 Dec 2011 14:27:32 +0530
-Message-ID: <1322816252-19955-3-git-send-email-sumit.semwal@ti.com>
-In-Reply-To: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 504386B0047
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2011 04:14:19 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1322664737.2755.17.camel@menhir>
+Subject: Re: [Linux-decnet-user] Proposed removal of DECnet support (was:Re: [BUG]
+ 3.2-rc2:BUG kmalloc-8: Redzone overwritten)
+Message-ID: <OF6A1EB29A.D9A6FBAC-ON8025795A.00311C05-8025795A.0032A610@LocalDomain>
+From: mike.gair@tatasteel.com
+Date: Fri, 2 Dec 2011 09:14:34 +0000
+Content-type: text/html; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org
-Cc: linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@ti.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Chrissie Caulfield <ccaulfie@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Linux-DECnet user <linux-decnet-user@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Philipp Schafft <lion@lion.leolix.org>, Matt Mackall <mpm@selenic.com>, netdev <netdev@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, RoarAudio <roaraudio@lists.keep-cool.org>
 
-Add documentation for dma buffer sharing framework, explaining the
-various operations, members and API of the dma buffer sharing
-framework.
+<html><body><p><tt><font size=3D"2">Thanks,</font></tt><br><br><tt><font si=
+ze=3D"2">I suspect I'm not up to the job,</font></tt><br><br><tt><font size=
+=3D"2">- definitely not got an in-depth knowledge of the core Linux network=
+ing stack</font></tt><br><tt><font size=3D"2">or the DECnet specs,</font></=
+tt><br><tt><font size=3D"2">Have limited, but growing experience of C, (mai=
+nly work in coral66)</font></tt><br><br><tt><font size=3D"2">But I'll have =
+a look at code/documentation</font></tt><br><tt><font size=3D"2">&amp; see =
+if I understand any of it. </font></tt><br><br><tt><font size=3D"2">Mike</f=
+ont></tt><br><br><br><br><tt><font size=3D"2">Steven Whitehouse &lt;swhiteh=
+o@redhat.com&gt; wrote on 30/11/2011 14:52:17:<br><br>&gt; Hi,<br>&gt; <br>=
+&gt; On Wed, 2011-11-30 at 13:52 +0000, mike.gair@tatasteel.com wrote:<br>&=
+gt; &gt; We're using decnet on linux,<br>&gt; &gt; as a way of expanding a =
+control system,<br>&gt; &gt; using DEC PDP11s (actually charon11 emulations=
+).<br>&gt; &gt; <br>&gt; &gt; So woud be very interested in keeping decnet =
+supported.<br>&gt; &gt; <br>&gt; &gt; In theory i'd be interested in mainta=
+ining it,<br>&gt; &gt; but i'm not sure what amount of work is involved,<br=
+>&gt; &gt; have no experience of kernel, or where to start.<br>&gt; &gt; <b=
+r>&gt; &gt; Any ideas?<br>&gt; &gt; <br>&gt; &gt; <br>&gt; So the issue is =
+basically that due to there being nobody currently<br>&gt; maintaining the =
+DECnet stack, it puts a burden on the core network<br>&gt; maintainers when=
+ they make cross-protocol changes, as they have to<br>&gt; figure out what =
+impact the changes are likely to have on the DECnet<br>&gt; stack. So its a=
+n extra barrier to making cross-protocol code changes.<br>&gt; <br>&gt; If =
+there was an active maintainer who could be a source of knowledge<br>&gt; (=
+and the odd patch to help out making those changes) then this issue<br>&gt;=
+ would largely go away.<br>&gt; <br>&gt; The most important duty of the mai=
+ntainer is just to watch whats going<br>&gt; on in the core networking deve=
+lopment and to contribute the DECnet part<br>&gt; of that. So it would be m=
+ost likely be more a reviewing of patches and<br>&gt; providing advice role=
+, than one of writing patches (though it could be<br>&gt; that too) and ens=
+uring that the code continues to function correctly by<br>&gt; testing it f=
+rom time to time.<br>&gt; <br>&gt; The ideal maintainer would have an in-de=
+pth knowledge of the core Linux<br>&gt; networking stack (socket layer, dst=
+ and neigh code), the DECnet specs<br>&gt; and have a good knowledge of C. =
+<br>&gt; <br>&gt; Bearing in mind the low patch volume (almost zero, except=
+ for core<br>&gt; stuff), it would probably be one of the subsystems with t=
+he least amount<br>&gt; of work to do in maintaining it. So in some ways, a=
+ good intro for a new<br>&gt; maintainer.<br>&gt; <br>&gt; I do try and kee=
+p an eye on what get submitted to the DECnet code and<br>&gt; I'll continue=
+ to do that while it is still in the kernel. However, it is<br>&gt; now qui=
+te a long time since I last did any substantial work in the<br>&gt; network=
+ing area and things have moved on a fair bit in the mean time. I<br>&gt; do=
+n't have a lot of time to review DECnet patches these days and no way<br>&g=
+t; to actually test any contributions against a real DECnet implementation.=
+<br>&gt; <br>&gt; So I'll provide what help I can to anybody who wants to t=
+ake the role<br>&gt; on, within those limitations. I'm also happy to answer=
+ questions about<br>&gt; why things were done in a particular way, for exam=
+ple.<br>&gt; <br>&gt; It is good to know that people are still using the Li=
+nux DECnet code<br>&gt; too. It has lived far beyond the time when I'd envi=
+sioned it still being<br>&gt; useful :-)<br>&gt; <br>&gt; Steve.<br>&gt; <b=
+r>&gt; &gt; <br>&gt; &gt; <br>&gt; &gt; <br>&gt; &gt; Philipp Schafft &lt;l=
+ion@lion.leolix.org&gt; wrote on 29/11/2011 14:47:19:<br>&gt; &gt; <br>&gt;=
+ &gt; &gt; reflum,<br>&gt; &gt; &gt; <br>&gt; &gt; &gt; On Tue, 2011-11-29 =
+at 15:34 +0100, Steven Whitehouse wrote:<br>&gt; &gt; &gt; <br>&gt; &gt; &g=
+t; &gt; Has anybody actually tested it<br>&gt; &gt; &gt; &gt; &gt; &gt;&gt;=
+ lately against &quot;real&quot; DEC implementations?<br>&gt; &gt; &gt; &gt=
+; &gt; &gt; I doubt it :-)<br>&gt; &gt; &gt; &gt; &gt; DECnet is in use aga=
+inst real DEC implementations - I have<br>&gt; &gt; checked it <br>&gt; &gt=
+; &gt; &gt; &gt; quite recently against a VAX running OpenVMS. How many peo=
+ple<br>&gt; &gt; are <br>&gt; &gt; &gt; &gt; &gt; actually using it for rea=
+l work is a different question though.<br>&gt; &gt; &gt; &gt; &gt; <br>&gt;=
+ &gt; &gt; &gt; Ok, thats useful info.<br>&gt; &gt; &gt; <br>&gt; &gt; &gt;=
+ I confirmed parts of it with tcpdump and the specs some weeks ago.<br>&gt;=
+ &gt; The<br>&gt; &gt; &gt; parts I worked on passed :) I also considered t=
+o send the tcpdump<br>&gt; &gt; &gt; upstream a patch for protocol decoding=
+.<br>&gt; &gt; &gt; <br>&gt; &gt; &gt; <br>&gt; &gt; &gt; &gt; &gt; It's al=
+so true that it's not really supported by anyone as I<br>&gt; &gt; orphaned=
+ it <br>&gt; &gt; &gt; &gt; &gt; some time ago and nobody else seems to car=
+e enough to take it<br>&gt; &gt; over. So <br>&gt; &gt; &gt; &gt; &gt; if i=
+t's becoming a burden on people doing real kernel work then<br>&gt; &gt; I =
+don't <br>&gt; &gt; &gt; &gt; &gt; think many tears will be wept for its re=
+moval.<br>&gt; &gt; &gt; &gt; &gt; Chrissie<br>&gt; &gt; &gt; &gt; <br>&gt;=
+ &gt; &gt; &gt; Really the only issue with keeping it around is the mainten=
+ance<br>&gt; &gt; burden I<br>&gt; &gt; &gt; &gt; think. It doesn't look li=
+ke anybody wants to take it on, but maybe<br>&gt; &gt; we<br>&gt; &gt; &gt;=
+ &gt; should give it another few days for someone to speak up, just in<br>&=
+gt; &gt; case<br>&gt; &gt; &gt; &gt; they are on holiday or something at th=
+e moment.<br>&gt; &gt; &gt; &gt; <br>&gt; &gt; &gt; &gt; Also, I've updated=
+ the subject of the thread, to make it more<br>&gt; &gt; obvious<br>&gt; &g=
+t; &gt; &gt; what is being discussed, as well as bcc'ing it again to the DE=
+Cnet<br>&gt; &gt; list,<br>&gt; &gt; &gt; <br>&gt; &gt; &gt; I'm very inter=
+ested in the module. However my problem is that I had<br>&gt; &gt; &gt; not=
+hing to do with kernel coding yet. However I'm currently<br>&gt; &gt; searc=
+hing a<br>&gt; &gt; &gt; new maintainer for it (I got info about this threa=
+d by today).<br>&gt; &gt; &gt; If somebody is interested in this and only n=
+eeds some &quot;motivation&quot;<br>&gt; &gt; or<br>&gt; &gt; &gt; maybe so=
+meone would like to get me into kernel coding, please just<br>&gt; &gt; &gt=
+; reply :)<br>&gt; &gt; &gt; <br>&gt; &gt; &gt; -- <br>&gt; &gt; &gt; Phili=
+pp.<br>&gt; &gt; &gt; (Rah of PH2)<br>&gt; &gt; &gt; [attachment &quot;sign=
+ature.asc&quot; deleted by Mike Gair/UK/Corus] <br>&gt; &gt; &gt;<br>&gt; &=
+gt; <br>&gt; --------------------------------------------------------------=
+----------------<br>&gt; &gt; &gt; All the data continuously generated in y=
+our IT infrastructure <br>&gt; &gt; &gt; contains a definitive record of cu=
+stomers, application performance, <br>&gt; &gt; &gt; security threats, frau=
+dulent activity, and more. Splunk takes this <br>&gt; &gt; &gt; data and ma=
+kes sense of it. IT sense. And common sense.<br>&gt; &gt; &gt; <a href=3D"h=
+ttp://p.sf.net/sfu/splunk-novd2d">http://p.sf.net/sfu/splunk-novd2d</a><br>=
+&gt; &gt; &gt; =5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=
+=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=5F=
+=5F=5F<br>&gt; &gt; &gt; Project Home Page: <a href=3D"http://linux-decnet.=
+wiki.sourceforge.net/">http://linux-decnet.wiki.sourceforge.net/</a><br>&gt=
+; &gt; &gt; <br>&gt; &gt; &gt; Linux-decnet-user mailing list<br>&gt; &gt; =
+&gt; Linux-decnet-user@lists.sourceforge.net<br>&gt; &gt; &gt; <a href=3D"h=
+ttps://lists.sourceforge.net/lists/listinfo/linux-decnet-user">https://list=
+s.sourceforge.net/lists/listinfo/linux-decnet-user</a><br>&gt; &gt; &gt; <b=
+r>&gt; &gt; <br>&gt; &gt; <br>&gt; &gt; ***********************************=
+***********************************<br>&gt; &gt; This transmission is confi=
+dential and must not be used or disclosed by<br>&gt; &gt; anyone other than=
+ the intended recipient. Neither Tata Steel Europe<br>&gt; &gt; Limited nor=
+ any of its subsidiaries can accept any responsibility for<br>&gt; &gt; any=
+ use or misuse of the transmission by anyone. <br>&gt; &gt; <br>&gt; &gt; F=
+or address and company registration details of certain entities<br>&gt; &gt=
+; within the Tata Steel Europe group of companies, please visit<br>&gt; &gt=
+; <a href=3D"http://www.tatasteeleurope.com/entities">http://www.tatasteele=
+urope.com/entities</a><br>&gt; &gt; ***************************************=
+*******************************<br>&gt; &gt; <br>&gt; <br>&gt; <br></font><=
+/tt><font face=3D"sans-serif"><P><font size=3D"2" face=3D"Arial">
+**********************************************************************<BR>
+This transmission is confidential and must not be used or disclosed by anyo=
+ne other than the intended recipient. Neither Tata Steel Europe Limited nor=
+ any of its subsidiaries can accept any responsibility for any use or misus=
+e of the transmission by anyone.
+<BR><BR>
+For address and company registration details of certain entities within the=
+ Tata Steel Europe group of companies, please visit
+<A HREF=3D"http://www.tatasteeleurope.com/entities">http://www.tatasteeleur=
+ope.com/entities</A><BR>
+**********************************************************************</P><=
+/font>
+</body></html>
 
-Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
----
- Documentation/dma-buf-sharing.txt |  223 +++++++++++++++++++++++++++++++++++++
- 1 files changed, 223 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/dma-buf-sharing.txt
-
-diff --git a/Documentation/dma-buf-sharing.txt b/Documentation/dma-buf-sharing.txt
-new file mode 100644
-index 0000000..2c1bdf6
---- /dev/null
-+++ b/Documentation/dma-buf-sharing.txt
-@@ -0,0 +1,223 @@
-+                    DMA Buffer Sharing API Guide
-+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+
-+                            Sumit Semwal
-+                <sumit dot semwal at linaro dot org>
-+                 <sumit dot semwal at ti dot com>
-+
-+This document serves as a guide to device-driver writers on what is the dma-buf
-+buffer sharing API, how to use it for exporting and using shared buffers.
-+
-+Any device driver which wishes to be a part of DMA buffer sharing, can do so as
-+either the 'exporter' of buffers, or the 'user' of buffers.
-+
-+Say a driver A wants to use buffers created by driver B, then we call B as the
-+exporter, and A as buffer-user.
-+
-+The exporter
-+- implements and manages operations[1] for the buffer
-+- allows other users to share the buffer by using dma_buf sharing APIs,
-+- manages the details of buffer allocation,
-+- decides about the actual backing storage where this allocation happens,
-+- takes care of any migration of scatterlist - for all (shared) users of this
-+   buffer,
-+- optionally, provides mmap capability for drivers that need it.
-+
-+The buffer-user
-+- is one of (many) sharing users of the buffer.
-+- doesn't need to worry about how the buffer is allocated, or where.
-+- needs a mechanism to get access to the scatterlist that makes up this buffer
-+   in memory, mapped into its own address space, so it can access the same area
-+   of memory.
-+
-+
-+The dma_buf buffer sharing API usage contains the following steps:
-+
-+1. Exporter announces that it wishes to export a buffer
-+2. Userspace gets the file descriptor associated with the exported buffer, and
-+   passes it around to potential buffer-users based on use case
-+3. Each buffer-user 'connects' itself to the buffer
-+4. When needed, buffer-user requests access to the buffer from exporter
-+5. When finished with its use, the buffer-user notifies end-of-DMA to exporter
-+6. when buffer-user is done using this buffer completely, it 'disconnects'
-+   itself from the buffer.
-+
-+
-+1. Exporter's announcement of buffer export
-+
-+   The buffer exporter announces its wish to export a buffer. In this, it
-+   connects its own private buffer data, provides implementation for operations
-+   that can be performed on the exported dma_buf, and flags for the file
-+   associated with this buffer.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-+                                int flags)
-+
-+   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
-+   pointer to the same. It also associates an anonymous file with this buffer,
-+   so it can be exported. On failure to allocate the dma_buf object, it returns
-+   NULL.
-+
-+2. Userspace gets a handle to pass around to potential buffer-users
-+
-+   Userspace entity requests for a file-descriptor (fd) which is a handle to the
-+   anonymous file associated with the buffer. It can then share the fd with other
-+   drivers and/or processes.
-+
-+   Interface:
-+      int dma_buf_fd(struct dma_buf *dmabuf)
-+
-+   This API installs an fd for the anonymous file associated with this buffer;
-+   returns either 'fd', or error.
-+
-+3. Each buffer-user 'connects' itself to the buffer
-+
-+   Each buffer-user now gets a reference to the buffer, using the fd passed to
-+   it.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_get(int fd)
-+
-+   This API will return a reference to the dma_buf, and increment refcount for
-+   it.
-+
-+   After this, the buffer-user needs to attach its device with the buffer, which
-+   helps the exporter to know of device buffer constraints.
-+
-+   Interface:
-+      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+                                                struct device *dev)
-+
-+   This API returns reference to an attachment structure, which is then used
-+   for scatterlist operations. It will optionally call the 'attach' dma_buf
-+   operation, if provided by the exporter.
-+
-+   The dma-buf sharing framework does the bookkeeping bits related to managing
-+   the list of all attachments to a buffer.
-+
-+Until this stage, the buffer-exporter has the option to choose not to actually
-+allocate the backing storage for this buffer, but wait for the first buffer-user
-+to request use of buffer for allocation.
-+
-+
-+4. When needed, buffer-user requests access to the buffer
-+
-+   Whenever a buffer-user wants to use the buffer for any DMA, it asks for
-+   access to the buffer using dma_buf_map_attachment API. At least one attach to
-+   the buffer must have happened before map_dma_buf can be called.
-+
-+   Interface:
-+      struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
-+                                         enum dma_data_direction);
-+
-+   This is a wrapper to dma_buf->ops->map_dma_buf operation, which hides the
-+   "dma_buf->ops->" indirection from the users of this interface.
-+
-+   In struct dma_buf_ops, map_dma_buf is defined as
-+      struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
-+                                                enum dma_data_direction);
-+
-+   It is one of the buffer operations that must be implemented by the exporter.
-+   It should return the sg_table containing scatterlist for this buffer, mapped
-+   into caller's address space.
-+
-+   If this is being called for the first time, the exporter can now choose to
-+   scan through the list of attachments for this buffer, collate the requirements
-+   of the attached devices, and choose an appropriate backing storage for the
-+   buffer.
-+
-+   Based on enum dma_data_direction, it might be possible to have multiple users
-+   accessing at the same time (for reading, maybe), or any other kind of sharing
-+   that the exporter might wish to make available to buffer-users.
-+
-+
-+5. When finished, the buffer-user notifies end-of-DMA to exporter
-+
-+   Once the DMA for the current buffer-user is over, it signals 'end-of-DMA' to
-+   the exporter using the dma_buf_unmap_attachment API.
-+
-+   Interface:
-+      void dma_buf_unmap_attachment(struct dma_buf_attachment *,
-+                                    struct sg_table *);
-+
-+   This is a wrapper to dma_buf->ops->unmap_dma_buf() operation, which hides the
-+   "dma_buf->ops->" indirection from the users of this interface.
-+
-+   In struct dma_buf_ops, unmap_dma_buf is defined as
-+      void (*unmap_dma_buf)(struct dma_buf_attachment *, struct sg_table *);
-+
-+   unmap_dma_buf signifies the end-of-DMA for the attachment provided. Like
-+   map_dma_buf, this API also must be implemented by the exporter.
-+
-+
-+6. when buffer-user is done using this buffer, it 'disconnects' itself from the
-+   buffer.
-+
-+   After the buffer-user has no more interest in using this buffer, it should
-+   disconnect itself from the buffer:
-+
-+   - it first detaches itself from the buffer.
-+
-+   Interface:
-+      void dma_buf_detach(struct dma_buf *dmabuf,
-+                          struct dma_buf_attachment *dmabuf_attach);
-+
-+   This API removes the attachment from the list in dmabuf, and optionally calls
-+   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
-+
-+   - Then, the buffer-user returns the buffer reference to exporter.
-+
-+   Interface:
-+     void dma_buf_put(struct dma_buf *dmabuf);
-+
-+   This API then reduces the refcount for this buffer.
-+
-+   If, as a result of this call, the refcount becomes 0, the 'release' file
-+   operation related to this fd is called. It calls the dmabuf->ops->release()
-+   operation in turn, and frees the memory allocated for dmabuf when exported.
-+
-+NOTES:
-+- Importance of attach-detach and {map,unmap}_dma_buf operation pairs
-+   The attach-detach calls allow the exporter to figure out backing-storage
-+   constraints for the currently-interested devices. This allows preferential
-+   allocation, and/or migration of pages across different types of storage
-+   available, if possible.
-+
-+   Bracketing of DMA access with {map,unmap}_dma_buf operations is essential
-+   to allow just-in-time backing of storage, and migration mid-way through a
-+   use-case.
-+
-+- Migration of backing storage if needed
-+   If after
-+   - at least one map_dma_buf has happened,
-+   - and the backing storage has been allocated for this buffer,
-+   another new buffer-user intends to attach itself to this buffer, it might
-+   be allowed, if possible for the exporter.
-+
-+   In case it is allowed by the exporter:
-+    if the new buffer-user has stricter 'backing-storage constraints', and the
-+    exporter can handle these constraints, the exporter can just stall on the
-+    map_dma_buf until all outstanding access is completed (as signalled by
-+    unmap_dma_buf).
-+    Once all ongoing access is completed, the exporter could potentially move
-+    the buffer to the stricter backing-storage, and then allow further
-+    {map,unmap}_dma_buf operations from any buffer-user from the migrated
-+    backing-storage.
-+
-+   If the exporter cannot fulfil the backing-storage constraints of the new
-+   buffer-user device as requested, dma_buf_attach() would return an error to
-+   denote non-compatibility of the new buffer-sharing request with the current
-+   buffer.
-+
-+   If the exporter chooses not to allow an attach() operation once a
-+   map_dma_buf() API has been called, it simply returns an error.
-+
-+- mmap file operation
-+   An mmap() file operation is provided for the fd associated with the buffer.
-+   If the exporter defines an mmap operation, the mmap() fop calls this to allow
-+   mmap for devices that might need it; if not, it returns an error.
-+
-+References:
-+[1] struct dma_buf_ops in include/linux/dma-buf.h
-+[2] All interfaces mentioned above defined in include/linux/dma-buf.h
--- 
-1.7.4.1
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
