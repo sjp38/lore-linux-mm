@@ -1,186 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 856986B005C
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 14:00:26 -0500 (EST)
-Message-Id: <20111204190023.776869305@goodmis.org>
-Date: Sun, 04 Dec 2011 13:54:54 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH 10/11] slab, lockdep: Annotate all slab caches
-References: <20111204185444.411298317@goodmis.org>
-Content-Disposition: inline; filename=0010-slab-lockdep-Annotate-all-slab-caches.patch
-Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature"; boundary="00GvhwF7k39YY"
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 655566B004F
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 14:50:59 -0500 (EST)
+Subject: Re: [Linux-decnet-user] Proposed removal of DECnet support
+	(was:Re: [BUG] 3.2-rc2:BUG kmalloc-8: Redzone overwritten)
+From: Philipp Schafft <lion@lion.leolix.org>
+In-Reply-To: <1322664737.2755.17.camel@menhir>
+References: 
+	 <OF7785CDCC.246C1F8F-ON80257958.004A9A89-80257958.004C103D@LocalDomain>
+	 <1322664737.2755.17.camel@menhir>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-GFnK3uTMHa0v/8p0EJDa"
+Date: Sun, 04 Dec 2011 20:50:52 +0100
+Mime-Version: 1.0
+Message-Id: <20111204195055.A36077AD9C@priderock.keep-cool.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-rt-users <linux-rt-users@vger.kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Carsten Emde <C.Emde@osadl.org>, John Kacur <jkacur@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hans Schillstrom <hans@schillstrom.com>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Sitsofe Wheeler <sitsofe@yahoo.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: mike.gair@tatasteel.com, Chrissie Caulfield <ccaulfie@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Linux-DECnet user <linux-decnet-user@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, netdev <netdev@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, RoarAudio <roaraudio@lists.keep-cool.org>
 
---00GvhwF7k39YY
-Content-Type: text/plain; charset="UTF-8"
+
+--=-GFnK3uTMHa0v/8p0EJDa
+Content-Type: text/plain
 Content-Transfer-Encoding: quoted-printable
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+reflum,
 
-Currently we only annotate the kmalloc caches, annotate all of them.
+On Wed, 2011-11-30 at 14:52 +0000, Steven Whitehouse wrote:
+> On Wed, 2011-11-30 at 13:52 +0000, mike.gair@tatasteel.com wrote:
+> > In theory i'd be interested in maintaining it,
+> > but i'm not sure what amount of work is involved,
+> > have no experience of kernel, or where to start.
+> >=20
+> > Any ideas?
+> >=20
+> >=20
+> So the issue is basically that due to there being nobody currently
+> maintaining the DECnet stack, it puts a burden on the core network
+> maintainers when they make cross-protocol changes, as they have to
+> figure out what impact the changes are likely to have on the DECnet
+> stack. So its an extra barrier to making cross-protocol code changes.
+>=20
+> If there was an active maintainer who could be a source of knowledge
+> (and the odd patch to help out making those changes) then this issue
+> would largely go away.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Hans Schillstrom <hans@schillstrom.com>
-Cc: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Sitsofe Wheeler <sitsofe@yahoo.com>
-Cc: linux-mm@kvack.org
-Cc: David Rientjes <rientjes@google.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Link: http://lkml.kernel.org/n/tip-10bey2cgpcvtbdkgigaoab8w@git.kernel.org
-Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
----
- mm/slab.c |   52 ++++++++++++++++++++++++++++------------------------
- 1 files changed, 28 insertions(+), 24 deletions(-)
+*nods*
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 433b9a2..5251b99 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -606,6 +606,12 @@ int slab_is_available(void)
- 	return g_cpucache_up >=3D EARLY;
- }
-=20
-+/*
-+ * Guard access to the cache-chain.
-+ */
-+static DEFINE_MUTEX(cache_chain_mutex);
-+static struct list_head cache_chain;
-+
- #ifdef CONFIG_LOCKDEP
-=20
- /*
-@@ -667,38 +673,41 @@ static void slab_set_debugobj_lock_classes(struct kme=
-m_cache *cachep)
- 		slab_set_debugobj_lock_classes_node(cachep, node);
- }
-=20
--static void init_node_lock_keys(int q)
-+static void init_lock_keys(struct kmem_cache *cachep, int node)
- {
--	struct cache_sizes *s =3D malloc_sizes;
-+	struct kmem_list3 *l3;
-=20
- 	if (g_cpucache_up < LATE)
- 		return;
-=20
--	for (s =3D malloc_sizes; s->cs_size !=3D ULONG_MAX; s++) {
--		struct kmem_list3 *l3;
-+	l3 =3D cachep->nodelists[node];
-+	if (!l3 || OFF_SLAB(cachep))
-+		return;
-=20
--		l3 =3D s->cs_cachep->nodelists[q];
--		if (!l3 || OFF_SLAB(s->cs_cachep))
--			continue;
-+	slab_set_lock_classes(cachep, &on_slab_l3_key, &on_slab_alc_key, node);
-+}
-=20
--		slab_set_lock_classes(s->cs_cachep, &on_slab_l3_key,
--				&on_slab_alc_key, q);
--	}
-+static void init_node_lock_keys(int node)
-+{
-+	struct kmem_cache *cachep;
-+
-+	list_for_each_entry(cachep, &cache_chain, next)
-+		init_lock_keys(cachep, node);
- }
-=20
--static inline void init_lock_keys(void)
-+static inline void init_cachep_lock_keys(struct kmem_cache *cachep)
- {
- 	int node;
-=20
- 	for_each_node(node)
--		init_node_lock_keys(node);
-+		init_lock_keys(cachep, node);
- }
- #else
--static void init_node_lock_keys(int q)
-+static void init_node_lock_keys(int node)
- {
- }
-=20
--static inline void init_lock_keys(void)
-+static void init_cachep_lock_keys(struct kmem_cache *cachep)
- {
- }
-=20
-@@ -711,12 +720,6 @@ static void slab_set_debugobj_lock_classes(struct kmem=
-_cache *cachep)
- }
- #endif
-=20
--/*
-- * Guard access to the cache-chain.
-- */
--static DEFINE_MUTEX(cache_chain_mutex);
--static struct list_head cache_chain;
--
- static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
- static DEFINE_PER_CPU(struct list_head, slab_free_list);
- static DEFINE_LOCAL_IRQ_LOCK(slab_lock);
-@@ -1728,14 +1731,13 @@ void __init kmem_cache_init_late(void)
-=20
- 	g_cpucache_up =3D LATE;
-=20
--	/* Annotate slab for lockdep -- annotate the malloc caches */
--	init_lock_keys();
--
- 	/* 6) resize the head arrays to their final sizes */
- 	mutex_lock(&cache_chain_mutex);
--	list_for_each_entry(cachep, &cache_chain, next)
-+	list_for_each_entry(cachep, &cache_chain, next) {
-+		init_cachep_lock_keys(cachep);
- 		if (enable_cpucache(cachep, GFP_NOWAIT))
- 			BUG();
-+	}
- 	mutex_unlock(&cache_chain_mutex);
-=20
- 	/* Done! */
-@@ -2546,6 +2548,8 @@ kmem_cache_create (const char *name, size_t size, siz=
-e_t align,
- 		slab_set_debugobj_lock_classes(cachep);
- 	}
-=20
-+	init_cachep_lock_keys(cachep);
-+
- 	/* cache setup completed, link it into the list */
- 	list_add(&cachep->next, &cache_chain);
- oops:
+
+> The most important duty of the maintainer is just to watch whats going
+> on in the core networking development and to contribute the DECnet part
+> of that. So it would be most likely be more a reviewing of patches and
+> providing advice role, than one of writing patches (though it could be
+> that too) and ensuring that the code continues to function correctly by
+> testing it from time to time.
+>=20
+> The ideal maintainer would have an in-depth knowledge of the core Linux
+> networking stack (socket layer, dst and neigh code), the DECnet specs
+> and have a good knowledge of C.=20
+
+I guess I would fit mostly but I have no idea of the kernel internal
+stuff. Also I'm a bit short on time.
+
+
+> Bearing in mind the low patch volume (almost zero, except for core
+> stuff), it would probably be one of the subsystems with the least amount
+> of work to do in maintaining it. So in some ways, a good intro for a new
+> maintainer.
+
+Jup. This is very true. I hope we will find a new maintainer because of
+exactly this point. Maybe somebody like Mike Gair.
+
+
+> I do try and keep an eye on what get submitted to the DECnet code and
+> I'll continue to do that while it is still in the kernel. However, it is
+> now quite a long time since I last did any substantial work in the
+> networking area and things have moved on a fair bit in the mean time. I
+> don't have a lot of time to review DECnet patches these days and no way
+> to actually test any contributions against a real DECnet implementation.
+
+I'm glad you are still interested. I'm always happy when I see mails
+from you at the DECnet for Linux list.
+
+
+> So I'll provide what help I can to anybody who wants to take the role
+> on, within those limitations. I'm also happy to answer questions about
+> why things were done in a particular way, for example.
+>=20
+> It is good to know that people are still using the Linux DECnet code
+> too. It has lived far beyond the time when I'd envisioned it still being
+> useful :-)
+
+There are still some people interested in it. Btw. on Debian popcon
+counts 5356 users.
+
 --=20
-1.7.7.1
+Philipp.
+ (Rah of PH2)
 
-
-
---00GvhwF7k39YY
-Content-Type: application/pgp-signature; name="signature.asc"
+--=-GFnK3uTMHa0v/8p0EJDa
+Content-Type: application/pgp-signature; name=signature.asc
 Content-Description: This is a digitally signed message part
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Because it's your freedom
 
-iQIcBAABAgAGBQJO28NIAAoJEIy3vGnGbaoAaO0P/37+w7akCR2Veg0qUDhlLngk
-fBMGo5TOuUAYyFhLiTi8lMzVB6l1yOnogvF59gcuB55HdBG4Mezy5jRBtslygFbs
-ZPjjb9JHkPKb/5d/VCZCVa3MDSbE/Q1TO2hPDn6wNt+D8YUqe0xwJRG2ZKw/zbb1
-yAVpF6qVAAPOklPC6DmOmub7zM1hMMUi7QGaw5uhV0mgwqVFEnW9p+1LQqSVVFGG
-lRfCtEmhgtN2zDjPozbnggj6GSKFQvAOwZUhixcTgDKmOjbO3eNuB31w9i+kOulu
-aFQJbetj6D+LGRdACUk9Yu3Ds/CSsGaygp5MBud+7fDhfRpA3Ey9vnXOLX1m4LMX
-xZVeMdM+b1VRhsROaOxsIZDtWJe/GDdAnypZuKCFeD38Op9pDYEEIjvQCTEwLbzD
-65o4FmG0JZW5H/Mj7HICiTyWRyxTGhO7lv0Xze3ltBgoQ5w0ARU7+Vf0qA/XPLS+
-4HY5zas1mcYrVk9++Wr6BYpt4yGUbUOYxU4GYgc5Ud8VbqMHFFPfxpOlEiPAeMJa
-RmNLLeUQ60EVM3xIOToTmQQCAfBYrxurVsaXOCLhYyfvoNiqj4w277WbdjSF05ba
-IxVCcX7Ypt8DNt4acgyjJIFFLncvhIyVGjX61ZcAORoalRNXK740JM8pimabMd+9
-88GM5uglvP8hBfPQbq/p
-=jO8C
+iQEVAwUATtvPG2CSpmW8W5B8AQKLoAf/VswhaTbBgm0aKx4GIrnAJA+M5q5miQzu
+HLZZ4ipepSIJbKLU3bdqvjtibQrnTYyXjov2oCLzKaizKvAKKd8blJR0CEu+dShv
+xjBQiqFWfDSAARR7a3ypsyOLQ9WqG2IZdUB0FhJ0CHyjiZuHF3aJV+8/x+IZvJi7
+VicP5trlrMupFQz3q74rnLmvsgCPDUmD+6mbZsYcJoAXa7V2xKMbv5245VuCaGVt
+bO38Zs29XWfg51s5ULeB8CZkTlNi8h9ORxDNEF9F49KuSJygtC9jqAY353cfqZF6
+fHrhL12/nFc5+aMAACFvuujDjX0luXyzQsAGDDogenWeNU03spVq3A==
+=GcNW
 -----END PGP SIGNATURE-----
 
---00GvhwF7k39YY--
+--=-GFnK3uTMHa0v/8p0EJDa--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
