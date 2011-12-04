@@ -1,57 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B81806B004F
-	for <linux-mm@kvack.org>; Sat,  3 Dec 2011 20:02:05 -0500 (EST)
-Date: Sun, 4 Dec 2011 02:02:00 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-Message-ID: <20111204010200.GA1530@x4.trippels.de>
-References: <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <20111121153621.GA1678@x4.trippels.de>
- <20111123160353.GA1673@x4.trippels.de>
- <alpine.DEB.2.00.1111231004490.17317@router.home>
- <20111124085040.GA1677@x4.trippels.de>
- <20111202230412.GB12057@homer.localdomain>
- <20111203092845.GA1520@x4.trippels.de>
- <CAPM=9tyjZc9waC_ZBygW9zh+Zq-Wb1X5Y6yfsCCMPYwpFVWOOg@mail.gmail.com>
- <20111203122900.GA1617@x4.trippels.de>
- <CAH3drwZDOpPuQ_G=LwTiNsR5BNyJTNr+VJU74E6nS5AbKyQH0A@mail.gmail.com>
+Received: from na3sys010amo107.postini.com (na3sys010amo107.postini.com [74.125.245.65])
+	by kanga.kvack.org (Postfix) with ESMTP id 350506B005A
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 04:55:04 -0500 (EST)
+Received: from na3sys010alut001.postini.com (na3sys010alut001.postini.com [74.125.245.26])
+	by na3sys010amo107.postini.com (Postfix) with SMTP id B6BFF8A62E1
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 01:55:03 -0800 (PST)
+From: "kvack.org Support" <bcrl@kvack.org>
+Subject: kvack.org has Activated your New Mail Services!
+Date: Sun, 4 Dec 2011 01:55:03 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAH3drwZDOpPuQ_G=LwTiNsR5BNyJTNr+VJU74E6nS5AbKyQH0A@mail.gmail.com>
+Content-Type: multipart/alternative;
+ boundary="------------C844F1291D699ALT"
+Message-Id: <20111204095504.350506B005A@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Dave Airlie <airlied@gmail.com>, Christoph Lameter <cl@linux.com>, "Alex, Shi" <alex.shi@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, dri-devel@lists.freedesktop.org, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, tj@kernel.org, Alex Deucher <alexander.deucher@amd.com>
+To: linux-mm@kvack.org
 
-On 2011.12.03 at 14:31 -0500, Jerome Glisse wrote:
-> On Sat, Dec 3, 2011 at 7:29 AM, Markus Trippelsdorf
-> <markus@trippelsdorf.de> wrote:
-> > On 2011.12.03 at 12:20 +0000, Dave Airlie wrote:
-> >> >> > > > > FIX idr_layer_cache: Marking all objects used
-> >> >> > > >
-> >> >> > > > Yesterday I couldn't reproduce the issue at all. But today I've hit
-> >> >> > > > exactly the same spot again. (CCing the drm list)
-> >>
-> >> If I had to guess it looks like 0 is getting written back to some
-> >> random page by the GPU maybe, it could be that the GPU is in some half
-> >> setup state at boot or on a reboot does it happen from a cold boot or
-> >> just warm boot or kexec?
-> >
-> > Only happened with kexec thus far. Cold boot seems to be fine.
-> >
-> > --
-> > Markus
-> 
-> Can you add radeon.no_wb=1 to your kexec kernel paramater an see if
-> you can reproduce.
+--------------C844F1291D699ALT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-No, I cannot reproduce the issue with radeon.no_wb=1. (I write this
-after 700 successful kexec iterations...)
+Dear linux-mm@kvack.org, 
 
--- 
-Markus
+kvack.org has activated your virus and junk mail protection services.
+
+You should log in to your personal, password-protected
+kvack.org Message Center as soon as possible. 
+
+    Your login address is: linux-mm@kvack.org
+    Your temporary password is: o?0jctdT
+
+(You will be asked to create a new password after first log in.)
+
+To log in to your kvack.org Message Center, use this link: 
+
+    http://login.postini.com/exec/login?email=linux-mm@kvack.org
+
+You may also modify your default settings or deactivate any services. 
+
+Thank You! kvack.org
+
+--------------C844F1291D699ALT
+Content-Type: multipart/related;
+ boundary="------------C844F1291D699REL"
+
+--------------C844F1291D699REL
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+<html>
+<title>kvack.org has Activated your New Mail Services!</title>
+<body bgcolor="#FFFFFF">
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td background="cid:rule_extension.gif.C844F1291D699REL" width=102% height=26 
+ valign=bottom>
+<img src="cid:rule_extension.gif.C844F1291D699REL" width=1 height=26 
+ alt="" border=0></td></tr></table>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign=top>
+<font face="Arial, Helvetica, sans-serif" size=-1>
+&nbsp;<p>
+<b>Dear linux-mm@kvack.org</b>,
+<p>
+<b>kvack.org</b> has activated your virus and junk mail protection services.
+<p>
+You should log in to your personal, password-protected <b>kvack.org Message Center</b> as soon as possible.
+<p>
+<blockquote>
+Your login address is: linux-mm@kvack.org
+<br>
+Your temporary password is: o?0jctdT
+
+(You will be asked to create a new password after first log in.)
+</blockquote>
+<p>
+To log in to your <b>kvack.org Message Center</b>, use this link:
+<p>
+<blockquote>
+<a href="http://login.postini.com/exec/login?email=linux-mm@kvack.org">http://login.postini.com/exec/login?email=linux-mm@kvack.org</a>
+</blockquote>
+<p>
+You may also modify your default settings or deactivate any services.
+<p>
+<b>Thank You! kvack.org</b></font></td>
+</tr>
+</table>
+
+</body>
+</html>
+
+--------------C844F1291D699REL
+Content-Type: image/gif
+Content-ID: <rule_extension.gif.C844F1291D699REL>
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="rule_extension.gif"
+
+R0lGODlhAQAaAJEAAPyaBP//zOXm7////yH5BAAAAAAALAAAAAABABoAAAIInC2COrkfQAEA
+Ow==
+
+--------------C844F1291D699REL--
+
+--------------C844F1291D699ALT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
