@@ -1,64 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 038856B004F
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 12:32:04 -0500 (EST)
-Received: by dakl33 with SMTP id l33so1518490dak.14
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2011 09:32:01 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20111204010200.GA1530@x4.trippels.de>
-References: <1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121153621.GA1678@x4.trippels.de>
-	<20111123160353.GA1673@x4.trippels.de>
-	<alpine.DEB.2.00.1111231004490.17317@router.home>
-	<20111124085040.GA1677@x4.trippels.de>
-	<20111202230412.GB12057@homer.localdomain>
-	<20111203092845.GA1520@x4.trippels.de>
-	<CAPM=9tyjZc9waC_ZBygW9zh+Zq-Wb1X5Y6yfsCCMPYwpFVWOOg@mail.gmail.com>
-	<20111203122900.GA1617@x4.trippels.de>
-	<CAH3drwZDOpPuQ_G=LwTiNsR5BNyJTNr+VJU74E6nS5AbKyQH0A@mail.gmail.com>
-	<20111204010200.GA1530@x4.trippels.de>
-Date: Sun, 4 Dec 2011 12:32:00 -0500
-Message-ID: <CAH3drwaZDGSmA=iZzqKzo32QDcdYiUv5A+eM5x+MeKH3uxLt7g@mail.gmail.com>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 6140E6B004F
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 14:00:25 -0500 (EST)
+Message-Id: <20111204190021.812654254@goodmis.org>
+Date: Sun, 04 Dec 2011 13:54:53 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [PATCH 09/11] slab, lockdep: Fix silly bug
+References: <20111204185444.411298317@goodmis.org>
+Content-Disposition: inline; filename=0009-slab-lockdep-Fix-silly-bug.patch
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature"; boundary="00GvhwF7k39YY"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Dave Airlie <airlied@gmail.com>, Christoph Lameter <cl@linux.com>, "Alex, Shi" <alex.shi@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, dri-devel@lists.freedesktop.org, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, tj@kernel.org, Alex Deucher <alexander.deucher@amd.com>
+To: linux-kernel@vger.kernel.org, linux-rt-users <linux-rt-users@vger.kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Carsten Emde <C.Emde@osadl.org>, John Kacur <jkacur@redhat.com>, stable@kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hans Schillstrom <hans@schillstrom.com>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Sitsofe Wheeler <sitsofe@yahoo.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Sat, Dec 3, 2011 at 8:02 PM, Markus Trippelsdorf
-<markus@trippelsdorf.de> wrote:
-> On 2011.12.03 at 14:31 -0500, Jerome Glisse wrote:
->> On Sat, Dec 3, 2011 at 7:29 AM, Markus Trippelsdorf
->> <markus@trippelsdorf.de> wrote:
->> > On 2011.12.03 at 12:20 +0000, Dave Airlie wrote:
->> >> >> > > > > FIX idr_layer_cache: Marking all objects used
->> >> >> > > >
->> >> >> > > > Yesterday I couldn't reproduce the issue at all. But today I've hit
->> >> >> > > > exactly the same spot again. (CCing the drm list)
->> >>
->> >> If I had to guess it looks like 0 is getting written back to some
->> >> random page by the GPU maybe, it could be that the GPU is in some half
->> >> setup state at boot or on a reboot does it happen from a cold boot or
->> >> just warm boot or kexec?
->> >
->> > Only happened with kexec thus far. Cold boot seems to be fine.
->> >
->> > --
->> > Markus
->>
->> Can you add radeon.no_wb=1 to your kexec kernel paramater an see if
->> you can reproduce.
->
-> No, I cannot reproduce the issue with radeon.no_wb=1. (I write this
-> after 700 successful kexec iterations...)
->
+--00GvhwF7k39YY
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Ok so it's GPU writeback will do a patch on monday.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Cheers,
-Jerome
+Commit 30765b92 ("slab, lockdep: Annotate the locks before using
+them") moves the init_lock_keys() call from after g_cpucache_up =3D
+FULL, to before it. And overlooks the fact that init_node_lock_keys()
+tests for it and ignores everything !FULL.
+
+Introduce a LATE stage and change the lockdep test to be <LATE.
+
+Cc: stable@kernel.org
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hans Schillstrom <hans@schillstrom.com>
+Cc: Christoph Lameter <cl@gentwo.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Sitsofe Wheeler <sitsofe@yahoo.com>
+Cc: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Link: http://lkml.kernel.org/n/tip-gadqbdfxorhia1w5ewmoiodd@git.kernel.org
+Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+---
+ mm/slab.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 015cd76..433b9a2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -594,6 +594,7 @@ static enum {
+ 	PARTIAL_AC,
+ 	PARTIAL_L3,
+ 	EARLY,
++	LATE,
+ 	FULL
+ } g_cpucache_up;
+=20
+@@ -670,7 +671,7 @@ static void init_node_lock_keys(int q)
+ {
+ 	struct cache_sizes *s =3D malloc_sizes;
+=20
+-	if (g_cpucache_up !=3D FULL)
++	if (g_cpucache_up < LATE)
+ 		return;
+=20
+ 	for (s =3D malloc_sizes; s->cs_size !=3D ULONG_MAX; s++) {
+@@ -1725,6 +1726,8 @@ void __init kmem_cache_init_late(void)
+ {
+ 	struct kmem_cache *cachep;
+=20
++	g_cpucache_up =3D LATE;
++
+ 	/* Annotate slab for lockdep -- annotate the malloc caches */
+ 	init_lock_keys();
+=20
+--=20
+1.7.7.1
+
+
+
+--00GvhwF7k39YY
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAABAgAGBQJO28NGAAoJEIy3vGnGbaoANzwQALOUi9UkALY1D28YBcIlR5sK
+MqZqVvFaQglf0wMSxehfvvwopXqb1il8+tZMFcuLHk3wZ0fnwUQbjmvSmw4fDq19
+uIhCzqLjZpmFW+OrwofQ9dV9NvYJdP2TiXY3y0RIvmJDweYoz4AssafyV7XRurCP
+yHvAzlMR0n4ZpLyNrnesytch+yWYVE+OEbQLswQZJ79THEgntBMOkNiJ1CMiNXFD
+Cpv9ip4dd+KrvhKoX8dPOyfpH88C2wN6qW3HcPs+JP04WRDx4hmtHB1o/BVdx0pa
+YJALTkGsYRdM569v3TrVABdy8+R+DG4Qja2GjCZ0jRliDsiwvtRlEvZojTWxhWc+
+Td1qqb+c/HTBtQ/EdR8QOZecVQ/kIsLDEQiiYn1kZisgh4lm4Bhsrx1T1YNx4/Zm
+POxB1vKBvsO0aBWNrB0ZFj5kMuVQJVz1s0JTHJg65k6g9h9A9e+iovSGfw8ByWeu
+wthClWgb0DU9id62RoMmvTrVjcwEiZRrbogScIatZTGhdnAt6cuB78czvgsZi0qg
+W82Fx/p4UhfrG1J00Wxj6dLwRE8UzOcwahHVaQdpkGEUqWCVq7wPIspxidhWOmwy
+ehg9sxSIknv9DiAxQMBX9klkz+4t4lelJc+yTpt3dGnHNQP6lu6171qUm6ro8dXR
+cOfSkCbsKOsFktaCVmnd
+=Rjgy
+-----END PGP SIGNATURE-----
+
+--00GvhwF7k39YY--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
