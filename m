@@ -1,74 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9B5DA6B004F
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 13:43:34 -0500 (EST)
-Received: by ghbg19 with SMTP id g19so1728666ghb.14
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2011 10:43:33 -0800 (PST)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 0411C6B004F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 13:55:45 -0500 (EST)
+Received: by vcbfk26 with SMTP id fk26so5527905vcb.14
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2011 10:55:45 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20111205181549.GA1612@x4.trippels.de>
-References: <20111123160353.GA1673@x4.trippels.de>
-	<alpine.DEB.2.00.1111231004490.17317@router.home>
-	<20111124085040.GA1677@x4.trippels.de>
-	<20111202230412.GB12057@homer.localdomain>
-	<20111203092845.GA1520@x4.trippels.de>
-	<CAPM=9tyjZc9waC_ZBygW9zh+Zq-Wb1X5Y6yfsCCMPYwpFVWOOg@mail.gmail.com>
-	<20111203122900.GA1617@x4.trippels.de>
-	<CAH3drwZDOpPuQ_G=LwTiNsR5BNyJTNr+VJU74E6nS5AbKyQH0A@mail.gmail.com>
-	<20111204010200.GA1530@x4.trippels.de>
-	<20111205171046.GA4342@homer.localdomain>
-	<20111205181549.GA1612@x4.trippels.de>
-Date: Mon, 5 Dec 2011 13:43:32 -0500
-Message-ID: <CAH3drwbZRUV75acco9uWigHLt1brANP1uQ=sAomASdfFv=_AbA@mail.gmail.com>
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
-From: Jerome Glisse <j.glisse@gmail.com>
+In-Reply-To: <201112051718.48324.arnd@arndb.de>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
+	<1322816252-19955-2-git-send-email-sumit.semwal@ti.com>
+	<201112051718.48324.arnd@arndb.de>
+Date: Mon, 5 Dec 2011 19:55:44 +0100
+Message-ID: <CAKMK7uE-ZJ-VQRWy+zJJWsvr9nARWuf-4nupXhTJ0CLqC88CEw@mail.gmail.com>
+Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+From: Daniel Vetter <daniel@ffwll.ch>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Dave Airlie <airlied@gmail.com>, Christoph Lameter <cl@linux.com>, "Alex, Shi" <alex.shi@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, dri-devel@lists.freedesktop.org, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, tj@kernel.org, Alex Deucher <alexander.deucher@amd.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Mon, Dec 5, 2011 at 1:15 PM, Markus Trippelsdorf
-<markus@trippelsdorf.de> wrote:
-> On 2011.12.05 at 12:10 -0500, Jerome Glisse wrote:
->> On Sun, Dec 04, 2011 at 02:02:00AM +0100, Markus Trippelsdorf wrote:
->> > On 2011.12.03 at 14:31 -0500, Jerome Glisse wrote:
->> > > On Sat, Dec 3, 2011 at 7:29 AM, Markus Trippelsdorf
->> > > <markus@trippelsdorf.de> wrote:
->> > > > On 2011.12.03 at 12:20 +0000, Dave Airlie wrote:
->> > > >> >> > > > > FIX idr_layer_cache: Marking all objects used
->> > > >> >> > > >
->> > > >> >> > > > Yesterday I couldn't reproduce the issue at all. But today I've hit
->> > > >> >> > > > exactly the same spot again. (CCing the drm list)
->> > > >>
->> > > >> If I had to guess it looks like 0 is getting written back to some
->> > > >> random page by the GPU maybe, it could be that the GPU is in some half
->> > > >> setup state at boot or on a reboot does it happen from a cold boot or
->> > > >> just warm boot or kexec?
->> > > >
->> > > > Only happened with kexec thus far. Cold boot seems to be fine.
->> > > >
->> > >
->> > > Can you add radeon.no_wb=1 to your kexec kernel paramater an see if
->> > > you can reproduce.
->> >
->> > No, I cannot reproduce the issue with radeon.no_wb=1. (I write this
->> > after 700 successful kexec iterations...)
->> >
->>
->> Can you try if attached patch fix the issue when you don't pass the
->> radeon.no_wb=1 option ?
+On Mon, Dec 05, 2011 at 05:18:48PM +0000, Arnd Bergmann wrote:
+> On Friday 02 December 2011, Sumit Semwal wrote:
+> > +	/* allow allocator to take care of cache ops */
+> > +	void (*sync_sg_for_cpu) (struct dma_buf *, struct device *);
+> > +	void (*sync_sg_for_device)(struct dma_buf *, struct device *);
 >
-> Yes the patch finally fixes the issue for me (tested with 120 kexec
-> iterations).
-> Thanks Jerome!
+> I don't see how this works with multiple consumers: For the streaming
+> DMA mapping, there must be exactly one owner, either the device or
+> the CPU. Obviously, this rule needs to be extended when you get to
+> multiple devices and multiple device drivers, plus possibly user
+> mappings. Simply assigning the buffer to "the device" from one
+> driver does not block other drivers from touching the buffer, and
+> assigning it to "the cpu" does not stop other hardware that the
+> code calling sync_sg_for_cpu is not aware of.
 >
-> --
-> Markus
+> The only way to solve this that I can think of right now is to
+> mandate that the mappings are all coherent (i.e. noncachable
+> on noncoherent architectures like ARM). If you do that, you no
+> longer need the sync_sg_for_* calls.
 
-Will respin with some minor code changes.
+Woops, totally missed the addition of these. Can somebody explain to used
+to rather coherent x86 what we need these for and the code-flow would look
+like in a typical example. I was kinda assuming that devices would bracket
+their use of a buffer with the attachment_map/unmap calls and any cache
+coherency magic that might be needed would be somewhat transparent to
+users of the interface?
 
-Cheers,
-Jerome
+The map call gets the dma_data_direction parameter, so it should be able
+to do the right thing. And because we keep the attachement around, any
+caching of mappings should be possible, too.
+
+Yours, Daniel
+
+PS: Slightly related, because it will make the coherency nightmare worse,
+afaict: Can we kill mmap support?
+-- 
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
