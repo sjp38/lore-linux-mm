@@ -1,90 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 730FC6B004F
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 17:04:41 -0500 (EST)
-Date: Mon, 5 Dec 2011 09:04:36 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [3.2-rc3] OOM killer doesn't kill the obvious memory hog
-Message-ID: <20111204220436.GB7046@dastard>
-References: <20111201093644.GW7046@dastard>
- <20111201185001.5bf85500.kamezawa.hiroyu@jp.fujitsu.com>
- <20111201124634.GY7046@dastard>
- <alpine.DEB.2.00.1112011432110.27778@chino.kir.corp.google.com>
- <20111202015921.GZ7046@dastard>
- <20111202033148.GA7046@dastard>
- <20111202144441.4c2ff29e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111202144441.4c2ff29e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 6DE1D6B004F
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 19:51:21 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7BAD83EE0BB
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 09:51:19 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD2CF45DE52
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 09:51:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E89345DE4D
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 09:51:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9141D1DB8037
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 09:51:18 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F9331DB802F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 09:51:18 +0900 (JST)
+Date: Mon, 5 Dec 2011 09:50:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
+Message-Id: <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111202120849.GA1295@cmpxchg.org>
+References: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111202120849.GA1295@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org
 
-On Fri, Dec 02, 2011 at 02:44:41PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 2 Dec 2011 14:31:48 +1100
-> Dave Chinner <david@fromorbit.com> wrote:
-> 
-> > So, it's a distro bug - sshd should never be started from from udev
-> > context because of this inherited oom_score_adj thing.
-> > Interestingly, the ifup ssh restart script says this:
-> > 
-> > # We'd like to use 'reload' here, but it has some problems; see #502444.
-> > if [ -x /usr/sbin/invoke-rc.d ]; then
-> >         invoke-rc.d ssh restart >/dev/null 2>&1 || true
-> > else
-> >         /etc/init.d/ssh restart >/dev/null 2>&1 || true
-> > fi
-> > 
-> > Bug 502444 describes the exact startup race condition that I've just
-> > found. It does a ssh server restart because reload causes the sshd
-> > server to fail to start if a start is currently in progress.  So,
-> > rather than solving the start vs reload race condition, it got a
-> > bandaid (use restart to restart sshd from the reload context) and
-> > left it as a landmine.....
-> > 
-> 
-> Thank you for chasing. 
-> Hm, BTW, do you think this kind of tracepoint is useful for debugging ?
-> This patch is just an example.
+On Fri, 2 Dec 2011 13:08:49 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Definitely a good idea, because not all applications have logging
-like sshd does.  Besides, the first thing I went looking for was
-tracepoints. ;)
+> On Fri, Dec 02, 2011 at 07:06:22PM +0900, KAMEZAWA Hiroyuki wrote:
+> > I'm now testing this patch, removing PCG_ACCT_LRU, onto mmotm.
+> > How do you think ?
+> 
+> > @@ -1024,18 +1026,8 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
+> >  		return;
+> >  
+> >  	pc = lookup_page_cgroup(page);
+> > -	/*
+> > -	 * root_mem_cgroup babysits uncharged LRU pages, but
+> > -	 * PageCgroupUsed is cleared when the page is about to get
+> > -	 * freed.  PageCgroupAcctLRU remembers whether the
+> > -	 * LRU-accounting happened against pc->mem_cgroup or
+> > -	 * root_mem_cgroup.
+> > -	 */
+> > -	if (TestClearPageCgroupAcctLRU(pc)) {
+> > -		VM_BUG_ON(!pc->mem_cgroup);
+> > -		memcg = pc->mem_cgroup;
+> > -	} else
+> > -		memcg = root_mem_cgroup;
+> > +	memcg = pc->mem_cgroup ? pc->mem_cgroup : root_mem_cgroup;
+> > +	VM_BUG_ON(memcg != pc->mem_cgroup_lru);
+> >  	mz = page_cgroup_zoneinfo(memcg, page);
+> >  	/* huge page split is done under lru_lock. so, we have no races. */
+> >  	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+> 
+> Nobody clears pc->mem_cgroup upon uncharge, so this may end up
+> mistakenly lru-unaccount a page that was never charged against the
+> stale pc->mem_cgroup (e.g. a swap readahead page that has not been
+> charged yet gets isolated by reclaim).
+> 
+> On the other hand, pages that were uncharged just before the lru_del
+> MUST be lru-unaccounted against pc->mem_cgroup.
+> 
+> PageCgroupAcctLRU made it possible to tell those two scenarios apart.
+> 
+> A possible solution could be to clear pc->mem_cgroup when the page is
+> finally freed so that only pages that have been charged since their
+> last allocation have pc->mem_cgroup set.  But this means that the page
+> freeing hotpath will have to grow a lookup_page_cgroup(), amortizing
+> the winnings at least to some extent.
+> 
 
-> 
-> ==
-> From ed565cbf842e0b30827fba7bfdbc724fe21d9d2d Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Fri, 2 Dec 2011 14:10:51 +0900
-> Subject: [PATCH] oom_score_adj trace point.
-> 
-> oom_score_adj is set by some daemon and launch tasks ans inherited
-> to applications, sometimes unexpectedly.
-> 
-> This patch is for debugging oom_score_adj inheritance. This
-> adds trace points for oom_score_adj inheritance.
-> 
->     bash-2501  [002]   448.860197: oom_score_adj_update: task 2501[bash] updates oom_score_adj=-1000
->     bash-2501  [002]   455.678190: oom_score_adj_inherited: new task 2527 inherited oom_score_adj -1000
->     ls-2527  [007]   455.678683: oom_score_task_rename: task 2527[bash] to [ls] oom_score_adj=-1000
->     bash-2501  [007]   461.632103: oom_score_adj_inherited: new task 2528 inherited oom_score_adj -1000
->     bash-2501  [007]   461.632335: oom_score_adj_inherited: new task 2529 inherited oom_score_adj -1000
->     ls-2528  [003]   461.632983: oom_score_task_rename: task 2528[bash] to [ls] oom_score_adj=-1000
->     less-2529  [005]   461.633086: oom_score_task_rename: task 2529[bash] to [less] oom_score_adj=-1000
->     bash-2501  [004]   474.888710: oom_score_adj_update: task 2501[bash] updates oom_score_adj=0
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hmm. IMHO, we have 2 easy ways.
 
-Acked-by: Dave Chinner <dchinner@redhat.com>
+ - Ignore PCG_USED bit at LRU handling.
+   2 problems.
+   1. memory.stat may show very wrong statistics if swapin is too often.
+   2. need careful use of mem_cgroup_charge_lrucare().
 
-Cheers,
+ - Clear pc->mem_cgroup at swapin-readahead.
+   A problem.
+   1. we need a new hook.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I'll try to clear pc->mem_cgroup at swapin. 
+
+Thank you for pointing out.
+
+Regards,
+-Kame
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
