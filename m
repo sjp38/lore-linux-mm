@@ -1,146 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 3369D6B004F
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 21:19:52 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B1E843EE0C2
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:19:50 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DF8145DE51
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:19:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 697BB45DE4D
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:19:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5734A1DB803E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:19:50 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F40BD1DB8040
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:19:49 +0900 (JST)
-Date: Mon, 5 Dec 2011 11:18:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v7 10/10] Disable task moving when using kernel memory
- accounting
-Message-Id: <20111205111835.b1432603.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4ED914EC.6020500@parallels.com>
-References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
-	<1322611021-1730-11-git-send-email-glommer@parallels.com>
-	<20111130112210.1d979512.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ED914EC.6020500@parallels.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id DA5916B004F
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 22:19:12 -0500 (EST)
+Subject: [patch v2]numa: add a sysctl to control interleave allocation
+ granularity from each node
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 05 Dec 2011 11:30:46 +0800
+Message-ID: <1323055846.22361.362.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@linux.intel.com, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, lee.schermerhorn@hp.com
 
-On Fri, 2 Dec 2011 16:11:56 -0200
-Glauber Costa <glommer@parallels.com> wrote:
+If mem plicy is interleaves, we will allocated pages from nodes in a round
+robin way. This surely can do interleave fairly, but not optimal.
 
-> On 11/30/2011 12:22 AM, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 29 Nov 2011 21:57:01 -0200
-> > Glauber Costa<glommer@parallels.com>  wrote:
-> >
-> >> Since this code is still experimental, we are leaving the exact
-> >> details of how to move tasks between cgroups when kernel memory
-> >> accounting is used as future work.
-> >>
-> >> For now, we simply disallow movement if there are any pending
-> >> accounted memory.
-> >>
-> >> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
-> >> ---
-> >>   mm/memcontrol.c |   23 ++++++++++++++++++++++-
-> >>   1 files changed, 22 insertions(+), 1 deletions(-)
-> >>
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index a31a278..dd9a6d9 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -5453,10 +5453,19 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-> >>   {
-> >>   	int ret = 0;
-> >>   	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-> >> +	struct mem_cgroup *from = mem_cgroup_from_task(p);
-> >> +
-> >> +#if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)&&  defined(CONFIG_INET)
-> >> +	if (from != memcg&&  !mem_cgroup_is_root(from)&&
-> >> +	    res_counter_read_u64(&from->tcp_mem.tcp_memory_allocated, RES_USAGE)) {
-> >> +		printk(KERN_WARNING "Can't move tasks between cgroups: "
-> >> +			"Kernel memory held.\n");
-> >> +		return 1;
-> >> +	}
-> >> +#endif
-> >
-> > I wonder....reading all codes again, this is incorrect check.
-> >
-> > Hm, let me cralify. IIUC, in old code, "prevent moving" is because you hold
-> > reference count of cgroup, which can cause trouble at rmdir() as leaking refcnt.
-> right.
-> 
-> > BTW, because socket is a shared resource between cgroup, changes in mm->owner
-> > may cause task cgroup moving implicitly. So, if you allow leak of resource
-> > here, I guess... you can take mem_cgroup_get() refcnt which is memcg-local and
-> > allow rmdir(). Then, this limitation may disappear.
-> 
-> Sorry, I didn't fully understand. Can you clarify further?
-> If the task is implicitly moved, it will end up calling can_attach as 
-> well, right?
-> 
-I'm sorry that my explanation is bad.
+Say the pages will be used for I/O later. Interleave allocation for two pages
+are allocated from two nodes, so the pages are not physically continuous. Later
+each page needs one segment for DMA scatter-gathering. But maxium hardware
+segment number is limited. The non-continuous pages will use up maxium
+hardware segment number soon and we can't merge I/O to bigger DMA. Allocating
+pages from one node hasn't such issue. The memory allocator pcp list makes
+we can get physically continuous pages in several alloc quite likely.
 
-You can take memory cgroup itself's reference count by mem_cgroup_put/get.
-By getting this, memory cgroup object will continue to exist even after
-its struct cgroup* is freed by rmdir().
+Below patch adds a sysctl to control the allocation granularity from each node.
 
-So, assume you do mem_cgroup_get()/put at socket attaching/detatching.
+Run a sequential read workload which accesses disk sdc - sdf. The test uses
+a LSI SAS1068E card. iostat -x -m 5 shows:
 
-0) A task has a tcp socekts in memcg0.
+without numactl --interleave=0,1:
+Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
+sdc              13.40     0.00  259.00    0.00    67.05     0.00   530.19     5.00   19.38   3.86 100.00
+sdd              13.00     0.00  249.00    0.00    64.95     0.00   534.21     5.05   19.73   4.02 100.00
+sde              13.60     0.00  258.60    0.00    67.40     0.00   533.78     4.96   18.98   3.87 100.00
+sdf              13.00     0.00  261.60    0.00    67.50     0.00   528.44     5.24   19.77   3.82 100.00
 
-task(memcg0)
- +- socket0 --> memcg0,usage=4096
+with numactl --interleave=0,1:
+sdc               6.80     0.00  419.60    0.00    64.90     0.00   316.77    14.17   34.04   2.38 100.00
+sdd               6.00     0.00  423.40    0.00    65.58     0.00   317.23    17.33   41.14   2.36 100.00
+sde               5.60     0.00  419.60    0.00    64.90     0.00   316.77    17.29   40.94   2.38 100.00
+sdf               5.20     0.00  417.80    0.00    64.17     0.00   314.55    16.69   39.42   2.39 100.00
 
-1) move this task to memcg1
+with numactl --interleave=0,1 and below patch, setting numa_interleave_granularity to 8
+(setting it to 2 gives similar result, I only recorded the data with 8):
+sdc              13.00     0.00  261.20    0.00    68.20     0.00   534.74     5.05   19.19   3.83 100.00
+sde              13.40     0.00  259.00    0.00    67.85     0.00   536.52     4.85   18.80   3.86 100.00
+sdf              13.00     0.00  260.60    0.00    68.20     0.00   535.97     4.85   18.61   3.84 100.00
+sdd              13.20     0.00  251.60    0.00    66.00     0.00   537.23     4.95   19.45   3.97 100.00
 
-task(memcg1)
- +- socket0 --> memcg0,usage=4096
+The avgrq-sz is increased a lot. performance boost a little too.
 
-2) The task create a new socket.
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+---
+ Documentation/sysctl/vm.txt |   13 +++++++++++++
+ include/linux/sched.h       |    1 +
+ kernel/sysctl.c             |   11 +++++++++++
+ mm/mempolicy.c              |   15 +++++++++++++--
+ 4 files changed, 38 insertions(+), 2 deletions(-)
 
-task(memcg1)
- +- socekt0 --> memcg0,usage=4096 
- +- socket1 --> memcg1,usage=xxxx
-
-Here, the task will hold 4096bytes of usage in memcg0 implicitly.
-
-3) an admin removes memcg0
-task(memcg1)
- +- socket0 -->memcg0, usage=4096 <-----(*)
- +- socket1 -->memcg1, usage=xxxx
-
-(*) is invisible to users....but this will not be very big problem.
-
-Thanks,
--Kame
-
-
-
-
-
-
-
-
-
-
-
-Thanks,
--Kame
-
-
-
-
+Index: linux/include/linux/sched.h
+===================================================================
+--- linux.orig/include/linux/sched.h	2011-12-05 11:12:10.000000000 +0800
++++ linux/include/linux/sched.h	2011-12-05 11:14:34.000000000 +0800
+@@ -1506,6 +1506,7 @@ struct task_struct {
+ #endif
+ #ifdef CONFIG_NUMA
+ 	struct mempolicy *mempolicy;	/* Protected by alloc_lock */
++	int il_alloc_cnt;
+ 	short il_next;
+ 	short pref_node_fork;
+ #endif
+Index: linux/mm/mempolicy.c
+===================================================================
+--- linux.orig/mm/mempolicy.c	2011-12-05 11:12:10.000000000 +0800
++++ linux/mm/mempolicy.c	2011-12-05 11:13:19.000000000 +0800
+@@ -97,6 +97,8 @@
+ 
+ #include "internal.h"
+ 
++int il_granularity __read_mostly = 1;
++
+ /* Internal flags */
+ #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
+ #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
+@@ -341,6 +343,7 @@ static void mpol_rebind_nodemask(struct
+ 			current->il_next = first_node(tmp);
+ 		if (current->il_next >= MAX_NUMNODES)
+ 			current->il_next = numa_node_id();
++		current->il_alloc_cnt = 0;
+ 	}
+ }
+ 
+@@ -743,8 +746,10 @@ static long do_set_mempolicy(unsigned sh
+ 	current->mempolicy = new;
+ 	mpol_set_task_struct_flag();
+ 	if (new && new->mode == MPOL_INTERLEAVE &&
+-	    nodes_weight(new->v.nodes))
++	    nodes_weight(new->v.nodes)) {
+ 		current->il_next = first_node(new->v.nodes);
++		current->il_alloc_cnt = 0;
++	}
+ 	task_unlock(current);
+ 	if (mm)
+ 		up_write(&mm->mmap_sem);
+@@ -1554,11 +1559,17 @@ static unsigned interleave_nodes(struct
+ 	struct task_struct *me = current;
+ 
+ 	nid = me->il_next;
++	me->il_alloc_cnt++;
++	if (me->il_alloc_cnt < il_granularity)
++		return nid;
++
+ 	next = next_node(nid, policy->v.nodes);
+ 	if (next >= MAX_NUMNODES)
+ 		next = first_node(policy->v.nodes);
+-	if (next < MAX_NUMNODES)
++	if (next < MAX_NUMNODES) {
+ 		me->il_next = next;
++		me->il_alloc_cnt = 0;
++	}
+ 	return nid;
+ }
+ 
+Index: linux/kernel/sysctl.c
+===================================================================
+--- linux.orig/kernel/sysctl.c	2011-12-05 11:12:10.000000000 +0800
++++ linux/kernel/sysctl.c	2011-12-05 11:13:19.000000000 +0800
+@@ -109,6 +109,9 @@ extern int sysctl_nr_trim_pages;
+ #ifdef CONFIG_BLOCK
+ extern int blk_iopoll_enabled;
+ #endif
++#ifdef CONFIG_NUMA
++extern int il_granularity;
++#endif
+ 
+ /* Constants used for minimum and  maximum */
+ #ifdef CONFIG_LOCKUP_DETECTOR
+@@ -1313,6 +1316,14 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= numa_zonelist_order_handler,
+ 	},
++	{
++		.procname	= "numa_interleave_granularity",
++		.data		= &il_granularity,
++		.maxlen		= sizeof(il_granularity),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &one,
++	},
+ #endif
+ #if (defined(CONFIG_X86_32) && !defined(CONFIG_UML))|| \
+    (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
+Index: linux/Documentation/sysctl/vm.txt
+===================================================================
+--- linux.orig/Documentation/sysctl/vm.txt	2011-12-05 11:12:10.000000000 +0800
++++ linux/Documentation/sysctl/vm.txt	2011-12-05 11:14:54.000000000 +0800
+@@ -56,6 +56,7 @@ Currently, these files are in /proc/sys/
+ - swappiness
+ - vfs_cache_pressure
+ - zone_reclaim_mode
++- numa_interleave_granularity
+ 
+ ==============================================================
+ 
+@@ -698,4 +699,16 @@ Allowing regular swap effectively restri
+ node unless explicitly overridden by memory policies or cpuset
+ configurations.
+ 
++==============================================================
++
++numa_interleave_granularity:
++
++numa_interleave_granularity allows to change memory allocation granularity
++from each node in interleave mode. Big granularity allows to allocate physical
++continuous memory from each node. This can benefit I/O device doing DMA. On the
++other hand, big granularity could potentially cause memory imbalance between
++nodes.
++
++The default value is 1.
++
+ ============ End of Document =================================
 
 
 --
