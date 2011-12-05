@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A82596B004F
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 17:35:04 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so2278552vbb.14
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2011 14:35:03 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1781399.9f45Chd7K4@wuerfel>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
-	<201112051718.48324.arnd@arndb.de>
-	<CAF6AEGvyWV0DM2fjBbh-TNHiMmiLF4EQDJ6Uu0=NkopM6SXS6g@mail.gmail.com>
-	<1781399.9f45Chd7K4@wuerfel>
-Date: Mon, 5 Dec 2011 16:35:03 -0600
-Message-ID: <CAF6AEGugC4hW-NUU4Zss=ACSCrqads+=nwULGRaMhhTX-1uP+g@mail.gmail.com>
-Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-From: Rob Clark <rob@ti.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 1C1096B004F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:03:07 -0500 (EST)
+Message-Id: <20111205230303.833140083@goodmis.org>
+Date: Mon, 05 Dec 2011 18:00:55 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [PATCH RT 09/12 rc3] slab, lockdep: Fix silly bug
+References: <20111205230046.736851081@goodmis.org>
+Content-Disposition: inline; filename=0009-slab-lockdep-Fix-silly-bug.patch
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature"; boundary="00GvhwF7k39YY"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arm-kernel@lists.infradead.org, t.stanislaws@samsung.com, linux@arm.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-media@vger.kernel.org, Sumit Semwal <sumit.semwal@linaro.org>, m.szyprowski@samsung.com
+To: linux-kernel@vger.kernel.org, linux-rt-users <linux-rt-users@vger.kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Carsten Emde <C.Emde@osadl.org>, John Kacur <jkacur@redhat.com>, stable@kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hans Schillstrom <hans@schillstrom.com>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Sitsofe Wheeler <sitsofe@yahoo.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Mon, Dec 5, 2011 at 4:09 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Monday 05 December 2011 14:46:47 Rob Clark wrote:
->> I sort of preferred having the DMABUF shim because that lets you pass
->> a buffer around userspace without the receiving code knowing about a
->> device specific API. =A0But the problem I eventually came around to: if
->> your GL stack (or some other userspace component) is batching up
->> commands before submission to kernel, the buffers you need to wait for
->> completion might not even be submitted yet. =A0So from kernel
->> perspective they are "ready" for cpu access. =A0Even though in fact they
->> are not in a consistent state from rendering perspective. =A0I don't
->> really know a sane way to deal with that. =A0Maybe the approach instead
->> should be a userspace level API (in libkms/libdrm?) to provide
->> abstraction for userspace access to buffers rather than dealing with
->> this at the kernel level.
->
-> It would be nice if user space had no way to block out kernel drivers,
-> otherwise we have to be very careful to ensure that each map() operation
-> can be interrupted by a signal as the last resort to avoid deadlocks.
+--00GvhwF7k39YY
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-map_dma_buf should be documented to be allowed to return -EINTR..
-otherwise, yeah, that would be problematic.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-> =A0 =A0 =A0 =A0Arnd
-> _______________________________________________
-> dri-devel mailing list
-> dri-devel@lists.freedesktop.org
-> http://lists.freedesktop.org/mailman/listinfo/dri-devel
+Commit 30765b92 ("slab, lockdep: Annotate the locks before using
+them") moves the init_lock_keys() call from after g_cpucache_up =3D
+FULL, to before it. And overlooks the fact that init_node_lock_keys()
+tests for it and ignores everything !FULL.
+
+Introduce a LATE stage and change the lockdep test to be <LATE.
+
+Cc: stable@kernel.org
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hans Schillstrom <hans@schillstrom.com>
+Cc: Christoph Lameter <cl@gentwo.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Sitsofe Wheeler <sitsofe@yahoo.com>
+Cc: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Link: http://lkml.kernel.org/n/tip-gadqbdfxorhia1w5ewmoiodd@git.kernel.org
+Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+---
+ mm/slab.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 015cd76..433b9a2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -594,6 +594,7 @@ static enum {
+ 	PARTIAL_AC,
+ 	PARTIAL_L3,
+ 	EARLY,
++	LATE,
+ 	FULL
+ } g_cpucache_up;
+=20
+@@ -670,7 +671,7 @@ static void init_node_lock_keys(int q)
+ {
+ 	struct cache_sizes *s =3D malloc_sizes;
+=20
+-	if (g_cpucache_up !=3D FULL)
++	if (g_cpucache_up < LATE)
+ 		return;
+=20
+ 	for (s =3D malloc_sizes; s->cs_size !=3D ULONG_MAX; s++) {
+@@ -1725,6 +1726,8 @@ void __init kmem_cache_init_late(void)
+ {
+ 	struct kmem_cache *cachep;
+=20
++	g_cpucache_up =3D LATE;
++
+ 	/* Annotate slab for lockdep -- annotate the malloc caches */
+ 	init_lock_keys();
+=20
+--=20
+1.7.7.1
+
+
+
+--00GvhwF7k39YY
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAABAgAGBQJO3U2oAAoJEIy3vGnGbaoAEFYP/1BvpfHZ9O9irTl1k36AAWM7
+v8ZpZ8sxClYd25BDIfwA4gTaT3RKrJjsi2HZcd/lGYWRaZmktTR4YMZCgDdrLcYl
+oqVx6oelp54rb6pDgm6ydbpf8cqHBHzY+e5feud8tvZyZglILknha1Gfv2QMSs1/
+GpGs19ypQRI+oWGp68b4R2znn+b5qubewmRXsmnNAb6iZGiYD3yf3Zsh3iV3HTY0
+3q2S4zFx/1LhhcEyuD7NLKHrhrfp6jYCZhRLnzIZNbxHMagvywQ161TGtNpaK6bx
+h7AthQ3xXzUbJhPj7A5bLPuXxu2SsfbjFicp491liYr/nLUoQkbKKqedpGbQCiMR
+6aLwPmD2PCPne4gdzxzE2YdLpsPdelN6jEVamhfS1QfOarLZpe5O6XThiMWiAR7A
+VSh+HJhZw/1kvA3lkTKKEx0XfDL8mqkmGAlANNA7EwsyifGBjbZ3x4oJ2cjjVJ7e
+ZSQtSHi8j23SwsZ0Cqz0suHBdV0dY1+wd0hBdbdnLloyeMIgU3/j3gth9L37bIsB
+PWyQxG4r/eL8Oim7XiUI0qax1NgabxtazLg6Lp+DtsW0gH0XF2qBd/2e/VywVWa5
+XExM+9K7aeL7xeKdxC4LWaXemyZD8OiGpN/b4PxelxO3Qm90WMf81Igz0CuiYhEO
+p3ogUs4dsSj2nTkCUv6M
+=vK3a
+-----END PGP SIGNATURE-----
+
+--00GvhwF7k39YY--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
