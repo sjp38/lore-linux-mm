@@ -1,140 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id AB6366B0062
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 04:56:49 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 936663EE0C0
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:56:47 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7900345DE6B
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:56:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 555F645DE67
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:56:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40A5B1DB8051
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:56:47 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D9C101DB8032
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 18:56:46 +0900 (JST)
-Date: Mon, 5 Dec 2011 18:51:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v7 00/10] Request for Inclusion: per-cgroup tcp memory
- pressure
-Message-Id: <20111205185108.099f393e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4EDC8A5F.8040402@parallels.com>
-References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
-	<20111130111152.6b1c7366.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ED91318.1030803@parallels.com>
-	<20111205110619.ecc538a0.kamezawa.hiroyu@jp.fujitsu.com>
-	<4EDC8A5F.8040402@parallels.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id D56AD6B0062
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 05:03:16 -0500 (EST)
+Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1112021401200.13405@router.home>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	 <1322825802.2607.10.camel@edumazet-laptop>
+	 <alpine.DEB.2.00.1112021401200.13405@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 05 Dec 2011 18:01:16 +0800
+Message-ID: <1323079276.16790.746.camel@debian>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 5 Dec 2011 07:09:51 -0200
-Glauber Costa <glommer@parallels.com> wrote:
-
-> On 12/05/2011 12:06 AM, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 2 Dec 2011 16:04:08 -0200
-> > Glauber Costa<glommer@parallels.com>  wrote:
-> >
-> >> On 11/30/2011 12:11 AM, KAMEZAWA Hiroyuki wrote:
-> >>> On Tue, 29 Nov 2011 21:56:51 -0200
-> >>> Glauber Costa<glommer@parallels.com>   wrote:
-> >>>
-> >>>> Hi,
-> >>>>
-> >>>> This patchset implements per-cgroup tcp memory pressure controls. It did not change
-> >>>> significantly since last submission: rather, it just merges the comments Kame had.
-> >>>> Most of them are style-related and/or Documentation, but there are two real bugs he
-> >>>> managed to spot (thanks)
-> >>>>
-> >>>> Please let me know if there is anything else I should address.
-> >>>>
-> >>>
-> >>> After reading all codes again, I feel some strange. Could you clarify ?
-> >>>
-> >>> Here.
-> >>> ==
-> >>> +void sock_update_memcg(struct sock *sk)
-> >>> +{
-> >>> +	/* right now a socket spends its whole life in the same cgroup */
-> >>> +	if (sk->sk_cgrp) {
-> >>> +		WARN_ON(1);
-> >>> +		return;
-> >>> +	}
-> >>> +	if (static_branch(&memcg_socket_limit_enabled)) {
-> >>> +		struct mem_cgroup *memcg;
-> >>> +
-> >>> +		BUG_ON(!sk->sk_prot->proto_cgroup);
-> >>> +
-> >>> +		rcu_read_lock();
-> >>> +		memcg = mem_cgroup_from_task(current);
-> >>> +		if (!mem_cgroup_is_root(memcg))
-> >>> +			sk->sk_cgrp = sk->sk_prot->proto_cgroup(memcg);
-> >>> +		rcu_read_unlock();
-> >>> ==
-> >>>
-> >>> sk->sk_cgrp is set to a memcg without any reference count.
-> >>>
-> >>> Then, no check for preventing rmdir() and freeing memcgroup.
-> >>>
-> >>> Is there some css_get() or mem_cgroup_get() somewhere ?
-> >>>
-> >>
-> >> There were a css_get in the first version of this patchset. It was
-> >> removed, however, because it was deemed anti-intuitive to prevent rmdir,
-> >> since we can't know which sockets are blocking it, or do anything about
-> >> it. Or did I misunderstand something ?
-> >>
-> >
-> > Maybe I misuderstood. Thank you. Ok, there is no css_get/put and
-> > rmdir() is allowed. But, hmm....what's guarding threads from stale
-> > pointer access ?
-> >
-> > Does a memory cgroup which is pointed by sk->sk_cgrp always exist ?
-> >
-> If I am not mistaken, yes, it will. (Ok, right now it won't)
+On Sat, 2011-12-03 at 04:02 +0800, Christoph Lameter wrote:
+> On Fri, 2 Dec 2011, Eric Dumazet wrote:
 > 
-> Reason is a cgroup can't be removed if it is empty.
-> To make it empty, you need to move the tasks away.
+> > netperf (loopback or ethernet) is a known stress test for slub, and your
+> > patch removes code that might hurt netperf, but benefit real workload.
+> >
+> > Have you tried instead this far less intrusive solution ?
+> >
+> > if (tail == DEACTIVATE_TO_TAIL ||
+> >     page->inuse > page->objects / 4)
+> >          list_add_tail(&page->lru, &n->partial);
+> > else
+> >          list_add(&page->lru, &n->partial);
 > 
-> So the sockets will be moved away as well when you do it. So right now 
-> they are not, so it would then probably be better to increase a 
-> reference count with a comment saying that it is temporary.
+> One could also move this logic to reside outside of the call to
+> add_partial(). This is called mostly from __slab_free() so the logic could
+> be put in there.
 > 
 
-I'm sorry if I misunderstand.
+After pcp adding, add_partial just be used in put_cpu_partial ->
+unfreeze_partial without debug setting. If we need to do change, guess
+it's better in this function. 
 
-At task exit, __fput() will be called against file descriptors, yes.
-__fput() calles f_op->release() => inet_release() => tcp_close().
+BTW
+I collection some data with my PCP statistics patch. I will be very glad
+if you like it. 
 
-But TCP socket may be alive after task exit until it gets down to 
-protocol close. For example, until the all message in send buffer
-is acked, socket and tcp connection will not be disappear.
+[alexs@lkp-ne04 ~]$ sudo grep . /sys/kernel/slab/kmalloc-256/*
 
-In short, socket's lifetime is different from it's task's. 
-So, there may be sockets which are not belongs to any task.
-
-
-
-Thanks,
--Kame
-
-
-
+/sys/kernel/slab/kmalloc-256/alloc_from_partial:4955645 
+/sys/kernel/slab/kmalloc-256/alloc_from_pcp:6753981 
+...
+/sys/kernel/slab/kmalloc-256/pcp_from_free:11743977 
+/sys/kernel/slab/kmalloc-256/pcp_from_node:5948883 
+...
+/sys/kernel/slab/kmalloc-256/unfreeze_pcp:834262 
 
 
+--------------
 
+>From aa754e20b81cb9f5ab63800a084858d25c18db31 Mon Sep 17 00:00:00 2001
+From: Alex shi <alex.shi@intel.com>
+Date: Tue, 6 Dec 2011 01:49:16 +0800
+Subject: [PATCH] slub: per cpu partial statistics collection
 
+PCP statistics were not collected in detail now. Add and change some variables
+for this.
 
+changed:
+cpu_partial_alloc --> alloc_from_pcp,
+cpu_partial_free  --> pcp_from_free, /* pcp refilled from slab free */
 
+added:
+pcp_from_node, /* pcp refilled from node partial */
+unfreeze_pcp,  /* unfreeze pcp */
 
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ include/linux/slub_def.h |    8 +++++---
+ mm/slub.c                |   22 ++++++++++++++--------
+ tools/slub/slabinfo.c    |   12 ++++++------
+ 3 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index a32bcfd..1c2669b 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -21,7 +21,7 @@ enum stat_item {
+ 	FREE_FROZEN,		/* Freeing to frozen slab */
+ 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
+ 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
+-	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from partial list */
++	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
+ 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
+ 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
+ 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
+@@ -36,8 +36,10 @@ enum stat_item {
+ 	ORDER_FALLBACK,		/* Number of times fallback was necessary */
+ 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
+ 	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
+-	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
+-	CPU_PARTIAL_FREE,	/* USed cpu partial on free */
++	ALLOC_FROM_PCP,		/* Used cpu partial on alloc */
++	PCP_FROM_FREE,		/* Fill cpu partial from free */
++	PCP_FROM_NODE,		/* Fill cpu partial from node partial */
++	UNFREEZE_PCP,		/* Unfreeze per cpu partial */
+ 	NR_SLUB_STAT_ITEMS };
+ 
+ struct kmem_cache_cpu {
+diff --git a/mm/slub.c b/mm/slub.c
+index ed3334d..5843846 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1558,6 +1558,7 @@ static void *get_partial_node(struct kmem_cache *s,
+ 		} else {
+ 			page->freelist = t;
+ 			available = put_cpu_partial(s, page, 0);
++			stat(s, PCP_FROM_NODE);
+ 		}
+ 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+ 			break;
+@@ -1968,6 +1969,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 				local_irq_restore(flags);
+ 				pobjects = 0;
+ 				pages = 0;
++				stat(s, UNFREEZE_PCP);
+ 			}
+ 		}
+ 
+@@ -1979,7 +1981,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->next = oldpage;
+ 
+ 	} while (irqsafe_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+-	stat(s, CPU_PARTIAL_FREE);
+ 	return pobjects;
+ }
+ 
+@@ -2212,7 +2213,7 @@ new_slab:
+ 		c->page = c->partial;
+ 		c->partial = c->page->next;
+ 		c->node = page_to_nid(c->page);
+-		stat(s, CPU_PARTIAL_ALLOC);
++		stat(s, ALLOC_FROM_PCP);
+ 		c->freelist = NULL;
+ 		goto redo;
+ 	}
+@@ -2448,9 +2449,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		 * If we just froze the page then put it onto the
+ 		 * per cpu partial list.
+ 		 */
+-		if (new.frozen && !was_frozen)
++		if (new.frozen && !was_frozen) {
+ 			put_cpu_partial(s, page, 1);
+-
++			stat(s, PCP_FROM_FREE);
++		}
+ 		/*
+ 		 * The list lock was not taken therefore no list
+ 		 * activity can be necessary.
+@@ -5032,8 +5034,10 @@ STAT_ATTR(DEACTIVATE_BYPASS, deactivate_bypass);
+ STAT_ATTR(ORDER_FALLBACK, order_fallback);
+ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
+ STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
+-STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
+-STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
++STAT_ATTR(ALLOC_FROM_PCP, alloc_from_pcp);
++STAT_ATTR(PCP_FROM_FREE, pcp_from_free);
++STAT_ATTR(PCP_FROM_NODE, pcp_from_node);
++STAT_ATTR(UNFREEZE_PCP, unfreeze_pcp);
+ #endif
+ 
+ static struct attribute *slab_attrs[] = {
+@@ -5097,8 +5101,10 @@ static struct attribute *slab_attrs[] = {
+ 	&order_fallback_attr.attr,
+ 	&cmpxchg_double_fail_attr.attr,
+ 	&cmpxchg_double_cpu_fail_attr.attr,
+-	&cpu_partial_alloc_attr.attr,
+-	&cpu_partial_free_attr.attr,
++	&alloc_from_pcp_attr.attr,
++	&pcp_from_free_attr.attr,
++	&pcp_from_node_attr.attr,
++	&unfreeze_pcp_attr.attr,
+ #endif
+ #ifdef CONFIG_FAILSLAB
+ 	&failslab_attr.attr,
+diff --git a/tools/slub/slabinfo.c b/tools/slub/slabinfo.c
+index 164cbcf..d8f67f0 100644
+--- a/tools/slub/slabinfo.c
++++ b/tools/slub/slabinfo.c
+@@ -42,7 +42,7 @@ struct slabinfo {
+ 	unsigned long deactivate_remote_frees, order_fallback;
+ 	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;
+ 	unsigned long alloc_node_mismatch, deactivate_bypass;
+-	unsigned long cpu_partial_alloc, cpu_partial_free;
++	unsigned long alloc_from_pcp, pcp_from_free;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+ } slabinfo[MAX_SLABS];
+@@ -457,9 +457,9 @@ static void slab_stats(struct slabinfo *s)
+ 		s->free_remove_partial * 100 / total_free);
+ 
+ 	printf("Cpu partial list     %8lu %8lu %3lu %3lu\n",
+-		s->cpu_partial_alloc, s->cpu_partial_free,
+-		s->cpu_partial_alloc * 100 / total_alloc,
+-		s->cpu_partial_free * 100 / total_free);
++		s->alloc_from_pcp, s->pcp_from_free,
++		s->alloc_from_pcp * 100 / total_alloc,
++		s->pcp_from_free * 100 / total_free);
+ 
+ 	printf("RemoteObj/SlabFrozen %8lu %8lu %3lu %3lu\n",
+ 		s->deactivate_remote_frees, s->free_frozen,
+@@ -1215,8 +1215,8 @@ static void read_slab_dir(void)
+ 			slab->order_fallback = get_obj("order_fallback");
+ 			slab->cmpxchg_double_cpu_fail = get_obj("cmpxchg_double_cpu_fail");
+ 			slab->cmpxchg_double_fail = get_obj("cmpxchg_double_fail");
+-			slab->cpu_partial_alloc = get_obj("cpu_partial_alloc");
+-			slab->cpu_partial_free = get_obj("cpu_partial_free");
++			slab->alloc_from_pcp = get_obj("alloc_from_pcp");
++			slab->pcp_from_free = get_obj("pcp_from_free");
+ 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
+ 			slab->deactivate_bypass = get_obj("deactivate_bypass");
+ 			chdir("..");
+-- 
+1.7.0.1
 
 
 
