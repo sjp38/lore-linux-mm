@@ -1,432 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id D40756B005A
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 16:39:51 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v8 4/9] tcp memory pressure controls
-Date: Mon,  5 Dec 2011 19:34:58 -0200
-Message-Id: <1323120903-2831-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1323120903-2831-1-git-send-email-glommer@parallels.com>
-References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 5DFC06B004F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 17:04:47 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Date: Mon, 05 Dec 2011 23:04:09 +0100
+Message-ID: <1438420.NYDLGGgKNc@wuerfel>
+In-Reply-To: <CAKMK7uG2U2gn-LW7Cozumfza8XngvQSWR7-S-Qiok5NA=94V=w@mail.gmail.com>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <1426302.asOzFeeJzz@wuerfel> <CAKMK7uG2U2gn-LW7Cozumfza8XngvQSWR7-S-Qiok5NA=94V=w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Daniel Vetter <daniel@ffwll.ch>, t.stanislaws@samsung.com, linux@arm.linux.org.uk, Sumit Semwal <sumit.semwal@ti.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, jesse.barker@linaro.org, rob@ti.com, linux-media@vger.kernel.org, Sumit Semwal <sumit.semwal@linaro.org>, m.szyprowski@samsung.com
 
-This patch introduces memory pressure controls for the tcp
-protocol. It uses the generic socket memory pressure code
-introduced in earlier patches, and fills in the
-necessary data in cg_proto struct.
+On Monday 05 December 2011 21:58:39 Daniel Vetter wrote:
+> On Mon, Dec 05, 2011 at 08:29:49PM +0100, Arnd Bergmann wrote:
+> > ...
+> 
+> Thanks a lot for this excellent overview. I think at least for the first
+> version of dmabuf we should drop the sync_* interfaces and simply require
+> users to bracket their usage of the buffer from the attached device by
+> map/unmap. A dma_buf provider is always free to cache the mapping and
+> simply call sync_sg_for of the streaming dma api.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
-CC: Eric W. Biederman <ebiederm@xmission.com>
----
- Documentation/cgroups/memory.txt |    2 +
- include/linux/memcontrol.h       |    1 +
- include/net/sock.h               |    2 +
- include/net/tcp_memcontrol.h     |   17 +++++++++
- mm/memcontrol.c                  |   40 ++++++++++++++++++++-
- net/core/sock.c                  |   43 ++++++++++++++++++++--
- net/ipv4/Makefile                |    1 +
- net/ipv4/tcp_ipv4.c              |    9 ++++-
- net/ipv4/tcp_memcontrol.c        |   74 ++++++++++++++++++++++++++++++++++++++
- net/ipv6/tcp_ipv6.c              |    5 +++
- 10 files changed, 189 insertions(+), 5 deletions(-)
- create mode 100644 include/net/tcp_memcontrol.h
- create mode 100644 net/ipv4/tcp_memcontrol.c
+I think we still have the same problem if we allow multiple drivers
+to access a noncoherent buffer using map/unmap:
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 23a8dc5..687dea5 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -293,6 +293,8 @@ to trigger slab reclaim when those limits are reached.
- thresholds. The Memory Controller allows them to be controlled individually
- per cgroup, instead of globally.
- 
-+* tcp memory pressure: sockets memory pressure for the tcp protocol.
-+
- 3. User Interface
- 
- 0. Configuration
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index f15021b..1513994 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -86,6 +86,7 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
- extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
- 
- extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
-+extern struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);
- 
- static inline
- int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
-diff --git a/include/net/sock.h b/include/net/sock.h
-index b8a63f8..910cb0b 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -64,6 +64,8 @@
- #include <net/dst.h>
- #include <net/checksum.h>
- 
-+int mem_cgroup_sockets_init(struct cgroup *cgrp, struct cgroup_subsys *ss);
-+void mem_cgroup_sockets_destroy(struct cgroup *cgrp, struct cgroup_subsys *ss);
- /*
-  * This structure really needs to be cleaned up.
-  * Most of it is for TCP, and not used by any of
-diff --git a/include/net/tcp_memcontrol.h b/include/net/tcp_memcontrol.h
-new file mode 100644
-index 0000000..5f5e158
---- /dev/null
-+++ b/include/net/tcp_memcontrol.h
-@@ -0,0 +1,17 @@
-+#ifndef _TCP_MEMCG_H
-+#define _TCP_MEMCG_H
-+
-+struct tcp_memcontrol {
-+	struct cg_proto cg_proto;
-+	/* per-cgroup tcp memory pressure knobs */
-+	struct res_counter tcp_memory_allocated;
-+	struct percpu_counter tcp_sockets_allocated;
-+	/* those two are read-mostly, leave them at the end */
-+	long tcp_prot_mem[3];
-+	int tcp_memory_pressure;
-+};
-+
-+struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg);
-+int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);
-+void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss);
-+#endif /* _TCP_MEMCG_H */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index beedff3..b121127 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -50,6 +50,8 @@
- #include <linux/cpu.h>
- #include <linux/oom.h>
- #include "internal.h"
-+#include <net/sock.h>
-+#include <net/tcp_memcontrol.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -295,6 +297,10 @@ struct mem_cgroup {
- 	 */
- 	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
-+
-+#ifdef CONFIG_INET
-+	struct tcp_memcontrol tcp_mem;
-+#endif
- };
- 
- /* Stuffs for move charges at task migration. */
-@@ -384,6 +390,7 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
- #ifdef CONFIG_INET
- #include <net/sock.h>
-+#include <net/ip.h>
- 
- static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- void sock_update_memcg(struct sock *sk)
-@@ -418,6 +425,15 @@ void sock_release_memcg(struct sock *sk)
- 		mem_cgroup_put(memcg);
- 	}
- }
-+
-+struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
-+{
-+	if (!memcg || mem_cgroup_is_root(memcg))
-+		return NULL;
-+
-+	return &memcg->tcp_mem.cg_proto;
-+}
-+EXPORT_SYMBOL(tcp_proto_cgroup);
- #endif /* CONFIG_INET */
- #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
- 
-@@ -800,7 +816,7 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
- 	preempt_enable();
- }
- 
--static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
-+struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
- {
- 	return container_of(cgroup_subsys_state(cont,
- 				mem_cgroup_subsys_id), struct mem_cgroup,
-@@ -4730,14 +4746,34 @@ static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
- 
- 	ret = cgroup_add_files(cont, ss, kmem_cgroup_files,
- 			       ARRAY_SIZE(kmem_cgroup_files));
-+
-+	/*
-+	 * Part of this would be better living in a separate allocation
-+	 * function, leaving us with just the cgroup tree population work.
-+	 * We, however, depend on state such as network's proto_list that
-+	 * is only initialized after cgroup creation. I found the less
-+	 * cumbersome way to deal with it to defer it all to populate time
-+	 */
-+	if (!ret)
-+		ret = mem_cgroup_sockets_init(cont, ss);
- 	return ret;
- };
- 
-+static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
-+				struct cgroup *cont)
-+{
-+	mem_cgroup_sockets_destroy(cont, ss);
-+}
- #else
- static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
- {
- 	return 0;
- }
-+
-+static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
-+				struct cgroup *cont)
-+{
-+}
- #endif
- 
- static struct cftype mem_cgroup_files[] = {
-@@ -5096,6 +5132,8 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
- 
-+	kmem_cgroup_destroy(ss, cont);
-+
- 	mem_cgroup_put(memcg);
- }
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 39e5d01..3d6e370 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -135,6 +135,46 @@
- #include <net/tcp.h>
- #endif
- 
-+static DEFINE_RWLOCK(proto_list_lock);
-+static LIST_HEAD(proto_list);
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+int mem_cgroup_sockets_init(struct cgroup *cgrp, struct cgroup_subsys *ss)
-+{
-+	struct proto *proto;
-+	int ret = 0;
-+
-+	read_lock(&proto_list_lock);
-+	list_for_each_entry(proto, &proto_list, node) {
-+		if (proto->init_cgroup) {
-+			ret = proto->init_cgroup(cgrp, ss);
-+			if (ret)
-+				goto out;
-+		}
-+	}
-+
-+	read_unlock(&proto_list_lock);
-+	return ret;
-+out:
-+	list_for_each_entry_continue_reverse(proto, &proto_list, node)
-+		if (proto->destroy_cgroup)
-+			proto->destroy_cgroup(cgrp, ss);
-+	read_unlock(&proto_list_lock);
-+	return ret;
-+}
-+
-+void mem_cgroup_sockets_destroy(struct cgroup *cgrp, struct cgroup_subsys *ss)
-+{
-+	struct proto *proto;
-+
-+	read_lock(&proto_list_lock);
-+	list_for_each_entry_reverse(proto, &proto_list, node)
-+		if (proto->destroy_cgroup)
-+			proto->destroy_cgroup(cgrp, ss);
-+	read_unlock(&proto_list_lock);
-+}
-+#endif
-+
- /*
-  * Each address family might have different locking rules, so we have
-  * one slock key per address family:
-@@ -2256,9 +2296,6 @@ void sk_common_release(struct sock *sk)
- }
- EXPORT_SYMBOL(sk_common_release);
- 
--static DEFINE_RWLOCK(proto_list_lock);
--static LIST_HEAD(proto_list);
--
- #ifdef CONFIG_PROC_FS
- #define PROTO_INUSE_NR	64	/* should be enough for the first time */
- struct prot_inuse {
-diff --git a/net/ipv4/Makefile b/net/ipv4/Makefile
-index f2dc69c..dc67a99 100644
---- a/net/ipv4/Makefile
-+++ b/net/ipv4/Makefile
-@@ -47,6 +47,7 @@ obj-$(CONFIG_TCP_CONG_SCALABLE) += tcp_scalable.o
- obj-$(CONFIG_TCP_CONG_LP) += tcp_lp.o
- obj-$(CONFIG_TCP_CONG_YEAH) += tcp_yeah.o
- obj-$(CONFIG_TCP_CONG_ILLINOIS) += tcp_illinois.o
-+obj-$(CONFIG_CGROUP_MEM_RES_CTLR_KMEM) += tcp_memcontrol.o
- obj-$(CONFIG_NETLABEL) += cipso_ipv4.o
- 
- obj-$(CONFIG_XFRM) += xfrm4_policy.o xfrm4_state.o xfrm4_input.o \
-diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index d1f4bf8..f70923e 100644
---- a/net/ipv4/tcp_ipv4.c
-+++ b/net/ipv4/tcp_ipv4.c
-@@ -73,6 +73,7 @@
- #include <net/xfrm.h>
- #include <net/netdma.h>
- #include <net/secure_seq.h>
-+#include <net/tcp_memcontrol.h>
- 
- #include <linux/inet.h>
- #include <linux/ipv6.h>
-@@ -1915,6 +1916,7 @@ static int tcp_v4_init_sock(struct sock *sk)
- 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
- 
- 	local_bh_disable();
-+	sock_update_memcg(sk);
- 	sk_sockets_allocated_inc(sk);
- 	local_bh_enable();
- 
-@@ -1972,6 +1974,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
- 	}
- 
- 	sk_sockets_allocated_dec(sk);
-+	sock_release_memcg(sk);
- }
- EXPORT_SYMBOL(tcp_v4_destroy_sock);
- 
-@@ -2632,10 +2635,14 @@ struct proto tcp_prot = {
- 	.compat_setsockopt	= compat_tcp_setsockopt,
- 	.compat_getsockopt	= compat_tcp_getsockopt,
- #endif
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+	.init_cgroup		= tcp_init_cgroup,
-+	.destroy_cgroup		= tcp_destroy_cgroup,
-+	.proto_cgroup		= tcp_proto_cgroup,
-+#endif
- };
- EXPORT_SYMBOL(tcp_prot);
- 
--
- static int __net_init tcp_sk_init(struct net *net)
- {
- 	return inet_ctl_sock_create(&net->ipv4.tcp_sock,
-diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-new file mode 100644
-index 0000000..4a68d2c
---- /dev/null
-+++ b/net/ipv4/tcp_memcontrol.c
-@@ -0,0 +1,74 @@
-+#include <net/tcp.h>
-+#include <net/tcp_memcontrol.h>
-+#include <net/sock.h>
-+#include <linux/memcontrol.h>
-+#include <linux/module.h>
-+
-+static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
-+{
-+	return container_of(cg_proto, struct tcp_memcontrol, cg_proto);
-+}
-+
-+static void memcg_tcp_enter_memory_pressure(struct sock *sk)
-+{
-+	if (!sk->sk_cgrp->memory_pressure)
-+		*sk->sk_cgrp->memory_pressure = 1;
-+}
-+EXPORT_SYMBOL(memcg_tcp_enter_memory_pressure);
-+
-+int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
-+{
-+	/*
-+	 * The root cgroup does not use res_counters, but rather,
-+	 * rely on the data already collected by the network
-+	 * subsystem
-+	 */
-+	struct res_counter *res_parent = NULL;
-+	struct cg_proto *cg_proto, *parent_cg;
-+	struct tcp_memcontrol *tcp;
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-+
-+	cg_proto = tcp_prot.proto_cgroup(memcg);
-+	if (!cg_proto)
-+		return 0;
-+
-+	tcp = tcp_from_cgproto(cg_proto);
-+
-+	tcp->tcp_prot_mem[0] = sysctl_tcp_mem[0];
-+	tcp->tcp_prot_mem[1] = sysctl_tcp_mem[1];
-+	tcp->tcp_prot_mem[2] = sysctl_tcp_mem[2];
-+	tcp->tcp_memory_pressure = 0;
-+
-+	parent_cg = tcp_prot.proto_cgroup(parent);
-+	if (parent_cg)
-+		res_parent = parent_cg->memory_allocated;
-+
-+	res_counter_init(&tcp->tcp_memory_allocated, res_parent);
-+	percpu_counter_init(&tcp->tcp_sockets_allocated, 0);
-+
-+	cg_proto->enter_memory_pressure = memcg_tcp_enter_memory_pressure;
-+	cg_proto->memory_pressure = &tcp->tcp_memory_pressure;
-+	cg_proto->sysctl_mem = tcp->tcp_prot_mem;
-+	cg_proto->memory_allocated = &tcp->tcp_memory_allocated;
-+	cg_proto->sockets_allocated = &tcp->tcp_sockets_allocated;
-+	cg_proto->memcg = memcg;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(tcp_init_cgroup);
-+
-+void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	struct cg_proto *cg_proto;
-+	struct tcp_memcontrol *tcp;
-+
-+	cg_proto = tcp_prot.proto_cgroup(memcg);
-+	if (!cg_proto)
-+		return;
-+
-+	tcp = tcp_from_cgproto(cg_proto);
-+	percpu_counter_destroy(&tcp->tcp_sockets_allocated);
-+}
-+EXPORT_SYMBOL(tcp_destroy_cgroup);
-diff --git a/net/ipv6/tcp_ipv6.c b/net/ipv6/tcp_ipv6.c
-index e666768..820ae82 100644
---- a/net/ipv6/tcp_ipv6.c
-+++ b/net/ipv6/tcp_ipv6.c
-@@ -62,6 +62,7 @@
- #include <net/netdma.h>
- #include <net/inet_common.h>
- #include <net/secure_seq.h>
-+#include <net/tcp_memcontrol.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -1995,6 +1996,7 @@ static int tcp_v6_init_sock(struct sock *sk)
- 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
- 
- 	local_bh_disable();
-+	sock_update_memcg(sk);
- 	sk_sockets_allocated_inc(sk);
- 	local_bh_enable();
- 
-@@ -2228,6 +2230,9 @@ struct proto tcpv6_prot = {
- 	.compat_setsockopt	= compat_tcp_setsockopt,
- 	.compat_getsockopt	= compat_tcp_getsockopt,
- #endif
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+	.proto_cgroup		= tcp_proto_cgroup,
-+#endif
- };
- 
- static const struct inet6_protocol tcpv6_protocol = {
--- 
-1.7.6.4
+	driver A				driver B
+
+1.	read/write				
+2.						read/write
+3.	map()					
+4.						read/write
+5.	dma
+6.						map()
+7.	dma
+8.						dma
+9.	unmap()
+10.						dma
+11.	read/write
+12.						unmap()						
+
+
+In step 4, the buffer is owned by device A, but accessed by driver B, which
+is a bug. In step 11, the buffer is owned by device B but accessed by driver
+A, which is the same bug on the other side. In steps 7 and 8, the buffer
+is owned by both device A and B, which is currently undefined but would
+be ok if both devices are on the same coherency domain. Whether that point
+is meaningful depends on what the devices actually do. It would be ok
+if both are only reading, but not if they write into the same location
+concurrently.
+
+As I mentioned originally, the problem could be completely avoided if
+we only allow consistent (e.g. uncached) mappings or buffers that
+are not mapped into the kernel virtual address space at all.
+
+Alternatively, a clearer model would be to require each access to
+nonconsistent buffers to be exclusive: a map() operation would have
+to block until the current mapper (if any) has done an unmap(), and
+any access from the CPU would also have to call a dma_buf_ops pointer
+to serialize the CPU accesses with any device accesses. User
+mappings of the buffer can be easily blocked during a DMA access
+by unmapping the buffer from user space at map() time and blocking the
+vm_ops->fault() operation until the unmap().
+
+> If it later turns out that we want to be able to cache the sg list also on
+> the use-site in the driver (e.g. map it into some hw sg list) we can
+> always add that functionality later. I just fear that sync ops among N
+> devices is a bit ill-defined and we already have a plethora of ill-defined
+> issues at hand. Also the proposed api doesn't quite fit into what's
+> already there, I think an s/device/dma_buf_attachment/ would be more
+> consistent - otherwise the dmabuf provider might need to walk the list of
+> attachements to get at the right one for the device.
+
+Right, at last for the start, let's mandate just map/unmap and not provide
+sync. I do wonder however whether we should implement consistent (possibly
+uncached) or streaming (cacheable, but always owned by either the device
+or the CPU, not both) buffers, or who gets to make the decision which
+one is used if both are implemented.
+
+> > > The map call gets the dma_data_direction parameter, so it should be able
+> > > to do the right thing. And because we keep the attachement around, any
+> > > caching of mappings should be possible, too.
+> > >
+> > > Yours, Daniel
+> > >
+> > > PS: Slightly related, because it will make the coherency nightmare worse,
+> > > afaict: Can we kill mmap support?
+> >
+> > The mmap support is required (and only make sense) for consistent mappings,
+> > not for streaming mappings. The provider must ensure that if you map
+> > something uncacheable into the kernel in order to provide consistency,
+> > any mapping into user space must also be uncacheable. A driver
+> > that wants to have the buffer mapped to user space as many do should
+> > not need to know whether it is required to do cacheable or uncacheable
+> > mapping because of some other driver, and it should not need to worry
+> > about how to set up uncached mappings in user space.
+> 
+> Either I've always missed it or no one ever described it that consisely,
+> but now I see the use-case for mmap: Simpler drivers (i.e. not gpus) might
+> need to expose a userspace mapping and only the provider knows how to do
+> that in a coherent fashion. I want this in the docs (if it's not there yet
+> ...).
+
+It's currently implemented in the ARM/PowerPC-specific dma_mmap_coherent
+function and documented (hardly) in arch/arm/include/asm/dma-mapping.h.
+
+We should make clear in that this is actually an extension of the
+regular dma mapping api that first needs to be made generic.
+
+> But even with that use-case in mind I still have some gripes with the
+> current mmap interfaces as proposed:
+> - This use-case explains why the dmabuf provider needs to expose an mmap
+>   function. It doesn't explain why we need to expose that to userspace
+>   (instead of faking whatever mmap the importing driver already exposes).
+>   Imo the userspace-facing part of dmabuf should be about buffer sharing
+>   and not about how to access that buffer, so I'm still missing the reason
+>   for that.
+
+AFAICT, the only reason for providing an mmap operation in the dma_buf
+file descriptor is "because we can". It may in fact be better to leave
+that part out and have the discussion whether this is actually a good
+thing to do after the dma_buf core code has been merged upstream.
+
+> - We need some way to tell the provider to sync all completed dma
+>   operations for userspace mmap access. sync_for_cpu would serve that use.
+>   But given that we strive for zero-copy I think the kernel shouldn't
+>   ever need to access the contents of a dmabuf and it would therefore make
+>   more sense to call it sync_for_mmap.
+
+As I mentioned, the kernel can easily block out the user map by
+transparently unmapping the buffer. I've done that in spufs for
+context-switching an SPU: during the save and restore phase of the
+SPU local memory to system memory, the page tables entries for
+all user mappings are removed and then faulted back in after the
+context switch. We can do the same during a DMA on a noncoherent
+buffer.
+
+> - And the ugly one: Assuming you want this to be coherent for (almost)
+>   unchanged users of exisiting subsystem and want this to integrate
+>   seamlessly with gpu driver management, we also need a
+>   finish_mmap_access. We _can_ fake this by shooting down userspace ptes
+>   (if the provider knows about all of them, and it should thanks to the
+>   mmap interface) and we do that trick on i915 (for certain cases). But
+>   this is generally slow and painful and does not integrate well with
+>   other gpu memory management paradigms, where userspace is required to
+>   explicit bracket access.
+
+Yes, good point.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
