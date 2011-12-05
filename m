@@ -1,156 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 5DFC06B004F
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 17:04:47 -0500 (EST)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id A98636B005C
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 17:10:25 -0500 (EST)
 From: Arnd Bergmann <arnd@arndb.de>
 Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Mon, 05 Dec 2011 23:04:09 +0100
-Message-ID: <1438420.NYDLGGgKNc@wuerfel>
-In-Reply-To: <CAKMK7uG2U2gn-LW7Cozumfza8XngvQSWR7-S-Qiok5NA=94V=w@mail.gmail.com>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <1426302.asOzFeeJzz@wuerfel> <CAKMK7uG2U2gn-LW7Cozumfza8XngvQSWR7-S-Qiok5NA=94V=w@mail.gmail.com>
+Date: Mon, 05 Dec 2011 23:09:56 +0100
+Message-ID: <1781399.9f45Chd7K4@wuerfel>
+In-Reply-To: <CAF6AEGvyWV0DM2fjBbh-TNHiMmiLF4EQDJ6Uu0=NkopM6SXS6g@mail.gmail.com>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <201112051718.48324.arnd@arndb.de> <CAF6AEGvyWV0DM2fjBbh-TNHiMmiLF4EQDJ6Uu0=NkopM6SXS6g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org
-Cc: Daniel Vetter <daniel@ffwll.ch>, t.stanislaws@samsung.com, linux@arm.linux.org.uk, Sumit Semwal <sumit.semwal@ti.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, jesse.barker@linaro.org, rob@ti.com, linux-media@vger.kernel.org, Sumit Semwal <sumit.semwal@linaro.org>, m.szyprowski@samsung.com
+Cc: Rob Clark <rob@ti.com>, t.stanislaws@samsung.com, linux@arm.linux.org.uk, Sumit Semwal <sumit.semwal@ti.com>, jesse.barker@linaro.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, daniel@ffwll.ch, m.szyprowski@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>, linux-media@vger.kernel.org
 
-On Monday 05 December 2011 21:58:39 Daniel Vetter wrote:
-> On Mon, Dec 05, 2011 at 08:29:49PM +0100, Arnd Bergmann wrote:
-> > ...
-> 
-> Thanks a lot for this excellent overview. I think at least for the first
-> version of dmabuf we should drop the sync_* interfaces and simply require
-> users to bracket their usage of the buffer from the attached device by
-> map/unmap. A dma_buf provider is always free to cache the mapping and
-> simply call sync_sg_for of the streaming dma api.
-
-I think we still have the same problem if we allow multiple drivers
-to access a noncoherent buffer using map/unmap:
-
-	driver A				driver B
-
-1.	read/write				
-2.						read/write
-3.	map()					
-4.						read/write
-5.	dma
-6.						map()
-7.	dma
-8.						dma
-9.	unmap()
-10.						dma
-11.	read/write
-12.						unmap()						
-
-
-In step 4, the buffer is owned by device A, but accessed by driver B, which
-is a bug. In step 11, the buffer is owned by device B but accessed by driver
-A, which is the same bug on the other side. In steps 7 and 8, the buffer
-is owned by both device A and B, which is currently undefined but would
-be ok if both devices are on the same coherency domain. Whether that point
-is meaningful depends on what the devices actually do. It would be ok
-if both are only reading, but not if they write into the same location
-concurrently.
-
-As I mentioned originally, the problem could be completely avoided if
-we only allow consistent (e.g. uncached) mappings or buffers that
-are not mapped into the kernel virtual address space at all.
-
-Alternatively, a clearer model would be to require each access to
-nonconsistent buffers to be exclusive: a map() operation would have
-to block until the current mapper (if any) has done an unmap(), and
-any access from the CPU would also have to call a dma_buf_ops pointer
-to serialize the CPU accesses with any device accesses. User
-mappings of the buffer can be easily blocked during a DMA access
-by unmapping the buffer from user space at map() time and blocking the
-vm_ops->fault() operation until the unmap().
-
-> If it later turns out that we want to be able to cache the sg list also on
-> the use-site in the driver (e.g. map it into some hw sg list) we can
-> always add that functionality later. I just fear that sync ops among N
-> devices is a bit ill-defined and we already have a plethora of ill-defined
-> issues at hand. Also the proposed api doesn't quite fit into what's
-> already there, I think an s/device/dma_buf_attachment/ would be more
-> consistent - otherwise the dmabuf provider might need to walk the list of
-> attachements to get at the right one for the device.
-
-Right, at last for the start, let's mandate just map/unmap and not provide
-sync. I do wonder however whether we should implement consistent (possibly
-uncached) or streaming (cacheable, but always owned by either the device
-or the CPU, not both) buffers, or who gets to make the decision which
-one is used if both are implemented.
-
-> > > The map call gets the dma_data_direction parameter, so it should be able
-> > > to do the right thing. And because we keep the attachement around, any
-> > > caching of mappings should be possible, too.
-> > >
-> > > Yours, Daniel
-> > >
-> > > PS: Slightly related, because it will make the coherency nightmare worse,
-> > > afaict: Can we kill mmap support?
+On Monday 05 December 2011 14:46:47 Rob Clark wrote:
+> On Mon, Dec 5, 2011 at 11:18 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+> > On Friday 02 December 2011, Sumit Semwal wrote:
+> >> This is the first step in defining a dma buffer sharing mechanism.
 > >
-> > The mmap support is required (and only make sense) for consistent mappings,
-> > not for streaming mappings. The provider must ensure that if you map
-> > something uncacheable into the kernel in order to provide consistency,
-> > any mapping into user space must also be uncacheable. A driver
-> > that wants to have the buffer mapped to user space as many do should
-> > not need to know whether it is required to do cacheable or uncacheable
-> > mapping because of some other driver, and it should not need to worry
-> > about how to set up uncached mappings in user space.
+> > This looks very nice, but there are a few things I don't understand yet
+> > and a bunch of trivial comments I have about things I spotted.
+> >
+> > Do you have prototype exporter and consumer drivers that you can post
+> > for clarification?
 > 
-> Either I've always missed it or no one ever described it that consisely,
-> but now I see the use-case for mmap: Simpler drivers (i.e. not gpus) might
-> need to expose a userspace mapping and only the provider knows how to do
-> that in a coherent fashion. I want this in the docs (if it's not there yet
-> ...).
+> There is some dummy drivers based on an earlier version.  And airlied
+> has a prime (multi-gpu) prototype:
+> 
+> http://cgit.freedesktop.org/~airlied/linux/log/?h=drm-prime-dmabuf
+> 
+> I've got a nearly working camera+display prototype:
+> 
+> https://github.com/robclark/kernel-omap4/commits/dmabuf
 
-It's currently implemented in the ARM/PowerPC-specific dma_mmap_coherent
-function and documented (hardly) in arch/arm/include/asm/dma-mapping.h.
+Ok, thanks. I think it would be good to post these for reference
+in v3, with a clear indication that they are not being submitted
+for discussion/inclusion yet.
 
-We should make clear in that this is actually an extension of the
-regular dma mapping api that first needs to be made generic.
+> > In the patch 2, you have a section about migration that mentions that
+> > it is possible to export a buffer that can be migrated after it
+> > is already mapped into one user driver. How does that work when
+> > the physical addresses are mapped into a consumer device already?
+> 
+> I think you can do physical migration if you are attached, but
+> probably not if you are mapped.
 
-> But even with that use-case in mind I still have some gripes with the
-> current mmap interfaces as proposed:
-> - This use-case explains why the dmabuf provider needs to expose an mmap
->   function. It doesn't explain why we need to expose that to userspace
->   (instead of faking whatever mmap the importing driver already exposes).
->   Imo the userspace-facing part of dmabuf should be about buffer sharing
->   and not about how to access that buffer, so I'm still missing the reason
->   for that.
+Ok, that's what I thought.
 
-AFAICT, the only reason for providing an mmap operation in the dma_buf
-file descriptor is "because we can". It may in fact be better to leave
-that part out and have the discussion whether this is actually a good
-thing to do after the dma_buf core code has been merged upstream.
+> > You probably mean "if (ret)" here instead of "if (!ret)", right?
+> >
+> >> +     /* allow allocator to take care of cache ops */
+> >> +     void (*sync_sg_for_cpu) (struct dma_buf *, struct device *);
+> >> +     void (*sync_sg_for_device)(struct dma_buf *, struct device *);
+> >
+> > I don't see how this works with multiple consumers: For the streaming
+> > DMA mapping, there must be exactly one owner, either the device or
+> > the CPU. Obviously, this rule needs to be extended when you get to
+> > multiple devices and multiple device drivers, plus possibly user
+> > mappings. Simply assigning the buffer to "the device" from one
+> > driver does not block other drivers from touching the buffer, and
+> > assigning it to "the cpu" does not stop other hardware that the
+> > code calling sync_sg_for_cpu is not aware of.
+> >
+> > The only way to solve this that I can think of right now is to
+> > mandate that the mappings are all coherent (i.e. noncachable
+> > on noncoherent architectures like ARM). If you do that, you no
+> > longer need the sync_sg_for_* calls.
+> 
+> My original thinking was that you either need DMABUF_CPU_{PREP,FINI}
+> ioctls and corresponding dmabuf ops, which userspace is required to
+> call before / after CPU access.  Or just remove mmap() and do the
+> mmap() via allocating device and use that device's equivalent
+> DRM_XYZ_GEM_CPU_{PREP,FINI} or DRM_XYZ_GEM_SET_DOMAIN ioctls.  That
+> would give you a way to (a) synchronize with gpu/asynchronous
+> pipeline, (b) synchronize w/ multiple hw devices vs cpu accessing
+> buffer (ie. wait all devices have dma_buf_unmap_attachment'd).  And
+> that gives you a convenient place to do cache operations on
+> noncoherent architecture.
 
-> - We need some way to tell the provider to sync all completed dma
->   operations for userspace mmap access. sync_for_cpu would serve that use.
->   But given that we strive for zero-copy I think the kernel shouldn't
->   ever need to access the contents of a dmabuf and it would therefore make
->   more sense to call it sync_for_mmap.
+I wasn't even thinking of user mappings, as I replied to Daniel, I
+think they are easy to solve (maybe not efficiently though)
 
-As I mentioned, the kernel can easily block out the user map by
-transparently unmapping the buffer. I've done that in spufs for
-context-switching an SPU: during the save and restore phase of the
-SPU local memory to system memory, the page tables entries for
-all user mappings are removed and then faulted back in after the
-context switch. We can do the same during a DMA on a noncoherent
-buffer.
+> I sort of preferred having the DMABUF shim because that lets you pass
+> a buffer around userspace without the receiving code knowing about a
+> device specific API.  But the problem I eventually came around to: if
+> your GL stack (or some other userspace component) is batching up
+> commands before submission to kernel, the buffers you need to wait for
+> completion might not even be submitted yet.  So from kernel
+> perspective they are "ready" for cpu access.  Even though in fact they
+> are not in a consistent state from rendering perspective.  I don't
+> really know a sane way to deal with that.  Maybe the approach instead
+> should be a userspace level API (in libkms/libdrm?) to provide
+> abstraction for userspace access to buffers rather than dealing with
+> this at the kernel level.
 
-> - And the ugly one: Assuming you want this to be coherent for (almost)
->   unchanged users of exisiting subsystem and want this to integrate
->   seamlessly with gpu driver management, we also need a
->   finish_mmap_access. We _can_ fake this by shooting down userspace ptes
->   (if the provider knows about all of them, and it should thanks to the
->   mmap interface) and we do that trick on i915 (for certain cases). But
->   this is generally slow and painful and does not integrate well with
->   other gpu memory management paradigms, where userspace is required to
->   explicit bracket access.
-
-Yes, good point.
+It would be nice if user space had no way to block out kernel drivers,
+otherwise we have to be very careful to ensure that each map() operation
+can be interrupted by a signal as the last resort to avoid deadlocks.
 
 	Arnd
 
