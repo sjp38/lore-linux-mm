@@ -1,92 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 33E3E6B004F
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 20:24:33 -0500 (EST)
-Message-ID: <1323048232.7454.161.camel@deadeye>
-Subject: Re: [Linux-decnet-user] Proposed removal of DECnet support (was:Re:
- [BUG] 3.2-rc2:BUG kmalloc-8: Redzone overwritten)
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Mon, 05 Dec 2011 01:23:52 +0000
-In-Reply-To: <20111204195055.A36077AD9C@priderock.keep-cool.org>
-References: 
-	<OF7785CDCC.246C1F8F-ON80257958.004A9A89-80257958.004C103D@LocalDomain>
-	 <1322664737.2755.17.camel@menhir>
-	 <20111204195055.A36077AD9C@priderock.keep-cool.org>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-rIZv2lxU9UN8BoTIhMpY"
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 5610F6B004F
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2011 21:00:31 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7754F3EE0AE
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:00:28 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 59E7445DE52
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:00:28 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3739045DE50
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:00:28 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26AEB1DB803E
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:00:28 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C35821DB802F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 11:00:27 +0900 (JST)
+Date: Mon, 5 Dec 2011 10:59:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v7 02/10] foundations of per-cgroup memory pressure
+ controlling.
+Message-Id: <20111205105916.eeb55989.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4ED90F06.102@parallels.com>
+References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
+	<1322611021-1730-3-git-send-email-glommer@parallels.com>
+	<20111130094305.9c69ecd8.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ED90F06.102@parallels.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Schafft <lion@lion.leolix.org>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, mike.gair@tatasteel.com, Chrissie Caulfield <ccaulfie@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Linux-DECnet user <linux-decnet-user@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, netdev <netdev@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, RoarAudio <roaraudio@lists.keep-cool.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+
+On Fri, 2 Dec 2011 15:46:46 -0200
+Glauber Costa <glommer@parallels.com> wrote:
+
+> 
+> >>   static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
+> >>   {
+> >> +	struct mem_cgroup *memcg = mem_cgroup_from_task(current);
+> >> +
+> >>   	seq_printf(seq, "%-9s %4u %6d  %6ld   %-3s %6u   %-3s  %-10s "
+> >>   			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
+> >>   		   proto->name,
+> >>   		   proto->obj_size,
+> >>   		   sock_prot_inuse_get(seq_file_net(seq), proto),
+> >> -		   proto->memory_allocated != NULL ? atomic_long_read(proto->memory_allocated) : -1L,
+> >> -		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
+> >> +		   sock_prot_memory_allocated(proto, memcg),
+> >> +		   sock_prot_memory_pressure(proto, memcg),
+> >
+> > I wonder I should say NO, here. (Networking guys are ok ??)
+> >
+> > IIUC, this means there is no way to see aggregated sockstat of all system.
+> > And the result depends on the cgroup which the caller is under control.
+> >
+> > I think you should show aggregated sockstat(global + per-memcg) here and
+> > show per-memcg ones via /cgroup interface or add private_sockstat to show
+> > per cgroup summary.
+> >
+> 
+> Hi Kame,
+> 
+> Yes, the statistics displayed depends on which cgroup you live.
+> Also, note that the parent cgroup here is always updated (even when 
+> use_hierarchy is set to 0). So it is always possible to grab global 
+> statistics, by being in the root cgroup.
+> 
+> For the others, I believe it to be a question of naturalization. Any 
+> tool that is fetching these values is likely interested in the amount of 
+> resources available/used. When you are on a cgroup, the amount of 
+> resources available/used changes, so that's what you should see.
+> 
+> Also brings the point of resource isolation: if you shouldn't interfere 
+> with other set of process' resources, there is no reason for you to see 
+> them in the first place.
+> 
+> So given all that, I believe that whenever we talk about resources in a 
+> cgroup, we should talk about cgroup-local ones.
+
+But you changes /proc/ information without any arguments with other guys.
+If you go this way, you should move this patch as independent add-on patch
+and discuss what this should be. For example, /proc/meminfo doesn't reflect
+memcg's information (for now). And scheduler statiscits in /proc/stat doesn't
+reflect cgroup's information.
+
+So, please discuss the problem in open way. This issue is not only related to
+this patch but also to other cgroups. Sneaking this kind of _big_ change in
+a middle of complicated patch series isn't good.
+
+In short, could you divide this patch into a independent patch and discuss
+again ? If we agree the general diection should go this way, other guys will
+post patches for cpu, memory, blkio, etc.
 
 
---=-rIZv2lxU9UN8BoTIhMpY
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Sun, 2011-12-04 at 20:50 +0100, Philipp Schafft wrote:
-> reflum,
->=20
-> On Wed, 2011-11-30 at 14:52 +0000, Steven Whitehouse wrote:
-[...]
-> > It is good to know that people are still using the Linux DECnet code
-> > too. It has lived far beyond the time when I'd envisioned it still bein=
-g
-> > useful :-)
->=20
-> There are still some people interested in it. Btw. on Debian popcon
-> counts 5356 users.
-
-This is grossly misleading.  Here's the historical graph showing <100
-installations of libdnet until early 2011:
-http://qa.debian.org/popcon-graph.php?packages=3Dlibdnet
-
-The increase in 2011 is not a sudden resurgence of interest; it comes
-from roaraudio[1] users.  For some reason (a joke?) roaraudio has DECnet
-support and its packages depend on libdnet.  You can see that the above
-graph is precisely correlated with this:
-http://qa.debian.org/popcon-graph.php?packages=3Dlibroar1
-
-(And so far as I can work out, libroar1 is mostly being installed as a
-dependency of an unofficial package of Xine.)
-
-The only reason I know this is because there was a sudden spate of bug
-reports on the kernel due to people getting dnet-common installed as a
-recommendation of libdnet and then having their Ethernet MAC addresses
-reconfigured for DECnet.
-
-[1] Yet another audio mixing daemon
-
-Ben.
-
---=20
-Ben Hutchings
-Absolutum obsoletum. (If it works, it's out of date.) - Stafford Beer
-
---=-rIZv2lxU9UN8BoTIhMpY
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIVAwUATtwdKOe/yOyVhhEJAQpOsQ//WOlBFMMy7cINXPzERExzfEr4s9IPGTck
-uxNv6JFcqPXfq0E9kBToR6GQx/RgPG568/RIunHZbZ7GWUm62ORez2LlJhW5wLlv
-o+kZEcTN3aC5+C7ubWAlbKAboMC0UPQp2CGm0lq6wKjk340BWM8wkiX5OkSjoMGs
-Wkdn+XXU6dmfwWE+p4D3hD5Gp7G3jZ6EGb+uVs7Sijk3uF8CHVwMxkXBvzjhttyW
-1rLW8/NOCTZFdL03xF8SZGI6jnfXYp8Y3iHVpeySh6IgoGQjGpydvjzwpsW7U+um
-ZFA28NaO5LF/lrp7y2IaX1jOBowiKZB0FqybcSOYMeZoKPEf+F0SWs2dNsXSpPZG
-B6aJl4EvFJxGenQ5Dd2S5zvnx3zsKapD8aGNbzTsFTwldbP2TIIEs/T7xJlYGYHc
-tAR2LuhMVrhAwAO1yT1ZDnDw/GfvXEx8pUyqfYeqlvNJeNA67H4I7UzryzVzRbm2
-r1lc9YeT97eLWel+dVLg0oTBUuEZTkxK+ioAKMRf13t/0RjHEbPi2doEeSCvtJ/y
-T6SIKWAmiRLHit6igR8C+ofjHjQ275+ueqA8mOAZj64w1GUVOuc3NB3R5CNFLO4K
-3QMwtmSaSWo6hRfdcBsU1/eCu3PNLHEToH6HjZPkkYm1GxzxnN2puYjzeGP6yY5J
-ZRMsDe/FEss=
-=D2v5
------END PGP SIGNATURE-----
-
---=-rIZv2lxU9UN8BoTIhMpY--
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
