@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id AE2A06B004D
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:52:59 -0500 (EST)
-Received: by iapp10 with SMTP id p10so10518204iap.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:52:59 -0800 (PST)
-Date: Tue, 6 Dec 2011 12:52:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id EB62D6B0062
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 16:06:11 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so3537843vbb.14
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 13:06:10 -0800 (PST)
+Date: Tue, 6 Dec 2011 13:06:07 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2]numa: add a sysctl to control interleave allocation
- granularity from each node
-In-Reply-To: <1323055846.22361.362.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1112061248500.28251@chino.kir.corp.google.com>
-References: <1323055846.22361.362.camel@sli10-conroe>
+Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
+In-Reply-To: <1323076965.16790.670.camel@debian>
+Message-ID: <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com> <alpine.DEB.2.00.1112020842280.10975@router.home> <1323076965.16790.670.camel@debian>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, ak@linux.intel.com, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, lee.schermerhorn@hp.com
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
 
-On Mon, 5 Dec 2011, Shaohua Li wrote:
+On Mon, 5 Dec 2011, Alex,Shi wrote:
 
-> If mem plicy is interleaves, we will allocated pages from nodes in a round
-> robin way. This surely can do interleave fairly, but not optimal.
-> 
-> Say the pages will be used for I/O later. Interleave allocation for two pages
-> are allocated from two nodes, so the pages are not physically continuous. Later
-> each page needs one segment for DMA scatter-gathering. But maxium hardware
-> segment number is limited. The non-continuous pages will use up maxium
-> hardware segment number soon and we can't merge I/O to bigger DMA. Allocating
-> pages from one node hasn't such issue. The memory allocator pcp list makes
-> we can get physically continuous pages in several alloc quite likely.
-> 
-> Below patch adds a sysctl to control the allocation granularity from each node.
-> 
-> Run a sequential read workload which accesses disk sdc - sdf. The test uses
-> a LSI SAS1068E card. iostat -x -m 5 shows:
-> 
-> without numactl --interleave=0,1:
-> Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
-> sdc              13.40     0.00  259.00    0.00    67.05     0.00   530.19     5.00   19.38   3.86 100.00
-> sdd              13.00     0.00  249.00    0.00    64.95     0.00   534.21     5.05   19.73   4.02 100.00
-> sde              13.60     0.00  258.60    0.00    67.40     0.00   533.78     4.96   18.98   3.87 100.00
-> sdf              13.00     0.00  261.60    0.00    67.50     0.00   528.44     5.24   19.77   3.82 100.00
-> 
-> with numactl --interleave=0,1:
-> sdc               6.80     0.00  419.60    0.00    64.90     0.00   316.77    14.17   34.04   2.38 100.00
-> sdd               6.00     0.00  423.40    0.00    65.58     0.00   317.23    17.33   41.14   2.36 100.00
-> sde               5.60     0.00  419.60    0.00    64.90     0.00   316.77    17.29   40.94   2.38 100.00
-> sdf               5.20     0.00  417.80    0.00    64.17     0.00   314.55    16.69   39.42   2.39 100.00
-> 
-> with numactl --interleave=0,1 and below patch, setting numa_interleave_granularity to 8
-> (setting it to 2 gives similar result, I only recorded the data with 8):
-> sdc              13.00     0.00  261.20    0.00    68.20     0.00   534.74     5.05   19.19   3.83 100.00
-> sde              13.40     0.00  259.00    0.00    67.85     0.00   536.52     4.85   18.80   3.86 100.00
-> sdf              13.00     0.00  260.60    0.00    68.20     0.00   535.97     4.85   18.61   3.84 100.00
-> sdd              13.20     0.00  251.60    0.00    66.00     0.00   537.23     4.95   19.45   3.97 100.00
-> 
-> The avgrq-sz is increased a lot. performance boost a little too.
+> Previous testing depends on 3.2-rc1, that show hackbench performance has
+> no clear change, and netperf get some benefit. But seems after
+> irqsafe_cpu_cmpxchg patch, the result has some change. I am collecting
+> these results. 
 > 
 
-I really like being able to control the interleave granularity, but I 
-think it can be done even better: instead of having a strict count on the 
-number of allocations (slab or otherwise) to allocate on a single node 
-before moving on to another, which could result in large asymmetries 
-between nodes which is the antagonist of any interleaved mempolicy, have 
-you considered basing the granularity on size instead?  interleave_nodes() 
-would then only move onto the next node when a size threshold has been 
-reached.
+netperf will also degrade with this change on some machines, there's no 
+clear heuristic that can be used to benefit all workloads when deciding 
+where to add a partial slab into the list.  Cache hotness is great but 
+your patch doesn't address situations where frees happen to a partial slab 
+such that they may be entirely free (or at least below your 1:4 inuse to 
+nr_objs threshold) at the time you want to deactivate the cpu slab.
+
+I had a patchset that iterated the partial list and found the "most free" 
+partial slab (and terminated prematurely if a threshold had been reached, 
+much like yours) and selected that one, and it helped netperf 2-3% in my 
+testing.  So I disagree with determining where to add a partial slab to 
+the list at the time of free because it doesn't infer its state at the 
+time of cpu slab deactivation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
