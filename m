@@ -1,52 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 241E36B004D
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:16:17 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so3468331vbb.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:16:16 -0800 (PST)
-Date: Tue, 6 Dec 2011 12:16:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 7D13B6B005C
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:26:06 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so3483093vbb.14
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:26:05 -0800 (PST)
+Date: Tue, 6 Dec 2011 12:26:02 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: hugetlb oops on 3.1.0-rc8-devel
-In-Reply-To: <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1112061214590.28251@chino.kir.corp.google.com>
-References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com> <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com> <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmalloc: Check for page allocation failure before
+ vmlist insertion
+In-Reply-To: <20111205140750.GB5070@suse.de>
+Message-ID: <alpine.DEB.2.00.1112061225380.28251@chino.kir.corp.google.com>
+References: <20111205140750.GB5070@suse.de>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-1995613491-1323202575=:28251"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Namhyung Kim <namhyung@gmail.com>, Luciano Chavez <lnx1138@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Mon, 5 Dec 2011, Mel Gorman wrote:
 
---397155492-1995613491-1323202575=:28251
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-
-On Wed, 2 Nov 2011, Andy Lutomirski wrote:
-
-> > --- a/mm/hugetlb.c      Sat Aug 13 11:45:14 2011
-> > +++ b/mm/hugetlb.c      Wed Nov  2 20:12:00 2011
-> > @@ -2422,6 +2422,8 @@ retry_avoidcopy:
-> >         * anon_vma prepared.
-> >         */
-> >        if (unlikely(anon_vma_prepare(vma))) {
-> > +               page_cache_release(new_page);
-> > +               page_cache_release(old_page);
-> >                /* Caller expects lock to be held */
-> >                spin_lock(&mm->page_table_lock);
-> >                return VM_FAULT_OOM;
-> >
+> Commit [f5252e00: mm: avoid null pointer access in vm_struct via
+> /proc/vmallocinfo] adds newly allocated vm_structs to the vmlist
+> after it is fully initialised. Unfortunately, it did not check that
+> __vmalloc_area_node() successfully populated the area. In the event
+> of allocation failure, the vmalloc area is freed but the pointer to
+> freed memory is inserted into the vmlist leading to a a crash later
+> in get_vmalloc_info().
 > 
-> I'll patch it in.  My test case took over a week to hit it once, so I
-> can't guarantee I'll spot it.
+> This patch adds a check for ____vmalloc_area_node() failure within
+> __vmalloc_node_range. It does not use "goto fail" as in the previous
+> error path as a warning was already displayed by __vmalloc_area_node()
+> before it called vfree in its failure path.
+> 
+> Credit goes to Luciano Chavez for doing all the real work of
+> identifying exactly where the problem was.
+> 
+> If accepted, this should be considered a -stable candidate.
 > 
 
-This patch was merged and released in 3.2-rc3 as ea4039a34c4c ("hugetlb: 
-release pages in the error path of hugetlb_cow()"), Andy is this issue 
-fixed for you?
---397155492-1995613491-1323202575=:28251--
+Right, for 3.1.x.
+
+> Reported-and-tested-by: Luciano Chavez <lnx1138@linux.vnet.ibm.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
