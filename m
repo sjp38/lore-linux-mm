@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 0B4296B0062
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:43:56 -0500 (EST)
-Received: by qadc12 with SMTP id c12so2190484qad.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:43:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id AE2A06B004D
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:52:59 -0500 (EST)
+Received: by iapp10 with SMTP id p10so10518204iap.14
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:52:59 -0800 (PST)
+Date: Tue, 6 Dec 2011 12:52:56 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2]numa: add a sysctl to control interleave allocation
+ granularity from each node
+In-Reply-To: <1323055846.22361.362.camel@sli10-conroe>
+Message-ID: <alpine.DEB.2.00.1112061248500.28251@chino.kir.corp.google.com>
+References: <1323055846.22361.362.camel@sli10-conroe>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1112061214590.28251@chino.kir.corp.google.com>
-References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
- <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
- <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com> <alpine.DEB.2.00.1112061214590.28251@chino.kir.corp.google.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 6 Dec 2011 12:43:34 -0800
-Message-ID: <CALCETrW77ZE62dbHJxoL3Ef1gAGeMQaSZrOOiM1_ZrY53zbxUQ@mail.gmail.com>
-Subject: Re: hugetlb oops on 3.1.0-rc8-devel
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, ak@linux.intel.com, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, lee.schermerhorn@hp.com
 
-On Tue, Dec 6, 2011 at 12:16 PM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Wed, 2 Nov 2011, Andy Lutomirski wrote:
->
->> > --- a/mm/hugetlb.c =A0 =A0 =A0Sat Aug 13 11:45:14 2011
->> > +++ b/mm/hugetlb.c =A0 =A0 =A0Wed Nov =A02 20:12:00 2011
->> > @@ -2422,6 +2422,8 @@ retry_avoidcopy:
->> > =A0 =A0 =A0 =A0 * anon_vma prepared.
->> > =A0 =A0 =A0 =A0 */
->> > =A0 =A0 =A0 =A0if (unlikely(anon_vma_prepare(vma))) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(new_page);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(old_page);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Caller expects lock to be held */
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&mm->page_table_lock);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return VM_FAULT_OOM;
->> >
->>
->> I'll patch it in. =A0My test case took over a week to hit it once, so I
->> can't guarantee I'll spot it.
->>
->
-> This patch was merged and released in 3.2-rc3 as ea4039a34c4c ("hugetlb:
-> release pages in the error path of hugetlb_cow()"), Andy is this issue
-> fixed for you?
+On Mon, 5 Dec 2011, Shaohua Li wrote:
 
-I haven't seen it again with or without the patch.  I suspect that to
-trigger it again I'd have to set up an old, buggy version of my
-software to hammer on it for awhile, which I won't have a chance to do
-any time soon.  Sorry.
+> If mem plicy is interleaves, we will allocated pages from nodes in a round
+> robin way. This surely can do interleave fairly, but not optimal.
+> 
+> Say the pages will be used for I/O later. Interleave allocation for two pages
+> are allocated from two nodes, so the pages are not physically continuous. Later
+> each page needs one segment for DMA scatter-gathering. But maxium hardware
+> segment number is limited. The non-continuous pages will use up maxium
+> hardware segment number soon and we can't merge I/O to bigger DMA. Allocating
+> pages from one node hasn't such issue. The memory allocator pcp list makes
+> we can get physically continuous pages in several alloc quite likely.
+> 
+> Below patch adds a sysctl to control the allocation granularity from each node.
+> 
+> Run a sequential read workload which accesses disk sdc - sdf. The test uses
+> a LSI SAS1068E card. iostat -x -m 5 shows:
+> 
+> without numactl --interleave=0,1:
+> Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
+> sdc              13.40     0.00  259.00    0.00    67.05     0.00   530.19     5.00   19.38   3.86 100.00
+> sdd              13.00     0.00  249.00    0.00    64.95     0.00   534.21     5.05   19.73   4.02 100.00
+> sde              13.60     0.00  258.60    0.00    67.40     0.00   533.78     4.96   18.98   3.87 100.00
+> sdf              13.00     0.00  261.60    0.00    67.50     0.00   528.44     5.24   19.77   3.82 100.00
+> 
+> with numactl --interleave=0,1:
+> sdc               6.80     0.00  419.60    0.00    64.90     0.00   316.77    14.17   34.04   2.38 100.00
+> sdd               6.00     0.00  423.40    0.00    65.58     0.00   317.23    17.33   41.14   2.36 100.00
+> sde               5.60     0.00  419.60    0.00    64.90     0.00   316.77    17.29   40.94   2.38 100.00
+> sdf               5.20     0.00  417.80    0.00    64.17     0.00   314.55    16.69   39.42   2.39 100.00
+> 
+> with numactl --interleave=0,1 and below patch, setting numa_interleave_granularity to 8
+> (setting it to 2 gives similar result, I only recorded the data with 8):
+> sdc              13.00     0.00  261.20    0.00    68.20     0.00   534.74     5.05   19.19   3.83 100.00
+> sde              13.40     0.00  259.00    0.00    67.85     0.00   536.52     4.85   18.80   3.86 100.00
+> sdf              13.00     0.00  260.60    0.00    68.20     0.00   535.97     4.85   18.61   3.84 100.00
+> sdd              13.20     0.00  251.60    0.00    66.00     0.00   537.23     4.95   19.45   3.97 100.00
+> 
+> The avgrq-sz is increased a lot. performance boost a little too.
+> 
 
-If you're interested, the workload that triggered the problem was,
-roughly, two programs.  Both were set up to use libhugetlbfs for
-everything, and the first program spawned (presumably via fork as
-opposed to any clone magic) copies of the second program frequently.
-The second program was very memory intensive.  The result was that,
-occasionally, fork had issues because it couldn't find free huge pages
-in the pool.
-
---Andy
-
---=20
-Andy Lutomirski
-AMA Capital Management, LLC
-Office: (310) 553-5322
-Mobile: (650) 906-0647
+I really like being able to control the interleave granularity, but I 
+think it can be done even better: instead of having a strict count on the 
+number of allocations (slab or otherwise) to allocate on a single node 
+before moving on to another, which could result in large asymmetries 
+between nodes which is the antagonist of any interleaved mempolicy, have 
+you considered basing the granularity on size instead?  interleave_nodes() 
+would then only move onto the next node when a size threshold has been 
+reached.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
