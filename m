@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 887916B0062
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:31:51 -0500 (EST)
-Received: by iapp10 with SMTP id p10so10488437iap.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:31:50 -0800 (PST)
-Date: Tue, 6 Dec 2011 12:31:48 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [3.2-rc3] OOM killer doesn't kill the obvious memory hog
-In-Reply-To: <20111202144441.4c2ff29e.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1112061231320.28251@chino.kir.corp.google.com>
-References: <20111201093644.GW7046@dastard> <20111201185001.5bf85500.kamezawa.hiroyu@jp.fujitsu.com> <20111201124634.GY7046@dastard> <alpine.DEB.2.00.1112011432110.27778@chino.kir.corp.google.com> <20111202015921.GZ7046@dastard> <20111202033148.GA7046@dastard>
- <20111202144441.4c2ff29e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 0B4296B0062
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 15:43:56 -0500 (EST)
+Received: by qadc12 with SMTP id c12so2190484qad.14
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 12:43:56 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1112061214590.28251@chino.kir.corp.google.com>
+References: <CALCETrW1mpVCz2tO5roaz1r6vnno+srHR-dHA6_pkRi2qiCfdw@mail.gmail.com>
+ <CAJd=RBDdirdNiPMVcYLNFO5Ho+pRGCfh_RRA7_re+76Ds+H0pw@mail.gmail.com>
+ <CALCETrVL3MUMh2kDPaZ6Z9Lz=eWas_dF0jwWMiF3KvNUcJKXJw@mail.gmail.com> <alpine.DEB.2.00.1112061214590.28251@chino.kir.corp.google.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 6 Dec 2011 12:43:34 -0800
+Message-ID: <CALCETrW77ZE62dbHJxoL3Ef1gAGeMQaSZrOOiM1_ZrY53zbxUQ@mail.gmail.com>
+Subject: Re: hugetlb oops on 3.1.0-rc8-devel
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2 Dec 2011, KAMEZAWA Hiroyuki wrote:
+On Tue, Dec 6, 2011 at 12:16 PM, David Rientjes <rientjes@google.com> wrote=
+:
+> On Wed, 2 Nov 2011, Andy Lutomirski wrote:
+>
+>> > --- a/mm/hugetlb.c =A0 =A0 =A0Sat Aug 13 11:45:14 2011
+>> > +++ b/mm/hugetlb.c =A0 =A0 =A0Wed Nov =A02 20:12:00 2011
+>> > @@ -2422,6 +2422,8 @@ retry_avoidcopy:
+>> > =A0 =A0 =A0 =A0 * anon_vma prepared.
+>> > =A0 =A0 =A0 =A0 */
+>> > =A0 =A0 =A0 =A0if (unlikely(anon_vma_prepare(vma))) {
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(new_page);
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(old_page);
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Caller expects lock to be held */
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&mm->page_table_lock);
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return VM_FAULT_OOM;
+>> >
+>>
+>> I'll patch it in. =A0My test case took over a week to hit it once, so I
+>> can't guarantee I'll spot it.
+>>
+>
+> This patch was merged and released in 3.2-rc3 as ea4039a34c4c ("hugetlb:
+> release pages in the error path of hugetlb_cow()"), Andy is this issue
+> fixed for you?
 
-> From ed565cbf842e0b30827fba7bfdbc724fe21d9d2d Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Fri, 2 Dec 2011 14:10:51 +0900
-> Subject: [PATCH] oom_score_adj trace point.
-> 
-> oom_score_adj is set by some daemon and launch tasks ans inherited
-> to applications, sometimes unexpectedly.
-> 
-> This patch is for debugging oom_score_adj inheritance. This
-> adds trace points for oom_score_adj inheritance.
-> 
->     bash-2501  [002]   448.860197: oom_score_adj_update: task 2501[bash] updates oom_score_adj=-1000
->     bash-2501  [002]   455.678190: oom_score_adj_inherited: new task 2527 inherited oom_score_adj -1000
->     ls-2527  [007]   455.678683: oom_score_task_rename: task 2527[bash] to [ls] oom_score_adj=-1000
->     bash-2501  [007]   461.632103: oom_score_adj_inherited: new task 2528 inherited oom_score_adj -1000
->     bash-2501  [007]   461.632335: oom_score_adj_inherited: new task 2529 inherited oom_score_adj -1000
->     ls-2528  [003]   461.632983: oom_score_task_rename: task 2528[bash] to [ls] oom_score_adj=-1000
->     less-2529  [005]   461.633086: oom_score_task_rename: task 2529[bash] to [less] oom_score_adj=-1000
->     bash-2501  [004]   474.888710: oom_score_adj_update: task 2501[bash] updates oom_score_adj=0
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I haven't seen it again with or without the patch.  I suspect that to
+trigger it again I'd have to set up an old, buggy version of my
+software to hammer on it for awhile, which I won't have a chance to do
+any time soon.  Sorry.
 
-Acked-by: David Rientjes <rientjes@google.com>
+If you're interested, the workload that triggered the problem was,
+roughly, two programs.  Both were set up to use libhugetlbfs for
+everything, and the first program spawned (presumably via fork as
+opposed to any clone magic) copies of the second program frequently.
+The second program was very memory intensive.  The result was that,
+occasionally, fork had issues because it couldn't find free huge pages
+in the pool.
 
-Thanks Kame!
+--Andy
+
+--=20
+Andy Lutomirski
+AMA Capital Management, LLC
+Office: (310) 553-5322
+Mobile: (650) 906-0647
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
