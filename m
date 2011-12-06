@@ -1,106 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 22F8E6B004D
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 18:51:04 -0500 (EST)
-Received: by ghbg19 with SMTP id g19so2248861ghb.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 15:51:03 -0800 (PST)
-Date: Tue, 6 Dec 2011 15:50:33 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
-In-Reply-To: <20111206192101.8ea75558.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LSU.2.00.1112061506360.2111@sister.anvils>
-References: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com> <20111202120849.GA1295@cmpxchg.org> <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1112051552210.3938@sister.anvils> <20111206095825.69426eb2.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LSU.2.00.1112052258510.28015@sister.anvils> <20111206192101.8ea75558.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id B7EB66B004D
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:00:05 -0500 (EST)
+Received: by yenq10 with SMTP id q10so62509yen.2
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 16:00:04 -0800 (PST)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH 1/3] memcg: rework softlimit reclaim
+Date: Tue,  6 Dec 2011 15:59:57 -0800
+Message-Id: <1323215999-29164-2-git-send-email-yinghan@google.com>
+In-Reply-To: <1323215999-29164-1-git-send-email-yinghan@google.com>
+References: <1323215999-29164-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
+Cc: linux-mm@kvack.org
 
-On Tue, 6 Dec 2011, KAMEZAWA Hiroyuki wrote:
-> On Mon, 5 Dec 2011 23:36:34 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> Hmm, at first glance at the patch, it seems far complicated than
-> I expected
+Under the shrink_zone, we examine whether or not to reclaim from a memcg
+based on its softlimit. We skip scanning the memcg for the first 3 priority.
+This is to balance between isolation and efficiency. we don't want to halt
+the system by skipping memcgs with low-hanging fruits forever.
 
-Right, this is just a rollup of assorted changes,
-yet to be presented properly as an understandable series.
+Another change is to set soft_limit_in_bytes to 0 by default. This is needed
+for both functional and performance:
 
-> and added much checks and hooks to lru path...
+1. If soft_limit are all set to MAX, it wastes first three periority iterations
+without scanning anything.
 
-Actually, I think it removes more than it adds; while trying not
-to increase the overhead of lookup_page_cgroup()s and locking.
+2. By default every memcg is eligibal for softlimit reclaim, and we can also
+set the value to MAX for special memcg which is immune to soft limit reclaim.
 
-> > Okay, here it is: my usual mix of cleanup and functional changes.
-> > There's work by Ying and others in here - will apportion authorship
-> > more fairly when splitting.  If you're looking through it at all,
-> > the place to start would be memcontrol.c's lock_page_lru_irqsave().
-> > 
-> 
-> Thank you. This seems inetersting patch. Hmm...what I think of now is..
-> In most case, pages are newly allocated and charged ,and then, added to LRU.
-> pc->mem_cgroup never changes while pages are on LRU.
-> 
-> I have a fix for corner cases as to do
-> 
-> 	1. lock lru
-> 	2. remove-page-from-lru
-> 	3. overwrite pc->mem_cgroup
-> 	4. add page to lru again
-> 	5. unlock lru
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ include/linux/memcontrol.h |    7 ++++
+ kernel/res_counter.c       |    1 -
+ mm/memcontrol.c            |    8 +++++
+ mm/vmscan.c                |   67 ++++++++++++++++++++++++++-----------------
+ 4 files changed, 55 insertions(+), 28 deletions(-)
 
-That is indeed the sequence which __mem_cgroup_commit_charge() follows
-after the patch.
-
-But it optimizes out the majority of cases when no such lru operations
-are needed (optimizations best presented in a separate patch), while
-being careful about the tricky case when the page is on lru_add_pvecs,
-and may get on to an lru at any moment.
-
-And since it uses a separate lock for each memcg-zone's set of lrus,
-must take care that both lock and lru in 4 and 5 are different from
-those in 1 and 2.
-
-> 
-> And blindly believe pc->mem_cgroup regardless of PCG_USED bit at LRU handling.
-
-That's right.  The difficulty comes when Used is cleared while
-the page is off lru, or page removed from lru while Used is clear:
-once lock is dropped, we have no hold on the memcg, and must move
-to root lru lest the old memcg get deleted.
-
-The old Used + AcctLRU + pc->mem_cgroup puppetry used to achieve that
-quite cleverly; but in distributing zone lru_locks over memcgs, we went
-through a lot of crashes before we understood the subtlety of it; and
-in most places were just fighting the way it shifted underneath us.
-
-Now mem_cgroup_move_uncharged_to_root() makes the move explicit,
-in just a few places.
-
-> 
-> Hm, per-zone-per-memcg lru locking is much easier if
->  - we igonore PCG_USED bit at lru handling
-
-I may or may not agree with you, depending on what you mean!
-
->  - we never overwrite pc->mem_cgroup if the page is on LRU.
-
-That's not the way I was thinking of it, but I think that's what we're doing.
-
->  - if page may be added to LRU by pagevec etc.. while we overwrite
->    pc->mem_cgroup, we always take lru_lock. This is our corner case.
-
-Yes, the tricky case I mention above.
-
-> 
-> isn't it ? I posted a series of patch. I'm glad if you give me a
-> quick review.
-
-I haven't glanced yet, will do so after an hour or two.
-
-Hugh
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 81aabfb..53d483b 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -107,6 +107,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+ 				   struct mem_cgroup_reclaim_cookie *);
+ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+ 
++bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *);
++
+ /*
+  * For memory reclaim.
+  */
+@@ -293,6 +295,11 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
+ {
+ }
+ 
++static inline bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *mem)
++{
++	return true;
++}
++
+ static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *memcg)
+ {
+ 	return 0;
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index b814d6c..92afdc1 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -18,7 +18,6 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+ {
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = RESOURCE_MAX;
+-	counter->soft_limit = RESOURCE_MAX;
+ 	counter->parent = parent;
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4425f62..7c6cade 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -926,6 +926,14 @@ out:
+ }
+ EXPORT_SYMBOL(mem_cgroup_count_vm_event);
+ 
++bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *mem)
++{
++	if (mem_cgroup_disabled() || mem_cgroup_is_root(mem))
++		return true;
++
++	return res_counter_soft_limit_excess(&mem->res) > 0;
++}
++
+ /**
+  * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg
+  * @zone: zone of the wanted lruvec
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0ba7d35..b36d91b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2091,6 +2091,17 @@ restart:
+ 	throttle_vm_writeout(sc->gfp_mask);
+ }
+ 
++static bool should_reclaim_mem_cgroup(struct scan_control *sc,
++				      struct mem_cgroup *mem,
++				      int priority)
++{
++	if (!global_reclaim(sc) || priority <= DEF_PRIORITY - 3 ||
++			mem_cgroup_soft_limit_exceeded(mem))
++		return true;
++
++	return false;
++}
++
+ static void shrink_zone(int priority, struct zone *zone,
+ 			struct scan_control *sc)
+ {
+@@ -2108,7 +2119,9 @@ static void shrink_zone(int priority, struct zone *zone,
+ 			.zone = zone,
+ 		};
+ 
+-		shrink_mem_cgroup_zone(priority, &mz, sc);
++		if (should_reclaim_mem_cgroup(sc, memcg, priority))
++			shrink_mem_cgroup_zone(priority, &mz, sc);
++
+ 		/*
+ 		 * Limit reclaim has historically picked one memcg and
+ 		 * scanned it with decreasing priority levels until
+@@ -2152,8 +2165,8 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	unsigned long nr_soft_reclaimed;
+-	unsigned long nr_soft_scanned;
++//	unsigned long nr_soft_reclaimed;
++//	unsigned long nr_soft_scanned;
+ 	bool should_abort_reclaim = false;
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+@@ -2186,19 +2199,19 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+ 					continue;
+ 				}
+ 			}
+-			/*
+-			 * This steals pages from memory cgroups over softlimit
+-			 * and returns the number of reclaimed pages and
+-			 * scanned pages. This works for global memory pressure
+-			 * and balancing, not for a memcg's limit.
+-			 */
+-			nr_soft_scanned = 0;
+-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+-						sc->order, sc->gfp_mask,
+-						&nr_soft_scanned);
+-			sc->nr_reclaimed += nr_soft_reclaimed;
+-			sc->nr_scanned += nr_soft_scanned;
+-			/* need some check for avoid more shrink_zone() */
++//			/*
++//			 * This steals pages from memory cgroups over softlimit
++//			 * and returns the number of reclaimed pages and
++//			 * scanned pages. This works for global memory pressure
++//			 * and balancing, not for a memcg's limit.
++//			 */
++//			nr_soft_scanned = 0;
++//			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
++//						sc->order, sc->gfp_mask,
++//						&nr_soft_scanned);
++//			sc->nr_reclaimed += nr_soft_reclaimed;
++//			sc->nr_scanned += nr_soft_scanned;
++//			/* need some check for avoid more shrink_zone() */
+ 		}
+ 
+ 		shrink_zone(priority, zone, sc);
+@@ -2590,8 +2603,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 	unsigned long total_scanned;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+-	unsigned long nr_soft_reclaimed;
+-	unsigned long nr_soft_scanned;
++//	unsigned long nr_soft_reclaimed;
++//	unsigned long nr_soft_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.may_unmap = 1,
+@@ -2683,15 +2696,15 @@ loop_again:
+ 
+ 			sc.nr_scanned = 0;
+ 
+-			nr_soft_scanned = 0;
+-			/*
+-			 * Call soft limit reclaim before calling shrink_zone.
+-			 */
+-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+-							order, sc.gfp_mask,
+-							&nr_soft_scanned);
+-			sc.nr_reclaimed += nr_soft_reclaimed;
+-			total_scanned += nr_soft_scanned;
++//			nr_soft_scanned = 0;
++//			/*
++//			 * Call soft limit reclaim before calling shrink_zone.
++//			 */
++//			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
++//							order, sc.gfp_mask,
++//							&nr_soft_scanned);
++//			sc.nr_reclaimed += nr_soft_reclaimed;
++//			total_scanned += nr_soft_scanned;
+ 
+ 			/*
+ 			 * We put equal pressure on every zone, unless
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
