@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 6A7DC6B004F
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 05:38:02 -0500 (EST)
-Date: Tue, 6 Dec 2011 11:36:18 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] mm,x86: initialize high mem before free_all_bootmem()
-Message-ID: <20111206103618.GE15966@elte.hu>
-References: <1322582711-14571-1-git-send-email-sgruszka@redhat.com>
- <20111205110656.GA22259@elte.hu>
- <20111205150019.GA5434@redhat.com>
- <20111205155434.GD30287@elte.hu>
- <20111206075530.GA3105@redhat.com>
- <20111206080833.GB3105@redhat.com>
- <20111206082555.GA28314@elte.hu>
- <20111206102622.GC3105@redhat.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id E96636B004F
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 08:17:05 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Date: Tue, 6 Dec 2011 13:16:58 +0000
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <CAKMK7uHw3OpMAtVib=e=s_us9Tx9TebzehGg59d4-g9dUXr+pQ@mail.gmail.com> <CAF6AEGto-+oSqguuWyPunUbtE65GpNiXh21srQzrChiBQMb1Nw@mail.gmail.com>
+In-Reply-To: <CAF6AEGto-+oSqguuWyPunUbtE65GpNiXh21srQzrChiBQMb1Nw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111206102622.GC3105@redhat.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201112061316.58858.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Rob Clark <rob@ti.com>
+Cc: Daniel Vetter <daniel@ffwll.ch>, t.stanislaws@samsung.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, m.szyprowski@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
+On Monday 05 December 2011, Rob Clark wrote:
+> > On the topic of a coherency model for dmabuf, I think we need to look at
+> > dma_buf_attachment_map/unmap (and also the mmap variants cpu_start and
+> > cpu_finish or whatever they might get called) as barriers:
+> >
+> > So after a dma_buf_map, all previsously completed dma operations (i.e.
+> > unmap already called) and any cpu writes (i.e. cpu_finish called) will be
+> > coherent. Similar rule holds for cpu access through the userspace mmap,
+> > only writes completed before the cpu_start will show up.
+> >
+> > Similar, writes done by the device are only guaranteed to show up after
+> > the _unmap. Dito for cpu writes and cpu_finish.
+> >
+> > In short we always need two function calls to denote the start/end of the
+> > "critical section".
+> 
+> Yup, this was exactly my assumption.  But I guess it is better to spell it out.
 
-* Stanislaw Gruszka <sgruszka@redhat.com> wrote:
+I still don't understand how this is going to help you if you let
+multiple drivers enter and leave the critical section without serializing
+against one another. That doesn't sound like what I know as critical
+section.
 
-> On Tue, Dec 06, 2011 at 09:25:55AM +0100, Ingo Molnar wrote:
-> > The thing is, the pagealloc bug you fixed basically kept 
-> > pagealloc debugging essentially disabled for a really long time, 
-> > correct?
-> Yes, it worked only in special cases.
->  
-> > So i'd expect there to be quite a few latent problems - 
-> > i'll give it some more testing before pushing out the result.
->
-> Ehh, I expect them too, but fortunately only with 
-> CONFIG_DEBUG_PAGEALLOC, non-debug kernel are not affected.
+Given some reasonable constraints (all devices must be in the same coherency
+domain, for instance), you can probably define it in a way that you can
+have multiple devices mapping the same buffer at the same time, and
+when no device has mapped the buffer you can have as many concurrent
+kernel and user space accesses on the same buffer as you like. But you
+must still guarantee that no software touches a noncoherent buffer while
+it is mapped into any device and vice versa.
 
-I test DEBUG_PAGEALLOC=y kernels all the time - i just booted a 
-32-bit and a 64-bit allyesconfig kernel an hour ago.
+Why can't we just mandate that all mappings into the kernel must be
+coherent and that user space accesses must either be coherent as well
+or be done by user space that uses explicit serialization with all
+DMA accesses?
 
-Miraculously everything appears to be in working order so far.
-
-Thanks,
-
-	Ingo
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
