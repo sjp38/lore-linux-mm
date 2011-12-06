@@ -1,151 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 433B16B004F
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 19:08:38 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6D3B03EE0AE
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 09:08:36 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 54B7D45DE7E
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 09:08:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D09245DEB4
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 09:08:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 23F961DB8043
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 09:08:36 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C8FA31DB803E
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 09:08:35 +0900 (JST)
-Date: Tue, 6 Dec 2011 09:07:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v7 10/10] Disable task moving when using kernel memory
- accounting
-Message-Id: <20111206090726.21037cb9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4EDC8C6D.2070001@parallels.com>
-References: <1322611021-1730-1-git-send-email-glommer@parallels.com>
-	<1322611021-1730-11-git-send-email-glommer@parallels.com>
-	<20111130112210.1d979512.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ED914EC.6020500@parallels.com>
-	<20111205111835.b1432603.kamezawa.hiroyu@jp.fujitsu.com>
-	<4EDC8C6D.2070001@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id CB63B6B004F
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2011 19:13:28 -0500 (EST)
+Received: by iapp10 with SMTP id p10so8599166iap.14
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2011 16:13:28 -0800 (PST)
+Date: Mon, 5 Dec 2011 16:13:06 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
+In-Reply-To: <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1112051552210.3938@sister.anvils>
+References: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com> <20111202120849.GA1295@cmpxchg.org> <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, 5 Dec 2011 07:18:37 -0200
-Glauber Costa <glommer@parallels.com> wrote:
-
-> On 12/05/2011 12:18 AM, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 2 Dec 2011 16:11:56 -0200
-> > Glauber Costa<glommer@parallels.com>  wrote:
-> >
-> >> On 11/30/2011 12:22 AM, KAMEZAWA Hiroyuki wrote:
-> >>> On Tue, 29 Nov 2011 21:57:01 -0200
-> >>> Glauber Costa<glommer@parallels.com>   wrote:
-> >>>
-> >>>> Since this code is still experimental, we are leaving the exact
-> >>>> details of how to move tasks between cgroups when kernel memory
-> >>>> accounting is used as future work.
-> >>>>
-> >>>> For now, we simply disallow movement if there are any pending
-> >>>> accounted memory.
-> >>>>
-> >>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >>>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
-> >>>> ---
-> >>>>    mm/memcontrol.c |   23 ++++++++++++++++++++++-
-> >>>>    1 files changed, 22 insertions(+), 1 deletions(-)
-> >>>>
-> >>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >>>> index a31a278..dd9a6d9 100644
-> >>>> --- a/mm/memcontrol.c
-> >>>> +++ b/mm/memcontrol.c
-> >>>> @@ -5453,10 +5453,19 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-> >>>>    {
-> >>>>    	int ret = 0;
-> >>>>    	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-> >>>> +	struct mem_cgroup *from = mem_cgroup_from_task(p);
-> >>>> +
-> >>>> +#if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)&&   defined(CONFIG_INET)
-> >>>> +	if (from != memcg&&   !mem_cgroup_is_root(from)&&
-> >>>> +	    res_counter_read_u64(&from->tcp_mem.tcp_memory_allocated, RES_USAGE)) {
-> >>>> +		printk(KERN_WARNING "Can't move tasks between cgroups: "
-> >>>> +			"Kernel memory held.\n");
-> >>>> +		return 1;
-> >>>> +	}
-> >>>> +#endif
-> >>>
-> >>> I wonder....reading all codes again, this is incorrect check.
-> >>>
-> >>> Hm, let me cralify. IIUC, in old code, "prevent moving" is because you hold
-> >>> reference count of cgroup, which can cause trouble at rmdir() as leaking refcnt.
-> >> right.
-> >>
-> >>> BTW, because socket is a shared resource between cgroup, changes in mm->owner
-> >>> may cause task cgroup moving implicitly. So, if you allow leak of resource
-> >>> here, I guess... you can take mem_cgroup_get() refcnt which is memcg-local and
-> >>> allow rmdir(). Then, this limitation may disappear.
-> >>
-> >> Sorry, I didn't fully understand. Can you clarify further?
-> >> If the task is implicitly moved, it will end up calling can_attach as
-> >> well, right?
-> >>
-> > I'm sorry that my explanation is bad.
-> >
-> > You can take memory cgroup itself's reference count by mem_cgroup_put/get.
-> > By getting this, memory cgroup object will continue to exist even after
-> > its struct cgroup* is freed by rmdir().
-> >
-> > So, assume you do mem_cgroup_get()/put at socket attaching/detatching.
-> >
-> > 0) A task has a tcp socekts in memcg0.
-> >
-> > task(memcg0)
-> >   +- socket0 -->  memcg0,usage=4096
-> >
-> > 1) move this task to memcg1
-> >
-> > task(memcg1)
-> >   +- socket0 -->  memcg0,usage=4096
-> >
-> > 2) The task create a new socket.
-> >
-> > task(memcg1)
-> >   +- socekt0 -->  memcg0,usage=4096
-> >   +- socket1 -->  memcg1,usage=xxxx
-> >
-> > Here, the task will hold 4096bytes of usage in memcg0 implicitly.
-> >
-> > 3) an admin removes memcg0
-> > task(memcg1)
-> >   +- socket0 -->memcg0, usage=4096<-----(*)
-> >   +- socket1 -->memcg1, usage=xxxx
-> >
-> > (*) is invisible to users....but this will not be very big problem.
-> >
-> Hi Kame,
+On Mon, 5 Dec 2011, KAMEZAWA Hiroyuki wrote:
+> On Fri, 2 Dec 2011 13:08:49 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Fri, Dec 02, 2011 at 07:06:22PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > I'm now testing this patch, removing PCG_ACCT_LRU, onto mmotm.
+> > > How do you think ?
+> > 
+> > > @@ -1024,18 +1026,8 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
+> > >  		return;
+> > >  
+> > >  	pc = lookup_page_cgroup(page);
+> > > -	/*
+> > > -	 * root_mem_cgroup babysits uncharged LRU pages, but
+> > > -	 * PageCgroupUsed is cleared when the page is about to get
+> > > -	 * freed.  PageCgroupAcctLRU remembers whether the
+> > > -	 * LRU-accounting happened against pc->mem_cgroup or
+> > > -	 * root_mem_cgroup.
+> > > -	 */
+> > > -	if (TestClearPageCgroupAcctLRU(pc)) {
+> > > -		VM_BUG_ON(!pc->mem_cgroup);
+> > > -		memcg = pc->mem_cgroup;
+> > > -	} else
+> > > -		memcg = root_mem_cgroup;
+> > > +	memcg = pc->mem_cgroup ? pc->mem_cgroup : root_mem_cgroup;
+> > > +	VM_BUG_ON(memcg != pc->mem_cgroup_lru);
+> > >  	mz = page_cgroup_zoneinfo(memcg, page);
+> > >  	/* huge page split is done under lru_lock. so, we have no races. */
+> > >  	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+> > 
+> > Nobody clears pc->mem_cgroup upon uncharge, so this may end up
+> > mistakenly lru-unaccount a page that was never charged against the
+> > stale pc->mem_cgroup (e.g. a swap readahead page that has not been
+> > charged yet gets isolated by reclaim).
+> > 
+> > On the other hand, pages that were uncharged just before the lru_del
+> > MUST be lru-unaccounted against pc->mem_cgroup.
+> > 
+> > PageCgroupAcctLRU made it possible to tell those two scenarios apart.
+> > 
+> > A possible solution could be to clear pc->mem_cgroup when the page is
+> > finally freed so that only pages that have been charged since their
+> > last allocation have pc->mem_cgroup set.  But this means that the page
+> > freeing hotpath will have to grow a lookup_page_cgroup(), amortizing
+> > the winnings at least to some extent.
+> > 
 > 
-> Thanks for the explanation.
+> Hmm. IMHO, we have 2 easy ways.
 > 
-> Hummm, Do you think that by doing it, we get rid of the need of moving 
-> sockets to another memcg when the task is moved? So in my original 
-> patchset, if you recall, I wanted to keep a socket forever in the same 
-> cgroup. I didn't, because then rmdir would be blocked.
+>  - Ignore PCG_USED bit at LRU handling.
+>    2 problems.
+>    1. memory.stat may show very wrong statistics if swapin is too often.
+>    2. need careful use of mem_cgroup_charge_lrucare().
 > 
-> By using this memcg reference trick, both can be achieved. What do you 
-> think ?
+>  - Clear pc->mem_cgroup at swapin-readahead.
+>    A problem.
+>    1. we need a new hook.
+> 
+> I'll try to clear pc->mem_cgroup at swapin. 
+> 
+> Thank you for pointing out.
 
-I think so. Using mem_cgroup_put/get is a way. Could you try ?
+Ying and I found PageCgroupAcctLRU very hard to grasp, even despite
+the comments Hannes added to explain it.  In moving the LRU locking
+from zone to memcg, we needed to depend upon pc->mem_cgroup: that
+was difficult while the interpretation of pc->mem_cgroup depended
+upon two flags also; and very tricky when pages were liable to shift
+underneath you from one LRU to another, as flags came and went.
+So we already eliminated PageCgroupAcctLRU here.
 
-Thanks,
--Kame
+I'm fairly happy with what we have now, and have ported it forward
+to 3.2.0-rc3-next-20111202: with a few improvements on top of what
+we've got internally - Hannes's remark above about "amortizing the
+winnings" in the page freeing hotpath has prompted me to improve
+on what we had there, needs more testing but seems good so far.
 
+However, I've hardly begun splitting the changes up into a series:
+had intended to do so last week, but day followed day...  If you'd
+like to see the unpolished uncommented rollup, I can post that.
 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
