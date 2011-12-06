@@ -1,53 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 0D0A26B004F
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 03:27:36 -0500 (EST)
-Date: Tue, 6 Dec 2011 09:25:55 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] mm,x86: initialize high mem before free_all_bootmem()
-Message-ID: <20111206082555.GA28314@elte.hu>
-References: <1322582711-14571-1-git-send-email-sgruszka@redhat.com>
- <20111205110656.GA22259@elte.hu>
- <20111205150019.GA5434@redhat.com>
- <20111205155434.GD30287@elte.hu>
- <20111206075530.GA3105@redhat.com>
- <20111206080833.GB3105@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111206080833.GB3105@redhat.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 7E6D26B004F
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 05:13:40 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 834A13EE0C1
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:13:38 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EFE645DEAD
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:13:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E57A45DEA6
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:13:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F90E1DB803C
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:13:38 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C5BCC1DB803E
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:13:37 +0900 (JST)
+Date: Tue, 6 Dec 2011 19:12:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 1/4] memcg: simplify page cache charging
+Message-Id: <20111206191211.3be32ccb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111206123923.1432ab52.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20111206123923.1432ab52.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Miklos Szeredi <mszeredi@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
 
+This is an add-on patches to mem_cgroup_replace_page_cache(), introducing
+new LRU rule under memcg, finally. After this, lru handling will be
+much simplified. (all pathces are based on 3.2.0-rc4-next-20111205+)
 
-* Stanislaw Gruszka <sgruszka@redhat.com> wrote:
-
-> Patch fixes boot crash with my previous patch "mm,x86: remove
-> debug_pagealloc_enabled" applied:
-
-Great, thanks - i've started testing of your pagealloc 
-restoration patch again.
-
-> Would be good to apply this patch before "mm,x86: remove 
-> debug_pagealloc_enabled" to prevent problem be possibly 
-> observable during bisection.
-
-Yep, applied them in that order.
-
-The thing is, the pagealloc bug you fixed basically kept 
-pagealloc debugging essentially disabled for a really long time, 
-correct? So i'd expect there to be quite a few latent problems - 
-i'll give it some more testing before pushing out the result.
-
-Thanks,
-
-	Ingo
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But this is experimental... I may forget some important corner cases.
+==
