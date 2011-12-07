@@ -1,78 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id E327A6B0062
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 20:26:08 -0500 (EST)
-Date: Wed, 7 Dec 2011 09:37:54 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: [patch v2]numa: add a sysctl to control interleave allocation
- granularity from each node
-Message-ID: <20111207013754.GA23364@sli10-conroe.sh.intel.com>
-References: <1323055846.22361.362.camel@sli10-conroe>
- <alpine.DEB.2.00.1112061248500.28251@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1112061248500.28251@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id D842C6B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 20:28:14 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7C7BC3EE0BB
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:28:13 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6243645DEAD
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:28:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A7E045DE9E
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:28:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AE251DB8038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:28:13 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DB0CA1DB803E
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:28:12 +0900 (JST)
+Date: Wed, 7 Dec 2011 10:27:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] oom: add tracepoints for oom_score_adj
+Message-Id: <20111207102707.4084120c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "ak@linux.intel.com" <ak@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com, dchinner@redhat.com
 
-On Wed, Dec 07, 2011 at 04:52:56AM +0800, David Rientjes wrote:
-> On Mon, 5 Dec 2011, Shaohua Li wrote:
+Sorry, I found a mistake...
+I'll post updated one, again.
+
+Thanks,
+-Kame
+
+
+On Wed, 7 Dec 2011 09:54:34 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> From 28189e4622fd97324893a0b234183f64472a54d6 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 7 Dec 2011 09:58:16 +0900
+> Subject: [PATCH] oom: trace point for oom_score_adj
 > 
-> > If mem plicy is interleaves, we will allocated pages from nodes in a round
-> > robin way. This surely can do interleave fairly, but not optimal.
-> > 
-> > Say the pages will be used for I/O later. Interleave allocation for two pages
-> > are allocated from two nodes, so the pages are not physically continuous. Later
-> > each page needs one segment for DMA scatter-gathering. But maxium hardware
-> > segment number is limited. The non-continuous pages will use up maxium
-> > hardware segment number soon and we can't merge I/O to bigger DMA. Allocating
-> > pages from one node hasn't such issue. The memory allocator pcp list makes
-> > we can get physically continuous pages in several alloc quite likely.
-> > 
-> > Below patch adds a sysctl to control the allocation granularity from each node.
-> > 
-> > Run a sequential read workload which accesses disk sdc - sdf. The test uses
-> > a LSI SAS1068E card. iostat -x -m 5 shows:
-> > 
-> > without numactl --interleave=0,1:
-> > Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
-> > sdc              13.40     0.00  259.00    0.00    67.05     0.00   530.19     5.00   19.38   3.86 100.00
-> > sdd              13.00     0.00  249.00    0.00    64.95     0.00   534.21     5.05   19.73   4.02 100.00
-> > sde              13.60     0.00  258.60    0.00    67.40     0.00   533.78     4.96   18.98   3.87 100.00
-> > sdf              13.00     0.00  261.60    0.00    67.50     0.00   528.44     5.24   19.77   3.82 100.00
-> > 
-> > with numactl --interleave=0,1:
-> > sdc               6.80     0.00  419.60    0.00    64.90     0.00   316.77    14.17   34.04   2.38 100.00
-> > sdd               6.00     0.00  423.40    0.00    65.58     0.00   317.23    17.33   41.14   2.36 100.00
-> > sde               5.60     0.00  419.60    0.00    64.90     0.00   316.77    17.29   40.94   2.38 100.00
-> > sdf               5.20     0.00  417.80    0.00    64.17     0.00   314.55    16.69   39.42   2.39 100.00
-> > 
-> > with numactl --interleave=0,1 and below patch, setting numa_interleave_granularity to 8
-> > (setting it to 2 gives similar result, I only recorded the data with 8):
-> > sdc              13.00     0.00  261.20    0.00    68.20     0.00   534.74     5.05   19.19   3.83 100.00
-> > sde              13.40     0.00  259.00    0.00    67.85     0.00   536.52     4.85   18.80   3.86 100.00
-> > sdf              13.00     0.00  260.60    0.00    68.20     0.00   535.97     4.85   18.61   3.84 100.00
-> > sdd              13.20     0.00  251.60    0.00    66.00     0.00   537.23     4.95   19.45   3.97 100.00
-> > 
-> > The avgrq-sz is increased a lot. performance boost a little too.
-> > 
+> oom_score_adj is set to prevent a task from being killed by OOM-Killer.
+> Some daemons sets this value and their children inerit it sometimes.
+> Because inheritance of oom_score_adj is done automatically, users
+> can be confused at seeing the value and finds it's hard to debug.
 > 
-> I really like being able to control the interleave granularity, but I 
-> think it can be done even better: instead of having a strict count on the 
-> number of allocations (slab or otherwise) to allocate on a single node 
-> before moving on to another, which could result in large asymmetries 
-> between nodes which is the antagonist of any interleaved mempolicy, have 
-> you considered basing the granularity on size instead?  interleave_nodes() 
-> would then only move onto the next node when a size threshold has been 
-> reached.
-based on the allocation size, right? I did consider it. It would be easy to
-implement this. Note even without my patch we have the issue if allocation
-from one node is big order and small order from other node. And nobody
-complains the imbalance. This makes me think maybe people didn't care
-about the imbalance too much.
+> This patch adds trace point for oom_score_adj. This adds 3 trace
+> points. at
+> 	- update oom_score_adj
+> 	- fork()
+> 	- rename task->comm(typically, exec())
+> 
+> Outputs will be following.
+>    bash-2404  [006]   199.620841: oom_score_adj_update: task 2404[bash] updates oom_score_ad  j=-1000
+>    bash-2404  [006]   205.861287: oom_score_adj_inherited: new_task=2442 oom_score_adj=-1000
+>    su-2442  [003]   205.861761: oom_score_task_rename: rename task 2442[bash] to [su] oom_  score_adj=-1000
+>    su-2442  [003]   205.866737: oom_score_adj_inherited: new_task=2444 oom_score_adj=-1000
+>    bash-2444  [007]   205.868136: oom_score_task_rename: rename task 2444[su] to [bash] oom_  score_adj=-1000
+>    bash-2444  [007]   205.870407: oom_score_adj_inherited: new_task=2445 oom_score_adj=-1000
+>    bash-2445  [001]   205.870975: oom_score_adj_inherited: new_task=2446 oom_score_adj=-1000
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  fs/exec.c                  |    5 +++
+>  fs/proc/base.c             |    3 ++
+>  include/trace/events/oom.h |   80 ++++++++++++++++++++++++++++++++++++++++++++
+>  kernel/fork.c              |    5 +++
+>  mm/oom_kill.c              |    6 +++
+>  5 files changed, 99 insertions(+), 0 deletions(-)
+>  create mode 100644 include/trace/events/oom.h
+> 
+> diff --git a/fs/exec.c b/fs/exec.c
+> index ca141db..562a106 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -59,6 +59,8 @@
+>  #include <asm/uaccess.h>
+>  #include <asm/mmu_context.h>
+>  #include <asm/tlb.h>
+> +
+> +#include <trace/events/oom.h>
+>  #include "internal.h"
+>  
+>  int core_uses_pid;
+> @@ -1054,6 +1056,9 @@ void set_task_comm(struct task_struct *tsk, char *buf)
+>  {
+>  	task_lock(tsk);
+>  
+> +	if (tsk->signal->oom_score_adj)
+> +		trace_oom_score_task_rename(tsk, buf);
+> +
+>  	/*
+>  	 * Threads may access current->comm without holding
+>  	 * the task lock, so write the string carefully.
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 1050b1c..f201e64 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -87,6 +87,7 @@
+>  #ifdef CONFIG_HARDWALL
+>  #include <asm/hardwall.h>
+>  #endif
+> +#include <trace/events/oom.h>
+>  #include "internal.h"
+>  
+>  /* NOTE:
+> @@ -1166,6 +1167,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+>  	else
+>  		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
+>  								-OOM_DISABLE;
+> +	trace_oom_score_adj_update(task);
+>  err_sighand:
+>  	unlock_task_sighand(task, &flags);
+>  err_task_lock:
+> @@ -1253,6 +1255,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+>  	task->signal->oom_score_adj = oom_score_adj;
+>  	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
+>  		task->signal->oom_score_adj_min = oom_score_adj;
+> +	trace_oom_score_adj_update(task);
+>  	/*
+>  	 * Scale /proc/pid/oom_adj appropriately ensuring that OOM_DISABLE is
+>  	 * always attainable.
+> diff --git a/include/trace/events/oom.h b/include/trace/events/oom.h
+> new file mode 100644
+> index 0000000..f5e6f55
+> --- /dev/null
+> +++ b/include/trace/events/oom.h
+> @@ -0,0 +1,80 @@
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM oom
+> +
+> +#if !defined(_TRACE_OOM_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_OOM_H
+> +#include <linux/tracepoint.h>
+> +
+> +TRACE_EVENT(oom_score_adj_inherited,
+> +
+> +	TP_PROTO(struct task_struct *task),
+> +	
+> +	TP_ARGS(task),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	pid_t,		newpid)
+> +		__field(	  int,		oom_score_adj)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->newpid = task->pid;
+> +		__entry->oom_score_adj = task->signal->oom_score_adj;
+> +	),
+> +
+> +	TP_printk("new_task=%ld oom_score_adj=%d",
+> +		__entry->newpid, __entry->oom_score_adj)
+> +);
+> +
+> +TRACE_EVENT(oom_score_task_rename,
+> +
+> +	TP_PROTO(struct task_struct *task, char *comm),
+> +
+> +	TP_ARGS(task, comm),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	pid_t,	 pid)
+> +		__array(         char,   oldcomm,   TASK_COMM_LEN   )
+> +		__array(         char,   newcomm,   TASK_COMM_LEN   )
+> +		__field(	  int,   oom_score_adj)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = task->pid;
+> +		 memcpy(__entry->oldcomm, task->comm, TASK_COMM_LEN);
+> +		 memcpy(__entry->newcomm, comm, TASK_COMM_LEN);
+> +		__entry->oom_score_adj = task->signal->oom_score_adj;
+> +	),
+> +
+> +	TP_printk("rename task %ld[%s] to [%s] oom_score_adj=%d",
+> +		__entry->pid, __entry->oldcomm, __entry->newcomm,
+> +		__entry->oom_score_adj)
+> +);
+> +
+> +TRACE_EVENT(oom_score_adj_update,
+> +
+> +	TP_PROTO(struct task_struct *task),
+> +
+> +	TP_ARGS(task),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	pid_t,	pid)
+> +		__array(	char,	comm,	TASK_COMM_LEN )
+> +		__field(	 int,	oom_score_adj)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = task->pid;
+> +		memcpy(__entry->comm, task->comm, TASK_COMM_LEN);
+> +		__entry->oom_score_adj = task->signal->oom_score_adj;
+> +	),
+> +
+> +	TP_printk("task %ld[%s] updates oom_score_adj=%d",
+> +		__entry->pid, __entry->comm, __entry->oom_score_adj)
+> +);
+> +
+> +#endif
+> +
+> +/* This part must be outside protection */
+> +#include <trace/define_trace.h>
+> +
+> +
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index e20518d..634aa84 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -76,6 +76,7 @@
+>  #include <asm/tlbflush.h>
+>  
+>  #include <trace/events/sched.h>
+> +#include <trace/events/oom.h>
+>  
+>  /*
+>   * Protected counters by write_lock_irq(&tasklist_lock)
+> @@ -1390,6 +1391,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+>  	if (clone_flags & CLONE_THREAD)
+>  		threadgroup_fork_read_unlock(current);
+>  	perf_event_fork(p);
+> +
+> +	if (!(clone_flags & CLONE_THREAD) && p->signal->oom_score_adj)
+> +		trace_oom_score_adj_inherited(p);
+> +
+>  	return p;
+>  
+>  bad_fork_free_pid:
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index e2e1402..46b6d0a 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -33,6 +33,10 @@
+>  #include <linux/security.h>
+>  #include <linux/ptrace.h>
+>  #include <linux/freezer.h>
+> +#include <linux/ftrace.h>
+> +
+> +#define CREATE_TRACE_POINTS
+> +#include <trace/events/oom.h>
+>  
+>  int sysctl_panic_on_oom;
+>  int sysctl_oom_kill_allocating_task;
+> @@ -55,6 +59,7 @@ void compare_swap_oom_score_adj(int old_val, int new_val)
+>  	spin_lock_irq(&sighand->siglock);
+>  	if (current->signal->oom_score_adj == old_val)
+>  		current->signal->oom_score_adj = new_val;
+> +	trace_oom_score_adj_update(current);
+>  	spin_unlock_irq(&sighand->siglock);
+>  }
+>  
+> @@ -74,6 +79,7 @@ int test_set_oom_score_adj(int new_val)
+>  	spin_lock_irq(&sighand->siglock);
+>  	old_val = current->signal->oom_score_adj;
+>  	current->signal->oom_score_adj = new_val;
+> +	trace_oom_score_adj_update(current);
+>  	spin_unlock_irq(&sighand->siglock);
+>  
+>  	return old_val;
+> -- 
+> 1.7.4.1
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
