@@ -1,154 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id ADB776B005A
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 12:21:16 -0500 (EST)
-Received: by qao25 with SMTP id 25so666047qao.14
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 09:21:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 2CFA26B004F
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 12:39:28 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so739572qcs.14
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 09:39:27 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1112061734450.26844@chino.kir.corp.google.com>
-References: <1322770029-10297-1-git-send-email-yinghan@google.com>
-	<alpine.DEB.2.00.1112061734450.26844@chino.kir.corp.google.com>
-Date: Wed, 7 Dec 2011 09:21:15 -0800
-Message-ID: <CALWz4izNE6So17q0QqE34k1PoZD0hHJvm3L6V_yCaa19szzOrQ@mail.gmail.com>
-Subject: Re: [PATCH V6] Eliminate task stack trace duplication
+In-Reply-To: <20111207111334.b21fef3c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1323215999-29164-1-git-send-email-yinghan@google.com>
+	<1323215999-29164-2-git-send-email-yinghan@google.com>
+	<20111207111334.b21fef3c.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 7 Dec 2011 09:39:26 -0800
+Message-ID: <CALWz4iwT9nCy+mY3yeJqEq6M+zDbL-gZDdU0PLKQpSm284KnLA@mail.gmail.com>
+Subject: Re: [PATCH 1/3] memcg: rework softlimit reclaim
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-On Tue, Dec 6, 2011 at 5:35 PM, David Rientjes <rientjes@google.com> wrote:
-> On Thu, 1 Dec 2011, Ying Han wrote:
+On Tue, Dec 6, 2011 at 6:13 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, =A06 Dec 2011 15:59:57 -0800
+> Ying Han <yinghan@google.com> wrote:
 >
->> The problem with small dmesg ring buffer like 512k is that only limited =
-number
->> of task traces will be logged. Sometimes we lose important information o=
-nly
->> because of too many duplicated stack traces. This problem occurs when du=
-mping
->> lots of stacks in a single operation, such as sysrq-T.
+>> Under the shrink_zone, we examine whether or not to reclaim from a memcg
+>> based on its softlimit. We skip scanning the memcg for the first 3 prior=
+ity.
+>> This is to balance between isolation and efficiency. we don't want to ha=
+lt
+>> the system by skipping memcgs with low-hanging fruits forever.
 >>
->> This patch tries to reduce the duplication of task stack trace in the du=
-mp
->> message by hashing the task stack. The hashtable is a 32k pre-allocated =
-buffer
->> during bootup. Each time if we find the identical task trace in the task=
- stack,
->> we dump only the pid of the task which has the task trace dumped. So it =
-is easy
->> to back track to the full stack with the pid.
+>> Another change is to set soft_limit_in_bytes to 0 by default. This is ne=
+eded
+>> for both functional and performance:
 >>
->> When we do the hashing, we eliminate garbage entries from stack traces. =
-Those
->> entries are still being printed in the dump to provide more debugging
->> informations.
+>> 1. If soft_limit are all set to MAX, it wastes first three periority ite=
+rations
+>> without scanning anything.
 >>
->> [ =A0 58.469730] kworker/0:0 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
-=A0 4 =A0 =A0 =A02 0x00000000
->> [ =A0 58.469735] =A0ffff88082fcfde80 0000000000000046 ffff88082e9d8000 f=
-fff88082fcfc010
->> [ =A0 58.469739] =A0ffff88082fce9860 0000000000011440 ffff88082fcfdfd8 f=
-fff88082fcfdfd8
->> [ =A0 58.469743] =A00000000000011440 0000000000000000 ffff88082fcee180 f=
-fff88082fce9860
->> [ =A0 58.469747] Call Trace:
->> [ =A0 58.469751] =A0[<ffffffff8108525a>] worker_thread+0x24b/0x250
->> [ =A0 58.469754] =A0[<ffffffff8108500f>] ? manage_workers+0x192/0x192
->> [ =A0 58.469757] =A0[<ffffffff810885bd>] kthread+0x82/0x8a
->> [ =A0 58.469760] =A0[<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
->> [ =A0 58.469763] =A0[<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
->> [ =A0 58.469765] =A0[<ffffffff8141aed0>] ? gs_change+0xb/0xb
->> [ =A0 58.469768] kworker/u:0 =A0 =A0 S 0000000000000004 =A0 =A0 0 =A0 =
-=A0 5 =A0 =A0 =A02 0x00000000
->> [ =A0 58.469773] =A0ffff88082fcffe80 0000000000000046 ffff880800000000 f=
-fff88082fcfe010
->> [ =A0 58.469777] =A0ffff88082fcea080 0000000000011440 ffff88082fcfffd8 f=
-fff88082fcfffd8
->> [ =A0 58.469781] =A00000000000011440 0000000000000000 ffff88082fd4e9a0 f=
-fff88082fcea080
->> [ =A0 58.469785] Call Trace:
->> [ =A0 58.469786] <Same stack as pid 4>
->> [ =A0 58.470235] kworker/0:1 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
-=A013 =A0 =A0 =A02 0x00000000
->> [ =A0 58.470255] =A0ffff88082fd3fe80 0000000000000046 ffff880800000000 f=
-fff88082fd3e010
->> [ =A0 58.470279] =A0ffff88082fcee180 0000000000011440 ffff88082fd3ffd8 f=
-fff88082fd3ffd8
->> [ =A0 58.470301] =A00000000000011440 0000000000000000 ffffffff8180b020 f=
-fff88082fcee180
->> [ =A0 58.470325] Call Trace:
->> [ =A0 58.470332] <Same stack as pid 4>
+>> 2. By default every memcg is eligibal for softlimit reclaim, and we can =
+also
+>> set the value to MAX for special memcg which is immune to soft limit rec=
+laim.
 >>
->> changelog v6..v5:
->> 1. clear saved stack trace before printing a set of stacks. this ensures=
- the printed
->> stack traces are not omitted messages.
->> 2. add log level in printing duplicate stack.
->> 3. remove the show_stack() API change, and non-x86 arch won't need furth=
-er change.
->> 4. add more inline documentations.
->>
->> changelog v5..v4:
->> 1. removed changes to Kconfig file
->> 2. changed hashtable to keep only hash value and length of stack
->> 3. simplified hashtable lookup
->>
->> changelog v4..v3:
->> 1. improve de-duplication by eliminating garbage entries from stack trac=
-es.
->> with this change 793/825 stack traces were recognized as duplicates. in =
-v3
->> only 482/839 were duplicates.
->>
->> changelog v3..v2:
->> 1. again better documentation on the patch description.
->> 2. make the stack_hash_table to be allocated at compile time.
->> 3. have better name of variable index
->> 4. move save_dup_stack_trace() in kernel/stacktrace.c
->>
->> changelog v2..v1:
->> 1. better documentation on the patch description
->> 2. move the spinlock inside the hash lockup, so reducing the holding tim=
-e.
->>
->> Note:
->> 1. with pid namespace, we might have same pid number for different proce=
-sses. i
->> wonder how the stack trace (w/o dedup) handles the case, it uses tsk->pi=
-d as well
->> as far as I checked.
->> 2. the core functionality is in x86-specific code, this could be moved o=
-ut to
->> support other architectures.
->> 3. Andrew made the suggestion of doing appending to stack_hash_table[].
->>
+>
+> Could you update softlimit doc ?
+
+Will do .
+>
+>
+>
 >> Signed-off-by: Ying Han <yinghan@google.com>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
 >> ---
->> =A0arch/x86/include/asm/stacktrace.h | =A0 11 +++-
->> =A0arch/x86/kernel/dumpstack.c =A0 =A0 =A0 | =A0 24 ++++++-
->> =A0arch/x86/kernel/dumpstack_32.c =A0 =A0| =A0 =A07 +-
->> =A0arch/x86/kernel/dumpstack_64.c =A0 =A0| =A0 =A07 +-
->> =A0arch/x86/kernel/stacktrace.c =A0 =A0 =A0| =A0123 ++++++++++++++++++++=
-+++++++++++++++++
->> =A0include/linux/sched.h =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A03 +
->> =A0include/linux/stacktrace.h =A0 =A0 =A0 =A0| =A0 =A04 +
->> =A0kernel/sched.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 32 ++++++=
-+++-
->> =A0kernel/stacktrace.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 15 +++++
->> =A09 files changed, 211 insertions(+), 15 deletions(-)
+>> =A0include/linux/memcontrol.h | =A0 =A07 ++++
+>> =A0kernel/res_counter.c =A0 =A0 =A0 | =A0 =A01 -
+>> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A08 +++++
+>> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 67 +++++++++++++++++=
++++++++++-----------------
+>> =A04 files changed, 55 insertions(+), 28 deletions(-)
 >>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 81aabfb..53d483b 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -107,6 +107,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup=
+ *,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struc=
+t mem_cgroup_reclaim_cookie *);
+>> =A0void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+>>
+>> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *);
+>> +
+>> =A0/*
+>> =A0 * For memory reclaim.
+>> =A0 */
+>> @@ -293,6 +295,11 @@ static inline void mem_cgroup_iter_break(struct mem=
+_cgroup *root,
+>> =A0{
+>> =A0}
+>>
+>> +static inline bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *me=
+m)
+>> +{
+>> + =A0 =A0 return true;
+>> +}
+>> +
+>> =A0static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *=
+memcg)
+>> =A0{
+>> =A0 =A0 =A0 return 0;
+>> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+>> index b814d6c..92afdc1 100644
+>> --- a/kernel/res_counter.c
+>> +++ b/kernel/res_counter.c
+>> @@ -18,7 +18,6 @@ void res_counter_init(struct res_counter *counter, str=
+uct res_counter *parent)
+>> =A0{
+>> =A0 =A0 =A0 spin_lock_init(&counter->lock);
+>> =A0 =A0 =A0 counter->limit =3D RESOURCE_MAX;
+>> - =A0 =A0 counter->soft_limit =3D RESOURCE_MAX;
+>> =A0 =A0 =A0 counter->parent =3D parent;
+>> =A0}
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 4425f62..7c6cade 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -926,6 +926,14 @@ out:
+>> =A0}
+>> =A0EXPORT_SYMBOL(mem_cgroup_count_vm_event);
+>>
+>> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *mem)
+>> +{
+>> + =A0 =A0 if (mem_cgroup_disabled() || mem_cgroup_is_root(mem))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return true;
+>> +
+>> + =A0 =A0 return res_counter_soft_limit_excess(&mem->res) > 0;
+>> +}
+>> +
+>> =A0/**
+>> =A0 * mem_cgroup_zone_lruvec - get the lru list vector for a zone and me=
+mcg
+>> =A0 * @zone: zone of the wanted lruvec
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 0ba7d35..b36d91b 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -2091,6 +2091,17 @@ restart:
+>> =A0 =A0 =A0 throttle_vm_writeout(sc->gfp_mask);
+>> =A0}
+>>
+>> +static bool should_reclaim_mem_cgroup(struct scan_control *sc,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 st=
+ruct mem_cgroup *mem,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 in=
+t priority)
+>> +{
+>> + =A0 =A0 if (!global_reclaim(sc) || priority <=3D DEF_PRIORITY - 3 ||
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_limit_exceeded=
+(mem))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return true;
+>> +
+>> + =A0 =A0 return false;
+>> +}
+>> +
 >
-> Looks like something that would go through x86/debug? =A0Probably best to=
- cc
-> Ingo, Peter, and Thomas.
+> Why "priority <=3D DEF_PRIORTY - 3" is selected ?
+> It seems there is no reason. Could you justify this check ?
 
-Thank you David, I was about to add linux-kernel into the cc list
-yesterday as well.
+There is no particular reason for this magic "3". And the plan is to
+open for further tuning later after seeing real problems.
+
+The idea here is to balance out the performance vs isolation. We don't
+want to keep trying on "over softlimit memcgs" with hard to reclaim
+memory while leaving the "under softlimit memcg" with low-hanging
+fruit behind. This hurts the system performance as a whole.
+
+>
+> Thinking briefly, can't we caluculate the ratio as
+>
+> =A0 =A0 =A0 =A0number of pages in reclaimable memcg / number of reclaimab=
+le pages
+>
+> And use 'priorty' ? If
+>
+> total_reclaimable_pages >> priority > number of pages in reclaimabe memcg
+>
+> memcg under softlimit should be scanned..then, we can avoid scanning page=
+s
+> twice.
+
+Another thing we were talking about during summit is to reclaim the
+pages proportionally based on how much each memcg exceeds its
+softlimit, and the calculation above seems to be related to that.
+
+I am pretty sure that we will tune the way to select memcg to reclaim
+and how much to relciam while start running into problems, and there
+are different ways to tune it. This patch is the very first step to
+get started and the main purpose is to get rid of the big giant old
+softlimit reclaim implementation.
+
+ > Hmm, please give reason of the magic value here, anyway.
+>
+>> =A0static void shrink_zone(int priority, struct zone *zone,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct scan_control *sc)
+>> =A0{
+>> @@ -2108,7 +2119,9 @@ static void shrink_zone(int priority, struct zone =
+*zone,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .zone =3D zone,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 shrink_mem_cgroup_zone(priority, &mz, sc);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (should_reclaim_mem_cgroup(sc, memcg, prior=
+ity))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_mem_cgroup_zone(priorit=
+y, &mz, sc);
+>> +
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Limit reclaim has historically picked o=
+ne memcg and
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* scanned it with decreasing priority lev=
+els until
+>> @@ -2152,8 +2165,8 @@ static bool shrink_zones(int priority, struct zone=
+list *zonelist,
+>> =A0{
+>> =A0 =A0 =A0 struct zoneref *z;
+>> =A0 =A0 =A0 struct zone *zone;
+>> - =A0 =A0 unsigned long nr_soft_reclaimed;
+>> - =A0 =A0 unsigned long nr_soft_scanned;
+>> +// =A0 unsigned long nr_soft_reclaimed;
+>> +// =A0 unsigned long nr_soft_scanned;
+>
+> Why do you leave these things ?
+
+I steal this idea from Johannes's last posted softlimit rework patch.
+My understanding is to make
+the bisect easier later, maybe I am wrong.
+
+
+> Hmm, but the whole logic seems clean to me except for magic number.
+
+Thanks.
 
 --Ying
+
+>
+> Thanks,
+> -Kame
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
