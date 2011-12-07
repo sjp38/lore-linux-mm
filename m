@@ -1,120 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 9E3466B0099
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 01:31:11 -0500 (EST)
-Received: by iahk25 with SMTP id k25so531862iah.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 22:31:11 -0800 (PST)
-Date: Tue, 6 Dec 2011 22:30:37 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
-In-Reply-To: <20111207104800.d1851f78.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LSU.2.00.1112062139300.1260@sister.anvils>
-References: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com> <20111202120849.GA1295@cmpxchg.org> <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1112051552210.3938@sister.anvils> <20111206095825.69426eb2.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LSU.2.00.1112052258510.28015@sister.anvils> <20111206192101.8ea75558.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1112061506360.2111@sister.anvils> <20111207104800.d1851f78.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id E00D86B009C
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 01:35:33 -0500 (EST)
+Received: by mail-gy0-f169.google.com with SMTP id g19so194210ghb.28
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 22:35:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <201112051718.48324.arnd@arndb.de>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
+ <1322816252-19955-2-git-send-email-sumit.semwal@ti.com> <201112051718.48324.arnd@arndb.de>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Wed, 7 Dec 2011 12:05:12 +0530
+Message-ID: <CAB2ybb8-0_HupO95UUvLN9ovVxnU+uvn4UXbwqZLSFuC9MZs0w@mail.gmail.com>
+Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Wed, 7 Dec 2011, KAMEZAWA Hiroyuki wrote:
-> On Tue, 6 Dec 2011 15:50:33 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> > On Tue, 6 Dec 2011, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > 	1. lock lru
-> > > 	2. remove-page-from-lru
-> > > 	3. overwrite pc->mem_cgroup
-> > > 	4. add page to lru again
-> > > 	5. unlock lru
-> > 
-> > That is indeed the sequence which __mem_cgroup_commit_charge() follows
-> > after the patch.
-> > 
-> > But it optimizes out the majority of cases when no such lru operations
-> > are needed (optimizations best presented in a separate patch), while
-> > being careful about the tricky case when the page is on lru_add_pvecs,
-> > and may get on to an lru at any moment.
-> > 
-> > And since it uses a separate lock for each memcg-zone's set of lrus,
-> > must take care that both lock and lru in 4 and 5 are different from
-> > those in 1 and 2.
-> > 
-> 
-> yes, after per-zone-per-memcg lock, Above sequence should take some care.
-> 
-> With naive solution,
-> 
-> 	1. get lruvec-1 from target pc->mem_cgroup
-> 	2. get lruvec-2 from target memcg to be charged.
-> 	3. lock lruvec-x lock
-> 	4. lock lruvec-y lock   (x and y order is determined by css_id ?)
-> 	5. remove from LRU.
-> 	6. overwrite pc->mem_cgroup
-> 	7. add page to lru again
-> 	8. unlock lruvec-y
-> 	9. unlokc lruvec-x
-> 
-> Hm, maybe there are another clever way..
+Hi Arnd,
 
-Our commit_charge does lock page_cgroup, lock old lru_lock, remove from
-old lru, update pc->mem_cgroup, unlock old lru_lock, lock new lru_lock,
-add to new lru, unlock page_cgroup.  That's complemented by the way
-lock_page_lru_irqsave locks lru_lock and then checks if the lru_lock
-it got still matches pc->mem_cgroup, retrying if not.
+Thanks for your review!
+On Mon, Dec 5, 2011 at 10:48 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Friday 02 December 2011, Sumit Semwal wrote:
+>> This is the first step in defining a dma buffer sharing mechanism.
+>
+> This looks very nice, but there are a few things I don't understand yet
+> and a bunch of trivial comments I have about things I spotted.
+>
+> Do you have prototype exporter and consumer drivers that you can post
+> for clarification?
+>
+> In the patch 2, you have a section about migration that mentions that
+> it is possible to export a buffer that can be migrated after it
+> is already mapped into one user driver. How does that work when
+> the physical addresses are mapped into a consumer device already?
+I guess I need to clear it up in the documentation - when I said "once
+all ongoing access is completed" - I meant to say "once all current
+users have finished accessing and have unmapped this buffer". So I
+agree with Rob - the migration would only be possible for "attached
+but unmapped" buffers. I will update the documentation.
+>
+>> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+>> index 21cf46f..07d8095 100644
+>> --- a/drivers/base/Kconfig
+>> +++ b/drivers/base/Kconfig
+>> @@ -174,4 +174,14 @@ config SYS_HYPERVISOR
+>>
+>> =A0source "drivers/base/regmap/Kconfig"
+>>
+>> +config DMA_SHARED_BUFFER
+>> + =A0 =A0 bool "Buffer framework to be shared between drivers"
+>> + =A0 =A0 default n
+>> + =A0 =A0 depends on ANON_INODES
+>
+> I would make this 'select ANON_INODES', like the other users of this
+> feature.
+Sure.
 
-> > > 
-> > > isn't it ? I posted a series of patch. I'm glad if you give me a
-> > > quick review.
-> > 
-> > I haven't glanced yet, will do so after an hour or two.
-> > 
-> 
-> I think Johannes's chages of removing page_cgroup->lru allows us
-> various chances of optimization/simplification.
+>
+>> + =A0 =A0 return dmabuf;
+>> +}
+>> +EXPORT_SYMBOL(dma_buf_export);
+>
+> I agree with Konrad, this should definitely be EXPORT_SYMBOL_GPL,
+> because it's really a low-level function that I would expect
+> to get used by in-kernel subsystems providing the feature to
+> users and having back-end drivers, but it's not the kind of thing
+> we want out-of-tree drivers to mess with.
+Agreed.
 
-Yes, I like Johannes's changes very much, they do indeed open the
-way to a lot of simplification and unification.
+>
+>> +/**
+>> + * dma_buf_fd - returns a file descriptor for the given dma_buf
+>> + * @dmabuf: =A0[in] =A0 =A0pointer to dma_buf for which fd is required.
+>> + *
+>> + * On success, returns an associated 'fd'. Else, returns error.
+>> + */
+>> +int dma_buf_fd(struct dma_buf *dmabuf)
+>> +{
+>> + =A0 =A0 int error, fd;
+>> +
+>> + =A0 =A0 if (!dmabuf->file)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
+>> +
+>> + =A0 =A0 error =3D get_unused_fd_flags(0);
+>
+> Why not simply get_unused_fd()?
+:) oversight. Will correct.
 
-I have now taken a quickish look at your patches, and tried running
-with them.  They look plausible and elegant.  In some places they do
-the same as we have done, in others somewhat the opposite.
+>
+>> +/**
+>> + * dma_buf_attach - Add the device to dma_buf's attachments list; optio=
+nally,
+>> + * calls attach() of dma_buf_ops to allow device-specific attach functi=
+onality
+>> + * @dmabuf: =A0[in] =A0 =A0buffer to attach device to.
+>> + * @dev: =A0 =A0 [in] =A0 =A0device to be attached.
+>> + *
+>> + * Returns struct dma_buf_attachment * for this attachment; may return =
+NULL.
+>> + *
+>
+> Or may return a negative error code. It's better to be consistent here:
+> either always return NULL on error, or change the allocation error to
+> ERR_PTR(-ENOMEM).
+Ok, that makes sense.
 
-You tend to rely on knowing when file, anon, shmem and swap pages
-are charged, making simplifications based upon SwapCache or not;
-whereas I was more ignorant and more general.  Each approach has
-its own merit.
+>
+>> + */
+>> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 struct device *dev)
+>> +{
+>> + =A0 =A0 struct dma_buf_attachment *attach;
+>> + =A0 =A0 int ret;
+>> +
+>> + =A0 =A0 BUG_ON(!dmabuf || !dev);
+>> +
+>> + =A0 =A0 attach =3D kzalloc(sizeof(struct dma_buf_attachment), GFP_KERN=
+EL);
+>> + =A0 =A0 if (attach =3D=3D NULL)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto err_alloc;
+>> +
+>> + =A0 =A0 mutex_lock(&dmabuf->lock);
+>> +
+>> + =A0 =A0 attach->dev =3D dev;
+>> + =A0 =A0 attach->dmabuf =3D dmabuf;
+>> + =A0 =A0 if (dmabuf->ops->attach) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D dmabuf->ops->attach(dmabuf, dev, attac=
+h);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!ret)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err_attach;
+>
+> You probably mean "if (ret)" here instead of "if (!ret)", right?
+yes - a stupid one! will correct.
 
-Your lrucare nests page_cgroup lock inside lru_lock, and handles the
-page on pagevec case very easily that way; whereas we nest lru_lock
-inside page_cgroup lock.  I think your way is fine for now, but that
-we shall have to reverse it for per-memcg-zone lru locking.
+>
+>> + =A0 =A0 /* allow allocator to take care of cache ops */
+>> + =A0 =A0 void (*sync_sg_for_cpu) (struct dma_buf *, struct device *);
+>> + =A0 =A0 void (*sync_sg_for_device)(struct dma_buf *, struct device *);
+>
+> I don't see how this works with multiple consumers: For the streaming
+> DMA mapping, there must be exactly one owner, either the device or
+> the CPU. Obviously, this rule needs to be extended when you get to
+> multiple devices and multiple device drivers, plus possibly user
+> mappings. Simply assigning the buffer to "the device" from one
+> driver does not block other drivers from touching the buffer, and
+> assigning it to "the cpu" does not stop other hardware that the
+> code calling sync_sg_for_cpu is not aware of.
+>
+> The only way to solve this that I can think of right now is to
+> mandate that the mappings are all coherent (i.e. noncachable
+> on noncoherent architectures like ARM). If you do that, you no
+> longer need the sync_sg_for_* calls.
+I will take yours and Daniel's suggestion, and remove these; if at all
+they're needed, we can add them back again later, with
+/s/device/attachment as suggested by Daniel.
+>
+>> +#ifdef CONFIG_DMA_SHARED_BUFFER
+>
+> Do you have a use case for making the interface compile-time disabled?
+> I had assumed that any code using it would make no sense if it's not
+> available so you don't actually need this.
+Ok. Though if we keep the interface compile-time disabled, the users
+can actually check and fail or fall-back gracefully when the API is
+not available; If I remove it, anyways the users would need to do the
+same compile time check whether API is available or not, right?
 
-I am so used to thinking in terms of per-memcg-zone lru locking, that
-it's hard for me to remember the easier constraints in your case.
-We have to treat pc->mem_cgroup more carefully than you do, because
-of it telling where the lock is.
-
-I'm not sure whether you're safe to be leaving stale pc->mem_cgroup
-behind, potentially after that memcg has been deleted.  We would not
-be safe that way (particularly when lumpy reclaim and compaction
-come into play), but perhaps you're okay if you've caught everywhere
-that needs mem_cgroup_reset_owner.  Or perhaps not.
-
-I did get one crash when shutting down, stack somewhere in khugepaged:
-I didn't take much notice because I thought it would easily happen
-again, but actually not the next time.  I expect that would have been
-from a stale or null pc->mem_cgroup.
-
-It was amusing to see you inserting "mem_cgroup_reset_owner" calls in
-read_swap_cache_async and ksm_does_need_to_copy: yes, that's exactly
-where we put some of our "mem_cgroup_reset_page" calls, though last
-weekend I reworked the patch to avoid the need for them.
-
-I'll mull over your approach, and try it on other machines overnight.
-
-Hugh
+>
+> =A0 =A0 =A0 =A0Arnd
+Thanks, and best regards,
+~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
