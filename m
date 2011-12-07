@@ -1,102 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id F0B886B005C
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:00:07 -0500 (EST)
-Received: by eekc50 with SMTP id c50so1830eek.2
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 16:00:06 -0800 (PST)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH 0/3] memcg softlimit reclaim rework
-Date: Tue,  6 Dec 2011 15:59:56 -0800
-Message-Id: <1323215999-29164-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id AE29C6B004D
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 19:55:47 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BBA0D3EE0C1
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 09:55:45 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CA2A45DE53
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 09:55:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8224045DE6B
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 09:55:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E1F411DB8057
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 09:55:44 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 61A8B1DB8053
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 09:55:44 +0900 (JST)
+Date: Wed, 7 Dec 2011 09:54:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] oom: add tracepoints for oom_score_adj
+Message-Id: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
-Cc: linux-mm@kvack.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com, dchinner@redhat.com
 
-The "soft_limit" was introduced in memcg to support over-committing the
-memory resource on the host. Each cgroup configures its "hard_limit" where
-it will be throttled or OOM killed by going over the limit. However, the
-cgroup can go above the "soft_limit" as long as there is no system-wide
-memory contention. So, the "soft_limit" is the kernel mechanism for
-re-distributng system spare memory among cgroups.
-
-This patch reworks the softlimit reclaim by hooking it into the new global
-reclaim scheme. So the global reclaim path including direct reclaim and
-background reclaim will respect the memcg softlimit. At the same time,
-per-memcg reclaim will by default scanning all the memcgs under the
-hierarchy.
-
-On a 64G host, creates 12 * 256M (limit_in_bytes) memcgs where each reads from
-a 512M ramdisk. At the same time, sets the softlimit to last 6 memcgs. Under
-global memory pressure, only the ones (first 6 memcgs) above softlimit got
-scanned and reclaimed.
-
-$ for ((i=0; i<12; i++)); do cat /path/$i/memory.limit_in_bytes; done
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-
-$ for ((i=0; i<12; i++)); do cat /path/$i/memory.soft_limit_in_bytes; done
-0
-0
-0
-0
-0
-0
-536870912
-536870912
-536870912
-536870912
-536870912
-536870912
-
-$ for ((i=0; i<12; i++)); do cat /path/$i/memory.vmscan_stat; done
-total_scanned_file_pages_by_system_under_hierarchy 1992169
-total_scanned_file_pages_by_system_under_hierarchy 2065410
-total_scanned_file_pages_by_system_under_hierarchy 2056609
-total_scanned_file_pages_by_system_under_hierarchy 1974422
-total_scanned_file_pages_by_system_under_hierarchy 1835338
-total_scanned_file_pages_by_system_under_hierarchy 1729919
-total_scanned_file_pages_by_system_under_hierarchy 0
-total_scanned_file_pages_by_system_under_hierarchy 0
-total_scanned_file_pages_by_system_under_hierarchy 0
-total_scanned_file_pages_by_system_under_hierarchy 0
-total_scanned_file_pages_by_system_under_hierarchy 0
-total_scanned_file_pages_by_system_under_hierarchy 0
-
-Note:
-1.The vmscan_stat API was reverted upstream, and I am not asking for inclusion
-here. The only reason to have it here is to demonstrate the result of the
-softlimit reclaim patchset.
-2.The patch is based on next-20111201
-
-Ying Han (3):
-  memcg: rework softlimit reclaim
-  memcg: revert current soft limit reclaim implementation
-  memcg: track reclaim stats in memory.vmscan_stat
-
- include/linux/memcontrol.h |   36 ++-
- include/linux/swap.h       |    4 -
- kernel/res_counter.c       |    1 -
- mm/memcontrol.c            |  541 +++++++++++++-------------------------------
- mm/vmscan.c                |  116 ++++------
- 5 files changed, 233 insertions(+), 465 deletions(-)
-
--- 
-1.7.3.1
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
