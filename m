@@ -1,56 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id A1F166B0096
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 23:59:27 -0500 (EST)
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323076965.16790.670.camel@debian>
-	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 07 Dec 2011 13:11:13 +0800
-Message-ID: <1323234673.22361.372.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 9E3466B0099
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 01:31:11 -0500 (EST)
+Received: by iahk25 with SMTP id k25so531862iah.14
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 22:31:11 -0800 (PST)
+Date: Tue, 6 Dec 2011 22:30:37 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC][PATCH] memcg: remove PCG_ACCT_LRU.
+In-Reply-To: <20111207104800.d1851f78.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1112062139300.1260@sister.anvils>
+References: <20111202190622.8e0488d6.kamezawa.hiroyu@jp.fujitsu.com> <20111202120849.GA1295@cmpxchg.org> <20111205095009.b82a9bdf.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1112051552210.3938@sister.anvils> <20111206095825.69426eb2.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1112052258510.28015@sister.anvils> <20111206192101.8ea75558.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1112061506360.2111@sister.anvils> <20111207104800.d1851f78.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Wed, 2011-12-07 at 05:06 +0800, David Rientjes wrote:
-> On Mon, 5 Dec 2011, Alex,Shi wrote:
-> 
-> > Previous testing depends on 3.2-rc1, that show hackbench performance has
-> > no clear change, and netperf get some benefit. But seems after
-> > irqsafe_cpu_cmpxchg patch, the result has some change. I am collecting
-> > these results. 
+On Wed, 7 Dec 2011, KAMEZAWA Hiroyuki wrote:
+> On Tue, 6 Dec 2011 15:50:33 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
+> > On Tue, 6 Dec 2011, KAMEZAWA Hiroyuki wrote:
+> > > 
+> > > 	1. lock lru
+> > > 	2. remove-page-from-lru
+> > > 	3. overwrite pc->mem_cgroup
+> > > 	4. add page to lru again
+> > > 	5. unlock lru
+> > 
+> > That is indeed the sequence which __mem_cgroup_commit_charge() follows
+> > after the patch.
+> > 
+> > But it optimizes out the majority of cases when no such lru operations
+> > are needed (optimizations best presented in a separate patch), while
+> > being careful about the tricky case when the page is on lru_add_pvecs,
+> > and may get on to an lru at any moment.
+> > 
+> > And since it uses a separate lock for each memcg-zone's set of lrus,
+> > must take care that both lock and lru in 4 and 5 are different from
+> > those in 1 and 2.
 > > 
 > 
-> netperf will also degrade with this change on some machines, there's no 
-> clear heuristic that can be used to benefit all workloads when deciding 
-> where to add a partial slab into the list.  Cache hotness is great but 
-> your patch doesn't address situations where frees happen to a partial slab 
-> such that they may be entirely free (or at least below your 1:4 inuse to 
-> nr_objs threshold) at the time you want to deactivate the cpu slab.
+> yes, after per-zone-per-memcg lock, Above sequence should take some care.
 > 
-> I had a patchset that iterated the partial list and found the "most free" 
-> partial slab (and terminated prematurely if a threshold had been reached, 
-> much like yours) and selected that one, and it helped netperf 2-3% in my 
-> testing.  So I disagree with determining where to add a partial slab to 
-> the list at the time of free because it doesn't infer its state at the 
-> time of cpu slab deactivation.
-interesting. I did similar experiment before (try to sort the page
-according to free number), but it appears quite hard. The free number of
-a page is dynamic, eg more slabs can be freed when the page is in
-partial list. And in netperf test, the partial list could be very very
-long. Can you post your patch, I definitely what to look at it.
-What I have about the partial list is it wastes a lot of memory. My test
-shows about 50% memory is wasted. I'm thinking not always fetching the
-oldest page from the partial list, because chances that objects of
-oldest page can all be freed is high. I haven't done any test yet,
-wondering if it could be helpful.
+> With naive solution,
+> 
+> 	1. get lruvec-1 from target pc->mem_cgroup
+> 	2. get lruvec-2 from target memcg to be charged.
+> 	3. lock lruvec-x lock
+> 	4. lock lruvec-y lock   (x and y order is determined by css_id ?)
+> 	5. remove from LRU.
+> 	6. overwrite pc->mem_cgroup
+> 	7. add page to lru again
+> 	8. unlock lruvec-y
+> 	9. unlokc lruvec-x
+> 
+> Hm, maybe there are another clever way..
+
+Our commit_charge does lock page_cgroup, lock old lru_lock, remove from
+old lru, update pc->mem_cgroup, unlock old lru_lock, lock new lru_lock,
+add to new lru, unlock page_cgroup.  That's complemented by the way
+lock_page_lru_irqsave locks lru_lock and then checks if the lru_lock
+it got still matches pc->mem_cgroup, retrying if not.
+
+> > > 
+> > > isn't it ? I posted a series of patch. I'm glad if you give me a
+> > > quick review.
+> > 
+> > I haven't glanced yet, will do so after an hour or two.
+> > 
+> 
+> I think Johannes's chages of removing page_cgroup->lru allows us
+> various chances of optimization/simplification.
+
+Yes, I like Johannes's changes very much, they do indeed open the
+way to a lot of simplification and unification.
+
+I have now taken a quickish look at your patches, and tried running
+with them.  They look plausible and elegant.  In some places they do
+the same as we have done, in others somewhat the opposite.
+
+You tend to rely on knowing when file, anon, shmem and swap pages
+are charged, making simplifications based upon SwapCache or not;
+whereas I was more ignorant and more general.  Each approach has
+its own merit.
+
+Your lrucare nests page_cgroup lock inside lru_lock, and handles the
+page on pagevec case very easily that way; whereas we nest lru_lock
+inside page_cgroup lock.  I think your way is fine for now, but that
+we shall have to reverse it for per-memcg-zone lru locking.
+
+I am so used to thinking in terms of per-memcg-zone lru locking, that
+it's hard for me to remember the easier constraints in your case.
+We have to treat pc->mem_cgroup more carefully than you do, because
+of it telling where the lock is.
+
+I'm not sure whether you're safe to be leaving stale pc->mem_cgroup
+behind, potentially after that memcg has been deleted.  We would not
+be safe that way (particularly when lumpy reclaim and compaction
+come into play), but perhaps you're okay if you've caught everywhere
+that needs mem_cgroup_reset_owner.  Or perhaps not.
+
+I did get one crash when shutting down, stack somewhere in khugepaged:
+I didn't take much notice because I thought it would easily happen
+again, but actually not the next time.  I expect that would have been
+from a stale or null pc->mem_cgroup.
+
+It was amusing to see you inserting "mem_cgroup_reset_owner" calls in
+read_swap_cache_async and ksm_does_need_to_copy: yes, that's exactly
+where we put some of our "mem_cgroup_reset_page" calls, though last
+weekend I reworked the patch to avoid the need for them.
+
+I'll mull over your approach, and try it on other machines overnight.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
