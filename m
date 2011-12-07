@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 456FA6B009D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 02:28:33 -0500 (EST)
-Received: by yenq10 with SMTP id q10so273982yen.14
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2011 23:28:32 -0800 (PST)
-Date: Tue, 6 Dec 2011 23:28:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-In-Reply-To: <1323234673.22361.372.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com> <alpine.DEB.2.00.1112020842280.10975@router.home> <1323076965.16790.670.camel@debian> <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
- <1323234673.22361.372.camel@sli10-conroe>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id C95BE6B006E
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 04:18:30 -0500 (EST)
+Date: Wed, 7 Dec 2011 17:18:20 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 7/9] readahead: add vfs/readahead tracing event
+Message-ID: <20111207091820.GA7656@localhost>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.797240894@intel.com>
+ <20111206153025.GA18974@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111206153025.GA18974@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
-On Wed, 7 Dec 2011, Shaohua Li wrote:
+On Tue, Dec 06, 2011 at 11:30:25PM +0800, Christoph Hellwig wrote:
+> > +	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
+> 
+> please don't duplicate the tracepoint name in the output string.
+> Also don't use braces, as it jsut complicates parsing.
 
-> interesting. I did similar experiment before (try to sort the page
-> according to free number), but it appears quite hard. The free number of
-> a page is dynamic, eg more slabs can be freed when the page is in
-> partial list. And in netperf test, the partial list could be very very
-> long. Can you post your patch, I definitely what to look at it.
+OK. Changed to this format:
 
-It was over a couple of years ago and the slub code has changed 
-significantly since then, but you can see the general concept of the "slab 
-thrashing" problem with netperf and my solution back then:
+        TP_printk("pattern=%s bdi=%s ino=%lu "      
+                  "req=%lu+%lu ra=%lu+%d-%d async=%d actual=%d",
 
-	http://marc.info/?l=linux-kernel&m=123839191416478
-	http://marc.info/?l=linux-kernel&m=123839203016592
-	http://marc.info/?l=linux-kernel&m=123839202916583
 
-I also had a separate patchset that, instead of this approach, would just 
-iterate through the partial list in get_partial_node() looking for 
-anything where the number of free objects met a certain threshold, which 
-still defaulted to 25% and instantly picked it.  The overhead was taking 
-slab_lock() for each page, but that was nullified by the performance 
-speedup of using the alloc fastpath a majority of the time for both 
-kmalloc-256 and kmalloc-2k when in the past it had only been able to serve 
-one or two allocs.  If no partial slab met the threshold, the slab_lock() 
-is held of the partial slab with the most free objects and returned 
-instead.
+> > +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
+> > +			ra_pattern_names[__entry->pattern],
+> 
+> Instead of doing a manual array lookup please use __print_symbolic so
+> that users of the binary interface (like trace-cmd) also get the
+> right output.
 
-> What I have about the partial list is it wastes a lot of memory.
+The patch actually started with 
 
-That's not going to be helped with the above approach since we typically 
-try to fill a partial slab with many free objects, but it also won't be 
-severely impacted because if the threshold is kept small enough, then we 
-simply return the first partial slab that meets the criteria.  That allows 
-the partial slabs at the end of the list to hopefully become mostly free.
++#define show_pattern_name(val)                                            \
++       __print_symbolic(val,                                              \
++                       { RA_PATTERN_INITIAL,           "initial"       }, \
++                       { RA_PATTERN_SUBSEQUENT,        "subsequent"    }, \
++                       { RA_PATTERN_CONTEXT,           "context"       }, \
++                       { RA_PATTERN_THRASH,            "thrash"        }, \
++                       { RA_PATTERN_MMAP_AROUND,       "around"        }, \
++                       { RA_PATTERN_FADVISE,           "fadvise"       }, \
++                       { RA_PATTERN_RANDOM,            "random"        }, \
++                       { RA_PATTERN_ALL,               "all"           })
 
-And, for completeness, there's also a possibility that you have some 
-completely free slabs on the partial list that coule be freed back to the 
-buddy allocator by decreasing min_partial by way of 
-/sys/kernel/slab/cache/min_partial at the risk of performance and then 
-invoke /sys/kernel/slab/cache/shrink to free the unused slabs.
+It's then converted to the current form so as to avoid duplicating the
+num<>string mapping in two places.
+
+The recently added writeback reason shares the same problem:
+
+        TP_printk("bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d "
+                  "kupdate=%d range_cyclic=%d background=%d reason=%s",
+...
+                  wb_reason_name[__entry->reason]
+        )
+
+Fortunately that's newly introduced in 3.2-rc1, so it's still the good
+time to fix the writeback traces.
+
+However the problem is, are we going to keep adding duplicate mappings
+like this in future?
+
+> > --- linux-next.orig/mm/readahead.c	2011-11-29 20:58:53.000000000 +0800
+> > +++ linux-next/mm/readahead.c	2011-11-29 20:59:20.000000000 +0800
+> > @@ -29,6 +29,9 @@ static const char * const ra_pattern_nam
+> >  	[RA_PATTERN_ALL]                = "all",
+> >  };
+> >  
+> > +#define CREATE_TRACE_POINTS
+> > +#include <trace/events/vfs.h>
+> 
+> Maybe we should create a new fs/trace.c just for this instead of stickin
+> it into the first file that created a tracepoint in the "vfs" namespace.
+
+Yeah, it looks better to move it to a more general place.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
