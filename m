@@ -1,45 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 4790A6B008C
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 23:51:39 -0500 (EST)
-Subject: Re: [patch v2]numa: add a sysctl to control interleave allocation
- granularity from each node
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id A1F166B0096
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2011 23:59:27 -0500 (EST)
+Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1112061739140.27247@chino.kir.corp.google.com>
-References: <1323055846.22361.362.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1112061248500.28251@chino.kir.corp.google.com>
-	 <20111207013754.GA23364@sli10-conroe.sh.intel.com>
-	 <alpine.DEB.2.00.1112061739140.27247@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	 <alpine.DEB.2.00.1112020842280.10975@router.home>
+	 <1323076965.16790.670.camel@debian>
+	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 07 Dec 2011 13:03:25 +0800
-Message-ID: <1323234205.22361.365.camel@sli10-conroe>
+Date: Wed, 07 Dec 2011 13:11:13 +0800
+Message-ID: <1323234673.22361.372.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "ak@linux.intel.com" <ak@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>
+Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
 
-On Wed, 2011-12-07 at 09:42 +0800, David Rientjes wrote:
-> On Wed, 7 Dec 2011, Shaohua Li wrote:
+On Wed, 2011-12-07 at 05:06 +0800, David Rientjes wrote:
+> On Mon, 5 Dec 2011, Alex,Shi wrote:
 > 
-> > based on the allocation size, right? I did consider it. It would be easy to
-> > implement this. Note even without my patch we have the issue if allocation
-> > from one node is big order and small order from other node. And nobody
-> > complains the imbalance. This makes me think maybe people didn't care
-> > about the imbalance too much.
+> > Previous testing depends on 3.2-rc1, that show hackbench performance has
+> > no clear change, and netperf get some benefit. But seems after
+> > irqsafe_cpu_cmpxchg patch, the result has some change. I am collecting
+> > these results. 
 > > 
 > 
-> Right, I certainly see what you're trying to do and I support it, however, 
-> if we're going to add a userspace tunable then I think it would be better 
-> implemented as a size.  You can still get the functionality that you have 
-> with your patch (just with a size of 0, the default, making every 
-> allocation on the next node) but can also interleave on PAGE_SIZE, 
-> HPAGE_SIZE, etc, increments.  I think it would help for users who are 
-> concerned about node symmetry for contention on the memory bus and it 
-> would be a shame if someone needed to add a second tunable for that affect 
-> if your tunable already has applications using it.
-sure, I can do this in next post.
+> netperf will also degrade with this change on some machines, there's no 
+> clear heuristic that can be used to benefit all workloads when deciding 
+> where to add a partial slab into the list.  Cache hotness is great but 
+> your patch doesn't address situations where frees happen to a partial slab 
+> such that they may be entirely free (or at least below your 1:4 inuse to 
+> nr_objs threshold) at the time you want to deactivate the cpu slab.
+> 
+> I had a patchset that iterated the partial list and found the "most free" 
+> partial slab (and terminated prematurely if a threshold had been reached, 
+> much like yours) and selected that one, and it helped netperf 2-3% in my 
+> testing.  So I disagree with determining where to add a partial slab to 
+> the list at the time of free because it doesn't infer its state at the 
+> time of cpu slab deactivation.
+interesting. I did similar experiment before (try to sort the page
+according to free number), but it appears quite hard. The free number of
+a page is dynamic, eg more slabs can be freed when the page is in
+partial list. And in netperf test, the partial list could be very very
+long. Can you post your patch, I definitely what to look at it.
+What I have about the partial list is it wastes a lot of memory. My test
+shows about 50% memory is wasted. I'm thinking not always fetching the
+oldest page from the partial list, because chances that objects of
+oldest page can all be freed is high. I haven't done any test yet,
+wondering if it could be helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
