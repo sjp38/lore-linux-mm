@@ -1,42 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 9080E6B004D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 05:11:20 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Wed, 7 Dec 2011 10:11:03 +0000
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <201112051718.48324.arnd@arndb.de> <CAB2ybb8-0_HupO95UUvLN9ovVxnU+uvn4UXbwqZLSFuC9MZs0w@mail.gmail.com>
-In-Reply-To: <CAB2ybb8-0_HupO95UUvLN9ovVxnU+uvn4UXbwqZLSFuC9MZs0w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 455536B004D
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 05:32:54 -0500 (EST)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] memcg: drop type MEM_CGROUP_CHARGE_TYPE_DROP
+Date: Wed, 7 Dec 2011 18:30:46 +0800
+Message-ID: <1323253846-21245-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201112071011.03525.arnd@arndb.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Semwal, Sumit" <sumit.semwal@ti.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, jweiner@redhat.com, mhocko@suse.cz, Bob Liu <lliubbo@gmail.com>
 
-On Wednesday 07 December 2011, Semwal, Sumit wrote:
-> >
-> > Do you have a use case for making the interface compile-time disabled?
-> > I had assumed that any code using it would make no sense if it's not
-> > available so you don't actually need this.
->
-> Ok. Though if we keep the interface compile-time disabled, the users
-> can actually check and fail or fall-back gracefully when the API is
-> not available; If I remove it, anyways the users would need to do the
-> same compile time check whether API is available or not, right?
+uncharge will happen only when !page_mapped(page) no matter MEM_CGROUP_CHARGE_TYPE_DROP
+or MEM_CGROUP_CHARGE_TYPE_SWAPOUT when called from mem_cgroup_uncharge_swapcache().
+i think it's no difference, so drop it.
 
-If you have to do a compile-time check for the config symbol, it's better
-to do it the way you did here than in the caller.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/memcontrol.c |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
 
-My guess was that no caller would actually require this, because when you
-write a part of a subsystem to interact with the dma-buf infrastructure,
-you would always disable compilation of an extire file that deals with 
-everything related to struct dma_buf, not just stub out the calls.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6aff93c..02a2988 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -339,7 +339,6 @@ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+ 	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+ 	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
+-	MEM_CGROUP_CHARGE_TYPE_DROP,	/* a page was unused swap cache */
+ 	NR_CHARGE_TYPE,
+ };
+ 
+@@ -3000,7 +2999,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ 
+ 	switch (ctype) {
+ 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+-	case MEM_CGROUP_CHARGE_TYPE_DROP:
+ 		/* See mem_cgroup_prepare_migration() */
+ 		if (page_mapped(page) || PageCgroupMigration(pc))
+ 			goto unlock_out;
+@@ -3121,9 +3119,6 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+ 	struct mem_cgroup *memcg;
+ 	int ctype = MEM_CGROUP_CHARGE_TYPE_SWAPOUT;
+ 
+-	if (!swapout) /* this was a swap cache but the swap is unused ! */
+-		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
+-
+ 	memcg = __mem_cgroup_uncharge_common(page, ctype);
+ 
+ 	/*
+-- 
+1.7.0.4
 
-	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
