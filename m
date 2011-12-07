@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id DEC276B004F
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 16:41:41 -0500 (EST)
-Received: by yenq10 with SMTP id q10so1141314yen.14
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 13:41:41 -0800 (PST)
-Date: Wed, 7 Dec 2011 13:41:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7336D6B004F
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 17:08:00 -0500 (EST)
+Received: by yenq10 with SMTP id q10so1172053yen.14
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 14:07:59 -0800 (PST)
+Date: Wed, 7 Dec 2011 14:07:55 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: mark some messages as INFO
-In-Reply-To: <20111207191637.GB12679@cmpxchg.org>
-Message-ID: <alpine.DEB.2.00.1112071340420.27360@chino.kir.corp.google.com>
-References: <1323277360-3155-1-git-send-email-teg@jklm.no> <20111207191637.GB12679@cmpxchg.org>
+Subject: Re: [PATCH v3 3/3] slub: min order when debug_guardpage_minorder >
+ 0
+In-Reply-To: <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
+Message-ID: <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
+References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tom Gundersen <teg@jklm.no>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stanislaw Gruszka <sgruszka@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
 
-On Wed, 7 Dec 2011, Johannes Weiner wrote:
+On Fri, 18 Nov 2011, Stanislaw Gruszka wrote:
 
-> > @@ -4913,31 +4913,31 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
-> >  	find_zone_movable_pfns_for_nodes(zone_movable_pfn);
-> >  
-> >  	/* Print out the zone ranges */
-> > -	printk("Zone PFN ranges:\n");
-> > +	printk(KERN_INFO "Zone PFN ranges:\n");
-> >  	for (i = 0; i < MAX_NR_ZONES; i++) {
-> >  		if (i == ZONE_MOVABLE)
-> >  			continue;
-> > -		printk("  %-8s ", zone_names[i]);
-> > +		printk(KERN_INFO "  %-8s ", zone_names[i]);
-> >  		if (arch_zone_lowest_possible_pfn[i] ==
-> >  				arch_zone_highest_possible_pfn[i])
-> > -			printk("empty\n");
-> > +			printk(KERN_INFO "empty\n");
-> >  		else
-> > -			printk("%0#10lx -> %0#10lx\n",
-> > +			printk(KERN_INFO "%0#10lx -> %0#10lx\n",
-> >  				arch_zone_lowest_possible_pfn[i],
-> >  				arch_zone_highest_possible_pfn[i]);
-> >  	}
-> 
-> Shouldn't continuation lines be KERN_CONT instead?
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 7d2a996..a66be56 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3645,6 +3645,9 @@ void __init kmem_cache_init(void)
+>  	struct kmem_cache *temp_kmem_cache_node;
+>  	unsigned long kmalloc_size;
+>  
+> +	if (debug_guardpage_minorder())
+> +		slub_max_order = 0;
+> +
+>  	kmem_size = offsetof(struct kmem_cache, node) +
+>  				nr_node_ids * sizeof(struct kmem_cache_node *);
 > 
 
-Indeed, and I think it would benefit from using pr_info() and pr_cont() as 
-well to avoid going over 80 characters per line.
+I'd recommend at least printing a warning about why slub_max_order was 
+reduced because users may be concerned why they can't now change any 
+cache's order with /sys/kernel/slab/cache/order.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
