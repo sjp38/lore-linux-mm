@@ -1,13 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 7F72C6B004D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:16:47 -0500 (EST)
-Received: by eekc41 with SMTP id c41so705318eek.14
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 07:16:45 -0800 (PST)
-Subject: [PATCH 1/2] mm: provide zone vmstat percpu drift bounds
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D6A096B004F
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 10:17:03 -0500 (EST)
+Received: by eaah1 with SMTP id h1so710375eaa.14
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 07:17:02 -0800 (PST)
+Subject: [PATCH 2/2] mm: fix endless looping around false-positive
+ too_many_isolated()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 07 Dec 2011 19:16:41 +0300
-Message-ID: <20111207151641.30334.84106.stgit@zurg>
+Date: Wed, 07 Dec 2011 19:16:47 +0300
+Message-ID: <20111207151646.30334.75502.stgit@zurg>
+In-Reply-To: <20111207151641.30334.84106.stgit@zurg>
+References: <20111207151641.30334.84106.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -16,57 +19,69 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
 
-vmstat use per-cpu counters for accounting, so atomic part on struct zone has some drift.
-Free-pages watermark logic has some protection against this innacuracy.
-too-many-isolated checks has the same problem. This patch provides drift bounds for them.
+Due to vmstat counters percpu drift result of too_many_isolated() check
+can be false-positive. Unfortunately it can be stable false-positive:
+for example if zone at the one moment hasn't active/inactive pages at all
+(for small zones like "DMA" this is very likely) but its atomic part of
+isolated-pages counter is non-zero. In this sutuation shrink_inactive_list()
+and isolate_migratepages() will loop forever around too_many_isolated().
 
-Plus this patch reset zone->percpu_drift_mark if drift protection is no longer required,
-this can happens after memory hotplug.
+After this patch too_many_isolated() will sum percpu fractions of
+isolated pages counter if atomic part above watermark, but not higher than
+watermark plus possible percpu drift.
+
+We can ignore drift for active/inactive pages counters, because sooner or later
+isolate pages counter drops to zero.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mmzone.h |    3 +++
- mm/vmstat.c            |    6 +++++-
- 2 files changed, 8 insertions(+), 1 deletions(-)
+ mm/compaction.c |   11 +++++++++--
+ mm/vmscan.c     |    5 +++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 188cb2f..401438d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -307,6 +307,9 @@ struct zone {
- 	 */
- 	unsigned long percpu_drift_mark;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 899d956..2d6fced 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -231,7 +231,7 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ /* Similar to reclaim, but different enough that they don't share logic */
+ static bool too_many_isolated(struct zone *zone)
+ {
+-	unsigned long active, inactive, isolated;
++	unsigned long active, inactive, isolated, watermark;
  
-+	/* Maximum vm_stat per-cpu counters drift */
-+	unsigned long percpu_drift;
-+
- 	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 8fd603b..94540e1 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -172,16 +172,20 @@ void refresh_zone_stat_thresholds(void)
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
- 							= threshold;
+ 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+ 					zone_page_state(zone, NR_INACTIVE_ANON);
+@@ -240,7 +240,14 @@ static bool too_many_isolated(struct zone *zone)
+ 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+ 					zone_page_state(zone, NR_ISOLATED_ANON);
  
-+		max_drift = num_online_cpus() * threshold;
-+		zone->percpu_drift = max_drift;
+-	return isolated > (inactive + active) / 2;
++	watermark = (inactive + active) / 2;
 +
- 		/*
- 		 * Only set percpu_drift_mark if there is a danger that
- 		 * NR_FREE_PAGES reports the low watermark is ok when in fact
- 		 * the min watermark could be breached by an allocation
- 		 */
- 		tolerate_drift = low_wmark_pages(zone) - min_wmark_pages(zone);
--		max_drift = num_online_cpus() * threshold;
- 		if (max_drift > tolerate_drift)
- 			zone->percpu_drift_mark = high_wmark_pages(zone) +
- 					max_drift;
-+		else
-+			zone->percpu_drift_mark = 0;
++	if (isolated > watermark &&
++	    isolated - watermark <= zone->percpu_drift * 2)
++		isolated = zone_page_state_snapshot(zone, NR_ISOLATED_FILE) +
++			   zone_page_state_snapshot(zone, NR_ISOLATED_ANON);
++
++	return isolated > watermark;
+ }
+ 
+ /* possible outcome of isolate_migratepages */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 393ebce..3918c5f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1320,6 +1320,11 @@ static int too_many_isolated(struct zone *zone, int file,
+ 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
  	}
+ 
++	if (isolated > inactive &&
++	    isolated - inactive <= zone->percpu_drift)
++		isolated = zone_page_state_snapshot(zone,
++				file ? NR_ISOLATED_FILE : NR_ISOLATED_ANON);
++
+ 	return isolated > inactive;
  }
  
 
