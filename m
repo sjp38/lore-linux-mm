@@ -1,85 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 7C9736B004D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 06:04:29 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AA9673EE0B5
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:04:27 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9283145DE4E
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:04:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B9ED45DE4D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:04:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DC5D1DB8037
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:04:27 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28B801DB802F
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:04:27 +0900 (JST)
-Date: Wed, 7 Dec 2011 20:03:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: drop type MEM_CGROUP_CHARGE_TYPE_DROP
-Message-Id: <20111207200315.0bb99400.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1323253846-21245-1-git-send-email-lliubbo@gmail.com>
-References: <1323253846-21245-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 4D5146B004D
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 06:07:05 -0500 (EST)
+Message-ID: <4EDF48A9.6090306@parallels.com>
+Date: Wed, 7 Dec 2011 09:06:17 -0200
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v8 0/9] per-cgroup tcp memory pressure controls
+References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1323120903-2831-1-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, jweiner@redhat.com, mhocko@suse.cz
+To: linux-kernel@vger.kernel.org
+Cc: lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz
 
-On Wed, 7 Dec 2011 18:30:46 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
+On 12/05/2011 07:34 PM, Glauber Costa wrote:
+> Hi,
+>
+> This is my new attempt to fix all the concerns that were raised during
+> the last iteration.
+>
+> I should highlight:
+> 1) proc information is kept intact. (although I kept the wrapper functions)
+>     it will be submitted as a follow up patch so it can get the attention it
+>     deserves
+> 2) sockets now hold a reference to memcg. sockets can be alive even after the
+>     task is gone, so we don't bother with between cgroups movements.
+>     To be able to release resources more easily in this cenario, the parent
+>     pointer in struct cg_proto was replaced by a memcg object. We then iterate
+>     through its pointer (which is cleaner anyway)
+>
+> The rest should be mostly the same except for small fixes and style changes.
+>
 
-> uncharge will happen only when !page_mapped(page) no matter MEM_CGROUP_CHARGE_TYPE_DROP
-> or MEM_CGROUP_CHARGE_TYPE_SWAPOUT when called from mem_cgroup_uncharge_swapcache().
-> i think it's no difference, so drop it.
-> 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+Kame,
 
-I think you didn't test at all.
+Does this one address your previous concerns?
 
-> ---
->  mm/memcontrol.c |    5 -----
->  1 files changed, 0 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6aff93c..02a2988 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -339,7 +339,6 @@ enum charge_type {
->  	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
->  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
->  	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
-> -	MEM_CGROUP_CHARGE_TYPE_DROP,	/* a page was unused swap cache */
->  	NR_CHARGE_TYPE,
->  };
->  
-> @@ -3000,7 +2999,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  
->  	switch (ctype) {
->  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> -	case MEM_CGROUP_CHARGE_TYPE_DROP:
->  		/* See mem_cgroup_prepare_migration() */
->  		if (page_mapped(page) || PageCgroupMigration(pc))
->  			goto unlock_out;
-> @@ -3121,9 +3119,6 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
->  	struct mem_cgroup *memcg;
->  	int ctype = MEM_CGROUP_CHARGE_TYPE_SWAPOUT;
->  
-> -	if (!swapout) /* this was a swap cache but the swap is unused ! */
-> -		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
-> -
-
-Then, here , what ctype must be if !swapout ?
-
-Nack.
-
-Thanks,
--Kame
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
