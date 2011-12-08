@@ -1,80 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 7CC446B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 03:05:50 -0500 (EST)
-Date: Thu, 8 Dec 2011 09:05:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Question about __zone_watermark_ok: why there is a "+ 1" in
- computing free_pages?
-Message-ID: <20111208080547.GA5631@tiehlicka.suse.cz>
-References: <CAKXJSOHu+sQ1NeMsRvFyp2GYoB6g+50boUu=-QvbxxjcqgOAVA@mail.gmail.com>
- <20111205161443.GA20663@tiehlicka.suse.cz>
- <CAKXJSOErX_E9Oq0SHoRepJHy3Mb5ZkPYMJNbS6Z9DuQZXHO6sQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id A48426B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 04:13:44 -0500 (EST)
+Date: Thu, 8 Dec 2011 17:03:38 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] writeback: show writeback reason with __print_symbolic
+Message-ID: <20111208090338.GA20582@localhost>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.797240894@intel.com>
+ <20111206153025.GA18974@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKXJSOErX_E9Oq0SHoRepJHy3Mb5ZkPYMJNbS6Z9DuQZXHO6sQ@mail.gmail.com>
+In-Reply-To: <20111206153025.GA18974@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@gmail.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Curt Wohlgemuth <curtw@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 08-12-11 10:38:39, Wang Sheng-Hui wrote:
-> Sorry, Michal.
+> > +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
+> > +			ra_pattern_names[__entry->pattern],
 > 
-> 2011/12/6 Michal Hocko <mhocko@suse.cz>
-> 
-> > On Fri 25-11-11 09:21:35, Wang Sheng-Hui wrote:
-> > > In line 1459, we have "free_pages -= (1 << order) + 1;".
-> > > Suppose allocating one 0-order page, here we'll get
-> > >     free_pages -= 1 + 1
-> > > I wonder why there is a "+ 1"?
-> >
-> > Good spot. Check the patch bellow.
-> > ---
-> > From 38a1cf351b111e8791d2db538c8b0b912f5df8b8 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Mon, 5 Dec 2011 17:04:23 +0100
-> > Subject: [PATCH] mm: fix off-by-two in __zone_watermark_ok
-> >
-> > 88f5acf8 [mm: page allocator: adjust the per-cpu counter threshold when
-> > memory is low] changed the form how free_pages is calculated but it
-> > forgot that we used to do free_pages - ((1 << order) - 1) so we ended up
-> > with off-by-two when calculating free_pages.
-> >
-> > Spotted-by: Wang Sheng-Hui <shhuiw@gmail.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > ---
-> >  mm/page_alloc.c |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 9dd443d..8a2f1b6 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1457,7 +1457,7 @@ static bool __zone_watermark_ok(struct zone *z, int
-> > order, unsigned long mark,
-> >        long min = mark;
-> >        int o;
-> >
-> > -       free_pages -= (1 << order) + 1;
-> > +       free_pages -= (1 << order) - 1;
-> >
-> 
-> I don't understand why there is additional "-1".
-> Use 0-order allocation as example:
->       0-order page ---- one 4K page
-> free_pages should subtract 1. Here, free_pages will subtract 0?
+> Instead of doing a manual array lookup please use __print_symbolic so
+> that users of the binary interface (like trace-cmd) also get the
+> right output.
 
-Check out all the conditions for free_pages...
+FYI, here is the related fix on writeback traces.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+---
+This makes the traces trace-cmd friendly, at the cost of a bit code duplication.
+
+CC: Curt Wohlgemuth <curtw@google.com>
+CC: Steven Rostedt <rostedt@goodmis.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/trace/events/writeback.h |   17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+--- linux-next.orig/include/trace/events/writeback.h	2011-12-08 16:44:38.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2011-12-08 16:53:41.000000000 +0800
+@@ -21,6 +21,18 @@
+ 		{I_REFERENCED,		"I_REFERENCED"}		\
+ 	)
+ 
++#define show_work_reason(reason)					\
++	__print_symbolic(reason,					\
++		{WB_REASON_BACKGROUND,		"background"},		\
++		{WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages"},	\
++		{WB_REASON_SYNC,		"sync"},		\
++		{WB_REASON_PERIODIC,		"periodic"},		\
++		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
++		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
++		{WB_REASON_FS_FREE_SPACE,	"fs_free_space"},	\
++		{WB_REASON_FORKER_THREAD,	"forker_thread"}	\
++	)
++
+ struct wb_writeback_work;
+ 
+ DECLARE_EVENT_CLASS(writeback_work_class,
+@@ -55,7 +67,7 @@ DECLARE_EVENT_CLASS(writeback_work_class
+ 		  __entry->for_kupdate,
+ 		  __entry->range_cyclic,
+ 		  __entry->for_background,
+-		  wb_reason_name[__entry->reason]
++		  show_work_reason(__entry->reason)
+ 	)
+ );
+ #define DEFINE_WRITEBACK_WORK_EVENT(name) \
+@@ -184,7 +196,8 @@ TRACE_EVENT(writeback_queue_io,
+ 		__entry->older,	/* older_than_this in jiffies */
+ 		__entry->age,	/* older_than_this in relative milliseconds */
+ 		__entry->moved,
+-		wb_reason_name[__entry->reason])
++		show_work_reason(__entry->reason)
++	)
+ );
+ 
+ TRACE_EVENT(global_dirty_state,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
