@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 1C49D6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 12:14:44 -0500 (EST)
-Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id pB8HEh5R008087
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 8 Dec 2011 12:14:43 -0500
-Received: from zod.bos.redhat.com ([10.3.113.5])
-	by int-mx02.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id pB8HEf0C010229
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES128-SHA bits=128 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 8 Dec 2011 12:14:43 -0500
-Date: Thu, 8 Dec 2011 12:14:41 -0500
-From: Josh Boyer <jwboyer@redhat.com>
-Subject: 3.1 HugeTLB setup regression?
-Message-ID: <20111208171440.GA26092@zod.bos.redhat.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 0644E6B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 12:33:45 -0500 (EST)
+Message-ID: <4EE0F4EF.4010301@jp.fujitsu.com>
+Date: Thu, 08 Dec 2011 12:33:35 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH] oom: add tracepoints for oom_score_adj
+References: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com> <4EDF99B2.6040007@jp.fujitsu.com> <20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, dchinner@redhat.com
 
-Hi All,
+On 12/7/2011 8:47 PM, KAMEZAWA Hiroyuki wrote:
+> On Wed, 07 Dec 2011 11:52:02 -0500
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+>> On 12/6/2011 7:54 PM, KAMEZAWA Hiroyuki wrote:
+>>> >From 28189e4622fd97324893a0b234183f64472a54d6 Mon Sep 17 00:00:00 2001
+>>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> Date: Wed, 7 Dec 2011 09:58:16 +0900
+>>> Subject: [PATCH] oom: trace point for oom_score_adj
+>>>
+>>> oom_score_adj is set to prevent a task from being killed by OOM-Killer.
+>>> Some daemons sets this value and their children inerit it sometimes.
+>>> Because inheritance of oom_score_adj is done automatically, users
+>>> can be confused at seeing the value and finds it's hard to debug.
+>>>
+>>> This patch adds trace point for oom_score_adj. This adds 3 trace
+>>> points. at
+>>> 	- update oom_score_adj
+>>
+>>
+>>> 	- fork()
+>>> 	- rename task->comm(typically, exec())
+>>
+>> I don't think they have oom specific thing. Can you please add generic fork and
+>> task rename tracepoint instead?
+>>
+> I think it makes oom-targeted debug difficult.
+> This tracehook using task->signal->oom_score_adj as filter.
+> This reduces traces much and makes debugging easier.
+>  
+> If you need another trace point for other purpose, another trace point
+> should be better. For generic purpose, oom_socre_adj filtering will not
+> be necessary.
 
-We've had a report[1] of an existing hugetlb setup that worked in Fedora
-14 (2.6.35.x) and Fedora 15 (2.6.38-3.0?) that no longer works when
-using the 3.1.x kernel.  The details in the bug are somewhat sparse on
-exactly which kernel version(s) worked and when it stopped working, but
-I thought I'd include some of the relevant comments to see if anyone can
-think of why this would stop working:
+see Documentation/trace/event.txt 5. Event filgtering
 
-1. Allocate large pages through sysctl.conf, with the following:
-# Enable large page memory
-kernel.shmmax=25769803776
-vm.nr_hugepages=10752
-vm.hugetlb_shm_group=1001
+Now, both ftrace and perf have good filter feature. Isn't this enough?
 
-There is 24 GB of memory on the server, and I'm allocating 21GB (I have
-done
-this on Fedora 14 and 15 with no issues.
 
-2. Set /etc/security/limits.conf to allow for memlock to be unlimited
-for the
-user.
-3. Create the hugetlb group, and put the users in that group.
-4. Turn off transparent huge pages through a boot parameter
-transparent_hugepage=never
-5. Run the following java command:
 
-java -XX:+UseLargePages -Xms8g -Xmx8g -version
-
-Actual results:
-
-java -XX:+UseLargePages -Xms8g -Xmx8g -version
-OpenJDK 64-Bit Server VM warning: Failed to reserve shared memory (errno
-= 28).
-java version "1.6.0_22"
-OpenJDK Runtime Environment (IcedTea6 1.10.4)
-(fedora-60.1.10.4.fc16-x86_64)
-
-Apparently dropping it to use 7G works though:
-
-java -XX:+UseLargePages -Xms7g -Xmx7g -version
-java version "1.6.0_22"
-OpenJDK Runtime Environment (IcedTea6 1.10.4)
-(fedora-60.1.10.4.fc16-x86_64)
-OpenJDK 64-Bit Server VM (build 20.0-b11, mixed mode)
-
-I'd appreciate any thoughts or further questions to ask for follow up.
-
-josh
-
-[1] https://bugzilla.redhat.com/show_bug.cgi?id=761262
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
