@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 0644E6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 12:33:45 -0500 (EST)
-Message-ID: <4EE0F4EF.4010301@jp.fujitsu.com>
-Date: Thu, 08 Dec 2011 12:33:35 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 699976B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 16:06:06 -0500 (EST)
+Received: by iahk25 with SMTP id k25so4103628iah.14
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2011 13:06:05 -0800 (PST)
+Date: Thu, 8 Dec 2011 13:06:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v3 3/3] slub: min order when debug_guardpage_minorder >
+ 0
+In-Reply-To: <20111208073316.GA2402@redhat.com>
+Message-ID: <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com>
+References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <1321633507-13614-3-git-send-email-sgruszka@redhat.com> <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com> <20111208073316.GA2402@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom: add tracepoints for oom_score_adj
-References: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com> <4EDF99B2.6040007@jp.fujitsu.com> <20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, dchinner@redhat.com
+To: Stanislaw Gruszka <sgruszka@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
 
-On 12/7/2011 8:47 PM, KAMEZAWA Hiroyuki wrote:
-> On Wed, 07 Dec 2011 11:52:02 -0500
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Thu, 8 Dec 2011, Stanislaw Gruszka wrote:
+
+> > > diff --git a/mm/slub.c b/mm/slub.c
+> > > index 7d2a996..a66be56 100644
+> > > --- a/mm/slub.c
+> > > +++ b/mm/slub.c
+> > > @@ -3645,6 +3645,9 @@ void __init kmem_cache_init(void)
+> > >  	struct kmem_cache *temp_kmem_cache_node;
+> > >  	unsigned long kmalloc_size;
+> > >  
+> > > +	if (debug_guardpage_minorder())
+> > > +		slub_max_order = 0;
+> > > +
+> > >  	kmem_size = offsetof(struct kmem_cache, node) +
+> > >  				nr_node_ids * sizeof(struct kmem_cache_node *);
+> > > 
+> > 
+> > I'd recommend at least printing a warning about why slub_max_order was 
+> > reduced because users may be concerned why they can't now change any 
+> > cache's order with /sys/kernel/slab/cache/order.
 > 
->> On 12/6/2011 7:54 PM, KAMEZAWA Hiroyuki wrote:
->>> >From 28189e4622fd97324893a0b234183f64472a54d6 Mon Sep 17 00:00:00 2001
->>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> Date: Wed, 7 Dec 2011 09:58:16 +0900
->>> Subject: [PATCH] oom: trace point for oom_score_adj
->>>
->>> oom_score_adj is set to prevent a task from being killed by OOM-Killer.
->>> Some daemons sets this value and their children inerit it sometimes.
->>> Because inheritance of oom_score_adj is done automatically, users
->>> can be confused at seeing the value and finds it's hard to debug.
->>>
->>> This patch adds trace point for oom_score_adj. This adds 3 trace
->>> points. at
->>> 	- update oom_score_adj
->>
->>
->>> 	- fork()
->>> 	- rename task->comm(typically, exec())
->>
->> I don't think they have oom specific thing. Can you please add generic fork and
->> task rename tracepoint instead?
->>
-> I think it makes oom-targeted debug difficult.
-> This tracehook using task->signal->oom_score_adj as filter.
-> This reduces traces much and makes debugging easier.
->  
-> If you need another trace point for other purpose, another trace point
-> should be better. For generic purpose, oom_socre_adj filtering will not
-> be necessary.
+> It's only happen with debug_guardpage_minorder=N parameter, so
+> perhaps I'll just document that in kernel-parameters.txt
+> 
 
-see Documentation/trace/event.txt 5. Event filgtering
+SLUB will output a line in the dmesg that specifies the possible orders so 
+it would be helpful to also note that those can change because of 
+debug_guardpage_minorder in both Documentation/vm/slub.txt and the "order" 
+file entry in Documentation/ABI/testing/sysfs-kernel-slab.
 
-Now, both ftrace and perf have good filter feature. Isn't this enough?
-
-
-
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
