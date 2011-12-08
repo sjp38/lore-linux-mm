@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id D6E7C6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 11:24:29 -0500 (EST)
-Received: by qao25 with SMTP id 25so1693056qao.14
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2011 08:24:28 -0800 (PST)
-Message-ID: <4EE0E4B9.4050903@gmail.com>
-Date: Thu, 08 Dec 2011 11:24:25 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 1C49D6B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 12:14:44 -0500 (EST)
+Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id pB8HEh5R008087
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 8 Dec 2011 12:14:43 -0500
+Received: from zod.bos.redhat.com ([10.3.113.5])
+	by int-mx02.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id pB8HEf0C010229
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES128-SHA bits=128 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 8 Dec 2011 12:14:43 -0500
+Date: Thu, 8 Dec 2011 12:14:41 -0500
+From: Josh Boyer <jwboyer@redhat.com>
+Subject: 3.1 HugeTLB setup regression?
+Message-ID: <20111208171440.GA26092@zod.bos.redhat.com>
 MIME-Version: 1.0
-Subject: Re: Question about __zone_watermark_ok: why there is a "+ 1" in computing
- free_pages?
-References: <CAKXJSOHu+sQ1NeMsRvFyp2GYoB6g+50boUu=-QvbxxjcqgOAVA@mail.gmail.com> <20111205161443.GA20663@tiehlicka.suse.cz>
-In-Reply-To: <20111205161443.GA20663@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Wang Sheng-Hui <shhuiw@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
 
-(12/5/11 11:14 AM), Michal Hocko wrote:
-> On Fri 25-11-11 09:21:35, Wang Sheng-Hui wrote:
->> In line 1459, we have "free_pages -= (1<<  order) + 1;".
->> Suppose allocating one 0-order page, here we'll get
->>      free_pages -= 1 + 1
->> I wonder why there is a "+ 1"?
->
-> Good spot. Check the patch bellow.
-> ---
->  From 38a1cf351b111e8791d2db538c8b0b912f5df8b8 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko<mhocko@suse.cz>
-> Date: Mon, 5 Dec 2011 17:04:23 +0100
-> Subject: [PATCH] mm: fix off-by-two in __zone_watermark_ok
->
-> 88f5acf8 [mm: page allocator: adjust the per-cpu counter threshold when
-> memory is low] changed the form how free_pages is calculated but it
-> forgot that we used to do free_pages - ((1<<  order) - 1) so we ended up
-> with off-by-two when calculating free_pages.
->
-> Spotted-by: Wang Sheng-Hui<shhuiw@gmail.com>
-> Signed-off-by: Michal Hocko<mhocko@suse.cz>
-> ---
->   mm/page_alloc.c |    2 +-
->   1 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9dd443d..8a2f1b6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1457,7 +1457,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->   	long min = mark;
->   	int o;
->
-> -	free_pages -= (1<<  order) + 1;
-> +	free_pages -= (1<<  order) - 1;
->   	if (alloc_flags&  ALLOC_HIGH)
->   		min -= min / 2;
->   	if (alloc_flags&  ALLOC_HARDER)
+Hi All,
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+We've had a report[1] of an existing hugetlb setup that worked in Fedora
+14 (2.6.35.x) and Fedora 15 (2.6.38-3.0?) that no longer works when
+using the 3.1.x kernel.  The details in the bug are somewhat sparse on
+exactly which kernel version(s) worked and when it stopped working, but
+I thought I'd include some of the relevant comments to see if anyone can
+think of why this would stop working:
 
+1. Allocate large pages through sysctl.conf, with the following:
+# Enable large page memory
+kernel.shmmax=25769803776
+vm.nr_hugepages=10752
+vm.hugetlb_shm_group=1001
+
+There is 24 GB of memory on the server, and I'm allocating 21GB (I have
+done
+this on Fedora 14 and 15 with no issues.
+
+2. Set /etc/security/limits.conf to allow for memlock to be unlimited
+for the
+user.
+3. Create the hugetlb group, and put the users in that group.
+4. Turn off transparent huge pages through a boot parameter
+transparent_hugepage=never
+5. Run the following java command:
+
+java -XX:+UseLargePages -Xms8g -Xmx8g -version
+
+Actual results:
+
+java -XX:+UseLargePages -Xms8g -Xmx8g -version
+OpenJDK 64-Bit Server VM warning: Failed to reserve shared memory (errno
+= 28).
+java version "1.6.0_22"
+OpenJDK Runtime Environment (IcedTea6 1.10.4)
+(fedora-60.1.10.4.fc16-x86_64)
+
+Apparently dropping it to use 7G works though:
+
+java -XX:+UseLargePages -Xms7g -Xmx7g -version
+java version "1.6.0_22"
+OpenJDK Runtime Environment (IcedTea6 1.10.4)
+(fedora-60.1.10.4.fc16-x86_64)
+OpenJDK 64-Bit Server VM (build 20.0-b11, mixed mode)
+
+I'd appreciate any thoughts or further questions to ask for follow up.
+
+josh
+
+[1] https://bugzilla.redhat.com/show_bug.cgi?id=761262
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
