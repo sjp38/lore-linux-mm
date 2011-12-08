@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 2A4D26B005A
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 07:42:24 -0500 (EST)
-Date: Thu, 8 Dec 2011 13:42:17 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mremap: enforce rmap src/dst vma ordering in case of
- vma_merge succeeding in copy_vma
-Message-ID: <20111208124217.GD15343@redhat.com>
-References: <alpine.LSU.2.00.1111041856530.22199@sister.anvils>
- <1320512782-12209-1-git-send-email-aarcange@redhat.com>
- <alpine.DEB.2.00.1112071924400.636@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id D6E7C6B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 11:24:29 -0500 (EST)
+Received: by qao25 with SMTP id 25so1693056qao.14
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2011 08:24:28 -0800 (PST)
+Message-ID: <4EE0E4B9.4050903@gmail.com>
+Date: Thu, 08 Dec 2011 11:24:25 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1112071924400.636@chino.kir.corp.google.com>
+Subject: Re: Question about __zone_watermark_ok: why there is a "+ 1" in computing
+ free_pages?
+References: <CAKXJSOHu+sQ1NeMsRvFyp2GYoB6g+50boUu=-QvbxxjcqgOAVA@mail.gmail.com> <20111205161443.GA20663@tiehlicka.suse.cz>
+In-Reply-To: <20111205161443.GA20663@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Pawel Sikora <pluto@agmk.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jpiszcz@lucidpixels.com, arekm@pld-linux.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Wang Sheng-Hui <shhuiw@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Dec 07, 2011 at 07:24:59PM -0800, David Rientjes wrote:
-> On Sat, 5 Nov 2011, Andrea Arcangeli wrote:
-> 
-> > migrate was doing a rmap_walk with speculative lock-less access on
-> > pagetables. That could lead it to not serialize properly against
-> > mremap PT locks. But a second problem remains in the order of vmas in
-> > the same_anon_vma list used by the rmap_walk.
-> > 
-> > If vma_merge would succeed in copy_vma, the src vma could be placed
-> > after the dst vma in the same_anon_vma list. That could still lead
-> > migrate to miss some pte.
-> > 
-> > This patch adds a anon_vma_moveto_tail() function to force the dst vma
-> > at the end of the list before mremap starts to solve the problem.
-> > 
-> > If the mremap is very large and there are a lots of parents or childs
-> > sharing the anon_vma root lock, this should still scale better than
-> > taking the anon_vma root lock around every pte copy practically for
-> > the whole duration of mremap.
-> > 
-> > Update: Hugh noticed special care is needed in the error path where
-> > move_page_tables goes in the reverse direction, a second
-> > anon_vma_moveto_tail() call is needed in the error path.
-> > 
-> 
-> Is this still needed?  It's missing in linux-next.
+(12/5/11 11:14 AM), Michal Hocko wrote:
+> On Fri 25-11-11 09:21:35, Wang Sheng-Hui wrote:
+>> In line 1459, we have "free_pages -= (1<<  order) + 1;".
+>> Suppose allocating one 0-order page, here we'll get
+>>      free_pages -= 1 + 1
+>> I wonder why there is a "+ 1"?
+>
+> Good spot. Check the patch bellow.
+> ---
+>  From 38a1cf351b111e8791d2db538c8b0b912f5df8b8 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko<mhocko@suse.cz>
+> Date: Mon, 5 Dec 2011 17:04:23 +0100
+> Subject: [PATCH] mm: fix off-by-two in __zone_watermark_ok
+>
+> 88f5acf8 [mm: page allocator: adjust the per-cpu counter threshold when
+> memory is low] changed the form how free_pages is calculated but it
+> forgot that we used to do free_pages - ((1<<  order) - 1) so we ended up
+> with off-by-two when calculating free_pages.
+>
+> Spotted-by: Wang Sheng-Hui<shhuiw@gmail.com>
+> Signed-off-by: Michal Hocko<mhocko@suse.cz>
+> ---
+>   mm/page_alloc.c |    2 +-
+>   1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9dd443d..8a2f1b6 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1457,7 +1457,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>   	long min = mark;
+>   	int o;
+>
+> -	free_pages -= (1<<  order) + 1;
+> +	free_pages -= (1<<  order) - 1;
+>   	if (alloc_flags&  ALLOC_HIGH)
+>   		min -= min / 2;
+>   	if (alloc_flags&  ALLOC_HARDER)
 
-Yes it's needed, either this or the anon_vma lock around
-move_page_tables. Then we also need the i_mmap_mutex around fork or a
-triple loop in vmtruncate (then we could remove i_mmap_mutex in
-mremap).
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
