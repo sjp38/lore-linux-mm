@@ -1,43 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 7336D6B004F
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 17:08:00 -0500 (EST)
-Received: by yenq10 with SMTP id q10so1172053yen.14
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 14:07:59 -0800 (PST)
-Date: Wed, 7 Dec 2011 14:07:55 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3 3/3] slub: min order when debug_guardpage_minorder >
- 0
-In-Reply-To: <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
-Message-ID: <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
-References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id DDFC56B004F
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2011 20:43:31 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D67253EE0BC
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 10:43:29 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B961D45DEBC
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 10:43:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6319845DEB4
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 10:43:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 53D111DB803E
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 10:43:29 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E56631DB8042
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 10:43:28 +0900 (JST)
+Date: Thu, 8 Dec 2011 10:42:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: drop type MEM_CGROUP_CHARGE_TYPE_DROP
+Message-Id: <20111208104213.90243b69.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CAA_GA1d_PTnGQ9Sh+3wuX8uW8VEYrXwn1g-ui7hbzMLC1-HG=A@mail.gmail.com>
+References: <1323253846-21245-1-git-send-email-lliubbo@gmail.com>
+	<20111207200315.0bb99400.kamezawa.hiroyu@jp.fujitsu.com>
+	<CAA_GA1d_PTnGQ9Sh+3wuX8uW8VEYrXwn1g-ui7hbzMLC1-HG=A@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, jweiner@redhat.com, mhocko@suse.cz
 
-On Fri, 18 Nov 2011, Stanislaw Gruszka wrote:
+On Wed, 7 Dec 2011 20:29:24 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 7d2a996..a66be56 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3645,6 +3645,9 @@ void __init kmem_cache_init(void)
->  	struct kmem_cache *temp_kmem_cache_node;
->  	unsigned long kmalloc_size;
->  
-> +	if (debug_guardpage_minorder())
-> +		slub_max_order = 0;
-> +
->  	kmem_size = offsetof(struct kmem_cache, node) +
->  				nr_node_ids * sizeof(struct kmem_cache_node *);
+> On Wed, Dec 7, 2011 at 7:03 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 7 Dec 2011 18:30:46 +0800
+> > Bob Liu <lliubbo@gmail.com> wrote:
+> >
+> >> uncharge will happen only when !page_mapped(page) no matter MEM_CGROUP_CHARGE_TYPE_DROP
+> >> or MEM_CGROUP_CHARGE_TYPE_SWAPOUT when called from mem_cgroup_uncharge_swapcache().
+> >> i think it's no difference, so drop it.
+> >>
+> >> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> >
+> > I think you didn't test at all.
+> >
+> >> ---
+> >> A mm/memcontrol.c | A  A 5 -----
+> >> A 1 files changed, 0 insertions(+), 5 deletions(-)
+> >>
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 6aff93c..02a2988 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -339,7 +339,6 @@ enum charge_type {
+> >> A  A  A  MEM_CGROUP_CHARGE_TYPE_SHMEM, A  /* used by page migration of shmem */
+> >> A  A  A  MEM_CGROUP_CHARGE_TYPE_FORCE, A  /* used by force_empty */
+> >> A  A  A  MEM_CGROUP_CHARGE_TYPE_SWAPOUT, /* for accounting swapcache */
+> >> - A  A  MEM_CGROUP_CHARGE_TYPE_DROP, A  A /* a page was unused swap cache */
+> >> A  A  A  NR_CHARGE_TYPE,
+> >> A };
+> >>
+> >> @@ -3000,7 +2999,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+> >>
+> >> A  A  A  switch (ctype) {
+> >> A  A  A  case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+> >> - A  A  case MEM_CGROUP_CHARGE_TYPE_DROP:
+> >> A  A  A  A  A  A  A  /* See mem_cgroup_prepare_migration() */
+> >> A  A  A  A  A  A  A  if (page_mapped(page) || PageCgroupMigration(pc))
+> >> A  A  A  A  A  A  A  A  A  A  A  goto unlock_out;
+> >> @@ -3121,9 +3119,6 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+> >> A  A  A  struct mem_cgroup *memcg;
+> >> A  A  A  int ctype = MEM_CGROUP_CHARGE_TYPE_SWAPOUT;
+> >>
+> >> - A  A  if (!swapout) /* this was a swap cache but the swap is unused ! */
+> >> - A  A  A  A  A  A  ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
+> >> -
+> >
+> > Then, here , what ctype must be if !swapout ?
+> >
 > 
+> I think MEM_CGROUP_CHARGE_TYPE_SWAPOUT is okay, i didn't get the point
+> that the benefit of using MEM_CGROUP_CHARGE_TYPE_DROP.
+> 
+> If use  MEM_CGROUP_CHARGE_TYPE_SWAPOUT, page_mapped(page) also checked in
+> __mem_cgroup_uncharge_common().
+> 
+> Maybe i missed something. Thanks.
+> 
+why you don't see 10 more lines.
 
-I'd recommend at least printing a warning about why slub_max_order was 
-reduced because users may be concerned why they can't now change any 
-cache's order with /sys/kernel/slab/cache/order.
+If SWAPOUT, 
+  - record swap out information to swap_cgroup
+  - don't decrease memcg->memsw counter
+If DROP
+  - same as usual MAPPED anon pages.
+
+DROP may be equal to MAPPED. But this swap realted codes are most fragile
+part of memcg and we used another name than MAPPED for taking care.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
