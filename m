@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 0039B6B005C
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 02:26:24 -0500 (EST)
-Received: by wgbds13 with SMTP id ds13so2322109wgb.26
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 23:26:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E10876B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 02:33:07 -0500 (EST)
+Date: Thu, 8 Dec 2011 08:33:17 +0100
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: [PATCH v3 3/3] slub: min order when debug_guardpage_minorder > 0
+Message-ID: <20111208073316.GA2402@redhat.com>
+References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com>
+ <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
+ <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1112072314140.28419@chino.kir.corp.google.com>
-References: <1323327732-30817-1-git-send-email-consul.kautuk@gmail.com>
-	<alpine.DEB.2.00.1112072304010.28419@chino.kir.corp.google.com>
-	<CAFPAmTSJDXD1KNVBUz75yN_CeCT9f_+W9CaRNN467LSyCD+WXg@mail.gmail.com>
-	<alpine.DEB.2.00.1112072314140.28419@chino.kir.corp.google.com>
-Date: Thu, 8 Dec 2011 12:56:22 +0530
-Message-ID: <CAFPAmTSKXCiXNnFK0zR651ONju+ZBYE0qWUhCF9GXZRy=ieSJw@mail.gmail.com>
-Subject: Re: [PATCH 1/1] vmalloc: purge_fragmented_blocks: Acquire spinlock
- before reading vmap_block
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Minchan Kim <minchan.kim@gmail.com>, David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
 
->
-> That's intentional as an optimization, we don't care if
-> vb->free + vb->dirty =3D=3D VMAP_BBMAP_BITS && vb->dirty !=3D VMAP_BBMAP_=
-BITS
-> would speculatively be true after we grab vb->lock, we'll have to purge i=
-t
-> next time instead. =A0We certainly don't want to grab vb->lock for blocks
-> that aren't candidates, so this optimization is a singificant speedup.
+On Wed, Dec 07, 2011 at 02:07:55PM -0800, David Rientjes wrote:
+> On Fri, 18 Nov 2011, Stanislaw Gruszka wrote:
+> 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 7d2a996..a66be56 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -3645,6 +3645,9 @@ void __init kmem_cache_init(void)
+> >  	struct kmem_cache *temp_kmem_cache_node;
+> >  	unsigned long kmalloc_size;
+> >  
+> > +	if (debug_guardpage_minorder())
+> > +		slub_max_order = 0;
+> > +
+> >  	kmem_size = offsetof(struct kmem_cache, node) +
+> >  				nr_node_ids * sizeof(struct kmem_cache_node *);
+> > 
+> 
+> I'd recommend at least printing a warning about why slub_max_order was 
+> reduced because users may be concerned why they can't now change any 
+> cache's order with /sys/kernel/slab/cache/order.
 
-Ah, I agree.
-Anyway, the probability of there being too many vmap_blocks being
-missed due to concurrent changes
-is not quite high, so I guess its okay that a few vmap_blocks get
-purged next time.
+It's only happen with debug_guardpage_minorder=N parameter, so
+perhaps I'll just document that in kernel-parameters.txt
 
-Thanks.
+Thanks
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
