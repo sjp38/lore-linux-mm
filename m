@@ -1,50 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E10876B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 02:33:07 -0500 (EST)
-Date: Thu, 8 Dec 2011 08:33:17 +0100
-From: Stanislaw Gruszka <sgruszka@redhat.com>
-Subject: Re: [PATCH v3 3/3] slub: min order when debug_guardpage_minorder > 0
-Message-ID: <20111208073316.GA2402@redhat.com>
-References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com>
- <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
- <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 24B396B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 02:45:22 -0500 (EST)
+Received: by iahk25 with SMTP id k25so2875413iah.14
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 23:45:21 -0800 (PST)
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Subject: [PATCH 1/1] vmalloc: Remove static declaration of va from __get_vm_area_node
+Date: Thu,  8 Dec 2011 13:20:21 +0530
+Message-Id: <1323330621-31254-1-git-send-email-consul.kautuk@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
 
-On Wed, Dec 07, 2011 at 02:07:55PM -0800, David Rientjes wrote:
-> On Fri, 18 Nov 2011, Stanislaw Gruszka wrote:
-> 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 7d2a996..a66be56 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -3645,6 +3645,9 @@ void __init kmem_cache_init(void)
-> >  	struct kmem_cache *temp_kmem_cache_node;
-> >  	unsigned long kmalloc_size;
-> >  
-> > +	if (debug_guardpage_minorder())
-> > +		slub_max_order = 0;
-> > +
-> >  	kmem_size = offsetof(struct kmem_cache, node) +
-> >  				nr_node_ids * sizeof(struct kmem_cache_node *);
-> > 
-> 
-> I'd recommend at least printing a warning about why slub_max_order was 
-> reduced because users may be concerned why they can't now change any 
-> cache's order with /sys/kernel/slab/cache/order.
+Static storage is not required for the struct vmap_area in
+__get_vm_area_node.
 
-It's only happen with debug_guardpage_minorder=N parameter, so
-perhaps I'll just document that in kernel-parameters.txt
+Removing "static" to store this variable on the stack instead.
 
-Thanks
-Stanislaw
+Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ mm/vmalloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 3231bf3..173562c 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1290,7 +1290,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 		unsigned long align, unsigned long flags, unsigned long start,
+ 		unsigned long end, int node, gfp_t gfp_mask, void *caller)
+ {
+-	static struct vmap_area *va;
++	struct vmap_area *va;
+ 	struct vm_struct *area;
+ 
+ 	BUG_ON(in_interrupt());
+-- 
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
