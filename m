@@ -1,82 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id F3FFC6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 16:44:09 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so2402049vbb.14
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2011 13:44:08 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <201112071340.35267.arnd@arndb.de>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
-	<CAF6AEGto-+oSqguuWyPunUbtE65GpNiXh21srQzrChiBQMb1Nw@mail.gmail.com>
-	<CAB2ybb-0mTdNXN82O1TUGVjhMZUQtQb07A3EVmmdxg3ngEc3Dw@mail.gmail.com>
-	<201112071340.35267.arnd@arndb.de>
-Date: Thu, 8 Dec 2011 22:44:08 +0100
-Message-ID: <CAKMK7uFQiiUbkU-7c3Os0d0FJNyLbqS2HLPRLy3LGnOoCXV5Pw@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
- sharing mechanism
-From: Daniel Vetter <daniel@ffwll.ch>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 8201E6B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 18:42:38 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BA8B23EE081
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:42:36 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A148D3A62FE
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:42:36 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8828E266DB3
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:42:36 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A8DC1DB803B
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:42:36 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 336641DB802F
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:42:36 +0900 (JST)
+Date: Fri, 9 Dec 2011 08:41:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] oom: add tracepoints for oom_score_adj
+Message-Id: <20111209084103.e3fea1f7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4EE0F4EF.4010301@jp.fujitsu.com>
+References: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com>
+	<4EDF99B2.6040007@jp.fujitsu.com>
+	<20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
+	<4EE0F4EF.4010301@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "Semwal, Sumit" <sumit.semwal@ti.com>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, dchinner@redhat.com
 
-On Wed, Dec 7, 2011 at 14:40, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Wednesday 07 December 2011, Semwal, Sumit wrote:
->> Thanks for the excellent discussion - it indeed is very good learning
->> for the relatively-inexperienced me :)
->>
->> So, for the purpose of dma-buf framework, could I summarize the
->> following and rework accordingly?:
->> 1. remove mmap() dma_buf_op [and mmap fop], and introduce cpu_start(),
->> cpu_finish() ops to bracket cpu accesses to the buffer. Also add
->> DMABUF_CPU_START / DMABUF_CPU_FINI IOCTLs?
->
-> I think we'd be better off for now without the extra ioctls and
-> just document that a shared buffer must not be exported to user
-> space using mmap at all, to avoid those problems. Serialization
-> between GPU and CPU is on a higher level than the dma_buf framework
-> IMHO.
+On Thu, 08 Dec 2011 12:33:35 -0500
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Agreed.
+> On 12/7/2011 8:47 PM, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 07 Dec 2011 11:52:02 -0500
+> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > 
+> >> On 12/6/2011 7:54 PM, KAMEZAWA Hiroyuki wrote:
+> >>> >From 28189e4622fd97324893a0b234183f64472a54d6 Mon Sep 17 00:00:00 2001
+> >>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>> Date: Wed, 7 Dec 2011 09:58:16 +0900
+> >>> Subject: [PATCH] oom: trace point for oom_score_adj
+> >>>
+> >>> oom_score_adj is set to prevent a task from being killed by OOM-Killer.
+> >>> Some daemons sets this value and their children inerit it sometimes.
+> >>> Because inheritance of oom_score_adj is done automatically, users
+> >>> can be confused at seeing the value and finds it's hard to debug.
+> >>>
+> >>> This patch adds trace point for oom_score_adj. This adds 3 trace
+> >>> points. at
+> >>> 	- update oom_score_adj
+> >>
+> >>
+> >>> 	- fork()
+> >>> 	- rename task->comm(typically, exec())
+> >>
+> >> I don't think they have oom specific thing. Can you please add generic fork and
+> >> task rename tracepoint instead?
+> >>
+> > I think it makes oom-targeted debug difficult.
+> > This tracehook using task->signal->oom_score_adj as filter.
+> > This reduces traces much and makes debugging easier.
+> >  
+> > If you need another trace point for other purpose, another trace point
+> > should be better. For generic purpose, oom_socre_adj filtering will not
+> > be necessary.
+> 
+> see Documentation/trace/event.txt 5. Event filgtering
+> 
+> Now, both ftrace and perf have good filter feature. Isn't this enough?
+> 
 
->> 2. remove sg_sync* ops for now (and we'll see if we need to add them
->> later if needed)
->
-> Just removing the sg_sync_* operations is not enough. We have to make
-> the decision whether we want to allow
-> a) only coherent mappings of the buffer into kernel memory (requiring
-> an extension to the dma_map_ops on ARM to not flush caches at map/unmap
-> time)
-> b) not allowing any in-kernel mappings (same requirement on ARM, also
-> limits the usefulness of the dma_buf if we cannot access it from the
-> kernel or from user space)
-> c) only allowing streaming mappings, even if those are non-coherent
-> (requiring strict serialization between CPU (in-kernel) and dma users of
-> the buffer)
+Could you make patch ? Then, I stop this and go other probelm.
 
-I think only allowing streaming access makes the most sense:
-- I don't see much (if any need) for the kernel to access a dma_buf -
-in all current usecases it just contains pixel data and no hw-specific
-things (like sg tables, command buffers, ..). At most I see the need
-for the kernel to access the buffer for dma bounce buffers, but that
-is internal to the dma subsystem (and hence does not need to be
-exposed).
-- Userspace can still access the contents through the exporting
-subsystem (e.g. use some gem mmap support). For efficiency reason gpu
-drivers are already messing around with cache coherency in a platform
-specific way (and hence violated the dma api a bit), so we could stuff
-the mmap coherency in there, too. When we later on extend dma_buf
-support so that other drivers than the gpu can export dma_bufs, we can
-then extend the official dma api with already a few drivers with
-use-patterns around.
-
-But I still think that the kernel must not be required to enforce
-correct access ordering for the reasons outlined in my other mail.
--Daniel
--- 
-Daniel Vetter
-daniel.vetter@ffwll.ch - +41 (0) 79 364 57 48 - http://blog.ffwll.ch
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
