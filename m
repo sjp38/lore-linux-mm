@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 7559D6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 01:57:20 -0500 (EST)
-Received: by ggni2 with SMTP id i2so1882554ggn.14
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 22:57:19 -0800 (PST)
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Subject: [PATCH 1/1] vmalloc: purge_fragmented_blocks: Acquire spinlock before reading vmap_block
-Date: Thu,  8 Dec 2011 12:32:12 +0530
-Message-Id: <1323327732-30817-1-git-send-email-consul.kautuk@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id D5DA06B004F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 02:07:15 -0500 (EST)
+Received: by ghbg19 with SMTP id g19so1578614ghb.14
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2011 23:07:15 -0800 (PST)
+Date: Wed, 7 Dec 2011 23:07:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/1] vmalloc: purge_fragmented_blocks: Acquire spinlock
+ before reading vmap_block
+In-Reply-To: <1323327732-30817-1-git-send-email-consul.kautuk@gmail.com>
+Message-ID: <alpine.DEB.2.00.1112072304010.28419@chino.kir.corp.google.com>
+References: <1323327732-30817-1-git-send-email-consul.kautuk@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, David Vrabel <david.vrabel@citrix.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Minchan Kim <minchan.kim@gmail.com>, David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The purge_fragmented_blocks will loop over all vmap_blocks in the
-vmap_block_queue to create the purge list.
-Currently, the code in the loop does not acquire the &vb->lock before
-reading the vb->free and vb->dirty.
+On Thu, 8 Dec 2011, Kautuk Consul wrote:
 
-Due to this, there might be a possibility of vb->free and vb->dirty being
-changed in parallel which could lead to the current vmap_block not being
-selected for purging.
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 3231bf3..2228971 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -855,11 +855,14 @@ static void purge_fragmented_blocks(int cpu)
+>  
+>  	rcu_read_lock();
+>  	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
+> +		spin_lock(&vb->lock);
+>  
+> -		if (!(vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS))
+> +		if (!(vb->free + vb->dirty == VMAP_BBMAP_BITS &&
+> +			  vb->dirty != VMAP_BBMAP_BITS)) {
+> +			spin_unlock(&vb->lock);
+>  			continue;
+> +		}
+>  
+> -		spin_lock(&vb->lock);
+>  		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
+>  			vb->free = 0; /* prevent further allocs after releasing lock */
+>  			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
 
-Changing the code to acquire this spinlock before the check for vb->free
-and vb->dirty.
+Nack, this is wrong because the if-clause you're modifying isn't the 
+criteria that is used to determine whether the purge occurs or not.  It's 
+merely an optimization to prevent doing exactly what your patch is doing: 
+taking vb->lock unnecessarily.
 
-Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
----
- mm/vmalloc.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 3231bf3..2228971 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -855,11 +855,14 @@ static void purge_fragmented_blocks(int cpu)
- 
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
-+		spin_lock(&vb->lock);
- 
--		if (!(vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS))
-+		if (!(vb->free + vb->dirty == VMAP_BBMAP_BITS &&
-+			  vb->dirty != VMAP_BBMAP_BITS)) {
-+			spin_unlock(&vb->lock);
- 			continue;
-+		}
- 
--		spin_lock(&vb->lock);
- 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
- 			vb->free = 0; /* prevent further allocs after releasing lock */
- 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
--- 
-1.7.6
+In the original code, if the if-clause fails, the lock is only then taken 
+and the exact same test occurs again while protected.  If the test now 
+fails, the lock is immediately dropped.  A branch here is faster than a 
+contented spinlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
