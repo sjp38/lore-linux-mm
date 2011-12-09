@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 18D5F6B004D
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 17:20:00 -0500 (EST)
-Date: Sat, 10 Dec 2011 09:19:56 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: XFS causing stack overflow
-Message-ID: <20111209221956.GE14273@dastard>
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
- <20111209115513.GA19994@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111209115513.GA19994@infradead.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 5E83F6B004D
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 17:49:01 -0500 (EST)
+Received: by qao25 with SMTP id 25so3025714qao.14
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2011 14:49:00 -0800 (PST)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH v3] mm: simplify find_vma_prev
+Date: Fri,  9 Dec 2011 17:48:40 -0500
+Message-Id: <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1323466526.27746.29.camel@joe2Laptop>
+References: <1323466526.27746.29.camel@joe2Laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Ryan C. England" <ryan.england@corvidtec.com>, linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
 
-On Fri, Dec 09, 2011 at 06:55:13AM -0500, Christoph Hellwig wrote:
-> On Thu, Dec 08, 2011 at 01:03:51PM -0500, Ryan C. England wrote:
-> > I am looking for assistance on XFS which is why I have joined this mailing
-> > list.  I'm receiving a stack overflow on our file server.  The server is
-> > running Scientific Linux 6.1 with the following kernel,
-> > 2.6.32-131.21.1.el6.x86_64.
-> > 
-> > This is causing random reboots which is more annoying than anything.  I
-> > found a couple of links in the archives but wasn't quite sure how to apply
-> > this patch.  I can provide whatever information necessary in order for
-> > assistance in troubleshooting.
-> 
-> It's really mostly an issue with the VM page reclaim and writeback
-> code.  The kernel still has the old balance dirty pages code which calls
-> into writeback code from the stack of the write system call, which
-> already comes from NFSD with massive amounts of stack used.  Then
-> the writeback code calls into XFS to write data out, then you get the
-> full XFS btree code, which then ends up in kmalloc and memory reclaim.
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-You forgot about interrupt stacking - that trace shows the system
-took an interrupt at the point of highest stack usage in the
-writeback call chain.... :/
+commit 297c5eee37 (mm: make the vma list be doubly linked) added
+vm_prev member into vm_area_struct. Therefore we can simplify
+find_vma_prev() by using it. Also, this change help to improve
+page fault performance because it has strong locality of reference.
 
-> You probably have only a third of the stack actually used by XFS, the
-> rest is from NFSD/writeback code and page reclaim.  I don't think any
-> of this is easily fixable in a 2.6.32 codebase.  Current mainline 3.2-rc
-> now has the I/O-less balance dirty pages which will basically split the
-> stack footprint in half, but it's an invasive change to the writeback
-> code that isn't easily backportable.
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/mmap.c |   36 ++++++++----------------------------
+ 1 files changed, 8 insertions(+), 28 deletions(-)
 
-It also doesn't solve the problem, because we can get pretty much
-the same stack from the COMMIT operation starting writeback....
-
-The backport of the patches that separate the allocation onto a
-separte workqueue are not straight forward because all the workqueue
-code is different. I'll go back and update the TOT patch to make
-this separation first before backporting...
-
-Cheers,
-
-Dave.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index eae90af..b9c0241 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1603,39 +1603,19 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+ 
+ EXPORT_SYMBOL(find_vma);
+ 
+-/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
++/*
++ * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
++ * Note: pprev is set to NULL when return value is NULL.
++ */
+ struct vm_area_struct *
+ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+ 			struct vm_area_struct **pprev)
+ {
+-	struct vm_area_struct *vma = NULL, *prev = NULL;
+-	struct rb_node *rb_node;
+-	if (!mm)
+-		goto out;
+-
+-	/* Guard against addr being lower than the first VMA */
+-	vma = mm->mmap;
+-
+-	/* Go through the RB tree quickly. */
+-	rb_node = mm->mm_rb.rb_node;
+-
+-	while (rb_node) {
+-		struct vm_area_struct *vma_tmp;
+-		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+-
+-		if (addr < vma_tmp->vm_end) {
+-			rb_node = rb_node->rb_left;
+-		} else {
+-			prev = vma_tmp;
+-			if (!prev->vm_next || (addr < prev->vm_next->vm_end))
+-				break;
+-			rb_node = rb_node->rb_right;
+-		}
+-	}
++	struct vm_area_struct *vma;
+ 
+-out:
+-	*pprev = prev;
+-	return prev ? prev->vm_next : vma;
++	vma = find_vma(mm, addr);
++	*pprev = vma ? vma->vm_prev : NULL;
++	return vma;
+ }
+ 
+ /*
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
