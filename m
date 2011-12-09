@@ -1,100 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 4AEAD6B004F
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 07:43:40 -0500 (EST)
-Message-ID: <4EE20254.6000308@parallels.com>
-Date: Fri, 9 Dec 2011 10:43:00 -0200
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 344A36B004F
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:41:08 -0500 (EST)
+From: "Shi, Alex" <alex.shi@intel.com>
+Date: Fri, 9 Dec 2011 21:40:39 +0800
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+ <alpine.DEB.2.00.1112020842280.10975@router.home>
+ <1323419402.16790.6105.camel@debian>
+ <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 3/9] socket: initial cgroup code.
-References: <1323120903-2831-1-git-send-email-glommer@parallels.com> <1323120903-2831-4-git-send-email-glommer@parallels.com> <20111209110550.fc740b81.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111209110550.fc740b81.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On 12/09/2011 12:05 AM, KAMEZAWA Hiroyuki wrote:
-> On Mon,  5 Dec 2011 19:34:57 -0200
-> Glauber Costa<glommer@parallels.com>  wrote:
->
->> The goal of this work is to move the memory pressure tcp
->> controls to a cgroup, instead of just relying on global
->> conditions.
->>
->> To avoid excessive overhead in the network fast paths,
->> the code that accounts allocated memory to a cgroup is
->> hidden inside a static_branch(). This branch is patched out
->> until the first non-root cgroup is created. So when nobody
->> is using cgroups, even if it is mounted, no significant performance
->> penalty should be seen.
->>
->> This patch handles the generic part of the code, and has nothing
->> tcp-specific.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: Kirill A. Shutemov<kirill@shutemov.name>
->> CC: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujtsu.com>
->> CC: David S. Miller<davem@davemloft.net>
->> CC: Eric W. Biederman<ebiederm@xmission.com>
->> CC: Eric Dumazet<eric.dumazet@gmail.com>
->
-> I already replied Reviewed-by: but...
-Feel free. Reviews, the more, the merrier.
+> > I did some experiments on add_partial judgment against rc4, like to put
+> > the slub into node partial head or tail according to free objects, or
+> > like Eric's suggest to combine the external parameter, like below:
+> >
+> >         n->nr_partial++;
+> > -       if (tail =3D=3D DEACTIVATE_TO_TAIL)
+> > +       if (tail =3D=3D DEACTIVATE_TO_TAIL ||
+> > +               page->inuse > page->objects /2)
+> >                 list_add_tail(&page->lru, &n->partial);
+> >         else
+> >                 list_add(&page->lru, &n->partial);
+> >
+> > But the result is out of my expectation before.
+>=20
+> I don't think you'll get consistent results for all workloads with
+> something like this, some things may appear better and other things may
+> appear worse.  That's why I've always disagreed with determining whether
+> it should be added to the head or to the tail at the time of deactivation=
+:
+> you know nothing about frees happening to that slab subsequent to the
+> decision you've made.  The only thing that's guaranteed is that you've
+> through cache hot objects out the window and potentially increased the
+> amount of internally fragmented slabs and/or unnecessarily long partial
+> lists.
 
->
->
->> +/* Writing them here to avoid exposing memcg's inner layout */
->> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> +#ifdef CONFIG_INET
->> +#include<net/sock.h>
->> +
->> +static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->> +void sock_update_memcg(struct sock *sk)
->> +{
->> +	/* A socket spends its whole life in the same cgroup */
->> +	if (sk->sk_cgrp) {
->> +		WARN_ON(1);
->> +		return;
->> +	}
->> +	if (static_branch(&memcg_socket_limit_enabled)) {
->> +		struct mem_cgroup *memcg;
->> +
->> +		BUG_ON(!sk->sk_prot->proto_cgroup);
->> +
->> +		rcu_read_lock();
->> +		memcg = mem_cgroup_from_task(current);
->> +		if (!mem_cgroup_is_root(memcg)) {
->> +			mem_cgroup_get(memcg);
->> +			sk->sk_cgrp = sk->sk_prot->proto_cgroup(memcg);
->> +		}
->> +		rcu_read_unlock();
->> +	}
->> +}
->
-> Here, you do mem_cgroup_get() if !mem_cgroup_is_root().
->
->
->> +EXPORT_SYMBOL(sock_update_memcg);
->> +
->> +void sock_release_memcg(struct sock *sk)
->> +{
->> +	if (static_branch(&memcg_socket_limit_enabled)&&  sk->sk_cgrp) {
->> +		struct mem_cgroup *memcg;
->> +		WARN_ON(!sk->sk_cgrp->memcg);
->> +		memcg = sk->sk_cgrp->memcg;
->> +		mem_cgroup_put(memcg);
->> +	}
->> +}
->>
->
-> You don't check !mem_cgroup_is_root(). Hm, root memcg will not be freed
-> by this ?
->
-No, I don't. But I check if sk->sk_cgrp is filled. So it is implied, 
-because we only fill in this value if !mem_cgroup_is_root().
+I said it not my original expectation doesn't mean my data has problem. :)=
+=20
+Of course any testing may have result variation. But it is benchmark accord=
+ingly, and there are lot technical to tuning your testing to make its stand=
+ division acceptable, like to sync your system in a clear status, to close =
+unnecessary services, to use separate working disks for your testing etc. e=
+tc. For this data, like on my SNB-EP machine, (the following data is not st=
+ands for Intel, it is just my personal data).=20
+4 times result of hackbench on this patch are 5.59, 5.475, 5.47833, 5.504
+And more results on original rc4 are from 5.54 to 5.61, the stand division =
+of results show is stable and believable on my side. But since in our handr=
+eds benchmarks, only hackbench and loopback netperf is sensitive with slub =
+change, and since it seems you did some testing on this. I thought you may =
+like to do a double confirm with real data.=20
+
+In fact, I also collected the 'perf stat' for cache missing or reference da=
+ta, but that wave too much not stabled like hackbench itself.
+=20
+> Not sure what you're asking me to test, you would like this:
+>=20
+> 	{
+> 	        n->nr_partial++;
+> 	-       if (tail =3D=3D DEACTIVATE_TO_TAIL)
+> 	-               list_add_tail(&page->lru, &n->partial);
+> 	-       else
+> 	-               list_add(&page->lru, &n->partial);
+> 	+       list_add_tail(&page->lru, &n->partial);
+> 	}
+>=20
+> with the statistics patch above?  I typically run with CONFIG_SLUB_STATS
+> disabled since it impacts performance so heavily and I'm not sure what
+> information you're looking for with regards to those stats.
+
+NO, when you collect data, please close SLUB_STAT in kernel config.  _to_he=
+ad statistics collection patch just tell you, I collected the statistics no=
+t include add_partial in early_kmem_cache_node_alloc(). And other places of=
+ add_partial were covered. Of course, the kernel with statistic can not be =
+used to measure performance.=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
