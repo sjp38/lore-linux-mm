@@ -1,78 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 2C3C46B004D
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 16:35:30 -0500 (EST)
-Message-ID: <1323466526.27746.29.camel@joe2Laptop>
-Subject: Re: [PATCH v2] mm: simplify find_vma_prev
-From: Joe Perches <joe@perches.com>
-Date: Fri, 09 Dec 2011 13:35:26 -0800
-In-Reply-To: <1323465781-2976-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1323465781-2976-1-git-send-email-kosaki.motohiro@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 18D5F6B004D
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 17:20:00 -0500 (EST)
+Date: Sat, 10 Dec 2011 09:19:56 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS causing stack overflow
+Message-ID: <20111209221956.GE14273@dastard>
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
+ <20111209115513.GA19994@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111209115513.GA19994@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Ryan C. England" <ryan.england@corvidtec.com>, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Fri, 2011-12-09 at 16:23 -0500, kosaki.motohiro@gmail.com wrote:
-> commit 297c5eee37 (mm: make the vma list be doubly linked) added
-> vm_prev member into vm_area_struct. Therefore we can simplify
-> find_vma_prev() by using it. Also, this change help to improve
-> page fault performance because it has strong locality of reference.
+On Fri, Dec 09, 2011 at 06:55:13AM -0500, Christoph Hellwig wrote:
+> On Thu, Dec 08, 2011 at 01:03:51PM -0500, Ryan C. England wrote:
+> > I am looking for assistance on XFS which is why I have joined this mailing
+> > list.  I'm receiving a stack overflow on our file server.  The server is
+> > running Scientific Linux 6.1 with the following kernel,
+> > 2.6.32-131.21.1.el6.x86_64.
+> > 
+> > This is causing random reboots which is more annoying than anything.  I
+> > found a couple of links in the archives but wasn't quite sure how to apply
+> > this patch.  I can provide whatever information necessary in order for
+> > assistance in troubleshooting.
+> 
+> It's really mostly an issue with the VM page reclaim and writeback
+> code.  The kernel still has the old balance dirty pages code which calls
+> into writeback code from the stack of the write system call, which
+> already comes from NFSD with massive amounts of stack used.  Then
+> the writeback code calls into XFS to write data out, then you get the
+> full XFS btree code, which then ends up in kmalloc and memory reclaim.
 
-trivia:
+You forgot about interrupt stacking - that trace shows the system
+took an interrupt at the point of highest stack usage in the
+writeback call chain.... :/
 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-[]
-> @@ -1603,39 +1603,21 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
->  
->  EXPORT_SYMBOL(find_vma);
->  
-> -/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
-> +/*
-> + * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
-> + * Note: pprev is set to NULL when return value is NULL.
-> + */
->  struct vm_area_struct *
-> -find_vma_prev(struct mm_struct *mm, unsigned long addr,
-> -			struct vm_area_struct **pprev)
+> You probably have only a third of the stack actually used by XFS, the
+> rest is from NFSD/writeback code and page reclaim.  I don't think any
+> of this is easily fixable in a 2.6.32 codebase.  Current mainline 3.2-rc
+> now has the I/O-less balance dirty pages which will basically split the
+> stack footprint in half, but it's an invasive change to the writeback
+> code that isn't easily backportable.
 
-> +find_vma_prev(struct mm_struct *mm, unsigned long addr, struct vm_area_struct **pprev)
+It also doesn't solve the problem, because we can get pretty much
+the same stack from the COMMIT operation starting writeback....
 
-eh.  This declaration change seems gratuitous and it exceeds 80 columns.
+The backport of the patches that separate the allocation onto a
+separte workqueue are not straight forward because all the workqueue
+code is different. I'll go back and update the TOT patch to make
+this separation first before backporting...
 
-> +	*pprev = NULL;
-> +	vma = find_vma(mm, addr);
-> +	if (vma)
-> +		*pprev = vma->vm_prev;
+Cheers,
 
-There's no need to possibly set *pprev twice.
-
-Maybe
-{
-	struct vm_area_struct *vma = find_vma(mm, addr);
-
-	*pprev = vma ? vma->vm_prev : NULL;
-or
-	if (vma)
-		*pprev = vma->vm_prev;
-	else
-		*pprev = NULL;
-
-	return vma;
-}
- 
-> -out:
-> -	*pprev = prev;
-> -	return prev ? prev->vm_next : vma;
-> +	return vma;
->  }
->  
->  /*
-
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
