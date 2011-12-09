@@ -1,41 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 200556B005A
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 15:44:53 -0500 (EST)
-Received: by qao25 with SMTP id 25so2960031qao.14
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2011 12:44:52 -0800 (PST)
-Message-ID: <4EE27345.90003@gmail.com>
-Date: Fri, 09 Dec 2011 15:44:53 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: simplify find_vma_prev
-References: <1323461345-12805-1-git-send-email-kosaki.motohiro@gmail.com> <20111209122406.11f9e31a.akpm@linux-foundation.org>
-In-Reply-To: <20111209122406.11f9e31a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 7A6F86B004D
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 16:23:34 -0500 (EST)
+Received: by qan41 with SMTP id 41so2153919qan.14
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2011 13:23:33 -0800 (PST)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH v2] mm: simplify find_vma_prev
+Date: Fri,  9 Dec 2011 16:23:00 -0500
+Message-Id: <1323465781-2976-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
 
-> This changes the (undocumented, naturally) interface in disturbing ways.
->
-> Currently, *pprev will always be written to.  With this change, *pprev
-> will only be written to if find_vma_prev() returns non-NULL.
->
-> Looking through the code, this is mostly benign.  But it will cause the
-> CONFIG_STACK_GROWSUP version of find_extend_vma() to use an
-> uninitialised stack slot in ways which surely will crash the kernel.
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Weird.
+commit 297c5eee37 (mm: make the vma list be doubly linked) added
+vm_prev member into vm_area_struct. Therefore we can simplify
+find_vma_prev() by using it. Also, this change help to improve
+page fault performance because it has strong locality of reference.
 
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/mmap.c |   40 +++++++++++-----------------------------
+ 1 files changed, 11 insertions(+), 29 deletions(-)
 
-> So please have a think about that and fix it up.  And please add
-> documentation for find_vma_prev()'s interface so we don't break it next
-> time.
-
-Sure thing. Thank you for good spotting!
-
+diff --git a/mm/mmap.c b/mm/mmap.c
+index eae90af..a84539b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1603,39 +1603,21 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+ 
+ EXPORT_SYMBOL(find_vma);
+ 
+-/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
++/*
++ * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
++ * Note: pprev is set to NULL when return value is NULL.
++ */
+ struct vm_area_struct *
+-find_vma_prev(struct mm_struct *mm, unsigned long addr,
+-			struct vm_area_struct **pprev)
++find_vma_prev(struct mm_struct *mm, unsigned long addr, struct vm_area_struct **pprev)
+ {
+-	struct vm_area_struct *vma = NULL, *prev = NULL;
+-	struct rb_node *rb_node;
+-	if (!mm)
+-		goto out;
+-
+-	/* Guard against addr being lower than the first VMA */
+-	vma = mm->mmap;
+-
+-	/* Go through the RB tree quickly. */
+-	rb_node = mm->mm_rb.rb_node;
+-
+-	while (rb_node) {
+-		struct vm_area_struct *vma_tmp;
+-		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
++	struct vm_area_struct *vma;
+ 
+-		if (addr < vma_tmp->vm_end) {
+-			rb_node = rb_node->rb_left;
+-		} else {
+-			prev = vma_tmp;
+-			if (!prev->vm_next || (addr < prev->vm_next->vm_end))
+-				break;
+-			rb_node = rb_node->rb_right;
+-		}
+-	}
++	*pprev = NULL;
++	vma = find_vma(mm, addr);
++	if (vma)
++		*pprev = vma->vm_prev;
+ 
+-out:
+-	*pprev = prev;
+-	return prev ? prev->vm_next : vma;
++	return vma;
+ }
+ 
+ /*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
