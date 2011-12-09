@@ -1,54 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 62D866B0062
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 20:58:58 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A99223EE0C5
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:58:56 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8152945DEB6
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:58:56 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6803445DEA6
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:58:56 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BBFE1DB8042
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:58:56 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F6C61DB803F
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:58:56 +0900 (JST)
-Date: Fri, 9 Dec 2011 10:57:42 +0900
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 9261E6B0068
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 21:07:11 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CF3523EE0C0
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B3B4945DF5A
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 91A9445DF56
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 84E291DB8041
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FE401DB803A
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
+Date: Fri, 9 Dec 2011 11:05:50 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v8 9/9] Display maximum tcp memory allocation in kmem
- cgroup
-Message-Id: <20111209105742.205a6fd3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1323120903-2831-10-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v8 3/9] socket: initial cgroup code.
+Message-Id: <20111209110550.fc740b81.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1323120903-2831-4-git-send-email-glommer@parallels.com>
 References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
-	<1323120903-2831-10-git-send-email-glommer@parallels.com>
+	<1323120903-2831-4-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz
+Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
 
-On Mon,  5 Dec 2011 19:35:03 -0200
+On Mon,  5 Dec 2011 19:34:57 -0200
 Glauber Costa <glommer@parallels.com> wrote:
 
-> This patch introduces kmem.tcp.max_usage_in_bytes file, living in the
-> kmem_cgroup filesystem. The root cgroup will display a value equal
-> to RESOURCE_MAX. This is to avoid introducing any locking schemes in
-> the network paths when cgroups are not being actively used.
+> The goal of this work is to move the memory pressure tcp
+> controls to a cgroup, instead of just relying on global
+> conditions.
 > 
-> All others, will see the maximum memory ever used by this cgroup.
+> To avoid excessive overhead in the network fast paths,
+> the code that accounts allocated memory to a cgroup is
+> hidden inside a static_branch(). This branch is patched out
+> until the first non-root cgroup is created. So when nobody
+> is using cgroups, even if it is mounted, no significant performance
+> penalty should be seen.
+> 
+> This patch handles the generic part of the code, and has nothing
+> tcp-specific.
 > 
 > Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reviewed-by: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Kirill A. Shutemov <kirill@shutemov.name>
+> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
 > CC: David S. Miller <davem@davemloft.net>
 > CC: Eric W. Biederman <ebiederm@xmission.com>
+> CC: Eric Dumazet <eric.dumazet@gmail.com>
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I already replied Reviewed-by: but...
+
+
+> +/* Writing them here to avoid exposing memcg's inner layout */
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +#ifdef CONFIG_INET
+> +#include <net/sock.h>
+> +
+> +static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+> +void sock_update_memcg(struct sock *sk)
+> +{
+> +	/* A socket spends its whole life in the same cgroup */
+> +	if (sk->sk_cgrp) {
+> +		WARN_ON(1);
+> +		return;
+> +	}
+> +	if (static_branch(&memcg_socket_limit_enabled)) {
+> +		struct mem_cgroup *memcg;
+> +
+> +		BUG_ON(!sk->sk_prot->proto_cgroup);
+> +
+> +		rcu_read_lock();
+> +		memcg = mem_cgroup_from_task(current);
+> +		if (!mem_cgroup_is_root(memcg)) {
+> +			mem_cgroup_get(memcg);
+> +			sk->sk_cgrp = sk->sk_prot->proto_cgroup(memcg);
+> +		}
+> +		rcu_read_unlock();
+> +	}
+> +}
+
+Here, you do mem_cgroup_get() if !mem_cgroup_is_root().
+
+
+> +EXPORT_SYMBOL(sock_update_memcg);
+> +
+> +void sock_release_memcg(struct sock *sk)
+> +{
+> +	if (static_branch(&memcg_socket_limit_enabled) && sk->sk_cgrp) {
+> +		struct mem_cgroup *memcg;
+> +		WARN_ON(!sk->sk_cgrp->memcg);
+> +		memcg = sk->sk_cgrp->memcg;
+> +		mem_cgroup_put(memcg);
+> +	}
+> +}
+>
+
+You don't check !mem_cgroup_is_root(). Hm, root memcg will not be freed
+by this ?
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
