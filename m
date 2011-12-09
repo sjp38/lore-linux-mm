@@ -1,113 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 9261E6B0068
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 21:07:11 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CF3523EE0C0
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B3B4945DF5A
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 91A9445DF56
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 84E291DB8041
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FE401DB803A
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 11:07:09 +0900 (JST)
-Date: Fri, 9 Dec 2011 11:05:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v8 3/9] socket: initial cgroup code.
-Message-Id: <20111209110550.fc740b81.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1323120903-2831-4-git-send-email-glommer@parallels.com>
-References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
-	<1323120903-2831-4-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 4E2C76B004F
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 03:32:32 -0500 (EST)
+Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1112020842280.10975@router.home>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	 <alpine.DEB.2.00.1112020842280.10975@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 09 Dec 2011 16:30:02 +0800
+Message-ID: <1323419402.16790.6105.camel@debian>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
+To: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
+Cc: "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Mon,  5 Dec 2011 19:34:57 -0200
-Glauber Costa <glommer@parallels.com> wrote:
-
-> The goal of this work is to move the memory pressure tcp
-> controls to a cgroup, instead of just relying on global
-> conditions.
+On Fri, 2011-12-02 at 22:43 +0800, Christoph Lameter wrote:
+> On Fri, 2 Dec 2011, Alex Shi wrote:
 > 
-> To avoid excessive overhead in the network fast paths,
-> the code that accounts allocated memory to a cgroup is
-> hidden inside a static_branch(). This branch is patched out
-> until the first non-root cgroup is created. So when nobody
-> is using cgroups, even if it is mounted, no significant performance
-> penalty should be seen.
+> > From: Alex Shi <alexs@intel.com>
+> >
+> > Times performance regression were due to slub add to node partial head
+> > or tail. That inspired me to do tunning on the node partial adding, to
+> > set a criteria for head or tail position selection when do partial
+> > adding.
+> > My experiment show, when used objects is less than 1/4 total objects
+> > of slub performance will get about 1.5% improvement on netperf loopback
+> > testing with 2048 clients, wherever on our 4 or 2 sockets platforms,
+> > includes sandbridge or core2.
 > 
-> This patch handles the generic part of the code, and has nothing
-> tcp-specific.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Kirill A. Shutemov <kirill@shutemov.name>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtsu.com>
-> CC: David S. Miller <davem@davemloft.net>
-> CC: Eric W. Biederman <ebiederm@xmission.com>
-> CC: Eric Dumazet <eric.dumazet@gmail.com>
-
-I already replied Reviewed-by: but...
+> The number of free objects in a slab may have nothing to do with cache
+> hotness of all objects in the slab. You can only be sure that one object
+> (the one that was freed) is cache hot. Netperf may use them in sequence
+> and therefore you are likely to get series of frees on the same slab
+> page. How are other benchmarks affected by this change?
 
 
-> +/* Writing them here to avoid exposing memcg's inner layout */
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +#ifdef CONFIG_INET
-> +#include <net/sock.h>
-> +
-> +static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
-> +void sock_update_memcg(struct sock *sk)
-> +{
-> +	/* A socket spends its whole life in the same cgroup */
-> +	if (sk->sk_cgrp) {
-> +		WARN_ON(1);
-> +		return;
-> +	}
-> +	if (static_branch(&memcg_socket_limit_enabled)) {
-> +		struct mem_cgroup *memcg;
-> +
-> +		BUG_ON(!sk->sk_prot->proto_cgroup);
-> +
-> +		rcu_read_lock();
-> +		memcg = mem_cgroup_from_task(current);
-> +		if (!mem_cgroup_is_root(memcg)) {
-> +			mem_cgroup_get(memcg);
-> +			sk->sk_cgrp = sk->sk_prot->proto_cgroup(memcg);
-> +		}
-> +		rcu_read_unlock();
-> +	}
-> +}
+I did some experiments on add_partial judgment against rc4, like to put
+the slub into node partial head or tail according to free objects, or
+like Eric's suggest to combine the external parameter, like below: 
 
-Here, you do mem_cgroup_get() if !mem_cgroup_is_root().
+        n->nr_partial++;
+-       if (tail == DEACTIVATE_TO_TAIL)
++       if (tail == DEACTIVATE_TO_TAIL || 
++               page->inuse > page->objects /2)
+                list_add_tail(&page->lru, &n->partial);
+        else
+                list_add(&page->lru, &n->partial);
 
+But the result is out of my expectation before. Now we set all of slub
+into the tail of node partial, we get the best performance, even it is
+just a slight improvement. 
 
-> +EXPORT_SYMBOL(sock_update_memcg);
-> +
-> +void sock_release_memcg(struct sock *sk)
-> +{
-> +	if (static_branch(&memcg_socket_limit_enabled) && sk->sk_cgrp) {
-> +		struct mem_cgroup *memcg;
-> +		WARN_ON(!sk->sk_cgrp->memcg);
-> +		memcg = sk->sk_cgrp->memcg;
-> +		mem_cgroup_put(memcg);
-> +	}
-> +}
->
+{
+        n->nr_partial++;
+-       if (tail == DEACTIVATE_TO_TAIL)
+-               list_add_tail(&page->lru, &n->partial);
+-       else
+-               list_add(&page->lru, &n->partial);
++       list_add_tail(&page->lru, &n->partial);
+ }
+ 
+This change can bring about 2% improvement on our WSM-ep machine, and 1%
+improvement on our SNB-ep and NHM-ex machine. and no clear effect for
+core2 machine. on hackbench process benchmark.
 
-You don't check !mem_cgroup_is_root(). Hm, root memcg will not be freed
-by this ?
+ 	./hackbench 100 process 2000 
+ 
+For multiple clients loopback netperf, only a suspicious 1% improvement
+on our 2 sockets machine. and others have no clear effect. 
 
-Thanks,
--Kame
+But, when I check the deactivate_to_head/to_tail statistics on original
+code, the to_head is just hundreds or thousands times, while to_tail is
+called about teens millions times. 
+
+David, could you like to try above change? move all slub to partial
+tail. 
+
+add_partial statistics collection patch: 
+---
+commit 1ff731282acb521f3a7c2e3fb94d35ec4d0ff07e
+Author: Alex Shi <alex.shi@intel.com>
+Date:   Fri Dec 9 18:12:14 2011 +0800
+
+    slub: statistics collection for add_partial
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 5843846..a2b1143 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1904,10 +1904,11 @@ static void unfreeze_partials(struct kmem_cache *s)
+ 			if (l != m) {
+ 				if (l == M_PARTIAL)
+ 					remove_partial(n, page);
+-				else
++				else {
+ 					add_partial(n, page,
+ 						DEACTIVATE_TO_TAIL);
+-
++					stat(s, DEACTIVATE_TO_TAIL);
++				}
+ 				l = m;
+ 			}
+ 
+@@ -2480,6 +2481,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 			remove_full(s, page);
+ 			add_partial(n, page, DEACTIVATE_TO_TAIL);
+ 			stat(s, FREE_ADD_PARTIAL);
++			stat(s, DEACTIVATE_TO_TAIL);
+ 		}
+ 	}
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
+
 
 
 --
