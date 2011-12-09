@@ -1,38 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 1513F6B004D
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 14:53:39 -0500 (EST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: XFS causing stack overflow
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
-	<20111209115513.GA19994__23079.9863501035$1323435203$gmane$org@infradead.org>
-Date: Fri, 09 Dec 2011 11:53:36 -0800
-In-Reply-To: <20111209115513.GA19994__23079.9863501035$1323435203$gmane$org@infradead.org>
-	(Christoph Hellwig's message of "Fri, 9 Dec 2011 06:55:13 -0500")
-Message-ID: <m2aa71plmn.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 65BDE6B004D
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 15:09:37 -0500 (EST)
+Received: by qan41 with SMTP id 41so2104961qan.14
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2011 12:09:36 -0800 (PST)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] mm: simplify find_vma_prev
+Date: Fri,  9 Dec 2011 15:09:04 -0500
+Message-Id: <1323461345-12805-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Ryan C. England" <ryan.england@corvidtec.com>, linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
 
-Christoph Hellwig <hch@infradead.org> writes:
->
-> You probably have only a third of the stack actually used by XFS, the
-> rest is from NFSD/writeback code and page reclaim.  I don't think any
-> of this is easily fixable in a 2.6.32 codebase.  Current mainline 3.2-rc
-> now has the I/O-less balance dirty pages which will basically split the
-> stack footprint in half, but it's an invasive change to the writeback
-> code that isn't easily backportable.
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-An easy fix would be 16k stacks. Don't think they're that difficult
-to do, but would need a special binary.
+commit 297c5eee37 (mm: make the vma list be doubly linked) added
+vm_prev member into vm_area_struct. Therefore we can simplify
+find_vma_prev() by using it. Also, this change help to imporove
+page fault performance becuase it has strong locality of reference.
 
--Andi
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/mmap.c |   34 ++++++----------------------------
+ 1 files changed, 6 insertions(+), 28 deletions(-)
 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index eae90af..955750c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1605,37 +1605,15 @@ EXPORT_SYMBOL(find_vma);
+ 
+ /* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
+ struct vm_area_struct *
+-find_vma_prev(struct mm_struct *mm, unsigned long addr,
+-			struct vm_area_struct **pprev)
++find_vma_prev(struct mm_struct *mm, unsigned long addr, struct vm_area_struct **pprev)
+ {
+-	struct vm_area_struct *vma = NULL, *prev = NULL;
+-	struct rb_node *rb_node;
+-	if (!mm)
+-		goto out;
+-
+-	/* Guard against addr being lower than the first VMA */
+-	vma = mm->mmap;
+-
+-	/* Go through the RB tree quickly. */
+-	rb_node = mm->mm_rb.rb_node;
+-
+-	while (rb_node) {
+-		struct vm_area_struct *vma_tmp;
+-		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
++	struct vm_area_struct *vma;
+ 
+-		if (addr < vma_tmp->vm_end) {
+-			rb_node = rb_node->rb_left;
+-		} else {
+-			prev = vma_tmp;
+-			if (!prev->vm_next || (addr < prev->vm_next->vm_end))
+-				break;
+-			rb_node = rb_node->rb_right;
+-		}
+-	}
++	vma = find_vma(mm, addr);
++	if (vma)
++		*pprev = vma->vm_prev;
+ 
+-out:
+-	*pprev = prev;
+-	return prev ? prev->vm_next : vma;
++	return vma;
+ }
+ 
+ /*
 -- 
-ak@linux.intel.com -- Speaking for myself only
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
