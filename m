@@ -1,88 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 344A36B004F
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 08:41:08 -0500 (EST)
-From: "Shi, Alex" <alex.shi@intel.com>
-Date: Fri, 9 Dec 2011 21:40:39 +0800
-Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
-Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
- <alpine.DEB.2.00.1112020842280.10975@router.home>
- <1323419402.16790.6105.camel@debian>
- <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 48AAA6B004F
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:13:19 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Date: Fri, 9 Dec 2011 14:13:03 +0000
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <201112071340.35267.arnd@arndb.de> <CAKMK7uFQiiUbkU-7c3Os0d0FJNyLbqS2HLPRLy3LGnOoCXV5Pw@mail.gmail.com>
+In-Reply-To: <CAKMK7uFQiiUbkU-7c3Os0d0FJNyLbqS2HLPRLy3LGnOoCXV5Pw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201112091413.03736.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: "Semwal, Sumit" <sumit.semwal@ti.com>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-> > I did some experiments on add_partial judgment against rc4, like to put
-> > the slub into node partial head or tail according to free objects, or
-> > like Eric's suggest to combine the external parameter, like below:
-> >
-> >         n->nr_partial++;
-> > -       if (tail =3D=3D DEACTIVATE_TO_TAIL)
-> > +       if (tail =3D=3D DEACTIVATE_TO_TAIL ||
-> > +               page->inuse > page->objects /2)
-> >                 list_add_tail(&page->lru, &n->partial);
-> >         else
-> >                 list_add(&page->lru, &n->partial);
-> >
-> > But the result is out of my expectation before.
->=20
-> I don't think you'll get consistent results for all workloads with
-> something like this, some things may appear better and other things may
-> appear worse.  That's why I've always disagreed with determining whether
-> it should be added to the head or to the tail at the time of deactivation=
-:
-> you know nothing about frees happening to that slab subsequent to the
-> decision you've made.  The only thing that's guaranteed is that you've
-> through cache hot objects out the window and potentially increased the
-> amount of internally fragmented slabs and/or unnecessarily long partial
-> lists.
+On Thursday 08 December 2011, Daniel Vetter wrote:
+> > c) only allowing streaming mappings, even if those are non-coherent
+> > (requiring strict serialization between CPU (in-kernel) and dma users of
+> > the buffer)
+> 
+> I think only allowing streaming access makes the most sense:
+> - I don't see much (if any need) for the kernel to access a dma_buf -
+> in all current usecases it just contains pixel data and no hw-specific
+> things (like sg tables, command buffers, ..). At most I see the need
+> for the kernel to access the buffer for dma bounce buffers, but that
+> is internal to the dma subsystem (and hence does not need to be
+> exposed).
+> - Userspace can still access the contents through the exporting
+> subsystem (e.g. use some gem mmap support). For efficiency reason gpu
+> drivers are already messing around with cache coherency in a platform
+> specific way (and hence violated the dma api a bit), so we could stuff
+> the mmap coherency in there, too. When we later on extend dma_buf
+> support so that other drivers than the gpu can export dma_bufs, we can
+> then extend the official dma api with already a few drivers with
+> use-patterns around.
+> 
+> But I still think that the kernel must not be required to enforce
+> correct access ordering for the reasons outlined in my other mail.
 
-I said it not my original expectation doesn't mean my data has problem. :)=
-=20
-Of course any testing may have result variation. But it is benchmark accord=
-ingly, and there are lot technical to tuning your testing to make its stand=
- division acceptable, like to sync your system in a clear status, to close =
-unnecessary services, to use separate working disks for your testing etc. e=
-tc. For this data, like on my SNB-EP machine, (the following data is not st=
-ands for Intel, it is just my personal data).=20
-4 times result of hackbench on this patch are 5.59, 5.475, 5.47833, 5.504
-And more results on original rc4 are from 5.54 to 5.61, the stand division =
-of results show is stable and believable on my side. But since in our handr=
-eds benchmarks, only hackbench and loopback netperf is sensitive with slub =
-change, and since it seems you did some testing on this. I thought you may =
-like to do a double confirm with real data.=20
+I still don't think that's possible. Please explain how you expect
+to change the semantics of the streaming mapping API to allow multiple
+mappers without having explicit serialization points that are visible
+to all users. For simplicity, let's assume a cache coherent system
+with bounce buffers where map() copies the buffer to a dma area
+and unmap() copies it back to regular kernel memory. How does a driver
+know if it can touch the buffer in memory or from DMA at any given
+point in time? Note that this problem is the same as the cache coherency
+problem but may be easier to grasp.
 
-In fact, I also collected the 'perf stat' for cache missing or reference da=
-ta, but that wave too much not stabled like hackbench itself.
-=20
-> Not sure what you're asking me to test, you would like this:
->=20
-> 	{
-> 	        n->nr_partial++;
-> 	-       if (tail =3D=3D DEACTIVATE_TO_TAIL)
-> 	-               list_add_tail(&page->lru, &n->partial);
-> 	-       else
-> 	-               list_add(&page->lru, &n->partial);
-> 	+       list_add_tail(&page->lru, &n->partial);
-> 	}
->=20
-> with the statistics patch above?  I typically run with CONFIG_SLUB_STATS
-> disabled since it impacts performance so heavily and I'm not sure what
-> information you're looking for with regards to those stats.
-
-NO, when you collect data, please close SLUB_STAT in kernel config.  _to_he=
-ad statistics collection patch just tell you, I collected the statistics no=
-t include add_partial in early_kmem_cache_node_alloc(). And other places of=
- add_partial were covered. Of course, the kernel with statistic can not be =
-used to measure performance.=20
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
