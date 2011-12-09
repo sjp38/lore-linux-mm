@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 759386B004F
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 19:34:33 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0C8BD3EE0C2
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:34:32 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E0DCD45DE3E
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:34:31 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C889F45DE86
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:34:31 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BB4311DB804F
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:34:31 +0900 (JST)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 5CB0E6B005C
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2011 20:05:49 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AE7E13EE0C0
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:05:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 982AF45DEB5
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:05:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DF4445DEAD
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:05:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F8EE1DB8044
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:05:47 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6882B1DB8052
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 09:34:31 +0900 (JST)
-Date: Fri, 9 Dec 2011 09:33:23 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 236BE1DB803C
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2011 10:05:47 +0900 (JST)
+Date: Fri, 9 Dec 2011 10:04:20 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] oom: add tracepoints for oom_score_adj
-Message-Id: <20111209093323.977284db.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111209084103.e3fea1f7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20111207095434.5f2fed4b.kamezawa.hiroyu@jp.fujitsu.com>
-	<4EDF99B2.6040007@jp.fujitsu.com>
-	<20111208104705.b2e50039.kamezawa.hiroyu@jp.fujitsu.com>
-	<4EE0F4EF.4010301@jp.fujitsu.com>
-	<20111209084103.e3fea1f7.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v8 0/9] per-cgroup tcp memory pressure controls
+Message-Id: <20111209100420.feaef96a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4EDF48A9.6090306@parallels.com>
+References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
+	<4EDF48A9.6090306@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, dchinner@redhat.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz
 
-On Fri, 9 Dec 2011 08:41:03 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, 7 Dec 2011 09:06:17 -0200
+Glauber Costa <glommer@parallels.com> wrote:
 
-> On Thu, 08 Dec 2011 12:33:35 -0500
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
- see Documentation/trace/event.txt 5. Event filgtering
-> > 
-> > Now, both ftrace and perf have good filter feature. Isn't this enough?
-> > 
+> On 12/05/2011 07:34 PM, Glauber Costa wrote:
+> > Hi,
+> >
+> > This is my new attempt to fix all the concerns that were raised during
+> > the last iteration.
+> >
+> > I should highlight:
+> > 1) proc information is kept intact. (although I kept the wrapper functions)
+> >     it will be submitted as a follow up patch so it can get the attention it
+> >     deserves
+> > 2) sockets now hold a reference to memcg. sockets can be alive even after the
+> >     task is gone, so we don't bother with between cgroups movements.
+> >     To be able to release resources more easily in this cenario, the parent
+> >     pointer in struct cg_proto was replaced by a memcg object. We then iterate
+> >     through its pointer (which is cleaner anyway)
+> >
+> > The rest should be mostly the same except for small fixes and style changes.
+> >
 > 
-> Could you make patch ? Then, I stop this and go other probelm.
+> Kame,
 > 
+> Does this one address your previous concerns?
+> 
+Your highlight seems good. I'll look into details.
 
-Hmm, core of patch should be like this. But need some works on
+Thanks,
+-Kame
 
- - How to debug oom in Documenation especially for trace-cmd users.
- - Other trace points sutable for 'task' tracing. maybe 'exit, stop, freeze' ?
- - at creating new task, what other members should be printed out ?
- - At renaming...don't we need reason for renaming ?
-
-Hm. BTW, do you know how to write filtering in
-/etc/sysconfig/trace-cmd.config ?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
