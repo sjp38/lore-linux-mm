@@ -1,39 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 81A966B0069
-	for <linux-mm@kvack.org>; Sat, 10 Dec 2011 11:29:10 -0500 (EST)
-Received: by qan41 with SMTP id 41so2505596qan.14
-        for <linux-mm@kvack.org>; Sat, 10 Dec 2011 08:29:09 -0800 (PST)
-Message-ID: <4EE388D0.2090608@gmail.com>
-Date: Sat, 10 Dec 2011 11:29:04 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id ECED16B004D
+	for <linux-mm@kvack.org>; Sat, 10 Dec 2011 14:52:55 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: XFS causing stack overflow
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
+	<20111209115513.GA19994@infradead.org>
+	<20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
+Date: Sat, 10 Dec 2011 11:52:51 -0800
+In-Reply-To: <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
+	(Dave Chinner's message of "Sat, 10 Dec 2011 09:19:56 +1100")
+Message-ID: <m262hop5kc.fsf@firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan/trace: Add 'active' and 'file' info to trace_mm_vmscan_lru_isolate.
-References: <1323533451-2953-1-git-send-email-tm@tao.ma>
-In-Reply-To: <1323533451-2953-1-git-send-email-tm@tao.ma>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tao Ma <tm@tao.ma>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
 
-(12/10/11 11:10 AM), Tao Ma wrote:
-> From: Tao Ma<boyu.mt@taobao.com>
-> 
-> In trace_mm_vmscan_lru_isolate, we don't output 'active' and 'file'
-> information to the trace event and it is a bit inconvenient for the
-> user to get the real information(like pasted below).
-> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
-> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
-> 
-> So this patch adds these 2 info to the trace event and it now looks like:
-> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
-> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0 lru=1,0
+Dave Chinner <david@fromorbit.com> writes:
+>
+> You forgot about interrupt stacking - that trace shows the system
+> took an interrupt at the point of highest stack usage in the
+> writeback call chain.... :/
 
-addition is ok to me. but lru=1,0 is not human readable. I suspect
-people will easily forget which value is active.
+The interrupts are always running on other stacks these days
+(even 32bit got switched over).
 
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
