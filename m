@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 858246B0075
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 18:05:15 -0500 (EST)
-Date: Mon, 12 Dec 2011 10:05:11 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: XFS causing stack overflow
-Message-ID: <20111211230511.GH14273@dastard>
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
- <20111209115513.GA19994@infradead.org>
- <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
- <m262hop5kc.fsf@firstfloor.org>
- <20111210221345.GG14273@dastard>
- <20111211000036.GH24062@one.firstfloor.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 6F6966B0085
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 18:39:48 -0500 (EST)
+Received: by iahk25 with SMTP id k25so10257293iah.14
+        for <linux-mm@kvack.org>; Sun, 11 Dec 2011 15:39:47 -0800 (PST)
+Date: Sun, 11 Dec 2011 15:39:43 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: memcg: keep root group unchanged if fail to create
+ new
+In-Reply-To: <CAJd=RBB_AoJmyPd7gfHn+Kk39cn-+Wn-pFvU0ZWRZhw2fxoihw@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1112111520510.2297@eggly>
+References: <CAJd=RBB_AoJmyPd7gfHn+Kk39cn-+Wn-pFvU0ZWRZhw2fxoihw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111211000036.GH24062@one.firstfloor.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Dec 11, 2011 at 01:00:36AM +0100, Andi Kleen wrote:
-> > Where does the x86-64 do the interrupt stack switch?
+On Sun, 11 Dec 2011, Hillf Danton wrote:
+
+> If the request is not to create root group and we fail to meet it,
+> we'd leave the root unchanged.
+
+I didn't understand that at first: please say "we should" rather
+than "we'd", which I take to be an abbreviation for "we would".
+
 > 
-> in entry_64.S
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+
+Yes indeed, well caught:
+Acked-by: Hugh Dickins <hughd@google.com>
+
+I wonder what was going through the author's mind when he wrote it
+that way?  I wonder if it's one of those bugs that creeps in when
+you start from a perfectly functional patch, then make refinements
+to suit feedback from reviewers.
+
+On which topic: wouldn't this patch be better just to move the
+"root_mem_cgroup = memcg;" two lines lower down (and of course
+remove free_out's "root_mem_cgroup = NULL;" as you already did)?
+I can't see mem_cgroup_soft_limit_tree_init() relying on
+root_mem_cgroup at all.
+
+Should your patch go to stable, even to 2.6.32-longterm?
+Matter of taste, really: while it's not quite impossible for
+alloc_mem_cgroup_per_zone_info() to fail, it is very unlikely.
+
+> ---
 > 
-> > 
-> > I know the x86 32 bit interrupt handler switches to an irq/softirq
-> > context stack, but the 64 bit one doesn't appear to. Indeed,
-> > arch/x86/kernel/irq_{32,64}.c are very different, and only the 32
-> > bit irq handler switches to another stack to process the
-> > interrupts...
+> --- a/mm/memcontrol.c	Fri Dec  9 21:57:40 2011
+> +++ b/mm/memcontrol.c	Sun Dec 11 09:04:48 2011
+> @@ -4849,8 +4849,10 @@ mem_cgroup_create(struct cgroup_subsys *
+>  		enable_swap_cgroup();
+>  		parent = NULL;
+>  		root_mem_cgroup = memcg;
+> -		if (mem_cgroup_soft_limit_tree_init())
+> +		if (mem_cgroup_soft_limit_tree_init()) {
+> +			root_mem_cgroup = NULL;
+>  			goto free_out;
+> +		}
+>  		for_each_possible_cpu(cpu) {
+>  			struct memcg_stock_pcp *stock =
+>  						&per_cpu(memcg_stock, cpu);
+> @@ -4888,7 +4890,6 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	return &memcg->css;
+>  free_out:
+>  	__mem_cgroup_free(memcg);
+> -	root_mem_cgroup = NULL;
+>  	return ERR_PTR(error);
+>  }
 > 
-> x86-64 always used interrupt stacks and has used softirq stacks
-> for a long time. 32bit got to it much later (the only good 
-> thing left from that 4k stack "experiment")
-
-Oh, it's hidden in the "SAVE_ARGS_IRQ" macro. 
-
-But that happens before do_IRQ is called, so what is the do_IRQ call
-chain doing on this stack given that we've already supposed to have
-switched to the interrupt stack before do_IRQ is called?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
