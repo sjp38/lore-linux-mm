@@ -1,62 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 1469D6B00A9
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 21:30:58 -0500 (EST)
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323076965.16790.670.camel@debian>
-	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
-	 <1323234673.22361.372.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 12 Dec 2011 10:43:13 +0800
-Message-ID: <1323657793.22361.383.camel@sli10-conroe>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id D16A16B00AA
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 21:31:32 -0500 (EST)
+Date: Mon, 12 Dec 2011 03:31:30 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: XFS causing stack overflow
+Message-ID: <20111212023130.GI24062@one.firstfloor.org>
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com> <20111209115513.GA19994@infradead.org> <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard> <m262hop5kc.fsf@firstfloor.org> <20111210221345.GG14273@dastard> <20111211000036.GH24062@one.firstfloor.org> <20111211230511.GH14273@dastard>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111211230511.GH14273@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
 
-On Wed, 2011-12-07 at 15:28 +0800, David Rientjes wrote:
-> On Wed, 7 Dec 2011, Shaohua Li wrote:
-> 
-> > interesting. I did similar experiment before (try to sort the page
-> > according to free number), but it appears quite hard. The free number of
-> > a page is dynamic, eg more slabs can be freed when the page is in
-> > partial list. And in netperf test, the partial list could be very very
-> > long. Can you post your patch, I definitely what to look at it.
-> 
-> It was over a couple of years ago and the slub code has changed 
-> significantly since then, but you can see the general concept of the "slab 
-> thrashing" problem with netperf and my solution back then:
-> 
-> 	http://marc.info/?l=linux-kernel&m=123839191416478
-> 	http://marc.info/?l=linux-kernel&m=123839203016592
-> 	http://marc.info/?l=linux-kernel&m=123839202916583
-> 
-> I also had a separate patchset that, instead of this approach, would just 
-> iterate through the partial list in get_partial_node() looking for 
-> anything where the number of free objects met a certain threshold, which 
-> still defaulted to 25% and instantly picked it.  The overhead was taking 
-> slab_lock() for each page, but that was nullified by the performance 
-> speedup of using the alloc fastpath a majority of the time for both 
-> kmalloc-256 and kmalloc-2k when in the past it had only been able to serve 
-> one or two allocs.  If no partial slab met the threshold, the slab_lock() 
-> is held of the partial slab with the most free objects and returned 
-> instead.
-With the per-cpu partial list, I didn't see any workload which is still
-suffering from the list lock, so I suppose both the trashing approach
-and pick 25% used slab approach don't help. The per-cpu partial list
-flushes the whole per-cpu partial list after s->cpu_partial objects are
-freed, this is a little aggressive, because the per-cpu partial list
-need refilled again soon after an allocation. I had experiment to have
-separate per-cpu alloc/free partial list, which can avoid this. but
-again, I didn't see any workload still suffering list lock issue even
-with netperf which stress slub much. did you see such workload?
+> But that happens before do_IRQ is called, so what is the do_IRQ call
+> chain doing on this stack given that we've already supposed to have
+> switched to the interrupt stack before do_IRQ is called?
+
+Not sure I understand the question.
+
+The pt_regs are on the original stack (but they are quite small), all the rest 
+is on the new stack. ISTs are not used for interrupts, only for 
+some special exceptions. do_IRQ doesn't switch any stacks on 64bit.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
