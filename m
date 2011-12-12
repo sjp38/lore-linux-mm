@@ -1,51 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 4C7C46B01A3
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 12:35:59 -0500 (EST)
-Date: Mon, 12 Dec 2011 18:30:19 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH RFC 0/5] uprobes: kill xol vma
-Message-ID: <20111212173019.GA25226@redhat.com>
-References: <20111118110631.10512.73274.sendpatchset@srdronam.in.ibm.com> <20111128190614.GA4602@redhat.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 9D9206B01A5
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 12:49:36 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so4682151qcs.14
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:35 -0800 (PST)
+Message-ID: <4EE63EA9.9060908@gmail.com>
+Date: Mon, 12 Dec 2011 12:49:29 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111128190614.GA4602@redhat.com>
+Subject: Re: [PATCH] memcg: fix a typo in documentation
+References: <1323476120-8964-1-git-send-email-yinghan@google.com> <20111212105134.GA18789@cmpxchg.org>
+In-Reply-To: <20111212105134.GA18789@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Josh Stone <jistone@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-On 11/28, Oleg Nesterov wrote:
+(12/12/11 5:51 AM), Johannes Weiner wrote:
+> On Fri, Dec 09, 2011 at 04:15:20PM -0800, Ying Han wrote:
+>> A tiny typo on mapped_file stat.
+>>
+>> Signed-off-by: Ying Han<yinghan@google.com>
+>> ---
+>>   Documentation/cgroups/memory.txt |    2 +-
+>>   1 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+>> index 070c016..c0f409e 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -410,7 +410,7 @@ hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
+>>
+>>   total_cache		- sum of all children's "cache"
+>>   total_rss		- sum of all children's "rss"
+>> -total_mapped_file	- sum of all children's "cache"
+>> +total_mapped_file	- sum of all children's "mapped_file"
+>>   total_mlock		- sum of all children's "mlock"
+>>   total_pgpgin		- sum of all children's "pgpgin"
+>>   total_pgpgout		- sum of all children's "pgpgout"
 >
-> On top of this series, not for inclusion yet, just to explain what
-> I mean. May be someone can test it ;)
+> Your fix obviously makes sense, but the line is still incorrect: it's
+> not just the sum of all children but that of the full hierarchy
+> starting with the consulted memcg.  It includes that memcg's local
+> counter as well.  Aside from that, this all seems awefully redundant.
 >
-> This series kills xol_vma. Instead we use the per_cpu-like xol slots.
+> How about this on top?
 >
-> This is much more simple and efficient. And this of course solves
-> many problems we currently have with xol_vma.
+> ---
+> From: Johannes Weiner<hannes@cmpxchg.org>
+> Subject: [patch] Documentation: memcg: future proof hierarchical statistics
+>   documentation
 >
-> For example, we simply can not trust it. We do not know what actually
-> we are going to execute in UTASK_SSTEP mode. An application can unmap
-> this area and then do mmap(PROT_EXEC|PROT_WRITE, MAP_FIXED) to fool
-> uprobes.
+> The hierarchical versions of per-memcg counters in memory.stat are all
+> calculated the same way and are all named total_<counter>.
 >
-> The only disadvantage is that this adds a bit more arch-dependant
-> code.
+> Documenting the pattern is easier for maintenance than listing each
+> counter twice.
 >
-> The main question, can this work?
+> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
+> ---
+>   Documentation/cgroups/memory.txt |   15 ++++-----------
+>   1 files changed, 4 insertions(+), 11 deletions(-)
+>
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 06eb6d9..a858675 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -404,17 +404,10 @@ hierarchical_memory_limit - # of bytes of memory limit with regard to hierarchy
+>   hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
+>   			hierarchy under which memory cgroup is.
+>
+> -total_cache		- sum of all children's "cache"
+> -total_rss		- sum of all children's "rss"
+> -total_mapped_file	- sum of all children's "mapped_file"
+> -total_pgpgin		- sum of all children's "pgpgin"
+> -total_pgpgout		- sum of all children's "pgpgout"
+> -total_swap		- sum of all children's "swap"
+> -total_inactive_anon	- sum of all children's "inactive_anon"
+> -total_active_anon	- sum of all children's "active_anon"
+> -total_inactive_file	- sum of all children's "inactive_file"
+> -total_active_file	- sum of all children's "active_file"
+> -total_unevictable	- sum of all children's "unevictable"
+> +total_<counter>		- # hierarchical version of<counter>, which in
+> +			addition to the cgroup's own value includes the
+> +			sum of all hierarchical children's values of
+> +			<counter>, i.e. total_cache
+>
 
-OK, it almost works.
+I like this.
+  Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-But, this way we can't probe the compat tasks. A __USER32_CS task can't
-access the fix_to_virt() area, so it can't use uprobe_xol_slots[].
 
-Many thanks to Josh who noticed this.
 
-I'll try to think more, but so far I do not see any simple solution.
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
