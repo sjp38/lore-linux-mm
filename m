@@ -1,204 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 11D356B018A
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 10:22:46 -0500 (EST)
-Received: by vcbfk26 with SMTP id fk26so5147568vcb.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 07:22:45 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 02/11] mm: compaction: introduce
- isolate_{free,migrate}pages_range().
-References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
- <1321634598-16859-3-git-send-email-m.szyprowski@samsung.com>
- <20111212140728.GC3277@csn.ul.ie>
-Date: Mon, 12 Dec 2011 16:22:39 +0100
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id B7FB56B018E
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 10:32:28 -0500 (EST)
+Received: by qadc16 with SMTP id c16so678601qad.14
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 07:32:27 -0800 (PST)
+Message-ID: <4EE61E6D.4070401@gmail.com>
+Date: Mon, 12 Dec 2011 10:31:57 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v6dub1ms3l0zgt@mpn-glaptop>
-In-Reply-To: <20111212140728.GC3277@csn.ul.ie>
+Subject: Re: [PATCH v3] mm: simplify find_vma_prev
+References: <1323466526.27746.29.camel@joe2Laptop> <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com> <20111212094930.9d4716e1.kamezawa.hiroyu@jp.fujitsu.com> <20111212182711.3a072358.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111212182711.3a072358.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
- Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
- Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Andrew Morton (commit_signer:15/23=65%)" <akpm@linux-foundation.org>, "Hugh Dickins (commit_signer:7/23=30%)" <hughd@google.com>, "Peter Zijlstra (commit_signer:4/23=17%)" <a.p.zijlstra@chello.nl>, "Shaohua Li (commit_signer:3/23=13%)" <shaohua.li@intel.com>
 
-> On Fri, Nov 18, 2011 at 05:43:09PM +0100, Marek Szyprowski wrote:
->> From: Michal Nazarewicz <mina86@mina86.com>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 899d956..6afae0e 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -54,51 +54,64 @@ static unsigned long release_freepages(struct lis=
-t_head *freelist)
->>  	return count;
->>  }
->>
->> -/* Isolate free pages onto a private freelist. Must hold zone->lock =
-*/
->> -static unsigned long isolate_freepages_block(struct zone *zone,
->> -				unsigned long blockpfn,
->> -				struct list_head *freelist)
->> +/**
->> + * isolate_freepages_range() - isolate free pages, must hold zone->l=
-ock.
->> + * @zone:	Zone pages are in.
->> + * @start:	The first PFN to start isolating.
->> + * @end:	The one-past-last PFN.
->> + * @freelist:	A list to save isolated pages to.
->> + *
->> + * If @freelist is not provided, holes in range (either non-free pag=
-es
->> + * or invalid PFNs) are considered an error and function undos its
->> + * actions and returns zero.
->> + *
->> + * If @freelist is provided, function will simply skip non-free and
->> + * missing pages and put only the ones isolated on the list.
->> + *
->> + * Returns number of isolated pages.  This may be more then end-star=
-t
->> + * if end fell in a middle of a free page.
->> + */
->> +static unsigned long
->> +isolate_freepages_range(struct zone *zone,
->> +			unsigned long start, unsigned long end,
->> +			struct list_head *freelist)
-
-On Mon, 12 Dec 2011 15:07:28 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
-> Use start_pfn and end_pfn to keep it consistent with the rest of
-> compaction.c.
-
-Will do.
-
->>  {
->> -	unsigned long zone_end_pfn, end_pfn;
->> -	int nr_scanned =3D 0, total_isolated =3D 0;
->> -	struct page *cursor;
->> -
->> -	/* Get the last PFN we should scan for free pages at */
->> -	zone_end_pfn =3D zone->zone_start_pfn + zone->spanned_pages;
->> -	end_pfn =3D min(blockpfn + pageblock_nr_pages, zone_end_pfn);
->> +	unsigned long nr_scanned =3D 0, total_isolated =3D 0;
->> +	unsigned long pfn =3D start;
->> +	struct page *page;
->>
->> -	/* Find the first usable PFN in the block to initialse page cursor =
-*/
->> -	for (; blockpfn < end_pfn; blockpfn++) {
->> -		if (pfn_valid_within(blockpfn))
->> -			break;
->> -	}
->> -	cursor =3D pfn_to_page(blockpfn);
->> +	VM_BUG_ON(!pfn_valid(pfn));
->> +	page =3D pfn_to_page(pfn);
->>
->>  	/* Isolate free pages. This assumes the block is valid */
->> -	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
->> -		int isolated, i;
->> -		struct page *page =3D cursor;
->> -
->> -		if (!pfn_valid_within(blockpfn))
->> -			continue;
->> -		nr_scanned++;
->> -
->> -		if (!PageBuddy(page))
->> -			continue;
->> +	while (pfn < end) {
->> +		unsigned isolated =3D 1, i;
->> +
-
-> Do not use implcit types. These are unsigned ints, call them unsigned
-> ints.
-
-Will do.
-
+(12/12/11 4:27 AM), KAMEZAWA Hiroyuki wrote:
+> On Mon, 12 Dec 2011 09:49:30 +0900
+> KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  wrote:
 >
->> +		if (!pfn_valid_within(pfn))
->> +			goto skip;
->
-> The flow of this function in general with gotos of skipped and next
-> is confusing in comparison to the existing function. For example,
-> if this PFN is not valid, and no freelist is provided, then we call
-> __free_page() on a PFN that is known to be invalid.
->
->> +		++nr_scanned;
->> +
->> +		if (!PageBuddy(page)) {
->> +skip:
->> +			if (freelist)
->> +				goto next;
->> +			for (; start < pfn; ++start)
->> +				__free_page(pfn_to_page(pfn));
->> +			return 0;
->> +		}
->
-> So if a PFN is valid and !PageBuddy and no freelist is provided, we
-> call __free_page() on it regardless of reference count. That does not
-> sound safe.
-
-Sorry about that.  It's a bug in the code which was caught later on.  Th=
-e
-code should read =E2=80=9C__free_page(pfn_to_page(start))=E2=80=9D.
-
+>> On Fri,  9 Dec 2011 17:48:40 -0500
+>> kosaki.motohiro@gmail.com wrote:
 >>
->>  		/* Found a free page, break it into order-0 pages */
->>  		isolated =3D split_free_page(page);
->>  		total_isolated +=3D isolated;
->> -		for (i =3D 0; i < isolated; i++) {
->> -			list_add(&page->lru, freelist);
->> -			page++;
->> +		if (freelist) {
->> +			struct page *p =3D page;
->> +			for (i =3D isolated; i; --i, ++p)
->> +				list_add(&p->lru, freelist);
->>  		}
+>>> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+>>>
+>>> commit 297c5eee37 (mm: make the vma list be doubly linked) added
+>>> vm_prev member into vm_area_struct. Therefore we can simplify
+>>> find_vma_prev() by using it. Also, this change help to improve
+>>> page fault performance because it has strong locality of reference.
+>>>
+>>> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 >>
->> -		/* If a page was split, advance to the end of it */
->> -		if (isolated) {
->> -			blockpfn +=3D isolated - 1;
->> -			cursor +=3D isolated - 1;
->> -		}
->> +next:
->> +		pfn +=3D isolated;
->> +		page +=3D isolated;
+>> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>
 >
-> The name isolated is now confusing because it can mean either
-> pages isolated or pages scanned depending on context. Your patch
-> appears to be doing a lot more than is necessary to convert
-> isolate_freepages_block into isolate_freepages_range and at this point=
-,
-> it's unclear why you did that.
+> Hmm, your work remind me of a patch I tried in past.
+> Here is a refleshed one...how do you think ?
+>
+> ==
+>  From c0261936fc01322d06425731d33f38b2021e8067 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Mon, 12 Dec 2011 18:31:19 +0900
+> Subject: [PATCH] per thread vma cache.
+>
+> This is a toy patch. How do you think ?
+>
+> This is a patch for per-thread mmap_cache without heavy atomic ops.
+>
+> I'm sure overhead of find_vma() is pretty small in usual application
+> and this will not show good improvement. But I think, if we need
+> to have cache of vma, it should be per thread rather than per mm.
 
-When CMA uses this function, it requires all pages in the range to be va=
-lid
-and free.  (Both conditions should be met but you never know.)  This cha=
-nge
-adds a second way isolate_freepages_range() works, which is when freelis=
-t is
-not specified, abort on invalid or non-free page, but continue as usual =
-if
-freelist is provided.
+Agreed. per-thread is better.
 
-I can try and restructure this function a bit so that there are fewer =E2=
-=80=9Cgotos=E2=80=9D,
-but without the above change, CMA won't really be able to use it effecti=
-vely
-(it would have to provide a freelist and then validate if pages on it ar=
-e
-added in order).
 
->>  	}
->>
->>  	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+> This patch adds thread->mmap_cache, a pointer for vm_area_struct
+> and update it appropriately. Because we have no refcnt on vm_area_struct,
+> thread->mmap_cache may be a stale pointer. This patch detects stale
+> pointer by checking
+>
+>      - thread->mmap_cache is one of SLABs in vm_area_cachep.
+>      - thread->mmap_cache->vm_mm == mm.
+>
+> vma->vm_mm will be cleared before kmem_cache_free() by this patch.
 
--- =
+Do you mean the cache can make mishit with unrelated vma when freed vma 
+was reused?
+If so, it is most tricky part of this patch, I strongly hope you write
+a comment more.
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
