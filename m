@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id B58E36B00E0
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 07:24:41 -0500 (EST)
-Received: by faao14 with SMTP id o14so689870faa.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 04:24:40 -0800 (PST)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 05E546B00E2
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 07:48:04 -0500 (EST)
+Received: by wgbds13 with SMTP id ds13so9306833wgb.26
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 04:48:03 -0800 (PST)
 MIME-Version: 1.0
-Date: Mon, 12 Dec 2011 20:24:39 +0800
-Message-ID: <CAJd=RBAN7cK_6OstO=5gszW8cJ_d4-8iQC3gWG6HUtabiMN9Yg@mail.gmail.com>
-Subject: [PATCH] mm: vmscan: try to free orphaned page
+In-Reply-To: <alpine.LSU.2.00.1112111520510.2297@eggly>
+References: <CAJd=RBB_AoJmyPd7gfHn+Kk39cn-+Wn-pFvU0ZWRZhw2fxoihw@mail.gmail.com>
+	<alpine.LSU.2.00.1112111520510.2297@eggly>
+Date: Mon, 12 Dec 2011 20:48:02 +0800
+Message-ID: <CAJd=RBBKsRYq3Y4gaGJMHM3kMJUH_jggf3pFVJK+noD-vpCRCg@mail.gmail.com>
+Subject: Re: [PATCH] mm: memcg: keep root group unchanged if fail to create new
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-If the orphaned page has no buffer attached at the moment, we clean it up by
-hand, then it has the chance to progress the freeing trip.
+Hello Hugh
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
+On Mon, Dec 12, 2011 at 7:39 AM, Hugh Dickins <hughd@google.com> wrote:
+> On Sun, 11 Dec 2011, Hillf Danton wrote:
+>
+>> If the request is not to create root group and we fail to meet it,
+>> we'd leave the root unchanged.
+>
+> I didn't understand that at first: please say "we should" rather
+> than "we'd", which I take to be an abbreviation for "we would".
+>
 
---- a/mm/vmscan.c	Sun Dec  4 13:10:08 2011
-+++ b/mm/vmscan.c	Mon Dec 12 20:12:44 2011
-@@ -487,12 +487,10 @@ static pageout_t pageout(struct page *pa
- 		 * Some data journaling orphaned pages can have
- 		 * page->mapping == NULL while being dirty with clean buffers.
- 		 */
--		if (page_has_private(page)) {
--			if (try_to_free_buffers(page)) {
--				ClearPageDirty(page);
--				printk("%s: orphaned page\n", __func__);
--				return PAGE_CLEAN;
--			}
-+		if (!page_has_private(page) || try_to_free_buffers(page)) {
-+			ClearPageDirty(page);
-+			printk(KERN_INFO "%s: orphaned page\n", __func__);
-+			return PAGE_CLEAN;
- 		}
- 		return PAGE_KEEP;
- 	}
+Thanks for correcting me.
+
+>
+> I wonder what was going through the author's mind when he wrote it
+> that way? =C2=A0I wonder if it's one of those bugs that creeps in when
+> you start from a perfectly functional patch, then make refinements
+> to suit feedback from reviewers.
+>
+
+Actually no such a perfectly functional patch, but I also wonder if
+you are likely to post and/or share your current todo list if any,
+then many could learn the right direction, and in turn you comment
+and pull acceptable works in that direction, like Linus.
+
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
