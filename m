@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 723356B01F3
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 17:44:39 -0500 (EST)
-Date: Mon, 12 Dec 2011 14:44:09 -0800
-From: Robert Morell <rmorell@nvidia.com>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
- sharing mechanism
-Message-ID: <20111212224408.GD4355@morell.nvidia.com>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
- <1322816252-19955-2-git-send-email-sumit.semwal@ti.com>
- <201112051718.48324.arnd@arndb.de>
- <20111209225056.GL7969@morell.nvidia.com>
- <4EE33EC2.6050508@redhat.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id F2CC16B01F4
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 17:47:41 -0500 (EST)
+Date: Tue, 13 Dec 2011 09:47:37 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS causing stack overflow
+Message-ID: <20111212224737.GS14273@dastard>
+References: <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
+ <m262hop5kc.fsf@firstfloor.org>
+ <20111210221345.GG14273@dastard>
+ <20111211000036.GH24062@one.firstfloor.org>
+ <20111211230511.GH14273@dastard>
+ <20111212023130.GI24062@one.firstfloor.org>
+ <20111212043657.GO14273@dastard>
+ <20111212051311.GJ24062@one.firstfloor.org>
+ <20111212090033.GQ14273@dastard>
+ <CAAnfqPC0Ed=PDUOowGTEZyfqHFjB3Jj2YNAaxuYqA2+wVb6tSA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4EE33EC2.6050508@redhat.com>
+In-Reply-To: <CAAnfqPC0Ed=PDUOowGTEZyfqHFjB3Jj2YNAaxuYqA2+wVb6tSA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mauro Carvalho Chehab <mchehab@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Sumit Semwal <sumit.semwal@ti.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "jesse.barker@linaro.org" <jesse.barker@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "daniel@ffwll.ch" <daniel@ffwll.ch>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: "Ryan C. England" <ryan.england@corvidtec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Sat, Dec 10, 2011 at 03:13:06AM -0800, Mauro Carvalho Chehab wrote:
-> On 09-12-2011 20:50, Robert Morell wrote:
-> > On Mon, Dec 05, 2011 at 09:18:48AM -0800, Arnd Bergmann wrote:
-> >> On Friday 02 December 2011, Sumit Semwal wrote:
-> >>> This is the first step in defining a dma buffer sharing mechanism.
-> >>
-> > [...]
-> >>
-> >>> +	return dmabuf;
-> >>> +}
-> >>> +EXPORT_SYMBOL(dma_buf_export);
-> >>
-> >> I agree with Konrad, this should definitely be EXPORT_SYMBOL_GPL,
-> >> because it's really a low-level function that I would expect
-> >> to get used by in-kernel subsystems providing the feature to
-> >> users and having back-end drivers, but it's not the kind of thing
-> >> we want out-of-tree drivers to mess with.
+On Mon, Dec 12, 2011 at 08:43:57AM -0500, Ryan C. England wrote:
+> On Mon, Dec 12, 2011 at 4:00 AM, Dave Chinner <david@fromorbit.com> wrote:
+> > On Mon, Dec 12, 2011 at 06:13:11AM +0100, Andi Kleen wrote:
+> > > BTW I suppose it wouldn't be all that hard to add more stacks and
+> > > switch to them too, similar to what the 32bit do_IRQ does.
+> > > Perhaps XFS could just allocate its own stack per thread
+> > > (or maybe only if it detects some specific configuration that
+> > > is known to need much stack)
 > >
-> > Is this really necessary?  If this is intended to be a
-> > lowest-common-denominator between many drivers to allow buffer sharing,
-> > it seems like it needs to be able to be usable by all drivers.
+> > That's possible, but rather complex, I think.
+> > > It would need to be per thread if you could sleep inside them.
 > >
-> > If the interface is not accessible then I fear many drivers will be
-> > forced to continue to roll their own buffer sharing mechanisms (which is
-> > exactly what we're trying to avoid here, needless to say).
-> 
-> Doing a buffer sharing with something that is not GPL is not fun, as, if any
-> issue rises there, it would be impossible to discover if the problem is either
-> at the closed-source driver or at the open source one. At the time I was using
-> the Nvidia proprietary driver, it was very common to have unexplained issues
-> caused likely by bad code there at the buffer management code, causing X
-> applications and extensions (like xv) to break.
+> > Yes, we'd need to sleep, do IO, possibly operate within a
+> > transaction context, etc, and a workqueue handles all these cases
+> > without having to do anything special. Splitting the stack at a
+> > logical point is probably better, such as this patch:
+> >
+> > http://oss.sgi.com/archives/xfs/2011-07/msg00443.html
 >
-> We should really make this EXPORT_SYMBOL_GPL(), in order to be able to latter
-> debug future share buffer issues, when needed.
+> Is it possible to apply this patch to my current installation?  We use this
+> box in production and the reboots that we're experiencing are an
+> inconvenience.
 
-Sorry, I don't buy this argument.  Making these exports GPL-only is not
-likely to cause anybody to open-source their driver, but will rather
-just cause them to use yet more closed-source code that is even less
-debuggable than this would be, to those without access to the source.
+Not easily. The problem with a backport is that the workqueue
+infrastructure changed around 2.6.36, allowing workqueues to act
+like an (almost) infinite pool of worker threads and so by using a
+workqueue we can have effectively unlimited numbers of concurrent
+allocations in progress at once.
 
-Thanks,
-Robert
+The workqueue implementation in 2.6.32 only allows a single work
+instance per workqueue thread, and so even with per-CPU worker
+threads, would only allow one allocation at a time per CPU. This
+adds additional serialisation within a filesystem, between
+filesystem and potentially adds new deadlock conditions as well.
 
-> Regards,
-> Mauro
+So it's not exactly obvious whether it can be backported in a sane
+manner or not.
+
+> Is there is a walkthrough on how to apply this patch?  If not, could your
+> provide the steps necessary to apply successfully?  I would greatly
+> appreciate it.
+
+It would probably need redesigning and re-implementing from scratch
+because of the above reasons. It'd then need a lot of testing and
+review. As a workaround, you might be better off doing what Andi
+first suggested - recompiling your kernel to use 16k stacks.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
