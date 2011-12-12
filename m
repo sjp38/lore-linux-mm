@@ -1,70 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 025976B0185
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:05 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so5062406vbb.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 06:49:05 -0800 (PST)
-Message-ID: <4EE6145C.9070606@gmail.com>
-Date: Mon, 12 Dec 2011 09:49:00 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 64D376B006C
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:52:02 -0500 (EST)
+Received: by vcbfk26 with SMTP id fk26so5103409vcb.14
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 06:52:01 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 03/11] mm: mmzone: introduce zone_pfn_same_memmap()
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+ <1321634598-16859-4-git-send-email-m.szyprowski@samsung.com>
+ <20111212141953.GD3277@csn.ul.ie> <op.v6dr4pj43l0zgt@mpn-glaptop>
+ <20111212144030.GF3277@csn.ul.ie>
+Date: Mon, 12 Dec 2011 15:51:55 +0100
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: simplify find_vma_prev
-References: <1323466526.27746.29.camel@joe2Laptop> <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com> <20111212132616.GB15249@tiehlicka.suse.cz>
-In-Reply-To: <20111212132616.GB15249@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v6dswtfw3l0zgt@mpn-glaptop>
+In-Reply-To: <20111212144030.GF3277@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
+ Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
+ Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-(12/12/11 8:26 AM), Michal Hocko wrote:
-> On Fri 09-12-11 17:48:40, kosaki.motohiro@gmail.com wrote:
->> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> On Fri, Nov 18, 2011 at 05:43:10PM +0100, Marek Szyprowski wrote:
+>> From: Michal Nazarewicz <mina86@mina86.com>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 6afae0e..09c9702 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -111,7 +111,10 @@ skip:
 >>
->> commit 297c5eee37 (mm: make the vma list be doubly linked) added
->> vm_prev member into vm_area_struct. Therefore we can simplify
->> find_vma_prev() by using it. Also, this change help to improve
->> page fault performance because it has strong locality of reference.
->>
->> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->> ---
->>   mm/mmap.c |   36 ++++++++----------------------------
->>   1 files changed, 8 insertions(+), 28 deletions(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index eae90af..b9c0241 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -1603,39 +1603,19 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
->>
->>   EXPORT_SYMBOL(find_vma);
->>
->> -/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
->> +/*
->> + * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
->> + * Note: pprev is set to NULL when return value is NULL.
->> + */
->>   struct vm_area_struct *
->>   find_vma_prev(struct mm_struct *mm, unsigned long addr,
->>   			struct vm_area_struct **pprev)
->>   {
->> -	struct vm_area_struct *vma = NULL, *prev = NULL;
->> -	struct rb_node *rb_node;
->> -	if (!mm)
->> -		goto out;
->> -
->> -	/* Guard against addr being lower than the first VMA */
->> -	vma = mm->mmap;
+>>  next:
+>>  		pfn +=3D isolated;
+>> -		page +=3D isolated;
+>> +		if (zone_pfn_same_memmap(pfn - isolated, pfn))
+>> +			page +=3D isolated;
+>> +		else
+>> +			page =3D pfn_to_page(pfn);
+>>  	}
+
+On Mon, 12 Dec 2011 15:19:53 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> Is this necessary?
 >
-> Why have you removed this guard? Previously we had pprev==NULL and
-> returned mm->mmap.
-> This seems like a semantic change without any explanation. Could you
-> clarify?
+> We are isolating pages, the largest of which is a MAX_ORDER_NR_PAGES
+> page.  [...]
 
-IIUC, find_vma_prev() is module unexported and none of known caller use
-pprev==NULL. Thus, I thought it can be also simplified. Am I missing 
-something?
+On Mon, 12 Dec 2011 15:40:30 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> To be clear, I'm referring to a single page being isolated here. It ma=
+y
+> or may not be a high-order page but it's still going to be less then
+> MAX_ORDER_NR_PAGES so you should be able check when a new block is
+> entered and pfn_to_page is necessary.
+
+Do you mean something like:
+
+if (same pageblock)
+	just do arithmetic;
+else
+	use pfn_to_page;
+
+?
+
+I've discussed it with Dave and he suggested that approach as an
+optimisation since in some configurations zone_pfn_same_memmap()
+is always true thus compiler will strip the else part, whereas
+same pageblock test will be false on occasions regardless of kernel
+configuration.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
