@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 215746B00B7
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 23:37:07 -0500 (EST)
-Date: Mon, 12 Dec 2011 15:36:57 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id D8E7B6B00BA
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 00:13:13 -0500 (EST)
+Date: Mon, 12 Dec 2011 06:13:11 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: XFS causing stack overflow
-Message-ID: <20111212043657.GO14273@dastard>
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
- <20111209115513.GA19994@infradead.org>
- <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
- <m262hop5kc.fsf@firstfloor.org>
- <20111210221345.GG14273@dastard>
- <20111211000036.GH24062@one.firstfloor.org>
- <20111211230511.GH14273@dastard>
- <20111212023130.GI24062@one.firstfloor.org>
-MIME-Version: 1.0
+Message-ID: <20111212051311.GJ24062@one.firstfloor.org>
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com> <20111209115513.GA19994@infradead.org> <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard> <m262hop5kc.fsf@firstfloor.org> <20111210221345.GG14273@dastard> <20111211000036.GH24062@one.firstfloor.org> <20111211230511.GH14273@dastard> <20111212023130.GI24062@one.firstfloor.org> <20111212043657.GO14273@dastard>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111212023130.GI24062@one.firstfloor.org>
+In-Reply-To: <20111212043657.GO14273@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
 
-On Mon, Dec 12, 2011 at 03:31:30AM +0100, Andi Kleen wrote:
-> > But that happens before do_IRQ is called, so what is the do_IRQ call
-> > chain doing on this stack given that we've already supposed to have
-> > switched to the interrupt stack before do_IRQ is called?
+> It's ~180 bytes, so it's not really that small.
+
+Quite small compared to what real code uses. And also fixed
+size.
+
 > 
-> Not sure I understand the question.
+> > is on the new stack. ISTs are not used for interrupts, only for 
+> > some special exceptions.
 > 
-> The pt_regs are on the original stack (but they are quite small), all the rest 
+> IST = ???
 
-It's ~180 bytes, so it's not really that small.
+That's a hardware mechanism on x86-64 to switch stacks
+(Interrupt Stack Table or somesuch) 
 
-> is on the new stack. ISTs are not used for interrupts, only for 
-> some special exceptions.
+With ISTs it would have been possible to move the the pt_regs too,
+but the software mechanism is somewhat simpler.
 
-IST = ???
+> at the top of the stack frame? Is the stack unwinder walking back
+> across the interrupt stack to the previous task stack?
 
-> do_IRQ doesn't switch any stacks on 64bit.
+Yes, the unwinder knows about all the extra stacks (interrupt
+and exception stacks) and crosses them as needed.
 
-No, but it appears that it's caller does:
+BTW I suppose it wouldn't be all that hard to add more stacks and
+switch to them too, similar to what the 32bit do_IRQ does. 
+Perhaps XFS could just allocate its own stack per thread
+(or maybe only if it detects some specific configuration that
+is known to need much stack) 
+It would need to be per thread if you could sleep inside them.
 
-/* 0(%rsp): ~(interrupt number) */
-        .macro interrupt func
-        /* reserve pt_regs for scratch regs and rbp */
-        subq $ORIG_RAX-RBP, %rsp
-        CFI_ADJUST_CFA_OFFSET ORIG_RAX-RBP
-        SAVE_ARGS_IRQ
-        call \func
-        .endm
-
-and the SAVE_ARGS_IRQ macro switches to the per cpu interrupt stack.
-The only caller does this:
-
-common_interrupt:
-        XCPT_FRAME
-        addq $-0x80,(%rsp)              /* Adjust vector to [-256,-1] range */
-        interrupt do_IRQ
-
-So, why do we get this:
-
-Dec  6 20:27:55 localhost kernel: <IRQ>  [<ffffffff81067097>] ?  warn_slowpath_common+0x87/0xc0
-Dec  6 20:27:55 localhost kernel: [<ffffffff8106f6da>] ?  __do_softirq+0x11a/0x1d0
-Dec  6 20:27:55 localhost kernel: [<ffffffff81067186>] ?  warn_slowpath_fmt+0x46/0x50
-Dec  6 20:27:55 localhost kernel: [<ffffffff8100c2cc>] ?  call_softirq+0x1c/0x30
-Dec  6 20:27:55 localhost kernel: [<ffffffff8100dfcf>] ?  handle_irq+0x8f/0xa0
-Dec  6 20:27:55 localhost kernel: [<ffffffff814e310c>] ? do_IRQ+0x6c/0xf0
-Dec  6 20:27:55 localhost kernel: [<ffffffff8100bad3>] ?  ret_from_intr+0x0/0x11
-Dec  6 20:27:55 localhost kernel: <EOI>  [<ffffffff8115b80f>] ?  kmem_cache_free+0xbf/0x2b0
-
-at the top of the stack frame? Is the stack unwinder walking back
-across the interrupt stack to the previous task stack?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
