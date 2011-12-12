@@ -1,81 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 64D376B006C
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:52:02 -0500 (EST)
-Received: by vcbfk26 with SMTP id fk26so5103409vcb.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 06:52:01 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 03/11] mm: mmzone: introduce zone_pfn_same_memmap()
-References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
- <1321634598-16859-4-git-send-email-m.szyprowski@samsung.com>
- <20111212141953.GD3277@csn.ul.ie> <op.v6dr4pj43l0zgt@mpn-glaptop>
- <20111212144030.GF3277@csn.ul.ie>
-Date: Mon, 12 Dec 2011 15:51:55 +0100
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9E3706B0187
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:54:20 -0500 (EST)
+Date: Mon, 12 Dec 2011 15:54:13 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH v2] page_cgroup: add helper function to get swap_cgroup
+Message-ID: <20111212145413.GC18789@redhat.com>
+References: <1322822427-7691-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v6dswtfw3l0zgt@mpn-glaptop>
-In-Reply-To: <20111212144030.GF3277@csn.ul.ie>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1322822427-7691-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
- Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
- Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, bsingharora@gmail.com
 
-> On Fri, Nov 18, 2011 at 05:43:10PM +0100, Marek Szyprowski wrote:
->> From: Michal Nazarewicz <mina86@mina86.com>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 6afae0e..09c9702 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -111,7 +111,10 @@ skip:
->>
->>  next:
->>  		pfn +=3D isolated;
->> -		page +=3D isolated;
->> +		if (zone_pfn_same_memmap(pfn - isolated, pfn))
->> +			page +=3D isolated;
->> +		else
->> +			page =3D pfn_to_page(pfn);
->>  	}
+On Fri, Dec 02, 2011 at 06:40:27PM +0800, Bob Liu wrote:
+> There are multi places need to get swap_cgroup, so add a helper
+> function:
+> static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
+>                                 struct swap_cgroup_ctrl **ctrl);
+> to simple the code.
+> 
+> v1 -> v2:
+>  - add parameter struct swap_cgroup_ctrl **ctrl suggested by Michal
+> 
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> ---
+>  mm/page_cgroup.c |   57 ++++++++++++++++++++++-------------------------------
+>  1 files changed, 24 insertions(+), 33 deletions(-)
+> 
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index f0559e0..1970e8a 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -362,6 +362,27 @@ not_enough_page:
+>  	return -ENOMEM;
+>  }
 
-On Mon, 12 Dec 2011 15:19:53 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
-> Is this necessary?
->
-> We are isolating pages, the largest of which is a MAX_ORDER_NR_PAGES
-> page.  [...]
+I realize that you mostly moved what was already there, but there are
+a couple more things to clean up.  Would you like to send a patch for
+them as well?
 
-On Mon, 12 Dec 2011 15:40:30 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
-> To be clear, I'm referring to a single page being isolated here. It ma=
-y
-> or may not be a high-order page but it's still going to be less then
-> MAX_ORDER_NR_PAGES so you should be able check when a new block is
-> entered and pfn_to_page is necessary.
+> +static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
+> +					struct swap_cgroup_ctrl **ctrl)
 
-Do you mean something like:
+__lookup_swap_cgroup()?  Or even more matching names would be to have
+that public interface called lookup_swap_cgroup_id() and let this one
+be lookup_swap_cgroup().
 
-if (same pageblock)
-	just do arithmetic;
-else
-	use pfn_to_page;
+> +{
+> +	int type = swp_type(ent);
 
-?
+swp_type() returns unsigned int
 
-I've discussed it with Dave and he suggested that approach as an
-optimisation since in some configurations zone_pfn_same_memmap()
-is always true thus compiler will strip the else part, whereas
-same pageblock test will be false on occasions regardless of kernel
-configuration.
+> +	unsigned long offset = swp_offset(ent);
 
--- =
+swp_offset() returns pgoff_t
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+> +	unsigned long idx = offset / SC_PER_PAGE;
+> +	unsigned long pos = offset & SC_POS_MASK;
+
+This is actually quite crappy, the definition looks like this:
+
+#define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
+#define SC_POS_MASK	(SC_PER_PAGE - 1)
+
+which relies on the fact that the division named SC_PER_PAGE yields a
+power of two, which only is true by accident.
+
+Better would be to delete SC_POS_MASK and use offset % SC_PER_PAGE
+instead.
+
+> +	struct swap_cgroup_ctrl *temp_ctrl;
+> +	struct page *mappage;
+> +	struct swap_cgroup *sc;
+> +
+> +	temp_ctrl = &swap_cgroup_ctrl[type];
+> +	if (ctrl)
+> +		*ctrl = temp_ctrl;
+
+Name the output parameter ctrlp instead?  Then you can call the local
+one ctrl.
+
+Also, type is only used once, better to just inline it:
+
+	&swap_cgroup_ctrl[swp_type(ent)]
+
+> +	mappage = temp_ctrl->map[idx];
+
+Same for idx, just use ctrl->map[offset / SC_PER_PAGE] directly.
+
+> +	sc = page_address(mappage);
+> +	sc += pos;
+> +	return sc;
+> +}
+
+That seems elaborate.
+
+	return page_address(mappage) + offset % SC_PER_PAGE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
