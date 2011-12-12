@@ -1,118 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 15B7A6B01A8
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 12:58:17 -0500 (EST)
-Received: by qadc16 with SMTP id c16so873306qad.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:58:16 -0800 (PST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id C133B6B01AA
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 14:15:35 -0500 (EST)
+Date: Mon, 12 Dec 2011 20:15:32 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3] mm: simplify find_vma_prev
+Message-ID: <20111212191531.GA23874@tiehlicka.suse.cz>
+References: <1323466526.27746.29.camel@joe2Laptop>
+ <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+ <20111212132616.GB15249@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20111212105134.GA18789@cmpxchg.org>
-References: <1323476120-8964-1-git-send-email-yinghan@google.com>
-	<20111212105134.GA18789@cmpxchg.org>
-Date: Mon, 12 Dec 2011 09:58:15 -0800
-Message-ID: <CALWz4izKscc=JbpEHpxLHg+SLw1MjZ6WZ14OoxOi9i-ZBFOw5A@mail.gmail.com>
-Subject: Re: [PATCH] memcg: fix a typo in documentation
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111212132616.GB15249@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: kosaki.motohiro@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
 
-On Mon, Dec 12, 2011 at 2:51 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Fri, Dec 09, 2011 at 04:15:20PM -0800, Ying Han wrote:
->> A tiny typo on mapped_file stat.
->>
->> Signed-off-by: Ying Han <yinghan@google.com>
->> ---
->> =A0Documentation/cgroups/memory.txt | =A0 =A02 +-
->> =A01 files changed, 1 insertions(+), 1 deletions(-)
->>
->> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
-mory.txt
->> index 070c016..c0f409e 100644
->> --- a/Documentation/cgroups/memory.txt
->> +++ b/Documentation/cgroups/memory.txt
->> @@ -410,7 +410,7 @@ hierarchical_memsw_limit - # of bytes of memory+swap=
- limit with regard to
->>
->> =A0total_cache =A0 =A0 =A0 =A0 =A0- sum of all children's "cache"
->> =A0total_rss =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's "rss"
->> -total_mapped_file =A0 =A0- sum of all children's "cache"
->> +total_mapped_file =A0 =A0- sum of all children's "mapped_file"
->> =A0total_mlock =A0 =A0 =A0 =A0 =A0- sum of all children's "mlock"
->> =A0total_pgpgin =A0 =A0 =A0 =A0 - sum of all children's "pgpgin"
->> =A0total_pgpgout =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's =
-"pgpgout"
->
-> Your fix obviously makes sense, but the line is still incorrect: it's
-> not just the sum of all children but that of the full hierarchy
-> starting with the consulted memcg. =A0It includes that memcg's local
-> counter as well. =A0Aside from that, this all seems awefully redundant.
->
-> How about this on top?
->
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] Documentation: memcg: future proof hierarchical statisti=
-cs
-> =A0documentation
->
-> The hierarchical versions of per-memcg counters in memory.stat are all
-> calculated the same way and are all named total_<counter>.
->
-> Documenting the pattern is easier for maintenance than listing each
-> counter twice.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> =A0Documentation/cgroups/memory.txt | =A0 15 ++++-----------
-> =A01 files changed, 4 insertions(+), 11 deletions(-)
->
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/mem=
-ory.txt
-> index 06eb6d9..a858675 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -404,17 +404,10 @@ hierarchical_memory_limit - # of bytes of memory li=
-mit with regard to hierarchy
-> =A0hierarchical_memsw_limit - # of bytes of memory+swap limit with regard=
- to
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0hierarchy under which memo=
-ry cgroup is.
->
-> -total_cache =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's "cache"
-> -total_rss =A0 =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's "rss"
-> -total_mapped_file =A0 =A0 =A0- sum of all children's "mapped_file"
-> -total_pgpgin =A0 =A0 =A0 =A0 =A0 - sum of all children's "pgpgin"
-> -total_pgpgout =A0 =A0 =A0 =A0 =A0- sum of all children's "pgpgout"
-> -total_swap =A0 =A0 =A0 =A0 =A0 =A0 - sum of all children's "swap"
-> -total_inactive_anon =A0 =A0- sum of all children's "inactive_anon"
-> -total_active_anon =A0 =A0 =A0- sum of all children's "active_anon"
-> -total_inactive_file =A0 =A0- sum of all children's "inactive_file"
-> -total_active_file =A0 =A0 =A0- sum of all children's "active_file"
-> -total_unevictable =A0 =A0 =A0- sum of all children's "unevictable"
-> +total_<counter> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- # hierarchical version =
-of <counter>, which in
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 addition to the cgroup's ow=
-n value includes the
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sum of all hierarchical chi=
-ldren's values of
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 <counter>, i.e. total_cache
->
-> =A0# The following additional stats are dependent on CONFIG_DEBUG_VM.
+On Mon 12-12-11 14:26:16, Michal Hocko wrote:
+> On Fri 09-12-11 17:48:40, kosaki.motohiro@gmail.com wrote:
+> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > 
+> > commit 297c5eee37 (mm: make the vma list be doubly linked) added
+> > vm_prev member into vm_area_struct. Therefore we can simplify
+> > find_vma_prev() by using it. Also, this change help to improve
+> > page fault performance because it has strong locality of reference.
+> > 
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > ---
+> >  mm/mmap.c |   36 ++++++++----------------------------
+> >  1 files changed, 8 insertions(+), 28 deletions(-)
+> > 
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index eae90af..b9c0241 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -1603,39 +1603,19 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+> >  
+> >  EXPORT_SYMBOL(find_vma);
+> >  
+> > -/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
+> > +/*
+> > + * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
+> > + * Note: pprev is set to NULL when return value is NULL.
+> > + */
+> >  struct vm_area_struct *
+> >  find_vma_prev(struct mm_struct *mm, unsigned long addr,
+> >  			struct vm_area_struct **pprev)
+> >  {
+> > -	struct vm_area_struct *vma = NULL, *prev = NULL;
+> > -	struct rb_node *rb_node;
+> > -	if (!mm)
+> > -		goto out;
+> > -
+> > -	/* Guard against addr being lower than the first VMA */
+> > -	vma = mm->mmap;
+> 
+> Why have you removed this guard? Previously we had pprev==NULL and
+> returned mm->mmap.
+> This seems like a semantic change without any explanation. Could you
+> clarify?
 
-Yes, make sense to me :)
+Scratch that. I have misread the code. find_vma will return mm->mmap if
+the given address is bellow all vmas. Sorry about noise.
 
-Acked-by: Ying Han <yinghan@google.com>
+The only concern left would be the caching. Are you sure this will not
+break some workloads which benefit from mmap_cache usage and would
+interfere with find_vma_prev callers now? Anyway this could be fixed
+trivially.
 
---Ying
-
->
-> --
-> 1.7.7.3
->
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
