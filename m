@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 7422A6B0096
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 19:50:43 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 239593EE0BC
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:50:42 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0896345DE51
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:50:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E3CA245DE4D
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:50:41 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D4E621DB803B
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:50:41 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 884FC1DB802F
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:50:41 +0900 (JST)
-Date: Mon, 12 Dec 2011 09:49:30 +0900
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 917076B0099
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 19:51:26 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1CA743EE0BD
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:51:25 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 02DE245DE68
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:51:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B25C45DE61
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:51:24 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 701A51DB8038
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:51:24 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C19E1DB803A
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:51:24 +0900 (JST)
+Date: Mon, 12 Dec 2011 09:50:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3] mm: simplify find_vma_prev
-Message-Id: <20111212094930.9d4716e1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1323466526.27746.29.camel@joe2Laptop>
-	<1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+Subject: Re: [PATCH] memcg: fix a typo in documentation
+Message-Id: <20111212095011.c3b7b1db.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1323476120-8964-1-git-send-email-yinghan@google.com>
+References: <1323476120-8964-1-git-send-email-yinghan@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Andrew Morton (commit_signer:15/23=65%)" <akpm@linux-foundation.org>, "Hugh Dickins (commit_signer:7/23=30%)" <hughd@google.com>, "Peter Zijlstra (commit_signer:4/23=17%)" <a.p.zijlstra@chello.nl>, "Shaohua Li (commit_signer:3/23=13%)" <shaohua.li@intel.com>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-On Fri,  9 Dec 2011 17:48:40 -0500
-kosaki.motohiro@gmail.com wrote:
+On Fri,  9 Dec 2011 16:15:20 -0800
+Ying Han <yinghan@google.com> wrote:
 
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> A tiny typo on mapped_file stat.
 > 
-> commit 297c5eee37 (mm: make the vma list be doubly linked) added
-> vm_prev member into vm_area_struct. Therefore we can simplify
-> find_vma_prev() by using it. Also, this change help to improve
-> page fault performance because it has strong locality of reference.
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+>  Documentation/cgroups/memory.txt |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 070c016..c0f409e 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -410,7 +410,7 @@ hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
+>  
+>  total_cache		- sum of all children's "cache"
+>  total_rss		- sum of all children's "rss"
+> -total_mapped_file	- sum of all children's "cache"
+> +total_mapped_file	- sum of all children's "mapped_file"
+>  total_mlock		- sum of all children's "mlock"
+>  total_pgpgin		- sum of all children's "pgpgin"
+>  total_pgpgout		- sum of all children's "pgpgout"
 
+Thanks,
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
