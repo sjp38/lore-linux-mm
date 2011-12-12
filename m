@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id B7FB56B018E
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 10:32:28 -0500 (EST)
-Received: by qadc16 with SMTP id c16so678601qad.14
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 07:32:27 -0800 (PST)
-Message-ID: <4EE61E6D.4070401@gmail.com>
-Date: Mon, 12 Dec 2011 10:31:57 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 265036B0191
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 10:40:19 -0500 (EST)
+Date: Mon, 12 Dec 2011 15:40:15 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04/11] mm: compaction: export some of the functions
+Message-ID: <20111212154015.GI3277@csn.ul.ie>
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+ <1321634598-16859-5-git-send-email-m.szyprowski@samsung.com>
+ <20111212142906.GE3277@csn.ul.ie>
+ <op.v6dseqji3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: simplify find_vma_prev
-References: <1323466526.27746.29.camel@joe2Laptop> <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com> <20111212094930.9d4716e1.kamezawa.hiroyu@jp.fujitsu.com> <20111212182711.3a072358.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111212182711.3a072358.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <op.v6dseqji3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Andrew Morton (commit_signer:15/23=65%)" <akpm@linux-foundation.org>, "Hugh Dickins (commit_signer:7/23=30%)" <hughd@google.com>, "Peter Zijlstra (commit_signer:4/23=17%)" <a.p.zijlstra@chello.nl>, "Shaohua Li (commit_signer:3/23=13%)" <shaohua.li@intel.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-(12/12/11 4:27 AM), KAMEZAWA Hiroyuki wrote:
-> On Mon, 12 Dec 2011 09:49:30 +0900
-> KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  wrote:
->
->> On Fri,  9 Dec 2011 17:48:40 -0500
->> kosaki.motohiro@gmail.com wrote:
->>
->>> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->>>
->>> commit 297c5eee37 (mm: make the vma list be doubly linked) added
->>> vm_prev member into vm_area_struct. Therefore we can simplify
->>> find_vma_prev() by using it. Also, this change help to improve
->>> page fault performance because it has strong locality of reference.
->>>
->>> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->>
->> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->>
->
-> Hmm, your work remind me of a patch I tried in past.
-> Here is a refleshed one...how do you think ?
->
-> ==
->  From c0261936fc01322d06425731d33f38b2021e8067 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 12 Dec 2011 18:31:19 +0900
-> Subject: [PATCH] per thread vma cache.
->
-> This is a toy patch. How do you think ?
->
-> This is a patch for per-thread mmap_cache without heavy atomic ops.
->
-> I'm sure overhead of find_vma() is pretty small in usual application
-> and this will not show good improvement. But I think, if we need
-> to have cache of vma, it should be per thread rather than per mm.
+On Mon, Dec 12, 2011 at 03:41:04PM +0100, Michal Nazarewicz wrote:
+> On Mon, 12 Dec 2011 15:29:07 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> >On Fri, Nov 18, 2011 at 05:43:11PM +0100, Marek Szyprowski wrote:
+> >>From: Michal Nazarewicz <mina86@mina86.com>
+> >>
+> >>This commit exports some of the functions from compaction.c file
+> >>outside of it adding their declaration into internal.h header
+> >>file so that other mm related code can use them.
+> >>
+> >>This forced compaction.c to always be compiled (as opposed to being
+> >>compiled only if CONFIG_COMPACTION is defined) but as to avoid
+> >>introducing code that user did not ask for, part of the compaction.c
+> >>is now wrapped in on #ifdef.
+> >>
+> >>Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+> >>Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> >>---
+> >> mm/Makefile     |    3 +-
+> >> mm/compaction.c |  112 +++++++++++++++++++++++--------------------------------
+> >> mm/internal.h   |   35 +++++++++++++++++
+> >> 3 files changed, 83 insertions(+), 67 deletions(-)
+> >>
+> >>diff --git a/mm/Makefile b/mm/Makefile
+> >>index 50ec00e..24ed801 100644
+> >>--- a/mm/Makefile
+> >>+++ b/mm/Makefile
+> >>@@ -13,7 +13,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+> >> 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+> >> 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+> >> 			   page_isolation.o mm_init.o mmu_context.o percpu.o \
+> >>-			   $(mmu-y)
+> >>+			   $(mmu-y) compaction.o
+> >
+> >That should be
+> >
+> >compaction.o $(mmu-y)
+> >
+> >for consistency.
+> >
+> >Overall, this patch implies that CMA is always compiled in.
+> 
+> Not really.  But yes, it produces some bloat when neither CMA nor
+> compaction are compiled.  I assume that linker will be able to deal
+> with that (since the functions are not EXPORT_SYMBOL'ed).
+> 
 
-Agreed. per-thread is better.
+The bloat exists either way. I don't believe the linker strips it out so
+overall it would make more sense to depend on compaction to keep the
+vmstat counters for debugging reasons if nothing else. It's not
+something I feel very strongly about though.
 
-
-> This patch adds thread->mmap_cache, a pointer for vm_area_struct
-> and update it appropriately. Because we have no refcnt on vm_area_struct,
-> thread->mmap_cache may be a stale pointer. This patch detects stale
-> pointer by checking
->
->      - thread->mmap_cache is one of SLABs in vm_area_cachep.
->      - thread->mmap_cache->vm_mm == mm.
->
-> vma->vm_mm will be cleared before kmem_cache_free() by this patch.
-
-Do you mean the cache can make mishit with unrelated vma when freed vma 
-was reused?
-If so, it is most tricky part of this patch, I strongly hope you write
-a comment more.
-
-Thank you.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
