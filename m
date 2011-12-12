@@ -1,110 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id BF7446B0095
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 08:26:19 -0500 (EST)
-Date: Mon, 12 Dec 2011 14:26:16 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3] mm: simplify find_vma_prev
-Message-ID: <20111212132616.GB15249@tiehlicka.suse.cz>
-References: <1323466526.27746.29.camel@joe2Laptop>
- <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 548CF6B016B
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 08:42:39 -0500 (EST)
+Date: Mon, 12 Dec 2011 13:42:35 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 01/11] mm: page_alloc: handle MIGRATE_ISOLATE in
+ free_pcppages_bulk()
+Message-ID: <20111212134235.GB3277@csn.ul.ie>
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+ <1321634598-16859-2-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1321634598-16859-2-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Fri 09-12-11 17:48:40, kosaki.motohiro@gmail.com wrote:
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Fri, Nov 18, 2011 at 05:43:08PM +0100, Marek Szyprowski wrote:
+> From: Michal Nazarewicz <mina86@mina86.com>
 > 
-> commit 297c5eee37 (mm: make the vma list be doubly linked) added
-> vm_prev member into vm_area_struct. Therefore we can simplify
-> find_vma_prev() by using it. Also, this change help to improve
-> page fault performance because it has strong locality of reference.
+> If page is on PCP list while pageblock it belongs to gets isolated,
+> the page's private still holds the old migrate type.  This means
+> that free_pcppages_bulk() will put the page on a freelist of the
+> old migrate type instead of MIGRATE_ISOLATE.
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> This commit changes that by explicitly checking whether page's
+> pageblock's migrate type is MIGRATE_ISOLATE and if it is, overwrites
+> page's private data.
+> 
+> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 > ---
->  mm/mmap.c |   36 ++++++++----------------------------
->  1 files changed, 8 insertions(+), 28 deletions(-)
+>  mm/page_alloc.c |   12 ++++++++++++
+>  1 files changed, 12 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index eae90af..b9c0241 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1603,39 +1603,19 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
->  
->  EXPORT_SYMBOL(find_vma);
->  
-> -/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
-> +/*
-> + * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
-> + * Note: pprev is set to NULL when return value is NULL.
-> + */
->  struct vm_area_struct *
->  find_vma_prev(struct mm_struct *mm, unsigned long addr,
->  			struct vm_area_struct **pprev)
->  {
-> -	struct vm_area_struct *vma = NULL, *prev = NULL;
-> -	struct rb_node *rb_node;
-> -	if (!mm)
-> -		goto out;
-> -
-> -	/* Guard against addr being lower than the first VMA */
-> -	vma = mm->mmap;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9dd443d..58d1a2e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -628,6 +628,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			page = list_entry(list->prev, struct page, lru);
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+> +
+> +			/*
+> +			 * When page is isolated in set_migratetype_isolate()
+> +			 * function it's page_private is not changed since the
+> +			 * function has no way of knowing if it can touch it.
+> +			 * This means that when a page is on PCP list, it's
+> +			 * page_private no longer matches the desired migrate
+> +			 * type.
+> +			 */
+> +			if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
+> +				set_page_private(page, MIGRATE_ISOLATE);
+> +
 
-Why have you removed this guard? Previously we had pprev==NULL and
-returned mm->mmap.
-This seems like a semantic change without any explanation. Could you
-clarify?
-
-> -
-> -	/* Go through the RB tree quickly. */
-> -	rb_node = mm->mm_rb.rb_node;
-> -
-> -	while (rb_node) {
-> -		struct vm_area_struct *vma_tmp;
-> -		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-> -
-> -		if (addr < vma_tmp->vm_end) {
-> -			rb_node = rb_node->rb_left;
-> -		} else {
-> -			prev = vma_tmp;
-> -			if (!prev->vm_next || (addr < prev->vm_next->vm_end))
-> -				break;
-> -			rb_node = rb_node->rb_right;
-> -		}
-> -	}
-> +	struct vm_area_struct *vma;
->  
-> -out:
-> -	*pprev = prev;
-> -	return prev ? prev->vm_next : vma;
-> +	vma = find_vma(mm, addr);
-> +	*pprev = vma ? vma->vm_prev : NULL;
-> +	return vma;
->  }
->  
->  /*
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+How much of a problem is this in practice? It's adding overhead to the
+free path for what should be a very rare case which is undesirable. I
+know we are already calling get_pageblock_migrate() when freeing
+pages but it should be unnecessary to call it again. I'd go as far
+to say that it would be preferable to drain the per-CPU lists after
+you set pageblocks MIGRATE_ISOLATE. The IPIs also have overhead but it
+will be incurred for the rare rather than the common case.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
