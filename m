@@ -1,80 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3B3E76B00D3
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 04:00:37 -0500 (EST)
-Date: Mon, 12 Dec 2011 20:00:33 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: XFS causing stack overflow
-Message-ID: <20111212090033.GQ14273@dastard>
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
- <20111209115513.GA19994@infradead.org>
- <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
- <m262hop5kc.fsf@firstfloor.org>
- <20111210221345.GG14273@dastard>
- <20111211000036.GH24062@one.firstfloor.org>
- <20111211230511.GH14273@dastard>
- <20111212023130.GI24062@one.firstfloor.org>
- <20111212043657.GO14273@dastard>
- <20111212051311.GJ24062@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111212051311.GJ24062@one.firstfloor.org>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id D522E6B00D5
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 04:28:28 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F0A423EE0BC
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 18:28:26 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D511345DEEF
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 18:28:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B9B5B45DEEB
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 18:28:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AAB8D1DB803E
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 18:28:26 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 577B11DB803B
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 18:28:26 +0900 (JST)
+Date: Mon, 12 Dec 2011 18:27:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3] mm: simplify find_vma_prev
+Message-Id: <20111212182711.3a072358.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111212094930.9d4716e1.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1323466526.27746.29.camel@joe2Laptop>
+	<1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
+	<20111212094930.9d4716e1.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Andrew Morton (commit_signer:15/23=65%)" <akpm@linux-foundation.org>, "Hugh Dickins (commit_signer:7/23=30%)" <hughd@google.com>, "Peter Zijlstra (commit_signer:4/23=17%)" <a.p.zijlstra@chello.nl>, "Shaohua Li (commit_signer:3/23=13%)" <shaohua.li@intel.com>
 
-On Mon, Dec 12, 2011 at 06:13:11AM +0100, Andi Kleen wrote:
-> > It's ~180 bytes, so it's not really that small.
+On Mon, 12 Dec 2011 09:49:30 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Fri,  9 Dec 2011 17:48:40 -0500
+> kosaki.motohiro@gmail.com wrote:
 > 
-> Quite small compared to what real code uses. And also fixed
-> size.
-> 
+> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > > 
-> > > is on the new stack. ISTs are not used for interrupts, only for 
-> > > some special exceptions.
+> > commit 297c5eee37 (mm: make the vma list be doubly linked) added
+> > vm_prev member into vm_area_struct. Therefore we can simplify
+> > find_vma_prev() by using it. Also, this change help to improve
+> > page fault performance because it has strong locality of reference.
 > > 
-> > IST = ???
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> That's a hardware mechanism on x86-64 to switch stacks
-> (Interrupt Stack Table or somesuch) 
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> With ISTs it would have been possible to move the the pt_regs too,
-> but the software mechanism is somewhat simpler.
-> 
-> > at the top of the stack frame? Is the stack unwinder walking back
-> > across the interrupt stack to the previous task stack?
-> 
-> Yes, the unwinder knows about all the extra stacks (interrupt
-> and exception stacks) and crosses them as needed.
-> 
-> BTW I suppose it wouldn't be all that hard to add more stacks and
-> switch to them too, similar to what the 32bit do_IRQ does. 
-> Perhaps XFS could just allocate its own stack per thread
-> (or maybe only if it detects some specific configuration that
-> is known to need much stack) 
 
-That's possible, but rather complex, I think.
-> It would need to be per thread if you could sleep inside them.
+Hmm, your work remind me of a patch I tried in past.
+Here is a refleshed one...how do you think ?
 
-Yes, we'd need to sleep, do IO, possibly operate within a
-transaction context, etc, and a workqueue handles all these cases
-without having to do anything special. Splitting the stack at a
-logical point is probably better, such as this patch:
-
-http://oss.sgi.com/archives/xfs/2011-07/msg00443.html
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+==
