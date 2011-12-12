@@ -1,76 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id DC4886B00B4
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 23:36:09 -0500 (EST)
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1323663921.16790.6118.camel@debian>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323076965.16790.670.camel@debian>
-	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
-	 <1323234673.22361.372.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
-	 <1323657793.22361.383.camel@sli10-conroe>
-	 <1323663251.16790.6115.camel@debian>
-	 <1323664514.22361.385.camel@sli10-conroe>
-	 <1323663921.16790.6118.camel@debian>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 12 Dec 2011 12:48:24 +0800
-Message-ID: <1323665304.22361.392.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 215746B00B7
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 23:37:07 -0500 (EST)
+Date: Mon, 12 Dec 2011 15:36:57 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS causing stack overflow
+Message-ID: <20111212043657.GO14273@dastard>
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
+ <20111209115513.GA19994@infradead.org>
+ <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
+ <m262hop5kc.fsf@firstfloor.org>
+ <20111210221345.GG14273@dastard>
+ <20111211000036.GH24062@one.firstfloor.org>
+ <20111211230511.GH14273@dastard>
+ <20111212023130.GI24062@one.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111212023130.GI24062@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Alex,Shi" <alex.shi@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
 
-On Mon, 2011-12-12 at 12:25 +0800, Alex,Shi wrote:
-> On Mon, 2011-12-12 at 12:35 +0800, Li, Shaohua wrote:
-> > On Mon, 2011-12-12 at 12:14 +0800, Shi, Alex wrote:
-> > > On Mon, 2011-12-12 at 10:43 +0800, Li, Shaohua wrote:
-> > > > On Wed, 2011-12-07 at 15:28 +0800, David Rientjes wrote:
-> > > > > On Wed, 7 Dec 2011, Shaohua Li wrote:
-> > > > > 
-> > > > > > interesting. I did similar experiment before (try to sort the page
-> > > > > > according to free number), but it appears quite hard. The free number of
-> > > > > > a page is dynamic, eg more slabs can be freed when the page is in
-> > > > > > partial list. And in netperf test, the partial list could be very very
-> > > > > > long. Can you post your patch, I definitely what to look at it.
-> > > > > 
-> > > > > It was over a couple of years ago and the slub code has changed 
-> > > > > significantly since then, but you can see the general concept of the "slab 
-> > > > > thrashing" problem with netperf and my solution back then:
-> > > > > 
-> > > > > 	http://marc.info/?l=linux-kernel&m=123839191416478
-> > > > > 	http://marc.info/?l=linux-kernel&m=123839203016592
-> > > > > 	http://marc.info/?l=linux-kernel&m=123839202916583
-> > > > > 
-> > > > > I also had a separate patchset that, instead of this approach, would just 
-> > > > > iterate through the partial list in get_partial_node() looking for 
-> > > > > anything where the number of free objects met a certain threshold, which 
-> > > > > still defaulted to 25% and instantly picked it.  The overhead was taking 
-> > > > > slab_lock() for each page, but that was nullified by the performance 
-> > > > > speedup of using the alloc fastpath a majority of the time for both 
-> > > > > kmalloc-256 and kmalloc-2k when in the past it had only been able to serve 
-> > > > > one or two allocs.  If no partial slab met the threshold, the slab_lock() 
-> > > > > is held of the partial slab with the most free objects and returned 
-> > > > > instead.
-> > > > With the per-cpu partial list, I didn't see any workload which is still
-> > > > suffering from the list lock, 
-> > > 
-> > > The merge error that you fixed in 3.2-rc1 for hackbench regression is
-> > > due to add slub to node partial head. And data of hackbench show node
-> > > partial is still heavy used in allocation. 
-> > The patch is already in base kernel, did you mean even with it you still
-> > saw the list locking issue with latest kernel?
-> > 
+On Mon, Dec 12, 2011 at 03:31:30AM +0100, Andi Kleen wrote:
+> > But that happens before do_IRQ is called, so what is the do_IRQ call
+> > chain doing on this stack given that we've already supposed to have
+> > switched to the interrupt stack before do_IRQ is called?
 > 
-> Yes, list_lock still hurt performance. It will be helpful if you can do
-> some optimize for it. 
-please post data and the workload. In my test, I didn't see the locking
-takes significant time with perf. the slub stat you posted in last mail
-shows most allocation goes the fast path.
+> Not sure I understand the question.
+> 
+> The pt_regs are on the original stack (but they are quite small), all the rest 
+
+It's ~180 bytes, so it's not really that small.
+
+> is on the new stack. ISTs are not used for interrupts, only for 
+> some special exceptions.
+
+IST = ???
+
+> do_IRQ doesn't switch any stacks on 64bit.
+
+No, but it appears that it's caller does:
+
+/* 0(%rsp): ~(interrupt number) */
+        .macro interrupt func
+        /* reserve pt_regs for scratch regs and rbp */
+        subq $ORIG_RAX-RBP, %rsp
+        CFI_ADJUST_CFA_OFFSET ORIG_RAX-RBP
+        SAVE_ARGS_IRQ
+        call \func
+        .endm
+
+and the SAVE_ARGS_IRQ macro switches to the per cpu interrupt stack.
+The only caller does this:
+
+common_interrupt:
+        XCPT_FRAME
+        addq $-0x80,(%rsp)              /* Adjust vector to [-256,-1] range */
+        interrupt do_IRQ
+
+So, why do we get this:
+
+Dec  6 20:27:55 localhost kernel: <IRQ>  [<ffffffff81067097>] ?  warn_slowpath_common+0x87/0xc0
+Dec  6 20:27:55 localhost kernel: [<ffffffff8106f6da>] ?  __do_softirq+0x11a/0x1d0
+Dec  6 20:27:55 localhost kernel: [<ffffffff81067186>] ?  warn_slowpath_fmt+0x46/0x50
+Dec  6 20:27:55 localhost kernel: [<ffffffff8100c2cc>] ?  call_softirq+0x1c/0x30
+Dec  6 20:27:55 localhost kernel: [<ffffffff8100dfcf>] ?  handle_irq+0x8f/0xa0
+Dec  6 20:27:55 localhost kernel: [<ffffffff814e310c>] ? do_IRQ+0x6c/0xf0
+Dec  6 20:27:55 localhost kernel: [<ffffffff8100bad3>] ?  ret_from_intr+0x0/0x11
+Dec  6 20:27:55 localhost kernel: <EOI>  [<ffffffff8115b80f>] ?  kmem_cache_free+0xbf/0x2b0
+
+at the top of the stack frame? Is the stack unwinder walking back
+across the interrupt stack to the previous task stack?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
