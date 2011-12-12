@@ -1,72 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 8AF4E6B00D1
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 02:48:54 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v9 9/9] Display maximum tcp memory allocation in kmem cgroup
-Date: Mon, 12 Dec 2011 11:47:09 +0400
-Message-Id: <1323676029-5890-10-git-send-email-glommer@parallels.com>
-In-Reply-To: <1323676029-5890-1-git-send-email-glommer@parallels.com>
-References: <1323676029-5890-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3B3E76B00D3
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 04:00:37 -0500 (EST)
+Date: Mon, 12 Dec 2011 20:00:33 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS causing stack overflow
+Message-ID: <20111212090033.GQ14273@dastard>
+References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com>
+ <20111209115513.GA19994@infradead.org>
+ <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard>
+ <m262hop5kc.fsf@firstfloor.org>
+ <20111210221345.GG14273@dastard>
+ <20111211000036.GH24062@one.firstfloor.org>
+ <20111211230511.GH14273@dastard>
+ <20111212023130.GI24062@one.firstfloor.org>
+ <20111212043657.GO14273@dastard>
+ <20111212051311.GJ24062@one.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111212051311.GJ24062@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: davem@davemloft.net
-Cc: linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
 
-This patch introduces kmem.tcp.max_usage_in_bytes file, living in the
-kmem_cgroup filesystem. The root cgroup will display a value equal
-to RESOURCE_MAX. This is to avoid introducing any locking schemes in
-the network paths when cgroups are not being actively used.
+On Mon, Dec 12, 2011 at 06:13:11AM +0100, Andi Kleen wrote:
+> > It's ~180 bytes, so it's not really that small.
+> 
+> Quite small compared to what real code uses. And also fixed
+> size.
+> 
+> > 
+> > > is on the new stack. ISTs are not used for interrupts, only for 
+> > > some special exceptions.
+> > 
+> > IST = ???
+> 
+> That's a hardware mechanism on x86-64 to switch stacks
+> (Interrupt Stack Table or somesuch) 
+> 
+> With ISTs it would have been possible to move the the pt_regs too,
+> but the software mechanism is somewhat simpler.
+> 
+> > at the top of the stack frame? Is the stack unwinder walking back
+> > across the interrupt stack to the previous task stack?
+> 
+> Yes, the unwinder knows about all the extra stacks (interrupt
+> and exception stacks) and crosses them as needed.
+> 
+> BTW I suppose it wouldn't be all that hard to add more stacks and
+> switch to them too, similar to what the 32bit do_IRQ does. 
+> Perhaps XFS could just allocate its own stack per thread
+> (or maybe only if it detects some specific configuration that
+> is known to need much stack) 
 
-All others, will see the maximum memory ever used by this cgroup.
+That's possible, but rather complex, I think.
+> It would need to be per thread if you could sleep inside them.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
-CC: David S. Miller <davem@davemloft.net>
-CC: Eric W. Biederman <ebiederm@xmission.com>
----
- net/ipv4/tcp_memcontrol.c |   12 +++++++++++-
- 1 files changed, 11 insertions(+), 1 deletions(-)
+Yes, we'd need to sleep, do IO, possibly operate within a
+transaction context, etc, and a workqueue handles all these cases
+without having to do anything special. Splitting the stack at a
+logical point is probably better, such as this patch:
 
-diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-index d438fba..171d7b6 100644
---- a/net/ipv4/tcp_memcontrol.c
-+++ b/net/ipv4/tcp_memcontrol.c
-@@ -29,6 +29,12 @@ static struct cftype tcp_files[] = {
- 		.trigger = tcp_cgroup_reset,
- 		.read_u64 = tcp_cgroup_read,
- 	},
-+	{
-+		.name = "kmem.tcp.max_usage_in_bytes",
-+		.private = RES_MAX_USAGE,
-+		.trigger = tcp_cgroup_reset,
-+		.read_u64 = tcp_cgroup_read,
-+	},
- };
- 
- static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
-@@ -205,7 +211,8 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
- 		val = tcp_read_usage(memcg);
- 		break;
- 	case RES_FAILCNT:
--		val = tcp_read_stat(memcg, RES_FAILCNT, 0);
-+	case RES_MAX_USAGE:
-+		val = tcp_read_stat(memcg, cft->private, 0);
- 		break;
- 	default:
- 		BUG();
-@@ -226,6 +233,9 @@ static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event)
- 	tcp = tcp_from_cgproto(cg_proto);
- 
- 	switch (event) {
-+	case RES_MAX_USAGE:
-+		res_counter_reset_max(&tcp->tcp_memory_allocated);
-+		break;
- 	case RES_FAILCNT:
- 		res_counter_reset_failcnt(&tcp->tcp_memory_allocated);
- 		break;
+http://oss.sgi.com/archives/xfs/2011-07/msg00443.html
+
+Cheers,
+
+Dave.
 -- 
-1.7.6.4
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
