@@ -1,80 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9A07A6B008A
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 19:36:04 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 895A63EE0C3
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:36:02 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EE3E45DEEE
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:36:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55CAB45DEEC
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:36:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 474891DB803F
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:36:02 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EC67C1DB803B
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:36:01 +0900 (JST)
-Date: Mon, 12 Dec 2011 09:34:48 +0900
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 502E56B0093
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 19:49:21 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B06DC3EE0BD
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:19 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 954AA45DE50
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AE2345DE54
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 279451DB8041
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:19 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BE7671DB803E
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:49:18 +0900 (JST)
+Date: Mon, 12 Dec 2011 09:48:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v8 1/9] Basic kernel memory functionality for the Memory
- Controller
-Message-Id: <20111212093448.91c96f77.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4EE21D23.4000309@parallels.com>
-References: <1323120903-2831-1-git-send-email-glommer@parallels.com>
-	<1323120903-2831-2-git-send-email-glommer@parallels.com>
-	<20111209102113.cdb85da8.kamezawa.hiroyu@jp.fujitsu.com>
-	<4EE21D23.4000309@parallels.com>
+Subject: Re: [BUGFIX][PATCH v2] add mem_cgroup_replace_page_cache.
+Message-Id: <20111212094805.bd258c01.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111209123701.7e43dadf.akpm@linux-foundation.org>
+References: <20111206123923.1432ab52.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111207111455.GA18249@tiehlicka.suse.cz>
+	<20111208161829.b6101de6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111209123701.7e43dadf.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, lizf@cn.fujitsu.com, ebiederm@xmission.com, davem@davemloft.net, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, Paul Menage <paul@paulmenage.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Miklos Szeredi <mszeredi@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, 9 Dec 2011 12:37:23 -0200
-Glauber Costa <glommer@parallels.com> wrote:
+On Fri, 9 Dec 2011 12:37:01 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On 12/08/2011 11:21 PM, KAMEZAWA Hiroyuki wrote:
-> > Hm, why you check val != parent->kmem_independent_accounting ?
-> >
-> > 	if (parent&&  parent->use_hierarchy)
-> > 		return -EINVAL;
-> > ?
-> >
-> > BTW, you didn't check this cgroup has children or not.
-> > I think
-> >
-> > 	if (this_cgroup->use_hierarchy&&
-> >               !list_empty(this_cgroup->childlen))
-> > 		return -EINVAL;
+> On Thu, 8 Dec 2011 16:18:29 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> How about this?
+> > commit ef6a3c6311 adds a function replace_page_cache_page(). This
+> > function replaces a page in radix-tree with a new page.
+> > At doing this, memory cgroup need to fix up the accounting information.
+> > memcg need to check PCG_USED bit etc.
+> > 
+> > In some(many?) case, 'newpage' is on LRU before calling replace_page_cache().
+> > So, memcg's LRU accounting information should be fixed, too.
+> > 
+> > This patch adds mem_cgroup_replace_page_cache() and removing old hooks.
+> > In that function, old pages will be unaccounted without touching res_counter
+> > and new page will be accounted to the memcg (of old page). At overwriting
+> > pc->mem_cgroup of newpage, take zone->lru_lock and avoid race with
+> > LRU handling.
+> > 
+> > Background:
+> >   replace_page_cache_page() is called by FUSE code in its splice() handling.
+> >   Here, 'newpage' is replacing oldpage but this newpage is not a newly allocated
+> >   page and may be on LRU. LRU mis-accounting will be critical for memory cgroup
+> >   because rmdir() checks the whole LRU is empty and there is no account leak.
+> >   If a page is on the other LRU than it should be, rmdir() will fail.
+> > 
+> > Changelog: v1 -> v2
+> >   - fixed mem_cgroup_disabled() check missing.
+> >   - added comments.
+> > 
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/memcontrol.h |    6 ++++++
+> >  mm/filemap.c               |   18 ++----------------
+> >  mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
+> >  3 files changed, 52 insertions(+), 16 deletions(-)
 > 
->          val = !!val;
+> It's a relatively intrusive patch and I'm a bit concerned about
+> feeding it into 3.2.
 > 
->          /*
->           * This follows the same hierarchy restrictions than
->           * mem_cgroup_hierarchy_write()
->           */
->          if (!parent || !parent->use_hierarchy) {
->                  if (list_empty(&cgroup->children))
->                          memcg->kmem_independent_accounting = val;
->                  else
->                          return -EBUSY;
->          }
->          else
->                  return -EINVAL;
-> 
->          return 0;
-> 
-seems good to me.
+> How serious is the bug, and which kernel version(s) do you think we
+> should fix it in?
+
+This bug was added by commit ef6a3c63112e (2011 Mar), but no bug report yet.
+I guess there are not many people who use memcg and FUSE at the same time
+with upstream kernels.
+
+The result of this bug is that admin cannot destroy a memcg because of
+account leak. So, no panic, no deadlock. And, even if an active cgroup exist,
+umount can succseed. So no problem at shutdown.
+
+I want this fix should be merged when/after unify-lru works goes to upstream.
 
 Thanks,
 -Kame
+
+
+
+
+
+
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
