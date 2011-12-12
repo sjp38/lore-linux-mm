@@ -1,58 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 07F436B00E5
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 08:11:20 -0500 (EST)
-Date: Mon, 12 Dec 2011 14:11:18 +0100
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id BF7446B0095
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 08:26:19 -0500 (EST)
+Date: Mon, 12 Dec 2011 14:26:16 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: memcg: keep root group unchanged if fail to create
- new
-Message-ID: <20111212131118.GA15249@tiehlicka.suse.cz>
-References: <CAJd=RBB_AoJmyPd7gfHn+Kk39cn-+Wn-pFvU0ZWRZhw2fxoihw@mail.gmail.com>
- <alpine.LSU.2.00.1112111520510.2297@eggly>
+Subject: Re: [PATCH v3] mm: simplify find_vma_prev
+Message-ID: <20111212132616.GB15249@tiehlicka.suse.cz>
+References: <1323466526.27746.29.camel@joe2Laptop>
+ <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1112111520510.2297@eggly>
+In-Reply-To: <1323470921-12931-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: kosaki.motohiro@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Shaohua Li <shaohua.li@intel.com>
 
-On Sun 11-12-11 15:39:43, Hugh Dickins wrote:
-> On Sun, 11 Dec 2011, Hillf Danton wrote:
+On Fri 09-12-11 17:48:40, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> > If the request is not to create root group and we fail to meet it,
-> > we'd leave the root unchanged.
+> commit 297c5eee37 (mm: make the vma list be doubly linked) added
+> vm_prev member into vm_area_struct. Therefore we can simplify
+> find_vma_prev() by using it. Also, this change help to improve
+> page fault performance because it has strong locality of reference.
 > 
-> I didn't understand that at first: please say "we should" rather
-> than "we'd", which I take to be an abbreviation for "we would".
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/mmap.c |   36 ++++++++----------------------------
+>  1 files changed, 8 insertions(+), 28 deletions(-)
 > 
-> > 
-> > Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> 
-> Yes indeed, well caught:
-> Acked-by: Hugh Dickins <hughd@google.com>
-> 
-> I wonder what was going through the author's mind when he wrote it
-> that way?  I wonder if it's one of those bugs that creeps in when
-> you start from a perfectly functional patch, then make refinements
-> to suit feedback from reviewers.
-> 
-> On which topic: wouldn't this patch be better just to move the
-> "root_mem_cgroup = memcg;" two lines lower down (and of course
-> remove free_out's "root_mem_cgroup = NULL;" as you already did)?
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index eae90af..b9c0241 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1603,39 +1603,19 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+>  
+>  EXPORT_SYMBOL(find_vma);
+>  
+> -/* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
+> +/*
+> + * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
+> + * Note: pprev is set to NULL when return value is NULL.
+> + */
+>  struct vm_area_struct *
+>  find_vma_prev(struct mm_struct *mm, unsigned long addr,
+>  			struct vm_area_struct **pprev)
+>  {
+> -	struct vm_area_struct *vma = NULL, *prev = NULL;
+> -	struct rb_node *rb_node;
+> -	if (!mm)
+> -		goto out;
+> -
+> -	/* Guard against addr being lower than the first VMA */
+> -	vma = mm->mmap;
 
-Yes would look nicer.
+Why have you removed this guard? Previously we had pprev==NULL and
+returned mm->mmap.
+This seems like a semantic change without any explanation. Could you
+clarify?
 
-> I can't see mem_cgroup_soft_limit_tree_init() relying on
-> root_mem_cgroup at all.
+> -
+> -	/* Go through the RB tree quickly. */
+> -	rb_node = mm->mm_rb.rb_node;
+> -
+> -	while (rb_node) {
+> -		struct vm_area_struct *vma_tmp;
+> -		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+> -
+> -		if (addr < vma_tmp->vm_end) {
+> -			rb_node = rb_node->rb_left;
+> -		} else {
+> -			prev = vma_tmp;
+> -			if (!prev->vm_next || (addr < prev->vm_next->vm_end))
+> -				break;
+> -			rb_node = rb_node->rb_right;
+> -		}
+> -	}
+> +	struct vm_area_struct *vma;
+>  
+> -out:
+> -	*pprev = prev;
+> -	return prev ? prev->vm_next : vma;
+> +	vma = find_vma(mm, addr);
+> +	*pprev = vma ? vma->vm_prev : NULL;
+> +	return vma;
+>  }
+>  
+>  /*
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-It doesn't but it still needs some love to handle error case properly
-AFAICS. We do not deallocate softlimit trees for nodes that succeeded.
-
-[...]
-
-Hilf could you update the patch please?
 -- 
 Michal Hocko
 SUSE Labs
