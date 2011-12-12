@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id D16A16B00AA
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 21:31:32 -0500 (EST)
-Date: Mon, 12 Dec 2011 03:31:30 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: XFS causing stack overflow
-Message-ID: <20111212023130.GI24062@one.firstfloor.org>
-References: <CAAnfqPAm559m-Bv8LkHARm7iBW5Kfs7NmjTFidmg-idhcOq4sQ@mail.gmail.com> <20111209115513.GA19994@infradead.org> <20111209221956.GE14273__25752.826271537$1323469420$gmane$org@dastard> <m262hop5kc.fsf@firstfloor.org> <20111210221345.GG14273@dastard> <20111211000036.GH24062@one.firstfloor.org> <20111211230511.GH14273@dastard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111211230511.GH14273@dastard>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 389866B00AC
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2011 21:48:53 -0500 (EST)
+Received: by yenq10 with SMTP id q10so4717178yen.14
+        for <linux-mm@kvack.org>; Sun, 11 Dec 2011 18:48:52 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1323614784-2924-1-git-send-email-tm@tao.ma>
+References: <1323614784-2924-1-git-send-email-tm@tao.ma>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Sun, 11 Dec 2011 21:48:31 -0500
+Message-ID: <CAHGf_=oLm3euUt3drzF1v77mVRsAKbYcrd0rWGD_zOu1Q_G6Ew@mail.gmail.com>
+Subject: Re: [PATCH V2] vmscan/trace: Add 'active' and 'file' info to trace_mm_vmscan_lru_isolate.
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, xfs@oss.sgi.com, "Ryan C. England" <ryan.england@corvidtec.com>
+To: Tao Ma <tm@tao.ma>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> But that happens before do_IRQ is called, so what is the do_IRQ call
-> chain doing on this stack given that we've already supposed to have
-> switched to the interrupt stack before do_IRQ is called?
+> From: Tao Ma <boyu.mt@taobao.com>
+>
+> In trace_mm_vmscan_lru_isolate, we don't output 'active' and 'file'
+> information to the trace event and it is a bit inconvenient for the
+> user to get the real information(like pasted below).
+> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
+> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>
+> So this patch adds these 2 info to the trace event and it now looks like:
+> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
+> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0 active=1 file=0
 
-Not sure I understand the question.
-
-The pt_regs are on the original stack (but they are quite small), all the rest 
-is on the new stack. ISTs are not used for interrupts, only for 
-some special exceptions. do_IRQ doesn't switch any stacks on 64bit.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
