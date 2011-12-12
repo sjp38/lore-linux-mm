@@ -1,33 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 3C7F36B0195
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 11:23:08 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 04/11] mm: compaction: export some of the functions
-Date: Mon, 12 Dec 2011 16:22:04 +0000
-References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com> <op.v6dseqji3l0zgt@mpn-glaptop> <20111212154015.GI3277@csn.ul.ie>
-In-Reply-To: <20111212154015.GI3277@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 49F826B019C
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 11:30:57 -0500 (EST)
+Date: Mon, 12 Dec 2011 16:30:52 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 02/11] mm: compaction: introduce
+ isolate_{free,migrate}pages_range().
+Message-ID: <20111212163052.GK3277@csn.ul.ie>
+References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
+ <1321634598-16859-3-git-send-email-m.szyprowski@samsung.com>
+ <20111212140728.GC3277@csn.ul.ie>
+ <op.v6dub1ms3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201112121622.04236.arnd@arndb.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <op.v6dub1ms3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Monday 12 December 2011, Mel Gorman wrote:
-> The bloat exists either way. I don't believe the linker strips it out so
-> overall it would make more sense to depend on compaction to keep the
-> vmstat counters for debugging reasons if nothing else. It's not
-> something I feel very strongly about though.
+On Mon, Dec 12, 2011 at 04:22:39PM +0100, Michal Nazarewicz wrote:
+> > <SNIP>
+> >
+> >>+		if (!pfn_valid_within(pfn))
+> >>+			goto skip;
+> >
+> >The flow of this function in general with gotos of skipped and next
+> >is confusing in comparison to the existing function. For example,
+> >if this PFN is not valid, and no freelist is provided, then we call
+> >__free_page() on a PFN that is known to be invalid.
+> >
+> >>+		++nr_scanned;
+> >>+
+> >>+		if (!PageBuddy(page)) {
+> >>+skip:
+> >>+			if (freelist)
+> >>+				goto next;
+> >>+			for (; start < pfn; ++start)
+> >>+				__free_page(pfn_to_page(pfn));
+> >>+			return 0;
+> >>+		}
+> >
+> >So if a PFN is valid and !PageBuddy and no freelist is provided, we
+> >call __free_page() on it regardless of reference count. That does not
+> >sound safe.
+> 
+> Sorry about that.  It's a bug in the code which was caught later on.  The
+> code should read ???__free_page(pfn_to_page(start))???.
+> 
 
-There were some previous attempts to use -fgc-sections to strip out
-unused functions from the kernel, but I think they were never merged
-because of regressions.
+That will call free on valid PFNs but why is it safe to call
+__free_page() at all?  You say later that CMA requires that all
+pages in the range be valid but if the pages are in use, that does
+not mean that calling __free_page() is safe. I suspect you have not
+seen a problem because the pages in the range were free as expected
+and not in use because of MIGRATE_ISOLATE.
 
-	Arnd
+> >> 		/* Found a free page, break it into order-0 pages */
+> >> 		isolated = split_free_page(page);
+> >> 		total_isolated += isolated;
+> >>-		for (i = 0; i < isolated; i++) {
+> >>-			list_add(&page->lru, freelist);
+> >>-			page++;
+> >>+		if (freelist) {
+> >>+			struct page *p = page;
+> >>+			for (i = isolated; i; --i, ++p)
+> >>+				list_add(&p->lru, freelist);
+> >> 		}
+> >>
+> >>-		/* If a page was split, advance to the end of it */
+> >>-		if (isolated) {
+> >>-			blockpfn += isolated - 1;
+> >>-			cursor += isolated - 1;
+> >>-		}
+> >>+next:
+> >>+		pfn += isolated;
+> >>+		page += isolated;
+> >
+> >The name isolated is now confusing because it can mean either
+> >pages isolated or pages scanned depending on context. Your patch
+> >appears to be doing a lot more than is necessary to convert
+> >isolate_freepages_block into isolate_freepages_range and at this point,
+> >it's unclear why you did that.
+> 
+> When CMA uses this function, it requires all pages in the range to be valid
+> and free. (Both conditions should be met but you never know.) 
+
+It seems racy but I guess you are depending on MIGRATE_ISOLATE to keep
+things sane which is fine. However, I strongly suspect that if there
+is a race and a page is in use, then you will need to retry the
+migration step. Calling __free_page does not look right because
+something still has a reference to the page.
+
+> This change
+> adds a second way isolate_freepages_range() works, which is when freelist is
+> not specified, abort on invalid or non-free page, but continue as usual if
+> freelist is provided.
+> 
+
+Ok, I think you should be able to do that by not calling split_free_page
+or adding to the list if !freelist with a comment explaining why the
+pages are left on the buddy lists for the caller to figure out. Bail if
+a page-in-use is found and have the caller check that the return value
+of isolate_freepages_block == end_pfn - start_pfn.
+
+> I can try and restructure this function a bit so that there are fewer ???gotos???,
+> but without the above change, CMA won't really be able to use it effectively
+> (it would have to provide a freelist and then validate if pages on it are
+> added in order).
+> 
+
+Please do and double check that __free_page logic too.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
