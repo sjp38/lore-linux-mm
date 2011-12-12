@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 0EFA86B0179
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:29:11 -0500 (EST)
-Date: Mon, 12 Dec 2011 14:29:07 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 04/11] mm: compaction: export some of the functions
-Message-ID: <20111212142906.GE3277@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 687836B017B
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:35:09 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so5043997vbb.14
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2011 06:35:08 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 03/11] mm: mmzone: introduce zone_pfn_same_memmap()
 References: <1321634598-16859-1-git-send-email-m.szyprowski@samsung.com>
- <1321634598-16859-5-git-send-email-m.szyprowski@samsung.com>
+ <1321634598-16859-4-git-send-email-m.szyprowski@samsung.com>
+ <20111212141953.GD3277@csn.ul.ie>
+Date: Mon, 12 Dec 2011 15:35:03 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1321634598-16859-5-git-send-email-m.szyprowski@samsung.com>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v6dr4pj43l0zgt@mpn-glaptop>
+In-Reply-To: <20111212141953.GD3277@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse
+ Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
+ Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Fri, Nov 18, 2011 at 05:43:11PM +0100, Marek Szyprowski wrote:
-> From: Michal Nazarewicz <mina86@mina86.com>
-> 
-> This commit exports some of the functions from compaction.c file
-> outside of it adding their declaration into internal.h header
-> file so that other mm related code can use them.
-> 
-> This forced compaction.c to always be compiled (as opposed to being
-> compiled only if CONFIG_COMPACTION is defined) but as to avoid
-> introducing code that user did not ask for, part of the compaction.c
-> is now wrapped in on #ifdef.
-> 
-> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> ---
->  mm/Makefile     |    3 +-
->  mm/compaction.c |  112 +++++++++++++++++++++++--------------------------------
->  mm/internal.h   |   35 +++++++++++++++++
->  3 files changed, 83 insertions(+), 67 deletions(-)
-> 
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 50ec00e..24ed801 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -13,7 +13,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
->  			   readahead.o swap.o truncate.o vmscan.o shmem.o \
->  			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
->  			   page_isolation.o mm_init.o mmu_context.o percpu.o \
-> -			   $(mmu-y)
-> +			   $(mmu-y) compaction.o
+> On Fri, Nov 18, 2011 at 05:43:10PM +0100, Marek Szyprowski wrote:
+>> From: Michal Nazarewicz <mina86@mina86.com>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 6afae0e..09c9702 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -111,7 +111,10 @@ skip:
+>>
+>>  next:
+>>  		pfn +=3D isolated;
+>> -		page +=3D isolated;
+>> +		if (zone_pfn_same_memmap(pfn - isolated, pfn))
+>> +			page +=3D isolated;
+>> +		else
+>> +			page =3D pfn_to_page(pfn);
+>>  	}
 
-That should be
+On Mon, 12 Dec 2011 15:19:53 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> Is this necessary?
+>
+> We are isolating pages, the largest of which is a MAX_ORDER_NR_PAGES
+> page.  [...]
 
-compaction.o $(mmu-y)
+This is not true for CMA.
 
-for consistency.
+> That said, everywhere else managed to avoid checks like this by always=
 
-Overall, this patch implies that CMA is always compiled in. Why
-not just make CMA depend on COMPACTION to keep things simplier? For
-example, if you enable CMA and do not enable COMPACTION, you lose
-things like the vmstat counters that can aid debugging. In fact, as
-parts of compaction.c are using defines like COMPACTBLOCKS, I'm not
-even sure compaction.c can compile without CONFIG_COMPACTION because
-of the vmstat stuff.
+> scanning in units of pageblocks. Maybe this should be structured
+> the same way to guarantee pfn_valid is called at least per pageblock
+> (even though only once per MAX_ORDER_NR_PAGES is necessary).
 
--- 
-Mel Gorman
-SUSE Labs
+I'll look into that.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
