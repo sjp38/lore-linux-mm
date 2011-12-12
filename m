@@ -1,105 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 9E3706B0187
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:54:20 -0500 (EST)
-Date: Mon, 12 Dec 2011 15:54:13 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH v2] page_cgroup: add helper function to get swap_cgroup
-Message-ID: <20111212145413.GC18789@redhat.com>
-References: <1322822427-7691-1-git-send-email-lliubbo@gmail.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 8A8746B0189
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2011 09:59:53 -0500 (EST)
+Date: Mon, 12 Dec 2011 15:59:49 +0100
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: [PATCH -mm] slub: document setting min order with
+ debug_guardpage_minorder > 0
+Message-ID: <20111212145948.GA2380@redhat.com>
+References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com>
+ <1321633507-13614-3-git-send-email-sgruszka@redhat.com>
+ <alpine.DEB.2.00.1112071407090.27360@chino.kir.corp.google.com>
+ <20111208073316.GA2402@redhat.com>
+ <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1322822427-7691-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, bsingharora@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <cl@linux-foundation.org>
 
-On Fri, Dec 02, 2011 at 06:40:27PM +0800, Bob Liu wrote:
-> There are multi places need to get swap_cgroup, so add a helper
-> function:
-> static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
->                                 struct swap_cgroup_ctrl **ctrl);
-> to simple the code.
-> 
-> v1 -> v2:
->  - add parameter struct swap_cgroup_ctrl **ctrl suggested by Michal
-> 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/page_cgroup.c |   57 ++++++++++++++++++++++-------------------------------
->  1 files changed, 24 insertions(+), 33 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index f0559e0..1970e8a 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -362,6 +362,27 @@ not_enough_page:
->  	return -ENOMEM;
->  }
+Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+---
+English is hard (definitely harder than C language :-), so please correct
+me, if I wrote something wrong.
 
-I realize that you mostly moved what was already there, but there are
-a couple more things to clean up.  Would you like to send a patch for
-them as well?
+ Documentation/ABI/testing/sysfs-kernel-slab |    4 +++-
+ Documentation/vm/slub.txt                   |    4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-> +static struct swap_cgroup *swap_cgroup_getsc(swp_entry_t ent,
-> +					struct swap_cgroup_ctrl **ctrl)
-
-__lookup_swap_cgroup()?  Or even more matching names would be to have
-that public interface called lookup_swap_cgroup_id() and let this one
-be lookup_swap_cgroup().
-
-> +{
-> +	int type = swp_type(ent);
-
-swp_type() returns unsigned int
-
-> +	unsigned long offset = swp_offset(ent);
-
-swp_offset() returns pgoff_t
-
-> +	unsigned long idx = offset / SC_PER_PAGE;
-> +	unsigned long pos = offset & SC_POS_MASK;
-
-This is actually quite crappy, the definition looks like this:
-
-#define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
-#define SC_POS_MASK	(SC_PER_PAGE - 1)
-
-which relies on the fact that the division named SC_PER_PAGE yields a
-power of two, which only is true by accident.
-
-Better would be to delete SC_POS_MASK and use offset % SC_PER_PAGE
-instead.
-
-> +	struct swap_cgroup_ctrl *temp_ctrl;
-> +	struct page *mappage;
-> +	struct swap_cgroup *sc;
-> +
-> +	temp_ctrl = &swap_cgroup_ctrl[type];
-> +	if (ctrl)
-> +		*ctrl = temp_ctrl;
-
-Name the output parameter ctrlp instead?  Then you can call the local
-one ctrl.
-
-Also, type is only used once, better to just inline it:
-
-	&swap_cgroup_ctrl[swp_type(ent)]
-
-> +	mappage = temp_ctrl->map[idx];
-
-Same for idx, just use ctrl->map[offset / SC_PER_PAGE] directly.
-
-> +	sc = page_address(mappage);
-> +	sc += pos;
-> +	return sc;
-> +}
-
-That seems elaborate.
-
-	return page_address(mappage) + offset % SC_PER_PAGE
+diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
+index 8b093f8..d84ca80 100644
+--- a/Documentation/ABI/testing/sysfs-kernel-slab
++++ b/Documentation/ABI/testing/sysfs-kernel-slab
+@@ -345,7 +345,9 @@ Description:
+ 		allocated.  It is writable and can be changed to increase the
+ 		number of objects per slab.  If a slab cannot be allocated
+ 		because of fragmentation, SLUB will retry with the minimum order
+-		possible depending on its characteristics.
++		possible depending on its characteristics. 
++		When debug_guardpage_minorder > 0 parameter is specified, the
++		minimum possible order is used and cannot be changed.
+ 
+ What:		/sys/kernel/slab/cache/order_fallback
+ Date:		April 2008
+diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
+index f464f47..dbf02ad 100644
+--- a/Documentation/vm/slub.txt
++++ b/Documentation/vm/slub.txt
+@@ -131,7 +131,9 @@ slub_min_objects.
+ slub_max_order specified the order at which slub_min_objects should no
+ longer be checked. This is useful to avoid SLUB trying to generate
+ super large order pages to fit slub_min_objects of a slab cache with
+-large object sizes into one high order page.
++large object sizes into one high order page. Setting parameter
++debug_guardpage_minorder > 0 forces setting slub_max_order to 0, what
++cause minimum possible order of slabs allocation.
+ 
+ SLUB Debug output
+ -----------------
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
