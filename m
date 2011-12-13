@@ -1,29 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 38A286B027A
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 12:59:16 -0500 (EST)
-Received: by qan41 with SMTP id 41so4757620qan.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:59:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 438206B027C
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 13:29:36 -0500 (EST)
+Received: by qan41 with SMTP id 41so4779785qan.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 10:29:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20111213134554.2cec3c3a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111213061035.GA8513@barrios-laptop.redhat.com>
 References: <1323742608-9246-1-git-send-email-yinghan@google.com>
-	<20111213134554.2cec3c3a.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 13 Dec 2011 09:59:14 -0800
-Message-ID: <CALWz4iz2XUQqfC_0e4fK=XiQ7Ox3rj1J=oryxrDYZrGHD-OOaA@mail.gmail.com>
+	<20111213061035.GA8513@barrios-laptop.redhat.com>
+Date: Tue, 13 Dec 2011 10:29:34 -0800
+Message-ID: <CALWz4iw1i_EtJD9y+JZb+5YnAOuZ93Bg=fO+-KGD6xR6a7znNw@mail.gmail.com>
 Subject: Re: [PATCH 2/2] memcg: fix livelock in try charge during readahead
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On Mon, Dec 12, 2011 at 8:45 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 12 Dec 2011 18:16:48 -0800
-> Ying Han <yinghan@google.com> wrote:
->
+On Mon, Dec 12, 2011 at 10:10 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Mon, Dec 12, 2011 at 06:16:48PM -0800, Ying Han wrote:
 >> Couple of kernel dumps are triggered by watchdog timeout. It turns out t=
 hat two
 >> processes within a memcg livelock on a same page lock. We believe this i=
@@ -64,38 +61,124 @@ eed since
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0// the page lock is hold by ProcessA loop=
 ing at OOM.
 >>
+>> Since the TIF_MEMDIE task_B is live locked, it ends up blocking other ta=
+sks
+>> making forward progress since they are also checking the flag in
+>> select_bad_process. The same issue exists in the non-memcg world. Instea=
+d of
+>> entering oom through mem_cgroup_cache_charge(), we might enter it throug=
+h
+>> radix_tree_preload().
+>>
+>> The proposed fix here is to pass __GFP_NORETRY gfp_mask into try charge =
+under
+>> readahead. Then we skip entering memcg OOM kill which eliminates the cas=
+e where
+>> it OOMs on one page and holds other page locks. It seems to be safe to d=
+o that
+>> since both filemap_fault() and do_generic_file_read() handles the fallba=
+ck case
+>> of "no_cached_page".
+>>
+>> Note:
+>> After this patch, we might experience some charge fails for readahead pa=
+ges
+>> (since we don't enter oom). But this sounds sane compared to letting the=
+ system
+>> trying extremely hard to charge a readahead page by doing reclaim and th=
+en oom,
+>> the later one also triggers livelock as listed above.
+>>
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> Signed-off-by: Ying Han <yinghan@google.com>
 >
-> Should this __lock_page() be lock_page_killable() ?
-> Hmm, at seeing linux-next, it's now lock_page_or_retry() and FAULT_FLAG_K=
-ILLABLE
-> is set. why not killed immediately ?
+> Nice catch.
+>
+> The concern is GFP_KERNEL !=3D avoid OOM.
+> Although it works now, it can be changed.
+>
+> With alternative idea, We can use explicit oom_killer_disable with __GFP_=
+NOWARN
+> but it wouldn't work since oom_killer_disabled isn't reference count vari=
+able.
+> Of course, we can change it with reference-counted atomic variable.
+> The benefit is it's more explicit and doesn't depends on __GFP_NORETRY im=
+plementation.
+> So I don't have a good idea except above.
 
-Hmm, thank you for pointing it out. It seems that we are missing the
-following patch in the tree triggering the problem:
+> If you want __GFP_NORTRY patch, thing we can do best is add comment in de=
+tail, at least.
+> both side, here add_to_page_cache_lru and there __GFP_NORETRY in include/=
+linux/gfp.h.
 
-commit 37b23e0525d393d48a7d59f870b3bc061a30ccdb
-Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date:   Tue May 24 17:11:30 2011 -0700
+Correct me in case i missed something, looks like I want to backport
+the " x86,mm: make pagefault killable" patch, and we might be able to
+solve the livelock w/o changing the readahead code.
 
-    x86,mm: make pagefault killable
-
-    When an oom killing occurs, almost all processes are getting stuck at t=
-he
-    following two points.
-
-        1) __alloc_pages_nodemask
-        2) __lock_page_or_retry
-
-By eye-balling the linux-next including the patch above, we should be
-able to avoid the live-lock by checking the fatal_signal_pending in
-the page fault path.
+Thanks
 
 --Ying
 
 >
-> Thanks,
-> -Kame
+>> ---
+>> =A0fs/mpage.c =A0 =A0 | =A0 =A03 ++-
+>> =A0mm/readahead.c | =A0 =A03 ++-
+>> =A02 files changed, 4 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/fs/mpage.c b/fs/mpage.c
+>> index 643e9f5..90d608e 100644
+>> --- a/fs/mpage.c
+>> +++ b/fs/mpage.c
+>> @@ -380,7 +380,8 @@ mpage_readpages(struct address_space *mapping, struc=
+t list_head *pages,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 prefetchw(&page->flags);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!add_to_page_cache_lru(page, mapping,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 page->index, GFP_KERNEL)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 page->index,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 GFP_KERNEL | __GFP_NORETRY)) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bio =3D do_mpage_readpage(bi=
+o, page,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 nr_pages - page_idx,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 &last_block_in_bio, &map_bh,
+>> diff --git a/mm/readahead.c b/mm/readahead.c
+>> index cbcbb02..bc9431c 100644
+>> --- a/mm/readahead.c
+>> +++ b/mm/readahead.c
+>> @@ -126,7 +126,8 @@ static int read_pages(struct address_space *mapping,=
+ struct file *filp,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *page =3D list_to_page(pages);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!add_to_page_cache_lru(page, mapping,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 page->index, GFP_KERNEL)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 page->index,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 GFP_KERNEL | __GFP_NORETRY)) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mapping->a_ops->readpage(fil=
+p, page);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(page);
+>> --
+>> 1.7.3.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Fight unfair telecom internet charges in Canada: sign http://stopthemete=
+r.ca/
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
