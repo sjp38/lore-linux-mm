@@ -1,89 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 859FA6B0278
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 12:44:36 -0500 (EST)
-Received: by yhjj63 with SMTP id j63so90795yhj.2
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:44:35 -0800 (PST)
-From: Mike Waychison <mikew@google.com>
-Subject: [PATCH] mm: Fix kswapd livelock on single core, no preempt kernel
-Date: Tue, 13 Dec 2011 09:44:31 -0800
-Message-Id: <1323798271-1452-1-git-send-email-mikew@google.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 38A286B027A
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 12:59:16 -0500 (EST)
+Received: by qan41 with SMTP id 41so4757620qan.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:59:15 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20111213134554.2cec3c3a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1323742608-9246-1-git-send-email-yinghan@google.com>
+	<20111213134554.2cec3c3a.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 13 Dec 2011 09:59:14 -0800
+Message-ID: <CALWz4iz2XUQqfC_0e4fK=XiQ7Ox3rj1J=oryxrDYZrGHD-OOaA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] memcg: fix livelock in try charge during readahead
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickens <hughd@google.com>, Greg Thelen <gthelen@google.com>, Mike Waychison <mikew@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On a single core system with kernel preemption disabled, it is possible
-for the memory system to be so taxed that kswapd cannot make any forward
-progress.  This can happen when most of system memory is tied up as
-anonymous memory without swap enabled, causing kswapd to consistently
-fail to achieve its watermark goals.  In turn, sleeping_prematurely()
-will consistently return true and kswapd_try_to_sleep() to never invoke
-schedule().  This causes the kswapd thread to stay on the CPU in
-perpetuity and keeps other threads from processing oom-kills to reclaim
-memory.
+On Mon, Dec 12, 2011 at 8:45 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 12 Dec 2011 18:16:48 -0800
+> Ying Han <yinghan@google.com> wrote:
+>
+>> Couple of kernel dumps are triggered by watchdog timeout. It turns out t=
+hat two
+>> processes within a memcg livelock on a same page lock. We believe this i=
+s not
+>> memcg specific issue and the same livelock exists in non-memcg world as =
+well.
+>>
+>> The sequence of triggering the livelock:
+>> 1. Task_A enters pagefault (filemap_fault) and then starts readahead
+>> filemap_fault
+>> =A0-> do_sync_mmap_readahead
+>> =A0 =A0 -> ra_submit
+>> =A0 =A0 =A0 =A0->__do_page_cache_readahead // here we allocate the reada=
+head pages
+>> =A0 =A0 =A0 =A0 =A0->read_pages
+>> =A0 =A0 =A0 =A0 =A0...
+>> =A0 =A0 =A0 =A0 =A0 =A0->add_to_page_cache_locked
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0//for each page, we do the try charge and the=
+n add the page into
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0//radix tree. If one of the try charge failed=
+, it enters per-memcg
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0//oom while holding the page lock of previous=
+ readahead pages.
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 // in the memcg oom killer, it picks a task with=
+in the same memcg
+>> =A0 =A0 =A0 =A0 =A0 =A0 // and mark it TIF_MEMDIE. then it goes back int=
+o retry loop and
+>> =A0 =A0 =A0 =A0 =A0 =A0 // hopes the task exits to free some memory.
+>>
+>> 2. Task_B enters pagefault (filemap_fault) and finds the page in radix t=
+ree (
+>> one of the readahead pages from ProcessA)
+>>
+>> filemap_fault
+>> =A0->__lock_page // here it is marked as TIF_MEMDIE. but it can not proc=
+eed since
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0// the page lock is hold by ProcessA loop=
+ing at OOM.
+>>
+>
+> Should this __lock_page() be lock_page_killable() ?
+> Hmm, at seeing linux-next, it's now lock_page_or_retry() and FAULT_FLAG_K=
+ILLABLE
+> is set. why not killed immediately ?
 
-The cond_resched() instance in balance_pgdat() is never called as the
-loop that iterates from DEF_PRIORITY down to 0 will always set
-all_zones_ok to true, and not set it to false once we've passed
-DEF_PRIORITY as zones that are marked ->all_unreclaimable are not
-considered in the "all_zones_ok" evaluation.
+Hmm, thank you for pointing it out. It seems that we are missing the
+following patch in the tree triggering the problem:
 
-This change modifies kswapd_try_to_sleep to ensure that we enter
-scheduler at least once per invocation if needed.  This allows kswapd to
-get off the CPU and allows other threads to die off from the OOM killer
-(freeing memory that is otherwise unavailable in the process).
+commit 37b23e0525d393d48a7d59f870b3bc061a30ccdb
+Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date:   Tue May 24 17:11:30 2011 -0700
 
-Signed-off-by: Mike Waychison <mikew@google.com>
----
- mm/vmscan.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+    x86,mm: make pagefault killable
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f54a05b..aad70c7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2794,6 +2794,7 @@ out:
- static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- {
- 	long remaining = 0;
-+	bool slept = false;
- 	DEFINE_WAIT(wait);
- 
- 	if (freezing(current) || kthread_should_stop())
-@@ -2806,6 +2807,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		remaining = schedule_timeout(HZ/10);
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+		slept = true;
- 	}
- 
- 	/*
-@@ -2826,6 +2828,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
- 		schedule();
- 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
-+		slept = true;
- 	} else {
- 		if (remaining)
- 			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-@@ -2833,6 +2836,14 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
- 	}
- 	finish_wait(&pgdat->kswapd_wait, &wait);
-+	/*
-+	 * If we did not sleep already, there is a chance that we will sit on
-+	 * the CPU trashing without making any forward progress.  This can
-+	 * lead to a livelock on a single CPU system without kernel pre-emption,
-+	 * so introduce a voluntary context switch.
-+	 */
-+	if (!slept)
-+		cond_resched();
- }
- 
- /*
--- 
-1.7.3.1
+    When an oom killing occurs, almost all processes are getting stuck at t=
+he
+    following two points.
+
+        1) __alloc_pages_nodemask
+        2) __lock_page_or_retry
+
+By eye-balling the linux-next including the patch above, we should be
+able to avoid the live-lock by checking the fatal_signal_pending in
+the page fault path.
+
+--Ying
+
+>
+> Thanks,
+> -Kame
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
