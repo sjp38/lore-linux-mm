@@ -1,33 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 094F26B0280
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 13:46:05 -0500 (EST)
-Date: Tue, 13 Dec 2011 13:45:44 -0500 (EST)
-Message-Id: <20111213.134544.897666694310425225.davem@davemloft.net>
-Subject: Re: [PATCH v9 0/9] Request for inclusion: per-cgroup tcp memory
- pressure controls
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1323784748.2950.4.camel@edumazet-laptop>
-References: <20111212.190734.1967808916779299221.davem@davemloft.net>
-	<4EE757D7.6060006@uclouvain.be>
-	<1323784748.2950.4.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 97AD56B0281
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 14:06:41 -0500 (EST)
+Date: Tue, 13 Dec 2011 11:06:32 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [patch v3]numa: add a sysctl to control interleave allocation
+ granularity from each node to improve I/O performance
+Message-ID: <20111213190632.GA5830@tassilo.jf.intel.com>
+References: <1323655125.22361.376.camel@sli10-conroe>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1323655125.22361.376.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: eric.dumazet@gmail.com
-Cc: christoph.paasch@uclouvain.be, glommer@parallels.com, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, cgroups@vger.kernel.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, lee.schermerhorn@hp.com, David Rientjes <rientjes@google.com>
 
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Tue, 13 Dec 2011 14:59:08 +0100
-
-> [PATCH net-next] net: fix build error if CONFIG_CGROUPS=n
+On Mon, Dec 12, 2011 at 09:58:45AM +0800, Shaohua Li wrote:
+> If mem plicy is interleaves, we will allocated pages from nodes in a round
+> robin way. This surely can do interleave fairly, but not optimal.
 > 
-> Reported-by: Christoph Paasch <christoph.paasch@uclouvain.be>
-> Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+> Say the pages will be used for I/O later. Interleave allocation for two pages
+> are allocated from two nodes, so the pages are not physically continuous. Later
 
-Applied, thanks.
+I would prefer to add a new policy (INTERLEAVE_MULTI or so) for this
+instead of a global sysctl, that takes the additional parameter.
+
+Also I don't like having more per task state. Could you compute this
+from the address instead even for the process policy case?
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
