@@ -1,90 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 7CB716B024F
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 05:50:06 -0500 (EST)
-Date: Tue, 13 Dec 2011 11:49:57 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH RFC] bootmem: micro optimize freeing pages in bulks
-Message-ID: <20111213104957.GB28671@cmpxchg.org>
-References: <1322777455-32315-1-git-send-email-u.kleine-koenig@pengutronix.de>
- <20111213100601.GA28671@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 55BC56B0250
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 08:02:01 -0500 (EST)
+From: "Shi, Alex" <alex.shi@intel.com>
+Date: Tue, 13 Dec 2011 21:01:53 +0800
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B672997EA57@shsmsx502.ccr.corp.intel.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+ <alpine.DEB.2.00.1112020842280.10975@router.home>
+ <1323419402.16790.6105.camel@debian>
+ <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20111213100601.GA28671@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "Shi, Alex" <alex.shi@intel.com>, David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Tue, Dec 13, 2011 at 11:06:01AM +0100, Johannes Weiner wrote:
-> On Thu, Dec 01, 2011 at 11:10:55PM +0100, Uwe Kleine-Konig wrote:
-> > The first entry of bdata->node_bootmem_map holds the data for
-> > bdata->node_min_pfn up to bdata->node_min_pfn + BITS_PER_LONG - 1. So
-> > the test for freeing all pages of a single map entry can be slightly
-> > relaxed.
-> 
-> Agreed.  The optimization is tiny - we may lose one bulk order-5/6
-> free per node and do it in 32/64 order-0 frees instead (we touch each
-> page anyway one way or another), but the code makes more sense with
-> your change.
-> 
-> [ Btw, what's worse is start being unaligned, because we won't do a
->   single batch free then.  The single-page loop should probably just
->   move to the next BITS_PER_WORD boundary and then retry the aligned
->   batch frees.  Oh, well... ]
-> 
-> > Moreover use DIV_ROUND_UP in another place instead of open coding it.
-> 
-> Agreed.
-> 
-> > Cc: Johannes Weiner <hannes@saeurebad.de>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Signed-off-by: Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>
-> > ---
-> > Hello,
-> > 
-> > I'm not sure the current code is correct (and my patch doesn't fix it):
-> > 
-> > If
-> > 
-> > 	aligned && vec == ~0UL
-> > 
-> > evalutates to true, but
-> > 
-> > 	start + BITS_PER_LONG <= end
-> > 
-> > does not (or "< end" resp.) the else branch still frees all BITS_PER_LONG
-> > pages. Is this intended? If yes, the last check can better be omitted
-> > resulting in the pages being freed in a bulk.
-> > If not, the loop in the else branch should only do something like:
-> > 
-> > 	while (vec && off < min(BITS_PER_LONG, end - start)) {
-> > 		...
-> 
-> I would think this is fine because node_bootmem_map, which is where
-> vec points to, is sized in multiples of pages, and zeroed word-wise.
-> So even if end is not aligned, we can rely on !vec.
+> > > -       if (tail =3D=3D DEACTIVATE_TO_TAIL)
+> > > +       if (tail =3D=3D DEACTIVATE_TO_TAIL ||
+> > > +               page->inuse > page->objects /2)
+> > >                 list_add_tail(&page->lru, &n->partial);
+> > >         else
+> > >                 list_add(&page->lru, &n->partial);
+> > >
 
-And putting two and two together (watch out, I'm on fire!) for the
-other branch, this means that the whole
+> > with the statistics patch above?  I typically run with CONFIG_SLUB_STAT=
+S
+> > disabled since it impacts performance so heavily and I'm not sure what
+> > information you're looking for with regards to those stats.
+>=20
+> NO, when you collect data, please close SLUB_STAT in kernel config.  _to_=
+head
+> statistics collection patch just tell you, I collected the statistics not=
+ include
+> add_partial in early_kmem_cache_node_alloc(). And other places of
+> add_partial were covered. Of course, the kernel with statistic can not be=
+ used
+> to measure performance.
 
-	start + BITS_PER_LONG <= end
-
-check is actually unnecessary.  Your patch is still correct, of
-course, but we could as well just remove the whole thing and rely on
-vec not having bits set for the address range past end.
-
-> > @@ -197,7 +197,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-> >  		idx = start - bdata->node_min_pfn;
-> >  		vec = ~map[idx / BITS_PER_LONG];
-> >  
-> > -		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
-> > +		if (aligned && vec == ~0UL && start + BITS_PER_LONG <= end) {
-> >  			int order = ilog2(BITS_PER_LONG);
-> >  
-> >  			__free_pages_bootmem(pfn_to_page(start), order);
+David, Did you have time to give a try? =20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
