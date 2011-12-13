@@ -1,43 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 632F46B026A
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 10:10:15 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Tue, 13 Dec 2011 15:10:02 +0000
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <4EE33EC2.6050508@redhat.com> <20111212224408.GD4355@morell.nvidia.com>
-In-Reply-To: <20111212224408.GD4355@morell.nvidia.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 3D52C6B026B
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 10:10:43 -0500 (EST)
+Date: Tue, 13 Dec 2011 16:10:37 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH] page_cgroup: cleanup lookup_swap_cgroup()
+Message-ID: <20111213151037.GD1818@redhat.com>
+References: <1323747238-10252-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201112131510.02785.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1323747238-10252-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Morell <rmorell@nvidia.com>
-Cc: Mauro Carvalho Chehab <mchehab@redhat.com>, Sumit Semwal <sumit.semwal@ti.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "jesse.barker@linaro.org" <jesse.barker@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "daniel@ffwll.ch" <daniel@ffwll.ch>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, bsingharora@gmail.com
 
-On Monday 12 December 2011, Robert Morell wrote:
-> > 
-> > Doing a buffer sharing with something that is not GPL is not fun, as, if any
-> > issue rises there, it would be impossible to discover if the problem is either
-> > at the closed-source driver or at the open source one. At the time I was using
-> > the Nvidia proprietary driver, it was very common to have unexplained issues
-> > caused likely by bad code there at the buffer management code, causing X
-> > applications and extensions (like xv) to break.
-> >
-> > We should really make this EXPORT_SYMBOL_GPL(), in order to be able to latter
-> > debug future share buffer issues, when needed.
+On Tue, Dec 13, 2011 at 11:33:58AM +0800, Bob Liu wrote:
+> This patch is based on my previous patch:
+> page_cgroup: add helper function to get swap_cgroup
 > 
-> Sorry, I don't buy this argument.  Making these exports GPL-only is not
-> likely to cause anybody to open-source their driver, but will rather
-> just cause them to use yet more closed-source code that is even less
-> debuggable than this would be, to those without access to the source.
+> As Johannes suggested, change the public interface to lookup_swap_cgroup_id(),
+> replace swap_cgroup_getsc() with lookup_swap_cgroup() and do some extra
+> cleanup.
+> 
+> Cc: Johannes Weiner <jweiner@redhat.com>
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
-But at least the broken module then won't be interacting with other modules
-because it cannot share any buffers.
+Awesome, thanks!  Patch looks good to me.
 
-	Arnd
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
