@@ -1,170 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 438206B027C
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 13:29:36 -0500 (EST)
-Received: by qan41 with SMTP id 41so4779785qan.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 10:29:35 -0800 (PST)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 0D5FB6B0072
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 13:43:17 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so5707277qcs.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 10:43:17 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20111213061035.GA8513@barrios-laptop.redhat.com>
-References: <1323742608-9246-1-git-send-email-yinghan@google.com>
-	<20111213061035.GA8513@barrios-laptop.redhat.com>
-Date: Tue, 13 Dec 2011 10:29:34 -0800
-Message-ID: <CALWz4iw1i_EtJD9y+JZb+5YnAOuZ93Bg=fO+-KGD6xR6a7znNw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] memcg: fix livelock in try charge during readahead
+In-Reply-To: <20111213162126.GE30440@tiehlicka.suse.cz>
+References: <1323742587-9084-1-git-send-email-yinghan@google.com>
+	<20111213162126.GE30440@tiehlicka.suse.cz>
+Date: Tue, 13 Dec 2011 10:43:16 -0800
+Message-ID: <CALWz4iwHVMK_k5bxP_m1E8Ugq_FE5XTzHDNi7A8CRhkWHG_Z9A@mail.gmail.com>
+Subject: Re: [PATCH 1/2] memcg: Use gfp_mask __GFP_NORETRY in try charge
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On Mon, Dec 12, 2011 at 10:10 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Mon, Dec 12, 2011 at 06:16:48PM -0800, Ying Han wrote:
->> Couple of kernel dumps are triggered by watchdog timeout. It turns out t=
-hat two
->> processes within a memcg livelock on a same page lock. We believe this i=
-s not
->> memcg specific issue and the same livelock exists in non-memcg world as =
-well.
+On Tue, Dec 13, 2011 at 8:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Mon 12-12-11 18:16:27, Ying Han wrote:
+>> In __mem_cgroup_try_charge() function, the parameter "oom" is passed fro=
+m the
+>> caller indicating whether or not the charge should enter memcg oom kill.=
+ In
+>> fact, we should be able to eliminate that by using the existing gfp_mask=
+ and
+>> __GFP_NORETRY flag.
 >>
->> The sequence of triggering the livelock:
->> 1. Task_A enters pagefault (filemap_fault) and then starts readahead
->> filemap_fault
->> =A0-> do_sync_mmap_readahead
->> =A0 =A0 -> ra_submit
->> =A0 =A0 =A0 =A0->__do_page_cache_readahead // here we allocate the reada=
-head pages
->> =A0 =A0 =A0 =A0 =A0->read_pages
->> =A0 =A0 =A0 =A0 =A0...
->> =A0 =A0 =A0 =A0 =A0 =A0->add_to_page_cache_locked
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0//for each page, we do the try charge and the=
-n add the page into
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0//radix tree. If one of the try charge failed=
-, it enters per-memcg
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0//oom while holding the page lock of previous=
- readahead pages.
+>> This patch removed the "oom" parameter, and add the __GFP_NORETRY flag i=
+nto
+>> gfp_mask for those doesn't want to enter memcg oom. There is no function=
+al
+>> change for those setting false to "oom" like mem_cgroup_move_parent(), b=
+ut
+>> __GFP_NORETRY now is checked for those even setting true to "oom".
 >>
->> =A0 =A0 =A0 =A0 =A0 =A0 // in the memcg oom killer, it picks a task with=
-in the same memcg
->> =A0 =A0 =A0 =A0 =A0 =A0 // and mark it TIF_MEMDIE. then it goes back int=
-o retry loop and
->> =A0 =A0 =A0 =A0 =A0 =A0 // hopes the task exits to free some memory.
->>
->> 2. Task_B enters pagefault (filemap_fault) and finds the page in radix t=
-ree (
->> one of the readahead pages from ProcessA)
->>
->> filemap_fault
->> =A0->__lock_page // here it is marked as TIF_MEMDIE. but it can not proc=
-eed since
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0// the page lock is hold by ProcessA loop=
-ing at OOM.
->>
->> Since the TIF_MEMDIE task_B is live locked, it ends up blocking other ta=
-sks
->> making forward progress since they are also checking the flag in
->> select_bad_process. The same issue exists in the non-memcg world. Instea=
-d of
->> entering oom through mem_cgroup_cache_charge(), we might enter it throug=
-h
->> radix_tree_preload().
->>
->> The proposed fix here is to pass __GFP_NORETRY gfp_mask into try charge =
-under
->> readahead. Then we skip entering memcg OOM kill which eliminates the cas=
-e where
->> it OOMs on one page and holds other page locks. It seems to be safe to d=
-o that
->> since both filemap_fault() and do_generic_file_read() handles the fallba=
-ck case
->> of "no_cached_page".
->>
->> Note:
->> After this patch, we might experience some charge fails for readahead pa=
-ges
->> (since we don't enter oom). But this sounds sane compared to letting the=
- system
->> trying extremely hard to charge a readahead page by doing reclaim and th=
-en oom,
->> the later one also triggers livelock as listed above.
->>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->> Signed-off-by: Ying Han <yinghan@google.com>
+>> The __GFP_NORETRY is used in page allocator to bypass retry and oom kill=
+. I
+>> believe there is a reason for callers to use that flag, and in memcg cha=
+rge
+>> we need to respect it as well.
 >
-> Nice catch.
->
-> The concern is GFP_KERNEL !=3D avoid OOM.
-> Although it works now, it can be changed.
->
-> With alternative idea, We can use explicit oom_killer_disable with __GFP_=
-NOWARN
-> but it wouldn't work since oom_killer_disabled isn't reference count vari=
-able.
-> Of course, we can change it with reference-counted atomic variable.
-> The benefit is it's more explicit and doesn't depends on __GFP_NORETRY im=
-plementation.
-> So I don't have a good idea except above.
+> What is the reason for this change?
+> To be honest it makes the oom condition more obscure. __GFP_NORETRY
+> documentation doesn't say anything about OOM and one would have to know
+> details about allocator internals to follow this.
+> So I am not saying the patch is bad but I would need some strong reason
+> to like it ;)
 
-> If you want __GFP_NORTRY patch, thing we can do best is add comment in de=
-tail, at least.
-> both side, here add_to_page_cache_lru and there __GFP_NORETRY in include/=
-linux/gfp.h.
+Thank you for looking into this :)
 
-Correct me in case i missed something, looks like I want to backport
-the " x86,mm: make pagefault killable" patch, and we might be able to
-solve the livelock w/o changing the readahead code.
+This patch was made as part of the effort solving the livelock issue.
+Then it becomes a separate question by itself.
+
+I don't quite understand the mismatch on gfp_mask =3D __GFP_NORETRY &&
+oom_check =3D=3D true. In page allocator we bypass the retry as well as
+the oom if the flag is set, but we ingore the flag totally when
+getting into the memcg charge. Why is that, and is there any
+implications to use "oom_check" instead?
 
 Thanks
 
 --Ying
 
+
+
 >
->> ---
->> =A0fs/mpage.c =A0 =A0 | =A0 =A03 ++-
->> =A0mm/readahead.c | =A0 =A03 ++-
->> =A02 files changed, 4 insertions(+), 2 deletions(-)
 >>
->> diff --git a/fs/mpage.c b/fs/mpage.c
->> index 643e9f5..90d608e 100644
->> --- a/fs/mpage.c
->> +++ b/fs/mpage.c
->> @@ -380,7 +380,8 @@ mpage_readpages(struct address_space *mapping, struc=
-t list_head *pages,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 prefetchw(&page->flags);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!add_to_page_cache_lru(page, mapping,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 page->index, GFP_KERNEL)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 page->index,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 GFP_KERNEL | __GFP_NORETRY)) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bio =3D do_mpage_readpage(bi=
-o, page,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 nr_pages - page_idx,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 &last_block_in_bio, &map_bh,
->> diff --git a/mm/readahead.c b/mm/readahead.c
->> index cbcbb02..bc9431c 100644
->> --- a/mm/readahead.c
->> +++ b/mm/readahead.c
->> @@ -126,7 +126,8 @@ static int read_pages(struct address_space *mapping,=
- struct file *filp,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page *page =3D list_to_page(pages);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!add_to_page_cache_lru(page, mapping,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 page->index, GFP_KERNEL)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 page->index,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 GFP_KERNEL | __GFP_NORETRY)) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mapping->a_ops->readpage(fil=
-p, page);
+>> Signed-off-by: Ying Han <yinghan@google.com>
+>> ---
+>> =A0mm/memcontrol.c | =A0 26 +++++++++++++-------------
+>> =A01 files changed, 13 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 894e0d2..4c49ca0 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -2065,8 +2065,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup =
+*memcg, gfp_t gfp_mask,
+>> =A0static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0gfp_t=
+ gfp_mask,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsig=
+ned int nr_pages,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct =
+mem_cgroup **ptr,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bool oo=
+m)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct =
+mem_cgroup **ptr)
+>> =A0{
+>> =A0 =A0 =A0 unsigned int batch =3D max(CHARGE_BATCH, nr_pages);
+>> =A0 =A0 =A0 int nr_oom_retries =3D MEM_CGROUP_RECLAIM_RETRIES;
+>> @@ -2149,7 +2148,7 @@ again:
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(page);
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 oom_check =3D false;
+>> - =A0 =A0 =A0 =A0 =A0 =A0 if (oom && !nr_oom_retries) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!(gfp_mask & __GFP_NORETRY) && !nr_oom_ret=
+ries) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 oom_check =3D true;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_oom_retries =3D MEM_CGROU=
+P_RECLAIM_RETRIES;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> @@ -2167,7 +2166,7 @@ again:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 css_put(&memcg->css);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto nomem;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 case CHARGE_NOMEM: /* OOM routine works */
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!oom) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (gfp_mask & __GFP_NORETRY) =
+{
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 css_put(&mem=
+cg->css);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto nomem;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> @@ -2456,10 +2455,11 @@ static int mem_cgroup_move_parent(struct page *p=
+age,
+>> =A0 =A0 =A0 if (isolate_lru_page(page))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto put;
+>>
+>> + =A0 =A0 gfp_mask |=3D __GFP_NORETRY;
+>> =A0 =A0 =A0 nr_pages =3D hpage_nr_pages(page);
+>>
+>> =A0 =A0 =A0 parent =3D mem_cgroup_from_cont(pcg);
+>> - =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &par=
+ent, false);
+>> + =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &par=
+ent);
+>> =A0 =A0 =A0 if (ret || !parent)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto put_back;
+>>
+>> @@ -2492,7 +2492,6 @@ static int mem_cgroup_charge_common(struct page *p=
+age, struct mm_struct *mm,
+>> =A0 =A0 =A0 struct mem_cgroup *memcg =3D NULL;
+>> =A0 =A0 =A0 unsigned int nr_pages =3D 1;
+>> =A0 =A0 =A0 struct page_cgroup *pc;
+>> - =A0 =A0 bool oom =3D true;
+>> =A0 =A0 =A0 int ret;
+>>
+>> =A0 =A0 =A0 if (PageTransHuge(page)) {
+>> @@ -2502,13 +2501,13 @@ static int mem_cgroup_charge_common(struct page =
+*page, struct mm_struct *mm,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Never OOM-kill a process for a huge pag=
+e. =A0The
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* fault handler will fall back to regular=
+ pages.
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> - =A0 =A0 =A0 =A0 =A0 =A0 oom =3D false;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 gfp_mask |=3D __GFP_NORETRY;
+>> =A0 =A0 =A0 }
+>>
+>> =A0 =A0 =A0 pc =3D lookup_page_cgroup(page);
+>> =A0 =A0 =A0 BUG_ON(!pc); /* XXX: remove this and move pc lookup into com=
+mit */
+>>
+>> - =A0 =A0 ret =3D __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg=
+, oom);
+>> + =A0 =A0 ret =3D __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg=
+);
+>> =A0 =A0 =A0 if (ret || !memcg)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret;
+>>
+>> @@ -2571,7 +2570,7 @@ int mem_cgroup_cache_charge(struct page *page, str=
+uct mm_struct *mm,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mm =3D &init_mm;
+>>
+>> =A0 =A0 =A0 if (page_is_file_cache(page)) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 ret =3D __mem_cgroup_try_charge(mm, gfp_mask, =
+1, &memcg, true);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D __mem_cgroup_try_charge(mm, gfp_mask, =
+1, &memcg);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret || !memcg)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret;
+>>
+>> @@ -2629,13 +2628,13 @@ int mem_cgroup_try_charge_swapin(struct mm_struc=
+t *mm,
+>> =A0 =A0 =A0 if (!memcg)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto charge_cur_mm;
+>> =A0 =A0 =A0 *ptr =3D memcg;
+>> - =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, mask, 1, ptr, true);
+>> + =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, mask, 1, ptr);
+>> =A0 =A0 =A0 css_put(&memcg->css);
+>> =A0 =A0 =A0 return ret;
+>> =A0charge_cur_mm:
+>> =A0 =A0 =A0 if (unlikely(!mm))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mm =3D &init_mm;
+>> - =A0 =A0 return __mem_cgroup_try_charge(mm, mask, 1, ptr, true);
+>> + =A0 =A0 return __mem_cgroup_try_charge(mm, mask, 1, ptr);
+>> =A0}
+>>
+>> =A0static void
+>> @@ -3024,6 +3023,7 @@ int mem_cgroup_prepare_migration(struct page *page=
+,
+>> =A0 =A0 =A0 int ret =3D 0;
+>>
+>> =A0 =A0 =A0 *ptr =3D NULL;
+>> + =A0 =A0 gfp_mask |=3D __GFP_NORETRY;
+>>
+>> =A0 =A0 =A0 VM_BUG_ON(PageTransHuge(page));
+>> =A0 =A0 =A0 if (mem_cgroup_disabled())
+>> @@ -3075,7 +3075,7 @@ int mem_cgroup_prepare_migration(struct page *page=
+,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>>
+>> =A0 =A0 =A0 *ptr =3D memcg;
+>> - =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, gfp_mask, 1, ptr, false)=
+;
+>> + =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, gfp_mask, 1, ptr);
+>> =A0 =A0 =A0 css_put(&memcg->css);/* drop extra refcnt */
+>> =A0 =A0 =A0 if (ret || *ptr =3D=3D NULL) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (PageAnon(page)) {
+>> @@ -4765,7 +4765,7 @@ one_by_one:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cond_resched();
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 GFP_KERNEL, 1, &memcg, false);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 GFP_KERNEL | __GFP_NORETRY, 1, &memcg);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret || !memcg)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* mem_cgroup_clear_mc() wil=
+l do uncharge later */
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
 >> --
 >> 1.7.3.1
 >>
@@ -177,8 +236,12 @@ r.ca/
 >> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
 > --
-> Kind regards,
-> Minchan Kim
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
