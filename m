@@ -1,105 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id EA6366B0252
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 08:33:57 -0500 (EST)
-From: Hans Verkuil <hverkuil@xs4all.nl>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Tue, 13 Dec 2011 14:33:31 +0100
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <201112071340.35267.arnd@arndb.de> <CAKMK7uFQiiUbkU-7c3Os0d0FJNyLbqS2HLPRLy3LGnOoCXV5Pw@mail.gmail.com>
-In-Reply-To: <CAKMK7uFQiiUbkU-7c3Os0d0FJNyLbqS2HLPRLy3LGnOoCXV5Pw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 322426B0253
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 08:49:16 -0500 (EST)
+Message-ID: <4EE757D7.6060006@uclouvain.be>
+Date: Tue, 13 Dec 2011 14:49:11 +0100
+From: Christoph Paasch <christoph.paasch@uclouvain.be>
+Reply-To: christoph.paasch@uclouvain.be
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201112131433.32051.hverkuil@xs4all.nl>
+Subject: Re: [PATCH v9 0/9] Request for inclusion: per-cgroup tcp memory pressure
+ controls
+References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <20111212.190734.1967808916779299221.davem@davemloft.net>
+In-Reply-To: <20111212.190734.1967808916779299221.davem@davemloft.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linaro-mm-sig@lists.linaro.org
-Cc: Daniel Vetter <daniel@ffwll.ch>, Arnd Bergmann <arnd@arndb.de>, linux@arm.linux.org.uk, "Semwal, Sumit" <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: glommer@parallels.com, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-(I've been away for the past two weeks, so I'm only now catching up)
+Hi,
 
-
-On Thursday 08 December 2011 22:44:08 Daniel Vetter wrote:
-> On Wed, Dec 7, 2011 at 14:40, Arnd Bergmann <arnd@arndb.de> wrote:
-> > On Wednesday 07 December 2011, Semwal, Sumit wrote:
-> >> Thanks for the excellent discussion - it indeed is very good learning
-> >> for the relatively-inexperienced me :)
-> >> 
-> >> So, for the purpose of dma-buf framework, could I summarize the
-> >> following and rework accordingly?:
-> >> 1. remove mmap() dma_buf_op [and mmap fop], and introduce cpu_start(),
-> >> cpu_finish() ops to bracket cpu accesses to the buffer. Also add
-> >> DMABUF_CPU_START / DMABUF_CPU_FINI IOCTLs?
-> > 
-> > I think we'd be better off for now without the extra ioctls and
-> > just document that a shared buffer must not be exported to user
-> > space using mmap at all, to avoid those problems. Serialization
-> > between GPU and CPU is on a higher level than the dma_buf framework
-> > IMHO.
+On 12/13/2011 01:07 AM, David Miller wrote:
+> From: Glauber Costa <glommer@parallels.com>
+> Date: Mon, 12 Dec 2011 11:47:00 +0400
 > 
-> Agreed.
+>> This series fixes all the few comments raised in the last round,
+>> and seem to have acquired consensus from the memcg side.
+>>
+>> Dave, do you think it is acceptable now from the networking PoV?
+>> In case positive, would you prefer merging this trough your tree,
+>> or acking this so a cgroup maintainer can do it?
 > 
-> >> 2. remove sg_sync* ops for now (and we'll see if we need to add them
-> >> later if needed)
-> > 
-> > Just removing the sg_sync_* operations is not enough. We have to make
-> > the decision whether we want to allow
-> > a) only coherent mappings of the buffer into kernel memory (requiring
-> > an extension to the dma_map_ops on ARM to not flush caches at map/unmap
-> > time)
-> > b) not allowing any in-kernel mappings (same requirement on ARM, also
-> > limits the usefulness of the dma_buf if we cannot access it from the
-> > kernel or from user space)
-> > c) only allowing streaming mappings, even if those are non-coherent
-> > (requiring strict serialization between CPU (in-kernel) and dma users of
-> > the buffer)
-> 
-> I think only allowing streaming access makes the most sense:
-> - I don't see much (if any need) for the kernel to access a dma_buf -
-> in all current usecases it just contains pixel data and no hw-specific
-> things (like sg tables, command buffers, ..). At most I see the need
-> for the kernel to access the buffer for dma bounce buffers, but that
-> is internal to the dma subsystem (and hence does not need to be
-> exposed).
+> All applied to net-next, thanks.
 
-There are a few situations where the kernel might actually access a dma_buf:
+now there are plenty of compiler-warnings when CONFIG_CGROUPS is not set:
 
-First of all there are some sensors that add meta data before the actual
-pixel data, and a kernel driver might well want to read out that data and
-process it. Secondly (and really very similar), video frames sent to/from
-an FPGA can also contain meta data (Cisco does that on some of our products)
-that the kernel may need to inspect.
+In file included from include/linux/tcp.h:211:0,
+                 from include/linux/ipv6.h:221,
+                 from include/net/ip_vs.h:23,
+                 from kernel/sysctl_binary.c:6:
+include/net/sock.h:67:57: warning: a??struct cgroup_subsysa?? declared
+inside parameter list [enabled by default]
+include/net/sock.h:67:57: warning: its scope is only this definition or
+declaration, which is probably not what you want [enabled by default]
+include/net/sock.h:67:57: warning: a??struct cgroupa?? declared inside
+parameter list [enabled by default]
+include/net/sock.h:68:61: warning: a??struct cgroup_subsysa?? declared
+inside parameter list [enabled by default]
+include/net/sock.h:68:61: warning: a??struct cgroupa?? declared inside
+parameter list [enabled by default]
 
-I admit that these use-cases aren't very common, but they do exist.
 
-> - Userspace can still access the contents through the exporting
-> subsystem (e.g. use some gem mmap support). For efficiency reason gpu
-> drivers are already messing around with cache coherency in a platform
-> specific way (and hence violated the dma api a bit), so we could stuff
-> the mmap coherency in there, too. When we later on extend dma_buf
-> support so that other drivers than the gpu can export dma_bufs, we can
-> then extend the official dma api with already a few drivers with
-> use-patterns around.
-> 
-> But I still think that the kernel must not be required to enforce
-> correct access ordering for the reasons outlined in my other mail.
+Because struct cgroup is only declared if CONFIG_CGROUPS is enabled.
+(cfr. linux/cgroup.h)
 
-I agree with Daniel on this.
 
-BTW, the V4L2 subsystem has a clear concept of passing bufffer ownership: the
-VIDIOC_QBUF and VIDIOC_DQBUF ioctls deal with that. Pretty much all V4L2 apps 
-request the buffers, then mmap them, then call QBUF to give the ownership of 
-those buffers to the kernel. While the kernel owns those buffers any access to 
-the mmap'ped memory leads to undefined results. Only after calling DQBUF can 
-userspace actually safely access that memory.
+Christoph
 
-Allowing mmap() on the dma_buf's fd would actually make things easier for 
-V4L2. It's an elegant way of mapping the memory.
+-- 
+Christoph Paasch
+PhD Student
 
-Regards,
-
-	Hans
+IP Networking Lab --- http://inl.info.ucl.ac.be
+MultiPath TCP in the Linux Kernel --- http://mptcp.info.ucl.ac.be
+UniversitA(C) Catholique de Louvain
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
