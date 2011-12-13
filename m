@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 036B16B0260
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:05:29 -0500 (EST)
-Date: Tue, 13 Dec 2011 15:05:12 +0100
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 793376B0263
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:08:53 -0500 (EST)
+Date: Tue, 13 Dec 2011 15:08:44 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcg: keep root group unchanged if fail to create
- new
-Message-ID: <20111213140511.GA1818@cmpxchg.org>
+Subject: Re: [PATCH] memcg: clean up soft_limit_tree properly new
+Message-ID: <20111213140844.GB1818@cmpxchg.org>
 References: <CAJd=RBB_AoJmyPd7gfHn+Kk39cn-+Wn-pFvU0ZWRZhw2fxoihw@mail.gmail.com>
  <alpine.LSU.2.00.1112111520510.2297@eggly>
  <20111212131118.GA15249@tiehlicka.suse.cz>
  <CAJd=RBAZT0zVnMm7i7P4J9Qg+LvTYh25RwFP7JZnN9dxwWp55g@mail.gmail.com>
+ <20111212140750.GE14720@tiehlicka.suse.cz>
+ <20111212140935.GF14720@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBAZT0zVnMm7i7P4J9Qg+LvTYh25RwFP7JZnN9dxwWp55g@mail.gmail.com>
+In-Reply-To: <20111212140935.GF14720@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Balbir Singh <bsingharora@gmail.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 12, 2011 at 09:49:18PM +0800, Hillf Danton wrote:
-> On Mon, Dec 12, 2011 at 9:11 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> > Hillf could you update the patch please?
-> >
-> Hi Michal,
+On Mon, Dec 12, 2011 at 03:09:35PM +0100, Michal Hocko wrote:
+> And a follow up patch for the proper clean up:
+> ---
+> >From 4b9f5a1e88496af9f336d1ef37cfdf3754a3ba48 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Mon, 12 Dec 2011 15:04:18 +0100
+> Subject: [PATCH] memcg: clean up soft_limit_tree properly
 > 
-> Please review again, thanks.
-> Hillf
+> If we are not able to allocate tree nodes for all NUMA nodes then we
+> should better clean up those that were allocated otherwise we will leak
+> a memory.
 > 
-> ===CUT HERE===
-> From: Hillf Danton <dhillf@gmail.com>
-> Subject: [PATCH] mm: memcg: keep root group unchanged if fail to create new
-> 
-> If the request is to create non-root group and we fail to meet it, we should
-> leave the root unchanged.
-> 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> Acked-by: Hugh Dickins <hughd@google.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+That being said, I think it's unlikely that the machine even boots
+properly if those allocations fail.  But the code looks better this
+way and one doesn't have to double take, wondering if anyone else is
+taking care of the already allocated objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
