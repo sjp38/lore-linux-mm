@@ -1,49 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id D32816B0275
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 11:25:33 -0500 (EST)
-Date: Tue, 13 Dec 2011 17:25:31 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] memcg: Use gfp_mask __GFP_NORETRY in try charge
-Message-ID: <20111213162531.GF30440@tiehlicka.suse.cz>
-References: <1323742587-9084-1-git-send-email-yinghan@google.com>
- <20111213162126.GE30440@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111213162126.GE30440@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 859FA6B0278
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 12:44:36 -0500 (EST)
+Received: by yhjj63 with SMTP id j63so90795yhj.2
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 09:44:35 -0800 (PST)
+From: Mike Waychison <mikew@google.com>
+Subject: [PATCH] mm: Fix kswapd livelock on single core, no preempt kernel
+Date: Tue, 13 Dec 2011 09:44:31 -0800
+Message-Id: <1323798271-1452-1-git-send-email-mikew@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickens <hughd@google.com>, Greg Thelen <gthelen@google.com>, Mike Waychison <mikew@google.com>
 
-On Tue 13-12-11 17:21:26, Michal Hocko wrote:
-> On Mon 12-12-11 18:16:27, Ying Han wrote:
-> > In __mem_cgroup_try_charge() function, the parameter "oom" is passed from the
-> > caller indicating whether or not the charge should enter memcg oom kill. In
-> > fact, we should be able to eliminate that by using the existing gfp_mask and
-> > __GFP_NORETRY flag.
-> > 
-> > This patch removed the "oom" parameter, and add the __GFP_NORETRY flag into
-> > gfp_mask for those doesn't want to enter memcg oom. There is no functional
-> > change for those setting false to "oom" like mem_cgroup_move_parent(), but
-> > __GFP_NORETRY now is checked for those even setting true to "oom".
-> > 
-> > The __GFP_NORETRY is used in page allocator to bypass retry and oom kill. I
-> > believe there is a reason for callers to use that flag, and in memcg charge
-> > we need to respect it as well.
-> 
-> What is the reason for this change?
+On a single core system with kernel preemption disabled, it is possible
+for the memory system to be so taxed that kswapd cannot make any forward
+progress.  This can happen when most of system memory is tied up as
+anonymous memory without swap enabled, causing kswapd to consistently
+fail to achieve its watermark goals.  In turn, sleeping_prematurely()
+will consistently return true and kswapd_try_to_sleep() to never invoke
+schedule().  This causes the kswapd thread to stay on the CPU in
+perpetuity and keeps other threads from processing oom-kills to reclaim
+memory.
 
-Ahh, just noticed the second patch. Give me some time to think about
-that.
+The cond_resched() instance in balance_pgdat() is never called as the
+loop that iterates from DEF_PRIORITY down to 0 will always set
+all_zones_ok to true, and not set it to false once we've passed
+DEF_PRIORITY as zones that are marked ->all_unreclaimable are not
+considered in the "all_zones_ok" evaluation.
+
+This change modifies kswapd_try_to_sleep to ensure that we enter
+scheduler at least once per invocation if needed.  This allows kswapd to
+get off the CPU and allows other threads to die off from the OOM killer
+(freeing memory that is otherwise unavailable in the process).
+
+Signed-off-by: Mike Waychison <mikew@google.com>
+---
+ mm/vmscan.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f54a05b..aad70c7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2794,6 +2794,7 @@ out:
+ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ {
+ 	long remaining = 0;
++	bool slept = false;
+ 	DEFINE_WAIT(wait);
+ 
+ 	if (freezing(current) || kthread_should_stop())
+@@ -2806,6 +2807,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 		remaining = schedule_timeout(HZ/10);
+ 		finish_wait(&pgdat->kswapd_wait, &wait);
+ 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
++		slept = true;
+ 	}
+ 
+ 	/*
+@@ -2826,6 +2828,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+ 		schedule();
+ 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
++		slept = true;
+ 	} else {
+ 		if (remaining)
+ 			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+@@ -2833,6 +2836,14 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
+ 	}
+ 	finish_wait(&pgdat->kswapd_wait, &wait);
++	/*
++	 * If we did not sleep already, there is a chance that we will sit on
++	 * the CPU trashing without making any forward progress.  This can
++	 * lead to a livelock on a single CPU system without kernel pre-emption,
++	 * so introduce a voluntary context switch.
++	 */
++	if (!slept)
++		cond_resched();
+ }
+ 
+ /*
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
