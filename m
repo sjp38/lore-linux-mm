@@ -1,70 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 322426B0253
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 08:49:16 -0500 (EST)
-Message-ID: <4EE757D7.6060006@uclouvain.be>
-Date: Tue, 13 Dec 2011 14:49:11 +0100
-From: Christoph Paasch <christoph.paasch@uclouvain.be>
-Reply-To: christoph.paasch@uclouvain.be
-MIME-Version: 1.0
-Subject: Re: [PATCH v9 0/9] Request for inclusion: per-cgroup tcp memory pressure
- controls
-References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <20111212.190734.1967808916779299221.davem@davemloft.net>
-In-Reply-To: <20111212.190734.1967808916779299221.davem@davemloft.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 1C4CF6B0256
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 08:58:42 -0500 (EST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 0/4] mm: bootmem / page allocator bootstrap fixlets
+Date: Tue, 13 Dec 2011 14:58:27 +0100
+Message-Id: <1323784711-1937-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: glommer@parallels.com, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+Hi Uwe,
 
-On 12/13/2011 01:07 AM, David Miller wrote:
-> From: Glauber Costa <glommer@parallels.com>
-> Date: Mon, 12 Dec 2011 11:47:00 +0400
-> 
->> This series fixes all the few comments raised in the last round,
->> and seem to have acquired consensus from the memcg side.
->>
->> Dave, do you think it is acceptable now from the networking PoV?
->> In case positive, would you prefer merging this trough your tree,
->> or acking this so a cgroup maintainer can do it?
-> 
-> All applied to net-next, thanks.
+here is a follow-up to your bootmem micro optimizations.  3 and 4
+directly relate to the discussion, 1 and 2 are cleanups I had sitting
+around anyway.
 
-now there are plenty of compiler-warnings when CONFIG_CGROUPS is not set:
+Unfortunately, I can't test them as x86 kernels no longer build with
+CONFIG_NO_BOOTMEM=n, but I suspect that you might have access to
+non-x86 machines ;-) so if you can, please give this a spin - I don't
+want this stuff to go in untested.
 
-In file included from include/linux/tcp.h:211:0,
-                 from include/linux/ipv6.h:221,
-                 from include/net/ip_vs.h:23,
-                 from kernel/sysctl_binary.c:6:
-include/net/sock.h:67:57: warning: a??struct cgroup_subsysa?? declared
-inside parameter list [enabled by default]
-include/net/sock.h:67:57: warning: its scope is only this definition or
-declaration, which is probably not what you want [enabled by default]
-include/net/sock.h:67:57: warning: a??struct cgroupa?? declared inside
-parameter list [enabled by default]
-include/net/sock.h:68:61: warning: a??struct cgroup_subsysa?? declared
-inside parameter list [enabled by default]
-include/net/sock.h:68:61: warning: a??struct cgroupa?? declared inside
-parameter list [enabled by default]
+[ Fun fact: nobootmem.c is 400 lines of bootmem API emulation that is
+  just incompatible enough that one can not switch between bootmem and
+  nobootmem without touching callsites. ]
 
-
-Because struct cgroup is only declared if CONFIG_CGROUPS is enabled.
-(cfr. linux/cgroup.h)
-
-
-Christoph
-
--- 
-Christoph Paasch
-PhD Student
-
-IP Networking Lab --- http://inl.info.ucl.ac.be
-MultiPath TCP in the Linux Kernel --- http://mptcp.info.ucl.ac.be
-UniversitA(C) Catholique de Louvain
--- 
+ mm/bootmem.c    |   22 ++++++++++------------
+ mm/page_alloc.c |   33 ++++++++++++---------------------
+ 2 files changed, 22 insertions(+), 33 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
