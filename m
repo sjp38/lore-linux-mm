@@ -1,196 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id BBC476B0301
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 12:04:50 -0500 (EST)
-Date: Wed, 14 Dec 2011 18:04:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v9 1/9] Basic kernel memory functionality for the Memory
- Controller
-Message-ID: <20111214170447.GB4856@tiehlicka.suse.cz>
-References: <1323676029-5890-1-git-send-email-glommer@parallels.com>
- <1323676029-5890-2-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1323676029-5890-2-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 7ECBB6B00CB
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 12:33:14 -0500 (EST)
+Received: by faao14 with SMTP id o14so1905688faa.14
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2011 09:33:12 -0800 (PST)
+Message-ID: <1323883989.2334.68.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Wed, 14 Dec 2011 18:33:09 +0100
+In-Reply-To: <alpine.DEB.2.00.1112140853540.12235@router.home>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	  <alpine.DEB.2.00.1112020842280.10975@router.home>
+	  <1323419402.16790.6105.camel@debian>
+	  <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+	  <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
+	  <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
+	  <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
+	  <1323842761.16790.8295.camel@debian>
+	  <1323845054.2846.18.camel@edumazet-laptop>
+	 <1323845812.16790.8307.camel@debian>
+	 <alpine.DEB.2.00.1112140853540.12235@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Alex,Shi" <alex.shi@intel.com>, David Rientjes <rientjes@google.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-[Now with the current patch version, I hope]
+Le mercredi 14 dA(C)cembre 2011 A  08:59 -0600, Christoph Lameter a A(C)crit :
 
-On Mon 12-12-11 11:47:01, Glauber Costa wrote:
-> This patch lays down the foundation for the kernel memory component
-> of the Memory Controller.
-> 
-> As of today, I am only laying down the following files:
-> 
->  * memory.independent_kmem_limit
+> Many people have done patchsets like this. 
 
-Maybe has been already discussed but the name is rather awkward and it
-would deserve more clarification. It is independent in the way that it
-doesn't add up to the standard (user) allocations or it enables/disables
-accounting?
+Things changed a lot recently. There is room for improvements.
 
->  * memory.kmem.limit_in_bytes (currently ignored)
+At least we can exchange ideas _before_ coding a new patchset ?
 
-What happens if we reach the limit? Are all kernel allocations
-considered or only selected caches? How do I find out which are those?
+> There are various permutations
+> on SL?B (I dont remember them all SLEB, SLXB, SLQB etc) that have been
+> proposed over the years. Caches tend to grow and get rather numerous (see
+> SLAB) and the design of SLUB was to counter that. There is a reason it was
+> called SLUB. The U stands for Unqueued and was intended to avoid the
+> excessive caching problems that I ended up when reworking SLAB for NUMA
+> support.
 
-AFAIU you have implemented it for network buffers at this stage but I
-guess that dentries will follow...
+Current 'one active slab' per cpu is a one level cache.
 
->  * memory.kmem.usage_in_bytes (always zero)
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Kirill A. Shutemov <kirill@shutemov.name>
-> CC: Paul Menage <paul@paulmenage.org>
-> CC: Greg Thelen <gthelen@google.com>
-> CC: Johannes Weiner <jweiner@redhat.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> ---
->  Documentation/cgroups/memory.txt |   40 ++++++++++++++-
->  init/Kconfig                     |   11 ++++
->  mm/memcontrol.c                  |  105 ++++++++++++++++++++++++++++++++++++--
->  3 files changed, 149 insertions(+), 7 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index cc0ebc5..f245324 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -44,8 +44,9 @@ Features:
->   - oom-killer disable knob and oom-notifier
->   - Root cgroup has no limit controls.
->  
-> - Kernel memory and Hugepages are not under control yet. We just manage
-> - pages on LRU. To add more controls, we have to take care of performance.
-> + Hugepages is not under control yet. We just manage pages on LRU. To add more
+It really is a _queue_ containing a fair amount of objects.
 
-Hugepages are not
-Anyway this sounds outdated as we track both THP and hugetlb, right?
+'Unqueued' in SLUB is marketing hype :=)
 
-> + controls, we have to take care of performance. Kernel memory support is work
-> + in progress, and the current version provides basically functionality.
+When we have one producer (say network interrupt handler) feeding
+millions of network packets to N consumers (other cpus), each free is
+slowpath. They all want to touch page->freelist and slow the producer as
+well because of false sharing.
 
-s/basically/basic/
+Furthermore, when the producer hits socket queue limits, it mostly frees
+skbs that were allocated in the 'not very recent past', and its own
+freeing also hit slow path (because memory blocks of the skb are no
+longer in the current active slab). It competes with frees done by
+consumers as well.
 
->  
->  Brief summary of control files.
->  
-> @@ -56,8 +57,11 @@ Brief summary of control files.
->  				 (See 5.5 for details)
->   memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
->  				 (See 5.5 for details)
-> + memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
-> +				 (See 2.7 for details)
->   memory.limit_in_bytes		 # set/show limit of memory usage
->   memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
-> + memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
->   memory.failcnt			 # show the number of memory usage hits limits
->   memory.memsw.failcnt		 # show the number of memory+Swap hits limits
->   memory.max_usage_in_bytes	 # show max memory usage recorded
-> @@ -72,6 +76,9 @@ Brief summary of control files.
->   memory.oom_control		 # set/show oom controls.
->   memory.numa_stat		 # show the number of memory usage per numa node
->  
-> + memory.independent_kmem_limit	 # select whether or not kernel memory limits are
-> +				   independent of user limits
-> +
+Adding a second _small_ cache to queue X objects per cpu would help to
+keep the active slab longer and more 'private' (its 'struct page' not
+touched too often by other cpus) for a given cpu.
 
-It is not clear what happens in enabled/disabled cases. Let's say they
-are not independent. Does it form a single limit with user charges or it
-toggles kmem charging on/off.
+It would limit number of cache line misses we currently have because of
+conflicting accesses to page->freelist just to push one _single_ object
+(and n->list_lock in less extent)
 
->  1. History
->  
->  The memory controller has a long history. A request for comments for the memory
-> @@ -255,6 +262,35 @@ When oom event notifier is registered, event will be delivered.
->    per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
->    zone->lru_lock, it has no lock of its own.
->  
-> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-> +
-> +With the Kernel memory extension, the Memory Controller is able to limit
-> +the amount of kernel memory used by the system. Kernel memory is fundamentally
-> +different than user memory, since it can't be swapped out, which makes it
-> +possible to DoS the system by consuming too much of this precious resource.
-> +
-> +Some kernel memory resources may be accounted and limited separately from the
-> +main "kmem" resource. For instance, a slab cache that is considered important
-> +enough to be limited separately may have its own knobs.
+My initial idea would be to use a cache of 4 slots per cpu, but be able
+to queue many objects per slot, if they all belong to same slab/page.
 
-How do you tell which are those that are accounted to the "main kmem"?
+In case we must make room in the cache (all slots occupied), we take one
+slot and dequeue all objects in one round. No extra latency compared to
+current schem.
 
-> +
-> +Kernel memory limits are not imposed for the root cgroup. Usage for the root
-> +cgroup may or may not be accounted.
-> +
-> +Memory limits as specified by the standard Memory Controller may or may not
-> +take kernel memory into consideration. This is achieved through the file
-> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
-> +memory to be controlled separately.
 
-Separately from user space allocations, right?
-What happens if we reach the limit in both cases?
-
-> @@ -344,9 +353,14 @@ enum charge_type {
->  };
->  
->  /* for encoding cft->private value on file */
-> -#define _MEM			(0)
-> -#define _MEMSWAP		(1)
-> -#define _OOM_TYPE		(2)
-> +
-> +enum mem_type {
-> +	_MEM = 0,
-> +	_MEMSWAP,
-> +	_OOM_TYPE,
-> +	_KMEM,
-> +};
-> +
-
-Probably in a separate (cleanup) patch?
-
->  #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
->  #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
->  #define MEMFILE_ATTR(val)	((val) & 0xffff)
-> @@ -3848,10 +3862,17 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
->  	u64 val;
->  
->  	if (!mem_cgroup_is_root(memcg)) {
-> +		val = 0;
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +		if (!memcg->kmem_independent_accounting)
-> +			val = res_counter_read_u64(&memcg->kmem, RES_USAGE);
-> +#endif
->  		if (!swap)
-> -			return res_counter_read_u64(&memcg->res, RES_USAGE);
-> +			val += res_counter_read_u64(&memcg->res, RES_USAGE);
->  		else
-> -			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
-> +			val += res_counter_read_u64(&memcg->memsw, RES_USAGE);
-> +
-> +		return val;
->  	}
-
-So you report kmem+user but we do not consider kmem during charge so one
-can easily end up with usage_in_bytes over limit but no reclaim is going
-on. Not good, I would say.
-
-OK, so to sum it up. The biggest problem I see is the (non)independent
-accounting. We simply cannot mix user+kernel limits otherwise we would
-see issues (like kernel resource hog would force memcg-oom and innocent
-members would die because their rss is much bigger).
-It is also not clear to me what should happen when we hit the kmem
-limit. I guess it will be kmem cache dependent.
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
