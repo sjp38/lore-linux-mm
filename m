@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 00B476B02C6
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 02:51:43 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 98F353EE0C7
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:51:42 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 78D4345DE4D
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:51:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DC8D45DE51
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:51:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CA9EE08004
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:51:42 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B5C84E08002
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:51:41 +0900 (JST)
-Date: Wed, 14 Dec 2011 16:50:32 +0900
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 412326B02C8
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 02:52:36 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C33C93EE0C3
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:34 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EBF145DEB8
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 763A545DEB2
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 62672E08002
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:34 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 004521DB803C
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:34 +0900 (JST)
+Date: Wed, 14 Dec 2011 16:51:24 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/4] memcg: simplify corner case handling of LRU.
-Message-Id: <20111214165032.ae8416b2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/4] memcg: clear pc->mem_cgorup if necessary.
+Message-Id: <20111214165124.4d2cf723.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -33,186 +33,98 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <l
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This patch simplifies LRU handling of racy case (memcg+SwapCache).
-At charging, SwapCache tend to be on LRU already. So, before
-overwriting pc->mem_cgroup, the page must be removed from LRU and
-added to LRU later.
+This is a preparation before removing a flag PCG_ACCT_LRU in page_cgroup
+and reducing atomic ops/complexity in memcg LRU handling.
 
-This patch does
-        spin_lock(zone->lru_lock);
-        if (PageLRU(page))
-                remove from LRU
-        overwrite pc->mem_cgroup
-        if (PageLRU(page))
-                add to new LRU.
-        spin_unlock(zone->lru_lock);
+In some cases, pages are added to lru before charge to memcg and pages
+are not classfied to memory cgroup at lru addtion. Now, the lru where
+the page should be added is determined a bit in page_cgroup->flags and
+pc->mem_cgroup. I'd like to remove the check of flag.
 
-And guarantee all pages are not on LRU at modifying pc->mem_cgroup.
-This patch also unfies lru handling of replace_page_cache() and
-swapin.
-
-Changelog:
- - modify PageLRU flag correctly.
- - handle replace_page_cache.
+To handle the case pc->mem_cgroup may contain stale pointers if pages are
+added to LRU before classification. This patch resets pc->mem_cgroup to
+root_mem_cgroup before lru additions.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  109 ++++++++-----------------------------------------------
- 1 files changed, 16 insertions(+), 93 deletions(-)
+ include/linux/memcontrol.h |    5 +++++
+ mm/ksm.c                   |    1 +
+ mm/memcontrol.c            |   14 ++++++++++++++
+ mm/swap_state.c            |    1 +
+ 4 files changed, 21 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index bd3b102..7428409 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -126,6 +126,7 @@ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 					struct page *newpage);
+ 
++extern void mem_cgroup_reset_owner(struct page *page);
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ extern int do_swap_account;
+ #endif
+@@ -388,6 +389,10 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 				struct page *newpage)
+ {
+ }
++
++static inline void mem_cgroup_reset_owner(struct page *page);
++{
++}
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+diff --git a/mm/ksm.c b/mm/ksm.c
+index a6d3fb7..480983d 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1571,6 +1571,7 @@ struct page *ksm_does_need_to_copy(struct page *page,
+ 
+ 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+ 	if (new_page) {
++		mem_cgroup_reset_owner(new_page);
+ 		copy_user_highpage(new_page, page, address, vma);
+ 
+ 		SetPageDirty(new_page);
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 947c62c..7a857e8 100644
+index 7a857e8..2ae973d 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1071,86 +1071,6 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
+@@ -3024,6 +3024,20 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ 	rcu_read_unlock();
  }
  
- /*
-- * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
-- * while it's linked to lru because the page may be reused after it's fully
-- * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
-- * It's done under lock_page and expected that zone->lru_lock isnever held.
-- */
--static void mem_cgroup_lru_del_before_commit(struct page *page)
--{
--	enum lru_list lru;
--	unsigned long flags;
--	struct zone *zone = page_zone(page);
--	struct page_cgroup *pc = lookup_page_cgroup(page);
--
--	/*
--	 * Doing this check without taking ->lru_lock seems wrong but this
--	 * is safe. Because if page_cgroup's USED bit is unset, the page
--	 * will not be added to any memcg's LRU. If page_cgroup's USED bit is
--	 * set, the commit after this will fail, anyway.
--	 * This all charge/uncharge is done under some mutual execustion.
--	 * So, we don't need to taking care of changes in USED bit.
--	 */
--	if (likely(!PageLRU(page)))
--		return;
--
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	lru = page_lru(page);
--	/*
--	 * The uncharged page could still be registered to the LRU of
--	 * the stale pc->mem_cgroup.
--	 *
--	 * As pc->mem_cgroup is about to get overwritten, the old LRU
--	 * accounting needs to be taken care of.  Let root_mem_cgroup
--	 * babysit the page until the new memcg is responsible for it.
--	 *
--	 * The PCG_USED bit is guarded by lock_page() as the page is
--	 * swapcache/pagecache.
--	 */
--	if (PageLRU(page) && PageCgroupAcctLRU(pc) && !PageCgroupUsed(pc)) {
--		del_page_from_lru_list(zone, page, lru);
--		add_page_to_lru_list(zone, page, lru);
--	}
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
--}
--
--static void mem_cgroup_lru_add_after_commit(struct page *page)
--{
--	enum lru_list lru;
--	unsigned long flags;
--	struct zone *zone = page_zone(page);
--	struct page_cgroup *pc = lookup_page_cgroup(page);
--	/*
--	 * putback:				charge:
--	 * SetPageLRU				SetPageCgroupUsed
--	 * smp_mb				smp_mb
--	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
--	 *
--	 * Ensure that one of the two sides adds the page to the memcg
--	 * LRU during a race.
--	 */
--	smp_mb();
--	/* taking care of that the page is added to LRU while we commit it */
--	if (likely(!PageLRU(page)))
--		return;
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	lru = page_lru(page);
--	/*
--	 * If the page is not on the LRU, someone will soon put it
--	 * there.  If it is, and also already accounted for on the
--	 * memcg-side, it must be on the right lruvec as setting
--	 * pc->mem_cgroup and PageCgroupUsed is properly ordered.
--	 * Otherwise, root_mem_cgroup has been babysitting the page
--	 * during the charge.  Move it to the new memcg now.
--	 */
--	if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
--		del_page_from_lru_list(zone, page, lru);
--		add_page_to_lru_list(zone, page, lru);
--	}
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
--}
--
--/*
-  * Checks whether given mem is same or in the root_mem_cgroup's
-  * hierarchy subtree
-  */
-@@ -2695,14 +2615,27 @@ __mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *memcg,
- 					enum charge_type ctype)
- {
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
-+	struct zone *zone = page_zone(page);
-+	unsigned long flags;
-+	bool removed = false;
++/*
++ * A function for resetting pc->mem_cgroup for newly allocated pages.
++ * This function should be called if the newpage will be added to LRU
++ * before start accounting.
++ */
++void mem_cgroup_reset_owner(struct page *newpage)
++{
++	struct page_cgroup *pc;
 +
- 	/*
- 	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
- 	 * is already on LRU. It means the page may on some other page_cgroup's
- 	 * LRU. Take care of it.
- 	 */
--	mem_cgroup_lru_del_before_commit(page);
-+	spin_lock_irqsave(&zone->lru_lock, flags);
-+	if (PageLRU(page)) {
-+		del_page_from_lru_list(zone, page, page_lru(page));
-+		ClearPageLRU(page);
-+		removed = true;
-+	}
- 	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
--	mem_cgroup_lru_add_after_commit(page);
-+	if (removed) {
-+		add_page_to_lru_list(zone, page, page_lru(page));
-+		SetPageLRU(page);
-+	}
-+	spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	return;
- }
++	pc = lookup_page_cgroup(newpage);
++	VM_BUG_ON(PageCgroupUsed(pc));
++	pc->mem_cgroup = root_mem_cgroup;
++}
++
+ /**
+  * mem_cgroup_move_swap_account - move swap charge and swap_cgroup's record.
+  * @entry: swap entry to be moved
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 78cc4d1..747539e 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -301,6 +301,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			new_page = alloc_page_vma(gfp_mask, vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
++			mem_cgroup_reset_owner(new_page);
+ 		}
  
-@@ -3303,9 +3236,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
- {
- 	struct mem_cgroup *memcg;
- 	struct page_cgroup *pc;
--	struct zone *zone;
- 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
--	unsigned long flags;
- 
- 	pc = lookup_page_cgroup(oldpage);
- 	/* fix accounting on old pages */
-@@ -3318,20 +3249,12 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
- 	if (PageSwapBacked(oldpage))
- 		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
- 
--	zone = page_zone(newpage);
--	pc = lookup_page_cgroup(newpage);
- 	/*
- 	 * Even if newpage->mapping was NULL before starting replacement,
- 	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
- 	 * LRU while we overwrite pc->mem_cgroup.
- 	 */
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	if (PageLRU(newpage))
--		del_page_from_lru_list(zone, newpage, page_lru(newpage));
--	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type);
--	if (PageLRU(newpage))
--		add_page_to_lru_list(zone, newpage, page_lru(newpage));
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	__mem_cgroup_commit_charge_lrucare(newpage, memcg, type);
- }
- 
- #ifdef CONFIG_DEBUG_VM
+ 		/*
 -- 
 1.7.4.1
 
