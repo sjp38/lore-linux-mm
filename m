@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 641F36B02A5
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:12:25 -0500 (EST)
-Subject: Re: [PATCH] mm: Fix kswapd livelock on single core, no preempt
- kernel
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 4A5716B02A7
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:21:21 -0500 (EST)
+Subject: Re: [patch v3]numa: add a sysctl to control interleave allocation
+ granularity from each node to improve I/O performance
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1323798271-1452-1-git-send-email-mikew@google.com>
-References: <1323798271-1452-1-git-send-email-mikew@google.com>
+In-Reply-To: <20111213203856.GA6312@tassilo.jf.intel.com>
+References: <1323655125.22361.376.camel@sli10-conroe>
+	 <20111213190632.GA5830@tassilo.jf.intel.com>
+	 <alpine.DEB.2.00.1112131412320.27186@router.home>
+	 <20111213203856.GA6312@tassilo.jf.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Dec 2011 10:24:50 +0800
-Message-ID: <1323829490.22361.395.camel@sli10-conroe>
+Date: Wed, 14 Dec 2011 10:33:47 +0800
+Message-ID: <1323830027.22361.401.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickens <hughd@google.com>, Greg Thelen <gthelen@google.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>
 
-On Wed, 2011-12-14 at 01:44 +0800, Mike Waychison wrote:
-> On a single core system with kernel preemption disabled, it is possible
-> for the memory system to be so taxed that kswapd cannot make any forward
-> progress.  This can happen when most of system memory is tied up as
-> anonymous memory without swap enabled, causing kswapd to consistently
-> fail to achieve its watermark goals.  In turn, sleeping_prematurely()
-> will consistently return true and kswapd_try_to_sleep() to never invoke
-> schedule().  This causes the kswapd thread to stay on the CPU in
-> perpetuity and keeps other threads from processing oom-kills to reclaim
-> memory.
+On Wed, 2011-12-14 at 04:38 +0800, Andi Kleen wrote:
+> On Tue, Dec 13, 2011 at 02:12:58PM -0600, Christoph Lameter wrote:
+> > On Tue, 13 Dec 2011, Andi Kleen wrote:
+> > 
+> > > I would prefer to add a new policy (INTERLEAVE_MULTI or so) for this
+> > > instead of a global sysctl, that takes the additional parameter.
+> > 
+> > That would require a change of all scripts and code that uses
+> > MPOL_INTERLEAVE. Lets not do that.
 > 
-> The cond_resched() instance in balance_pgdat() is never called as the
-> loop that iterates from DEF_PRIORITY down to 0 will always set
-> all_zones_ok to true, and not set it to false once we've passed
-> DEF_PRIORITY as zones that are marked ->all_unreclaimable are not
-> considered in the "all_zones_ok" evaluation.
+> Yes, but setting a sysctl would need the same right?
 > 
-> This change modifies kswapd_try_to_sleep to ensure that we enter
-> scheduler at least once per invocation if needed.  This allows kswapd to
-> get off the CPU and allows other threads to die off from the OOM killer
-> (freeing memory that is otherwise unavailable in the process).
-your description suggests zones with all_unreclaimable set. but in this
-case sleeping_prematurely() will return false instead of true, kswapd
-will do sleep then. is there anything I missed?
+> It's not clear that all workloads want this.
+> 
+> With a global switch only you cannot set it case by case.
+That's what I want to avoid letting each apps to explicitly do it, it's
+a lot of burden.
+That's true only workload with heavy I/O wants this. but I don't expect
+it will harm other workloads.
+
+>> Also I don't like having more per task state. Could you compute this
+>> from the address instead even for the process policy case?
+>
+>That sounds good.
+the process policy case doesn't give an address for allocation.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
