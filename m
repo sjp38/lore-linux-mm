@@ -1,157 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id BAF026B02B3
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 23:53:49 -0500 (EST)
-Received: by ggni2 with SMTP id i2so487832ggn.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 20:53:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAGTjWtDvmLnNqUoddUCmLVSDN0HcOjtsuFbAs+MFy24JFX-P3g@mail.gmail.com>
-References: <1323798271-1452-1-git-send-email-mikew@google.com>
- <1323829490.22361.395.camel@sli10-conroe> <CAGTjWtDvmLnNqUoddUCmLVSDN0HcOjtsuFbAs+MFy24JFX-P3g@mail.gmail.com>
-From: Mike Waychison <mikew@google.com>
-Date: Tue, 13 Dec 2011 20:45:46 -0800
-Message-ID: <CAGTjWtC=2vcBKBBaNhKczBXXUCYVmyC+0vUjPUB3NKGnW4cKcQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fix kswapd livelock on single core, no preempt kernel
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id CACB96B02B6
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 01:09:08 -0500 (EST)
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	 <alpine.DEB.2.00.1112020842280.10975@router.home>
+	 <1323419402.16790.6105.camel@debian>
+	 <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+	 <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
+	 <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 14 Dec 2011 14:06:01 +0800
+Message-ID: <1323842761.16790.8295.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickens <hughd@google.com>, Greg Thelen <gthelen@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Tue, Dec 13, 2011 at 8:36 PM, Mike Waychison <mikew@google.com> wrote:
-> On Tue, Dec 13, 2011 at 6:24 PM, Shaohua Li <shaohua.li@intel.com> wrote:
->> On Wed, 2011-12-14 at 01:44 +0800, Mike Waychison wrote:
->>> On a single core system with kernel preemption disabled, it is possible
->>> for the memory system to be so taxed that kswapd cannot make any forwar=
-d
->>> progress. =A0This can happen when most of system memory is tied up as
->>> anonymous memory without swap enabled, causing kswapd to consistently
->>> fail to achieve its watermark goals. =A0In turn, sleeping_prematurely()
->>> will consistently return true and kswapd_try_to_sleep() to never invoke
->>> schedule(). =A0This causes the kswapd thread to stay on the CPU in
->>> perpetuity and keeps other threads from processing oom-kills to reclaim
->>> memory.
->>>
->>> The cond_resched() instance in balance_pgdat() is never called as the
->>> loop that iterates from DEF_PRIORITY down to 0 will always set
->>> all_zones_ok to true, and not set it to false once we've passed
->>> DEF_PRIORITY as zones that are marked ->all_unreclaimable are not
->>> considered in the "all_zones_ok" evaluation.
->>>
->>> This change modifies kswapd_try_to_sleep to ensure that we enter
->>> scheduler at least once per invocation if needed. =A0This allows kswapd=
- to
->>> get off the CPU and allows other threads to die off from the OOM killer
->>> (freeing memory that is otherwise unavailable in the process).
->> your description suggests zones with all_unreclaimable set. but in this
->> case sleeping_prematurely() will return false instead of true, kswapd
->> will do sleep then. is there anything I missed?
+On Wed, 2011-12-14 at 10:36 +0800, David Rientjes wrote:
+> On Tue, 13 Dec 2011, David Rientjes wrote:
+> 
+> > > > 	{
+> > > > 	        n->nr_partial++;
+> > > > 	-       if (tail == DEACTIVATE_TO_TAIL)
+> > > > 	-               list_add_tail(&page->lru, &n->partial);
+> > > > 	-       else
+> > > > 	-               list_add(&page->lru, &n->partial);
+> > > > 	+       list_add_tail(&page->lru, &n->partial);
+> > > > 	}
+> > > > 
+> 
+> 2 machines (one netserver, one netperf) both with 16 cores, 64GB memory 
+> with netperf-2.4.5 comparing Linus' -git with and without this patch:
+> 
+> 	threads		SLUB		SLUB+patch
+> 	 16		116614		117213 (+0.5%)
+> 	 32		216436		215065 (-0.6%)
+> 	 48		299991		299399 (-0.2%)
+> 	 64		373753		374617 (+0.2%)
+> 	 80		435688		435765 (UNCH)
+> 	 96		494630		496590 (+0.4%)
+> 	112		546766		546259 (-0.1%)
+> 
+> This suggests the difference is within the noise, so this patch neither 
+> helps nor hurts netperf on my setup, as expected.
 
-Actually, I don't see where sleeping_prematurely() would return false
-if any zone has ->all_unreclaimable set.   In this case, the order was
-0, so we return !all_zones_ok, which is false because
-!zone_watermark_ok_safe(ZONE_DMA32).
+Thanks for the data. Real netperf is hard to give enough press on SLUB.
+but as I mentioned before, I also didn't find real performance change on
+my loopback netperf testing. 
 
->
-> Debugging this, I didn't get a dump from oom-kill as it never ran
-> (until I binary patched in a cond_resched() into live hung machines --
-> this reproduced in a VM).
->
-> I was however able to capture the following data while it was hung:
->
->
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/active_anon : long long =
-=3D 773
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/active_file : long long =
-=3D 6
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/anon_pages : long long =3D=
- 1,329
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/bounce : long long =3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/dirtied : long long =3D 4,=
-425
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/file_dirty : long long =3D=
- 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/file_mapped : long long =
-=3D 5
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/file_pages : long long =3D=
- 330
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/free_pages : long long =3D=
- 2,018
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/inactive_anon : long long =
-=3D 865
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/inactive_file : long long =
-=3D 13
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/kernel_stack : long long =
-=3D 10
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/mlock : long long =3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/pagetable : long long =3D =
-74
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/shmem : long long =3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/slab_reclaimable : long lo=
-ng =3D 54
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/slab_unreclaimable :
-> long long =3D 130
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/unevictable : long long =
-=3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/writeback : long long =3D =
-0
-> /cloud/vmm/host/backend/perfmetric/node0/zone0/written : long long =3D 47=
-,184
->
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/active_anon : long long =
-=3D 359,251
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/active_file : long long =
-=3D 67
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/anon_pages : long long =3D=
- 441,180
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/bounce : long long =3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/dirtied : long long =3D 6,=
-457,125
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/file_dirty : long long =3D=
- 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/file_mapped : long long =
-=3D 134
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/file_pages : long long =3D=
- 38,090
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/free_pages : long long =3D=
- 1,630
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/inactive_anon : long
-> long =3D 119,779
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/inactive_file : long long =
-=3D 81
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/kernel_stack : long long =
-=3D 173
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/mlock : long long =3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/pagetable : long long =3D =
-15,222
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/shmem : long long =3D 1
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/slab_reclaimable : long
-> long =3D 1,677
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/slab_unreclaimable :
-> long long =3D 7,152
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/unevictable : long long =
-=3D 0
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/writeback : long long =3D =
-8
-> /cloud/vmm/host/backend/perfmetric/node0/zone1/written : long long =3D 16=
-,639,708
->
-> These value were static while the machine was hung up in kswapd. =A0I
-> unfortunately don't have the low/min/max or lowmem watermarks handy.
->
-> From stepping through with gdb, I was able to determine that
-> ZONE_DMA32 would fail zone_watermark_ok_safe(), causing a scan =A0 up to
-> end_zone =3D=3D 1. =A0If memory serves, it would not get the
-> ->all_unreclaimable flag. =A0I didn't get the chance to root cause this
-> internal inconsistency though.
->
-> FYI, this was seen with a 2.6.39-based kernel with no-numa, no-memcg
-> and swap-enabled.
->
-> If I get the chance, I can reproduce and look at this closer to try
-> and root cause why zone_reclaimable() would return true, but I won't
-> be able to do that until after the holidays -- sometime in January.
+I retested hackbench again. about 1% performance increase still exists
+on my 2 sockets SNB/WSM and 4 sockets NHM.  and no performance drop for
+other machines. 
+
+Christoph, what's comments you like to offer for the results or for this
+code change? 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
