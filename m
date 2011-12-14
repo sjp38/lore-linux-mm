@@ -1,67 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id CACB96B02B6
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 01:09:08 -0500 (EST)
-Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323419402.16790.6105.camel@debian>
-	 <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Dec 2011 14:06:01 +0800
-Message-ID: <1323842761.16790.8295.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 497AA6B02B8
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 01:36:28 -0500 (EST)
+Date: Wed, 14 Dec 2011 14:36:25 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+Message-ID: <20111214063625.GA13824@localhost>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.666312513@intel.com>
+ <20111129152106.GN5635@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111129152106.GN5635@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2011-12-14 at 10:36 +0800, David Rientjes wrote:
-> On Tue, 13 Dec 2011, David Rientjes wrote:
-> 
-> > > > 	{
-> > > > 	        n->nr_partial++;
-> > > > 	-       if (tail == DEACTIVATE_TO_TAIL)
-> > > > 	-               list_add_tail(&page->lru, &n->partial);
-> > > > 	-       else
-> > > > 	-               list_add(&page->lru, &n->partial);
-> > > > 	+       list_add_tail(&page->lru, &n->partial);
-> > > > 	}
-> > > > 
-> 
-> 2 machines (one netserver, one netperf) both with 16 cores, 64GB memory 
-> with netperf-2.4.5 comparing Linus' -git with and without this patch:
-> 
-> 	threads		SLUB		SLUB+patch
-> 	 16		116614		117213 (+0.5%)
-> 	 32		216436		215065 (-0.6%)
-> 	 48		299991		299399 (-0.2%)
-> 	 64		373753		374617 (+0.2%)
-> 	 80		435688		435765 (UNCH)
-> 	 96		494630		496590 (+0.4%)
-> 	112		546766		546259 (-0.1%)
-> 
-> This suggests the difference is within the noise, so this patch neither 
-> helps nor hurts netperf on my setup, as expected.
+>   This looks all inherently racy (which doesn't matter much as you suggest)
+> so I just wanted to suggest that if you used per-cpu counters you'd get
+> race-free and faster code at the cost of larger data structures and using
+> percpu_counter_add() instead of ++ (which doesn't seem like a big
+> complication to me).
 
-Thanks for the data. Real netperf is hard to give enough press on SLUB.
-but as I mentioned before, I also didn't find real performance change on
-my loopback netperf testing. 
+OK, here is the incremental patch to use per-cpu counters :)
 
-I retested hackbench again. about 1% performance increase still exists
-on my 2 sockets SNB/WSM and 4 sockets NHM.  and no performance drop for
-other machines. 
+---
+ mm/readahead.c |   61 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 44 insertions(+), 17 deletions(-)
 
-Christoph, what's comments you like to offer for the results or for this
-code change? 
-
-
+--- linux-next.orig/mm/readahead.c	2011-12-14 09:50:37.000000000 +0800
++++ linux-next/mm/readahead.c	2011-12-14 14:16:15.000000000 +0800
+@@ -68,7 +68,7 @@ enum ra_account {
+ 	RA_ACCOUNT_MAX,
+ };
+ 
+-static unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
++static DEFINE_PER_CPU(unsigned long[RA_PATTERN_ALL][RA_ACCOUNT_MAX], ra_stat);
+ 
+ static void readahead_stats(struct address_space *mapping,
+ 			    pgoff_t offset,
+@@ -83,38 +83,62 @@ static void readahead_stats(struct addre
+ {
+ 	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
+ 
+-recount:
+-	ra_stats[pattern][RA_ACCOUNT_COUNT]++;
+-	ra_stats[pattern][RA_ACCOUNT_SIZE] += size;
+-	ra_stats[pattern][RA_ACCOUNT_ASYNC_SIZE] += async_size;
+-	ra_stats[pattern][RA_ACCOUNT_ACTUAL] += actual;
++	preempt_disable();
++
++	__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_COUNT]);
++	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_SIZE], size);
++	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ASYNC_SIZE], async_size);
++	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ACTUAL], actual);
+ 
+ 	if (start + size >= eof)
+-		ra_stats[pattern][RA_ACCOUNT_EOF]++;
++		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_EOF]);
+ 	if (actual < size)
+-		ra_stats[pattern][RA_ACCOUNT_CACHE_HIT]++;
++		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_CACHE_HIT]);
+ 
+ 	if (actual) {
+-		ra_stats[pattern][RA_ACCOUNT_IOCOUNT]++;
++		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_IOCOUNT]);
+ 
+ 		if (start <= offset && offset < start + size)
+-			ra_stats[pattern][RA_ACCOUNT_SYNC]++;
++			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_SYNC]);
+ 
+ 		if (for_mmap)
+-			ra_stats[pattern][RA_ACCOUNT_MMAP]++;
++			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_MMAP]);
+ 		if (for_metadata)
+-			ra_stats[pattern][RA_ACCOUNT_METADATA]++;
++			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_METADATA]);
+ 	}
+ 
+-	if (pattern != RA_PATTERN_ALL) {
+-		pattern = RA_PATTERN_ALL;
+-		goto recount;
+-	}
++	preempt_enable();
++}
++
++static void ra_stats_clear(void)
++{
++	int cpu;
++	int i, j;
++
++	for_each_online_cpu(cpu)
++		for (i = 0; i < RA_PATTERN_ALL; i++)
++			for (j = 0; j < RA_ACCOUNT_MAX; j++)
++				per_cpu(ra_stat[i][j], cpu) = 0;
++}
++
++static void ra_stats_sum(unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
++{
++	int cpu;
++	int i, j;
++
++	for_each_online_cpu(cpu)
++		for (i = 0; i < RA_PATTERN_ALL; i++)
++			for (j = 0; j < RA_ACCOUNT_MAX; j++) {
++				unsigned long n = per_cpu(ra_stat[i][j], cpu);
++				ra_stats[i][j] += n;
++				ra_stats[RA_PATTERN_ALL][j] += n;
++			}
+ }
+ 
+ static int readahead_stats_show(struct seq_file *s, void *_)
+ {
+ 	unsigned long i;
++	unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
+ 
+ 	seq_printf(s,
+ 		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+@@ -122,6 +146,9 @@ static int readahead_stats_show(struct s
+ 		   "io", "sync_io", "mmap_io", "meta_io",
+ 		   "size", "async_size", "io_size");
+ 
++	memset(ra_stats, 0, sizeof(ra_stats));
++	ra_stats_sum(ra_stats);
++
+ 	for (i = 0; i < RA_PATTERN_MAX; i++) {
+ 		unsigned long count = ra_stats[i][RA_ACCOUNT_COUNT];
+ 		unsigned long iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
+@@ -159,7 +186,7 @@ static int readahead_stats_open(struct i
+ static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
+ 				     size_t size, loff_t *offset)
+ {
+-	memset(ra_stats, 0, sizeof(ra_stats));
++	ra_stats_clear();
+ 	return size;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
