@@ -1,56 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 5391A6B0183
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 19:41:39 -0500 (EST)
-Received: by vcbfk26 with SMTP id fk26so278242vcb.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 16:41:38 -0800 (PST)
-Date: Tue, 13 Dec 2011 16:41:34 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] slub: document setting min order with debug_guardpage_minorder
- > 0
-In-Reply-To: <201112130021.41429.rjw@sisk.pl>
-Message-ID: <alpine.DEB.2.00.1112131640240.32369@chino.kir.corp.google.com>
-References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com> <20111212145948.GA2380@redhat.com> <201112130021.41429.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 0260D6B0296
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 19:45:09 -0500 (EST)
+Date: Tue, 13 Dec 2011 16:45:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] vmscan/trace: Add 'active' and 'file' info to
+ trace_mm_vmscan_lru_isolate.
+Message-Id: <20111213164507.fbee477c.akpm@linux-foundation.org>
+In-Reply-To: <1323614784-2924-1-git-send-email-tm@tao.ma>
+References: <1323614784-2924-1-git-send-email-tm@tao.ma>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Stanislaw Gruszka <sgruszka@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Tao Ma <tm@tao.ma>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, 13 Dec 2011, Rafael J. Wysocki wrote:
+On Sun, 11 Dec 2011 22:46:24 +0800
+Tao Ma <tm@tao.ma> wrote:
 
-> > diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
-> > index 8b093f8..d84ca80 100644
-> > --- a/Documentation/ABI/testing/sysfs-kernel-slab
-> > +++ b/Documentation/ABI/testing/sysfs-kernel-slab
-> > @@ -345,7 +345,9 @@ Description:
-> >  		allocated.  It is writable and can be changed to increase the
-> >  		number of objects per slab.  If a slab cannot be allocated
-> >  		because of fragmentation, SLUB will retry with the minimum order
-> > -		possible depending on its characteristics.
-> > +		possible depending on its characteristics. 
-> 
-> Added trailing whitespace (please remove).
-> 
-> > +		When debug_guardpage_minorder > 0 parameter is specified, the
-> > +		minimum possible order is used and cannot be changed.
-> 
-> Well, I'm not sure what you wanted to say, actually?  How does one change
-> debug_guardpage_minorder (or specify it), for example?  Is it a kernel
-> command-line switch?
-> 
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1103,7 +1103,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+>  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		struct list_head *src, struct list_head *dst,
+>  		unsigned long *scanned, int order, isolate_mode_t mode,
+> -		int file)
+> +		int active, int file)
+>  {
+>  	unsigned long nr_taken = 0;
+>  	unsigned long nr_lumpy_taken = 0;
+> @@ -1221,7 +1221,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			nr_to_scan, scan,
+>  			nr_taken,
+>  			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
+> -			mode);
+> +			mode, active, file);
+>  	return nr_taken;
+>  }
+>  
+> @@ -1237,7 +1237,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
+>  	if (file)
+>  		lru += LRU_FILE;
+>  	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
+> -								mode, file);
+> +							mode, active, file);
+>  }
 
-Yeah, we'll need a reference to Documentation/kernel-parameters.txt.
-
-> Also I'm not sure what "cannot be changed" is supposed to mean.  Does it
-> mean that /sys/cache/slab/cache/order has no effect in that case?
-> 
-
-Good point, we should say that "this tunable" cannot be used to change the 
-order at runtime if debug_guardpage_minorder is used on the command line.
-
-Stanislaw, one more revision?
+It would be nice to avoid adding permanent runtime overhead on behalf
+of tracing.  It sounds like sending "mode" will satisfy this - please
+check that in the v2 patch. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
