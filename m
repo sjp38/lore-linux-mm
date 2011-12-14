@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 61FC46B02C0
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 01:59:59 -0500 (EST)
-Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <1323845054.2846.18.camel@edumazet-laptop>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323419402.16790.6105.camel@debian>
-	 <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
-	 <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
-	 <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
-	 <1323842761.16790.8295.camel@debian>
-	 <1323845054.2846.18.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Dec 2011 14:56:52 +0800
-Message-ID: <1323845812.16790.8307.camel@debian>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id C763A6B02C2
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 02:48:50 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D8B9C3EE0BC
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:48:48 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7C0545DEB7
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:48:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A9CF45DE9E
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:48:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AFE61DB803B
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:48:48 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 33758E08002
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:48:48 +0900 (JST)
+Date: Wed, 14 Dec 2011 16:47:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/4] memcg: simplify LRU handling.
+Message-Id: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
 
-> > Thanks for the data. Real netperf is hard to give enough press on SLUB.
-> > but as I mentioned before, I also didn't find real performance change on
-> > my loopback netperf testing. 
-> > 
-> > I retested hackbench again. about 1% performance increase still exists
-> > on my 2 sockets SNB/WSM and 4 sockets NHM.  and no performance drop for
-> > other machines. 
-> > 
-> > Christoph, what's comments you like to offer for the results or for this
-> > code change? 
-> 
-> I believe far more aggressive mechanism is needed to help these
-> workloads.
-> 
-> Please note that the COLD/HOT page concept is not very well used in
-> kernel, because its not really obvious that some decisions are always
-> good (or maybe this is not well known)
+This series is onto linux-next + 
+memcg-add-mem_cgroup_replace_page_cache-to-fix-lru-issue.patch
 
-Hope Christoph know everything of SLUB. :) 
-> 
-> We should try to batch things a bit, instead of doing a very small unit
-> of work in slow path.
-> 
-> We now have a very fast fastpath, but inefficient slow path.
-> 
-> SLAB has a litle cache per cpu, we could add one to SLUB for freed
-> objects, not belonging to current slab. This could avoid all these
-> activate/deactivate overhead.
+The 1st purpose of this patch is reduce overheads of mem_cgroup_add/del_lru.
+They uses some atomic ops. After this patch, lru handling routine will be
 
-Maybe worth to try or maybe Christoph had studied this? 
+==
+struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+                                       enum lru_list lru)
+{
+        struct mem_cgroup_per_zone *mz;
+        struct mem_cgroup *memcg;
+        struct page_cgroup *pc;
+
+        if (mem_cgroup_disabled())
+                return &zone->lruvec;
+
+        pc = lookup_page_cgroup(page);
+        memcg = pc->mem_cgroup;
+        VM_BUG_ON(!memcg);
+        mz = page_cgroup_zoneinfo(memcg, page);
+        /* compound_order() is stabilized through lru_lock */
+        MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
+        return &mz->lruvec;
+}
+==
+
+simple and no atomic ops. Because of Johannes works in linux-next,
+this can be archived by very straightforward way.
+
+Thanks,
+-Kame
 
 
 --
