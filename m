@@ -1,47 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 7BDB86B02A9
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:31:16 -0500 (EST)
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1112131726140.8593@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
-	 <alpine.DEB.2.00.1112020842280.10975@router.home>
-	 <1323076965.16790.670.camel@debian>
-	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
-	 <1323234673.22361.372.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
-	 <1323657793.22361.383.camel@sli10-conroe>
-	 <alpine.DEB.2.00.1112131726140.8593@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Dec 2011 10:43:42 +0800
-Message-ID: <1323830622.22361.407.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id F3F3E6B02AC
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:36:57 -0500 (EST)
+Received: by yenq10 with SMTP id q10so321882yen.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 18:36:57 -0800 (PST)
+Date: Tue, 13 Dec 2011 18:36:53 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+In-Reply-To: <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com> <alpine.DEB.2.00.1112020842280.10975@router.home> <1323419402.16790.6105.camel@debian> <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com> <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
+ <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: "Shi, Alex" <alex.shi@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Wed, 2011-12-14 at 09:29 +0800, David Rientjes wrote:
-> On Mon, 12 Dec 2011, Shaohua Li wrote:
-> 
-> > With the per-cpu partial list, I didn't see any workload which is still
-> > suffering from the list lock, so I suppose both the trashing approach
-> > and pick 25% used slab approach don't help.
-> 
-> This doesn't necessarily have anything to do with contention on list_lock, 
-> it has to do with the fact that ~99% of allocations come from the slowpath 
-> since the cpu slab only has one free object when it is activated, that's 
-> what the statistics indicated for kmalloc-256 and kmalloc-2k.  That's what 
-> I called "slab thrashing": the continual deactivation of the cpu slab and 
-> picking from the partial list that would only have one or two free objects 
-> causing the vast majority of allocations to require the slowpath.
-if vast majority of allocation needs picking from partial list of node,
-the list_lock will have contention too. But I'd say avoiding the slab
-thrashing does increase fastpath. How much it can improve performance I
-don't know. The slowpath (not involving list_lock case, so picking
-per-cpu partial list) is already _very_ fast these days.
+On Tue, 13 Dec 2011, David Rientjes wrote:
+
+> > > 	{
+> > > 	        n->nr_partial++;
+> > > 	-       if (tail == DEACTIVATE_TO_TAIL)
+> > > 	-               list_add_tail(&page->lru, &n->partial);
+> > > 	-       else
+> > > 	-               list_add(&page->lru, &n->partial);
+> > > 	+       list_add_tail(&page->lru, &n->partial);
+> > > 	}
+> > > 
+
+2 machines (one netserver, one netperf) both with 16 cores, 64GB memory 
+with netperf-2.4.5 comparing Linus' -git with and without this patch:
+
+	threads		SLUB		SLUB+patch
+	 16		116614		117213 (+0.5%)
+	 32		216436		215065 (-0.6%)
+	 48		299991		299399 (-0.2%)
+	 64		373753		374617 (+0.2%)
+	 80		435688		435765 (UNCH)
+	 96		494630		496590 (+0.4%)
+	112		546766		546259 (-0.1%)
+
+This suggests the difference is within the noise, so this patch neither 
+helps nor hurts netperf on my setup, as expected.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
