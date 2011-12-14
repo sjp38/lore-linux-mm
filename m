@@ -1,46 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 83CE86B02DA
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 08:28:11 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so296393ghr.14
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2011 05:28:10 -0800 (PST)
-Message-ID: <4EE8A461.2080406@gmail.com>
-Date: Wed, 14 Dec 2011 21:28:01 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 52C3B6B02DC
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 09:53:44 -0500 (EST)
+Date: Wed, 14 Dec 2011 08:53:41 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
+In-Reply-To: <alpine.LFD.2.02.1112140846290.1841@tux.localdomain>
+Message-ID: <alpine.DEB.2.00.1112140851580.12235@router.home>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>  <alpine.DEB.2.00.1112020842280.10975@router.home>  <1323419402.16790.6105.camel@debian>  <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
+ <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>  <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>  <alpine.DEB.2.00.1112131835100.31514@chino.kir.corp.google.com>  <1323842761.16790.8295.camel@debian>
+ <1323845054.2846.18.camel@edumazet-laptop> <alpine.LFD.2.02.1112140846290.1841@tux.localdomain>
 MIME-Version: 1.0
-Subject: [PATCH] mm/mempolicy.c: use enum value MPOL_REBIND_ONCE instead of
- 0 in mpol_rebind_policy
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, David Rientjes <rientjes@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-We have enum definition in mempolicy.h: MPOL_REBIND_ONCE.
-It should replace the magic number 0 for step comparison in
-function mpol_rebind_policy.
+On Wed, 14 Dec 2011, Pekka Enberg wrote:
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- mm/mempolicy.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+> On Wed, 14 Dec 2011, Eric Dumazet wrote:
+> > We should try to batch things a bit, instead of doing a very small unit
+> > of work in slow path.
+> >
+> > We now have a very fast fastpath, but inefficient slow path.
+> >
+> > SLAB has a litle cache per cpu, we could add one to SLUB for freed
+> > objects, not belonging to current slab. This could avoid all these
+> > activate/deactivate overhead.
+>
+> Yeah, this is definitely worth looking at.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 9c51f9f..ecdaa8d 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -390,7 +390,7 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
- {
- 	if (!pol)
- 		return;
--	if (!mpol_store_user_nodemask(pol) && step == 0 &&
-+	if (!mpol_store_user_nodemask(pol) && step == MPOL_REBIND_ONCE &&
- 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
- 		return;
- 
--- 
-1.7.1
+We have been down this road repeatedly. Nick tried it, I tried it and
+neither got us to something we liked. Please consult the archives.
 
+There was a whole patch series last year that I did introducing per cpu
+caches which ended up in the "unified" patches. See the archives for the
+various attempts please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
