@@ -1,73 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id DD66A6B02A1
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 20:38:47 -0500 (EST)
-Received: by yhoo21 with SMTP id o21so1109005yho.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 17:38:47 -0800 (PST)
-Date: Tue, 13 Dec 2011 17:38:43 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 1/3] slub: set a criteria for slub node partial adding
-In-Reply-To: <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
-Message-ID: <alpine.DEB.2.00.1112131734070.8593@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com> <alpine.DEB.2.00.1112020842280.10975@router.home> <1323419402.16790.6105.camel@debian> <alpine.DEB.2.00.1112090203370.12604@chino.kir.corp.google.com>
- <6E3BC7F7C9A4BF4286DD4C043110F30B67236EED18@shsmsx502.ccr.corp.intel.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 4887C6B02A4
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:08:16 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so271485qcs.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 18:08:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20111213171016.2590def8.nishimura@mxp.nes.nec.co.jp>
+References: <1323762925-14695-1-git-send-email-lliubbo@gmail.com>
+	<20111213171016.2590def8.nishimura@mxp.nes.nec.co.jp>
+Date: Wed, 14 Dec 2011 10:08:15 +0800
+Message-ID: <CAA_GA1ezm0n=_WDhsL6r2ckgnkSZVogf-OjEuvGZ_4ksNy4PNw@mail.gmail.com>
+Subject: Re: [RFC][BUGFIX] memcg: fix memsw uncharged twice in do_swap_page
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Alex" <alex.shi@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, bsingharora@gmail.com
 
-On Fri, 9 Dec 2011, Shi, Alex wrote:
-
-> Of course any testing may have result variation. But it is benchmark 
-> accordingly, and there are lot technical to tuning your testing to make 
-> its stand division acceptable, like to sync your system in a clear 
-> status, to close unnecessary services, to use separate working disks for 
-> your testing etc. etc. For this data, like on my SNB-EP machine, (the 
-> following data is not stands for Intel, it is just my personal data). 
-
-I always run benchmarks with freshly booted machines and disabling all but 
-the most basic and required userspace for my testing environment, I can 
-assure you that my comparison of slab and slub on netperf TCP_RR isn't 
-because of any noise from userspace.
-
-> 4 times result of hackbench on this patch are 5.59, 5.475, 5.47833, 
-> 5.504
-
-I haven't been running hackbench benchmarks, sorry.  I was always under 
-the assumption that slub still was slightly better than slab with 
-hackbench since that was used as justification for it becoming the default 
-allocator and also because Christoph had patches merged recently which 
-improved its performance on slub.  I've been speaking only about my 
-history with netperf TCP_RR when using slub.
-
-> > Not sure what you're asking me to test, you would like this:
-> > 
-> > 	{
-> > 	        n->nr_partial++;
-> > 	-       if (tail == DEACTIVATE_TO_TAIL)
-> > 	-               list_add_tail(&page->lru, &n->partial);
-> > 	-       else
-> > 	-               list_add(&page->lru, &n->partial);
-> > 	+       list_add_tail(&page->lru, &n->partial);
-> > 	}
-> > 
-> > with the statistics patch above?  I typically run with CONFIG_SLUB_STATS
-> > disabled since it impacts performance so heavily and I'm not sure what
-> > information you're looking for with regards to those stats.
-> 
-> NO, when you collect data, please close SLUB_STAT in kernel config.  
-> _to_head statistics collection patch just tell you, I collected the 
-> statistics not include add_partial in early_kmem_cache_node_alloc(). And 
-> other places of add_partial were covered. Of course, the kernel with 
-> statistic can not be used to measure performance. 
-> 
-
-Ok, I'll benchmark netperf TCP_RR comparing Linus' latest -git both with 
-and without the above change.  It was confusing because you had three 
-diffs in your email, I wasn't sure which or combination of which you 
-wanted me to try :)
+T24gVHVlLCBEZWMgMTMsIDIwMTEgYXQgNDoxMCBQTSwgRGFpc3VrZSBOaXNoaW11cmEKPG5pc2hp
+bXVyYUBteHAubmVzLm5lYy5jby5qcD4gd3JvdGU6Cj4gSGksCj4KPiBPbiBUdWUsIDEzIERlYyAy
+MDExIDE1OjU1OjI1ICswODAwCj4gQm9iIExpdSA8bGxpdWJib0BnbWFpbC5jb20+IHdyb3RlOgo+
+Cj4+IEFzIHRoZSBkb2N1bWVudCBtZW1jZ190ZXN0LnR4dCBzYWlkOgo+PiBJbiBkb19zd2FwX3Bh
+Z2UoKSwgZm9sbG93aW5nIGV2ZW50cyBvY2N1ciB3aGVuIHB0ZSBpcyB1bmNoYW5nZWQuCj4+IMKg
+IMKgIMKgICgxKSB0aGUgcGFnZSAoU3dhcENhY2hlKSBpcyBsb29rZWQgdXAuCj4+IMKgIMKgIMKg
+ICgyKSBsb2NrX3BhZ2UoKQo+PiDCoCDCoCDCoCAoMykgdHJ5X2NoYXJnZV9zd2FwaW4oKQo+PiDC
+oCDCoCDCoCAoNCkgcmV1c2Vfc3dhcF9wYWdlKCkgKG1heSBjYWxsIGRlbGV0ZV9zd2FwX2NhY2hl
+KCkpCj4+IMKgIMKgIMKgICg1KSBjb21taXRfY2hhcmdlX3N3YXBpbigpCj4+IMKgIMKgIMKgICg2
+KSBzd2FwX2ZyZWUoKS4KPj4KPj4gQW5kIGJlbG93IHNpdHVhdGlvbjoKPj4gKEMpIFRoZSBwYWdl
+IGhhcyBiZWVuIGNoYXJnZWQgYmVmb3JlICgyKSBhbmQgcmV1c2Vfc3dhcF9wYWdlKCkgZG9lc24n
+dAo+PiDCoCDCoCDCoCBjYWxsIGRlbGV0ZV9mcm9tX3N3YXBfY2FjaGUoKS4KPj4KPj4gSW4gdGhp
+cyBjYXNlLCBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZV9zd2FwaW4oKSBtYXkgdW5jaGFyZ2Ug
+bWVtc3cgdHdpY2UuCj4+IFNlZSBiZWxvdyB0d28gdW5jaGFyZ2UgcGxhY2U6Cj4+Cj4+IF9fbWVt
+X2Nncm91cF9jb21taXRfY2hhcmdlX3N3YXBpbiB7Cj4+IMKgIMKgIMKgID0+IF9fbWVtX2Nncm91
+cF9jb21taXRfY2hhcmdlX2xydWNhcmUKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgPT4gX19tZW1f
+Y2dyb3VwX2NvbW1pdF9jaGFyZ2UoKSDCoCDCoDw9PSBQYWdlQ2dyb3VwVXNlZAo+PiDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA9PiBfX21lbV9jZ3JvdXBfY2FuY2VsX2NoYXJnZSgp
+Cj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIDw9PSAxLnVuY2hhcmdlIG1lbXN3IGhlcmUKPj4KPj4gwqAgwqAgwqAg
+aWYgKGRvX3N3YXBfYWNjb3VudCAmJiBQYWdlU3dhcENhY2hlKHBhZ2UpKSB7Cj4+IMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIGlmIChzd2FwX21lbWNnKSB7Cj4gSUlSQywgaWYgdGhlIHBhZ2Uoc3dhcGNh
+Y2hlKSBoYXMgYmVlbiBhbHJlYWR5IGNoYXJnZWQgYXMgbWVtb3J5LCBzd2FwX2Nncm91cF9yZWNv
+cmQoZW50LCAwKQo+IHJldHVybnMgMCwgc28gc3dhcF9tZW1jZyBpcyBOVUxMLgo+CgpHb3QgaXQs
+IHNvcnJ5IGZvciBteSBub2lzZS4KVGhhbmsgeW91IGZvciBhbGwuCgo+IFRoYW5rcywKPiBEYWlz
+dWtlIE5pc2hpbXVyYS4KPgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAo
+IW1lbV9jZ3JvdXBfaXNfcm9vdChzd2FwX21lbWNnKSkKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVzX2NvdW50ZXJfdW5jaGFyZ2UoJnN3YXBfbWVtY2ct
+Pm1lbXN3LAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBQQUdFX1NJWkUpOwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA8PT0gMi51
+bmNoYXJnZWQgbWVtc3cgYWdhaW4gaGVyZQo+Pgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBtZW1fY2dyb3VwX3N3YXBfc3RhdGlzdGljcyhzd2FwX21lbWNnLCBmYWxzZSk7Cj4+
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbV9jZ3JvdXBfcHV0KHN3YXBfbWVt
+Y2cpOwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9Cj4+IMKgIMKgIMKgIH0KPj4gfQo+Pgo+PiBU
+aGlzIHBhdGNoIGFkZGVkIGEgcmV0dXJuIHZhbCBmb3IgX19tZW1fY2dyb3VwX2NvbW1pdF9jaGFy
+Z2UoKSwgaWYgY2FuY2VsZWQgdGhlbgo+PiBkb24ndCB1bmNoYXJnZSBtZW1zdyBhZ2Fpbi4KPj4K
+Pj4gQnV0IGkgZGlkbid0IGZpbmQgYSBkZWZpbml0ZSB0ZXN0Y2FzZSBjYW4gY29uZmlybSB0aGlz
+IHNpdHVhY3Rpb24gY3VycmVudC4KPj4gTWF5YmUgaSBtaXNzZWQgc29tZXRoaW5nLiBXZWxjb21l
+IHBvaW50Lgo+Pgo+PiBTaWduZWQtb2ZmLWJ5OiBCb2IgTGl1IDxsbGl1YmJvQGdtYWlsLmNvbT4K
+Pj4gLS0tCj4+IMKgbW0vbWVtY29udHJvbC5jIHwgwqAgNTYgKysrKysrKysrKysrKysrKysrKysr
+KysrKysrKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4+IMKgMSBmaWxlcyBjaGFuZ2VkLCAz
+MiBpbnNlcnRpb25zKCspLCAyNCBkZWxldGlvbnMoLSkKPj4KPj4gZGlmZiAtLWdpdCBhL21tL21l
+bWNvbnRyb2wuYyBiL21tL21lbWNvbnRyb2wuYwo+PiBpbmRleCBiYzM5NmU3Li42ZWFkMGNkIDEw
+MDY0NAo+PiAtLS0gYS9tbS9tZW1jb250cm9sLmMKPj4gKysrIGIvbW0vbWVtY29udHJvbC5jCj4+
+IEBAIC0yNDE2LDcgKzI0MTYsMTAgQEAgc3RydWN0IG1lbV9jZ3JvdXAgKnRyeV9nZXRfbWVtX2Nn
+cm91cF9mcm9tX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCj4+IMKgIMKgIMKgIHJldHVybiBtZW1j
+ZzsKPj4gwqB9Cj4+Cj4+IC1zdGF0aWMgdm9pZCBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZShz
+dHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csCj4+ICsvKgo+PiArICogcmV0dXJuIC0xIGlmIGNhbmNl
+bCBjaGFyZ2UgZWxzZSByZXR1cm4gMAo+PiArICovCj4+ICtzdGF0aWMgaW50IF9fbWVtX2Nncm91
+cF9jb21taXRfY2hhcmdlKHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywKPj4gwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzdHJ1Y3QgcGFnZSAq
+cGFnZSwKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqB1bnNpZ25lZCBpbnQgbnJfcGFnZXMsCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgc3RydWN0IHBhZ2VfY2dyb3VwICpwYywK
+Pj4gQEAgLTI0MjYsNyArMjQyOSw3IEBAIHN0YXRpYyB2b2lkIF9fbWVtX2Nncm91cF9jb21taXRf
+Y2hhcmdlKHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywKPj4gwqAgwqAgwqAgaWYgKHVubGlrZWx5
+KFBhZ2VDZ3JvdXBVc2VkKHBjKSkpIHsKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgdW5sb2NrX3Bh
+Z2VfY2dyb3VwKHBjKTsKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgX19tZW1fY2dyb3VwX2NhbmNl
+bF9jaGFyZ2UobWVtY2csIG5yX3BhZ2VzKTsKPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm47
+Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJuIC0xOwo+PiDCoCDCoCDCoCB9Cj4+IMKgIMKg
+IMKgIC8qCj4+IMKgIMKgIMKgIMKgKiB3ZSBkb24ndCBuZWVkIHBhZ2VfY2dyb3VwX2xvY2sgYWJv
+dXQgdGFpbCBwYWdlcywgYmVjYXNlIHRoZXkgYXJlIG5vdAo+PiBAQCAtMjQ2Myw2ICsyNDY2LDcg
+QEAgc3RhdGljIHZvaWQgX19tZW1fY2dyb3VwX2NvbW1pdF9jaGFyZ2Uoc3RydWN0IG1lbV9jZ3Jv
+dXAgKm1lbWNnLAo+PiDCoCDCoCDCoCDCoCogaWYgdGhleSBleGNlZWRzIHNvZnRsaW1pdC4KPj4g
+wqAgwqAgwqAgwqAqLwo+PiDCoCDCoCDCoCBtZW1jZ19jaGVja19ldmVudHMobWVtY2csIHBhZ2Up
+Owo+PiArIMKgIMKgIHJldHVybiAwOwo+PiDCoH0KPj4KPj4gwqAjaWZkZWYgQ09ORklHX1RSQU5T
+UEFSRU5UX0hVR0VQQUdFCj4+IEBAIC0yNjkwLDIwICsyNjk0LDIxIEBAIHN0YXRpYyB2b2lkCj4+
+IMKgX19tZW1fY2dyb3VwX2NvbW1pdF9jaGFyZ2Vfc3dhcGluKHN0cnVjdCBwYWdlICpwYWdlLCBz
+dHJ1Y3QgbWVtX2Nncm91cCAqcHRyLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBlbnVtIGNoYXJnZV90eXBlIGN0eXBlKTsKPj4KPj4g
+LXN0YXRpYyB2b2lkCj4+ICtzdGF0aWMgaW50Cj4+IMKgX19tZW1fY2dyb3VwX2NvbW1pdF9jaGFy
+Z2VfbHJ1Y2FyZShzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IG1lbV9jZ3JvdXAgKm1lbWNnLAo+
+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCBlbnVtIGNoYXJnZV90eXBlIGN0eXBlKQo+PiDCoHsKPj4gwqAgwqAgwqAgc3RydWN0IHBhZ2Vf
+Y2dyb3VwICpwYyA9IGxvb2t1cF9wYWdlX2Nncm91cChwYWdlKTsKPj4gKyDCoCDCoCBpbnQgcmV0
+Owo+PiDCoCDCoCDCoCAvKgo+PiDCoCDCoCDCoCDCoCogSW4gc29tZSBjYXNlLCBTd2FwQ2FjaGUs
+IEZVU0Uoc3BsaWNlX2J1Zi0+cmFkaXh0cmVlKSwgdGhlIHBhZ2UKPj4gwqAgwqAgwqAgwqAqIGlz
+IGFscmVhZHkgb24gTFJVLiBJdCBtZWFucyB0aGUgcGFnZSBtYXkgb24gc29tZSBvdGhlciBwYWdl
+X2Nncm91cCdzCj4+IMKgIMKgIMKgIMKgKiBMUlUuIFRha2UgY2FyZSBvZiBpdC4KPj4gwqAgwqAg
+wqAgwqAqLwo+PiDCoCDCoCDCoCBtZW1fY2dyb3VwX2xydV9kZWxfYmVmb3JlX2NvbW1pdChwYWdl
+KTsKPj4gLSDCoCDCoCBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZShtZW1jZywgcGFnZSwgMSwg
+cGMsIGN0eXBlKTsKPj4gKyDCoCDCoCByZXQgPSBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZSht
+ZW1jZywgcGFnZSwgMSwgcGMsIGN0eXBlKTsKPj4gwqAgwqAgwqAgbWVtX2Nncm91cF9scnVfYWRk
+X2FmdGVyX2NvbW1pdChwYWdlKTsKPj4gLSDCoCDCoCByZXR1cm47Cj4+ICsgwqAgwqAgcmV0dXJu
+IHJldDsKPj4gwqB9Cj4+Cj4+IMKgaW50IG1lbV9jZ3JvdXBfY2FjaGVfY2hhcmdlKHN0cnVjdCBw
+YWdlICpwYWdlLCBzdHJ1Y3QgbW1fc3RydWN0ICptbSwKPj4gQEAgLTI3OTIsMTMgKzI3OTcsMTQg
+QEAgc3RhdGljIHZvaWQKPj4gwqBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZV9zd2FwaW4oc3Ry
+dWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywKPj4gwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZW51bSBjaGFyZ2Vf
+dHlwZSBjdHlwZSkKPj4gwqB7Cj4+ICsgwqAgwqAgaW50IHJldDsKPj4gwqAgwqAgwqAgaWYgKG1l
+bV9jZ3JvdXBfZGlzYWJsZWQoKSkKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJuOwo+PiDC
+oCDCoCDCoCBpZiAoIW1lbWNnKQo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm47Cj4+IMKg
+IMKgIMKgIGNncm91cF9leGNsdWRlX3JtZGlyKCZtZW1jZy0+Y3NzKTsKPj4KPj4gLSDCoCDCoCBf
+X21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZV9scnVjYXJlKHBhZ2UsIG1lbWNnLCBjdHlwZSk7Cj4+
+ICsgwqAgwqAgcmV0ID0gX19tZW1fY2dyb3VwX2NvbW1pdF9jaGFyZ2VfbHJ1Y2FyZShwYWdlLCBt
+ZW1jZywgY3R5cGUpOwo+PiDCoCDCoCDCoCAvKgo+PiDCoCDCoCDCoCDCoCogTm93IHN3YXAgaXMg
+b24tbWVtb3J5LiBUaGlzIG1lYW5zIHRoaXMgcGFnZSBtYXkgYmUKPj4gwqAgwqAgwqAgwqAqIGNv
+dW50ZWQgYm90aCBhcyBtZW0gYW5kIHN3YXAuLi4uZG91YmxlIGNvdW50Lgo+PiBAQCAtMjgwNywy
+NSArMjgxMywyNyBAQCBfX21lbV9jZ3JvdXBfY29tbWl0X2NoYXJnZV9zd2FwaW4oc3RydWN0IHBh
+Z2UgKnBhZ2UsIHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywKPj4gwqAgwqAgwqAgwqAqIG1heSBj
+YWxsIGRlbGV0ZV9mcm9tX3N3YXBfY2FjaGUoKSBiZWZvcmUgcmVhY2ggaGVyZS4KPj4gwqAgwqAg
+wqAgwqAqLwo+PiDCoCDCoCDCoCBpZiAoZG9fc3dhcF9hY2NvdW50ICYmIFBhZ2VTd2FwQ2FjaGUo
+cGFnZSkpIHsKPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCBzd3BfZW50cnlfdCBlbnQgPSB7LnZhbCA9
+IHBhZ2VfcHJpdmF0ZShwYWdlKX07Cj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgc3RydWN0IG1lbV9j
+Z3JvdXAgKnN3YXBfbWVtY2c7Cj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgdW5zaWduZWQgc2hvcnQg
+aWQ7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgaWYoIXJldCkgewo+PiArIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIHN3cF9lbnRyeV90IGVudCA9IHsudmFsID0gcGFnZV9wcml2YXRlKHBh
+Z2UpfTsKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzdHJ1Y3QgbWVtX2Nncm91
+cCAqc3dhcF9tZW1jZzsKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB1bnNpZ25l
+ZCBzaG9ydCBpZDsKPj4KPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCBpZCA9IHN3YXBfY2dyb3VwX3Jl
+Y29yZChlbnQsIDApOwo+PiAtIMKgIMKgIMKgIMKgIMKgIMKgIHJjdV9yZWFkX2xvY2soKTsKPj4g
+LSDCoCDCoCDCoCDCoCDCoCDCoCBzd2FwX21lbWNnID0gbWVtX2Nncm91cF9sb29rdXAoaWQpOwo+
+PiAtIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChzd2FwX21lbWNnKSB7Cj4+IC0gwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgLyoKPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCogVGhpcyByZWNvcmRlZCBtZW1jZyBjYW4gYmUgb2Jzb2xldGUgb25lLiBTbywgYXZvaWQKPj4g
+LSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCogY2FsbGluZyBjc3NfdHJ5Z2V0Cj4+
+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAqLwo+PiAtIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIGlmICghbWVtX2Nncm91cF9pc19yb290KHN3YXBfbWVtY2cpKQo+PiAt
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJlc19jb3VudGVyX3Vu
+Y2hhcmdlKCZzd2FwX21lbWNnLT5tZW1zdywKPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoFBBR0VfU0la
+RSk7Cj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF9zd2FwX3N0
+YXRpc3RpY3Moc3dhcF9tZW1jZywgZmFsc2UpOwo+PiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIG1lbV9jZ3JvdXBfcHV0KHN3YXBfbWVtY2cpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIGlkID0gc3dhcF9jZ3JvdXBfcmVjb3JkKGVudCwgMCk7Cj4+ICsgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmN1X3JlYWRfbG9jaygpOwo+PiArIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIHN3YXBfbWVtY2cgPSBtZW1fY2dyb3VwX2xvb2t1cChpZCk7Cj4+
+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKHN3YXBfbWVtY2cpIHsKPj4gKyDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAvKgo+PiArIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBUaGlzIHJlY29yZGVkIG1lbWNn
+IGNhbiBiZSBvYnNvbGV0ZSBvbmUuIFNvLCBhdm9pZAo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBjYWxsaW5nIGNzc190cnlnZXQKPj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCovCj4+ICsgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCFtZW1fY2dyb3VwX2lzX3Jvb3Qoc3dh
+cF9tZW1jZykpCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgcmVzX2NvdW50ZXJfdW5jaGFyZ2UoJnN3YXBfbWVtY2ctPm1lbXN3LAo+PiAr
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIFBBR0VfU0laRSk7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF9zd2FwX3N0YXRpc3RpY3Moc3dhcF9t
+ZW1jZywgZmFsc2UpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIG1lbV9jZ3JvdXBfcHV0KHN3YXBfbWVtY2cpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIH0KPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByY3VfcmVhZF91
+bmxvY2soKTsKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+PiAtIMKgIMKgIMKgIMKgIMKgIMKg
+IHJjdV9yZWFkX3VubG9jaygpOwo+PiDCoCDCoCDCoCB9Cj4+IMKgIMKgIMKgIC8qCj4+IMKgIMKg
+IMKgIMKgKiBBdCBzd2FwaW4sIHdlIG1heSBjaGFyZ2UgYWNjb3VudCBhZ2FpbnN0IGNncm91cCB3
+aGljaCBoYXMgbm8gdGFza3MuCj4+IC0tCj4+IDEuNy4wLjQKPj4KPj4KCi0tIApSZWdhcmRzLAot
+LUJvYgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
