@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 0260D6B0296
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 19:45:09 -0500 (EST)
-Date: Tue, 13 Dec 2011 16:45:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2] vmscan/trace: Add 'active' and 'file' info to
- trace_mm_vmscan_lru_isolate.
-Message-Id: <20111213164507.fbee477c.akpm@linux-foundation.org>
-In-Reply-To: <1323614784-2924-1-git-send-email-tm@tao.ma>
-References: <1323614784-2924-1-git-send-email-tm@tao.ma>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 298006B0298
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 19:59:37 -0500 (EST)
+Received: by qadc16 with SMTP id c16so235728qad.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 16:59:36 -0800 (PST)
+Date: Tue, 13 Dec 2011 16:59:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] oom, memcg: fix exclusion of memcg threads after they have
+ detached their mm
+Message-ID: <alpine.DEB.2.00.1112131659100.32369@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tao Ma <tm@tao.ma>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 11 Dec 2011 22:46:24 +0800
-Tao Ma <tm@tao.ma> wrote:
+The oom killer relies on logic that identifies threads that have already
+been oom killed when scanning the tasklist and, if found, deferring until
+such threads have exited.  This is done by checking for any candidate
+threads that have the TIF_MEMDIE bit set.
 
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1103,7 +1103,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
->  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		struct list_head *src, struct list_head *dst,
->  		unsigned long *scanned, int order, isolate_mode_t mode,
-> -		int file)
-> +		int active, int file)
->  {
->  	unsigned long nr_taken = 0;
->  	unsigned long nr_lumpy_taken = 0;
-> @@ -1221,7 +1221,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  			nr_to_scan, scan,
->  			nr_taken,
->  			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
-> -			mode);
-> +			mode, active, file);
->  	return nr_taken;
->  }
->  
-> @@ -1237,7 +1237,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
->  	if (file)
->  		lru += LRU_FILE;
->  	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
-> -								mode, file);
-> +							mode, active, file);
->  }
+For memcg ooms, candidate threads are first found by calling
+task_in_mem_cgroup() since the oom killer should not defer if there's an
+oom killed thread in another memcg.
 
-It would be nice to avoid adding permanent runtime overhead on behalf
-of tracing.  It sounds like sending "mode" will satisfy this - please
-check that in the v2 patch. 
+Unfortunately, task_in_mem_cgroup() excludes threads if they have
+detached their mm in the process of exiting so TIF_MEMDIE is never
+detected for such conditions.  This is different for global, mempolicy,
+and cpuset oom conditions where a detached mm is only excluded after
+checking for TIF_MEMDIE and deferring, if necessary, in
+select_bad_process().
+
+The fix is to return true if a task has a detached mm but is still in the
+memcg that is currently oom.  This will allow the oom killer to
+appropriately defer rather than kill unnecessarily or, in the worst case,
+panic the machine if nothing else is available to kill.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1110,7 +1110,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+ 
+ 	p = find_lock_task_mm(task);
+ 	if (!p)
+-		return 0;
++		return mem_cgroup_from_task(task) == memcg;
+ 	curr = try_get_mem_cgroup_from_mm(p->mm);
+ 	task_unlock(p);
+ 	if (!curr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
