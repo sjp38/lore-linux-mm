@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 4A5716B02A7
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:21:21 -0500 (EST)
-Subject: Re: [patch v3]numa: add a sysctl to control interleave allocation
- granularity from each node to improve I/O performance
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 7BDB86B02A9
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:31:16 -0500 (EST)
+Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111213203856.GA6312@tassilo.jf.intel.com>
-References: <1323655125.22361.376.camel@sli10-conroe>
-	 <20111213190632.GA5830@tassilo.jf.intel.com>
-	 <alpine.DEB.2.00.1112131412320.27186@router.home>
-	 <20111213203856.GA6312@tassilo.jf.intel.com>
+In-Reply-To: <alpine.DEB.2.00.1112131726140.8593@chino.kir.corp.google.com>
+References: <1322814189-17318-1-git-send-email-alex.shi@intel.com>
+	 <alpine.DEB.2.00.1112020842280.10975@router.home>
+	 <1323076965.16790.670.camel@debian>
+	 <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com>
+	 <1323234673.22361.372.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com>
+	 <1323657793.22361.383.camel@sli10-conroe>
+	 <alpine.DEB.2.00.1112131726140.8593@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 14 Dec 2011 10:33:47 +0800
-Message-ID: <1323830027.22361.401.camel@sli10-conroe>
+Date: Wed, 14 Dec 2011 10:43:42 +0800
+Message-ID: <1323830622.22361.407.camel@sli10-conroe>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Christoph Lameter <cl@linux.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
 
-On Wed, 2011-12-14 at 04:38 +0800, Andi Kleen wrote:
-> On Tue, Dec 13, 2011 at 02:12:58PM -0600, Christoph Lameter wrote:
-> > On Tue, 13 Dec 2011, Andi Kleen wrote:
-> > 
-> > > I would prefer to add a new policy (INTERLEAVE_MULTI or so) for this
-> > > instead of a global sysctl, that takes the additional parameter.
-> > 
-> > That would require a change of all scripts and code that uses
-> > MPOL_INTERLEAVE. Lets not do that.
+On Wed, 2011-12-14 at 09:29 +0800, David Rientjes wrote:
+> On Mon, 12 Dec 2011, Shaohua Li wrote:
 > 
-> Yes, but setting a sysctl would need the same right?
+> > With the per-cpu partial list, I didn't see any workload which is still
+> > suffering from the list lock, so I suppose both the trashing approach
+> > and pick 25% used slab approach don't help.
 > 
-> It's not clear that all workloads want this.
-> 
-> With a global switch only you cannot set it case by case.
-That's what I want to avoid letting each apps to explicitly do it, it's
-a lot of burden.
-That's true only workload with heavy I/O wants this. but I don't expect
-it will harm other workloads.
-
->> Also I don't like having more per task state. Could you compute this
->> from the address instead even for the process policy case?
->
->That sounds good.
-the process policy case doesn't give an address for allocation.
-
-Thanks,
-Shaohua
+> This doesn't necessarily have anything to do with contention on list_lock, 
+> it has to do with the fact that ~99% of allocations come from the slowpath 
+> since the cpu slab only has one free object when it is activated, that's 
+> what the statistics indicated for kmalloc-256 and kmalloc-2k.  That's what 
+> I called "slab thrashing": the continual deactivation of the cpu slab and 
+> picking from the partial list that would only have one or two free objects 
+> causing the vast majority of allocations to require the slowpath.
+if vast majority of allocation needs picking from partial list of node,
+the list_lock will have contention too. But I'd say avoiding the slab
+thrashing does increase fastpath. How much it can improve performance I
+don't know. The slowpath (not involving list_lock case, so picking
+per-cpu partial list) is already _very_ fast these days.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
