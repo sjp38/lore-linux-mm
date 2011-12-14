@@ -1,90 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id ADB756B030E
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 15:42:15 -0500 (EST)
-Date: Wed, 14 Dec 2011 21:42:10 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 4/4] mm: bootmem: try harder to free pages in bulk
-Message-ID: <20111214204210.GF3047@cmpxchg.org>
-References: <1323784711-1937-1-git-send-email-hannes@cmpxchg.org>
- <1323784711-1937-5-git-send-email-hannes@cmpxchg.org>
- <20111214202032.GA24496@pengutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20111214202032.GA24496@pengutronix.de>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 894CE6B0310
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 19:00:40 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B02B53EE0BB
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9050945DF58
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BE0A45DF56
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CD2A1DB8042
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FFB61DB803C
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
+Date: Thu, 15 Dec 2011 08:59:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] memcg: Use gfp_mask __GFP_NORETRY in try charge
+Message-Id: <20111215085900.52871f87.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111214104658.GB11786@tiehlicka.suse.cz>
+References: <1323742587-9084-1-git-send-email-yinghan@google.com>
+	<20111213162126.GE30440@tiehlicka.suse.cz>
+	<CALWz4iwHVMK_k5bxP_m1E8Ugq_FE5XTzHDNi7A8CRhkWHG_Z9A@mail.gmail.com>
+	<20111214104658.GB11786@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Ying Han <yinghan@google.com>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On Wed, Dec 14, 2011 at 09:20:32PM +0100, Uwe Kleine-Konig wrote:
-> On Tue, Dec 13, 2011 at 02:58:31PM +0100, Johannes Weiner wrote:
-> > The loop that frees pages to the page allocator while bootstrapping
-> > tries to free higher-order blocks only when the starting address is
-> > aligned to that block size.  Otherwise it will free all pages on that
-> > node one-by-one.
+On Wed, 14 Dec 2011 11:46:58 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Tue 13-12-11 10:43:16, Ying Han wrote:
+> > On Tue, Dec 13, 2011 at 8:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Mon 12-12-11 18:16:27, Ying Han wrote:
+> > >> In __mem_cgroup_try_charge() function, the parameter "oom" is passed from the
+> > >> caller indicating whether or not the charge should enter memcg oom kill. In
+> > >> fact, we should be able to eliminate that by using the existing gfp_mask and
+> > >> __GFP_NORETRY flag.
+> > >>
+> > >> This patch removed the "oom" parameter, and add the __GFP_NORETRY flag into
+> > >> gfp_mask for those doesn't want to enter memcg oom. There is no functional
+> > >> change for those setting false to "oom" like mem_cgroup_move_parent(), but
+> > >> __GFP_NORETRY now is checked for those even setting true to "oom".
+> > >>
+> > >> The __GFP_NORETRY is used in page allocator to bypass retry and oom kill. I
+> > >> believe there is a reason for callers to use that flag, and in memcg charge
+> > >> we need to respect it as well.
+> > >
+> > > What is the reason for this change?
+> > > To be honest it makes the oom condition more obscure. __GFP_NORETRY
+> > > documentation doesn't say anything about OOM and one would have to know
+> > > details about allocator internals to follow this.
+> > > So I am not saying the patch is bad but I would need some strong reason
+> > > to like it ;)
 > > 
-> > Change it to free individual pages up to the first aligned block and
-> > then try higher-order frees from there.
+> > Thank you for looking into this :)
 > > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> I gave all four patches a try now on my ARM machine and it still works
-> fine. But note that this patch isn't really tested, because for me
-> free_all_bootmem_core is only called once and that with an aligned
-> address.
-> But at least you didn't broke that case :-)
-> Having said that, I wonder if the code does the right thing for
-> unaligned start. (That is, it's wrong to start testing for bit 0 of
-> map[idx / BITS_PER_LONG], isn't it?) But if that's the case that's not
-> something you introduced in this series.
+> > This patch was made as part of the effort solving the livelock issue.
+> > Then it becomes a separate question by itself.
+> > 
+> > I don't quite understand the mismatch on gfp_mask = __GFP_NORETRY &&
+> > oom_check == true. 
+> 
+> __GFP_NORETRY is a global thingy (because page allocator is global)
+> while oom_check is internal memcg and it says that we do not want to go
+> into oom because we cannot charge, consider THP for example. We do not
+> want to OOM because we would go over hard limit and we rather want to
+> fallback into a single page allocation.
+> 
 
-We round up and cover area beyond the end of the node to the next
-alignment boundary, but don't do the same for the beginning of the
-node.  So map[0] is the first BITS_PER_LONG pages starting at start,
-even when start is not aligned.
+The first reason that 'oom' was added as argument was to handle 'decreasing limit'. 
 
-> > @@ -196,12 +189,17 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-> >  		map = bdata->node_bootmem_map;
-> >  		idx = start - bdata->node_min_pfn;
-> >  		vec = ~map[idx / BITS_PER_LONG];
-> > -
-> > -		if (aligned && vec == ~0UL) {
-> > +		/*
-> > +		 * If we have a properly aligned and fully unreserved
-> > +		 * BITS_PER_LONG block of pages in front of us, free
-> > +		 * it in one go.
-> > +		 */
-> > +		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
-> >  			int order = ilog2(BITS_PER_LONG);
-> >  
-> >  			__free_pages_bootmem(pfn_to_page(start), order);
-> >  			count += BITS_PER_LONG;
-> > +			start += BITS_PER_LONG;
-> >  		} else {
-> >  			unsigned long off = 0;
-> >  
-> > @@ -214,8 +212,8 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-> >  				vec >>= 1;
-> >  				off++;
-> >  			}
-> > +			start = ALIGN(start + 1, BITS_PER_LONG);
-> >  		}
-> > -		start += BITS_PER_LONG;
-> I don't know if the compiler would be more happy if you would just use
-> 
-> 	start = ALIGN(start + 1, BITS_PER_LONG);
-> 
-> unconditionally and drop
-> 
-> 	start += BITS_PER_LONG
-> 
-> in the if block?!
+Thanks,
+-Kame
 
-I thought it would be beneficial to have the simpler version for the
-common case, which is freeing a full block.  Have you looked at the
-object code?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
