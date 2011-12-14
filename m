@@ -1,34 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 805E16B02AE
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 21:38:45 -0500 (EST)
-Received: by yhoo21 with SMTP id o21so1146377yho.14
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 18:38:44 -0800 (PST)
-Date: Tue, 13 Dec 2011 18:38:41 -0800 (PST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id EA0B96B02B0
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2011 22:28:28 -0500 (EST)
+Received: by yhoo21 with SMTP id o21so1173576yho.14
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2011 19:28:27 -0800 (PST)
+Date: Tue, 13 Dec 2011 19:28:24 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] slub: set a criteria for slub node partial adding
-In-Reply-To: <1323830622.22361.407.camel@sli10-conroe>
-Message-ID: <alpine.DEB.2.00.1112131837160.31514@chino.kir.corp.google.com>
-References: <1322814189-17318-1-git-send-email-alex.shi@intel.com> <alpine.DEB.2.00.1112020842280.10975@router.home> <1323076965.16790.670.camel@debian> <alpine.DEB.2.00.1112061259210.28251@chino.kir.corp.google.com> <1323234673.22361.372.camel@sli10-conroe>
- <alpine.DEB.2.00.1112062319010.21785@chino.kir.corp.google.com> <1323657793.22361.383.camel@sli10-conroe> <alpine.DEB.2.00.1112131726140.8593@chino.kir.corp.google.com> <1323830622.22361.407.camel@sli10-conroe>
+Subject: Re: [PATCH] mm/hugetlb.c: cleanup to use long vars instead of int
+ in region_count
+In-Reply-To: <4EE6F24B.7050204@gmail.com>
+Message-ID: <alpine.DEB.2.00.1112131928110.3208@chino.kir.corp.google.com>
+References: <4EE6F24B.7050204@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: "Shi, Alex" <alex.shi@intel.com>, Christoph Lameter <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: Wang Sheng-Hui <shhuiw@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 14 Dec 2011, Shaohua Li wrote:
+On Tue, 13 Dec 2011, Wang Sheng-Hui wrote:
 
-> if vast majority of allocation needs picking from partial list of node,
-> the list_lock will have contention too. But I'd say avoiding the slab
-> thrashing does increase fastpath.
+> args f & t and fields from & to of struct file_region are defined
+> as long. Use long instead of int to type the temp vars.
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
 
-Right, that's why my 2009 patchset would attempt to grab the partial slab 
-with the highest number of free objects to a certain threshold before 
-falling back to others and it improved performance somewhat.  This was 
-with the per-node partial lists, however, and the slowpath has been 
-significantly rewritten since then.
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
