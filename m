@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 3663E6B0080
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:19:49 -0500 (EST)
-Message-ID: <4EEA01F5.6080301@jp.fujitsu.com>
-Date: Thu, 15 Dec 2011 09:19:33 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 6140F6B0075
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:55:02 -0500 (EST)
+Date: Thu, 15 Dec 2011 15:54:52 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC][PATCH 4/5] memcg: remove PCG_CACHE bit
+Message-ID: <20111215145452.GJ3047@cmpxchg.org>
+References: <20111215150010.2b124270.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111215150822.7b609f89.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111215102442.GI3047@cmpxchg.org>
+ <20111215193631.782a3e8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111215210406.093c9a4e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2] oom, memcg: fix exclusion of memcg threads after they
- have detached their mm
-References: <alpine.DEB.2.00.1112131659100.32369@chino.kir.corp.google.com> <20111214102942.GA11786@tiehlicka.suse.cz> <alpine.DEB.2.00.1112141838470.27595@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1112141838470.27595@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111215210406.093c9a4e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On 12/14/2011 9:39 PM, David Rientjes wrote:
-> oom, memcg: fix exclusion of memcg threads after they have detached their mm
+On Thu, Dec 15, 2011 at 09:04:06PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 15 Dec 2011 19:36:31 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> The oom killer relies on logic that identifies threads that have already
-> been oom killed when scanning the tasklist and, if found, deferring until
-> such threads have exited.  This is done by checking for any candidate
-> threads that have the TIF_MEMDIE bit set.
+> > On Thu, 15 Dec 2011 11:24:42 +0100
+> > Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> For memcg ooms, candidate threads are first found by calling
-> task_in_mem_cgroup() since the oom killer should not defer if there's an
-> oom killed thread in another memcg.
+> > > What I think is required is to break up the charging and committing
+> > > like we do for swap cache already:
+> > > 
+> > > 	if (!mem_cgroup_try_charge())
+> > > 		goto error;
+> > > 	page_add_new_anon_rmap()
+> > > 	mem_cgroup_commit()
+> > > 
+> > > This will also allow us to even get rid of passing around the charge
+> > > type everywhere...
+> > > 
+> > 
+> > Thank you. I'll look into.
+> > 
+> > To be honest, I want to remove 'rss' and 'cache' counter ;(
+> > This doesn't have much meanings after lru was splitted.
+> > 
 > 
-> Unfortunately, task_in_mem_cgroup() excludes threads if they have
-> detached their mm in the process of exiting so TIF_MEMDIE is never
-> detected for such conditions.  This is different for global, mempolicy,
-> and cpuset oom conditions where a detached mm is only excluded after
-> checking for TIF_MEMDIE and deferring, if necessary, in
-> select_bad_process().
-> 
-> The fix is to return true if a task has a detached mm but is still in the
-> memcg or its hierarchy that is currently oom.  This will allow the oom
-> killer to appropriately defer rather than kill unnecessarily or, in the
-> worst case, panic the machine if nothing else is available to kill.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/memcontrol.c |   17 +++++++++++++----
->  1 files changed, 13 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1109,10 +1109,19 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
->  	struct task_struct *p;
+> I'll use this version for test. This patch is under far deep stacks of
+> unmerged patches, anyway.
+
+Ok, makes sense.  I can do the PCG_CACHE removal, btw, I have half the
+patches sitting around anyway, just need to fix up huge_memory.c.
+
+> @@ -2938,9 +2948,13 @@ void mem_cgroup_uncharge_page(struct page *page)
 >  
->  	p = find_lock_task_mm(task);
-> -	if (!p)
-> -		return 0;
-> -	curr = try_get_mem_cgroup_from_mm(p->mm);
-> -	task_unlock(p);
-> +	if (p) {
-> +		curr = try_get_mem_cgroup_from_mm(p->mm);
-> +		task_unlock(p);
-> +	} else {
-> +		/*
-> +		 * All threads may have already detached their mm's, but the oom
-> +		 * killer still needs to detect if they have already been oom
-> +		 * killed to prevent needlessly killing additional tasks.
-> +		 */
-> +		curr = mem_cgroup_from_task(task);
-> +		if (curr)
-> +			css_get(&curr->css);
-> +	}
+>  void mem_cgroup_uncharge_cache_page(struct page *page)
+>  {
+> +	int ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+>  	VM_BUG_ON(page_mapped(page));
+>  	VM_BUG_ON(page->mapping);
+> -	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+> +
+> +	if (page_is_file_cache(page))
+> +		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> +	__mem_cgroup_uncharge_common(page, ctype);
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+I think this is missing a negation, but it doesn't matter because the
+SHMEM and CACHE charge types are treated exactly the same way.  I'll
+send a patch series that removes it soon, there is more shmem related
+things...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
