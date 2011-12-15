@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 894CE6B0310
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 19:00:40 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B02B53EE0BB
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9050945DF58
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BE0A45DF56
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CD2A1DB8042
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FFB61DB803C
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 09:00:38 +0900 (JST)
-Date: Thu, 15 Dec 2011 08:59:00 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] memcg: Use gfp_mask __GFP_NORETRY in try charge
-Message-Id: <20111215085900.52871f87.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111214104658.GB11786@tiehlicka.suse.cz>
-References: <1323742587-9084-1-git-send-email-yinghan@google.com>
-	<20111213162126.GE30440@tiehlicka.suse.cz>
-	<CALWz4iwHVMK_k5bxP_m1E8Ugq_FE5XTzHDNi7A8CRhkWHG_Z9A@mail.gmail.com>
-	<20111214104658.GB11786@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 09B386B0311
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 19:52:50 -0500 (EST)
+Received: by dajx4 with SMTP id x4so1432756daj.26
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:50 -0800 (PST)
+MIME-Version: 1.0
+Date: Wed, 14 Dec 2011 16:52:50 -0800 (PST)
+In-Reply-To: <CAEas1LKNMSxhp-7DpsOOCu0fx6kx5ya-zqsZQgnf6JwzX0E0gw@mail.gmail.com>
+References: <CAEas1LKNMSxhp-7DpsOOCu0fx6kx5ya-zqsZQgnf6JwzX0E0gw@mail.gmail.com>
+Message-ID: <daec6a41-d318-4142-a3e1-14b8af64af66@b14g2000prn.googlegroups.com>
+Subject: Re: question: why use vzalloc() and vzfree() in mem_cgroup_alloc()
+ and mem_cgroup_free()
+From: Chris Snook <csnook@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ying Han <yinghan@google.com>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
+To: Kernel-team <kernel-team@google.com>
+Cc: Laurent Chavey <chavey@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, glommer@parallels.com
 
-On Wed, 14 Dec 2011 11:46:58 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+On Dec 14, 12:12=A0pm, Laurent Chavey <chavey@google.com> wrote:
+> context:
+>
+> While testing patches from Glauber Costa, "adding support
+> for tcp memory allocation in kmem cgroup", we hit a
+> BUG_ON(in_interrupt()) in vfree(). The code path in question
+> is taken because the izeof(struct mem_cgroup) is
+>
+> >=3D PAGE_SIZE in the call to mem_cgroup_free(),
 
-> On Tue 13-12-11 10:43:16, Ying Han wrote:
-> > On Tue, Dec 13, 2011 at 8:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > > On Mon 12-12-11 18:16:27, Ying Han wrote:
-> > >> In __mem_cgroup_try_charge() function, the parameter "oom" is passed from the
-> > >> caller indicating whether or not the charge should enter memcg oom kill. In
-> > >> fact, we should be able to eliminate that by using the existing gfp_mask and
-> > >> __GFP_NORETRY flag.
-> > >>
-> > >> This patch removed the "oom" parameter, and add the __GFP_NORETRY flag into
-> > >> gfp_mask for those doesn't want to enter memcg oom. There is no functional
-> > >> change for those setting false to "oom" like mem_cgroup_move_parent(), but
-> > >> __GFP_NORETRY now is checked for those even setting true to "oom".
-> > >>
-> > >> The __GFP_NORETRY is used in page allocator to bypass retry and oom kill. I
-> > >> believe there is a reason for callers to use that flag, and in memcg charge
-> > >> we need to respect it as well.
-> > >
-> > > What is the reason for this change?
-> > > To be honest it makes the oom condition more obscure. __GFP_NORETRY
-> > > documentation doesn't say anything about OOM and one would have to know
-> > > details about allocator internals to follow this.
-> > > So I am not saying the patch is bad but I would need some strong reason
-> > > to like it ;)
-> > 
-> > Thank you for looking into this :)
-> > 
-> > This patch was made as part of the effort solving the livelock issue.
-> > Then it becomes a separate question by itself.
-> > 
-> > I don't quite understand the mismatch on gfp_mask = __GFP_NORETRY &&
-> > oom_check == true. 
-> 
-> __GFP_NORETRY is a global thingy (because page allocator is global)
-> while oom_check is internal memcg and it says that we do not want to go
-> into oom because we cannot charge, consider THP for example. We do not
-> want to OOM because we would go over hard limit and we rather want to
-> fallback into a single page allocation.
-> 
+Still, or again? A cursory search turns up this patch:
 
-The first reason that 'oom' was added as argument was to handle 'decreasing limit'. 
+https://lkml.org/lkml/2010/9/27/147
 
-Thanks,
--Kame
+but I don't have handy any further information about how it fared.
 
+> Since socket may get free in an interrupt context,
+> the combination of vzalloc(), vfree() should not be used
+> when accounting for socket mem (unless the code is modified).
+
+Agreed, but why does socket freeing cause struct mem_cgroup to be
+freed? I think I'm missing something about the kmem cgroup
+implementation.
+
+> question:
+>
+> Is there reasons why vzalloc() is used in mem_cgroup_alloc() ?
+> =A0 =A0 . are we seeing mem fragmentations to level that fail
+> =A0 =A0 =A0 kzalloc() or kmalloc().
+> =A0 =A0 . do we have empirical data that shows the allocation failure
+> =A0 =A0 =A0 rate for kmalloc(), kzalloc() per alloc size (num pages)
+
+Laziness? Last I checked, OpenAFS still called vmalloc() in the
+pageout path, which is a no-no of similar magnitude, because handling
+the failure properly is difficult to code and even more difficult to
+test, and nobody is seeing machines deadlock often enough to justify
+the development effort.
+
+If we're having significant failures in allocating two consecutive
+pages, we'll probably have other problems too, but there are
+conditions where being able to vzalloc that could save you. I suspect
+they're less common than conditions where vzalloc in interrupt context
+would burn you, but I have no empirical data to support that.
+
+-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
