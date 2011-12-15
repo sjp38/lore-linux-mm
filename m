@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 09B386B0311
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 19:52:50 -0500 (EST)
-Received: by dajx4 with SMTP id x4so1432756daj.26
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2011 16:52:50 -0800 (PST)
-MIME-Version: 1.0
-Date: Wed, 14 Dec 2011 16:52:50 -0800 (PST)
-In-Reply-To: <CAEas1LKNMSxhp-7DpsOOCu0fx6kx5ya-zqsZQgnf6JwzX0E0gw@mail.gmail.com>
-References: <CAEas1LKNMSxhp-7DpsOOCu0fx6kx5ya-zqsZQgnf6JwzX0E0gw@mail.gmail.com>
-Message-ID: <daec6a41-d318-4142-a3e1-14b8af64af66@b14g2000prn.googlegroups.com>
-Subject: Re: question: why use vzalloc() and vzfree() in mem_cgroup_alloc()
- and mem_cgroup_free()
-From: Chris Snook <csnook@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 67D656B0313
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 19:53:56 -0500 (EST)
+Subject: Re: [PATCH] mm: Fix kswapd livelock on single core, no preempt
+ kernel
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <CAGTjWtC=2vcBKBBaNhKczBXXUCYVmyC+0vUjPUB3NKGnW4cKcQ@mail.gmail.com>
+References: <1323798271-1452-1-git-send-email-mikew@google.com>
+	 <1323829490.22361.395.camel@sli10-conroe>
+	 <CAGTjWtDvmLnNqUoddUCmLVSDN0HcOjtsuFbAs+MFy24JFX-P3g@mail.gmail.com>
+	 <CAGTjWtC=2vcBKBBaNhKczBXXUCYVmyC+0vUjPUB3NKGnW4cKcQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 15 Dec 2011 09:06:27 +0800
+Message-ID: <1323911187.22361.426.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kernel-team <kernel-team@google.com>
-Cc: Laurent Chavey <chavey@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, glommer@parallels.com
+To: Mike Waychison <mikew@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickens <hughd@google.com>, Greg Thelen <gthelen@google.com>
 
-On Dec 14, 12:12=A0pm, Laurent Chavey <chavey@google.com> wrote:
-> context:
->
-> While testing patches from Glauber Costa, "adding support
-> for tcp memory allocation in kmem cgroup", we hit a
-> BUG_ON(in_interrupt()) in vfree(). The code path in question
-> is taken because the izeof(struct mem_cgroup) is
->
-> >=3D PAGE_SIZE in the call to mem_cgroup_free(),
+On Wed, 2011-12-14 at 12:45 +0800, Mike Waychison wrote:
+> On Tue, Dec 13, 2011 at 8:36 PM, Mike Waychison <mikew@google.com> wrote:
+> > On Tue, Dec 13, 2011 at 6:24 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+> >> On Wed, 2011-12-14 at 01:44 +0800, Mike Waychison wrote:
+> >>> On a single core system with kernel preemption disabled, it is possible
+> >>> for the memory system to be so taxed that kswapd cannot make any forward
+> >>> progress.  This can happen when most of system memory is tied up as
+> >>> anonymous memory without swap enabled, causing kswapd to consistently
+> >>> fail to achieve its watermark goals.  In turn, sleeping_prematurely()
+> >>> will consistently return true and kswapd_try_to_sleep() to never invoke
+> >>> schedule().  This causes the kswapd thread to stay on the CPU in
+> >>> perpetuity and keeps other threads from processing oom-kills to reclaim
+> >>> memory.
+> >>>
+> >>> The cond_resched() instance in balance_pgdat() is never called as the
+> >>> loop that iterates from DEF_PRIORITY down to 0 will always set
+> >>> all_zones_ok to true, and not set it to false once we've passed
+> >>> DEF_PRIORITY as zones that are marked ->all_unreclaimable are not
+> >>> considered in the "all_zones_ok" evaluation.
+> >>>
+> >>> This change modifies kswapd_try_to_sleep to ensure that we enter
+> >>> scheduler at least once per invocation if needed.  This allows kswapd to
+> >>> get off the CPU and allows other threads to die off from the OOM killer
+> >>> (freeing memory that is otherwise unavailable in the process).
+> >> your description suggests zones with all_unreclaimable set. but in this
+> >> case sleeping_prematurely() will return false instead of true, kswapd
+> >> will do sleep then. is there anything I missed?
+> 
+> Actually, I don't see where sleeping_prematurely() would return false
+> if any zone has ->all_unreclaimable set.   In this case, the order was
+> 0, so we return !all_zones_ok, which is false because
+> !zone_watermark_ok_safe(ZONE_DMA32).
+so the ZONE_DMA32 hasn't all_unreclaimable set, right? if all zones have
+all_unreclaimable set, all_zones_ok clearly is true. this means kswapd
+can reclaim some pages in the zone, which looks sane.
 
-Still, or again? A cursory search turns up this patch:
-
-https://lkml.org/lkml/2010/9/27/147
-
-but I don't have handy any further information about how it fared.
-
-> Since socket may get free in an interrupt context,
-> the combination of vzalloc(), vfree() should not be used
-> when accounting for socket mem (unless the code is modified).
-
-Agreed, but why does socket freeing cause struct mem_cgroup to be
-freed? I think I'm missing something about the kmem cgroup
-implementation.
-
-> question:
->
-> Is there reasons why vzalloc() is used in mem_cgroup_alloc() ?
-> =A0 =A0 . are we seeing mem fragmentations to level that fail
-> =A0 =A0 =A0 kzalloc() or kmalloc().
-> =A0 =A0 . do we have empirical data that shows the allocation failure
-> =A0 =A0 =A0 rate for kmalloc(), kzalloc() per alloc size (num pages)
-
-Laziness? Last I checked, OpenAFS still called vmalloc() in the
-pageout path, which is a no-no of similar magnitude, because handling
-the failure properly is difficult to code and even more difficult to
-test, and nobody is seeing machines deadlock often enough to justify
-the development effort.
-
-If we're having significant failures in allocating two consecutive
-pages, we'll probably have other problems too, but there are
-conditions where being able to vzalloc that could save you. I suspect
-they're less common than conditions where vzalloc in interrupt context
-would burn you, but I have no empirical data to support that.
-
--- Chris
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
