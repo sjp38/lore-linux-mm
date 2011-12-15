@@ -1,45 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 3AD7F6B0316
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 20:15:19 -0500 (EST)
-Subject: Re: [patch v3]numa: add a sysctl to control interleave allocation
- granularity from each node to improve I/O performance
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20111214175302.GA2600@alboin.jf.intel.com>
-References: <1323655125.22361.376.camel@sli10-conroe>
-	 <20111213190632.GA5830@tassilo.jf.intel.com>
-	 <alpine.DEB.2.00.1112131412320.27186@router.home>
-	 <20111213203856.GA6312@tassilo.jf.intel.com>
-	 <1323830027.22361.401.camel@sli10-conroe>
-	 <20111214175302.GA2600@alboin.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 15 Dec 2011 09:27:51 +0800
-Message-ID: <1323912471.22361.431.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id C4BE76B00CB
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2011 21:39:43 -0500 (EST)
+Received: by yhgm50 with SMTP id m50so154031yhg.14
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2011 18:39:42 -0800 (PST)
+Date: Wed, 14 Dec 2011 18:39:40 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] oom, memcg: fix exclusion of memcg threads after they
+ have detached their mm
+In-Reply-To: <20111214102942.GA11786@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1112141838470.27595@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1112131659100.32369@chino.kir.corp.google.com> <20111214102942.GA11786@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Christoph Lameter <cl@linux.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2011-12-15 at 01:53 +0800, Andi Kleen wrote:
-> > That's what I want to avoid letting each apps to explicitly do it, it's
-> > a lot of burden.
-> 
-> Usually apps that set NUMA policy can change it. Most don't anyways.
-> If it's just a script with numactl it's easily changed.
-Hmm, why should apps set different granularity? the granularity change
-is to speed up I/O, which should have the same value for all apps.
+oom, memcg: fix exclusion of memcg threads after they have detached their mm
 
-> > That's true only workload with heavy I/O wants this. but I don't expect
-> > it will harm other workloads.
-> 
-> How do you know?
-I can't imagine how it could harm. Some arches can use big pages, big
-granularity should already been tested for years.
+The oom killer relies on logic that identifies threads that have already
+been oom killed when scanning the tasklist and, if found, deferring until
+such threads have exited.  This is done by checking for any candidate
+threads that have the TIF_MEMDIE bit set.
 
-Thanks,
-Shaohua
+For memcg ooms, candidate threads are first found by calling
+task_in_mem_cgroup() since the oom killer should not defer if there's an
+oom killed thread in another memcg.
+
+Unfortunately, task_in_mem_cgroup() excludes threads if they have
+detached their mm in the process of exiting so TIF_MEMDIE is never
+detected for such conditions.  This is different for global, mempolicy,
+and cpuset oom conditions where a detached mm is only excluded after
+checking for TIF_MEMDIE and deferring, if necessary, in
+select_bad_process().
+
+The fix is to return true if a task has a detached mm but is still in the
+memcg or its hierarchy that is currently oom.  This will allow the oom
+killer to appropriately defer rather than kill unnecessarily or, in the
+worst case, panic the machine if nothing else is available to kill.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memcontrol.c |   17 +++++++++++++----
+ 1 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1109,10 +1109,19 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+ 	struct task_struct *p;
+ 
+ 	p = find_lock_task_mm(task);
+-	if (!p)
+-		return 0;
+-	curr = try_get_mem_cgroup_from_mm(p->mm);
+-	task_unlock(p);
++	if (p) {
++		curr = try_get_mem_cgroup_from_mm(p->mm);
++		task_unlock(p);
++	} else {
++		/*
++		 * All threads may have already detached their mm's, but the oom
++		 * killer still needs to detect if they have already been oom
++		 * killed to prevent needlessly killing additional tasks.
++		 */
++		curr = mem_cgroup_from_task(task);
++		if (curr)
++			css_get(&curr->css);
++	}
+ 	if (!curr)
+ 		return 0;
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
