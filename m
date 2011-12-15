@@ -1,205 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 13E336B00B1
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 07:05:24 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4B2BE3EE0B6
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 21:05:22 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 31AA645DE66
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 21:05:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 18DB545DF00
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 21:05:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0945B1DB8032
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 21:05:22 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AE1FF1DB8047
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 21:05:21 +0900 (JST)
-Date: Thu, 15 Dec 2011 21:04:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 4/5] memcg: remove PCG_CACHE bit
-Message-Id: <20111215210406.093c9a4e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111215193631.782a3e8b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20111215150010.2b124270.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111215150822.7b609f89.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111215102442.GI3047@cmpxchg.org>
-	<20111215193631.782a3e8b.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 4E3266B00B1
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 07:30:00 -0500 (EST)
+Message-ID: <4EE9E81E.2090700@parallels.com>
+Date: Thu, 15 Dec 2011 16:29:18 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v9 1/9] Basic kernel memory functionality for the Memory
+ Controller
+References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <1323676029-5890-2-git-send-email-glommer@parallels.com> <20111214170447.GB4856@tiehlicka.suse.cz>
+In-Reply-To: <20111214170447.GB4856@tiehlicka.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>
 
-On Thu, 15 Dec 2011 19:36:31 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 12/14/2011 09:04 PM, Michal Hocko wrote:
+> [Now with the current patch version, I hope]
+>
+> On Mon 12-12-11 11:47:01, Glauber Costa wrote:
+>> This patch lays down the foundation for the kernel memory component
+>> of the Memory Controller.
+>>
+>> As of today, I am only laying down the following files:
+>>
+>>   * memory.independent_kmem_limit
+>
+> Maybe has been already discussed but the name is rather awkward and it
+> would deserve more clarification. It is independent in the way that it
+> doesn't add up to the standard (user) allocations or it enables/disables
+> accounting?
 
-> On Thu, 15 Dec 2011 11:24:42 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+If turned on, it doesn't add up to the user allocations.
+As for the name, this is marked experimental, so I don't think anyone 
+will be relying on it for a while. We can change it, if you have a 
+better suggestion.
 
-> > What I think is required is to break up the charging and committing
-> > like we do for swap cache already:
-> > 
-> > 	if (!mem_cgroup_try_charge())
-> > 		goto error;
-> > 	page_add_new_anon_rmap()
-> > 	mem_cgroup_commit()
-> > 
-> > This will also allow us to even get rid of passing around the charge
-> > type everywhere...
-> > 
-> 
-> Thank you. I'll look into.
-> 
-> To be honest, I want to remove 'rss' and 'cache' counter ;(
-> This doesn't have much meanings after lru was splitted.
-> 
+>>   * memory.kmem.limit_in_bytes (currently ignored)
+>
+> What happens if we reach the limit? Are all kernel allocations
+> considered or only selected caches? How do I find out which are those?
+>
+> AFAIU you have implemented it for network buffers at this stage but I
+> guess that dentries will follow...
 
-I'll use this version for test. This patch is under far deep stacks of
-unmerged patches, anyway.
+Further allocations should fail.
 
-==
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index e4cb1bf..86967ed 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -4,7 +4,6 @@
- enum {
- 	/* flags for mem_cgroup */
- 	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
--	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
- 	PCG_MIGRATION, /* under page migration */
- 	/* flags for mem_cgroup and file and I/O status */
-@@ -63,11 +62,6 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
- static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
- 
--/* Cache flag is set only once (at allocation) */
--TESTPCGFLAG(Cache, CACHE)
--CLEARPCGFLAG(Cache, CACHE)
--SETPCGFLAG(Cache, CACHE)
--
- TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
- SETPCGFLAG(Used, USED)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fdcf454..89c76f1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2368,6 +2368,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- 				       struct page_cgroup *pc,
- 				       enum charge_type ctype)
- {
-+	bool file = false;
-+
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
-@@ -2390,18 +2392,17 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- 	switch (ctype) {
- 	case MEM_CGROUP_CHARGE_TYPE_CACHE:
- 	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
--		SetPageCgroupCache(pc);
-+		file = true;
- 		SetPageCgroupUsed(pc);
- 		break;
- 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
--		ClearPageCgroupCache(pc);
- 		SetPageCgroupUsed(pc);
- 		break;
- 	default:
- 		break;
- 	}
- 
--	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
-+	mem_cgroup_charge_statistics(memcg, file, nr_pages);
- 	unlock_page_cgroup(pc);
- 	WARN_ON_ONCE(PageLRU(page));
- 	/*
-@@ -2474,6 +2475,7 @@ static int mem_cgroup_move_account(struct page *page,
- 				   bool uncharge)
- {
- 	unsigned long flags;
-+	bool file = false;
- 	int ret;
- 
- 	VM_BUG_ON(from == to);
-@@ -2503,14 +2505,17 @@ static int mem_cgroup_move_account(struct page *page,
- 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		preempt_enable();
- 	}
--	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
-+	/* Once PageAnon is set, it will not be cleared until freed. */
-+	if (!PageAnon(page))
-+		file = true;
-+	mem_cgroup_charge_statistics(from, file, -nr_pages);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
- 		__mem_cgroup_cancel_charge(from, nr_pages);
- 
- 	/* caller should have done css_get */
- 	pc->mem_cgroup = to;
--	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), nr_pages);
-+	mem_cgroup_charge_statistics(to, file, nr_pages);
- 	/*
- 	 * We charges against "to" which may not have any tasks. Then, "to"
- 	 * can be under rmdir(). But in current implementation, caller of
-@@ -2854,6 +2859,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	struct mem_cgroup *memcg = NULL;
- 	unsigned int nr_pages = 1;
- 	struct page_cgroup *pc;
-+	bool file = false;
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -2880,6 +2886,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 		goto unlock_out;
- 
- 	switch (ctype) {
-+	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-+	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-+		file = true;
-+		break;
- 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
- 	case MEM_CGROUP_CHARGE_TYPE_DROP:
- 		/* See mem_cgroup_prepare_migration() */
-@@ -2897,7 +2907,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 		break;
- 	}
- 
--	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -nr_pages);
-+	mem_cgroup_charge_statistics(memcg, file, -nr_pages);
- 
- 	ClearPageCgroupUsed(pc);
- 	/*
-@@ -2938,9 +2948,13 @@ void mem_cgroup_uncharge_page(struct page *page)
- 
- void mem_cgroup_uncharge_cache_page(struct page *page)
- {
-+	int ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
- 	VM_BUG_ON(page_mapped(page));
- 	VM_BUG_ON(page->mapping);
--	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
-+
-+	if (page_is_file_cache(page))
-+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-+	__mem_cgroup_uncharge_common(page, ctype);
- }
- 
- /*
-@@ -3276,7 +3290,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
- 	/* fix accounting on old pages */
- 	lock_page_cgroup(pc);
- 	memcg = pc->mem_cgroup;
--	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -1);
-+	mem_cgroup_charge_statistics(memcg, true, -1);
- 	ClearPageCgroupUsed(pc);
- 	unlock_page_cgroup(pc);
- 
+About other caches, tcp is a bit different because we are concerned with 
+conditions that applies after the allocation already took place. It is 
+not clear to me if we will treat the other caches as a single entity, or 
+separate them.
+
+>>   * memory.kmem.usage_in_bytes (always zero)
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>> CC: Kirill A. Shutemov<kirill@shutemov.name>
+>> CC: Paul Menage<paul@paulmenage.org>
+>> CC: Greg Thelen<gthelen@google.com>
+>> CC: Johannes Weiner<jweiner@redhat.com>
+>> CC: Michal Hocko<mhocko@suse.cz>
+>> ---
+>>   Documentation/cgroups/memory.txt |   40 ++++++++++++++-
+>>   init/Kconfig                     |   11 ++++
+>>   mm/memcontrol.c                  |  105 ++++++++++++++++++++++++++++++++++++--
+>>   3 files changed, 149 insertions(+), 7 deletions(-)
+>>
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+>> index cc0ebc5..f245324 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -44,8 +44,9 @@ Features:
+>>    - oom-killer disable knob and oom-notifier
+>>    - Root cgroup has no limit controls.
+>>
+>> - Kernel memory and Hugepages are not under control yet. We just manage
+>> - pages on LRU. To add more controls, we have to take care of performance.
+>> + Hugepages is not under control yet. We just manage pages on LRU. To add more
+>
+> Hugepages are not
+> Anyway this sounds outdated as we track both THP and hugetlb, right?
+>
+>> + controls, we have to take care of performance. Kernel memory support is work
+>> + in progress, and the current version provides basically functionality.
+>
+> s/basically/basic/
+>
+>>
+>>   Brief summary of control files.
+>>
+>> @@ -56,8 +57,11 @@ Brief summary of control files.
+>>   				 (See 5.5 for details)
+>>    memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
+>>   				 (See 5.5 for details)
+>> + memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
+>> +				 (See 2.7 for details)
+>>    memory.limit_in_bytes		 # set/show limit of memory usage
+>>    memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
+>> + memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
+>>    memory.failcnt			 # show the number of memory usage hits limits
+>>    memory.memsw.failcnt		 # show the number of memory+Swap hits limits
+>>    memory.max_usage_in_bytes	 # show max memory usage recorded
+>> @@ -72,6 +76,9 @@ Brief summary of control files.
+>>    memory.oom_control		 # set/show oom controls.
+>>    memory.numa_stat		 # show the number of memory usage per numa node
+>>
+>> + memory.independent_kmem_limit	 # select whether or not kernel memory limits are
+>> +				   independent of user limits
+>> +
+>
+> It is not clear what happens in enabled/disabled cases. Let's say they
+> are not independent. Does it form a single limit with user charges or it
+> toggles kmem charging on/off.
+>
+>>   1. History
+>>
+>>   The memory controller has a long history. A request for comments for the memory
+>> @@ -255,6 +262,35 @@ When oom event notifier is registered, event will be delivered.
+>>     per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
+>>     zone->lru_lock, it has no lock of its own.
+>>
+>> +2.7 Kernel Memory Extension (CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
+>> +
+>> +With the Kernel memory extension, the Memory Controller is able to limit
+>> +the amount of kernel memory used by the system. Kernel memory is fundamentally
+>> +different than user memory, since it can't be swapped out, which makes it
+>> +possible to DoS the system by consuming too much of this precious resource.
+>> +
+>> +Some kernel memory resources may be accounted and limited separately from the
+>> +main "kmem" resource. For instance, a slab cache that is considered important
+>> +enough to be limited separately may have its own knobs.
+>
+> How do you tell which are those that are accounted to the "main kmem"?
+
+Besides being in this list, they should have they own files, like tcp.
+>
+>> +
+>> +Kernel memory limits are not imposed for the root cgroup. Usage for the root
+>> +cgroup may or may not be accounted.
+>> +
+>> +Memory limits as specified by the standard Memory Controller may or may not
+>> +take kernel memory into consideration. This is achieved through the file
+>> +memory.independent_kmem_limit. A Value different than 0 will allow for kernel
+>> +memory to be controlled separately.
+>
+> Separately from user space allocations, right?
+Yes.
+> What happens if we reach the limit in both cases?
+For kernel memory, further allocations should fail.
+
+>
+>> @@ -344,9 +353,14 @@ enum charge_type {
+>>   };
+>>
+>>   /* for encoding cft->private value on file */
+>> -#define _MEM			(0)
+>> -#define _MEMSWAP		(1)
+>> -#define _OOM_TYPE		(2)
+>> +
+>> +enum mem_type {
+>> +	_MEM = 0,
+>> +	_MEMSWAP,
+>> +	_OOM_TYPE,
+>> +	_KMEM,
+>> +};
+>> +
+>
+> Probably in a separate (cleanup) patch?
+>
+>>   #define MEMFILE_PRIVATE(x, val)	(((x)<<  16) | (val))
+>>   #define MEMFILE_TYPE(val)	(((val)>>  16)&  0xffff)
+>>   #define MEMFILE_ATTR(val)	((val)&  0xffff)
+>> @@ -3848,10 +3862,17 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>>   	u64 val;
+>>
+>>   	if (!mem_cgroup_is_root(memcg)) {
+>> +		val = 0;
+>> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> +		if (!memcg->kmem_independent_accounting)
+>> +			val = res_counter_read_u64(&memcg->kmem, RES_USAGE);
+>> +#endif
+>>   		if (!swap)
+>> -			return res_counter_read_u64(&memcg->res, RES_USAGE);
+>> +			val += res_counter_read_u64(&memcg->res, RES_USAGE);
+>>   		else
+>> -			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>> +			val += res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>> +
+>> +		return val;
+>>   	}
+>
+> So you report kmem+user but we do not consider kmem during charge so one
+> can easily end up with usage_in_bytes over limit but no reclaim is going
+> on. Not good, I would say.
+>
+> OK, so to sum it up. The biggest problem I see is the (non)independent
+> accounting. We simply cannot mix user+kernel limits otherwise we would
+> see issues (like kernel resource hog would force memcg-oom and innocent
+> members would die because their rss is much bigger).
+> It is also not clear to me what should happen when we hit the kmem
+> limit. I guess it will be kmem cache dependent.
+
+So right now, tcp is completely independent, since it is not accounted 
+to kmem. In summary, we still never do non-independent accounting. When 
+we start doing it for the other caches, We will have to add a test at 
+charge time as well.
+
+We still need to keep it separate though, in case the independent flag 
+is turned on/off
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
