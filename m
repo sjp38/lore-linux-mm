@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 383636B004F
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 17:54:07 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DF50C3EE0B5
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:54:05 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C22A645DF01
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:54:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A9E8845DEFF
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:54:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A52B1DB804F
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:54:05 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 552D61DB804A
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:54:05 +0900 (JST)
-Date: Fri, 16 Dec 2011 07:52:54 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: linux-next: Tree for Dec 15 (memcontrol)
-Message-Id: <20111216075254.f4a8fa0f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4EEA8693.8020905@xenotime.net>
-References: <20111215191115.fd4ef2ab8fa11872ea22d70e@canb.auug.org.au>
-	<4EEA8693.8020905@xenotime.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 44DDA6B004F
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 18:21:36 -0500 (EST)
+Message-ID: <4EEA80F9.5040407@redhat.com>
+Date: Thu, 15 Dec 2011 18:21:29 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 03/11] mm: vmscan: Check if we isolated a compound page
+ during lumpy scan
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de> <1323877293-15401-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1323877293-15401-4-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 15 Dec 2011 15:45:23 -0800
-Randy Dunlap <rdunlap@xenotime.net> wrote:
+On 12/14/2011 10:41 AM, Mel Gorman wrote:
+> From: Andrea Arcangeli<aarcange@redhat.com>
+>
+> Properly take into account if we isolated a compound page during the
+> lumpy scan in reclaim and skip over the tail pages when encountered.
+> This corrects the values given to the tracepoint for number of lumpy
+> pages isolated and will avoid breaking the loop early if compound
+> pages smaller than the requested allocation size are requested.
+>
+> [mgorman@suse.de: Updated changelog]
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> Reviewed-by: Minchan Kim<minchan.kim@gmail.com>
 
-> On 12/15/2011 12:11 AM, Stephen Rothwell wrote:
-> > Hi all,
-> > 
-> > Changes since 20111214:
-> 
-> 
-> memcontrol.c:(.text+0x31f9d): undefined reference to `mem_cgroup_sockets_init'
-> memcontrol.c:(.text+0x326dd): undefined reference to `mem_cgroup_sockets_destroy'
-> 
-> Full randconfig file is attached.
-> 
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Added Glauber Costa <glommer@parallels.com> to CC.
-
-THanks,
--Kame
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
