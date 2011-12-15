@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 1BBDC6B004F
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 13:40:44 -0500 (EST)
-Received: by wgbds13 with SMTP id ds13so3763874wgb.26
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2011 10:40:42 -0800 (PST)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id C67826B004D
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 14:26:00 -0500 (EST)
+Date: Thu, 15 Dec 2011 11:25:59 -0800
+From: Eugene Surovegin <ebs@ebshome.net>
+Subject: [PATCH] percpu: fix per_cpu_ptr_to_phys() handling of
+ non-page-aligned addresses.
+Message-ID: <20111215192559.GA28283@gate.ebshome.net>
 MIME-Version: 1.0
-In-Reply-To: <201112151139.32224.ptesarik@suse.cz>
-References: <201112140033.58951.ptesarik@suse.cz>
-	<CAM_iQpUr3MqwWzeD4Z8KzyErEM4utT=CkpbyecPu75-QDDznHQ@mail.gmail.com>
-	<201112151139.32224.ptesarik@suse.cz>
-Date: Thu, 15 Dec 2011 10:40:42 -0800
-Message-ID: <CAOS58YP8o9xQvZJtpEJobChhJ+pSDQ9PqDwaXFS_h+JFd65jOw@mail.gmail.com>
-Subject: Re: Is per_cpu_ptr_to_phys broken?
-From: Tejun Heo <tj@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Tesarik <ptesarik@suse.cz>
-Cc: Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vivek Goyal <vgoyal@redhat.com>, surovegin@google.com, gthelen@google.com
+To: tj@kernel.org
+Cc: ptesarik@suse.cz, xiyou.wangcong@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, vgoyal@redhat.com
 
-Hello,
+per_cpu_ptr_to_phys() incorrectly rounds up its result for non-kmalloc case
+to the page boundary, which is bogus for any non-page-aligned address.
 
-> Now, per_cpu_ptr() gives the correct virtual address, but
-> per_cpu_ptr_to_phys() gets the result wrong, regardless whether it thinks that
-> the address is in the first chunk or not:
+This fixes the only in-tree user of this function - sysfs handler for
+per-cpu 'crash_notes' physical address. The manifestation of this bug is
+missing 'CORE' ELF notes in kdump.
 
-Yeah, that's me forgetting "+ offset_in_page()" after vmalloc page
-translation, which incidentally was also discovered by surovegin last
-night. It has been broken forever, by which I mean longer than six
-months. I wonder why this is coming up only now. Anyways, please send
-me a patch, I'll be push it mainline & to stable.
+Signed-off-by: Eugene Surovegin <ebs@ebshome.net>
+---
+ mm/percpu.c |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
 
-Thanks.
-
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 3bb810a..716eb4a 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1023,9 +1023,11 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+ 		if (!is_vmalloc_addr(addr))
+ 			return __pa(addr);
+ 		else
+-			return page_to_phys(vmalloc_to_page(addr));
++			return page_to_phys(vmalloc_to_page(addr)) +
++			       offset_in_page(addr);
+ 	} else
+-		return page_to_phys(pcpu_addr_to_page(addr));
++		return page_to_phys(pcpu_addr_to_page(addr)) +
++		       offset_in_page(addr);
+ }
+ 
+ /**
 -- 
-tejun
+1.7.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
