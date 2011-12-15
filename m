@@ -1,54 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 33F536B00D4
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 04:51:24 -0500 (EST)
-Date: Thu, 15 Dec 2011 10:49:22 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] proc: show readahead state in fdinfo
-Message-ID: <20111215094922.GA29981@elte.hu>
-References: <20111129130900.628549879@intel.com>
- <20111129131456.278516066@intel.com>
- <20111129175743.GP24062@one.firstfloor.org>
- <20111215085540.GA23966@localhost>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 7B7CE6B00D4
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 05:04:51 -0500 (EST)
+Date: Thu, 15 Dec 2011 11:04:43 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC] [PATCH 1/5] memcg: simplify account moving check
+Message-ID: <20111215100443.GH3047@cmpxchg.org>
+References: <20111215150010.2b124270.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111215150522.180da280.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111215085540.GA23966@localhost>
+In-Reply-To: <20111215150522.180da280.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-
-* Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> On Wed, Nov 30, 2011 at 01:57:43AM +0800, Andi Kleen wrote:
-> > On Tue, Nov 29, 2011 at 09:09:03PM +0800, Wu Fengguang wrote:
-> > > Record the readahead pattern in ra->pattern and extend the ra_submit()
-> > > parameters, to be used by the next readahead tracing/stats patches.
-> > 
-> > I like this, could it be exported it a bit more formally in /proc for 
-> > each file descriptor?
+On Thu, Dec 15, 2011 at 03:05:22PM +0900, KAMEZAWA Hiroyuki wrote:
+> >From 528f5f2667da17c26e40d271b24691412e1cbe81 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 15 Dec 2011 11:41:18 +0900
+> Subject: [PATCH 1/5] memcg: simplify account moving check
 > 
-> How about this?
-> ---
-> Subject: proc: show readahead state in fdinfo
-> Date: Thu Dec 15 14:35:56 CST 2011
+> Now, percpu variable MEM_CGROUP_ON_MOVE is used for indicating that
+> a memcg is under move_account() and pc->mem_cgroup under it may be
+> overwritten.
 > 
-> Append three readahead states to /proc/<PID>/fdinfo/<FD>:
+> But this value is almost read only and not worth to be percpu.
+> Using atomic_t instread.
 
-Not a very good idea - please keep debug info under /debug as 
-much as possible (as your original series did), instead of 
-creating an ad-hoc insta-ABI in /proc.
+I like this, but I think you can go one further.  The only place I see
+where the per-cpu counter is actually read is to avoid taking the
+lock, but if you make that counter an atomic anyway - why bother?
 
-In the long run we'd really like to retrieve such kind of 
-information not even via ad-hoc exported info in /debug but via 
-the standard event facilities: the tracepoints, if they are 
-versatile enough, could be used to collect these stats and more.
-
-Thanks,
-
-	Ingo
+Couldn't you remove the counter completely and just take move_lock
+unconditionally in the page stat updating?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
