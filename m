@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id A7ED46B004D
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2011 23:47:43 -0500 (EST)
-Message-ID: <4EEACD69.6010509@redhat.com>
-Date: Thu, 15 Dec 2011 23:47:37 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id BE4456B004D
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 01:21:14 -0500 (EST)
+Received: by vcge1 with SMTP id e1so1543465vcg.14
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2011 22:21:13 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
- own LRU
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de> <1323877293-15401-12-git-send-email-mgorman@suse.de>
-In-Reply-To: <1323877293-15401-12-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1323676029-5890-2-git-send-email-glommer@parallels.com>
+References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <1323676029-5890-2-git-send-email-glommer@parallels.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Thu, 15 Dec 2011 22:20:52 -0800
+Message-ID: <CAHH2K0YUK9CVk4Ds3cPA=6SNjX0y79nSo+Vy8r1H5PiVXA1RWQ@mail.gmail.com>
+Subject: Re: [PATCH v9 1/9] Basic kernel memory functionality for the Memory Controller
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
 
-On 12/14/2011 10:41 AM, Mel Gorman wrote:
-> It was observed that scan rates from direct reclaim during tests
-> writing to both fast and slow storage were extraordinarily high. The
-> problem was that while pages were being marked for immediate reclaim
-> when writeback completed, the same pages were being encountered over
-> and over again during LRU scanning.
->
-> This patch isolates file-backed pages that are to be reclaimed when
-> clean on their own LRU list.
+On Sun, Dec 11, 2011 at 11:47 PM, Glauber Costa <glommer@parallels.com> wro=
+te:
+> +Memory limits as specified by the standard Memory Controller may or may =
+not
+> +take kernel memory into consideration. This is achieved through the file
+> +memory.independent_kmem_limit. A Value different than 0 will allow for k=
+ernel
 
-The idea makes total sense to me.  This is very similar
-to the inactive_laundry list in the early 2.4 kernel.
+s/Value/value/
 
-One potential issue is that the page cannot be moved
-back to the active list by mark_page_accessed(), which
-would have to be taught about the immediate LRU.
+It is probably worth documenting the default value for
+memory.independent_kmem_limit?  I figure it would be zero at root and
+and inherited from parents.  But I think the implementation differs.
 
-> @@ -255,24 +256,80 @@ static void pagevec_move_tail(struct pagevec *pvec)
->   }
->
->   /*
-> + * Similar pair of functions to pagevec_move_tail except it is called when
-> + * moving a page from the LRU_IMMEDIATE to one of the [in]active_[file|anon]
-> + * lists
-> + */
-> +static void pagevec_putback_immediate_fn(struct page *page, void *arg)
+> @@ -277,6 +281,11 @@ struct mem_cgroup {
+> =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0unsigned long =A0 move_charge_at_immigrate;
+> =A0 =A0 =A0 =A0/*
+> + =A0 =A0 =A0 =A0* Should kernel memory limits be stabilished independent=
+ly
+> + =A0 =A0 =A0 =A0* from user memory ?
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 int =A0 =A0 =A0 =A0 =A0 =A0 kmem_independent_accounting;
+
+I have no serious objection, but a full int seems like overkill for a
+boolean value.
+
+> +static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys=
+ *ss)
 > +{
-> +	struct zone *zone = page_zone(page);
+> + =A0 =A0 =A0 int ret =3D 0;
 > +
-> +	if (PageLRU(page)) {
-> +		enum lru_list lru = page_lru(page);
-> +		list_move(&page->lru,&zone->lru[lru].list);
-> +	}
-> +}
+> + =A0 =A0 =A0 ret =3D cgroup_add_files(cont, ss, kmem_cgroup_files,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ARRAY_SIZE(k=
+mem_cgroup_files));
+> + =A0 =A0 =A0 return ret;
 
-Should this not put the page at the reclaim end of the
-inactive list, since we want to try evicting it?
-
-> +	/*
-> +	 * There is a potential race that if a page is set PageReclaim
-> +	 * and moved to the LRU_IMMEDIATE list after writeback completed,
-> +	 * it can be left on the LRU_IMMEDATE list with no way for
-> +	 * reclaim to find it.
-> +	 *
-> +	 * This race should be very rare but count how often it happens.
-> +	 * If it is a continual race, then it's very unsatisfactory as there
-> +	 * is no guarantee that rotate_reclaimable_page() will be called
-> +	 * to rescue these pages but finding them in page reclaim is also
-> +	 * problematic due to the problem of deciding when the right time
-> +	 * to scan this list is.
-> +	 */
-
-Would it be an idea for the pageout code to check whether the
-page at the head of the LRU_IMMEDIATE list is freeable, and
-then take that page?
-
-Of course, that does mean adding a check to rotate_reclaimable_page
-to make sure the page is still on the LRU_IMMEDIATE list, and did
-not get moved by somebody else...
-
-Also, it looks like your debugging check can trigger even when the
-bug does not happen (on the last LRU_IMMEDIATE page), because you
-decrement NR_IMMEDIATE before you get to this check.
-
--- 
-All rights reversed
+If you want to this function could be condensed down to:
+  return cgroup_add_files(...);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
