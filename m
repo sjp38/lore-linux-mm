@@ -1,35 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 575546B005A
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 16:16:43 -0500 (EST)
-Received: by iacb35 with SMTP id b35so4075893iac.14
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2011 13:16:42 -0800 (PST)
-Date: Fri, 16 Dec 2011 13:16:40 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] slub: debug_guardpage_minorder documentation tweak
-In-Reply-To: <20111216132349.GB14271@redhat.com>
-Message-ID: <alpine.DEB.2.00.1112161315220.6862@chino.kir.corp.google.com>
-References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com> <20111212145948.GA2380@redhat.com> <201112130021.41429.rjw@sisk.pl> <alpine.DEB.2.00.1112131640240.32369@chino.kir.corp.google.com>
- <20111216132155.GA14271@redhat.com> <20111216132349.GB14271@redhat.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id D50C66B004F
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 16:51:48 -0500 (EST)
+Date: Fri, 16 Dec 2011 22:54:51 +0100
+From: Djalal Harouni <tixxdz@opendz.org>
+Subject: Re: [PATCH] mm: add missing mutex lock arround notify_change
+Message-ID: <20111216215451.GA20271@dztty>
+References: <20111216112534.GA13147@dztty>
+ <20111216125556.db2bf308.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111216125556.db2bf308.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, "J. Bruce Fields" <bfields@fieldses.org>, Neil Brown <neilb@suse.de>, Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
 
-On Fri, 16 Dec 2011, Stanislaw Gruszka wrote:
+On Fri, Dec 16, 2011 at 12:55:56PM -0800, Andrew Morton wrote:
+> On Fri, 16 Dec 2011 12:25:34 +0100
+> Djalal Harouni <tixxdz@opendz.org> wrote:
+> 
+> > 
+> > Calls to notify_change() must hold i_mutex.
+> > 
+>
+> ...
+> 
+> <does a quick audit>
+> 
+> fs/hpfs/namei.c and fs/nfsd/vfs.c:nfsd_setattr() aren't obviosuly
+> holding that lock when calling notify_change().  Everything else under
+> fs/ looks OK.
 
-> Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
+fs/nfsd/vfs.c:nfsd_setattr() is calling fh_lock() which calls
+mutex_lock_nested() with the appropriate i_mutex of the dentry object.
+There are some extra functions before the lock which are related to nfsd.
 
-Acked-by: David Rientjes <rientjes@google.com>
+fs/hpfs/namei.c:hpfs_unlink() is using hpfs_lock() to lock the whole
+filesystem.
 
-Andrew, this should be folded into 
-slub-document-setting-min-order-with-debug_guardpage_minorder-0.patch 
-which should be folded into 
-slub-min-order-when-debug_guardpage_minorder-0.patch
+So they are OK.
 
-Thanks!
+-- 
+tixxdz
+http://opendz.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
