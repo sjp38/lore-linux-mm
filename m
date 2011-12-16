@@ -1,101 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 4D6286B004D
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 03:31:29 -0500 (EST)
-Date: Fri, 16 Dec 2011 09:31:26 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v3] oom, memcg: fix exclusion of memcg threads after they
- have detached their mm
-Message-ID: <20111216083126.GA3122@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1112131659100.32369@chino.kir.corp.google.com>
- <20111214102942.GA11786@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1112141838470.27595@chino.kir.corp.google.com>
- <20111215155926.GA22819@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1112151335370.17878@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 510286B004D
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 03:40:24 -0500 (EST)
+From: Petr Tesarik <ptesarik@suse.cz>
+Subject: Re: [PATCH] Do not round per_cpu_ptr_to_phys to page boundary
+Date: Fri, 16 Dec 2011 09:40:20 +0100
+References: <201112140033.58951.ptesarik@suse.cz> <CAOS58YP8o9xQvZJtpEJobChhJ+pSDQ9PqDwaXFS_h+JFd65jOw@mail.gmail.com> <201112160904.23252.ptesarik@suse.cz>
+In-Reply-To: <201112160904.23252.ptesarik@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1112151335370.17878@chino.kir.corp.google.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201112160940.20909.ptesarik@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vivek Goyal <vgoyal@redhat.com>, surovegin@google.com, gthelen@google.com
 
-On Thu 15-12-11 13:36:11, David Rientjes wrote:
-> The oom killer relies on logic that identifies threads that have already
-> been oom killed when scanning the tasklist and, if found, deferring until
-> such threads have exited.  This is done by checking for any candidate
-> threads that have the TIF_MEMDIE bit set.
-> 
-> For memcg ooms, candidate threads are first found by calling
-> task_in_mem_cgroup() since the oom killer should not defer if there's an
-> oom killed thread in another memcg.
-> 
-> Unfortunately, task_in_mem_cgroup() excludes threads if they have
-> detached their mm in the process of exiting so TIF_MEMDIE is never
-> detected for such conditions.  This is different for global, mempolicy,
-> and cpuset oom conditions where a detached mm is only excluded after
-> checking for TIF_MEMDIE and deferring, if necessary, in
-> select_bad_process().
-> 
-> The fix is to return true if a task has a detached mm but is still in the
-> memcg or its hierarchy that is currently oom.  This will allow the oom
-> killer to appropriately defer rather than kill unnecessarily or, in the
-> worst case, panic the machine if nothing else is available to kill.
-> 
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Ignore my patch. I can see, a patch has already been accepted.
 
-Yes, looks good.
-Thanks
+I only replied too fast (before I read the rest of the thread).
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Petr
 
-> ---
->  mm/memcontrol.c |   19 +++++++++++++++----
->  1 files changed, 15 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1109,10 +1109,21 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
->  	struct task_struct *p;
->  
->  	p = find_lock_task_mm(task);
-> -	if (!p)
-> -		return 0;
-> -	curr = try_get_mem_cgroup_from_mm(p->mm);
-> -	task_unlock(p);
-> +	if (p) {
-> +		curr = try_get_mem_cgroup_from_mm(p->mm);
-> +		task_unlock(p);
-> +	} else {
-> +		/*
-> +		 * All threads may have already detached their mm's, but the oom
-> +		 * killer still needs to detect if they have already been oom
-> +		 * killed to prevent needlessly killing additional tasks.
-> +		 */
-> +		task_lock(task);
-> +		curr = mem_cgroup_from_task(task);
-> +		if (curr)
-> +			css_get(&curr->css);
-> +		task_unlock(task);
-> +	}
->  	if (!curr)
->  		return 0;
+Dne P=E1 16. prosince 2011 09:04:23 Petr Tesarik napsal(a):
+> The phys_addr_t per_cpu_ptr_to_phys() function ignores the offset within a
+> page, whenever not using a simple translation using __pa().
+>=20
+> Without this patch /sys/devices/system/cpu/cpu*/crash_notes shows incorre=
+ct
+> values, which breaks kdump. Other things may also be broken.
+>=20
+> Signed-off-by: Petr Tesarik <ptesarik@suse.cz>
+>=20
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index 3bb810a..1a1b5ac 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -998,6 +998,7 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+>  	bool in_first_chunk =3D false;
+>  	unsigned long first_low, first_high;
+>  	unsigned int cpu;
+> +	phys_addr_t page_addr;
+>=20
 >  	/*
+>  	 * The following test on unit_low/high isn't strictly
+> @@ -1023,9 +1024,10 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+>  		if (!is_vmalloc_addr(addr))
+>  			return __pa(addr);
+>  		else
+> -			return page_to_phys(vmalloc_to_page(addr));
+> +			page_addr =3D page_to_phys(vmalloc_to_page(addr));
+>  	} else
+> -		return page_to_phys(pcpu_addr_to_page(addr));
+> +		page_addr =3D page_to_phys(pcpu_addr_to_page(addr));
+> +	return page_addr + offset_in_page(addr);
+>  }
+>=20
+>  /**
+>=20
 > --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign
+> http://stopthemeter.ca/ Don't email: <a href=3Dmailto:"dont@kvack.org">
+> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
