@@ -1,70 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 13B396B004F
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 17:37:55 -0500 (EST)
-Date: Fri, 16 Dec 2011 14:37:53 -0800
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 1CEE26B004F
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 17:56:02 -0500 (EST)
+Date: Fri, 16 Dec 2011 14:56:00 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] vmscan/trace: Add 'file' info to
- trace_mm_vmscan_lru_isolate.
-Message-Id: <20111216143753.07588b01.akpm@linux-foundation.org>
-In-Reply-To: <1323875693-3504-1-git-send-email-tm@tao.ma>
-References: <20111213164507.fbee477c.akpm@linux-foundation.org>
-	<1323875693-3504-1-git-send-email-tm@tao.ma>
+Subject: Re: [PATCH 0/11] Reduce compaction-related stalls and improve
+ asynchronous migration of dirty pages v6
+Message-Id: <20111216145600.908fc77e.akpm@linux-foundation.org>
+In-Reply-To: <1323877293-15401-1-git-send-email-mgorman@suse.de>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tao Ma <tm@tao.ma>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 14 Dec 2011 23:14:53 +0800
-Tao Ma <tm@tao.ma> wrote:
+On Wed, 14 Dec 2011 15:41:22 +0000
+Mel Gorman <mgorman@suse.de> wrote:
 
-> From: Tao Ma <boyu.mt@taobao.com>
+> Short summary: There are severe stalls when a USB stick using VFAT
+> is used with THP enabled that are reduced by this series. If you are
+> experiencing this problem, please test and report back and considering
+> I have seen complaints from openSUSE and Fedora users on this as well
+> as a few private mails, I'm guessing it's a widespread issue. This
+> is a new type of USB-related stall because it is due to synchronous
+> compaction writing where as in the past the big problem was dirty
+> pages reaching the end of the LRU and being written by reclaim.
 > 
-> In trace_mm_vmscan_lru_isolate, we don't output 'file'
-> information to the trace event and it is a bit inconvenient for the
-> user to get the real information(like pasted below).
-> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
-> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
-> 
-> 'active' can be gotten by analyzing mode(Thanks go to Minchan and Mel),
-> So this patch adds 'file' to the trace event and it now looks like:
-> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
-> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0 file=0
-> 
-> ...
->
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1249,7 +1249,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  	*scanned = scan;
->  
->  	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
-> -				      0, 0, 0, mode);
-> +				      0, 0, 0, mode, file);
->  
->  	return nr_taken;
->  }
+> Am cc'ing Andrew this time and this series would replace
+> mm-do-not-stall-in-synchronous-compaction-for-thp-allocations.patch.
+> I'm also cc'ing Dave Jones as he might have merged that patch to Fedora
+> for wider testing and ideally it would be reverted and replaced by
+> this series.
 
-This tracepoint was removed by Johannes's "mm: make per-memcg LRU lists
-exclusive".
+So it appears that the problem is painful for distros and users and
+that we won't have this fixed until 3.2 at best, and that fix will be a
+difficult backport for distributors of earlier kernels.
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f54a05b..a444dc0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1221,7 +1221,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  			nr_to_scan, scan,
->  			nr_taken,
->  			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
-> -			mode);
-> +			mode, file);
->  	return nr_taken;
->  }
-
-So this is the only remaining site for that tracepoint.
+To serve those people better, I'm wondering if we should merge
+mm-do-not-stall-in-synchronous-compaction-for-thp-allocations now, make
+it available for -stable backport and then revert it as part of this
+series?   ie: give people a stopgap while we fix it properly?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
