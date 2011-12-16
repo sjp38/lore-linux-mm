@@ -1,145 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id DAE326B004D
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:26:07 -0500 (EST)
-Date: Fri, 16 Dec 2011 12:26:02 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
- own LRU
-Message-ID: <20111216122602.GH3487@suse.de>
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
- <1323877293-15401-12-git-send-email-mgorman@suse.de>
- <4EEACD69.6010509@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4EEACD69.6010509@redhat.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id EBCC46B004D
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 07:32:15 -0500 (EST)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 16 Dec 2011 18:02:12 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pBGCW7fA2170938
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 18:02:08 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pBGCW2As002948
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 18:02:07 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Fri, 16 Dec 2011 17:57:56 +0530
+Message-Id: <20111216122756.2085.95791.sendpatchset@srdronam.in.ibm.com>
+Subject: [PATCH v8 3.2.0-rc5 0/9] uprobes patchset
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Thu, Dec 15, 2011 at 11:47:37PM -0500, Rik van Riel wrote:
-> On 12/14/2011 10:41 AM, Mel Gorman wrote:
-> >It was observed that scan rates from direct reclaim during tests
-> >writing to both fast and slow storage were extraordinarily high. The
-> >problem was that while pages were being marked for immediate reclaim
-> >when writeback completed, the same pages were being encountered over
-> >and over again during LRU scanning.
-> >
-> >This patch isolates file-backed pages that are to be reclaimed when
-> >clean on their own LRU list.
-> 
-> The idea makes total sense to me.  This is very similar
-> to the inactive_laundry list in the early 2.4 kernel.
-> 
 
-Just to clarify, do you mean the inactive_dirty_list? It was before
-my time so out of curiousity do you recall why it was removed? I
-would guess that based on how the LRUs were aged at the time that
-adding pages to the inactive_dirty list would lose too much aging
-information. If this was the case, it would not apply today as pages
-moving to the "immediate reclaim" list have already been selected for
-reclaim so we expect them to be old.
+This patchset implements Uprobes which enables you to dynamically probe
+any routine in a user space application and collect information
+non-disruptively.
 
-> One potential issue is that the page cannot be moved
-> back to the active list by mark_page_accessed(), which
-> would have to be taught about the immediate LRU.
-> 
+This patchset resolves most of the comments on the previous posting
+(https://lkml.org/lkml/2011/11/18/149) patchset applies on top of
+commit (dc47ce9 Linux 3.2-rc5)
 
-Do you mean it *shouldn't* be moved back to the active list
-by mark_page_accessed as opposed to "cannot"? As it is, if
-mark_page_accessed() is called on a page on the immediate reclaim list,
-it should get moved to the active list if it was previously inactive.
-I'll admit this is odd but as it is we cannot tell for sure if the
-page is on the inactive or immediate LRU list. Using PageReclaim is
-not really an option because PG_reclaim is also used for readahead and
-it seems overkill to try using a pageflag for this.
+This patchset depends on Paul McKenney's "rcu: Introduce raw SRCU
+read-side primitives" - 0c53dd8b3; and my patches "x86: Clean up and
+extend do_int3()" - cc3a1bf52; "x86: Call do_notify_resume() with
+interrupts enabled" - 3596ff4e6b
+All three commits in -tip tree.
 
-> >@@ -255,24 +256,80 @@ static void pagevec_move_tail(struct pagevec *pvec)
-> >  }
-> >
-> >  /*
-> >+ * Similar pair of functions to pagevec_move_tail except it is called when
-> >+ * moving a page from the LRU_IMMEDIATE to one of the [in]active_[file|anon]
-> >+ * lists
-> >+ */
-> >+static void pagevec_putback_immediate_fn(struct page *page, void *arg)
-> >+{
-> >+	struct zone *zone = page_zone(page);
-> >+
-> >+	if (PageLRU(page)) {
-> >+		enum lru_list lru = page_lru(page);
-> >+		list_move(&page->lru,&zone->lru[lru].list);
-> >+	}
-> >+}
-> 
-> Should this not put the page at the reclaim end of the
-> inactive list, since we want to try evicting it?
-> 
+uprobes git is hosted at git://github.com/srikard/linux.git
+with branch inode_uprobes_v32rc5. Branch for-next is also 
+updated with these changes.
 
-I don't think so. pagevec_putback_immediate() is used by
-rotate_reclaimable_page when the page is *not* immediately reclaimable
-because it is locked, still dirty, activated or unevictable. I expected
-that most likely case it was not reclaimable was because it was
-redirtied in which case it should do another lap through the LRU list to
-give the flushers a chance. Putting it at the tail of the list could
-mean that reclaim keeps finding these pages that are being moved from
-the immediate list and raising the priority unnecessarily to skip them.
- 
-> >+	/*
-> >+	 * There is a potential race that if a page is set PageReclaim
-> >+	 * and moved to the LRU_IMMEDIATE list after writeback completed,
-> >+	 * it can be left on the LRU_IMMEDATE list with no way for
-> >+	 * reclaim to find it.
-> >+	 *
-> >+	 * This race should be very rare but count how often it happens.
-> >+	 * If it is a continual race, then it's very unsatisfactory as there
-> >+	 * is no guarantee that rotate_reclaimable_page() will be called
-> >+	 * to rescue these pages but finding them in page reclaim is also
-> >+	 * problematic due to the problem of deciding when the right time
-> >+	 * to scan this list is.
-> >+	 */
-> 
-> Would it be an idea for the pageout code to check whether the
-> page at the head of the LRU_IMMEDIATE list is freeable, and
-> then take that page?
-> 
+Uprobes Patches
+This patchset implements inode based uprobes which are specified as
+<file>:<offset> where offset is the offset from start of the map.
 
-That is one possibility.
+When a uprobe is registered, Uprobes makes a copy of the probed
+instruction, replaces the first byte(s) of the probed instruction with a
+breakpoint instruction. (Uprobes uses background page replacement
+mechanism and ensures that the breakpoint affects only that process.)
 
-> Of course, that does mean adding a check to rotate_reclaimable_page
-> to make sure the page is still on the LRU_IMMEDIATE list, and did
-> not get moved by somebody else...
-> 
+When a CPU hits the breakpoint instruction, Uprobes gets notified of
+trap and finds the associated uprobe. It then executes the associated
+handler. Uprobes single-steps its copy of the probed instruction and
+resumes execution of the probed process at the instruction following the
+probepoint. Instruction copies to be single-stepped are stored in a
+per-mm "execution out of line (XOL) area". Currently XOL area is
+allocated as one page vma.
 
-This goes back to the problem of not being sure if the page is on the
-inactive list or the immediate list and I don't want to introduce a
-flag for this. While I think this could work, is it over complicating
-things for what should be a rare occurance (see more on this later).
-Ironically, the biggest complexity with solutions in this generation
-direction is getting the accounting right!
+For previous postings: please refer: https://lkml.org/lkml/2011/11/10/408
+https://lkml.org/lkml/2011/9/20/123 https://lkml.org/lkml/2011/6/7/232
+https://lkml.org/lkml/2011/4/1/176 http://lkml.org/lkml/2011/3/14/171/
+http://lkml.org/lkml/2010/12/16/65 http://lkml.org/lkml/2010/8/25/165
+http://lkml.org/lkml/2010/7/27/121 http://lkml.org/lkml/2010/7/12/67
+http://lkml.org/lkml/2010/7/8/239 http://lkml.org/lkml/2010/6/29/299
+http://lkml.org/lkml/2010/6/14/41 http://lkml.org/lkml/2010/3/20/107 and
+http://lkml.org/lkml/2010/5/18/307
 
-> Also, it looks like your debugging check can trigger even when the
-> bug does not happen (on the last LRU_IMMEDIATE page), because you
-> decrement NR_IMMEDIATE before you get to this check.
-> 
+This patchset is a rework based on suggestions from discussions on lkml
+in September, March and January 2010 (http://lkml.org/lkml/2010/1/11/92,
+http://lkml.org/lkml/2010/1/27/19, http://lkml.org/lkml/2010/3/20/107
+and http://lkml.org/lkml/2010/3/31/199 ). This implementation of uprobes
+doesnt depend on utrace.
 
-When NR_IMMEDIATE goes to 0, one more page is taken from the list and
-moved back to an appropriate LRU list so the counts should match up.
-When that counter is 0, the LRU lock is only taken if there are pages on
-the list. It's racy because we are calling list_empty() outside the LRU
-lock but that should not matter. Did I misunderstand you?
+Advantages of uprobes over conventional debugging include:
 
-Also, this is not a debugging check per-se.  This "rescue" logic
-is currently needed because it does happen. In the tests I ran 0.05
-to 0.1% of the pages moved to the immediate reclaim list had to be
-rescued from it using this logic. That was so low that I did not think a
-more complex solution was justified.
+1. Non-disruptive.
+Unlike current ptrace based mechanisms, uprobes tracing wouldnt
+involve signals, stopping threads and context switching between the
+tracer and tracee.
 
--- 
-Mel Gorman
-SUSE Labs
+2. Much better handling of multithreaded programs because of XOL.
+Current ptrace based mechanisms use single stepping inline, i.e they
+copy back the original instruction on hitting a breakpoint.  In such
+mechanisms tracers have to stop all the threads on a breakpoint hit or
+tracers will not be able to handle all hits to the location of
+interest. Uprobes uses execution out of line, where the instruction to
+be traced is analysed at the time of breakpoint insertion and a copy
+of instruction is stored at a different location.  On breakpoint hit,
+uprobes jumps to that copied location and singlesteps the same
+instruction and does the necessary fixups post singlestepping.
+
+3. Multiple tracers for an application.
+Multiple uprobes based tracer could work in unison to trace an
+application. There could one tracer that could be interested in
+generic events for a particular set of process. While there could be
+another tracer that is just interested in one specific event of a
+particular process thats part of the previous set of process.
+
+4. Corelating events from kernels and userspace.
+Uprobes could be used with other tools like kprobes, tracepoints or as
+part of higher level tools like perf to give a consolidated set of
+events from kernel and userspace.  In future we could look at a single
+backtrace showing application, library and kernel calls.
+
+Changes from last patchset:
+- Rebased to dc47ce9 Linux 3.2-rc5
+- Re-split the patches including separating the probe hit optimization.
+- Fixes for build failures as reported on linux-next.
+- Handled comments from Peter.
+
+Here is the list of TODO Items.
+
+- worker thread if unregister_uprobe were to fail.
+- Prefiltering (i.e filtering at the time of probe insertion)
+- Return probes.
+- Support for other architectures.
+- Uprobes booster.
+- replace macro W with bits in inat table.
+
+Please refer "[PATCH 3.2-rc5 7/9] tracing: uprobes trace_event interface".
+
+Please refer "[PATCH 3.2-rc5 9/9] perf: perf interface for uprobes".
+
+Please do provide your valuable comments.
+
+Thanks in advance.
+Srikar
+
+Srikar Dronamraju (9)
+ 0: Uprobes patchset with perf probe support
+ 1: uprobes: Install and remove breakpoints.
+ 2: uprobes: handle breakpoint and signal step exception.
+ 3: uprobes: slot allocation.
+ 4: uprobes: counter to optimize probe hits.
+ 5: tracing: modify is_delete, is_return from ints to bool.
+ 6: tracing: Extract out common code for kprobes/uprobes traceevents.
+ 7: tracing: uprobes trace_event interface
+ 8: perf: rename target_module to target
+ 9: perf: perf interface for uprobes
+
+
+ Documentation/trace/uprobetracer.txt    |   93 ++
+ arch/Kconfig                            |    3 +
+ arch/x86/Kconfig                        |    5 +-
+ arch/x86/include/asm/thread_info.h      |    2 +
+ arch/x86/include/asm/uprobes.h          |   59 ++
+ arch/x86/kernel/Makefile                |    1 +
+ arch/x86/kernel/signal.c                |    6 +
+ arch/x86/kernel/uprobes.c               |  675 ++++++++++++++
+ include/linux/mm_types.h                |    5 +
+ include/linux/sched.h                   |    4 +
+ include/linux/uprobes.h                 |  171 ++++
+ kernel/Makefile                         |    1 +
+ kernel/fork.c                           |   15 +
+ kernel/signal.c                         |    3 +
+ kernel/trace/Kconfig                    |   20 +
+ kernel/trace/Makefile                   |    2 +
+ kernel/trace/trace.h                    |    5 +
+ kernel/trace/trace_kprobe.c             |  899 +-----------------
+ kernel/trace/trace_probe.c              |  786 ++++++++++++++++
+ kernel/trace/trace_probe.h              |  162 ++++
+ kernel/trace/trace_uprobe.c             |  768 +++++++++++++++
+ kernel/uprobes.c                        | 1547 +++++++++++++++++++++++++++++++
+ mm/mmap.c                               |   33 +-
+ tools/perf/Documentation/perf-probe.txt |   14 +
+ tools/perf/builtin-probe.c              |   49 +-
+ tools/perf/util/probe-event.c           |  411 +++++++--
+ tools/perf/util/probe-event.h           |   12 +-
+ tools/perf/util/symbol.c                |    8 +
+ tools/perf/util/symbol.h                |    1 +
+ 29 files changed, 4779 insertions(+), 981 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
