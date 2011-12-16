@@ -1,62 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id BE4456B004D
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 01:21:14 -0500 (EST)
-Received: by vcge1 with SMTP id e1so1543465vcg.14
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2011 22:21:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id D86516B004D
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 03:04:25 -0500 (EST)
+From: Petr Tesarik <ptesarik@suse.cz>
+Subject: [PATCH] Do not round per_cpu_ptr_to_phys to page boundary
+Date: Fri, 16 Dec 2011 09:04:23 +0100
+References: <201112140033.58951.ptesarik@suse.cz> <201112151139.32224.ptesarik@suse.cz> <CAOS58YP8o9xQvZJtpEJobChhJ+pSDQ9PqDwaXFS_h+JFd65jOw@mail.gmail.com>
+In-Reply-To: <CAOS58YP8o9xQvZJtpEJobChhJ+pSDQ9PqDwaXFS_h+JFd65jOw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1323676029-5890-2-git-send-email-glommer@parallels.com>
-References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <1323676029-5890-2-git-send-email-glommer@parallels.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 15 Dec 2011 22:20:52 -0800
-Message-ID: <CAHH2K0YUK9CVk4Ds3cPA=6SNjX0y79nSo+Vy8r1H5PiVXA1RWQ@mail.gmail.com>
-Subject: Re: [PATCH v9 1/9] Basic kernel memory functionality for the Memory Controller
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201112160904.23252.ptesarik@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Vivek Goyal <vgoyal@redhat.com>, surovegin@google.com, gthelen@google.com
 
-On Sun, Dec 11, 2011 at 11:47 PM, Glauber Costa <glommer@parallels.com> wro=
-te:
-> +Memory limits as specified by the standard Memory Controller may or may =
-not
-> +take kernel memory into consideration. This is achieved through the file
-> +memory.independent_kmem_limit. A Value different than 0 will allow for k=
-ernel
+The phys_addr_t per_cpu_ptr_to_phys() function ignores the offset within a 
+page, whenever not using a simple translation using __pa().
 
-s/Value/value/
+Without this patch /sys/devices/system/cpu/cpu*/crash_notes shows incorrect 
+values, which breaks kdump. Other things may also be broken.
 
-It is probably worth documenting the default value for
-memory.independent_kmem_limit?  I figure it would be zero at root and
-and inherited from parents.  But I think the implementation differs.
+Signed-off-by: Petr Tesarik <ptesarik@suse.cz>
 
-> @@ -277,6 +281,11 @@ struct mem_cgroup {
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0unsigned long =A0 move_charge_at_immigrate;
-> =A0 =A0 =A0 =A0/*
-> + =A0 =A0 =A0 =A0* Should kernel memory limits be stabilished independent=
-ly
-> + =A0 =A0 =A0 =A0* from user memory ?
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 int =A0 =A0 =A0 =A0 =A0 =A0 kmem_independent_accounting;
-
-I have no serious objection, but a full int seems like overkill for a
-boolean value.
-
-> +static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys=
- *ss)
-> +{
-> + =A0 =A0 =A0 int ret =3D 0;
-> +
-> + =A0 =A0 =A0 ret =3D cgroup_add_files(cont, ss, kmem_cgroup_files,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ARRAY_SIZE(k=
-mem_cgroup_files));
-> + =A0 =A0 =A0 return ret;
-
-If you want to this function could be condensed down to:
-  return cgroup_add_files(...);
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 3bb810a..1a1b5ac 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -998,6 +998,7 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+ 	bool in_first_chunk = false;
+ 	unsigned long first_low, first_high;
+ 	unsigned int cpu;
++	phys_addr_t page_addr;
+ 
+ 	/*
+ 	 * The following test on unit_low/high isn't strictly
+@@ -1023,9 +1024,10 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+ 		if (!is_vmalloc_addr(addr))
+ 			return __pa(addr);
+ 		else
+-			return page_to_phys(vmalloc_to_page(addr));
++			page_addr = page_to_phys(vmalloc_to_page(addr));
+ 	} else
+-		return page_to_phys(pcpu_addr_to_page(addr));
++		page_addr = page_to_phys(pcpu_addr_to_page(addr));
++	return page_addr + offset_in_page(addr);
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
