@@ -1,23 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 7A3886B004F
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 09:52:35 -0500 (EST)
-Received: by iacb35 with SMTP id b35so5406171iac.14
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2011 06:52:34 -0800 (PST)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 9E00A6B004F
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 09:58:32 -0500 (EST)
+Received: by iacb35 with SMTP id b35so5413744iac.14
+        for <linux-mm@kvack.org>; Sat, 17 Dec 2011 06:58:32 -0800 (PST)
 From: Nai Xia <nai.xia@gmail.com>
 Reply-To: nai.xia@gmail.com
 Subject: Question about missing "cld" in x86 string assembly code
-Date: Sat, 17 Dec 2011 22:52:26 +0800
+Date: Sat, 17 Dec 2011 22:58:24 +0800
 MIME-Version: 1.0
+Message-Id: <201112172258.24221.nai.xia@gmail.com>
 Content-Type: Text/Plain;
   charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201112172252.26439.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Andi Kleen <ak@linux.intel.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+Hi Andi, 
+
+Seems I used a stale email address of you from a related git commit log,
+so this is a resend, sorry.
+
+=======
 Hi, 
 
 I notice that all x86 assembly code for string operations containing
