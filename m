@@ -1,68 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 6A9306B004F
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 22:24:11 -0500 (EST)
-Date: Fri, 16 Dec 2011 19:26:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 05/11] mm: compaction: Determine if dirty pages can be
- migrated without blocking within ->migratepage
-Message-Id: <20111216192641.b598b9b1.akpm@linux-foundation.org>
-In-Reply-To: <201112171103.01613.nai.xia@gmail.com>
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
-	<1323877293-15401-6-git-send-email-mgorman@suse.de>
-	<20111216152054.f7445e98.akpm@linux-foundation.org>
-	<201112171103.01613.nai.xia@gmail.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 2E8C76B004F
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 22:28:40 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so3769477wgb.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2011 19:28:38 -0800 (PST)
+Message-ID: <1324092514.2621.49.camel@edumazet-laptop>
+Subject: Re: Memory corruption warnings triggered by repeated slabinfo -v
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Sat, 17 Dec 2011 04:28:34 +0100
+In-Reply-To: <4EEBFAF3.60609@palosanto.com>
+References: <4EEBFAF3.60609@palosanto.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nai.xia@gmail.com
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Alex =?ISO-8859-1?Q?Villac=EDs?= Lasso <a_villacis@palosanto.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, 17 Dec 2011 11:03:01 +0800 Nai Xia <nai.xia@gmail.com> wrote:
+Le vendredi 16 dA(C)cembre 2011 A  21:14 -0500, Alex VillacA-s Lasso a
+A(C)crit :
+> I am running Fedora 16 x86_64 and testing vanilla kernel 3.2-rc5. I 
+> wanted to test the slabinfo program, so I wrote a small shell script 
+> slabinfo-forever.sh (attached) that invokes slabinfo -v every 3 seconds. 
+> Just by doing this, I was able to trigger several memory validation 
+> warnings, attached in this message. The reason I wanted to test slabinfo 
+> is because back when I was running Fedora 14, I had some video issues 
+> that seemed consistent with memory corruption. I tried to submit a 
+> kernel bug at https://bugzilla.kernel.org/show_bug.cgi?id=42312 just 
+> before the kernel.org hack issue, but bugzilla.kernel.org never came up 
+> after that.
 
-> On Saturday 17 December 2011 07:20:54 Andrew Morton wrote:
-> > 
-> > I hadn't paid a lot of attention to buffer_migrate_page() before. 
-> > Scary function.  I'm rather worried about its interactions with ext3
-> > journal commit which locks buffers then plays with them while leaving
-> > the page unlocked.  How vigorously has this been whitebox-tested?
-> 
-> buffer_migrate_page() is done under page lock & buffer head locks.
-> 
-> I had assumed that anyone who has locked the buffer_heads should 
-> also have a stable relationship between buffer_head <---> page,
-> otherwise, the buffer_head locking semantics should be broken itself ?
-> 
-> I am actually using the similar logic for some other stuff,
-> it will make me cry if it can really crash ext3....
+Problem is known and fixes were submitted.
 
-It's complicated ;) JBD attaches a journal_head to the buffer_head and
-thereby largely increases the amount of metadata in the buffer_head. 
-Locking the buffer_head isn't considered to have locked the
-journal_head, although it might often work out that way.
-
-I don't see anything in the journal_head which refers to the page
-contents (b_committed_data points to a JBD-private copy of the data),
-and buffer_migrate_page() migrates the buffers to a new page, rather
-than migrating new buffers to the new page.
-
-We should check that the b_committed_data copy is taken under
-lock_buffer() (surely true).
-
-The core writeback code will initiate writeback against buffer_heads
-and will then unlock the page.  But in that case the buffer_heads are
-locked and come unlocked after writeback has completed.  So that should
-be OK.
-
-set_page_dirty() and friends can sometimes play with an unlocked page
-and even unlocked buffers, from IRQ context iirc.  If there are
-problems around this, taking ->private_lock in buffer_migrate_page()
-will help...
-
-It's just ...  scary.  Whether there are gremlins in there (or in other
-filesystems!) I just don't know.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
