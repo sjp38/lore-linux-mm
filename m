@@ -1,86 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id DC0316B004F
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 22:03:14 -0500 (EST)
-Received: by iacb35 with SMTP id b35so4538040iac.14
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2011 19:03:14 -0800 (PST)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: Re: [PATCH 05/11] mm: compaction: Determine if dirty pages can be migrated without blocking within ->migratepage
-Date: Sat, 17 Dec 2011 11:03:01 +0800
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de> <1323877293-15401-6-git-send-email-mgorman@suse.de> <20111216152054.f7445e98.akpm@linux-foundation.org>
-In-Reply-To: <20111216152054.f7445e98.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 6A9306B004F
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2011 22:24:11 -0500 (EST)
+Date: Fri, 16 Dec 2011 19:26:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 05/11] mm: compaction: Determine if dirty pages can be
+ migrated without blocking within ->migratepage
+Message-Id: <20111216192641.b598b9b1.akpm@linux-foundation.org>
+In-Reply-To: <201112171103.01613.nai.xia@gmail.com>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
+	<1323877293-15401-6-git-send-email-mgorman@suse.de>
+	<20111216152054.f7445e98.akpm@linux-foundation.org>
+	<201112171103.01613.nai.xia@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <201112171103.01613.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: nai.xia@gmail.com
 Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Saturday 17 December 2011 07:20:54 Andrew Morton wrote:
-> On Wed, 14 Dec 2011 15:41:27 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Asynchronous compaction is used when allocating transparent hugepages
-> > to avoid blocking for long periods of time. Due to reports of
-> > stalling, there was a debate on disabling synchronous compaction
-> > but this severely impacted allocation success rates. Part of the
-> > reason was that many dirty pages are skipped in asynchronous compaction
-> > by the following check;
+On Sat, 17 Dec 2011 11:03:01 +0800 Nai Xia <nai.xia@gmail.com> wrote:
+
+> On Saturday 17 December 2011 07:20:54 Andrew Morton wrote:
 > > 
-> > 	if (PageDirty(page) && !sync &&
-> > 		mapping->a_ops->migratepage != migrate_page)
-> > 			rc = -EBUSY;
-> > 
-> > This skips over all mapping aops using buffer_migrate_page()
-> > even though it is possible to migrate some of these pages without
-> > blocking. This patch updates the ->migratepage callback with a "sync"
-> > parameter. It is the responsibility of the callback to fail gracefully
-> > if migration would block.
-> > 
-> > ...
-> >
-> > @@ -259,6 +309,19 @@ static int migrate_page_move_mapping(struct address_space *mapping,
-> >  	}
-> >  
-> >  	/*
-> > +	 * In the async migration case of moving a page with buffers, lock the
-> > +	 * buffers using trylock before the mapping is moved. If the mapping
-> > +	 * was moved, we later failed to lock the buffers and could not move
-> > +	 * the mapping back due to an elevated page count, we would have to
-> > +	 * block waiting on other references to be dropped.
-> > +	 */
-> > +	if (!sync && head && !buffer_migrate_lock_buffers(head, sync)) {
+> > I hadn't paid a lot of attention to buffer_migrate_page() before. 
+> > Scary function.  I'm rather worried about its interactions with ext3
+> > journal commit which locks buffers then plays with them while leaving
+> > the page unlocked.  How vigorously has this been whitebox-tested?
 > 
-> Once it has been established that "sync" is true, I find it clearer to
-> pass in plain old "true" to buffer_migrate_lock_buffers().  Minor point.
+> buffer_migrate_page() is done under page lock & buffer head locks.
 > 
+> I had assumed that anyone who has locked the buffer_heads should 
+> also have a stable relationship between buffer_head <---> page,
+> otherwise, the buffer_head locking semantics should be broken itself ?
 > 
-> 
-> I hadn't paid a lot of attention to buffer_migrate_page() before. 
-> Scary function.  I'm rather worried about its interactions with ext3
-> journal commit which locks buffers then plays with them while leaving
-> the page unlocked.  How vigorously has this been whitebox-tested?
+> I am actually using the similar logic for some other stuff,
+> it will make me cry if it can really crash ext3....
 
-buffer_migrate_page() is done under page lock & buffer head locks.
+It's complicated ;) JBD attaches a journal_head to the buffer_head and
+thereby largely increases the amount of metadata in the buffer_head. 
+Locking the buffer_head isn't considered to have locked the
+journal_head, although it might often work out that way.
 
-I had assumed that anyone who has locked the buffer_heads should 
-also have a stable relationship between buffer_head <---> page,
-otherwise, the buffer_head locking semantics should be broken itself ?
+I don't see anything in the journal_head which refers to the page
+contents (b_committed_data points to a JBD-private copy of the data),
+and buffer_migrate_page() migrates the buffers to a new page, rather
+than migrating new buffers to the new page.
 
-I am actually using the similar logic for some other stuff,
-it will make me cry if it can really crash ext3....
+We should check that the b_committed_data copy is taken under
+lock_buffer() (surely true).
 
+The core writeback code will initiate writeback against buffer_heads
+and will then unlock the page.  But in that case the buffer_heads are
+locked and come unlocked after writeback has completed.  So that should
+be OK.
 
-Thanks,
+set_page_dirty() and friends can sometimes play with an unlocked page
+and even unlocked buffers, from IRQ context iirc.  If there are
+problems around this, taking ->private_lock in buffer_migrate_page()
+will help...
 
-Nai 
-
-> 
-> 
+It's just ...  scary.  Whether there are gremlins in there (or in other
+filesystems!) I just don't know.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
