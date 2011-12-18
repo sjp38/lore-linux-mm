@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 6C8916B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 17:45:39 -0500 (EST)
-Received: by iacb35 with SMTP id b35so7410322iac.14
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 14:45:38 -0800 (PST)
-Date: Sun, 18 Dec 2011 14:45:36 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/mempolicy.c: use enum value MPOL_REBIND_ONCE instead
- of 0 in mpol_rebind_policy
-In-Reply-To: <4EEC9D54.502@gmail.com>
-Message-ID: <alpine.DEB.2.00.1112181444530.1364@chino.kir.corp.google.com>
-References: <4EE8A461.2080406@gmail.com> <alpine.DEB.2.00.1112141840550.27595@chino.kir.corp.google.com> <4EEC9D54.502@gmail.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 6BEFD6B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 17:48:35 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so3430373qcs.14
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 14:48:34 -0800 (PST)
+Message-ID: <4EEE6DC0.2030007@gmail.com>
+Date: Sun, 18 Dec 2011 17:48:32 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH][RESEND] mm: Fix off-by-one bug in print_nodes_state
+References: <1324209529-15892-1-git-send-email-ozaki.ryota@gmail.com> <alpine.DEB.2.00.1112181439500.1364@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1112181439500.1364@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Ryota Ozaki <ozaki.ryota@gmail.com>, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, linux-mm@kvack.org, stable@kernel.org
 
+(12/18/11 5:44 PM), David Rientjes wrote:
+> On Sun, 18 Dec 2011, Ryota Ozaki wrote:
+>
+>> /sys/devices/system/node/{online,possible} involve a garbage byte
+>> because print_nodes_state returns content size + 1. To fix the bug,
+>> the patch changes the use of cpuset_sprintf_cpulist to follow the
+>> use at other places, which is clearer and safer.
+>>
+>
+> It's not a garbage byte, sysdev files use a buffer created with
+> get_zeroed_page(), so extra byte is guaranteed to be zero since
+> nodelist_scnprintf() won't write to it.  So the issue here is that
+> print_nodes_state() returns a size that is off by one according to
+> ISO C99 although it won't cause a problem in practice.
+>
+>> This bug was introduced since v2.6.24.
+>>
+>
+> It's not a bug, the result of a 4-node system would be "0-3\n\0" and
+> returns 5 correctly.  You can verify this very simply with strace.
 
-On Sat, 17 Dec 2011, Wang Sheng-Hui wrote:
-
-> > Tip: when proposing patches, it's helpful to run scripts/get_maintainer.pl 
-> > on your patch file from git to determine who should be cc'd on the email.
-> 
-> Thanks for your tip.
-> I have tried the script with option -f, and only get the mm, kernel mailing
-> lists, no specific maintainer provided. So here I just posted the patch to 
-> these 2 lists.
-> 
-
-$ ./scripts/get_maintainer.pl -f mm/mempolicy.c
-Andrew Morton <akpm@linux-foundation.org> (commit_signer:19/23=83%)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> (commit_signer:8/23=35%)
-Stephen Wilson <wilsons@start.ca> (commit_signer:6/23=26%)
-Andrea Arcangeli <aarcange@redhat.com> (commit_signer:5/23=22%)
-Johannes Weiner <hannes@cmpxchg.org> (commit_signer:3/23=13%)
-linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
-linux-kernel@vger.kernel.org (open list)
-
-All of those people should be cc'd on patches touching mm/mempolicy.c.
+Usually, /sys files don't output trailing 'JPY0'. And, 'JPY0' is not regular
+io friendly. So I can imagine some careless programmer think it is 
+garbage. Is there any benefit to show trailing 'JPY0'?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
