@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 462926B004F
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 19:43:12 -0500 (EST)
-Received: by iacb35 with SMTP id b35so6071505iac.14
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2011 16:43:11 -0800 (PST)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id A251C6B004F
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 19:49:22 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so3340442ghr.14
+        for <linux-mm@kvack.org>; Sat, 17 Dec 2011 16:49:21 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1112180128070.21784@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1112180128070.21784@swampdragon.chaosbits.net>
-Date: Sat, 17 Dec 2011 16:43:11 -0800
-Message-ID: <CANN689GQyzMGfnxsKmni7wDFpqo4s=D3dpu6w9UxN0tKbqakig@mail.gmail.com>
-Subject: Re: [PATCH] Use 'do {} while (0)' for empty flush_tlb_fix_spurious_fault()
- macro
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1323875693-3504-1-git-send-email-tm@tao.ma>
+References: <20111213164507.fbee477c.akpm@linux-foundation.org>
+	<1323875693-3504-1-git-send-email-tm@tao.ma>
+Date: Sun, 18 Dec 2011 09:49:20 +0900
+Message-ID: <CAEwNFnBrczRf6XMeN6EaTkANVPdzLeAXqahJxAWPGz3GDW5nWg@mail.gmail.com>
+Subject: Re: [PATCH v3] vmscan/trace: Add 'file' info to trace_mm_vmscan_lru_isolate.
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Juhl <jj@chaosbits.net>
-Cc: x86@kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Tao Ma <tm@tao.ma>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Dec 17, 2011 at 4:32 PM, Jesper Juhl <jj@chaosbits.net> wrote:
-> If one builds the kernel with -Wempty-body one gets this warning:
+On Thu, Dec 15, 2011 at 12:14 AM, Tao Ma <tm@tao.ma> wrote:
+> From: Tao Ma <boyu.mt@taobao.com>
 >
-> =A0mm/memory.c:3432:46: warning: suggest braces around empty body in an =
-=91if=92 statement [-Wempty-body]
+> In trace_mm_vmscan_lru_isolate, we don't output 'file'
+> information to the trace event and it is a bit inconvenient for the
+> user to get the real information(like pasted below).
+> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
+> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
 >
-> due to the fact that 'flush_tlb_fix_spurious_fault' is a macro that
-> can sometimes be defined to nothing.
+> 'active' can be gotten by analyzing mode(Thanks go to Minchan and Mel),
+> So this patch adds 'file' to the trace event and it now looks like:
+> mm_vmscan_lru_isolate: isolate_mode=2 order=0 nr_requested=32 nr_scanned=32
+> nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0 file=0
 >
-> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Tao Ma <boyu.mt@taobao.com>
 
-Looks good to me. I'd be happy with either that or Al's alternative suggest=
-ion.
+Andrew pointed out that   trace_mm_vmscan_memcg_isolate is out , Otherwise,
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Reviewed-by: Michel Lespinasse <walken@google.com>
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
