@@ -1,62 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 0FADA6B004F
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 19:32:11 -0500 (EST)
-Date: Sun, 18 Dec 2011 01:32:09 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: [PATCH] Use 'do {} while (0)' for empty flush_tlb_fix_spurious_fault()
- macro
-Message-ID: <alpine.LNX.2.00.1112180128070.21784@swampdragon.chaosbits.net>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 23F026B004F
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2011 19:34:25 -0500 (EST)
+Date: Sun, 18 Dec 2011 00:34:19 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] Put braces around potentially empty 'if' body in
+ handle_pte_fault()
+Message-ID: <20111218003419.GE2203@ZenIV.linux.org.uk>
+References: <alpine.LNX.2.00.1112180059080.21784@swampdragon.chaosbits.net>
+ <1324167535.3323.63.camel@edumazet-laptop>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-693025022-1324168117=:21784"
-Content-ID: <alpine.LNX.2.00.1112180128450.21784@swampdragon.chaosbits.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1324167535.3323.63.camel@edumazet-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Jesper Juhl <jj@chaosbits.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Sun, Dec 18, 2011 at 01:18:55AM +0100, Eric Dumazet wrote:
+> Thats should be fixed in the reverse way :
+> 
+> #define flush_tlb_fix_spurious_fault(vma, address) do { } while (0)
 
---8323328-693025022-1324168117=:21784
-Content-Type: TEXT/PLAIN; CHARSET=ISO-8859-7
-Content-Transfer-Encoding: 8BIT
-Content-ID: <alpine.LNX.2.00.1112180128451.21784@swampdragon.chaosbits.net>
-
-If one builds the kernel with -Wempty-body one gets this warning:
-
-  mm/memory.c:3432:46: warning: suggest braces around empty body in an !ifc statement [-Wempty-body]
-
-due to the fact that 'flush_tlb_fix_spurious_fault' is a macro that
-can sometimes be defined to nothing.
-
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- arch/x86/include/asm/pgtable.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 18601c8..ebe7e76 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -703,7 +703,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm,
- 	pte_update(mm, addr, ptep);
- }
- 
--#define flush_tlb_fix_spurious_fault(vma, address)
-+#define flush_tlb_fix_spurious_fault(vma, address) do {} while (0)
- 
- #define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
- 
--- 
-1.7.8
-
-
--- 
-Jesper Juhl <jj@chaosbits.net>       http://www.chaosbits.net/
-Don't top-post http://www.catb.org/jargon/html/T/top-post.html
-Plain text mails only, please.
---8323328-693025022-1324168117=:21784--
+There's a better way to do that -
+#define f(a) do { } while(0)
+does not work as a function returning void -
+	f(1), g();
+won't work.  OTOH
+#define f(a) ((void)0)
+works just fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
