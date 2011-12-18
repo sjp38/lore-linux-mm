@@ -1,64 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 723206B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 15:43:58 -0500 (EST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id B43D86B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 15:45:49 -0500 (EST)
 From: Philip Prindeville <philipp_subx@redfish-solutions.com>
-Subject: [PATCH 0/4] arch/x86/platform/geode: enhance and expand support for Geode-based platforms, including those using Coreboot
-Date: Sun, 18 Dec 2011 13:43:40 -0700
-Message-Id: <1324241020-7539-1-git-send-email-philipp_subx@redfish-solutions.com>
+Subject: [PATCH 1/4] resource.c: find the end of a E820 memory region
+Date: Sun, 18 Dec 2011 13:45:42 -0700
+Message-Id: <1324241142-7596-1-git-send-email-philipp_subx@redfish-solutions.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ed Wildgoose <ed@wildgooses.com>, Andrew Morton <akpm@linux-foundation.org>, linux-geode@lists.infradead.org, Andres Salomon <dilinger@queued.net>
-Cc: Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, David Woodhouse <dwmw2@infradead.org>, Patrick Georgi <patrick.georgi@secunet.com>, linux-mm@kvack.org
+Cc: Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, David Woodhouse <dwmw2@infradead.org>, Patrick Georgi <patrick.georgi@secunet.com>, Carl-Daniel Hailfinger <c-d.hailfinger.devel.2006@gmx.net>, linux-mm@kvack.org
 
 From: Philip Prindeville <philipp@redfish-solutions.com>
 
-Many applications running embedded linux use Geode-based single-board
-computers. There are many reasons for this, but the low cost bill-of-
-materials and the maturity and multiple sourcing of the Geode processor
-are amongst the most significant. This collection of patches supplements
-the Geode platform support by adding 2 new platforms (Geos and Net5501),
-and enhancing one (Alix2) with GPIO-based button support. It also adds
-support for detecting Coreboot BIOS and parsing its tables.
+Add support for finding the end-boundary of an E820 region given an
+address falling in one such region. This is precursory functionality
+for Coreboot loader support.
 
-Philip Prindeville (4):
-  Add support for finding the end-boundary of an E820 region given an  
-    address falling in one such region. This is precursory
-    functionality for Coreboot loader support.
-  Add support for Coreboot BIOS detection. This in turn can be used by 
-    platform drivers to verify they are running on the correct
-    hardware, as many of the low-volume SBC's (especially in the
-    Atom and Geode universe) don't always identify themselves via
-    DMI or PCI-ID.
-  Trivial platform driver for Traverse Technologies Geos and Geos2    
-    single-board computers. Uses Coreboot BIOS to identify platform.   
-    Based on progressive revisions of the leds-net5501 driver that    
-    was rewritten by Ed Wildgoose as a platform driver.
-  Trivial platform driver for Soekris Engineering net5501 single-board 
-    computer. Probes well-known locations in ROM for BIOS signature
-    to confirm correct platform. Registers 1 LED and 1 GPIO-based
-    button (typically used for soft reset).
+Signed-off-by: Philip Prindeville <philipp@redfish-solutions.com>
+Reviewed-by: Ed Wildgoose <ed@wildgooses.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andres Salomon <dilinger@queued.net>
+Cc: Nathan Williams <nathan@traverse.com.au>
+Cc: Guy Ellis <guy@traverse.com.au>
+Cc: David Woodhouse <dwmw2@infradead.org>
+Cc: Patrick Georgi <patrick.georgi@secunet.com>
+Cc: Carl-Daniel Hailfinger <c-d.hailfinger.devel.2006@gmx.net>
+Cc: linux-geode@lists.infradead.org
+Cc: linux-mm@kvack.org
+---
+ include/linux/ioport.h |    1 +
+ kernel/resource.c      |   29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 0 deletions(-)
 
- Documentation/x86/coreboot.txt    |   31 ++++
- arch/x86/Kconfig                  |   13 ++
- arch/x86/platform/geode/Makefile  |    2 +
- arch/x86/platform/geode/geos.c    |  127 ++++++++++++++++
- arch/x86/platform/geode/net5501.c |  144 ++++++++++++++++++
- drivers/leds/leds-net5501.c       |   97 ------------
- include/linux/coreboot.h          |  182 +++++++++++++++++++++++
- include/linux/ioport.h            |    1 +
- kernel/resource.c                 |   29 ++++
- lib/Kconfig                       |    8 +
- lib/Makefile                      |    1 +
- lib/coreboot.c                    |  290 +++++++++++++++++++++++++++++++++++++
- 12 files changed, 828 insertions(+), 97 deletions(-)
- create mode 100644 Documentation/x86/coreboot.txt
- create mode 100644 arch/x86/platform/geode/geos.c
- create mode 100644 arch/x86/platform/geode/net5501.c
- delete mode 100644 drivers/leds/leds-net5501.c
- create mode 100644 include/linux/coreboot.h
- create mode 100644 lib/coreboot.c
-
+diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+index 9d57a71..962d5a5 100644
+--- a/include/linux/ioport.h
++++ b/include/linux/ioport.h
+@@ -223,6 +223,7 @@ extern struct resource * __devm_request_region(struct device *dev,
+ extern void __devm_release_region(struct device *dev, struct resource *parent,
+ 				  resource_size_t start, resource_size_t n);
+ extern int iomem_map_sanity_check(resource_size_t addr, unsigned long size);
++extern resource_size_t iomem_map_find_boundary(resource_size_t addr, int *mapped);
+ extern int iomem_is_exclusive(u64 addr);
+ 
+ extern int
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 7640b3a..58e4fce 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -1057,6 +1057,35 @@ static int __init reserve_setup(char *str)
+ __setup("reserve=", reserve_setup);
+ 
+ /*
++ * Find the upper boundary for the region that this address falls in, and
++ * whether it's currently mapped or not.
++ */
++
++resource_size_t iomem_map_find_boundary(resource_size_t addr, int *mapped)
++{
++	struct resource *p = &iomem_resource;
++	resource_size_t upper = 0;
++	loff_t l;
++
++	read_lock(&resource_lock);
++	for (p = p->child; p ; p = r_next(NULL, p, &l)) {
++		if (p->start > addr)
++			continue;
++		if (p->end < addr)
++			continue;
++		upper = p->end;
++		*mapped = ((p->flags & IORESOURCE_BUSY) != 0);
++		break;
++	}
++	read_unlock(&resource_lock);
++
++	return upper;
++}
++
++EXPORT_SYMBOL(iomem_map_find_boundary);
++
++
++/*
+  * Check if the requested addr and size spans more than any slot in the
+  * iomem resource tree.
+  */
 -- 
 1.7.7.4
 
