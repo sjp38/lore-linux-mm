@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 776666B004F
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 06:59:19 -0500 (EST)
-Received: by iacb35 with SMTP id b35so6680140iac.14
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 03:59:18 -0800 (PST)
-From: Ryota Ozaki <ozaki.ryota@gmail.com>
-Subject: [PATCH][RESEND] mm: Fix off-by-one bug in print_nodes_state
-Date: Sun, 18 Dec 2011 20:58:49 +0900
-Message-Id: <1324209529-15892-1-git-send-email-ozaki.ryota@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 723206B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 15:43:58 -0500 (EST)
+From: Philip Prindeville <philipp_subx@redfish-solutions.com>
+Subject: [PATCH 0/4] arch/x86/platform/geode: enhance and expand support for Geode-based platforms, including those using Coreboot
+Date: Sun, 18 Dec 2011 13:43:40 -0700
+Message-Id: <1324241020-7539-1-git-send-email-philipp_subx@redfish-solutions.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>
-Cc: linux-mm@kvack.org, stable@kernel.org
+To: Ed Wildgoose <ed@wildgooses.com>, Andrew Morton <akpm@linux-foundation.org>, linux-geode@lists.infradead.org, Andres Salomon <dilinger@queued.net>
+Cc: Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, David Woodhouse <dwmw2@infradead.org>, Patrick Georgi <patrick.georgi@secunet.com>, linux-mm@kvack.org
 
-/sys/devices/system/node/{online,possible} involve a garbage byte
-because print_nodes_state returns content size + 1. To fix the bug,
-the patch changes the use of cpuset_sprintf_cpulist to follow the
-use at other places, which is clearer and safer.
+From: Philip Prindeville <philipp@redfish-solutions.com>
 
-This bug was introduced since v2.6.24.
+Many applications running embedded linux use Geode-based single-board
+computers. There are many reasons for this, but the low cost bill-of-
+materials and the maturity and multiple sourcing of the Geode processor
+are amongst the most significant. This collection of patches supplements
+the Geode platform support by adding 2 new platforms (Geos and Net5501),
+and enhancing one (Alix2) with GPIO-based button support. It also adds
+support for detecting Coreboot BIOS and parsing its tables.
 
-Signed-off-by: Ryota Ozaki <ozaki.ryota@gmail.com>
----
- drivers/base/node.c |    8 +++-----
- 1 files changed, 3 insertions(+), 5 deletions(-)
+Philip Prindeville (4):
+  Add support for finding the end-boundary of an E820 region given an  
+    address falling in one such region. This is precursory
+    functionality for Coreboot loader support.
+  Add support for Coreboot BIOS detection. This in turn can be used by 
+    platform drivers to verify they are running on the correct
+    hardware, as many of the low-volume SBC's (especially in the
+    Atom and Geode universe) don't always identify themselves via
+    DMI or PCI-ID.
+  Trivial platform driver for Traverse Technologies Geos and Geos2    
+    single-board computers. Uses Coreboot BIOS to identify platform.   
+    Based on progressive revisions of the leds-net5501 driver that    
+    was rewritten by Ed Wildgoose as a platform driver.
+  Trivial platform driver for Soekris Engineering net5501 single-board 
+    computer. Probes well-known locations in ROM for BIOS signature
+    to confirm correct platform. Registers 1 LED and 1 GPIO-based
+    button (typically used for soft reset).
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 5693ece..ef7c1f9 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -587,11 +587,9 @@ static ssize_t print_nodes_state(enum node_states state, char *buf)
- {
- 	int n;
- 
--	n = nodelist_scnprintf(buf, PAGE_SIZE, node_states[state]);
--	if (n > 0 && PAGE_SIZE > n + 1) {
--		*(buf + n++) = '\n';
--		*(buf + n++) = '\0';
--	}
-+	n = nodelist_scnprintf(buf, PAGE_SIZE-2, node_states[state]);
-+	buf[n++] = '\n';
-+	buf[n] = '\0';
- 	return n;
- }
- 
+ Documentation/x86/coreboot.txt    |   31 ++++
+ arch/x86/Kconfig                  |   13 ++
+ arch/x86/platform/geode/Makefile  |    2 +
+ arch/x86/platform/geode/geos.c    |  127 ++++++++++++++++
+ arch/x86/platform/geode/net5501.c |  144 ++++++++++++++++++
+ drivers/leds/leds-net5501.c       |   97 ------------
+ include/linux/coreboot.h          |  182 +++++++++++++++++++++++
+ include/linux/ioport.h            |    1 +
+ kernel/resource.c                 |   29 ++++
+ lib/Kconfig                       |    8 +
+ lib/Makefile                      |    1 +
+ lib/coreboot.c                    |  290 +++++++++++++++++++++++++++++++++++++
+ 12 files changed, 828 insertions(+), 97 deletions(-)
+ create mode 100644 Documentation/x86/coreboot.txt
+ create mode 100644 arch/x86/platform/geode/geos.c
+ create mode 100644 arch/x86/platform/geode/net5501.c
+ delete mode 100644 drivers/leds/leds-net5501.c
+ create mode 100644 include/linux/coreboot.h
+ create mode 100644 lib/coreboot.c
+
 -- 
-1.7.5.4
+1.7.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
