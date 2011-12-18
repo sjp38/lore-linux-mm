@@ -1,46 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 84F5C6B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 16:56:27 -0500 (EST)
-Message-ID: <4EEE6182.6070107@redfish-solutions.com>
-Date: Sun, 18 Dec 2011 14:56:18 -0700
-From: Philip Prindeville <philipp_subx@redfish-solutions.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 672F16B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 17:44:27 -0500 (EST)
+Received: by iacb35 with SMTP id b35so7408837iac.14
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 14:44:26 -0800 (PST)
+Date: Sun, 18 Dec 2011 14:44:24 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH][RESEND] mm: Fix off-by-one bug in print_nodes_state
+In-Reply-To: <1324209529-15892-1-git-send-email-ozaki.ryota@gmail.com>
+Message-ID: <alpine.DEB.2.00.1112181439500.1364@chino.kir.corp.google.com>
+References: <1324209529-15892-1-git-send-email-ozaki.ryota@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] coreboot: Add support for detecting Coreboot BIOS
- signatures
-References: <1324241211-7651-1-git-send-email-philipp_subx@redfish-solutions.com> <1324244805.2132.4.camel@shinybook.infradead.org>
-In-Reply-To: <1324244805.2132.4.camel@shinybook.infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Ed Wildgoose <ed@wildgooses.com>, Andrew Morton <akpm@linux-foundation.org>, linux-geode@lists.infradead.org, Andres Salomon <dilinger@queued.net>, Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, Patrick Georgi <patrick.georgi@secunet.com>, Carl-Daniel Hailfinger <c-d.hailfinger.devel.2006@gmx.net>, linux-mm@kvack.org
+To: Ryota Ozaki <ozaki.ryota@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, linux-mm@kvack.org, stable@kernel.org
 
-On 12/18/11 2:46 PM, David Woodhouse wrote:
-> On Sun, 2011-12-18 at 13:46 -0700, Philip Prindeville wrote:
->> Add support for Coreboot BIOS detection. This in turn can be used by
->> platform drivers to verify they are running on the correct hardware,
->> as many of the low-volume SBC's (especially in the Atom and Geode
->> universe) don't always identify themselves via DMI or PCI-ID.
-> It's Coreboot. So doesn't that mean we can just fix it to pass a
-> device-tree to the kernel properly?
->
-> Don't we only need this kind of hack for boards with crappy
-> closed-source firmware?
->
+On Sun, 18 Dec 2011, Ryota Ozaki wrote:
 
-Well, if we want to hold it up while someone adds device-tree support to x86... my understanding was it was PPC that used device-tree mostly at this point.
+> /sys/devices/system/node/{online,possible} involve a garbage byte
+> because print_nodes_state returns content size + 1. To fix the bug,
+> the patch changes the use of cpuset_sprintf_cpulist to follow the
+> use at other places, which is clearer and safer.
+> 
 
-Until then, it's not clear that older platforms that are considered 'stable' are going to have new BIOS issued to their users going forward, or that any of the thousands of boards out there are going to be updated by their users.
+It's not a garbage byte, sysdev files use a buffer created with 
+get_zeroed_page(), so extra byte is guaranteed to be zero since 
+nodelist_scnprintf() won't write to it.  So the issue here is that 
+print_nodes_state() returns a size that is off by one according to 
+ISO C99 although it won't cause a problem in practice.
 
-Why not have support for existing boards that are out there?
+> This bug was introduced since v2.6.24.
+> 
 
-Many of these boards are also produced by small engineering houses that aren't particularly quick to update their manufacturing processes to whatever the latest version of coreboot trunk is.
-
-I agree that going forward, new boards coming out should support device-tree once it's stable and widely adopted, but let's not have the perfect become the enemy of the good.
-
--Philip
+It's not a bug, the result of a 4-node system would be "0-3\n\0" and 
+returns 5 correctly.  You can verify this very simply with strace.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
