@@ -1,134 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 3CC1F6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 08:58:18 -0500 (EST)
-Received: by eekc41 with SMTP id c41so6194804eek.14
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2011 05:58:16 -0800 (PST)
-Message-ID: <4EEF42F5.7040002@monstr.eu>
-Date: Mon, 19 Dec 2011 14:58:13 +0100
-From: Michal Simek <monstr@monstr.eu>
-Reply-To: monstr@monstr.eu
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id ED9A06B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:20:27 -0500 (EST)
+Date: Mon, 19 Dec 2011 14:20:20 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/11] Reduce compaction-related stalls and improve
+ asynchronous migration of dirty pages v6
+Message-ID: <20111219142020.GM3487@suse.de>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
+ <20111216153716.434bbf05.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: memblock and bootmem problems if start + size = 4GB
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20111216153716.434bbf05.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Sam Ravnborg <sam@ravnborg.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+On Fri, Dec 16, 2011 at 03:37:16PM -0800, Andrew Morton wrote:
+> On Wed, 14 Dec 2011 15:41:22 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > Short summary: There are severe stalls when a USB stick using VFAT
+> > is used with THP enabled that are reduced by this series. If you are
+> > experiencing this problem, please test and report back and considering
+> > I have seen complaints from openSUSE and Fedora users on this as well
+> > as a few private mails, I'm guessing it's a widespread issue. This
+> > is a new type of USB-related stall because it is due to synchronous
+> > compaction writing where as in the past the big problem was dirty
+> > pages reaching the end of the LRU and being written by reclaim.
+> 
+> Overall footprint:
+> 
+>  fs/btrfs/disk-io.c            |    5 
+>  fs/hugetlbfs/inode.c          |    3 
+>  fs/nfs/internal.h             |    2 
+>  fs/nfs/write.c                |    4 
+>  include/linux/fs.h            |   11 +-
+>  include/linux/migrate.h       |   23 +++-
+>  include/linux/mmzone.h        |    4 
+>  include/linux/vm_event_item.h |    1 
+>  mm/compaction.c               |    5 
+>  mm/memory-failure.c           |    2 
+>  mm/memory_hotplug.c           |    2 
+>  mm/mempolicy.c                |    2 
+>  mm/migrate.c                  |  171 +++++++++++++++++++++-----------
+>  mm/page_alloc.c               |   50 +++++++--
+>  mm/swap.c                     |   74 ++++++++++++-
+>  mm/vmscan.c                   |  114 ++++++++++++++++++---
+>  mm/vmstat.c                   |    2 
+>  17 files changed, 371 insertions(+), 104 deletions(-)
+> 
+> The line count belies the increase in complexity.
+> 
 
-I have reached some problems with memblock and bootmem code for some configurations.
-We can completely setup the whole system and all addresses in it.
-The problem happens if we place main memory to the end of address space when
-mem_start + size reach 4GB limit.
-
-For example:
-mem_start      0xF000 0000
-mem_size       0x1000 0000 (or better lowmem size)
-mem_end        0xFFFF FFFF
-start + size 0x1 0000 0000 (u32 limit reached).
-
-I have done some patches which completely remove start + size values from architecture specific
-code but I have found some problem in generic code too.
-
-For example in bootmem code where are three places where physaddr + size is used.
-I would prefer to retype it to u64 because baseaddr and size don't need to be 2^n.
-
-Is it correct solution? If yes, I will create proper patch.
-
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 1a77012..45a691a 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -371,7 +371,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-         kmemleak_free_part(__va(physaddr), size);
-
-         start = PFN_UP(physaddr);
--       end = PFN_DOWN(physaddr + size);
-+       end = PFN_DOWN((u64)physaddr + (u64)size);
-
-         mark_bootmem_node(pgdat->bdata, start, end, 0, 0);
-  }
-@@ -414,7 +414,7 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-         unsigned long start, end;
-
-         start = PFN_DOWN(physaddr);
--       end = PFN_UP(physaddr + size);
-+       end = PFN_UP((u64)physaddr + (u64)size);
-
-         return mark_bootmem_node(pgdat->bdata, start, end, 1, flags);
-  }
-@@ -435,7 +435,7 @@ int __init reserve_bootmem(unsigned long addr, unsigned long size,
-         unsigned long start, end;
-
-         start = PFN_DOWN(addr);
--       end = PFN_UP(addr + size);
-+       end = PFN_UP((u64)addr + (u64)size);
-
-         return mark_bootmem(start, end, 1, flags);
-  }
-
-
-
-The similar problem is with memblock code.
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index e6b843e..55d5279 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -127,7 +127,7 @@ static inline unsigned long memblock_region_memory_base_pfn(const struct membloc
-   */
-  static inline unsigned long memblock_region_memory_end_pfn(const struct memblock_region *reg)
-  {
--       return PFN_DOWN(reg->base + reg->size);
-+       return PFN_DOWN((u64)reg->base + (u64)reg->size);
-  }
-
-  /**
-@@ -145,7 +145,7 @@ static inline unsigned long memblock_region_reserved_base_pfn(const struct membl
-   */
-  static inline unsigned long memblock_region_reserved_end_pfn(const struct memblock_region *reg)
-  {
--       return PFN_UP(reg->base + reg->size);
-+       return PFN_UP((u64)reg->base + (u64)reg->size);
-  }
-
-  #define for_each_memblock(memblock_type, region)                                       \
-
-
-Plus fixing two conditions in memblock_find_base for the same reasons.
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 84bec49..6c443bd 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -131,10 +131,10 @@ static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
-
-                 if (memblocksize < size)
-                         continue;
--               if ((memblockbase + memblocksize) <= start)
-+               if ((memblockbase + memblocksize - 1) <= start)
-                         break;
-                 bottom = max(memblockbase, start);
--               top = min(memblockbase + memblocksize, end);
-+               top = min(memblockbase + memblocksize - 1, end);
-                 if (bottom >= top)
-                         continue;
-                 found = memblock_find_region(bottom, top, size, align);
-
-
-Thanks,
-Michal
-
-
+I know and I regret that. Unfortunately while I considered other
+solutions that were less complex, they were also nowhere near as
+effective. The theme is at least consistent in that we are continuing
+to move away from calling writepage in reclaim context.
 
 -- 
-Michal Simek, Ing. (M.Eng)
-w: www.monstr.eu p: +42-0-721842854
-Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
-Microblaze U-BOOT custodian
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
