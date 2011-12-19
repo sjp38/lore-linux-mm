@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id ADE326B005A
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 03:33:59 -0500 (EST)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 790B56B005C
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 03:34:05 -0500 (EST)
 From: Sumit Semwal <sumit.semwal@ti.com>
 Subject: [RFC v3 0/2] Introduce DMA buffer sharing mechanism
-Date: Mon, 19 Dec 2011 14:03:28 +0530
-Message-ID: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+Date: Mon, 19 Dec 2011 14:03:29 +0530
+Message-ID: <1324283611-18344-2-git-send-email-sumit.semwal@ti.com>
+In-Reply-To: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -57,14 +59,22 @@ The implementation is inspired from proof-of-concept patch-set from
 Tomasz Stanislawski <t.stanislaws@samsung.com>, who demonstrated buffer sharing
 between two v4l2 devices. [2]
 
+Some sample implementations and WIP for dma-buf as user and exporter are
+available at [3] and [4]. [These are not being submitted for discussion /
+inclusion right now, but are for reference only]
+
 References:
 [1]: https://wiki.linaro.org/OfficeofCTO/MemoryManagement
 [2]: http://lwn.net/Articles/454389
+[3]: Dave Airlie's:
+   http://cgit.freedesktop.org/~airlied/linux/log/?h=drm-prime-dmabuf
+[4]: Rob Clark's:
+   https://github.com/robclark/kernel-omap4/commits/dmabuf
 
 Patchset based on top of 3.2-rc3, the current version can be found at
 
 http://git.linaro.org/gitweb?p=people/sumitsemwal/linux-3.x.git
-Branch: dma-buf-upstr-v2
+Branch: dma-buf-upstr-v3
 
 Earlier versions:
 v2 at: https://lkml.org/lkml/2011/12/2/53
@@ -111,7 +121,6 @@ v2:
      [https://lkml.org/lkml/2011/10/12/439]
 
 v1: original
-
 
 Sumit Semwal (2):
   dma-buf: Introduce dma buffer sharing mechanism
