@@ -1,112 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id BA1A36B005A
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0EA6B004D
 	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 13:38:14 -0500 (EST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [RFC][PATCH 1/3] pagemap: avoid splitting thp when reading /proc/pid/pagemap
-Date: Mon, 19 Dec 2011 13:38:37 -0500
-Message-Id: <1324319919-31720-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [RFC][PATCH 0/3] pagemap handles transparent hugepage
+Date: Mon, 19 Dec 2011 13:38:36 -0500
+Message-Id: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Thp split is not necessary if we explicitly check whether pmds are
-mapping thps or not. This patch introduces the check and the code
-to generate pagemap entries for pmds mapping thps, which results in
-less performance impact of pagemap on thp.
+Transparent hugepage (thp) splits itself when kernel cannot work on it
+in hugepage unit. Thp split can reduce performance merit of thp, so we
+are now making efforts to handle thp as it is if possible.
+As one of such efforts, I suggest to make pagemap aware of thp.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- fs/proc/task_mmu.c |   48 ++++++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 44 insertions(+), 4 deletions(-)
+Could you review and comment on them?
 
-diff --git 3.2-rc5.orig/fs/proc/task_mmu.c 3.2-rc5/fs/proc/task_mmu.c
-index e418c5a..90c4b7a 100644
---- 3.2-rc5.orig/fs/proc/task_mmu.c
-+++ 3.2-rc5/fs/proc/task_mmu.c
-@@ -600,6 +600,9 @@ struct pagemapread {
- 	u64 *buffer;
- };
- 
-+#define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-+#define PAGEMAP_WALK_MASK	(PMD_MASK)
-+
- #define PM_ENTRY_BYTES      sizeof(u64)
- #define PM_STATUS_BITS      3
- #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-@@ -658,6 +661,22 @@ static u64 pte_to_pagemap_entry(pte_t pte)
- 	return pme;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-+{
-+	u64 pme = 0;
-+	if (pte_present(pte))
-+		pme = PM_PFRAME(pte_pfn(pte) + offset)
-+			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
-+	return pme;
-+}
-+#else
-+static inline u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-+{
-+	return 0;
-+}
-+#endif
-+
- static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			     struct mm_walk *walk)
- {
-@@ -666,10 +685,33 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	pte_t *pte;
- 	int err = 0;
- 
--	split_huge_page_pmd(walk->mm, pmd);
--
- 	/* find the first VMA at or above 'addr' */
- 	vma = find_vma(walk->mm, addr);
-+
-+	spin_lock(&walk->mm->page_table_lock);
-+	if (pmd_trans_huge(*pmd)) {
-+		if (pmd_trans_splitting(*pmd)) {
-+			spin_unlock(&walk->mm->page_table_lock);
-+			wait_split_huge_page(vma->anon_vma, pmd);
-+		} else {
-+			u64 pfn = PM_NOT_PRESENT;
-+
-+			for (; addr != end; addr += PAGE_SIZE) {
-+				int offset = (addr & ~PAGEMAP_WALK_MASK)
-+					>> PAGE_SHIFT;
-+				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
-+							       offset);
-+				err = add_to_pagemap(addr, pfn, pm);
-+				if (err)
-+					break;
-+			}
-+			spin_unlock(&walk->mm->page_table_lock);
-+			return err;
-+		}
-+	} else {
-+		spin_unlock(&walk->mm->page_table_lock);
-+	}
-+
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		u64 pfn = PM_NOT_PRESENT;
- 
-@@ -754,8 +796,6 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
-  * determine which areas of memory are actually mapped and llseek to
-  * skip over unmapped regions.
-  */
--#define PAGEMAP_WALK_SIZE	(PMD_SIZE)
--#define PAGEMAP_WALK_MASK	(PMD_MASK)
- static ssize_t pagemap_read(struct file *file, char __user *buf,
- 			    size_t count, loff_t *ppos)
- {
--- 
-1.7.7.3
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
