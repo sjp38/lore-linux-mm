@@ -1,37 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id B7DB56B005A
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 16:21:15 -0500 (EST)
-Message-ID: <4EEFAA95.6070600@ah.jp.nec.com>
-Date: Mon, 19 Dec 2011 16:20:21 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 9D3B86B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 16:24:00 -0500 (EST)
+Date: Mon, 19 Dec 2011 22:23:48 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
-References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com> <4EEF8F85.9010408@gmail.com> <4EEF9E04.1040007@ah.jp.nec.com> <4EEFA308.2090608@gmail.com>
-In-Reply-To: <4EEFA308.2090608@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Message-ID: <20111219212348.GP16411@redhat.com>
+References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <4EEF8F85.9010408@gmail.com>
+ <4EEF9F3E.9000107@linux.vnet.ibm.com>
+ <4EEFA278.7010200@gmail.com>
+ <4EEFA51D.2050707@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4EEFA51D.2050707@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Mon, Dec 19, 2011 at 03:48:08PM -0500, KOSAKI Motohiro wrote:
-> >> The detail of transparent hugepage are hidden by design. We hope it
-> >> keep 'transparent'.
-> >> Until any explain why we should expose KPF_THP, we don't agree it.
-> > 
-> > The reason why I want to know physical address of thp is testing.
-> > I'm working on memory error recovery and writing test code to confirm
-> > that memory recovery really works when an error occurs on thps.
-> > There I need to locate thps on the physical memory.
-> 
-> I'm sorry, I simply don't understand what you say. Why do you think
-> memory recovery and thp are related feature?
+On Mon, Dec 19, 2011 at 12:57:01PM -0800, Dave Hansen wrote:
+> But, every single one of the pagemap flags is really just a snapshot
+> KPF_DIRTY, KPF_LOCKED, etc...  The entire interface is inherently a racy
+> snapshot, and there's not a whole lot you can do about it.
 
-This is because memory error can occur on thp and then we should be
-able to handle them (otherwise we can use corrupted date) and
-verify that it works.
+Having read the discussion, while I don't see a big need of the
+KPF_THP, I also see how it in certain corner cases it can be used to
+test memory failure injection and I agree with you on the above. Maybe
+it can also be used to check if at certain virtual offsets
+(pid/pagemap lookup followed by a kpageflags lookup) we always fail to
+find THP inside big vmas, maybe out of not aligned mprotect that may
+be optimized by aligning it.
+
+The other kernel internal bits may also be stale and go away quicker
+than the KPF_THP, so I don't see a problem in exposing it. We also
+provide THP related info in meminfo/smaps, if they were supposed to be
+invisible that wouldn't be allowed too.
+
+A bigger concern to me is that the new bitfield alters the protocol,
+but old code by adding one more bit (if sanely coded...) shouldn't break.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
