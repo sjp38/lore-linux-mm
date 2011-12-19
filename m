@@ -1,10 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 6AE4F6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 15:27:26 -0500 (EST)
-Message-ID: <4EEF9E04.1040007@ah.jp.nec.com>
-Date: Mon, 19 Dec 2011 15:26:44 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 86B6D6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 15:32:37 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Mon, 19 Dec 2011 15:32:36 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id pBJKWYLG211502
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 15:32:34 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id pBJKWWE0006829
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 15:32:32 -0500
+Message-ID: <4EEF9F3E.9000107@linux.vnet.ibm.com>
+Date: Mon, 19 Dec 2011 12:31:58 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
 References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com> <4EEF8F85.9010408@gmail.com>
@@ -16,16 +26,14 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-Hi,
-
-On Mon, Dec 19, 2011 at 02:24:53PM -0500, KOSAKI Motohiro wrote:
+On 12/19/2011 11:24 AM, KOSAKI Motohiro wrote:
 > (12/19/11 1:38 PM), Naoya Horiguchi wrote:
-> > This flag shows that a given pages is a subpage of transparent hugepage.
-> > It does not care about whether it is a head page or a tail page, because
-> > it's clear from pfn of the target page which you should know when you read
-> > /proc/kpageflags.
-> > 
-> > Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
+>> This flag shows that a given pages is a subpage of transparent hugepage.
+>> It does not care about whether it is a head page or a tail page, because
+>> it's clear from pfn of the target page which you should know when you read
+>> /proc/kpageflags.
+>>
+>> Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
 > 
 > NAK.
 > 
@@ -33,19 +41,14 @@ On Mon, Dec 19, 2011 at 02:24:53PM -0500, KOSAKI Motohiro wrote:
 > keep 'transparent'.
 > Until any explain why we should expose KPF_THP, we don't agree it.
 
-The reason why I want to know physical address of thp is testing.
-I'm working on memory error recovery and writing test code to confirm
-that memory recovery really works when an error occurs on thps.
-There I need to locate thps on the physical memory.
+Transparent shouldn't mean "undebuggable", though. :)
 
-IMO, transparency in thp means that we need no manual setup to use
-it (as a contrast with hugetlbfs,) so it seems to me that exporting
-pageflag of thp does not break the design of thp.
+Let's say you profiled a application and the data shows you're missing
+the TLB a bunch, but you're also using THP.  This might give you a shot
+at figuring out which parts of your application are *TRULY* THP-backed
+instead of just the areas you *think* are backed.
 
-Anyway, I should have written the purpose in the patch description.
-Thanks for the comment.
-
-Naoya
+I'm not sure there's another way to figure it out at the moment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
