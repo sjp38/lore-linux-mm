@@ -1,334 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id ACF8A6B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 21:53:36 -0500 (EST)
-Received: by werf1 with SMTP id f1so1417929wer.14
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 18:53:35 -0800 (PST)
-Date: Mon, 19 Dec 2011 06:53:28 +0400
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Android low memory killer vs. memory pressure notifications
-Message-ID: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 12BC06B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 22:19:51 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1321836285.30341.554.camel@debian>
+	<20111121080554.GB1625@x4.trippels.de>
+	<20111121082445.GD1625@x4.trippels.de>
+	<1321866988.2552.10.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121131531.GA1679@x4.trippels.de>
+	<1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121153621.GA1678@x4.trippels.de>
+	<1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121161036.GA1679@x4.trippels.de>
+	<20111121163459.GA1679@x4.trippels.de>
+	<20111122083630.GA1672@x4.trippels.de>
+Date: Sun, 18 Dec 2011 19:21:26 -0800
+In-Reply-To: <20111122083630.GA1672@x4.trippels.de> (Markus Trippelsdorf's
+	message of "Tue, 22 Nov 2011 09:36:30 +0100")
+Message-ID: <m1liq9l009.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>
-Cc: Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, tj@kernel.org
 
-Hello everyone,
+Markus Trippelsdorf <markus@trippelsdorf.de> writes:
 
-Some background: Android apps never exit, instead they just save state
-and become inactive, and only get killed when memory usage hits a
-specific threshold. This strategy greatly improves user experience,
-as "start-up" time becomes non-issue. There are several application
-categories and for each category there is its own limit (e.g. background
-vs. foreground app -- we never want to kill foreground tasks, but that's
-details).
+> On 2011.11.21 at 17:34 +0100, Markus Trippelsdorf wrote:
+>> On 2011.11.21 at 17:10 +0100, Markus Trippelsdorf wrote:
+>> > On 2011.11.21 at 16:48 +0100, Eric Dumazet wrote:
+>> > > Le lundi 21 novembre 2011 =C3=A0 16:36 +0100, Markus Trippelsdorf a =
+=C3=A9crit :
+>> > > > On 2011.11.21 at 15:16 +0100, Eric Dumazet wrote:
+>> > > > > Le lundi 21 novembre 2011 =C3=A0 14:15 +0100, Markus Trippelsdor=
+f a =C3=A9crit :
+>> > > > >=20
+>> > > > > > I've enabled CONFIG_SLUB_DEBUG_ON and this is what happend:
+>> > > > > >=20
+>> > > > >=20
+>> > > > > Thanks
+>> > > > >=20
+>> > > > > Please continue to provide more samples.
+>> > > > >=20
+>> > > > > There is something wrong somewhere, but where exactly, its hard =
+to say.
+>> > > >=20
+>> > > > New sample. This one points to lib/idr.c:
+>> > > >=20
+>> > > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D
+>> > > > BUG idr_layer_cache: Poison overwritten
+>> > > > ------------------------------------------------------------------=
+-----------
+>> > >=20
+>> > > Thanks, could you now add "CONFIG_DEBUG_PAGEALLOC=3Dy" in your confi=
+g as
+>> > > well ?
+>> >=20
+>> > Sure. This one happend with CONFIG_DEBUG_PAGEALLOC=3Dy:
+>> >=20
+>> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D
+>> > BUG task_struct: Poison overwritten
+>> > ----------------------------------------------------------------------=
+-------
+>>=20
+>> And sometimes this one that I've reported earlier already:
+>>=20
+>> (see: http://thread.gmane.org/gmane.linux.kernel/1215023 )
+>>=20
+>>  ------------[ cut here ]------------
+>>  WARNING: at fs/sysfs/sysfs.h:195 sysfs_get_inode+0x136/0x140()
+>>  Hardware name: System Product Name
+>>  Pid: 1876, comm: slabinfo Not tainted 3.2.0-rc2-00274-g6fe4c6d #72
+>>  Call Trace:
+>>  [<ffffffff8106cac5>] warn_slowpath_common+0x75/0xb0
+>>  [<ffffffff8106cbc5>] warn_slowpath_null+0x15/0x20
+>>  [<ffffffff81163236>] sysfs_get_inode+0x136/0x140
+>>  [<ffffffff81164cef>] sysfs_lookup+0x6f/0x110
+>>  [<ffffffff811173f9>] d_alloc_and_lookup+0x39/0x80
+>>  [<ffffffff81118774>] do_lookup+0x294/0x3a0
+>>  [<ffffffff8111798a>] ? inode_permission+0x7a/0xb0
+>>  [<ffffffff8111a3f7>] do_last.isra.46+0x137/0x7f0
+>>  [<ffffffff8111ab76>] path_openat+0xc6/0x370
+>>  [<ffffffff81117606>] ? getname_flags+0x36/0x230
+>>  [<ffffffff810ec852>] ? handle_mm_fault+0x192/0x290
+>>  [<ffffffff8111ae5c>] do_filp_open+0x3c/0x90
+>>  [<ffffffff81127c8c>] ? alloc_fd+0xdc/0x120
+>>  [<ffffffff8110ce77>] do_sys_open+0xe7/0x1c0
+>>  [<ffffffff8110cf6b>] sys_open+0x1b/0x20
+>>  [<ffffffff814ccb7b>] system_call_fastpath+0x16/0x1b
+>>  ---[ end trace b1377eb8b131d37d ]---
+>
+> Hm, the "sysfs: use rb-tree" thing hit again during boot. Could this be
+> the root cause of this all?
+>
+> I wrote down the following:
+>
+> RIP : rb_next
+>
+> Trace:
+>  sysfs_dir_pos
+>  sysfs_readdir
+>  ? sys_ioctl
+>  vfs_readdir
+>  sys_getdents
 
-So, Android developers came with a Lowmemory killer driver, it receives
-memory pressure notifications, and then kills appropriate tasks when
-memory resources become low.
+Thanks for reporting this.
 
-Some time ago there were a lot of discussions regarding this driver,
-and it seems that people see different ways of how this should be
-implemented.
+Has this by any chance been resolved or stopped happening?
 
-Today I'd like to resurrect the discussion, and eventually come to a
-solution (or, if there is a group of people already working on this,
-please let me know -- I'd readily help with anything I could).
+This looks for all of the world like something is stomping your sysfs
+dirents.   I haven't seen anyone else complaining so this seems like the
+problem is unique to your configuration.  Which suggests that it is not
+sysfs itself that is wrong.
 
-The last time the two main approaches were spoken out, which both assume
-that kernel should not be responsible for killing tasks:
+I have been through the code a time or two and I haven't seen anything
+obviously wrong.  Everything that sysfs does is protected by the
+sysfs_mutex so the locking is very very simple.
 
-- Use memory controller cgroup (CGROUP_MEM_RES_CTLR) notifications from
-  the kernel side, plus userland "manager" that would kill applications.
+My best guess of why now is that the rbtree code make a sysfs dirent
+48 bytes larger.  And so it is much more exposed to these kinds of
+problems.
 
-  The main downside of this approach is that mem_cg needs 20 bytes per
-  page (on a 32 bit machine). So on a 32 bit machine with 4K pages
-  that's approx. 0.5% of RAM, or, in other words, 5MB on a 1GB machine.
-
-  0.5% doesn't sound too bad, but 5MB does, quite a little bit. So,
-  mem_cg feels like an overkill for this simple task (see the driver at
-  the very bottom).
-
-- Use some new low memory notifications mechanism from the kernel side +
-  userland manager that would react to the notifications and would kill
-  the tasks.
-
-  The main downside of this approach is that the new mechanism does
-  not exist. :-) "Big iron" people happily use mem_cg notifications,
-  and things like /dev/mem_notify died circa 2008 as there was too
-  little interest in it. See http://lkml.org/lkml/2009/1/20/404
-
-
-(There were also suggestions to integrate lowmemory killer functionality
-into OOM killer, but I see little point in doing this as the OOM
-killer and lowmemory killer have different "triggers": OOM killer is
-a quite simple last-resort thing for the kernel, it is called from
-the kernel allocators' fail paths, and, IIRC, it is even synchronous w/
-GFP_NOFAIL. I don't think that there could be any code or ABI reuse.)
-
-So, the main difference between current Android lowmemory killer and
-the approaches above is that the "killer" function suggested to be
-factored out to the userland code. This makes sense as it is userland
-that is categorizing tasks-to-kill (in the current lowmemory killer
-driver via controlling OOM adj value).
-
-Personally I'd start thinking about the new [lightweight] notification
-stuff, i.e. something without mem_cg's downsides. Though, I'm Cc'ing
-Android folks so maybe they could enlighten us why in-kernel "lowmemory
-manager" might be a better idea. Plus Cc'ing folks that I think might
-be interested in this discussion.
-
-Thanks!
-
-p.s.
-
-I'm inlining the android memory killer code down below, just for the
-reference. It is quite small (and useful... though, currently only for
-Android case).
-
-- - - -
-From: Arve HjA,nnevAJPYg <arve@android.com>
-Subject: Android low memory killer driver
-
-The lowmemorykiller driver lets user-space specify a set of memory thresholds
-where processes with a range of oom_adj values will get killed. Specify the
-minimum oom_adj values in /sys/module/lowmemorykiller/parameters/adj and the
-number of free pages in /sys/module/lowmemorykiller/parameters/minfree. Both
-files take a comma separated list of numbers in ascending order.
-
-For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
-"1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill processes
-with a oom_adj value of 8 or higher when the free memory drops below 4096 pages
-and kill processes with a oom_adj value of 0 or higher when the free memory
-drops below 1024 pages.
-
-The driver considers memory used for caches to be free, but if a large
-percentage of the cached memory is locked this can be very inaccurate
-and processes may not get killed until the normal oom killer is triggered.
-
----
- mm/Kconfig           |    7 ++
- mm/Makefile          |    1 +
- mm/lowmemorykiller.c |  175 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 183 insertions(+), 0 deletions(-)
- create mode 100644 mm/lowmemorykiller.c
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 011b110..a2e7959 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -259,6 +259,12 @@ config DEFAULT_MMAP_MIN_ADDR
- 	  This value can be changed after boot using the
- 	  /proc/sys/vm/mmap_min_addr tunable.
- 
-+config LOW_MEMORY_KILLER
-+	bool "Low Memory Killer"
-+	help
-+	  The lowmemorykiller driver lets user-space specify a set of memory
-+	  thresholds where processes will get killed.
-+
- config ARCH_SUPPORTS_MEMORY_FAILURE
- 	bool
- 
-diff --git a/mm/Makefile b/mm/Makefile
-index 50ec00e..10fb4ff 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -47,6 +47,7 @@ obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
- obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
-+obj-$(CONFIG_LOW_MEMORY_KILLER)	+= lowmemorykiller.o
- obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
-diff --git a/mm/lowmemorykiller.c b/mm/lowmemorykiller.c
-new file mode 100644
-index 0000000..4e51936
---- /dev/null
-+++ b/mm/lowmemorykiller.c
-@@ -0,0 +1,175 @@
-+/*
-+ * The lowmemorykiller driver lets user-space specify a set of memory thresholds
-+ * where processes with a range of oom_adj values will get killed. Specify the
-+ * minimum oom_adj values in /sys/module/lowmemorykiller/parameters/adj and the
-+ * number of free pages in /sys/module/lowmemorykiller/parameters/minfree. Both
-+ * files take a comma separated list of numbers in ascending order.
-+ *
-+ * For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
-+ * "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill processes
-+ * with a oom_adj value of 8 or higher when the free memory drops below 4096 pages
-+ * and kill processes with a oom_adj value of 0 or higher when the free memory
-+ * drops below 1024 pages.
-+ *
-+ * The driver considers memory used for caches to be free, but if a large
-+ * percentage of the cached memory is locked this can be very inaccurate
-+ * and processes may not get killed until the normal oom killer is triggered.
-+ *
-+ * Copyright (C) 2007-2008 Google, Inc.
-+ *
-+ * This software is licensed under the terms of the GNU General Public
-+ * License version 2, as published by the Free Software Foundation, and
-+ * may be copied, distributed, and modified under those terms.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/oom.h>
-+#include <linux/sched.h>
-+#include <linux/notifier.h>
-+
-+static uint32_t lowmem_debug_level = 2;
-+static int lowmem_adj[6] = {
-+	0,
-+	1,
-+	6,
-+	12,
-+};
-+static int lowmem_adj_size = 4;
-+static size_t lowmem_minfree[6] = {
-+	3 * 512,	/* 6MB */
-+	2 * 1024,	/* 8MB */
-+	4 * 1024,	/* 16MB */
-+	16 * 1024,	/* 64MB */
-+};
-+static int lowmem_minfree_size = 4;
-+
-+#define lowmem_print(level, x...)			\
-+	do {						\
-+		if (lowmem_debug_level >= (level))	\
-+			printk(x);			\
-+	} while (0)
-+
-+static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
-+{
-+	struct task_struct *p;
-+	struct task_struct *selected = NULL;
-+	int rem = 0;
-+	int tasksize;
-+	int i;
-+	int min_adj = OOM_ADJUST_MAX + 1;
-+	int selected_tasksize = 0;
-+	int selected_oom_adj;
-+	int array_size = ARRAY_SIZE(lowmem_adj);
-+	int other_free = global_page_state(NR_FREE_PAGES);
-+	int other_file = global_page_state(NR_FILE_PAGES) -
-+						global_page_state(NR_SHMEM);
-+
-+	if (lowmem_adj_size < array_size)
-+		array_size = lowmem_adj_size;
-+	if (lowmem_minfree_size < array_size)
-+		array_size = lowmem_minfree_size;
-+	for (i = 0; i < array_size; i++) {
-+		if (other_free < lowmem_minfree[i] &&
-+		    other_file < lowmem_minfree[i]) {
-+			min_adj = lowmem_adj[i];
-+			break;
-+		}
-+	}
-+	if (sc->nr_to_scan > 0)
-+		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
-+			     sc->nr_to_scan, sc->gfp_mask, other_free, other_file,
-+			     min_adj);
-+	rem = global_page_state(NR_ACTIVE_ANON) +
-+		global_page_state(NR_ACTIVE_FILE) +
-+		global_page_state(NR_INACTIVE_ANON) +
-+		global_page_state(NR_INACTIVE_FILE);
-+	if (sc->nr_to_scan <= 0 || min_adj == OOM_ADJUST_MAX + 1) {
-+		lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
-+			     sc->nr_to_scan, sc->gfp_mask, rem);
-+		return rem;
-+	}
-+	selected_oom_adj = min_adj;
-+
-+	read_lock(&tasklist_lock);
-+	for_each_process(p) {
-+		struct mm_struct *mm;
-+		struct signal_struct *sig;
-+		int oom_adj;
-+
-+		task_lock(p);
-+		mm = p->mm;
-+		sig = p->signal;
-+		if (!mm || !sig) {
-+			task_unlock(p);
-+			continue;
-+		}
-+		oom_adj = sig->oom_adj;
-+		if (oom_adj < min_adj) {
-+			task_unlock(p);
-+			continue;
-+		}
-+		tasksize = get_mm_rss(mm);
-+		task_unlock(p);
-+		if (tasksize <= 0)
-+			continue;
-+		if (selected) {
-+			if (oom_adj < selected_oom_adj)
-+				continue;
-+			if (oom_adj == selected_oom_adj &&
-+			    tasksize <= selected_tasksize)
-+				continue;
-+		}
-+		selected = p;
-+		selected_tasksize = tasksize;
-+		selected_oom_adj = oom_adj;
-+		lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
-+			     p->pid, p->comm, oom_adj, tasksize);
-+	}
-+	if (selected) {
-+		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
-+			     selected->pid, selected->comm,
-+			     selected_oom_adj, selected_tasksize);
-+		force_sig(SIGKILL, selected);
-+		rem -= selected_tasksize;
-+	}
-+	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
-+		     sc->nr_to_scan, sc->gfp_mask, rem);
-+	read_unlock(&tasklist_lock);
-+	return rem;
-+}
-+
-+static struct shrinker lowmem_shrinker = {
-+	.shrink = lowmem_shrink,
-+	.seeks = DEFAULT_SEEKS * 16
-+};
-+
-+static int __init lowmem_init(void)
-+{
-+	register_shrinker(&lowmem_shrinker);
-+	return 0;
-+}
-+
-+static void __exit lowmem_exit(void)
-+{
-+	unregister_shrinker(&lowmem_shrinker);
-+}
-+
-+module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
-+module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
-+			 S_IRUGO | S_IWUSR);
-+module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
-+			 S_IRUGO | S_IWUSR);
-+module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
-+
-+module_init(lowmem_init);
-+module_exit(lowmem_exit);
-+
-+MODULE_LICENSE("GPL");
--- 
-1.7.7.3
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
