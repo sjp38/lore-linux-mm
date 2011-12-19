@@ -1,261 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id B01FE6B0062
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 03:34:16 -0500 (EST)
-From: Sumit Semwal <sumit.semwal@ti.com>
-Subject: [RFC v3 2/2] dma-buf: Documentation for buffer sharing framework
-Date: Mon, 19 Dec 2011 14:03:31 +0530
-Message-ID: <1324283611-18344-4-git-send-email-sumit.semwal@ti.com>
-In-Reply-To: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
-References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 0CDA26B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 04:05:07 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20111121082445.GD1625@x4.trippels.de>
+	<1321866988.2552.10.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121131531.GA1679@x4.trippels.de>
+	<1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121153621.GA1678@x4.trippels.de>
+	<1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<20111121161036.GA1679@x4.trippels.de>
+	<20111121163459.GA1679@x4.trippels.de>
+	<20111122083630.GA1672@x4.trippels.de>
+	<m1liq9l009.fsf@fess.ebiederm.org> <20111219091909.GA1614@x4>
+Date: Mon, 19 Dec 2011 01:06:45 -0800
+In-Reply-To: <20111219091909.GA1614@x4> (Markus Trippelsdorf's message of
+	"Mon, 19 Dec 2011 10:19:09 +0100")
+Message-ID: <m1fwghj5ga.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org
-Cc: linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, patches@linaro.org, Sumit Semwal <sumit.semwal@ti.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, tj@kernel.org
 
-Add documentation for dma buffer sharing framework, explaining the
-various operations, members and API of the dma buffer sharing
-framework.
+Markus Trippelsdorf <markus@trippelsdorf.de> writes:
 
-Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
----
- Documentation/dma-buf-sharing.txt |  222 +++++++++++++++++++++++++++++++++++++
- 1 files changed, 222 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/dma-buf-sharing.txt
+> On 2011.12.18 at 19:21 -0800, Eric W. Biederman wrote:
+>> Markus Trippelsdorf <markus@trippelsdorf.de> writes:
+>>=20
+>> > On 2011.11.21 at 17:34 +0100, Markus Trippelsdorf wrote:
+>> >> On 2011.11.21 at 17:10 +0100, Markus Trippelsdorf wrote:
+>> >> > On 2011.11.21 at 16:48 +0100, Eric Dumazet wrote:
+>> >> > > Le lundi 21 novembre 2011 =C3=A0 16:36 +0100, Markus Trippelsdorf=
+ a =C3=A9crit :
+>> >> > > > On 2011.11.21 at 15:16 +0100, Eric Dumazet wrote:
+>> >> > > > > Le lundi 21 novembre 2011 =C3=A0 14:15 +0100, Markus Trippels=
+dorf a =C3=A9crit :
+>> >> > > > >=20
+>> >> > > > > > I've enabled CONFIG_SLUB_DEBUG_ON and this is what happend:
+>> >> > > > > >=20
+>> >> > > > >=20
+>> >> > > > > Thanks
+>> >> > > > >=20
+>> >> > > > > Please continue to provide more samples.
+>> >> > > > >=20
+>> >> > > > > There is something wrong somewhere, but where exactly, its ha=
+rd to say.
+>> >> > > >=20
+>> >> > > > New sample. This one points to lib/idr.c:
+>> >> > > >=20
+>> >> > > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D
+>> >> > > > BUG idr_layer_cache: Poison overwritten
+>> >> > > > ---------------------------------------------------------------=
+--------------
+>> >> > >=20
+>> >> > > Thanks, could you now add "CONFIG_DEBUG_PAGEALLOC=3Dy" in your co=
+nfig as
+>> >> > > well ?
+>> >> >=20
+>> >> > Sure. This one happend with CONFIG_DEBUG_PAGEALLOC=3Dy:
+>> >> >=20
+>> >> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D
+>> >> > BUG task_struct: Poison overwritten
+>> >> > -------------------------------------------------------------------=
+----------
+>> >>=20
+>> >> And sometimes this one that I've reported earlier already:
+>> >>=20
+>> >> (see: http://thread.gmane.org/gmane.linux.kernel/1215023 )
+>> >>=20
+>> >>  ------------[ cut here ]------------
+>> >>  WARNING: at fs/sysfs/sysfs.h:195 sysfs_get_inode+0x136/0x140()
+>> >>  Hardware name: System Product Name
+>> >>  Pid: 1876, comm: slabinfo Not tainted 3.2.0-rc2-00274-g6fe4c6d #72
+>> >>  Call Trace:
+>> >>  [<ffffffff8106cac5>] warn_slowpath_common+0x75/0xb0
+>> >>  [<ffffffff8106cbc5>] warn_slowpath_null+0x15/0x20
+>> >>  [<ffffffff81163236>] sysfs_get_inode+0x136/0x140
+>> >>  [<ffffffff81164cef>] sysfs_lookup+0x6f/0x110
+>> >>  [<ffffffff811173f9>] d_alloc_and_lookup+0x39/0x80
+>> >>  [<ffffffff81118774>] do_lookup+0x294/0x3a0
+>> >>  [<ffffffff8111798a>] ? inode_permission+0x7a/0xb0
+>> >>  [<ffffffff8111a3f7>] do_last.isra.46+0x137/0x7f0
+>> >>  [<ffffffff8111ab76>] path_openat+0xc6/0x370
+>> >>  [<ffffffff81117606>] ? getname_flags+0x36/0x230
+>> >>  [<ffffffff810ec852>] ? handle_mm_fault+0x192/0x290
+>> >>  [<ffffffff8111ae5c>] do_filp_open+0x3c/0x90
+>> >>  [<ffffffff81127c8c>] ? alloc_fd+0xdc/0x120
+>> >>  [<ffffffff8110ce77>] do_sys_open+0xe7/0x1c0
+>> >>  [<ffffffff8110cf6b>] sys_open+0x1b/0x20
+>> >>  [<ffffffff814ccb7b>] system_call_fastpath+0x16/0x1b
+>> >>  ---[ end trace b1377eb8b131d37d ]---
+>> >
+>> > Hm, the "sysfs: use rb-tree" thing hit again during boot. Could this be
+>> > the root cause of this all?
+>> >
+>> > I wrote down the following:
+>> >
+>> > RIP : rb_next
+>> >
+>> > Trace:
+>> >  sysfs_dir_pos
+>> >  sysfs_readdir
+>> >  ? sys_ioctl
+>> >  vfs_readdir
+>> >  sys_getdents
+>>=20
+>> Thanks for reporting this.
+>>=20
+>> Has this by any chance been resolved or stopped happening?
+>
+> Yes.
+>
+>> This looks for all of the world like something is stomping your sysfs
+>> dirents.   I haven't seen anyone else complaining so this seems like the
+>> problem is unique to your configuration.  Which suggests that it is not
+>> sysfs itself that is wrong.
+>>=20
+>> I have been through the code a time or two and I haven't seen anything
+>> obviously wrong.  Everything that sysfs does is protected by the
+>> sysfs_mutex so the locking is very very simple.
+>>=20
+>> My best guess of why now is that the rbtree code make a sysfs dirent
+>> 48 bytes larger.  And so it is much more exposed to these kinds of
+>> problems.
+>
+> Sorry, but your subsystem was just accidentally hit by a bug in the
+> Radeon driver, that sometimes randomly writes 0 dwords somewhere to
+> memory after a kexec boot (see the rest of this huge thread).
+> It's still not fixed in mainline, because Linus refused to take the fix
+> this late in the series.
 
-diff --git a/Documentation/dma-buf-sharing.txt b/Documentation/dma-buf-sharing.txt
-new file mode 100644
-index 0000000..3a2a35f
---- /dev/null
-+++ b/Documentation/dma-buf-sharing.txt
-@@ -0,0 +1,222 @@
-+                    DMA Buffer Sharing API Guide
-+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+
-+                            Sumit Semwal
-+                <sumit dot semwal at linaro dot org>
-+                 <sumit dot semwal at ti dot com>
-+
-+This document serves as a guide to device-driver writers on what is the dma-buf
-+buffer sharing API, how to use it for exporting and using shared buffers.
-+
-+Any device driver which wishes to be a part of DMA buffer sharing, can do so as
-+either the 'exporter' of buffers, or the 'user' of buffers.
-+
-+Say a driver A wants to use buffers created by driver B, then we call B as the
-+exporter, and A as buffer-user.
-+
-+The exporter
-+- implements and manages operations[1] for the buffer
-+- allows other users to share the buffer by using dma_buf sharing APIs,
-+- manages the details of buffer allocation,
-+- decides about the actual backing storage where this allocation happens,
-+- takes care of any migration of scatterlist - for all (shared) users of this
-+   buffer,
-+
-+The buffer-user
-+- is one of (many) sharing users of the buffer.
-+- doesn't need to worry about how the buffer is allocated, or where.
-+- needs a mechanism to get access to the scatterlist that makes up this buffer
-+   in memory, mapped into its own address space, so it can access the same area
-+   of memory.
-+
-+*IMPORTANT*: A buffer shared using the dma_buf sharing API *must not* be
-+exported to user space using "mmap". [see https://lkml.org/lkml/2011/12/2/53
-+for more on the discussion]
-+
-+The dma_buf buffer sharing API usage contains the following steps:
-+
-+1. Exporter announces that it wishes to export a buffer
-+2. Userspace gets the file descriptor associated with the exported buffer, and
-+   passes it around to potential buffer-users based on use case
-+3. Each buffer-user 'connects' itself to the buffer
-+4. When needed, buffer-user requests access to the buffer from exporter
-+5. When finished with its use, the buffer-user notifies end-of-DMA to exporter
-+6. when buffer-user is done using this buffer completely, it 'disconnects'
-+   itself from the buffer.
-+
-+
-+1. Exporter's announcement of buffer export
-+
-+   The buffer exporter announces its wish to export a buffer. In this, it
-+   connects its own private buffer data, provides implementation for operations
-+   that can be performed on the exported dma_buf, and flags for the file
-+   associated with this buffer.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-+                                int flags)
-+
-+   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
-+   pointer to the same. It also associates an anonymous file with this buffer,
-+   so it can be exported. On failure to allocate the dma_buf object, it returns
-+   NULL.
-+
-+2. Userspace gets a handle to pass around to potential buffer-users
-+
-+   Userspace entity requests for a file-descriptor (fd) which is a handle to the
-+   anonymous file associated with the buffer. It can then share the fd with other
-+   drivers and/or processes.
-+
-+   Interface:
-+      int dma_buf_fd(struct dma_buf *dmabuf)
-+
-+   This API installs an fd for the anonymous file associated with this buffer;
-+   returns either 'fd', or error.
-+
-+3. Each buffer-user 'connects' itself to the buffer
-+
-+   Each buffer-user now gets a reference to the buffer, using the fd passed to
-+   it.
-+
-+   Interface:
-+      struct dma_buf *dma_buf_get(int fd)
-+
-+   This API will return a reference to the dma_buf, and increment refcount for
-+   it.
-+
-+   After this, the buffer-user needs to attach its device with the buffer, which
-+   helps the exporter to know of device buffer constraints.
-+
-+   Interface:
-+      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
-+                                                struct device *dev)
-+
-+   This API returns reference to an attachment structure, which is then used
-+   for scatterlist operations. It will optionally call the 'attach' dma_buf
-+   operation, if provided by the exporter.
-+
-+   The dma-buf sharing framework does the bookkeeping bits related to managing
-+   the list of all attachments to a buffer.
-+
-+Until this stage, the buffer-exporter has the option to choose not to actually
-+allocate the backing storage for this buffer, but wait for the first buffer-user
-+to request use of buffer for allocation.
-+
-+
-+4. When needed, buffer-user requests access to the buffer
-+
-+   Whenever a buffer-user wants to use the buffer for any DMA, it asks for
-+   access to the buffer using dma_buf_map_attachment API. At least one attach to
-+   the buffer must have happened before map_dma_buf can be called.
-+
-+   Interface:
-+      struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
-+                                         enum dma_data_direction);
-+
-+   This is a wrapper to dma_buf->ops->map_dma_buf operation, which hides the
-+   "dma_buf->ops->" indirection from the users of this interface.
-+
-+   In struct dma_buf_ops, map_dma_buf is defined as
-+      struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
-+                                                enum dma_data_direction);
-+
-+   It is one of the buffer operations that must be implemented by the exporter.
-+   It should return the sg_table containing scatterlist for this buffer, mapped
-+   into caller's address space.
-+
-+   If this is being called for the first time, the exporter can now choose to
-+   scan through the list of attachments for this buffer, collate the requirements
-+   of the attached devices, and choose an appropriate backing storage for the
-+   buffer.
-+
-+   Based on enum dma_data_direction, it might be possible to have multiple users
-+   accessing at the same time (for reading, maybe), or any other kind of sharing
-+   that the exporter might wish to make available to buffer-users.
-+
-+   map_dma_buf() operation can return -EINTR if it is interrupted by a signal.
-+
-+
-+5. When finished, the buffer-user notifies end-of-DMA to exporter
-+
-+   Once the DMA for the current buffer-user is over, it signals 'end-of-DMA' to
-+   the exporter using the dma_buf_unmap_attachment API.
-+
-+   Interface:
-+      void dma_buf_unmap_attachment(struct dma_buf_attachment *,
-+                                    struct sg_table *);
-+
-+   This is a wrapper to dma_buf->ops->unmap_dma_buf() operation, which hides the
-+   "dma_buf->ops->" indirection from the users of this interface.
-+
-+   In struct dma_buf_ops, unmap_dma_buf is defined as
-+      void (*unmap_dma_buf)(struct dma_buf_attachment *, struct sg_table *);
-+
-+   unmap_dma_buf signifies the end-of-DMA for the attachment provided. Like
-+   map_dma_buf, this API also must be implemented by the exporter.
-+
-+
-+6. when buffer-user is done using this buffer, it 'disconnects' itself from the
-+   buffer.
-+
-+   After the buffer-user has no more interest in using this buffer, it should
-+   disconnect itself from the buffer:
-+
-+   - it first detaches itself from the buffer.
-+
-+   Interface:
-+      void dma_buf_detach(struct dma_buf *dmabuf,
-+                          struct dma_buf_attachment *dmabuf_attach);
-+
-+   This API removes the attachment from the list in dmabuf, and optionally calls
-+   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
-+
-+   - Then, the buffer-user returns the buffer reference to exporter.
-+
-+   Interface:
-+     void dma_buf_put(struct dma_buf *dmabuf);
-+
-+   This API then reduces the refcount for this buffer.
-+
-+   If, as a result of this call, the refcount becomes 0, the 'release' file
-+   operation related to this fd is called. It calls the dmabuf->ops->release()
-+   operation in turn, and frees the memory allocated for dmabuf when exported.
-+
-+NOTES:
-+- Importance of attach-detach and {map,unmap}_dma_buf operation pairs
-+   The attach-detach calls allow the exporter to figure out backing-storage
-+   constraints for the currently-interested devices. This allows preferential
-+   allocation, and/or migration of pages across different types of storage
-+   available, if possible.
-+
-+   Bracketing of DMA access with {map,unmap}_dma_buf operations is essential
-+   to allow just-in-time backing of storage, and migration mid-way through a
-+   use-case.
-+
-+- Migration of backing storage if needed
-+   If after
-+   - at least one map_dma_buf has happened,
-+   - and the backing storage has been allocated for this buffer,
-+   another new buffer-user intends to attach itself to this buffer, it might
-+   be allowed, if possible for the exporter.
-+
-+   In case it is allowed by the exporter:
-+    if the new buffer-user has stricter 'backing-storage constraints', and the
-+    exporter can handle these constraints, the exporter can just stall on the
-+    map_dma_buf until all outstanding access is completed (as signalled by
-+    unmap_dma_buf).
-+    Once all users have finished accessing and have unmapped this buffer, the
-+    exporter could potentially move the buffer to the stricter backing-storage,
-+    and then allow further {map,unmap}_dma_buf operations from any buffer-user
-+    from the migrated backing-storage.
-+
-+   If the exporter cannot fulfil the backing-storage constraints of the new
-+   buffer-user device as requested, dma_buf_attach() would return an error to
-+   denote non-compatibility of the new buffer-sharing request with the current
-+   buffer.
-+
-+   If the exporter chooses not to allow an attach() operation once a
-+   map_dma_buf() API has been called, it simply returns an error.
-+
-+References:
-+[1] struct dma_buf_ops in include/linux/dma-buf.h
-+[2] All interfaces mentioned above defined in include/linux/dma-buf.h
--- 
-1.7.4.1
+Awesome.=20=20
+
+I guess that means I am only responsible for the Radeon driver having
+the opportunity to take that code path. It is nice to see kexec being
+used and being well known enough I didn't have to get involved.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
