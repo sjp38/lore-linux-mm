@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id B873C6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 16:11:21 -0500 (EST)
-Message-ID: <4EEFA861.2050807@redfish-solutions.com>
-Date: Mon, 19 Dec 2011 13:10:57 -0800
-From: Philip Prindeville <philipp_subx@redfish-solutions.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 5F6FF6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 16:15:22 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so4270465ghr.14
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2011 13:15:21 -0800 (PST)
+Message-ID: <4EEFA96C.1080106@gmail.com>
+Date: Mon, 19 Dec 2011 16:15:24 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] coreboot: Add support for detecting Coreboot BIOS
- signatures
-References: <1324241211-7651-1-git-send-email-philipp_subx@redfish-solutions.com> <1324244805.2132.4.camel@shinybook.infradead.org>
-In-Reply-To: <1324244805.2132.4.camel@shinybook.infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH][RESEND] mm: Fix off-by-one bug in print_nodes_state
+References: <1324209529-15892-1-git-send-email-ozaki.ryota@gmail.com> <alpine.DEB.2.00.1112181439500.1364@chino.kir.corp.google.com> <4EEE6DC0.2030007@gmail.com> <alpine.DEB.2.00.1112191252130.28684@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1112191252130.28684@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>, jordan@cosmicpenguin.net
-Cc: Ed Wildgoose <ed@wildgooses.com>, Andrew Morton <akpm@linux-foundation.org>, linux-geode@lists.infradead.org, Andres Salomon <dilinger@queued.net>, Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, Patrick Georgi <patrick.georgi@secunet.com>, Carl-Daniel Hailfinger <c-d.hailfinger.devel.2006@gmx.net>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Ryota Ozaki <ozaki.ryota@gmail.com>, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, linux-mm@kvack.org, stable@kernel.org
 
-On 12/18/11 1:46 PM, David Woodhouse wrote:
-> On Sun, 2011-12-18 at 13:46 -0700, Philip Prindeville wrote:
->> Add support for Coreboot BIOS detection. This in turn can be used by
->> platform drivers to verify they are running on the correct hardware,
->> as many of the low-volume SBC's (especially in the Atom and Geode
->> universe) don't always identify themselves via DMI or PCI-ID.
-> It's Coreboot. So doesn't that mean we can just fix it to pass a
-> device-tree to the kernel properly?
+(12/19/11 3:53 PM), David Rientjes wrote:
+> On Sun, 18 Dec 2011, KOSAKI Motohiro wrote:
 >
-> Don't we only need this kind of hack for boards with crappy
-> closed-source firmware?
+>> Usually, /sys files don't output trailing 'AJPY0'. And, 'AJPY0' is not regular
+>> io friendly. So I can imagine some careless programmer think it is garbage. Is
+>> there any benefit to show trailing 'AJPY0'?
+>>
 >
+> Nope, it could be removed since the buffer is allocated with
+> get_zeroed_page().
 
-How about this: we upstream the patches and as soon as I have access to a Geode-based box using a device-tree capable version of Coreboot, I'll add support...
-
-BTW: the patches themselves seem to be stalled waiting on list-owner approval... I'll see if I can get them dislodged.
-
--Philip
+ok, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
