@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id D7B086B004F
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 10:37:43 -0500 (EST)
-Date: Mon, 19 Dec 2011 16:37:38 +0100
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 051916B004F
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 10:48:20 -0500 (EST)
+Date: Mon, 19 Dec 2011 16:48:17 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/4] memcg: clear pc->mem_cgorup if necessary.
-Message-ID: <20111219153738.GC1415@cmpxchg.org>
+Subject: Re: [PATCH 4/4] memcg: simplify LRU handling by new rule
+Message-ID: <20111219154817.GD1415@cmpxchg.org>
 References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
- <20111214165124.4d2cf723.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111214165226.1c3b666e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111214165124.4d2cf723.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111214165226.1c3b666e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Wed, Dec 14, 2011 at 04:51:24PM +0900, KAMEZAWA Hiroyuki wrote:
+On Wed, Dec 14, 2011 at 04:52:26PM +0900, KAMEZAWA Hiroyuki wrote:
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> This is a preparation before removing a flag PCG_ACCT_LRU in page_cgroup
-> and reducing atomic ops/complexity in memcg LRU handling.
+> Now, at LRU handling, memory cgroup needs to do complicated works
+> to see valid pc->mem_cgroup, which may be overwritten.
 > 
-> In some cases, pages are added to lru before charge to memcg and pages
-> are not classfied to memory cgroup at lru addtion. Now, the lru where
-> the page should be added is determined a bit in page_cgroup->flags and
-> pc->mem_cgroup. I'd like to remove the check of flag.
+> This patch is for relaxing the protocol. This patch guarantees
+>    - when pc->mem_cgroup is overwritten, page must not be on LRU.
 > 
-> To handle the case pc->mem_cgroup may contain stale pointers if pages are
-> added to LRU before classification. This patch resets pc->mem_cgroup to
-> root_mem_cgroup before lru additions.
+> By this, LRU routine can believe pc->mem_cgroup and don't need to
+> check bits on pc->flags. This new rule may adds small overheads to
+> swapin. But in most case, lru handling gets faster.
+> 
+> After this patch, PCG_ACCT_LRU bit is obsolete and removed.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> ---
+>  include/linux/page_cgroup.h |    8 -----
+>  mm/memcontrol.c             |   72 ++++++++++--------------------------------
+>  2 files changed, 17 insertions(+), 63 deletions(-)
 
-The followup compilation fixes aside, I agree.  But the sites where
-the owner is actually reset are really not too obvious.  How about the
-comment patch below?
-
-Otherwise,
+This, too, speaks for itself and the logic seems sound to me.
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: memcg: clear pc->mem_cgorup if necessary fix
+Minor style things:
 
-Add comments to the clearing sites.
+> @@ -974,30 +974,8 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+>  		return &zone->lruvec;
+>  
+>  	pc = lookup_page_cgroup(page);
+> -	VM_BUG_ON(PageCgroupAcctLRU(pc));
+> -	/*
+> -	 * putback:				charge:
+> -	 * SetPageLRU				SetPageCgroupUsed
+> -	 * smp_mb				smp_mb
+> -	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
+> -	 *
+> -	 * Ensure that one of the two sides adds the page to the memcg
+> -	 * LRU during a race.
+> -	 */
+> -	smp_mb();
+> -	/*
+> -	 * If the page is uncharged, it may be freed soon, but it
+> -	 * could also be swap cache (readahead, swapoff) that needs to
+> -	 * be reclaimable in the future.  root_mem_cgroup will babysit
+> -	 * it for the time being.
+> -	 */
+> -	if (PageCgroupUsed(pc)) {
+> -		/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
+> -		smp_rmb();
+> -		memcg = pc->mem_cgroup;
+> -		SetPageCgroupAcctLRU(pc);
+> -	} else
+> -		memcg = root_mem_cgroup;
+> +	memcg = pc->mem_cgroup;
+> +	VM_BUG_ON(!memcg);
+>  	mz = page_cgroup_zoneinfo(memcg, page);
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
+I think the memcg local variable is not really needed anymore.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 5c2f0bd..f0ee5bf 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1571,6 +1571,15 @@ struct page *ksm_does_need_to_copy(struct page *page,
- 
- 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
- 	if (new_page) {
-+		/*
-+		 * The memcg-specific accounting when moving
-+		 * pages around the LRU lists relies on the
-+		 * page's owner (memcg) to be valid.  Usually,
-+		 * pages are assigned to a new owner before
-+		 * being put on the LRU list, but since this
-+		 * is not the case here, the stale owner from
-+		 * a previous allocation cycle must be reset.
-+		 */
- 		mem_cgroup_reset_owner(new_page);
- 		copy_user_highpage(new_page, page, address, vma);
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 730c4c7..44ccfd2 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -302,6 +302,15 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			new_page = alloc_page_vma(gfp_mask, vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
-+			/*
-+			 * The memcg-specific accounting when moving
-+			 * pages around the LRU lists relies on the
-+			 * page's owner (memcg) to be valid.  Usually,
-+			 * pages are assigned to a new owner before
-+			 * being put on the LRU list, but since this
-+			 * is not the case here, the stale owner from
-+			 * a previous allocation cycle must be reset.
-+			 */
- 			mem_cgroup_reset_owner(new_page);
- 		}
- 
+Also, please don't add bug-ons for simple NULL tests, they are
+redundant when the dereference would blow up just as well.
+
+> @@ -2399,6 +2368,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+>  {
+>  	struct page_cgroup *head_pc = lookup_page_cgroup(head);
+>  	struct page_cgroup *pc;
+> +	struct mem_cgroup_per_zone *mz;
+> +	enum lru_list lru;
+>  	int i;
+
+You broke the reverse christmas tree sorting!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
