@@ -1,37 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 309756B005C
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 13:40:51 -0500 (EST)
-Date: Mon, 19 Dec 2011 19:40:47 +0100
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id DF98E6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 13:45:07 -0500 (EST)
+Date: Mon, 19 Dec 2011 19:45:06 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
-Message-ID: <20111219184047.GA5637@one.firstfloor.org>
-References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC][PATCH 1/3] pagemap: avoid splitting thp when reading /proc/pid/pagemap
+Message-ID: <20111219184506.GB5637@one.firstfloor.org>
+References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1324319919-31720-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-> diff --git 3.2-rc5.orig/fs/proc/page.c 3.2-rc5/fs/proc/page.c
-> index 6d8e6a9..d436fc6 100644
-> --- 3.2-rc5.orig/fs/proc/page.c
-> +++ 3.2-rc5/fs/proc/page.c
-> @@ -116,6 +116,11 @@ u64 stable_page_flags(struct page *page)
->  	if (PageHuge(page))
->  		u |= 1 << KPF_HUGE;
->  
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +	if (PageTransCompound(page))
-> +		u |= 1 << KPF_THP;
-> +#endif
+On Mon, Dec 19, 2011 at 01:38:37PM -0500, Naoya Horiguchi wrote:
+> Thp split is not necessary if we explicitly check whether pmds are
+> mapping thps or not. This patch introduces the check and the code
+> to generate pagemap entries for pmds mapping thps, which results in
+> less performance impact of pagemap on thp.
 
-It would be better to have PageTransCompound be a dummy (always 0) 
-for !CONFIG_TRANSPARENT_HUGEPAGE and KPF_THP always defined.
-This would keep ifdefery in the headers.
+Looks good.
+
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
 
 -Andi
 
