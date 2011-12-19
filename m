@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 9D3B86B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 16:24:00 -0500 (EST)
-Date: Mon, 19 Dec 2011 22:23:48 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
-Message-ID: <20111219212348.GP16411@redhat.com>
-References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <4EEF8F85.9010408@gmail.com>
- <4EEF9F3E.9000107@linux.vnet.ibm.com>
- <4EEFA278.7010200@gmail.com>
- <4EEFA51D.2050707@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4EEFA51D.2050707@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id A6E8F6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 17:03:40 -0500 (EST)
+Date: Mon, 19 Dec 2011 14:03:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Put braces around potentially empty 'if' body in
+ handle_pte_fault()
+Message-Id: <20111219140338.a05bd83d.akpm@linux-foundation.org>
+In-Reply-To: <20111218011828.GA4445@p183.telecom.by>
+References: <alpine.LNX.2.00.1112180059080.21784@swampdragon.chaosbits.net>
+	<1324167535.3323.63.camel@edumazet-laptop>
+	<20111218003419.GE2203@ZenIV.linux.org.uk>
+	<20111218011828.GA4445@p183.telecom.by>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Jesper Juhl <jj@chaosbits.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, Dec 19, 2011 at 12:57:01PM -0800, Dave Hansen wrote:
-> But, every single one of the pagemap flags is really just a snapshot
-> KPF_DIRTY, KPF_LOCKED, etc...  The entire interface is inherently a racy
-> snapshot, and there's not a whole lot you can do about it.
+On Sun, 18 Dec 2011 04:18:28 +0300
+Alexey Dobriyan <adobriyan@gmail.com> wrote:
 
-Having read the discussion, while I don't see a big need of the
-KPF_THP, I also see how it in certain corner cases it can be used to
-test memory failure injection and I agree with you on the above. Maybe
-it can also be used to check if at certain virtual offsets
-(pid/pagemap lookup followed by a kpageflags lookup) we always fail to
-find THP inside big vmas, maybe out of not aligned mprotect that may
-be optimized by aligning it.
+> On Sun, Dec 18, 2011 at 12:34:19AM +0000, Al Viro wrote:
+> > On Sun, Dec 18, 2011 at 01:18:55AM +0100, Eric Dumazet wrote:
+> > > Thats should be fixed in the reverse way :
+> > > 
+> > > #define flush_tlb_fix_spurious_fault(vma, address) do { } while (0)
+> > 
+> > There's a better way to do that -
+> > #define f(a) do { } while(0)
+> > does not work as a function returning void -
+> > 	f(1), g();
+> > won't work.  OTOH
+> > #define f(a) ((void)0)
+> > works just fine.
+> 
+> Two words: static inline.
 
-The other kernel internal bits may also be stale and go away quicker
-than the KPF_THP, so I don't see a problem in exposing it. We also
-provide THP related info in meminfo/smaps, if they were supposed to be
-invisible that wouldn't be allowed too.
+Amen.  How often must we teach ourselves this lesson?
 
-A bigger concern to me is that the new bitfield alters the protocol,
-but old code by adding one more bit (if sanely coded...) shouldn't break.
+
+It gets a bit messy because of:
+
+#ifndef flush_tlb_fix_spurious_fault
+#define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+#endif
+
+But that can be handled with
+
+static inline void flush_tlb_fix_spurious_fault(...)
+{
+	...
+}
+#define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
+
+and
+
+#ifndef flush_tlb_fix_spurious_fault
+static inline void flush_tlb_fix_spurious_fault(...)
+{
+}
+#define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
