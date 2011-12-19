@@ -1,56 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 0AEC76B0062
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 11:28:41 -0500 (EST)
-Received: by yenq10 with SMTP id q10so4255670yen.14
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2011 08:28:41 -0800 (PST)
-Date: Mon, 19 Dec 2011 08:28:35 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: memblock and bootmem problems if start + size = 4GB
-Message-ID: <20111219162835.GA24519@google.com>
-References: <4EEF42F5.7040002@monstr.eu>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 7DA4F6B004F
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 11:33:04 -0500 (EST)
+Date: Mon, 19 Dec 2011 17:32:41 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+Message-ID: <20111219163241.GA4107@quack.suse.cz>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.666312513@intel.com>
+ <20111129152106.GN5635@quack.suse.cz>
+ <20111214063625.GA13824@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4EEF42F5.7040002@monstr.eu>
+In-Reply-To: <20111214063625.GA13824@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Simek <monstr@monstr.eu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello, Michal.
-
-On Mon, Dec 19, 2011 at 02:58:13PM +0100, Michal Simek wrote:
-> I have reached some problems with memblock and bootmem code for some configurations.
-> We can completely setup the whole system and all addresses in it.
-> The problem happens if we place main memory to the end of address space when
-> mem_start + size reach 4GB limit.
+On Wed 14-12-11 14:36:25, Wu Fengguang wrote:
+> >   This looks all inherently racy (which doesn't matter much as you suggest)
+> > so I just wanted to suggest that if you used per-cpu counters you'd get
+> > race-free and faster code at the cost of larger data structures and using
+> > percpu_counter_add() instead of ++ (which doesn't seem like a big
+> > complication to me).
 > 
-> For example:
-> mem_start      0xF000 0000
-> mem_size       0x1000 0000 (or better lowmem size)
-> mem_end        0xFFFF FFFF
-> start + size 0x1 0000 0000 (u32 limit reached).
-> 
-> I have done some patches which completely remove start + size values from architecture specific
-> code but I have found some problem in generic code too.
-> 
-> For example in bootmem code where are three places where physaddr + size is used.
-> I would prefer to retype it to u64 because baseaddr and size don't need to be 2^n.
-> 
-> Is it correct solution? If yes, I will create proper patch.
+> OK, here is the incremental patch to use per-cpu counters :)
+  Thanks! This looks better. I just thought you would use per-cpu counters
+as defined in include/linux/percpu_counter.h and are used e.g. by bdi
+stats. This is more standard for statistics in the kernel than using
+per-cpu variables directly.
 
-Yeah, that's an inherent problem in using [) ranges but I think
-chopping off the last page probably is simpler and more robust
-solution.  Currently, memblock_add_region() would simply ignore if
-address range overflows but making it just ignore the last page is
-several lines of addition.  Wouldn't that be effective enough while
-staying very simple?
-
-Thanks.
-
+									Honza
+> ---
+>  mm/readahead.c |   61 +++++++++++++++++++++++++++++++++--------------
+>  1 file changed, 44 insertions(+), 17 deletions(-)
+> 
+> --- linux-next.orig/mm/readahead.c	2011-12-14 09:50:37.000000000 +0800
+> +++ linux-next/mm/readahead.c	2011-12-14 14:16:15.000000000 +0800
+> @@ -68,7 +68,7 @@ enum ra_account {
+>  	RA_ACCOUNT_MAX,
+>  };
+>  
+> -static unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
+> +static DEFINE_PER_CPU(unsigned long[RA_PATTERN_ALL][RA_ACCOUNT_MAX], ra_stat);
+>  
+>  static void readahead_stats(struct address_space *mapping,
+>  			    pgoff_t offset,
+> @@ -83,38 +83,62 @@ static void readahead_stats(struct addre
+>  {
+>  	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
+>  
+> -recount:
+> -	ra_stats[pattern][RA_ACCOUNT_COUNT]++;
+> -	ra_stats[pattern][RA_ACCOUNT_SIZE] += size;
+> -	ra_stats[pattern][RA_ACCOUNT_ASYNC_SIZE] += async_size;
+> -	ra_stats[pattern][RA_ACCOUNT_ACTUAL] += actual;
+> +	preempt_disable();
+> +
+> +	__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_COUNT]);
+> +	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_SIZE], size);
+> +	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ASYNC_SIZE], async_size);
+> +	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ACTUAL], actual);
+>  
+>  	if (start + size >= eof)
+> -		ra_stats[pattern][RA_ACCOUNT_EOF]++;
+> +		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_EOF]);
+>  	if (actual < size)
+> -		ra_stats[pattern][RA_ACCOUNT_CACHE_HIT]++;
+> +		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_CACHE_HIT]);
+>  
+>  	if (actual) {
+> -		ra_stats[pattern][RA_ACCOUNT_IOCOUNT]++;
+> +		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_IOCOUNT]);
+>  
+>  		if (start <= offset && offset < start + size)
+> -			ra_stats[pattern][RA_ACCOUNT_SYNC]++;
+> +			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_SYNC]);
+>  
+>  		if (for_mmap)
+> -			ra_stats[pattern][RA_ACCOUNT_MMAP]++;
+> +			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_MMAP]);
+>  		if (for_metadata)
+> -			ra_stats[pattern][RA_ACCOUNT_METADATA]++;
+> +			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_METADATA]);
+>  	}
+>  
+> -	if (pattern != RA_PATTERN_ALL) {
+> -		pattern = RA_PATTERN_ALL;
+> -		goto recount;
+> -	}
+> +	preempt_enable();
+> +}
+> +
+> +static void ra_stats_clear(void)
+> +{
+> +	int cpu;
+> +	int i, j;
+> +
+> +	for_each_online_cpu(cpu)
+> +		for (i = 0; i < RA_PATTERN_ALL; i++)
+> +			for (j = 0; j < RA_ACCOUNT_MAX; j++)
+> +				per_cpu(ra_stat[i][j], cpu) = 0;
+> +}
+> +
+> +static void ra_stats_sum(unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
+> +{
+> +	int cpu;
+> +	int i, j;
+> +
+> +	for_each_online_cpu(cpu)
+> +		for (i = 0; i < RA_PATTERN_ALL; i++)
+> +			for (j = 0; j < RA_ACCOUNT_MAX; j++) {
+> +				unsigned long n = per_cpu(ra_stat[i][j], cpu);
+> +				ra_stats[i][j] += n;
+> +				ra_stats[RA_PATTERN_ALL][j] += n;
+> +			}
+>  }
+>  
+>  static int readahead_stats_show(struct seq_file *s, void *_)
+>  {
+>  	unsigned long i;
+> +	unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
+>  
+>  	seq_printf(s,
+>  		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+> @@ -122,6 +146,9 @@ static int readahead_stats_show(struct s
+>  		   "io", "sync_io", "mmap_io", "meta_io",
+>  		   "size", "async_size", "io_size");
+>  
+> +	memset(ra_stats, 0, sizeof(ra_stats));
+> +	ra_stats_sum(ra_stats);
+> +
+>  	for (i = 0; i < RA_PATTERN_MAX; i++) {
+>  		unsigned long count = ra_stats[i][RA_ACCOUNT_COUNT];
+>  		unsigned long iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
+> @@ -159,7 +186,7 @@ static int readahead_stats_open(struct i
+>  static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
+>  				     size_t size, loff_t *offset)
+>  {
+> -	memset(ra_stats, 0, sizeof(ra_stats));
+> +	ra_stats_clear();
+>  	return size;
+>  }
+>  
 -- 
-tejun
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
