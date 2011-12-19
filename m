@@ -1,64 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 077DE6B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 19:02:35 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BFA073EE0C1
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:02:33 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0FCA45DEAD
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:02:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8834645DEA6
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:02:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A06D1DB803B
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:02:33 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F86E1DB8041
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 09:02:33 +0900 (JST)
-Date: Mon, 19 Dec 2011 09:01:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] memcg: simplify page cache charging.
-Message-Id: <20111219090122.66024659.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111216142814.dbb77209.akpm@linux-foundation.org>
-References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111214164922.05fb4afe.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111216142814.dbb77209.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id CEF8A6B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 20:43:47 -0500 (EST)
+Date: Mon, 19 Dec 2011 12:43:43 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: add missing mutex lock arround notify_change
+Message-ID: <20111219014343.GK23662@dastard>
+References: <20111216112534.GA13147@dztty>
+ <20111216125556.db2bf308.akpm@linux-foundation.org>
+ <20111217214137.GY2203@ZenIV.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111217214137.GY2203@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Djalal Harouni <tixxdz@opendz.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Neil Brown <neilb@suse.de>, Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>, Christoph Hellwig <hch@infradead.org>
 
-On Fri, 16 Dec 2011 14:28:14 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed, 14 Dec 2011 16:49:22 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Sat, Dec 17, 2011 at 09:41:37PM +0000, Al Viro wrote:
+> On Fri, Dec 16, 2011 at 12:55:56PM -0800, Andrew Morton wrote:
 > 
-> > Because of commit ef6a3c6311, FUSE uses replace_page_cache() instead
-> > of add_to_page_cache(). Then, mem_cgroup_cache_charge() is not
-> > called against FUSE's pages from splice.
+....
 > 
-> Speaking of ef6a3c6311 ("mm: add replace_page_cache_page() function"),
-> may I pathetically remind people that it's rather inefficient?
-> 
-> http://lkml.indiana.edu/hypermail/linux/kernel/1109.1/00375.html
-> 
+> We have a shitload of deadlocks on very common paths with that patch.  What
+> of the paths that do lead to file_remove_suid() without i_mutex?
+> *	xfs_file_aio_write_checks(): we drop i_mutex (via xfs_rw_iunlock())
+> just before calling file_remove_suid().  Racy, the fix is obvious - move
+> file_remove_suid() call before unlocking.
 
-IIRC, people says inefficient because it uses memcg codes for page-migration
-for fixing up accounting. Now, We added replace-page-cache for memcg in
-memcg-add-mem_cgroup_replace_page_cache-to-fix-lru-issue.patch
+Not exactly. xfs_rw_iunlock() is not doing what you think it's doing
+there.....
 
-So, I think the problem originally mentioned is fixed.
+> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> index 753ed9b..33705b1 100644
+> --- a/fs/xfs/xfs_file.c
+> +++ b/fs/xfs/xfs_file.c
+> @@ -750,17 +750,16 @@ restart:
+>  		*new_sizep = new_size;
+>  	}
+>  
+> -	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+> -	if (error)
+> -		return error;
+> -
+>  	/*
+>  	 * If we're writing the file then make sure to clear the setuid and
+>  	 * setgid bits if the process is not being run by root.  This keeps
+>  	 * people from modifying setuid and setgid binaries.
+>  	 */
+> -	return file_remove_suid(file);
+> +	if (!error)
+> +		error = file_remove_suid(file);
+>  
+> +	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+                               ^^^^^
+> +	return error;
 
-I'll reconsinder LRU handling optimization after things seems to be good.
+Wrong lock.  That's dropping the internal XFS inode metadata lock,
+but the VFS i_mutex is associated with the internal XFS inode IO
+lock, which is accessed via XFS_IOLOCK_*. Only if we take the iolock
+via XFS_IOLOCK_EXCL do we actually take the i_mutex.
 
-Thanks,
--Kame
+Now it gets complex. For buffered IO, we are guaranteed to already
+be holding the i_mutex because we do:
+
+        *iolock = XFS_IOLOCK_EXCL;
+        xfs_rw_ilock(ip, *iolock);
+
+        ret = xfs_file_aio_write_checks(file, &pos, &count, new_size, iolock);
+
+So that is safe and non-racy right now.
+
+For direct IO, however, we don't always take the IOLOCK exclusively.
+Indeed, we try really, really hard not to do this so we can do
+concurrent reads and writes to the inode, and that results
+in a bunch of lock juggling when we actually need the IOLOCK
+exclusive (like in xfs_file_aio_write_checks()). It sounds like we
+need to know if we are going to have to remove the SUID bit ahead of
+time so that we can  take the correct lock up front. I haven't
+looked at what is needed to do that yet.
+
+As it is, Christoph has a patch set out that I've already reviewed
+for 3.3 that significantly changes the logic and flow of the locking
+through this path, so we probably should fix this in that series as
+for most applications it is already OK and non-racy.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
