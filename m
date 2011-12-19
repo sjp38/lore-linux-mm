@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id E8D126B005C
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 05:36:33 -0500 (EST)
-Message-Id: <20111219102357.846551861@intel.com>
-Date: Mon, 19 Dec 2011 18:23:18 +0800
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id A85B16B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 05:36:31 -0500 (EST)
+Message-Id: <20111219102308.488847921@intel.com>
+Date: Mon, 19 Dec 2011 18:23:08 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 10/10] readahead: snap readahead request to EOF
-References: <20111219102308.488847921@intel.com>
-Content-Disposition: inline; filename=readahead-eof
+Subject: [PATCH 00/10] readahead stats/tracing, backwards prefetching and more (v3)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
 
-If the file size is 20kb and readahead request is [0, 16kb),
-it's better to expand the readahead request to [0, 20kb), which will
-likely save one followup I/O for the ending [16kb, 20kb).
+Andrew,
 
-If the readahead request already covers EOF, trimm it down to EOF.
-Also don't set the PG_readahead mark to avoid an unnecessary future
-invocation of the readahead code.
+This introduces the per-cpu readahead stats, tracing, backwards prefetching,
+fixes context readahead for SSD random reads and does some other minor changes.
 
-This special handling looks worthwhile because small to medium sized
-files are pretty common.
+Changes since v2:
+- use per-cpu counters for readahead stats
+- make context readahead more conservative
+- simplify readahead tracing format and use __print_symbolic()
+- backwards prefetching and snap to EOF fixes and cleanups
 
-Acked-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/readahead.c |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+Changes since v1:
+- use bit fields: pattern, for_mmap, for_metadata, lseek
+- comment the various readahead patterns
+- drop boot options "readahead=" and "readahead_stats="
+- add for_metadata
+- add snapping to EOF
 
---- linux-next.orig/mm/readahead.c	2011-12-19 16:09:45.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-12-19 16:10:04.000000000 +0800
-@@ -457,6 +457,25 @@ unsigned long max_sane_readahead(unsigne
- 		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
- }
- 
-+static void snap_to_eof(struct file_ra_state *ra, struct address_space *mapping)
-+{
-+	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
-+	pgoff_t start = ra->start;
-+	unsigned int size = ra->size;
-+
-+	/*
-+	 * skip backwards and random reads
-+	 */
-+	if (ra->pattern > RA_PATTERN_MMAP_AROUND)
-+		return;
-+
-+	size += min(size / 2, ra->ra_pages / 4);
-+	if (start + size > eof) {
-+		ra->size = eof - start;
-+		ra->async_size = 0;
-+	}
-+}
-+
- /*
-  * Submit IO for the read-ahead request in file_ra_state.
-  */
-@@ -468,6 +487,8 @@ unsigned long ra_submit(struct file_ra_s
- {
- 	int actual;
- 
-+	snap_to_eof(ra, mapping);
-+
- 	actual = __do_page_cache_readahead(mapping, filp,
- 					ra->start, ra->size, ra->async_size);
- 
+ [PATCH 01/10] block: limit default readahead size for small devices
+ [PATCH 02/10] readahead: make context readahead more conservative
+ [PATCH 03/10] readahead: record readahead patterns
+ [PATCH 04/10] readahead: tag mmap page fault call sites
+ [PATCH 05/10] readahead: tag metadata call sites
+ [PATCH 06/10] readahead: add vfs/readahead tracing event
+ [PATCH 07/10] readahead: add /debug/readahead/stats
+ [PATCH 08/10] readahead: basic support for backwards prefetching
+ [PATCH 09/10] readahead: dont do start-of-file readahead after lseek()
+ [PATCH 10/10] readahead: snap readahead request to EOF
+
+ block/genhd.c              |   20 ++
+ fs/Makefile                |    1 
+ fs/ext3/dir.c              |    1 
+ fs/ext4/dir.c              |    1 
+ fs/read_write.c            |    3 
+ fs/trace.c                 |    2 
+ include/linux/fs.h         |   41 ++++
+ include/linux/mm.h         |    4 
+ include/trace/events/vfs.h |   78 +++++++++
+ mm/Kconfig                 |   15 +
+ mm/filemap.c               |    9 -
+ mm/readahead.c             |  301 +++++++++++++++++++++++++++++++++--
+ 12 files changed, 461 insertions(+), 15 deletions(-)
+
+Thanks,
+Fengguang
+
 
 
 --
