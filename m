@@ -1,397 +1,379 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id D8CB96B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 01:41:49 -0500 (EST)
-Received: by yhgm50 with SMTP id m50so2544725yhg.14
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 22:41:48 -0800 (PST)
-Date: Sun, 18 Dec 2011 22:41:39 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] radix_tree: take radix_tree_path off stack
-Message-ID: <alpine.LSU.2.00.1112182234310.1503@eggly.anvils>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 760DD6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 02:48:58 -0500 (EST)
+Received: by ggni2 with SMTP id i2so5009062ggn.14
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2011 23:48:57 -0800 (PST)
+Date: Mon, 19 Dec 2011 16:48:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+Message-ID: <20111219074843.GA21324@barrios-laptop.redhat.com>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Down, down in the deepest depths of GFP_NOIO page reclaim, we have
-shrink_page_list() calling __remove_mapping() calling __delete_from_
-swap_cache() or __delete_from_page_cache().
+On Mon, Dec 19, 2011 at 06:53:28AM +0400, Anton Vorontsov wrote:
+> Hello everyone,
+> 
+> Some background: Android apps never exit, instead they just save state
+> and become inactive, and only get killed when memory usage hits a
+> specific threshold. This strategy greatly improves user experience,
+> as "start-up" time becomes non-issue. There are several application
+> categories and for each category there is its own limit (e.g. background
+> vs. foreground app -- we never want to kill foreground tasks, but that's
+> details).
+> 
+> So, Android developers came with a Lowmemory killer driver, it receives
+> memory pressure notifications, and then kills appropriate tasks when
+> memory resources become low.
+> 
+> Some time ago there were a lot of discussions regarding this driver,
+> and it seems that people see different ways of how this should be
+> implemented.
+> 
+> Today I'd like to resurrect the discussion, and eventually come to a
+> solution (or, if there is a group of people already working on this,
+> please let me know -- I'd readily help with anything I could).
+> 
+> The last time the two main approaches were spoken out, which both assume
+> that kernel should not be responsible for killing tasks:
 
-You would not expect those to need much stack, but in fact they call
-radix_tree_delete(): which declares a 192-byte radix_tree_path array
-on its stack (to record the node,offsets it visits when descending,
-in case it needs to ascend to update them).  And if any tag is still
-set [1], that calls radix_tree_tag_clear(), which declares a further
-such 192-byte radix_tree_path array on the stack.  (At least we have
-interrupts disabled here, so won't then be pushing registers too.)
+Right.
+Kernel should have just signal role when resource is not enough.
+It is desirable that killing is role of user space.
+The problem is accurate receiving signal time.
+For example, Let assume A, B, C applications.
 
-That was probably a good choice when most users were 32-bit (array
-of half the size), and adding fields to radix_tree_node would have
-bloated it unnecessarily.  But nowadays many are 64-bit, and each
-radix_tree_node contains a struct rcu_head, which is only used when
-freeing; whereas the radix_tree_path info is only used for updating
-the tree (deleting, clearing tags or setting tags if tagged) when a
-lock must be held, of no interest when accessing the tree locklessly.
+A application want to receive signal if system memory is below 4M
+If A receive the signal, it is supposed to kill B.
 
-So add a parent pointer to the radix_tree_node, in union with the
-rcu_head, and remove all uses of the radix_tree_path.  There would
-be space in that union to save the offset when descending as before
-(we can argue that a lock must already be held to exclude other users),
-but recalculating it when ascending is both easy (a constant shift and
-a constant mask) and uncommon, so it seems better just to do that.
+1. memory pressure
+2. kernel detect memory is under 4M
+3. kernel signal to A
+4. schedule in B
+5. B consume lots of memory
+6. OOM happens
+7. OOM kills C and schedule A
+8. A kill B
 
-Two little optimizations: no need to decrement height when descending,
-adjusting shift is enough; and once radix_tree_tag_if_tagged() has set
-tag on a node and its ancestors, it need not ascend from that node again.
+B and C is dead :(
 
-perf on the radix tree test harness reports radix_tree_insert() as 2%
-slower (now having to set parent), but radix_tree_delete() 24% faster.
-Surely that's an exaggeration from rtth's artificially low map shift 3,
-but forcing it back to 6 still rates radix_tree_delete() 8% faster.
+It's not what we want.
+ 
+> 
+> - Use memory controller cgroup (CGROUP_MEM_RES_CTLR) notifications from
+>   the kernel side, plus userland "manager" that would kill applications.
+> 
+>   The main downside of this approach is that mem_cg needs 20 bytes per
+>   page (on a 32 bit machine). So on a 32 bit machine with 4K pages
+>   that's approx. 0.5% of RAM, or, in other words, 5MB on a 1GB machine.
+> 
+>   0.5% doesn't sound too bad, but 5MB does, quite a little bit. So,
+>   mem_cg feels like an overkill for this simple task (see the driver at
+>   the very bottom).
 
-[1] Can a pagecache tag (dirty, writeback or towrite) actually still be
-set at the time of radix_tree_delete()?  Perhaps not if the filesystem
-is well-behaved.  But although I've not tracked any stack overflow down
-to this cause, I have observed a curious case in which a dirty tag is
-set and left set on tmpfs: page migration's migrate_page_copy() happens
-to use __set_page_dirty_nobuffers() to set PageDirty on the newpage,
-and that sets PAGECACHE_TAG_DIRTY as a side-effect - harmless to a
-filesystem which doesn't use tags, except for this stack depth issue.
+Agree.
+Although current embedded system have enough memory, it is overkill that
+enabling memcg for just memcg notification.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
-----
+> 
+> - Use some new low memory notifications mechanism from the kernel side +
+>   userland manager that would react to the notifications and would kill
+>   the tasks.
+> 
+>   The main downside of this approach is that the new mechanism does
+>   not exist. :-) "Big iron" people happily use mem_cg notifications,
+>   and things like /dev/mem_notify died circa 2008 as there was too
+>   little interest in it. See http://lkml.org/lkml/2009/1/20/404
 
- lib/radix-tree.c |  148 +++++++++++++++++++++------------------------
- 1 file changed, 70 insertions(+), 78 deletions(-)
+I like mem_notify if we can solve the problem I mentioned.
 
---- 3.2-rc6/lib/radix-tree.c	2011-11-07 19:24:53.342418579 -0800
-+++ linux/lib/radix-tree.c	2011-12-16 20:40:26.152758485 -0800
-@@ -48,16 +48,14 @@
- struct radix_tree_node {
- 	unsigned int	height;		/* Height from the bottom */
- 	unsigned int	count;
--	struct rcu_head	rcu_head;
-+	union {
-+		struct radix_tree_node *parent;	/* Used when ascending tree */
-+		struct rcu_head	rcu_head;	/* Used when freeing node */
-+	};
- 	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
- 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
- };
- 
--struct radix_tree_path {
--	struct radix_tree_node *node;
--	int offset;
--};
--
- #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
- #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
- 					  RADIX_TREE_MAP_SHIFT))
-@@ -256,6 +254,7 @@ static inline unsigned long radix_tree_m
- static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
- {
- 	struct radix_tree_node *node;
-+	struct radix_tree_node *slot;
- 	unsigned int height;
- 	int tag;
- 
-@@ -274,18 +273,23 @@ static int radix_tree_extend(struct radi
- 		if (!(node = radix_tree_node_alloc(root)))
- 			return -ENOMEM;
- 
--		/* Increase the height.  */
--		node->slots[0] = indirect_to_ptr(root->rnode);
--
- 		/* Propagate the aggregated tag info into the new root */
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
- 			if (root_tag_get(root, tag))
- 				tag_set(node, tag, 0);
- 		}
- 
-+		/* Increase the height.  */
- 		newheight = root->height+1;
- 		node->height = newheight;
- 		node->count = 1;
-+		node->parent = NULL;
-+		slot = root->rnode;
-+		if (newheight > 1) {
-+			slot = indirect_to_ptr(slot);
-+			slot->parent = node;
-+		}
-+		node->slots[0] = slot;
- 		node = ptr_to_indirect(node);
- 		rcu_assign_pointer(root->rnode, node);
- 		root->height = newheight;
-@@ -331,6 +335,7 @@ int radix_tree_insert(struct radix_tree_
- 			if (!(slot = radix_tree_node_alloc(root)))
- 				return -ENOMEM;
- 			slot->height = height;
-+			slot->parent = node;
- 			if (node) {
- 				rcu_assign_pointer(node->slots[offset], slot);
- 				node->count++;
-@@ -504,47 +509,41 @@ EXPORT_SYMBOL(radix_tree_tag_set);
- void *radix_tree_tag_clear(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag)
- {
--	/*
--	 * The radix tree path needs to be one longer than the maximum path
--	 * since the "list" is null terminated.
--	 */
--	struct radix_tree_path path[RADIX_TREE_MAX_PATH + 1], *pathp = path;
-+	struct radix_tree_node *node = NULL;
- 	struct radix_tree_node *slot = NULL;
- 	unsigned int height, shift;
-+	int uninitialized_var(offset);
- 
- 	height = root->height;
- 	if (index > radix_tree_maxindex(height))
- 		goto out;
- 
--	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
--	pathp->node = NULL;
-+	shift = height * RADIX_TREE_MAP_SHIFT;
- 	slot = indirect_to_ptr(root->rnode);
- 
--	while (height > 0) {
--		int offset;
--
-+	while (shift) {
- 		if (slot == NULL)
- 			goto out;
- 
-+		shift -= RADIX_TREE_MAP_SHIFT;
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--		pathp[1].offset = offset;
--		pathp[1].node = slot;
-+		node = slot;
- 		slot = slot->slots[offset];
--		pathp++;
--		shift -= RADIX_TREE_MAP_SHIFT;
--		height--;
- 	}
- 
- 	if (slot == NULL)
- 		goto out;
- 
--	while (pathp->node) {
--		if (!tag_get(pathp->node, tag, pathp->offset))
-+	while (node) {
-+		if (!tag_get(node, tag, offset))
- 			goto out;
--		tag_clear(pathp->node, tag, pathp->offset);
--		if (any_tag_set(pathp->node, tag))
-+		tag_clear(node, tag, offset);
-+		if (any_tag_set(node, tag))
- 			goto out;
--		pathp--;
-+
-+		index >>= RADIX_TREE_MAP_SHIFT;
-+		offset = index & RADIX_TREE_MAP_MASK;
-+		node = node->parent;
- 	}
- 
- 	/* clear the root's tag bit */
-@@ -646,8 +645,7 @@ unsigned long radix_tree_range_tag_if_ta
- 		unsigned int iftag, unsigned int settag)
- {
- 	unsigned int height = root->height;
--	struct radix_tree_path path[height];
--	struct radix_tree_path *pathp = path;
-+	struct radix_tree_node *node = NULL;
- 	struct radix_tree_node *slot;
- 	unsigned int shift;
- 	unsigned long tagged = 0;
-@@ -671,14 +669,8 @@ unsigned long radix_tree_range_tag_if_ta
- 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
- 	slot = indirect_to_ptr(root->rnode);
- 
--	/*
--	 * we fill the path from (root->height - 2) to 0, leaving the index at
--	 * (root->height - 1) as a terminator. Zero the node in the terminator
--	 * so that we can use this to end walk loops back up the path.
--	 */
--	path[height - 1].node = NULL;
--
- 	for (;;) {
-+		unsigned long upindex;
- 		int offset;
- 
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-@@ -686,12 +678,10 @@ unsigned long radix_tree_range_tag_if_ta
- 			goto next;
- 		if (!tag_get(slot, iftag, offset))
- 			goto next;
--		if (height > 1) {
-+		if (shift) {
- 			/* Go down one level */
--			height--;
- 			shift -= RADIX_TREE_MAP_SHIFT;
--			path[height - 1].node = slot;
--			path[height - 1].offset = offset;
-+			node = slot;
- 			slot = slot->slots[offset];
- 			continue;
- 		}
-@@ -701,15 +691,21 @@ unsigned long radix_tree_range_tag_if_ta
- 		tag_set(slot, settag, offset);
- 
- 		/* walk back up the path tagging interior nodes */
--		pathp = &path[0];
--		while (pathp->node) {
-+		upindex = index;
-+		while (node) {
-+			upindex >>= RADIX_TREE_MAP_SHIFT;
-+			offset = upindex & RADIX_TREE_MAP_MASK;
-+
- 			/* stop if we find a node with the tag already set */
--			if (tag_get(pathp->node, settag, pathp->offset))
-+			if (tag_get(node, settag, offset))
- 				break;
--			tag_set(pathp->node, settag, pathp->offset);
--			pathp++;
-+			tag_set(node, settag, offset);
-+			node = node->parent;
- 		}
- 
-+		/* optimization: no need to walk up from this node again */
-+		node = NULL;
-+
- next:
- 		/* Go to next item at level determined by 'shift' */
- 		index = ((index >> shift) + 1) << shift;
-@@ -724,8 +720,7 @@ next:
- 			 * last_index is guaranteed to be in the tree, what
- 			 * we do below cannot wander astray.
- 			 */
--			slot = path[height - 1].node;
--			height++;
-+			slot = slot->parent;
- 			shift += RADIX_TREE_MAP_SHIFT;
- 		}
- 	}
-@@ -1299,7 +1294,7 @@ static inline void radix_tree_shrink(str
- 	/* try to shrink tree height */
- 	while (root->height > 0) {
- 		struct radix_tree_node *to_free = root->rnode;
--		void *newptr;
-+		struct radix_tree_node *slot;
- 
- 		BUG_ON(!radix_tree_is_indirect_ptr(to_free));
- 		to_free = indirect_to_ptr(to_free);
-@@ -1320,10 +1315,12 @@ static inline void radix_tree_shrink(str
- 		 * (to_free->slots[0]), it will be safe to dereference the new
- 		 * one (root->rnode) as far as dependent read barriers go.
- 		 */
--		newptr = to_free->slots[0];
--		if (root->height > 1)
--			newptr = ptr_to_indirect(newptr);
--		root->rnode = newptr;
-+		slot = to_free->slots[0];
-+		if (root->height > 1) {
-+			slot->parent = NULL;
-+			slot = ptr_to_indirect(slot);
-+		}
-+		root->rnode = slot;
- 		root->height--;
- 
- 		/*
-@@ -1363,16 +1360,12 @@ static inline void radix_tree_shrink(str
-  */
- void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
- {
--	/*
--	 * The radix tree path needs to be one longer than the maximum path
--	 * since the "list" is null terminated.
--	 */
--	struct radix_tree_path path[RADIX_TREE_MAX_PATH + 1], *pathp = path;
-+	struct radix_tree_node *node = NULL;
- 	struct radix_tree_node *slot = NULL;
- 	struct radix_tree_node *to_free;
- 	unsigned int height, shift;
- 	int tag;
--	int offset;
-+	int uninitialized_var(offset);
- 
- 	height = root->height;
- 	if (index > radix_tree_maxindex(height))
-@@ -1385,39 +1378,35 @@ void *radix_tree_delete(struct radix_tre
- 		goto out;
- 	}
- 	slot = indirect_to_ptr(slot);
--
--	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
--	pathp->node = NULL;
-+	shift = height * RADIX_TREE_MAP_SHIFT;
- 
- 	do {
- 		if (slot == NULL)
- 			goto out;
- 
--		pathp++;
-+		shift -= RADIX_TREE_MAP_SHIFT;
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--		pathp->offset = offset;
--		pathp->node = slot;
-+		node = slot;
- 		slot = slot->slots[offset];
--		shift -= RADIX_TREE_MAP_SHIFT;
--		height--;
--	} while (height > 0);
-+	} while (shift);
- 
- 	if (slot == NULL)
- 		goto out;
- 
- 	/*
--	 * Clear all tags associated with the just-deleted item
-+	 * Clear all tags associated with the item to be deleted.
-+	 * This way of doing it would be inefficient, but seldom is any set.
- 	 */
- 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
--		if (tag_get(pathp->node, tag, pathp->offset))
-+		if (tag_get(node, tag, offset))
- 			radix_tree_tag_clear(root, index, tag);
- 	}
- 
- 	to_free = NULL;
- 	/* Now free the nodes we do not need anymore */
--	while (pathp->node) {
--		pathp->node->slots[pathp->offset] = NULL;
--		pathp->node->count--;
-+	while (node) {
-+		node->slots[offset] = NULL;
-+		node->count--;
- 		/*
- 		 * Queue the node for deferred freeing after the
- 		 * last reference to it disappears (set NULL, above).
-@@ -1425,17 +1414,20 @@ void *radix_tree_delete(struct radix_tre
- 		if (to_free)
- 			radix_tree_node_free(to_free);
- 
--		if (pathp->node->count) {
--			if (pathp->node == indirect_to_ptr(root->rnode))
-+		if (node->count) {
-+			if (node == indirect_to_ptr(root->rnode))
- 				radix_tree_shrink(root);
- 			goto out;
- 		}
- 
- 		/* Node with zero slots in use so free it */
--		to_free = pathp->node;
--		pathp--;
-+		to_free = node;
- 
-+		index >>= RADIX_TREE_MAP_SHIFT;
-+		offset = index & RADIX_TREE_MAP_MASK;
-+		node = node->parent;
- 	}
-+
- 	root_tag_clear_all(root);
- 	root->height = 0;
- 	root->rnode = NULL;
+> 
+> 
+> (There were also suggestions to integrate lowmemory killer functionality
+> into OOM killer, but I see little point in doing this as the OOM
+> killer and lowmemory killer have different "triggers": OOM killer is
+> a quite simple last-resort thing for the kernel, it is called from
+> the kernel allocators' fail paths, and, IIRC, it is even synchronous w/
+> GFP_NOFAIL. I don't think that there could be any code or ABI reuse.)
+> 
+> So, the main difference between current Android lowmemory killer and
+> the approaches above is that the "killer" function suggested to be
+> factored out to the userland code. This makes sense as it is userland
+> that is categorizing tasks-to-kill (in the current lowmemory killer
+> driver via controlling OOM adj value).
+> 
+> Personally I'd start thinking about the new [lightweight] notification
+> stuff, i.e. something without mem_cg's downsides. Though, I'm Cc'ing
+> Android folks so maybe they could enlighten us why in-kernel "lowmemory
+> manager" might be a better idea. Plus Cc'ing folks that I think might
+> be interested in this discussion.
+> 
+> Thanks!
+> 
+> p.s.
+> 
+> I'm inlining the android memory killer code down below, just for the
+> reference. It is quite small (and useful... though, currently only for
+> Android case).
+> 
+> - - - -
+> From: Arve Hjonnevag <arve@android.com>
+> Subject: Android low memory killer driver
+> 
+> The lowmemorykiller driver lets user-space specify a set of memory thresholds
+> where processes with a range of oom_adj values will get killed. Specify the
+> minimum oom_adj values in /sys/module/lowmemorykiller/parameters/adj and the
+> number of free pages in /sys/module/lowmemorykiller/parameters/minfree. Both
+> files take a comma separated list of numbers in ascending order.
+> 
+> For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
+> "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill processes
+> with a oom_adj value of 8 or higher when the free memory drops below 4096 pages
+> and kill processes with a oom_adj value of 0 or higher when the free memory
+> drops below 1024 pages.
+> 
+> The driver considers memory used for caches to be free, but if a large
+> percentage of the cached memory is locked this can be very inaccurate
+> and processes may not get killed until the normal oom killer is triggered.
+> 
+> ---
+>  mm/Kconfig           |    7 ++
+>  mm/Makefile          |    1 +
+>  mm/lowmemorykiller.c |  175 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 183 insertions(+), 0 deletions(-)
+>  create mode 100644 mm/lowmemorykiller.c
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 011b110..a2e7959 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -259,6 +259,12 @@ config DEFAULT_MMAP_MIN_ADDR
+>  	  This value can be changed after boot using the
+>  	  /proc/sys/vm/mmap_min_addr tunable.
+>  
+> +config LOW_MEMORY_KILLER
+> +	bool "Low Memory Killer"
+> +	help
+> +	  The lowmemorykiller driver lets user-space specify a set of memory
+> +	  thresholds where processes will get killed.
+> +
+>  config ARCH_SUPPORTS_MEMORY_FAILURE
+>  	bool
+>  
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 50ec00e..10fb4ff 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -47,6 +47,7 @@ obj-$(CONFIG_QUICKLIST) += quicklist.o
+>  obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
+>  obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
+>  obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+> +obj-$(CONFIG_LOW_MEMORY_KILLER)	+= lowmemorykiller.o
+>  obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+>  obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+>  obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+> diff --git a/mm/lowmemorykiller.c b/mm/lowmemorykiller.c
+> new file mode 100644
+> index 0000000..4e51936
+> --- /dev/null
+> +++ b/mm/lowmemorykiller.c
+> @@ -0,0 +1,175 @@
+> +/*
+> + * The lowmemorykiller driver lets user-space specify a set of memory thresholds
+> + * where processes with a range of oom_adj values will get killed. Specify the
+> + * minimum oom_adj values in /sys/module/lowmemorykiller/parameters/adj and the
+> + * number of free pages in /sys/module/lowmemorykiller/parameters/minfree. Both
+> + * files take a comma separated list of numbers in ascending order.
+> + *
+> + * For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
+> + * "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill processes
+> + * with a oom_adj value of 8 or higher when the free memory drops below 4096 pages
+> + * and kill processes with a oom_adj value of 0 or higher when the free memory
+> + * drops below 1024 pages.
+> + *
+> + * The driver considers memory used for caches to be free, but if a large
+> + * percentage of the cached memory is locked this can be very inaccurate
+> + * and processes may not get killed until the normal oom killer is triggered.
+> + *
+> + * Copyright (C) 2007-2008 Google, Inc.
+> + *
+> + * This software is licensed under the terms of the GNU General Public
+> + * License version 2, as published by the Free Software Foundation, and
+> + * may be copied, distributed, and modified under those terms.
+> + *
+> + * This program is distributed in the hope that it will be useful,
+> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> + * GNU General Public License for more details.
+> + *
+> + */
+> +
+> +#include <linux/module.h>
+> +#include <linux/kernel.h>
+> +#include <linux/mm.h>
+> +#include <linux/oom.h>
+> +#include <linux/sched.h>
+> +#include <linux/notifier.h>
+> +
+> +static uint32_t lowmem_debug_level = 2;
+> +static int lowmem_adj[6] = {
+> +	0,
+> +	1,
+> +	6,
+> +	12,
+> +};
+> +static int lowmem_adj_size = 4;
+> +static size_t lowmem_minfree[6] = {
+> +	3 * 512,	/* 6MB */
+> +	2 * 1024,	/* 8MB */
+> +	4 * 1024,	/* 16MB */
+> +	16 * 1024,	/* 64MB */
+> +};
+> +static int lowmem_minfree_size = 4;
+> +
+> +#define lowmem_print(level, x...)			\
+> +	do {						\
+> +		if (lowmem_debug_level >= (level))	\
+> +			printk(x);			\
+> +	} while (0)
+> +
+> +static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
+> +{
+> +	struct task_struct *p;
+> +	struct task_struct *selected = NULL;
+> +	int rem = 0;
+> +	int tasksize;
+> +	int i;
+> +	int min_adj = OOM_ADJUST_MAX + 1;
+> +	int selected_tasksize = 0;
+> +	int selected_oom_adj;
+> +	int array_size = ARRAY_SIZE(lowmem_adj);
+> +	int other_free = global_page_state(NR_FREE_PAGES);
+> +	int other_file = global_page_state(NR_FILE_PAGES) -
+> +						global_page_state(NR_SHMEM);
+> +
+> +	if (lowmem_adj_size < array_size)
+> +		array_size = lowmem_adj_size;
+> +	if (lowmem_minfree_size < array_size)
+> +		array_size = lowmem_minfree_size;
+> +	for (i = 0; i < array_size; i++) {
+> +		if (other_free < lowmem_minfree[i] &&
+> +		    other_file < lowmem_minfree[i]) {
+> +			min_adj = lowmem_adj[i];
+> +			break;
+> +		}
+> +	}
+> +	if (sc->nr_to_scan > 0)
+> +		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
+> +			     sc->nr_to_scan, sc->gfp_mask, other_free, other_file,
+> +			     min_adj);
+> +	rem = global_page_state(NR_ACTIVE_ANON) +
+> +		global_page_state(NR_ACTIVE_FILE) +
+> +		global_page_state(NR_INACTIVE_ANON) +
+> +		global_page_state(NR_INACTIVE_FILE);
+> +	if (sc->nr_to_scan <= 0 || min_adj == OOM_ADJUST_MAX + 1) {
+> +		lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
+> +			     sc->nr_to_scan, sc->gfp_mask, rem);
+> +		return rem;
+> +	}
+> +	selected_oom_adj = min_adj;
+> +
+> +	read_lock(&tasklist_lock);
+> +	for_each_process(p) {
+> +		struct mm_struct *mm;
+> +		struct signal_struct *sig;
+> +		int oom_adj;
+> +
+> +		task_lock(p);
+> +		mm = p->mm;
+> +		sig = p->signal;
+> +		if (!mm || !sig) {
+> +			task_unlock(p);
+> +			continue;
+> +		}
+> +		oom_adj = sig->oom_adj;
+> +		if (oom_adj < min_adj) {
+> +			task_unlock(p);
+> +			continue;
+> +		}
+> +		tasksize = get_mm_rss(mm);
+> +		task_unlock(p);
+> +		if (tasksize <= 0)
+> +			continue;
+> +		if (selected) {
+> +			if (oom_adj < selected_oom_adj)
+> +				continue;
+> +			if (oom_adj == selected_oom_adj &&
+> +			    tasksize <= selected_tasksize)
+> +				continue;
+> +		}
+> +		selected = p;
+> +		selected_tasksize = tasksize;
+> +		selected_oom_adj = oom_adj;
+> +		lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
+> +			     p->pid, p->comm, oom_adj, tasksize);
+> +	}
+> +	if (selected) {
+> +		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+> +			     selected->pid, selected->comm,
+> +			     selected_oom_adj, selected_tasksize);
+> +		force_sig(SIGKILL, selected);
+> +		rem -= selected_tasksize;
+> +	}
+> +	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
+> +		     sc->nr_to_scan, sc->gfp_mask, rem);
+> +	read_unlock(&tasklist_lock);
+> +	return rem;
+> +}
+> +
+> +static struct shrinker lowmem_shrinker = {
+> +	.shrink = lowmem_shrink,
+> +	.seeks = DEFAULT_SEEKS * 16
+> +};
+> +
+> +static int __init lowmem_init(void)
+> +{
+> +	register_shrinker(&lowmem_shrinker);
+> +	return 0;
+> +}
+> +
+> +static void __exit lowmem_exit(void)
+> +{
+> +	unregister_shrinker(&lowmem_shrinker);
+> +}
+> +
+> +module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
+> +module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
+> +			 S_IRUGO | S_IWUSR);
+> +module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
+> +			 S_IRUGO | S_IWUSR);
+> +module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+> +
+> +module_init(lowmem_init);
+> +module_exit(lowmem_exit);
+> +
+> +MODULE_LICENSE("GPL");
+> -- 
+> 1.7.7.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
