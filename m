@@ -1,129 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id E4BC36B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 06:05:56 -0500 (EST)
-Date: Mon, 19 Dec 2011 11:05:51 +0000
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id C3CF66B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 06:45:27 -0500 (EST)
+Date: Mon, 19 Dec 2011 11:45:22 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 05/11] mm: compaction: Determine if dirty pages can be
- migrated without blocking within ->migratepage
-Message-ID: <20111219110551.GJ3487@suse.de>
+Subject: Re: [PATCH 08/11] mm: compaction: Introduce sync-light migration for
+ use by compaction
+Message-ID: <20111219114522.GK3487@suse.de>
 References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
- <1323877293-15401-6-git-send-email-mgorman@suse.de>
- <20111216152054.f7445e98.akpm@linux-foundation.org>
+ <1323877293-15401-9-git-send-email-mgorman@suse.de>
+ <20111218020552.GB13069@barrios-laptop.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20111216152054.f7445e98.akpm@linux-foundation.org>
+In-Reply-To: <20111218020552.GB13069@barrios-laptop.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 16, 2011 at 03:20:54PM -0800, Andrew Morton wrote:
-> On Wed, 14 Dec 2011 15:41:27 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
+On Sun, Dec 18, 2011 at 11:05:52AM +0900, Minchan Kim wrote:
+> On Wed, Dec 14, 2011 at 03:41:30PM +0000, Mel Gorman wrote:
+> > This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIGHT
+> > mode that avoids writing back pages to backing storage. Async
+> > compaction maps to MIGRATE_ASYNC while sync compaction maps to
+> > MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
+> > hotplug, MIGRATE_SYNC is used.
+> > 
+> > This avoids sync compaction stalling for an excessive length of time,
+> > particularly when copying files to a USB stick where there might be
+> > a large number of dirty pages backed by a filesystem that does not
+> > support ->writepages.
+> > 
+> > [aarcange@redhat.com: This patch is heavily based on Andrea's work]
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> > Asynchronous compaction is used when allocating transparent hugepages
-> > to avoid blocking for long periods of time. Due to reports of
-> > stalling, there was a debate on disabling synchronous compaction
-> > but this severely impacted allocation success rates. Part of the
-> > reason was that many dirty pages are skipped in asynchronous compaction
-> > by the following check;
-> > 
-> > 	if (PageDirty(page) && !sync &&
-> > 		mapping->a_ops->migratepage != migrate_page)
-> > 			rc = -EBUSY;
-> > 
-> > This skips over all mapping aops using buffer_migrate_page()
-> > even though it is possible to migrate some of these pages without
-> > blocking. This patch updates the ->migratepage callback with a "sync"
-> > parameter. It is the responsibility of the callback to fail gracefully
-> > if migration would block.
-> > 
-> > ...
-> >
-> > @@ -259,6 +309,19 @@ static int migrate_page_move_mapping(struct address_space *mapping,
-> >  	}
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> 
+
+Thanks.
+
+> > <SNIP>
+> > diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> > index 10b9883..6b80537 100644
+> > --- a/fs/hugetlbfs/inode.c
+> > +++ b/fs/hugetlbfs/inode.c
+> > @@ -577,7 +577,7 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 > >  
-> >  	/*
-> > +	 * In the async migration case of moving a page with buffers, lock the
-> > +	 * buffers using trylock before the mapping is moved. If the mapping
-> > +	 * was moved, we later failed to lock the buffers and could not move
-> > +	 * the mapping back due to an elevated page count, we would have to
-> > +	 * block waiting on other references to be dropped.
-> > +	 */
-> > +	if (!sync && head && !buffer_migrate_lock_buffers(head, sync)) {
+> >  static int hugetlbfs_migrate_page(struct address_space *mapping,
+> >  				struct page *newpage, struct page *page,
+> > -				bool sync)
+> > +				enum migrate_mode mode)
 > 
-> Once it has been established that "sync" is true, I find it clearer to
-> pass in plain old "true" to buffer_migrate_lock_buffers().  Minor point.
+> Nitpick, except this one, we use enum migrate_mode sync.
 > 
 
-Later in the series, sync changes to "mode" to distinguish between
-async, sync-light and sync compaction. At that point, this becomes
+Actually, in all the core code, I used "mode" but I was inconsistent in
+the headers and some of the filesystems. I should have converted all use
+of "sync" which was a boolean to a mode which has three possible values
+after this patch.
 
-        if (mode == MIGRATE_ASYNC && head &&
-                        !buffer_migrate_lock_buffers(head, mode)) {
+==== CUT HERE ====
+mm: compaction: Introduce sync-light migration for use by compaction fix
 
-Passing true in here would be fine, but it would just end up being
-changed back later in the series so it can be left alone.
+Consistently name enum migrate_mode parameters "mode" instead of "sync".
 
-> I hadn't paid a lot of attention to buffer_migrate_page() before. 
-> Scary function.  I'm rather worried about its interactions with ext3
-> journal commit which locks buffers then plays with them while leaving
-> the page unlocked.  How vigorously has this been whitebox-tested?
-> 
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ fs/btrfs/disk-io.c      |    2 +-
+ fs/nfs/write.c          |    2 +-
+ include/linux/migrate.h |    8 ++++----
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
-Blackbox testing only AFAIK. This has been tested recently with ext3
-and nothing unusual was reported. The list of events for migration
-looks like
-
-isolate page from LRU
-  migrate_pages
-    unmap_and_move
-      lock_page(src_page)
-      if page under writeback, either bail or wait on writeback
-      try_to_unmap
-      move_to_new_page
-      lock_page(dst_page)
-      buffer_migrate_page
-        migrate_page_move_mapping
-          spin_lock_irq(&mapping->tree_lock)
-          lookup in radix tree
-          check reference counts to make sure no one else has references
-          lock buffers if async mode
-          replace page in radix tree with new page
-          spin_unlock_irq
-        lock buffers if !async mode
-        copy buffers
-        unlock buffers
-      unlock_page(dst_page)
-
-The critical part is that the copying of buffer data is happening with
-both page and buffer locks held and no other references to the page
-exists - it has already been unmapped for example.
-
-Journal commit minimally acquires the buffer lock. If migration is
-in the process of copying the buffers, the buffer lock will prevent
-journal commit starting at the same time buffers are being copied.
-
-block_write_full_page and friends should be taking the buffer lock so
-they should also be ok.
-
-For other accessors, the mapping tree_lock should prevent other users
-looking up the page in the radix tree in the first place while the radix
-tree replacement is taking place.
-
-Racing against try_to_free_buffer should also be a problem.
-According to buffer.c, exclusion from try_to_free_buffer "may
-be obtained by either locking the page or holding the mappings
-private_lock". Migration is holding the page lock.
-
-Taking private_lock would give additional protection but I haven't heard
-or seen a case where it is necessary.
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index dbe9518..ff45cdf 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -873,7 +873,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+ #ifdef CONFIG_MIGRATION
+ static int btree_migratepage(struct address_space *mapping,
+ 			struct page *newpage, struct page *page,
+-			enum migrate_mode sync)
++			enum migrate_mode mode)
+ {
+ 	/*
+ 	 * we can't safely write a btree page from here,
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index adb87d9..1f4f18f9 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -1711,7 +1711,7 @@ out_error:
+ 
+ #ifdef CONFIG_MIGRATION
+ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
+-		struct page *page, enum migrate_mode sync)
++		struct page *page, enum migrate_mode mode)
+ {
+ 	/*
+ 	 * If PagePrivate is set, then the page is currently associated with
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 775787c..eaf8674 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -27,10 +27,10 @@ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+ 			unsigned long private, bool offlining,
+-			enum migrate_mode sync);
++			enum migrate_mode mode);
+ extern int migrate_huge_pages(struct list_head *l, new_page_t x,
+ 			unsigned long private, bool offlining,
+-			enum migrate_mode sync);
++			enum migrate_mode mode);
+ 
+ extern int fail_migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+@@ -49,10 +49,10 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ static inline void putback_lru_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, bool offlining,
+-		enum migrate_mode sync) { return -ENOSYS; }
++		enum migrate_mode mode) { return -ENOSYS; }
+ static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, bool offlining,
+-		enum migrate_mode sync) { return -ENOSYS; }
++		enum migrate_mode mode) { return -ENOSYS; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
