@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E40BE6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 13:56:15 -0500 (EST)
-Message-ID: <4EEF888C.4030101@ah.jp.nec.com>
-Date: Mon, 19 Dec 2011 13:55:08 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id A8E996B0062
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 14:05:13 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so5760796vbb.14
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2011 11:05:12 -0800 (PST)
+Date: Mon, 19 Dec 2011 11:05:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+In-Reply-To: <20111219074843.GA21324@barrios-laptop.redhat.com>
+Message-ID: <alpine.DEB.2.00.1112191059010.19949@chino.kir.corp.google.com>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219074843.GA21324@barrios-laptop.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
-References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20111219184047.GA5637@one.firstfloor.org>
-In-Reply-To: <20111219184047.GA5637@one.firstfloor.org>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+On Mon, 19 Dec 2011, Minchan Kim wrote:
 
-On Mon, Dec 19, 2011 at 07:40:47PM +0100, Andi Kleen wrote:
-> > diff --git 3.2-rc5.orig/fs/proc/page.c 3.2-rc5/fs/proc/page.c
-> > index 6d8e6a9..d436fc6 100644
-> > --- 3.2-rc5.orig/fs/proc/page.c
-> > +++ 3.2-rc5/fs/proc/page.c
-> > @@ -116,6 +116,11 @@ u64 stable_page_flags(struct page *page)
-> >  	if (PageHuge(page))
-> >  		u |= 1 << KPF_HUGE;
-> >  
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +	if (PageTransCompound(page))
-> > +		u |= 1 << KPF_THP;
-> > +#endif
-> 
-> It would be better to have PageTransCompound be a dummy (always 0) 
-> for !CONFIG_TRANSPARENT_HUGEPAGE and KPF_THP always defined.
-> This would keep ifdefery in the headers.
+> Kernel should have just signal role when resource is not enough.
+> It is desirable that killing is role of user space.
 
-OK, I'll do it in the next post.
-Thanks for the feedback.
+The low memory killer becomes an out of memory killer very quickly if 
+(1) userspace can't respond fast enough and (2) the killed thread cannot 
+exit and free its memory fast enough.  It also requires userspace to know 
+which threads are sharing memory such that they may all be killed; 
+otherwise, killing one thread won't lead to future memory freeing.
 
-Naoya
+If the system becomes oom before userspace can kill a thread, then there's 
+no guarantee that it will ever be able to exit.  That's fixed in the 
+kernel oom killer by allowing special access to memory reserves 
+specifically for this purpose, which userspace can't provide.
+
+So the prerequisites for this to work correctly every time would be to 
+ensure that points (1) and (2) above can always happen.  I'm not seeing 
+where that's proven, so presumably you'd still always need the kernel oom 
+killer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
