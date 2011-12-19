@@ -1,116 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 3F77B6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 10:14:37 -0500 (EST)
-Date: Mon, 19 Dec 2011 16:14:31 +0100
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id D7B086B004F
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 10:37:43 -0500 (EST)
+Date: Mon, 19 Dec 2011 16:37:38 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/4] memcg: simplify corner case handling of LRU.
-Message-ID: <20111219151431.GB1415@cmpxchg.org>
+Subject: Re: [PATCH 3/4] memcg: clear pc->mem_cgorup if necessary.
+Message-ID: <20111219153738.GC1415@cmpxchg.org>
 References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
- <20111214165032.ae8416b2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111214165124.4d2cf723.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111214165032.ae8416b2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111214165124.4d2cf723.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Wed, Dec 14, 2011 at 04:50:32PM +0900, KAMEZAWA Hiroyuki wrote:
+On Wed, Dec 14, 2011 at 04:51:24PM +0900, KAMEZAWA Hiroyuki wrote:
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> This patch simplifies LRU handling of racy case (memcg+SwapCache).
-> At charging, SwapCache tend to be on LRU already. So, before
-> overwriting pc->mem_cgroup, the page must be removed from LRU and
-> added to LRU later.
+> This is a preparation before removing a flag PCG_ACCT_LRU in page_cgroup
+> and reducing atomic ops/complexity in memcg LRU handling.
 > 
-> This patch does
->         spin_lock(zone->lru_lock);
->         if (PageLRU(page))
->                 remove from LRU
->         overwrite pc->mem_cgroup
->         if (PageLRU(page))
->                 add to new LRU.
->         spin_unlock(zone->lru_lock);
+> In some cases, pages are added to lru before charge to memcg and pages
+> are not classfied to memory cgroup at lru addtion. Now, the lru where
+> the page should be added is determined a bit in page_cgroup->flags and
+> pc->mem_cgroup. I'd like to remove the check of flag.
+> 
+> To handle the case pc->mem_cgroup may contain stale pointers if pages are
+> added to LRU before classification. This patch resets pc->mem_cgroup to
+> root_mem_cgroup before lru additions.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Not quite.  It also clears PageLRU in between.
+The followup compilation fixes aside, I agree.  But the sites where
+the owner is actually reset are really not too obvious.  How about the
+comment patch below?
 
-Since it doesn't release the lru lock until the page is back on the
-list, couldn't we just leave that bit alone like
-mem_cgroup_replace_page_cache() did?
-
-That said, thanks for removing this mind-boggling complexity, the code
-is much better off with this patch.
-
-Feel free to add my
+Otherwise,
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Relevant hunks for reference:
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: memcg: clear pc->mem_cgorup if necessary fix
 
-> @@ -2695,14 +2615,27 @@ __mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *memcg,
->  					enum charge_type ctype)
->  {
->  	struct page_cgroup *pc = lookup_page_cgroup(page);
-> +	struct zone *zone = page_zone(page);
-> +	unsigned long flags;
-> +	bool removed = false;
-> +
->  	/*
->  	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
->  	 * is already on LRU. It means the page may on some other page_cgroup's
->  	 * LRU. Take care of it.
->  	 */
-> -	mem_cgroup_lru_del_before_commit(page);
-> +	spin_lock_irqsave(&zone->lru_lock, flags);
-> +	if (PageLRU(page)) {
-> +		del_page_from_lru_list(zone, page, page_lru(page));
-> +		ClearPageLRU(page);
-> +		removed = true;
-> +	}
->  	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
-> -	mem_cgroup_lru_add_after_commit(page);
-> +	if (removed) {
-> +		add_page_to_lru_list(zone, page, page_lru(page));
-> +		SetPageLRU(page);
-> +	}
-> +	spin_unlock_irqrestore(&zone->lru_lock, flags);
->  	return;
->  }
->  
-> @@ -3303,9 +3236,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
->  {
->  	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc;
-> -	struct zone *zone;
->  	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> -	unsigned long flags;
->  
->  	pc = lookup_page_cgroup(oldpage);
->  	/* fix accounting on old pages */
-> @@ -3318,20 +3249,12 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
->  	if (PageSwapBacked(oldpage))
->  		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
->  
-> -	zone = page_zone(newpage);
-> -	pc = lookup_page_cgroup(newpage);
->  	/*
->  	 * Even if newpage->mapping was NULL before starting replacement,
->  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
->  	 * LRU while we overwrite pc->mem_cgroup.
->  	 */
-> -	spin_lock_irqsave(&zone->lru_lock, flags);
-> -	if (PageLRU(newpage))
-> -		del_page_from_lru_list(zone, newpage, page_lru(newpage));
-> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type);
-> -	if (PageLRU(newpage))
-> -		add_page_to_lru_list(zone, newpage, page_lru(newpage));
-> -	spin_unlock_irqrestore(&zone->lru_lock, flags);
-> +	__mem_cgroup_commit_charge_lrucare(newpage, memcg, type);
->  }
->  
->  #ifdef CONFIG_DEBUG_VM
+Add comments to the clearing sites.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 5c2f0bd..f0ee5bf 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1571,6 +1571,15 @@ struct page *ksm_does_need_to_copy(struct page *page,
+ 
+ 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+ 	if (new_page) {
++		/*
++		 * The memcg-specific accounting when moving
++		 * pages around the LRU lists relies on the
++		 * page's owner (memcg) to be valid.  Usually,
++		 * pages are assigned to a new owner before
++		 * being put on the LRU list, but since this
++		 * is not the case here, the stale owner from
++		 * a previous allocation cycle must be reset.
++		 */
+ 		mem_cgroup_reset_owner(new_page);
+ 		copy_user_highpage(new_page, page, address, vma);
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 730c4c7..44ccfd2 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -302,6 +302,15 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			new_page = alloc_page_vma(gfp_mask, vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
++			/*
++			 * The memcg-specific accounting when moving
++			 * pages around the LRU lists relies on the
++			 * page's owner (memcg) to be valid.  Usually,
++			 * pages are assigned to a new owner before
++			 * being put on the LRU list, but since this
++			 * is not the case here, the stale owner from
++			 * a previous allocation cycle must be reset.
++			 */
+ 			mem_cgroup_reset_owner(new_page);
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
