@@ -1,133 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id C3CF66B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 06:45:27 -0500 (EST)
-Date: Mon, 19 Dec 2011 11:45:22 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/11] mm: compaction: Introduce sync-light migration for
- use by compaction
-Message-ID: <20111219114522.GK3487@suse.de>
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
- <1323877293-15401-9-git-send-email-mgorman@suse.de>
- <20111218020552.GB13069@barrios-laptop.redhat.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 84A1F6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 07:12:58 -0500 (EST)
+Date: Mon, 19 Dec 2011 13:12:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+Message-ID: <20111219121255.GA2086@tiehlicka.suse.cz>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111218020552.GB13069@barrios-laptop.redhat.com>
+In-Reply-To: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sun, Dec 18, 2011 at 11:05:52AM +0900, Minchan Kim wrote:
-> On Wed, Dec 14, 2011 at 03:41:30PM +0000, Mel Gorman wrote:
-> > This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIGHT
-> > mode that avoids writing back pages to backing storage. Async
-> > compaction maps to MIGRATE_ASYNC while sync compaction maps to
-> > MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
-> > hotplug, MIGRATE_SYNC is used.
-> > 
-> > This avoids sync compaction stalling for an excessive length of time,
-> > particularly when copying files to a USB stick where there might be
-> > a large number of dirty pages backed by a filesystem that does not
-> > support ->writepages.
-> > 
-> > [aarcange@redhat.com: This patch is heavily based on Andrea's work]
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+[Didn't get to the patch yet but a comment on memcg]
+
+On Mon 19-12-11 06:53:28, Anton Vorontsov wrote:
+[...]
+> - Use memory controller cgroup (CGROUP_MEM_RES_CTLR) notifications from
+>   the kernel side, plus userland "manager" that would kill applications.
 > 
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> 
+>   The main downside of this approach is that mem_cg needs 20 bytes per
+>   page (on a 32 bit machine). So on a 32 bit machine with 4K pages
+>   that's approx. 0.5% of RAM, or, in other words, 5MB on a 1GB machine.
 
-Thanks.
+page_cgroup is 16B per page and with the current Johannes' memcg
+naturalization work (in the mmotm tree) we are down to 8B per page (we
+got rid of lru). Kamezawa has some patches to get rid of the flags so we
+will be down to 4B per page on 32b. Is this still too much?
+I would be really careful about a yet another lowmem notification
+mechanism.
 
-> > <SNIP>
-> > diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> > index 10b9883..6b80537 100644
-> > --- a/fs/hugetlbfs/inode.c
-> > +++ b/fs/hugetlbfs/inode.c
-> > @@ -577,7 +577,7 @@ static int hugetlbfs_set_page_dirty(struct page *page)
-> >  
-> >  static int hugetlbfs_migrate_page(struct address_space *mapping,
-> >  				struct page *newpage, struct page *page,
-> > -				bool sync)
-> > +				enum migrate_mode mode)
-> 
-> Nitpick, except this one, we use enum migrate_mode sync.
-> 
+>   0.5% doesn't sound too bad, but 5MB does, quite a little bit. So,
+>   mem_cg feels like an overkill for this simple task (see the driver at
+>   the very bottom).
 
-Actually, in all the core code, I used "mode" but I was inconsistent in
-the headers and some of the filesystems. I should have converted all use
-of "sync" which was a boolean to a mode which has three possible values
-after this patch.
-
-==== CUT HERE ====
-mm: compaction: Introduce sync-light migration for use by compaction fix
-
-Consistently name enum migrate_mode parameters "mode" instead of "sync".
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- fs/btrfs/disk-io.c      |    2 +-
- fs/nfs/write.c          |    2 +-
- include/linux/migrate.h |    8 ++++----
- 3 files changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index dbe9518..ff45cdf 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -873,7 +873,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
- #ifdef CONFIG_MIGRATION
- static int btree_migratepage(struct address_space *mapping,
- 			struct page *newpage, struct page *page,
--			enum migrate_mode sync)
-+			enum migrate_mode mode)
- {
- 	/*
- 	 * we can't safely write a btree page from here,
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index adb87d9..1f4f18f9 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -1711,7 +1711,7 @@ out_error:
- 
- #ifdef CONFIG_MIGRATION
- int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
--		struct page *page, enum migrate_mode sync)
-+		struct page *page, enum migrate_mode mode)
- {
- 	/*
- 	 * If PagePrivate is set, then the page is currently associated with
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 775787c..eaf8674 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -27,10 +27,10 @@ extern int migrate_page(struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
- extern int migrate_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
--			enum migrate_mode sync);
-+			enum migrate_mode mode);
- extern int migrate_huge_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
--			enum migrate_mode sync);
-+			enum migrate_mode mode);
- 
- extern int fail_migrate_page(struct address_space *,
- 			struct page *, struct page *);
-@@ -49,10 +49,10 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
--		enum migrate_mode sync) { return -ENOSYS; }
-+		enum migrate_mode mode) { return -ENOSYS; }
- static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
--		enum migrate_mode sync) { return -ENOSYS; }
-+		enum migrate_mode mode) { return -ENOSYS; }
- 
- static inline int migrate_prep(void) { return -ENOSYS; }
- static inline int migrate_prep_local(void) { return -ENOSYS; }
+Why is it an overkill? I think that having 2 groups (active and
+inactive) and move tasks between then sounds quite elegant. You can
+implement an user space oom handler in both groups (active will just
+move a task to the inactive group which inactive will kill a task which
+hasn't been used for the longest time).
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
