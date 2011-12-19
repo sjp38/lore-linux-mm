@@ -1,129 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id E63A06B004D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 05:36:35 -0500 (EST)
-Message-Id: <20111219102357.570521579@intel.com>
-Date: Mon, 19 Dec 2011 18:23:16 +0800
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 0F2376B0072
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 05:36:36 -0500 (EST)
+Message-Id: <20111219102356.893169588@intel.com>
+Date: Mon, 19 Dec 2011 18:23:11 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 08/10] readahead: basic support for backwards prefetching
+Subject: [PATCH 03/10] readahead: record readahead patterns
 References: <20111219102308.488847921@intel.com>
-Content-Disposition: inline; filename=readahead-backwards.patch
+Content-Disposition: inline; filename=readahead-tracepoints.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Li Shaohua <shaohua.li@intel.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Add the backwards prefetching feature. It's pretty simple if we don't
-support async prefetching and interleaved reads.
+Record the readahead pattern in ra->pattern and extend ra_submit()
+parameters, to be used by the next readahead tracing/stats patches.
 
-tail and tac are observed to have the reverse read pattern:
+7 patterns are defined:
 
-tail-3501  [006]   111.881191: readahead: readahead-random(bdi=0:16, ino=1548450, req=750+1, ra=750+1-0, async=0) = 1
-tail-3501  [006]   111.881506: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=748+2, ra=746+5-0, async=0) = 4
-tail-3501  [006]   111.882021: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=744+2, ra=726+25-0, async=0) = 20
-tail-3501  [006]   111.883713: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=724+2, ra=626+125-0, async=0) = 100
+      	pattern			readahead for
+-----------------------------------------------------------
+	RA_PATTERN_INITIAL	start-of-file read
+	RA_PATTERN_SUBSEQUENT	trivial sequential read
+	RA_PATTERN_CONTEXT	interleaved sequential read
+	RA_PATTERN_OVERSIZE	oversize read
+	RA_PATTERN_MMAP_AROUND	mmap fault
+	RA_PATTERN_FADVISE	posix_fadvise()
+	RA_PATTERN_RANDOM	random read
 
- tac-3528  [001]   118.671924: readahead: readahead-random(bdi=0:16, ino=1548445, req=750+1, ra=750+1-0, async=0) = 1
- tac-3528  [001]   118.672371: readahead: readahead-backwards(bdi=0:16, ino=1548445, req=748+2, ra=746+5-0, async=0) = 4
- tac-3528  [001]   118.673039: readahead: readahead-backwards(bdi=0:16, ino=1548445, req=744+2, ra=726+25-0, async=0) = 20
+Note that random reads will be recorded in file_ra_state now.
+This won't deteriorate cache bouncing because the ra->prev_pos update
+in do_generic_file_read() already pollutes the data cache, and
+filemap_fault() will stop calling into us after MMAP_LOTSAMISS.
 
-Here is the behavior with an 8-page read sequence from 10000 down to 0.
-(The readahead size is a bit large since it's an NFS mount.)
-
-readahead-random(dev=0:16, ino=3948605, req=10000+8, ra=10000+8-0, async=0) = 8
-readahead-backwards(dev=0:16, ino=3948605, req=9992+8, ra=9968+32-0, async=0) = 32
-readahead-backwards(dev=0:16, ino=3948605, req=9960+8, ra=9840+128-0, async=0) = 128
-readahead-backwards(dev=0:16, ino=3948605, req=9832+8, ra=9584+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9576+8, ra=9072+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9064+8, ra=8048+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8040+8, ra=6128+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6120+8, ra=4208+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4200+8, ra=2288+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2280+8, ra=368+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=360+8, ra=0+368-0, async=0) = 368
-
-And a simple 1-page read sequence from 10000 down to 0.
-
-readahead-random(dev=0:16, ino=3948605, req=10000+1, ra=10000+1-0, async=0) = 1
-readahead-backwards(dev=0:16, ino=3948605, req=9999+1, ra=9996+4-0, async=0) = 4
-readahead-backwards(dev=0:16, ino=3948605, req=9995+1, ra=9980+16-0, async=0) = 16
-readahead-backwards(dev=0:16, ino=3948605, req=9979+1, ra=9916+64-0, async=0) = 64
-readahead-backwards(dev=0:16, ino=3948605, req=9915+1, ra=9660+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9659+1, ra=9148+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9147+1, ra=8124+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8123+1, ra=6204+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6203+1, ra=4284+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4283+1, ra=2364+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2363+1, ra=444+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=443+1, ra=0+444-0, async=0) = 444
-
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Li Shaohua <shaohua.li@intel.com>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Acked-by: Jan Kara <jack@suse.cz>
+Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/fs.h         |    2 ++
- include/trace/events/vfs.h |    1 +
- mm/readahead.c             |   20 ++++++++++++++++++++
- 3 files changed, 23 insertions(+)
+ include/linux/fs.h |   36 +++++++++++++++++++++++++++++++++++-
+ include/linux/mm.h |    4 +++-
+ mm/filemap.c       |    3 ++-
+ mm/readahead.c     |   29 ++++++++++++++++++++++-------
+ 4 files changed, 62 insertions(+), 10 deletions(-)
 
---- linux-next.orig/include/linux/fs.h	2011-12-19 16:09:45.000000000 +0800
-+++ linux-next/include/linux/fs.h	2011-12-19 16:10:08.000000000 +0800
-@@ -970,6 +970,7 @@ struct file_ra_state {
-  *				streams.
-  * RA_PATTERN_MMAP_AROUND	read-around on mmap page faults
-  *				(w/o any sequential/random hints)
-+ * RA_PATTERN_BACKWARDS		reverse reading detected
-  * RA_PATTERN_FADVISE		triggered by POSIX_FADV_WILLNEED or FMODE_RANDOM
-  * RA_PATTERN_OVERSIZE		a random read larger than max readahead size,
-  *				do max readahead to break down the read size
-@@ -980,6 +981,7 @@ enum readahead_pattern {
- 	RA_PATTERN_SUBSEQUENT,
- 	RA_PATTERN_CONTEXT,
- 	RA_PATTERN_MMAP_AROUND,
-+	RA_PATTERN_BACKWARDS,
- 	RA_PATTERN_FADVISE,
- 	RA_PATTERN_OVERSIZE,
- 	RA_PATTERN_RANDOM,
---- linux-next.orig/mm/readahead.c	2011-12-19 16:09:45.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-12-19 16:10:08.000000000 +0800
-@@ -686,6 +686,26 @@ ondemand_readahead(struct address_space 
- 	}
+--- linux-next.orig/include/linux/fs.h	2011-12-19 18:12:35.000000000 +0800
++++ linux-next/include/linux/fs.h	2011-12-19 18:13:07.000000000 +0800
+@@ -947,11 +947,45 @@ struct file_ra_state {
+ 					   there are only # of pages ahead */
+ 
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+-	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
++	u16 mmap_miss;			/* Cache miss stat for mmap accesses */
++	u8 pattern;			/* one of RA_PATTERN_* */
++
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+ 
+ /*
++ * Which policy makes decision to do the current read-ahead IO?
++ *
++ * RA_PATTERN_INITIAL		readahead window is initially opened,
++ *				normally when reading from start of file
++ * RA_PATTERN_SUBSEQUENT	readahead window is pushed forward
++ * RA_PATTERN_CONTEXT		no readahead window available, querying the
++ *				page cache to decide readahead start/size.
++ *				This typically happens on interleaved reads (eg.
++ *				reading pages 0, 1000, 1, 1001, 2, 1002, ...)
++ *				where one file_ra_state struct is not enough
++ *				for recording 2+ interleaved sequential read
++ *				streams.
++ * RA_PATTERN_MMAP_AROUND	read-around on mmap page faults
++ *				(w/o any sequential/random hints)
++ * RA_PATTERN_FADVISE		triggered by POSIX_FADV_WILLNEED or FMODE_RANDOM
++ * RA_PATTERN_OVERSIZE		a random read larger than max readahead size,
++ *				do max readahead to break down the read size
++ * RA_PATTERN_RANDOM		a small random read
++ */
++enum readahead_pattern {
++	RA_PATTERN_INITIAL,
++	RA_PATTERN_SUBSEQUENT,
++	RA_PATTERN_CONTEXT,
++	RA_PATTERN_MMAP_AROUND,
++	RA_PATTERN_FADVISE,
++	RA_PATTERN_OVERSIZE,
++	RA_PATTERN_RANDOM,
++	RA_PATTERN_ALL,		/* for summary stats */
++	RA_PATTERN_MAX
++};
++
++/*
+  * Check if @index falls in the readahead windows.
+  */
+ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
+--- linux-next.orig/mm/readahead.c	2011-12-19 18:12:51.000000000 +0800
++++ linux-next/mm/readahead.c	2011-12-19 18:13:07.000000000 +0800
+@@ -249,7 +249,10 @@ unsigned long max_sane_readahead(unsigne
+  * Submit IO for the read-ahead request in file_ra_state.
+  */
+ unsigned long ra_submit(struct file_ra_state *ra,
+-		       struct address_space *mapping, struct file *filp)
++			struct address_space *mapping,
++			struct file *filp,
++			pgoff_t offset,
++			unsigned long req_size)
+ {
+ 	int actual;
+ 
+@@ -382,6 +385,7 @@ static int try_context_readahead(struct 
+ 	if (size >= offset)
+ 		size *= 2;
+ 
++	ra->pattern = RA_PATTERN_CONTEXT;
+ 	ra->start = offset;
+ 	ra->size = min(size + req_size, max);
+ 	ra->async_size = 1;
+@@ -403,8 +407,10 @@ ondemand_readahead(struct address_space 
+ 	/*
+ 	 * start of file
+ 	 */
+-	if (!offset)
++	if (!offset) {
++		ra->pattern = RA_PATTERN_INITIAL;
+ 		goto initial_readahead;
++	}
  
  	/*
-+	 * backwards reading
-+	 */
-+	if (offset < ra->start && offset + req_size >= ra->start) {
-+		ra->pattern = RA_PATTERN_BACKWARDS;
-+		ra->size = get_next_ra_size(ra, max);
-+		if (ra->size > ra->start) {
-+			/*
-+			 * ra->start may be concurrently set to some huge
-+			 * value, the min() at least avoids submitting huge IO
-+			 * in this race condition
-+			 */
-+			ra->size = min(ra->start, max);
-+			ra->start = 0;
-+		} else
-+			ra->start -= ra->size;
-+		ra->async_size = 0;
-+		goto readit;
-+	}
-+
-+	/*
- 	 * Query the page cache and look for the traces(cached history pages)
- 	 * that a sequential stream would leave behind.
+ 	 * It's the expected callback offset, assume sequential access.
+@@ -412,6 +418,7 @@ ondemand_readahead(struct address_space 
  	 */
---- linux-next.orig/include/trace/events/vfs.h	2011-12-19 16:09:45.000000000 +0800
-+++ linux-next/include/trace/events/vfs.h	2011-12-19 16:09:45.000000000 +0800
-@@ -14,6 +14,7 @@
- 			{ RA_PATTERN_SUBSEQUENT,	"subsequent"	}, \
- 			{ RA_PATTERN_CONTEXT,		"context"	}, \
- 			{ RA_PATTERN_MMAP_AROUND,	"around"	}, \
-+			{ RA_PATTERN_BACKWARDS,		"backwards"	}, \
- 			{ RA_PATTERN_FADVISE,		"fadvise"	}, \
- 			{ RA_PATTERN_OVERSIZE,		"oversize"	}, \
- 			{ RA_PATTERN_RANDOM,		"random"	}, \
+ 	if ((offset == (ra->start + ra->size - ra->async_size) ||
+ 	     offset == (ra->start + ra->size))) {
++		ra->pattern = RA_PATTERN_SUBSEQUENT;
+ 		ra->start += ra->size;
+ 		ra->size = get_next_ra_size(ra, max);
+ 		ra->async_size = ra->size;
+@@ -434,6 +441,7 @@ ondemand_readahead(struct address_space 
+ 		if (!start || start - offset > max)
+ 			return 0;
+ 
++		ra->pattern = RA_PATTERN_CONTEXT;
+ 		ra->start = start;
+ 		ra->size = start - offset;	/* old async_size */
+ 		ra->size += req_size;
+@@ -445,14 +453,18 @@ ondemand_readahead(struct address_space 
+ 	/*
+ 	 * oversize read
+ 	 */
+-	if (req_size > max)
++	if (req_size > max) {
++		ra->pattern = RA_PATTERN_OVERSIZE;
+ 		goto initial_readahead;
++	}
+ 
+ 	/*
+ 	 * sequential cache miss
+ 	 */
+-	if (offset - (ra->prev_pos >> PAGE_CACHE_SHIFT) <= 1UL)
++	if (offset - (ra->prev_pos >> PAGE_CACHE_SHIFT) <= 1UL) {
++		ra->pattern = RA_PATTERN_INITIAL;
+ 		goto initial_readahead;
++	}
+ 
+ 	/*
+ 	 * Query the page cache and look for the traces(cached history pages)
+@@ -463,9 +475,12 @@ ondemand_readahead(struct address_space 
+ 
+ 	/*
+ 	 * standalone, small random read
+-	 * Read as is, and do not pollute the readahead state.
+ 	 */
+-	return __do_page_cache_readahead(mapping, filp, offset, req_size, 0);
++	ra->pattern = RA_PATTERN_RANDOM;
++	ra->start = offset;
++	ra->size = req_size;
++	ra->async_size = 0;
++	goto readit;
+ 
+ initial_readahead:
+ 	ra->start = offset;
+@@ -483,7 +498,7 @@ readit:
+ 		ra->size += ra->async_size;
+ 	}
+ 
+-	return ra_submit(ra, mapping, filp);
++	return ra_submit(ra, mapping, filp, offset, req_size);
+ }
+ 
+ /**
+--- linux-next.orig/include/linux/mm.h	2011-12-19 18:12:35.000000000 +0800
++++ linux-next/include/linux/mm.h	2011-12-19 18:13:07.000000000 +0800
+@@ -1447,7 +1447,9 @@ void page_cache_async_readahead(struct a
+ unsigned long max_sane_readahead(unsigned long nr);
+ unsigned long ra_submit(struct file_ra_state *ra,
+ 			struct address_space *mapping,
+-			struct file *filp);
++			struct file *filp,
++			pgoff_t offset,
++			unsigned long req_size);
+ 
+ /* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */
+ extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
+--- linux-next.orig/mm/filemap.c	2011-12-19 18:12:35.000000000 +0800
++++ linux-next/mm/filemap.c	2011-12-19 18:13:07.000000000 +0800
+@@ -1597,11 +1597,12 @@ static void do_sync_mmap_readahead(struc
+ 	/*
+ 	 * mmap read-around
+ 	 */
++	ra->pattern = RA_PATTERN_MMAP_AROUND;
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+ 	ra->async_size = ra_pages / 4;
+-	ra_submit(ra, mapping, file);
++	ra_submit(ra, mapping, file, offset, 1);
+ }
+ 
+ /*
 
 
 --
