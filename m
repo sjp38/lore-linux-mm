@@ -1,136 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 12BC06B004D
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 22:19:51 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1321836285.30341.554.camel@debian>
-	<20111121080554.GB1625@x4.trippels.de>
-	<20111121082445.GD1625@x4.trippels.de>
-	<1321866988.2552.10.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121131531.GA1679@x4.trippels.de>
-	<1321884966.10470.2.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121153621.GA1678@x4.trippels.de>
-	<1321890510.10470.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<20111121161036.GA1679@x4.trippels.de>
-	<20111121163459.GA1679@x4.trippels.de>
-	<20111122083630.GA1672@x4.trippels.de>
-Date: Sun, 18 Dec 2011 19:21:26 -0800
-In-Reply-To: <20111122083630.GA1672@x4.trippels.de> (Markus Trippelsdorf's
-	message of "Tue, 22 Nov 2011 09:36:30 +0100")
-Message-ID: <m1liq9l009.fsf@fess.ebiederm.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 382E66B004D
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2011 23:22:45 -0500 (EST)
+Date: Mon, 19 Dec 2011 15:22:40 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: add missing mutex lock arround notify_change
+Message-ID: <20111219042240.GN23662@dastard>
+References: <20111216112534.GA13147@dztty>
+ <20111216125556.db2bf308.akpm@linux-foundation.org>
+ <20111217214137.GY2203@ZenIV.linux.org.uk>
+ <20111219014343.GK23662@dastard>
+ <20111219020340.GG2203@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: WARNING: at mm/slub.c:3357, kernel BUG at mm/slub.c:3413
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111219020340.GG2203@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, "Alex,Shi" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, tj@kernel.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Djalal Harouni <tixxdz@opendz.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Neil Brown <neilb@suse.de>, Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>, Christoph Hellwig <hch@infradead.org>
 
-Markus Trippelsdorf <markus@trippelsdorf.de> writes:
+On Mon, Dec 19, 2011 at 02:03:40AM +0000, Al Viro wrote:
+> On Mon, Dec 19, 2011 at 12:43:43PM +1100, Dave Chinner wrote:
+> > > We have a shitload of deadlocks on very common paths with that patch.  What
+> > > of the paths that do lead to file_remove_suid() without i_mutex?
+> > > *	xfs_file_aio_write_checks(): we drop i_mutex (via xfs_rw_iunlock())
+> > > just before calling file_remove_suid().  Racy, the fix is obvious - move
+> > > file_remove_suid() call before unlocking.
+> > 
+> > Not exactly. xfs_rw_iunlock() is not doing what you think it's doing
+> > there.....
+> 
+> Huh?  It is called as 
+> 
+> > > -	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+> 
+> and thus in
+> static inline void
+> xfs_rw_iunlock(
+>         struct xfs_inode        *ip,
+>         int                     type)
+> {
+>         xfs_iunlock(ip, type);
+>         if (type & XFS_IOLOCK_EXCL)
+>                 mutex_unlock(&VFS_I(ip)->i_mutex);
+> }
+> we are guaranteed to hit i_mutex.  
 
-> On 2011.11.21 at 17:34 +0100, Markus Trippelsdorf wrote:
->> On 2011.11.21 at 17:10 +0100, Markus Trippelsdorf wrote:
->> > On 2011.11.21 at 16:48 +0100, Eric Dumazet wrote:
->> > > Le lundi 21 novembre 2011 =C3=A0 16:36 +0100, Markus Trippelsdorf a =
-=C3=A9crit :
->> > > > On 2011.11.21 at 15:16 +0100, Eric Dumazet wrote:
->> > > > > Le lundi 21 novembre 2011 =C3=A0 14:15 +0100, Markus Trippelsdor=
-f a =C3=A9crit :
->> > > > >=20
->> > > > > > I've enabled CONFIG_SLUB_DEBUG_ON and this is what happend:
->> > > > > >=20
->> > > > >=20
->> > > > > Thanks
->> > > > >=20
->> > > > > Please continue to provide more samples.
->> > > > >=20
->> > > > > There is something wrong somewhere, but where exactly, its hard =
-to say.
->> > > >=20
->> > > > New sample. This one points to lib/idr.c:
->> > > >=20
->> > > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D
->> > > > BUG idr_layer_cache: Poison overwritten
->> > > > ------------------------------------------------------------------=
------------
->> > >=20
->> > > Thanks, could you now add "CONFIG_DEBUG_PAGEALLOC=3Dy" in your confi=
-g as
->> > > well ?
->> >=20
->> > Sure. This one happend with CONFIG_DEBUG_PAGEALLOC=3Dy:
->> >=20
->> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D
->> > BUG task_struct: Poison overwritten
->> > ----------------------------------------------------------------------=
--------
->>=20
->> And sometimes this one that I've reported earlier already:
->>=20
->> (see: http://thread.gmane.org/gmane.linux.kernel/1215023 )
->>=20
->>  ------------[ cut here ]------------
->>  WARNING: at fs/sysfs/sysfs.h:195 sysfs_get_inode+0x136/0x140()
->>  Hardware name: System Product Name
->>  Pid: 1876, comm: slabinfo Not tainted 3.2.0-rc2-00274-g6fe4c6d #72
->>  Call Trace:
->>  [<ffffffff8106cac5>] warn_slowpath_common+0x75/0xb0
->>  [<ffffffff8106cbc5>] warn_slowpath_null+0x15/0x20
->>  [<ffffffff81163236>] sysfs_get_inode+0x136/0x140
->>  [<ffffffff81164cef>] sysfs_lookup+0x6f/0x110
->>  [<ffffffff811173f9>] d_alloc_and_lookup+0x39/0x80
->>  [<ffffffff81118774>] do_lookup+0x294/0x3a0
->>  [<ffffffff8111798a>] ? inode_permission+0x7a/0xb0
->>  [<ffffffff8111a3f7>] do_last.isra.46+0x137/0x7f0
->>  [<ffffffff8111ab76>] path_openat+0xc6/0x370
->>  [<ffffffff81117606>] ? getname_flags+0x36/0x230
->>  [<ffffffff810ec852>] ? handle_mm_fault+0x192/0x290
->>  [<ffffffff8111ae5c>] do_filp_open+0x3c/0x90
->>  [<ffffffff81127c8c>] ? alloc_fd+0xdc/0x120
->>  [<ffffffff8110ce77>] do_sys_open+0xe7/0x1c0
->>  [<ffffffff8110cf6b>] sys_open+0x1b/0x20
->>  [<ffffffff814ccb7b>] system_call_fastpath+0x16/0x1b
->>  ---[ end trace b1377eb8b131d37d ]---
->
-> Hm, the "sysfs: use rb-tree" thing hit again during boot. Could this be
-> the root cause of this all?
->
-> I wrote down the following:
->
-> RIP : rb_next
->
-> Trace:
->  sysfs_dir_pos
->  sysfs_readdir
->  ? sys_ioctl
->  vfs_readdir
->  sys_getdents
+XFS_ILOCK_EXCL != XFS_IOLOCK_EXCL.
 
-Thanks for reporting this.
+There are 3 locks here, not 2 (outermost first):
 
-Has this by any chance been resolved or stopped happening?
+	VFS_I(ip)->i_mutex (mutex)
+	ip->i_iolock (rwsem)
+	ip->i_ilock (rwsem)
 
-This looks for all of the world like something is stomping your sysfs
-dirents.   I haven't seen anyone else complaining so this seems like the
-problem is unique to your configuration.  Which suggests that it is not
-sysfs itself that is wrong.
+xfs_ilock() maintains iolock vs ilock ordering for the entire of
+XFS, while xfs_rw_ilock() maintains i_mutex vs iolock vs ilock
+ordering for the IO path. it is all lockdep annotated, so if we make
+a mistake, we know about it pretty quickly....
 
-I have been through the code a time or two and I haven't seen anything
-obviously wrong.  Everything that sysfs does is protected by the
-sysfs_mutex so the locking is very very simple.
+> > Wrong lock.  That's dropping the internal XFS inode metadata lock,
+> > but the VFS i_mutex is associated with the internal XFS inode IO
+> > lock, which is accessed via XFS_IOLOCK_*. Only if we take the iolock
+> > via XFS_IOLOCK_EXCL do we actually take the i_mutex.
+> 
+> > Now it gets complex. For buffered IO, we are guaranteed to already
+> > be holding the i_mutex because we do:
+> > 
+> >         *iolock = XFS_IOLOCK_EXCL;
+> >         xfs_rw_ilock(ip, *iolock);
+> > 
+> >         ret = xfs_file_aio_write_checks(file, &pos, &count, new_size, iolock);
+> > 
+> > So that is safe and non-racy right now.
+> 
+> No, it is not - we *drop* it before calling file_remove_suid().  Explicitly.
 
-My best guess of why now is that the rbtree code make a sysfs dirent
-48 bytes larger.  And so it is much more exposed to these kinds of
-problems.
+We drop the innermost ip->i_ilock before calling file_remove_suid().
+We are still holding ip->i_iolock in EXCL mode and the
+VFS_I(ip)->i_mutex as well at this point.
 
-Eric
+> Again, look at that xfs_rw_iunlock() call there - it does drop i_mutex
+> (which is to say, you'd better have taken it prior to that, or you have
+> far worse problems).
+
+> 
+> > For direct IO, however, we don't always take the IOLOCK exclusively.
+> > Indeed, we try really, really hard not to do this so we can do
+> > concurrent reads and writes to the inode, and that results
+> > in a bunch of lock juggling when we actually need the IOLOCK
+> > exclusive (like in xfs_file_aio_write_checks()). It sounds like we
+> > need to know if we are going to have to remove the SUID bit ahead of
+> > time so that we can  take the correct lock up front. I haven't
+> > looked at what is needed to do that yet.
+> 
+> OK, I'm definitely missing something.  The very first thing
+> xfs_file_aio_write_checks() does is
+>         xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
+> which really makes me wonder how the hell does that manage to avoid an
+> instant deadlock in case of call via xfs_file_buffered_aio_write()
+> where we have:
+>         struct address_space    *mapping = file->f_mapping;
+>         struct inode            *inode = mapping->host;
+>         struct xfs_inode        *ip = XFS_I(inode);
+>         *iolock = XFS_IOLOCK_EXCL;
+>         xfs_rw_ilock(ip, *iolock);
+>         ret = xfs_file_aio_write_checks(file, &pos, &count, new_size, iolock);
+> which leads to
+>         struct inode            *inode = file->f_mapping->host;
+>         struct xfs_inode        *ip = XFS_I(inode);
+> (IOW, inode and ip are the same as in the caller) followed by
+>         xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
+> and with both xfs_rw_ilock() calls turning into
+> 	mutex_lock(&VFS_I(ip)->i_mutex);
+>         xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+> we ought to deadlock on that i_mutex.  What am I missing and how do we manage
+> to survive that?
+
+Translation of the buffered write IO path locking without wrappers:
+
+	mutex_lock(&VFS_I(ip)->i_mutex);
+	down_write_nested(&ip->i_iolock);
+	xfs_file_aio_write_checks() {
+		down_write_nested(&ip->i_ilock);
+		.....
+		up_write(&ip->i_ilock);
+		file_remove_suid();
+	}
+	generic_file_buffered_write()
+	up_write(&ip->i_iolock);
+	mutex_unlock(&ip->i_iolock);
+
+Locking is correctly ordered, and file_remove_suid() is called with
+the i_mutex held.
+
+The direct IO write fast path does this:
+
+	down_read_nested(&ip->i_iolock);
+	xfs_file_aio_write_checks() {
+		down_write_nested(&ip->i_ilock);
+		.....
+		up_write(&ip->i_ilock);
+		file_remove_suid();
+	}
+	generic_file_direct_write()
+	up_read(&ip->i_iolock);
+
+So isn't holding the i_mutex when file_remove_suid() is called. We
+do conditionally call xfs_file_aio_write_checks() with the correct
+locks held if we've had to flush the page cache, we are doing
+unaligned IO or extending the file, in which case the locks taken
+and the ordering is the same as for the buffered write IO path. We
+can do exactly the same relock dance if we know we have to remove
+the SUID bit before we actually do remove it...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
