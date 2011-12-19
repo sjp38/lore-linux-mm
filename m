@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 36BA96B0062
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 14:12:14 -0500 (EST)
-Received: by vcge1 with SMTP id e1so4372987vcg.14
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2011 11:12:13 -0800 (PST)
-Date: Mon, 19 Dec 2011 11:12:09 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Android low memory killer vs. memory pressure notifications
-In-Reply-To: <20111219121255.GA2086@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com>
-References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 69D536B0062
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2011 14:17:03 -0500 (EST)
+Message-ID: <4EEF8D81.4080301@ah.jp.nec.com>
+Date: Mon, 19 Dec 2011 14:16:17 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 1/3] pagemap: avoid splitting thp when reading /proc/pid/pagemap
+References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-2-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.DEB.2.00.1112191044300.19949@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1112191044300.19949@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Mon, 19 Dec 2011, Michal Hocko wrote:
-
-> page_cgroup is 16B per page and with the current Johannes' memcg
-> naturalization work (in the mmotm tree) we are down to 8B per page (we
-> got rid of lru). Kamezawa has some patches to get rid of the flags so we
-> will be down to 4B per page on 32b. Is this still too much?
-> I would be really careful about a yet another lowmem notification
-> mechanism.
+On Mon, Dec 19, 2011 at 10:48:17AM -0800, David Rientjes wrote:
+> On Mon, 19 Dec 2011, Naoya Horiguchi wrote:
+...
+> > @@ -666,10 +685,33 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> >  	pte_t *pte;
+> >  	int err = 0;
+> >  
+> > -	split_huge_page_pmd(walk->mm, pmd);
+> > -
+> >  	/* find the first VMA at or above 'addr' */
+> >  	vma = find_vma(walk->mm, addr);
+> > +
+> > +	spin_lock(&walk->mm->page_table_lock);
 > 
+> pagemap_pte_range() could potentially be called a _lot_, so I'd recommend 
+> optimizing this by checking for pmd_trans_huge() prior to taking 
+> page_table_lock and then rechecking after grabbing it with likely().
 
-There was always general interest in a low memory notification mechanism 
-even prior to memcg, see http://lwn.net/Articles/268732/ from Marcelo and 
-KOSAKI-san.  The desire is not only to avoid the metadata overhead of 
-memcg, but also to avoid cgroups entirely.
+OK, I'll try it.
+Similar logic is used on smaps_pte_range() and gather_pte_stats(),
+so I think it's better to write a separate patch for this optimization.
+
+> > +	if (pmd_trans_huge(*pmd)) {
+> > +		if (pmd_trans_splitting(*pmd)) {
+> > +			spin_unlock(&walk->mm->page_table_lock);
+> > +			wait_split_huge_page(vma->anon_vma, pmd);
+> > +		} else {
+> > +			u64 pfn = PM_NOT_PRESENT;
+> 
+> This doesn't need to be initialized and it would probably be better to 
+> declare "pfn" at the top-level of this function since it's later used for 
+> the non-thp case.
+
+Agreed.
+I unify two declarations of "pfn" at the beginning of the function.
+
+Thank you for nice feedback.
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
