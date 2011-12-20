@@ -1,90 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 1603B6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 04:57:54 -0500 (EST)
-Date: Tue, 20 Dec 2011 09:57:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: mm: compaction: Introduce sync-light migration for use by compaction
- fix
-Message-ID: <20111220095750.GQ3487@suse.de>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 49B246B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 04:59:00 -0500 (EST)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH 1/3] memcg: cleanup for_each_node_state()
+Date: Tue, 20 Dec 2011 18:01:52 +0800
+Message-ID: <1324375312-31252-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org, Bob Liu <lliubbo@gmail.com>
 
-Consistently name enum migrate_mode parameters "mode" instead of "sync".
+We already have for_each_node(node) define in nodemask.h, better to use it.
 
-This is a fix for the patch
-mm-compaction-introduce-sync-light-migration-for-use-by-compaction.patch
-in mmotm.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
- fs/btrfs/disk-io.c      |    2 +-
- fs/nfs/write.c          |    2 +-
- include/linux/migrate.h |    8 ++++----
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ mm/memcontrol.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index dbe9518..ff45cdf 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -873,7 +873,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
- #ifdef CONFIG_MIGRATION
- static int btree_migratepage(struct address_space *mapping,
- 			struct page *newpage, struct page *page,
--			enum migrate_mode sync)
-+			enum migrate_mode mode)
- {
- 	/*
- 	 * we can't safely write a btree page from here,
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index adb87d9..1f4f18f9 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -1711,7 +1711,7 @@ out_error:
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6a417fe..a3d0420 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -570,7 +570,7 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
+ 	struct mem_cgroup_per_zone *mz;
+ 	struct mem_cgroup_tree_per_zone *mctz;
  
- #ifdef CONFIG_MIGRATION
- int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
--		struct page *page, enum migrate_mode sync)
-+		struct page *page, enum migrate_mode mode)
- {
- 	/*
- 	 * If PagePrivate is set, then the page is currently associated with
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 775787c..eaf8674 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -27,10 +27,10 @@ extern int migrate_page(struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
- extern int migrate_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
--			enum migrate_mode sync);
-+			enum migrate_mode mode);
- extern int migrate_huge_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
--			enum migrate_mode sync);
-+			enum migrate_mode mode);
+-	for_each_node_state(node, N_POSSIBLE) {
++	for_each_node(node) {
+ 		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 			mz = mem_cgroup_zoneinfo(memcg, node, zone);
+ 			mctz = soft_limit_tree_node_zone(node, zone);
+@@ -4972,7 +4972,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	mem_cgroup_remove_from_trees(memcg);
+ 	free_css_id(&mem_cgroup_subsys, &memcg->css);
  
- extern int fail_migrate_page(struct address_space *,
- 			struct page *, struct page *);
-@@ -49,10 +49,10 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
--		enum migrate_mode sync) { return -ENOSYS; }
-+		enum migrate_mode mode) { return -ENOSYS; }
- static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
--		enum migrate_mode sync) { return -ENOSYS; }
-+		enum migrate_mode mode) { return -ENOSYS; }
+-	for_each_node_state(node, N_POSSIBLE)
++	for_each_node(node)
+ 		free_mem_cgroup_per_zone_info(memcg, node);
  
- static inline int migrate_prep(void) { return -ENOSYS; }
- static inline int migrate_prep_local(void) { return -ENOSYS; }
+ 	free_percpu(memcg->stat);
+@@ -5031,7 +5031,7 @@ static int mem_cgroup_soft_limit_tree_init(void)
+ 	struct mem_cgroup_tree_per_zone *rtpz;
+ 	int tmp, node, zone;
+ 
+-	for_each_node_state(node, N_POSSIBLE) {
++	for_each_node(node) {
+ 		tmp = node;
+ 		if (!node_state(node, N_NORMAL_MEMORY))
+ 			tmp = -1;
+@@ -5050,7 +5050,7 @@ static int mem_cgroup_soft_limit_tree_init(void)
+ 	return 0;
+ 
+ err_cleanup:
+-	for_each_node_state(node, N_POSSIBLE) {
++	for_each_node(node) {
+ 		if (!soft_limit_tree.rb_tree_per_node[node])
+ 			break;
+ 		kfree(soft_limit_tree.rb_tree_per_node[node]);
+@@ -5071,7 +5071,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	if (!memcg)
+ 		return ERR_PTR(error);
+ 
+-	for_each_node_state(node, N_POSSIBLE)
++	for_each_node(node)
+ 		if (alloc_mem_cgroup_per_zone_info(memcg, node))
+ 			goto free_out;
+ 
+-- 
+1.7.0.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
