@@ -1,103 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id AB7CF6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 17:50:52 -0500 (EST)
-Received: by qadc16 with SMTP id c16so5018678qad.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 14:50:51 -0800 (PST)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH] mm,mempolicy: mpol_equal() use bool
-Date: Tue, 20 Dec 2011 17:50:28 -0500
-Message-Id: <1324421434-14342-1-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 93C656B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 18:11:15 -0500 (EST)
+Date: Tue, 20 Dec 2011 15:11:13 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] memcg: malloc memory for possible node in hotplug
+Message-Id: <20111220151113.8aa05166.akpm@linux-foundation.org>
+In-Reply-To: <1324375503-31487-1-git-send-email-lliubbo@gmail.com>
+References: <1324375503-31487-1-git-send-email-lliubbo@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Wilson <wilsons@start.ca>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, bsingharora@gmail.com
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Tue, 20 Dec 2011 18:05:03 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
 
-mpol_equal() logically return boolean. then it should be used bool.
-This change slightly improve readability.
+> Current struct mem_cgroup_per_node and struct mem_cgroup_tree_per_node are
+> malloced for all possible node during system boot.
+> 
+> This may cause some memory waste, better if move it to memory hotplug.
+
+This adds a fair bit of complexity for what I suspect is a pretty small
+memory saving.  And that memory saving will be on pretty large machines.
+
+Can you please estimate how much memory this change will save?  Taht
+way we can decide whether the additional complexity is worthwhile.
 
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- include/linux/mempolicy.h |   10 +++++-----
- mm/mempolicy.c            |   14 +++++++-------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+Also, the operations in the new memcg_mem_hotplug_callback() are
+copied-n-pasted from other places in memcontrol.c, such as from
+mem_cgroup_soft_limit_tree_init().  We shouldn't do this - we should be
+able to factor the code so that both mem_cgroup_create() and
+memcg_mem_hotplug_callback() emit simple calls to common helper
+functions.
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 7978eec..7c727a9 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -164,11 +164,11 @@ static inline void mpol_get(struct mempolicy *pol)
- 		atomic_inc(&pol->refcnt);
- }
- 
--extern int __mpol_equal(struct mempolicy *a, struct mempolicy *b);
--static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+extern bool __mpol_equal(struct mempolicy *a, struct mempolicy *b);
-+static inline bool mpol_equal(struct mempolicy *a, struct mempolicy *b)
- {
- 	if (a == b)
--		return 1;
-+		return true;
- 	return __mpol_equal(a, b);
- }
- 
-@@ -257,9 +257,9 @@ static inline int vma_migratable(struct vm_area_struct *vma)
- 
- struct mempolicy {};
- 
--static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+static inline bool mpol_equal(struct mempolicy *a, struct mempolicy *b)
- {
--	return 1;
-+	return true;
- }
- 
- static inline void mpol_put(struct mempolicy *p)
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index adc3954..475f1c7 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1974,28 +1974,28 @@ struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
- }
- 
- /* Slow path of a mempolicy comparison */
--int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
- {
- 	if (!a || !b)
--		return 0;
-+		return false;
- 	if (a->mode != b->mode)
--		return 0;
-+		return false;
- 	if (a->flags != b->flags)
--		return 0;
-+		return false;
- 	if (mpol_store_user_nodemask(a))
- 		if (!nodes_equal(a->w.user_nodemask, b->w.user_nodemask))
--			return 0;
-+			return false;
- 
- 	switch (a->mode) {
- 	case MPOL_BIND:
- 		/* Fall through */
- 	case MPOL_INTERLEAVE:
--		return nodes_equal(a->v.nodes, b->v.nodes);
-+		return !!nodes_equal(a->v.nodes, b->v.nodes);
- 	case MPOL_PREFERRED:
- 		return a->v.preferred_node == b->v.preferred_node;
- 	default:
- 		BUG();
--		return 0;
-+		return false;
- 	}
- }
- 
--- 
-1.7.1
+Thirdly, please don't forget to run scripts/checkpatch.pl!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
