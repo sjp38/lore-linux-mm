@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id BF7EE6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 12:12:55 -0500 (EST)
-Received: by werf1 with SMTP id f1so2936509wer.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 09:12:54 -0800 (PST)
-Date: Tue, 20 Dec 2011 18:14:37 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
- sharing mechanism
-Message-ID: <20111220171437.GC3883@phenom.ffwll.local>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
- <201112121648.52126.arnd@arndb.de>
- <CAB2ybb_dU7BzJmPo6vA92pe1YCNerCLc+bv7Qi_EfkfGaik6bQ@mail.gmail.com>
- <201112201541.17904.arnd@arndb.de>
- <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 27F536B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 13:11:23 -0500 (EST)
+Message-ID: <4EF0CFA1.7010406@ah.jp.nec.com>
+Date: Tue, 20 Dec 2011 13:10:41 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/3] pagemap: export KPF_THP
+References: <1324319919-31720-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324319919-31720-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20111220033537.GA14270@localhost>
+In-Reply-To: <20111220033537.GA14270@localhost>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <robdclark@gmail.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, "Semwal, Sumit" <sumit.semwal@ti.com>, Daniel Vetter <daniel@ffwll.ch>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 20, 2011 at 10:41:45AM -0600, Rob Clark wrote:
-> On Tue, Dec 20, 2011 at 9:41 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> > On Monday 19 December 2011, Semwal, Sumit wrote:
-> >> I didn't see a consensus on whether dma_buf should enforce some form
-> >> of serialization within the API - so atleast for v1 of dma-buf, I
-> >> propose to 'not' impose a restriction, and we can tackle it (add new
-> >> ops or enforce as design?) whenever we see the first need of it - will
-> >> that be ok? [I am bending towards the thought that it is a problem to
-> >> solve at a bigger platform than dma_buf.]
-> >
-> > The problem is generally understood for streaming mappings with a
-> > single device using it: if you have a long-running mapping, you have
-> > to use dma_sync_*. This obviously falls apart if you have multiple
-> > devices and no serialization between the accesses.
-> >
-> > If you don't want serialization, that implies that we cannot have
-> > use the  dma_sync_* API on the buffer, which in turn implies that
-> > we cannot have streaming mappings. I think that's ok, but then
-> > you have to bring back the mmap API on the buffer if you want to
-> > allow any driver to provide an mmap function for a shared buffer.
+On Tue, Dec 20, 2011 at 11:35:37AM +0800, Wu Fengguang wrote:
+> On Tue, Dec 20, 2011 at 02:38:38AM +0800, Naoya Horiguchi wrote:
+> > This flag shows that a given pages is a subpage of transparent hugepage.
+> > It does not care about whether it is a head page or a tail page, because
+> > it's clear from pfn of the target page which you should know when you read
+> > /proc/kpageflags.
 > 
-> I'm thinking for a first version, we can get enough mileage out of it by saying:
-> 1) only exporter can mmap to userspace
-> 2) only importers that do not need CPU access to buffer..
+> OK, this is aligning with KPF_HUGE. For those who only care about
+> head/tail pages, will the KPF_COMPOUND_HEAD/KPF_COMPOUND_TAIL flags be
+> set automatically for thp? Which may be more convenient to test/filter
+> than the page address.
+
+Yes, both of KPF_COMPOUND_HEAD/TAIL flags are automatically set for thp.
+So above patch description was wrong and should be fixed.
+(I didn't notice that because page-types hid compound_head/tail flags
+without --raw flag. Sorry for confusion.)
+
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > 
-> This way we can get dmabuf into the kernel, maybe even for 3.3.  I
-> know there are a lot of interesting potential uses where this stripped
-> down version is good enough.  It probably isn't the final version,
-> maybe more features are added over time to deal with importers that
-> need CPU access to buffer, sync object, etc.  But we have to start
-> somewhere.
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-I agree with Rob here - I think especially for the coherency discussion
-some actual users of dma_buf on a bunch of insane platforms (i915
-qualifies here too, because we do some cacheline flushing behind everyones
-back) would massively help in clarifying things.
+Thank you.
 
-It also sounds like that at least for proper userspace mmap support we'd
-need some dma api extensions on at least arm, and that might take a while
-...
-
-Cheers, Daniel
--- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
