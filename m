@@ -1,54 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 625C96B005A
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 13:19:18 -0500 (EST)
-Received: by qabg40 with SMTP id g40so1850805qab.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 10:19:17 -0800 (PST)
-Message-ID: <4EF0D1A3.7010700@gmail.com>
-Date: Tue, 20 Dec 2011 13:19:15 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 39BE46B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 14:29:02 -0500 (EST)
+Date: Tue, 20 Dec 2011 20:28:50 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] [v2] mempolicy: refix mbind_range() vma issue
+Message-ID: <20111220192850.GB3870@cmpxchg.org>
+References: <20111212112000.GB18789@cmpxchg.org>
+ <1324405032-22281-1-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mempolicy: refix mbind_range() vma issue
-References: <1323449709-25923-1-git-send-email-kosaki.motohiro@gmail.com> <20111212112000.GB18789@cmpxchg.org>
-In-Reply-To: <20111212112000.GB18789@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1324405032-22281-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Caspar Zhang <caspar@casparzhang.com>
+To: kosaki.motohiro@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Caspar Zhang <caspar@casparzhang.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Wilson <wilsons@start.ca>, Andrea Arcangeli <aarcange@redhat.com>
 
->> +		pgoff = vma->vm_pgoff + ((vmstart - vma->vm_start)>>  PAGE_SHIFT);
->>   		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
->> -				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
->> +				  vma->anon_vma, vma->vm_file, pgoff,
->>   				  new_pol);
->>   		if (prev) {
->>   			vma = prev;
->
-> This is essentially a revert of the aforementioned commit.
->
-> What you added instead is the fixing of @prev: only when mbind is
-> vma-aligned can the new area be potentially merged into the preceding
-> one.  Otherwise that original vma is the one we need to check for
-> compatibility with the mbind range and leave the original prev alone:
->
-> 	[prev         ][vma            ]
-> 	                    |start
->
-> 	[prev         ][vma][mbind vma ]
->
-> This should NOT attempt to merge mbind vma with prev (and forget about
-> and leak vma, iirc), but check if vma and the mbind vma are compatible
-> or should be separate areas.
->
-> Could you please add something to that extent to the changelog?
+On Tue, Dec 20, 2011 at 01:17:10PM -0500, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> 
+> commit 8aacc9f550 (mm/mempolicy.c: fix pgoff in mbind vma merge) is
+> slightly incorrect fix.
+> 
+> Why? Think following case.
+> 
+> 1. map 4 pages of a file at offset 0
+> 
+>    [0123]
+> 
+> 2. map 2 pages just after the first mapping of the same file but with
+>    page offset 2
+> 
+>    [0123][23]
+> 
+> 3. mbind() 2 pages from the first mapping at offset 2.
+>    mbind_range() should treat new vma is,
+> 
+>    [0123][23]
+>      |23|
+>      mbind vma
+> 
+>    but it does
+> 
+>    [0123][23]
+>      |01|
+>      mbind vma
+> 
+>    Oops. then, it makes wrong vma merge and splitting ([01][0123] or similar).
+> 
+> This patch fixes it.
+> 
+> [testcase]
+>   test result - before the patch
+> 
+> 	case4: 126: test failed. expect '2,4', actual '2,2,2'
+>        	case5: passed
+> 	case6: passed
+> 	case7: passed
+> 	case8: passed
+> 	case_n: 246: test failed. expect '4,2', actual '1,4'
+> 
+> 	------------[ cut here ]------------
+> 	kernel BUG at mm/filemap.c:135!
+> 	invalid opcode: 0000 [#4] SMP DEBUG_PAGEALLOC
+> 
+> 	(snip long bug on messages)
+> 
+>   test result - after the patch
+> 
+> 	case4: passed
+>        	case5: passed
+> 	case6: passed
+> 	case7: passed
+> 	case8: passed
+> 	case_n: passed
 
-When making new test case, I've found one bug in my patch. So, I've
-sent new patch w/ detailed bug explanaion. :)
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Caspar Zhang <caspar@casparzhang.com>
 
-Thanks.
+Looks good to me now, thanks.
 
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Since this can corrupt virtual mappings and was released with 3.2, I
+think we also want this:
+
+Cc: stable@kernel.org [3.2.x]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
