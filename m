@@ -1,44 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 93C656B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 18:11:15 -0500 (EST)
-Date: Tue, 20 Dec 2011 15:11:13 -0800
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 2ACCF6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 18:37:59 -0500 (EST)
+Date: Tue, 20 Dec 2011 15:37:57 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] memcg: malloc memory for possible node in hotplug
-Message-Id: <20111220151113.8aa05166.akpm@linux-foundation.org>
-In-Reply-To: <1324375503-31487-1-git-send-email-lliubbo@gmail.com>
-References: <1324375503-31487-1-git-send-email-lliubbo@gmail.com>
+Subject: Re: [PATCH] [v2] mempolicy: refix mbind_range() vma issue
+Message-Id: <20111220153757.8d80af1e.akpm@linux-foundation.org>
+In-Reply-To: <20111220192850.GB3870@cmpxchg.org>
+References: <20111212112000.GB18789@cmpxchg.org>
+	<1324405032-22281-1-git-send-email-kosaki.motohiro@gmail.com>
+	<20111220192850.GB3870@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, bsingharora@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Caspar Zhang <caspar@casparzhang.com>, Stephen Wilson <wilsons@start.ca>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, 20 Dec 2011 18:05:03 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
+On Tue, 20 Dec 2011 20:28:50 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> Current struct mem_cgroup_per_node and struct mem_cgroup_tree_per_node are
-> malloced for all possible node during system boot.
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Minchan Kim <minchan.kim@gmail.com>
+> > CC: Caspar Zhang <caspar@casparzhang.com>
 > 
-> This may cause some memory waste, better if move it to memory hotplug.
+> Looks good to me now, thanks.
+> 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Since this can corrupt virtual mappings and was released with 3.2, I
+> think we also want this:
+> 
+> Cc: stable@kernel.org [3.2.x]
 
-This adds a fair bit of complexity for what I suspect is a pretty small
-memory saving.  And that memory saving will be on pretty large machines.
-
-Can you please estimate how much memory this change will save?  Taht
-way we can decide whether the additional complexity is worthwhile.
-
-
-Also, the operations in the new memcg_mem_hotplug_callback() are
-copied-n-pasted from other places in memcontrol.c, such as from
-mem_cgroup_soft_limit_tree_init().  We shouldn't do this - we should be
-able to factor the code so that both mem_cgroup_create() and
-memcg_mem_hotplug_callback() emit simple calls to common helper
-functions.
-
-Thirdly, please don't forget to run scripts/checkpatch.pl!
+I assume you meant 3.1.x  And into mainline for 3.2?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
