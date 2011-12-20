@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id E6E7E6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 16:36:03 -0500 (EST)
-Received: by iacb35 with SMTP id b35so11735117iac.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 13:36:03 -0800 (PST)
-Date: Tue, 20 Dec 2011 13:36:00 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Android low memory killer vs. memory pressure notifications
-In-Reply-To: <20111220145654.GA26881@oksana.dev.rtsoft.ru>
-Message-ID: <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com>
-References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz> <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com> <20111220145654.GA26881@oksana.dev.rtsoft.ru>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id C51666B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 16:58:19 -0500 (EST)
+Date: Tue, 20 Dec 2011 13:58:17 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] memcg: simplify page cache charging.
+Message-Id: <20111220135817.5ba7ab05.akpm@linux-foundation.org>
+In-Reply-To: <20111219090122.66024659.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111214164922.05fb4afe.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111216142814.dbb77209.akpm@linux-foundation.org>
+	<20111219090122.66024659.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Tue, 20 Dec 2011, Anton Vorontsov wrote:
+On Mon, 19 Dec 2011 09:01:22 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> Hm, assuming that metadata is no longer an issue, why do you think avoiding
-> cgroups would be a good idea?
+> On Fri, 16 Dec 2011 14:28:14 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Wed, 14 Dec 2011 16:49:22 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > Because of commit ef6a3c6311, FUSE uses replace_page_cache() instead
+> > > of add_to_page_cache(). Then, mem_cgroup_cache_charge() is not
+> > > called against FUSE's pages from splice.
+> > 
+> > Speaking of ef6a3c6311 ("mm: add replace_page_cache_page() function"),
+> > may I pathetically remind people that it's rather inefficient?
+> > 
+> > http://lkml.indiana.edu/hypermail/linux/kernel/1109.1/00375.html
+> > 
+> 
+> IIRC, people says inefficient because it uses memcg codes for page-migration
+> for fixing up accounting. Now, We added replace-page-cache for memcg in
+> memcg-add-mem_cgroup_replace_page_cache-to-fix-lru-issue.patch
+> 
+> So, I think the problem originally mentioned is fixed.
 > 
 
-It's helpful for certain end users, particularly those in the embedded 
-world, to be able to disable as many config options as possible to reduce 
-the size of kernel image as much as possible, so they'll want a minimal 
-amount of kernel functionality that allows such notifications.  Keep in 
-mind that CONFIG_CGROUP_MEM_RES_CTLR is not enabled by default because of 
-this (enabling it, CONFIG_RESOURCE_COUNTERS, and CONFIG_CGROUPS increases 
-the size of the kernel text by ~1%), and it's becoming increasingly 
-important for certain workloads to be notified of low memory conditions 
-without any restriction on its usage other than the amount of RAM that the 
-system has so that they can trigger internal memory freeing, explicit 
-memory compaction from the command line, drop caches, reducing scheduling 
-priority, etc.
+No, the inefficiency in replace_page_cache_page() is still there.  Two
+identical walks down the radix tree, a pointless decrement then
+increment of mapping->nrpages, two writes to page->mapping, an often
+pointless decrement then increment of NR_FILE_PAGES, and probably other things.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
