@@ -1,223 +1,647 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 938626B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 11:16:18 -0500 (EST)
-Date: Tue, 20 Dec 2011 17:16:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/4] memcg: simplify LRU handling by new rule
-Message-ID: <20111220161615.GQ10565@tiehlicka.suse.cz>
-References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
- <20111214165226.1c3b666e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 831AE6B005A
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 11:38:09 -0500 (EST)
+Date: Tue, 20 Dec 2011 11:36:50 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC v3 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Message-ID: <20111220163650.GB3964@phenom.dumpdata.com>
+References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+ <1324283611-18344-3-git-send-email-sumit.semwal@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20111214165226.1c3b666e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1324283611-18344-3-git-send-email-sumit.semwal@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Sumit Semwal <sumit.semwal@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, t.stanislaws@samsung.com, linux@arm.linux.org.uk, arnd@arndb.de, patches@linaro.org, rob@ti.com, Sumit Semwal <sumit.semwal@linaro.org>, m.szyprowski@samsung.com
 
-On Wed 14-12-11 16:52:26, KAMEZAWA Hiroyuki wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Mon, Dec 19, 2011 at 02:03:30PM +0530, Sumit Semwal wrote:
+> This is the first step in defining a dma buffer sharing mechanism.
 > 
-> Now, at LRU handling, memory cgroup needs to do complicated works
-> to see valid pc->mem_cgroup, which may be overwritten.
+> A new buffer object dma_buf is added, with operations and API to allow easy
+> sharing of this buffer object across devices.
 > 
-> This patch is for relaxing the protocol. This patch guarantees
->    - when pc->mem_cgroup is overwritten, page must not be on LRU.
+> The framework allows:
+> - different devices to 'attach' themselves to this buffer, to facilitate
+>   backing storage negotiation, using dma_buf_attach() API.
 
-How the patch guarantees that? I do not see any enforcement. In fact we
-depend on the previous patches, don't we.
+Any thoughts of adding facility to track them? So you can see who is using what?
+
+> - association of a file pointer with each user-buffer and associated
+>    allocator-defined operations on that buffer. This operation is called the
+>    'export' operation.
+
+ 'create'? or 'alloc' ?
+
+export implies an import somwhere and I don't think that is the case here.
+
+> - this exported buffer-object to be shared with the other entity by asking for
+>    its 'file-descriptor (fd)', and sharing the fd across.
+> - a received fd to get the buffer object back, where it can be accessed using
+>    the associated exporter-defined operations.
+> - the exporter and user to share the scatterlist using map_dma_buf and
+>    unmap_dma_buf operations.
+> 
+> Atleast one 'attach()' call is required to be made prior to calling the
+> map_dma_buf() operation.
+
+for the whole memory region or just for the device itself?
 
 > 
-> By this, LRU routine can believe pc->mem_cgroup and don't need to
-> check bits on pc->flags. This new rule may adds small overheads to
-> swapin. But in most case, lru handling gets faster.
+> Couple of building blocks in map_dma_buf() are added to ease introduction
+> of sync'ing across exporter and users, and late allocation by the exporter.
 > 
-> After this patch, PCG_ACCT_LRU bit is obsolete and removed.
-
-It makes things much more simpler. I just think it needs a better
-description.
-
+> More details are there in the documentation patch.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> This is based on design suggestions from many people at the mini-summits[1],
+> most notably from Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
+> Daniel Vetter <daniel@ffwll.ch>.
+> 
+> The implementation is inspired from proof-of-concept patch-set from
+> Tomasz Stanislawski <t.stanislaws@samsung.com>, who demonstrated buffer sharing
+> between two v4l2 devices. [2]
+> 
+> [1]: https://wiki.linaro.org/OfficeofCTO/MemoryManagement
+> [2]: http://lwn.net/Articles/454389
+> 
+> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+> Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
 > ---
->  include/linux/page_cgroup.h |    8 -----
->  mm/memcontrol.c             |   72 ++++++++++--------------------------------
->  2 files changed, 17 insertions(+), 63 deletions(-)
+>  drivers/base/Kconfig    |   10 ++
+>  drivers/base/Makefile   |    1 +
+>  drivers/base/dma-buf.c  |  289 +++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/dma-buf.h |  172 ++++++++++++++++++++++++++++
+>  4 files changed, 472 insertions(+), 0 deletions(-)
+>  create mode 100644 drivers/base/dma-buf.c
+>  create mode 100644 include/linux/dma-buf.h
 > 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index aaa60da..2cddacf 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -10,8 +10,6 @@ enum {
->  	/* flags for mem_cgroup and file and I/O status */
->  	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
->  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
-> -	/* No lock in page_cgroup */
-> -	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
->  	__NR_PCG_FLAGS,
->  };
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index 21cf46f..8a0e87f 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -174,4 +174,14 @@ config SYS_HYPERVISOR
 >  
-> @@ -75,12 +73,6 @@ TESTPCGFLAG(Used, USED)
->  CLEARPCGFLAG(Used, USED)
->  SETPCGFLAG(Used, USED)
+>  source "drivers/base/regmap/Kconfig"
 >  
-> -SETPCGFLAG(AcctLRU, ACCT_LRU)
-> -CLEARPCGFLAG(AcctLRU, ACCT_LRU)
-> -TESTPCGFLAG(AcctLRU, ACCT_LRU)
-> -TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
-> -
-> -
->  SETPCGFLAG(FileMapped, FILE_MAPPED)
->  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
->  TESTPCGFLAG(FileMapped, FILE_MAPPED)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2ae973d..d5e21e7 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -974,30 +974,8 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
->  		return &zone->lruvec;
->  
->  	pc = lookup_page_cgroup(page);
-> -	VM_BUG_ON(PageCgroupAcctLRU(pc));
-> -	/*
-> -	 * putback:				charge:
-> -	 * SetPageLRU				SetPageCgroupUsed
-> -	 * smp_mb				smp_mb
-> -	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
-> -	 *
-> -	 * Ensure that one of the two sides adds the page to the memcg
-> -	 * LRU during a race.
-> -	 */
-> -	smp_mb();
-> -	/*
-> -	 * If the page is uncharged, it may be freed soon, but it
-> -	 * could also be swap cache (readahead, swapoff) that needs to
-> -	 * be reclaimable in the future.  root_mem_cgroup will babysit
-> -	 * it for the time being.
-> -	 */
-> -	if (PageCgroupUsed(pc)) {
-> -		/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-> -		smp_rmb();
-> -		memcg = pc->mem_cgroup;
-> -		SetPageCgroupAcctLRU(pc);
-> -	} else
-> -		memcg = root_mem_cgroup;
-> +	memcg = pc->mem_cgroup;
-> +	VM_BUG_ON(!memcg);
->  	mz = page_cgroup_zoneinfo(memcg, page);
->  	/* compound_order() is stabilized through lru_lock */
->  	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
-> @@ -1024,18 +1002,8 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
->  		return;
->  
->  	pc = lookup_page_cgroup(page);
-> -	/*
-> -	 * root_mem_cgroup babysits uncharged LRU pages, but
-> -	 * PageCgroupUsed is cleared when the page is about to get
-> -	 * freed.  PageCgroupAcctLRU remembers whether the
-> -	 * LRU-accounting happened against pc->mem_cgroup or
-> -	 * root_mem_cgroup.
-> -	 */
-> -	if (TestClearPageCgroupAcctLRU(pc)) {
-> -		VM_BUG_ON(!pc->mem_cgroup);
-> -		memcg = pc->mem_cgroup;
-> -	} else
-> -		memcg = root_mem_cgroup;
-> +	memcg = pc->mem_cgroup;
-> +	VM_BUG_ON(!memcg);
->  	mz = page_cgroup_zoneinfo(memcg, page);
->  	/* huge page split is done under lru_lock. so, we have no races. */
->  	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
-> @@ -2377,6 +2345,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  
->  	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
->  	unlock_page_cgroup(pc);
-> +	WARN_ON_ONCE(PageLRU(page));
->  	/*
->  	 * "charge_statistics" updated event counter. Then, check it.
->  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-> @@ -2388,7 +2357,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  
->  #define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MOVE_LOCK) |\
-> -			(1 << PCG_ACCT_LRU) | (1 << PCG_MIGRATION))
-> +			(1 << PCG_MIGRATION))
->  /*
->   * Because tail pages are not marked as "used", set it. We're under
->   * zone->lru_lock, 'splitting on pmd' and compound_lock.
-> @@ -2399,6 +2368,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
->  {
->  	struct page_cgroup *head_pc = lookup_page_cgroup(head);
->  	struct page_cgroup *pc;
-> +	struct mem_cgroup_per_zone *mz;
-> +	enum lru_list lru;
->  	int i;
->  
->  	if (mem_cgroup_disabled())
-> @@ -2407,23 +2378,15 @@ void mem_cgroup_split_huge_fixup(struct page *head)
->  		pc = head_pc + i;
->  		pc->mem_cgroup = head_pc->mem_cgroup;
->  		smp_wmb();/* see __commit_charge() */
-> -		/*
-> -		 * LRU flags cannot be copied because we need to add tail
-> -		 * page to LRU by generic call and our hooks will be called.
-> -		 */
->  		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
->  	}
-> -
-> -	if (PageCgroupAcctLRU(head_pc)) {
-> -		enum lru_list lru;
-> -		struct mem_cgroup_per_zone *mz;
-> -		/*
-> -		 * We hold lru_lock, then, reduce counter directly.
-> -		 */
-> -		lru = page_lru(head);
-> -		mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
-> -		MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
-> -	}
-> +	/* 
-> +	 * Tail pages will be added to LRU.
-> +	 * We hold lru_lock,then,reduce counter directly.
+> +config DMA_SHARED_BUFFER
+> +	bool "Buffer framework to be shared between drivers"
+> +	default n
+> +	select ANON_INODES
+> +	help
+> +	  This option enables the framework for buffer-sharing between
+> +	  multiple drivers. A buffer is associated with a file using driver
+> +	  APIs extension; the file's descriptor can then be passed on to other
+> +	  driver.
+> +
+>  endmenu
+> diff --git a/drivers/base/Makefile b/drivers/base/Makefile
+> index 99a375a..d0df046 100644
+> --- a/drivers/base/Makefile
+> +++ b/drivers/base/Makefile
+> @@ -8,6 +8,7 @@ obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
+>  obj-y			+= power/
+>  obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
+>  obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
+> +obj-$(CONFIG_DMA_SHARED_BUFFER) += dma-buf.o
+>  obj-$(CONFIG_ISA)	+= isa.o
+>  obj-$(CONFIG_FW_LOADER)	+= firmware_class.o
+>  obj-$(CONFIG_NUMA)	+= node.o
+> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+> new file mode 100644
+> index 0000000..e920709
+> --- /dev/null
+> +++ b/drivers/base/dma-buf.c
+> @@ -0,0 +1,289 @@
+> +/*
+> + * Framework for buffer objects that can be shared across devices/subsystems.
+> + *
+> + * Copyright(C) 2011 Linaro Limited. All rights reserved.
+> + * Author: Sumit Semwal <sumit.semwal@ti.com>
+> + *
+> + * Many thanks to linaro-mm-sig list, and specially
+> + * Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
+> + * Daniel Vetter <daniel@ffwll.ch> for their support in creation and
+> + * refining of this idea.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published by
+> + * the Free Software Foundation.
+> + *
+> + * This program is distributed in the hope that it will be useful, but WITHOUT
+> + * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+> + * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+> + * more details.
+> + *
+> + * You should have received a copy of the GNU General Public License along with
+> + * this program.  If not, see <http://www.gnu.org/licenses/>.
+> + */
+> +
+> +#include <linux/fs.h>
+> +#include <linux/slab.h>
+> +#include <linux/dma-buf.h>
+> +#include <linux/anon_inodes.h>
+> +#include <linux/export.h>
+> +
+> +static inline int is_dma_buf_file(struct file *);
+> +
+> +static int dma_buf_release(struct inode *inode, struct file *file)
+> +{
+> +	struct dma_buf *dmabuf;
+> +
+> +	if (!is_dma_buf_file(file))
+> +		return -EINVAL;
+> +
+> +	dmabuf = file->private_data;
+> +
+> +	dmabuf->ops->release(dmabuf);
+> +	kfree(dmabuf);
+> +	return 0;
+> +}
+> +
+> +static const struct file_operations dma_buf_fops = {
+> +	.release	= dma_buf_release,
+> +};
+> +
+> +/*
+> + * is_dma_buf_file - Check if struct file* is associated with dma_buf
+> + */
+> +static inline int is_dma_buf_file(struct file *file)
+> +{
+> +	return file->f_op == &dma_buf_fops;
+> +}
+> +
+> +/**
+
+Wrong kerneldoc.
+
+> + * dma_buf_export - Creates a new dma_buf, and associates an anon file
+> + * with this buffer, so it can be exported.
+> + * Also connect the allocator specific data and ops to the buffer.
+> + *
+> + * @priv:	[in]	Attach private data of allocator to this buffer
+> + * @ops:	[in]	Attach allocator-defined dma buf ops to the new buffer.
+> + * @size:	[in]	Size of the buffer
+> + * @flags:	[in]	mode flags for the file.
+> + *
+> + * Returns, on success, a newly created dma_buf object, which wraps the
+> + * supplied private data and operations for dma_buf_ops. On either missing
+> + * ops, or error in allocating struct dma_buf, will return negative error.
+> + *
+> + */
+> +struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+> +				size_t size, int flags)
+> +{
+> +	struct dma_buf *dmabuf;
+> +	struct file *file;
+> +
+> +	if (WARN_ON(!priv || !ops
+> +			  || !ops->map_dma_buf
+> +			  || !ops->unmap_dma_buf
+> +			  || !ops->release)) {
+> +		return ERR_PTR(-EINVAL);
+> +	}
+> +
+> +	dmabuf = kzalloc(sizeof(struct dma_buf), GFP_KERNEL);
+> +	if (dmabuf == NULL)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	dmabuf->priv = priv;
+> +	dmabuf->ops = ops;
+> +	dmabuf->size = size;
+> +
+> +	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
+> +
+> +	dmabuf->file = file;
+> +
+> +	mutex_init(&dmabuf->lock);
+> +	INIT_LIST_HEAD(&dmabuf->attachments);
+> +
+> +	return dmabuf;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_export);
+> +
+> +
+> +/**
+> + * dma_buf_fd - returns a file descriptor for the given dma_buf
+> + * @dmabuf:	[in]	pointer to dma_buf for which fd is required.
+> + *
+> + * On success, returns an associated 'fd'. Else, returns error.
+> + */
+> +int dma_buf_fd(struct dma_buf *dmabuf)
+> +{
+> +	int error, fd;
+> +
+> +	if (!dmabuf || !dmabuf->file)
+> +		return -EINVAL;
+> +
+> +	error = get_unused_fd();
+> +	if (error < 0)
+> +		return error;
+> +	fd = error;
+> +
+> +	fd_install(fd, dmabuf->file);
+> +
+> +	return fd;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_fd);
+> +
+> +/**
+> + * dma_buf_get - returns the dma_buf structure related to an fd
+> + * @fd:	[in]	fd associated with the dma_buf to be returned
+> + *
+> + * On success, returns the dma_buf structure associated with an fd; uses
+> + * file's refcounting done by fget to increase refcount. returns ERR_PTR
+> + * otherwise.
+> + */
+> +struct dma_buf *dma_buf_get(int fd)
+> +{
+> +	struct file *file;
+> +
+> +	file = fget(fd);
+> +
+> +	if (!file)
+> +		return ERR_PTR(-EBADF);
+> +
+> +	if (!is_dma_buf_file(file)) {
+> +		fput(file);
+> +		return ERR_PTR(-EINVAL);
+> +	}
+> +
+> +	return file->private_data;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_get);
+> +
+> +/**
+> + * dma_buf_put - decreases refcount of the buffer
+> + * @dmabuf:	[in]	buffer to reduce refcount of
+> + *
+> + * Uses file's refcounting done implicitly by fput()
+> + */
+> +void dma_buf_put(struct dma_buf *dmabuf)
+> +{
+> +	if (WARN_ON(!dmabuf || !dmabuf->file))
+> +		return;
+> +
+> +	fput(dmabuf->file);
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_put);
+> +
+> +/**
+> + * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
+> + * calls attach() of dma_buf_ops to allow device-specific attach functionality
+> + * @dmabuf:	[in]	buffer to attach device to.
+> + * @dev:	[in]	device to be attached.
+> + *
+> + * Returns struct dma_buf_attachment * for this attachment; may return negative
+> + * error codes.
+> + *
+> + */
+> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> +					  struct device *dev)
+> +{
+> +	struct dma_buf_attachment *attach;
+> +	int ret;
+> +
+> +	if (WARN_ON(!dmabuf || !dev || !dmabuf->ops))
+> +		return ERR_PTR(-EINVAL);
+> +
+> +	attach = kzalloc(sizeof(struct dma_buf_attachment), GFP_KERNEL);
+> +	if (attach == NULL)
+> +		goto err_alloc;
+> +
+> +	mutex_lock(&dmabuf->lock);
+> +
+> +	attach->dev = dev;
+> +	attach->dmabuf = dmabuf;
+> +	if (dmabuf->ops->attach) {
+> +		ret = dmabuf->ops->attach(dmabuf, dev, attach);
+> +		if (ret)
+> +			goto err_attach;
+> +	}
+> +	list_add(&attach->node, &dmabuf->attachments);
+> +
+> +	mutex_unlock(&dmabuf->lock);
+> +	return attach;
+> +
+> +err_alloc:
+> +	return ERR_PTR(-ENOMEM);
+> +err_attach:
+> +	kfree(attach);
+> +	mutex_unlock(&dmabuf->lock);
+> +	return ERR_PTR(ret);
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_attach);
+> +
+> +/**
+> + * dma_buf_detach - Remove the given attachment from dmabuf's attachments list;
+> + * optionally calls detach() of dma_buf_ops for device-specific detach
+> + * @dmabuf:	[in]	buffer to detach from.
+> + * @attach:	[in]	attachment to be detached; is free'd after this call.
+> + *
+> + */
+> +void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
+> +{
+> +	if (WARN_ON(!dmabuf || !attach || !dmabuf->ops))
+> +		return;
+> +
+> +	mutex_lock(&dmabuf->lock);
+> +	list_del(&attach->node);
+> +	if (dmabuf->ops->detach)
+> +		dmabuf->ops->detach(dmabuf, attach);
+> +
+> +	mutex_unlock(&dmabuf->lock);
+> +	kfree(attach);
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_detach);
+> +
+> +/**
+> + * dma_buf_map_attachment - Returns the scatterlist table of the attachment;
+> + * mapped into _device_ address space. Is a wrapper for map_dma_buf() of the
+> + * dma_buf_ops.
+> + * @attach:	[in]	attachment whose scatterlist is to be returned
+> + * @direction:	[in]	direction of DMA transfer
+> + *
+> + * Returns sg_table containing the scatterlist to be returned; may return NULL
+> + * or ERR_PTR.
+> + *
+> + */
+> +struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
+> +					enum dma_data_direction direction)
+> +{
+> +	struct sg_table *sg_table = ERR_PTR(-EINVAL);
+> +
+> +	if (WARN_ON(!attach || !attach->dmabuf || !attach->dmabuf->ops))
+> +		return ERR_PTR(-EINVAL);
+> +
+> +	mutex_lock(&attach->dmabuf->lock);
+> +	if (attach->dmabuf->ops->map_dma_buf)
+> +		sg_table = attach->dmabuf->ops->map_dma_buf(attach, direction);
+> +	mutex_unlock(&attach->dmabuf->lock);
+> +
+> +	return sg_table;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_map_attachment);
+> +
+> +/**
+> + * dma_buf_unmap_attachment - unmaps and decreases usecount of the buffer;might
+> + * deallocate the scatterlist associated. Is a wrapper for unmap_dma_buf() of
+> + * dma_buf_ops.
+> + * @attach:	[in]	attachment to unmap buffer from
+> + * @sg_table:	[in]	scatterlist info of the buffer to unmap
+> + *
+> + */
+> +void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
+> +				struct sg_table *sg_table)
+> +{
+> +	if (WARN_ON(!attach || !attach->dmabuf || !sg_table
+> +			    || !attach->dmabuf->ops))
+> +		return;
+> +
+> +	mutex_lock(&attach->dmabuf->lock);
+> +	if (attach->dmabuf->ops->unmap_dma_buf)
+> +		attach->dmabuf->ops->unmap_dma_buf(attach, sg_table);
+> +	mutex_unlock(&attach->dmabuf->lock);
+> +
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
+> diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+> new file mode 100644
+> index 0000000..3e3ecf3
+> --- /dev/null
+> +++ b/include/linux/dma-buf.h
+> @@ -0,0 +1,172 @@
+> +/*
+> + * Header file for dma buffer sharing framework.
+> + *
+> + * Copyright(C) 2011 Linaro Limited. All rights reserved.
+> + * Author: Sumit Semwal <sumit.semwal@ti.com>
+> + *
+> + * Many thanks to linaro-mm-sig list, and specially
+> + * Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
+> + * Daniel Vetter <daniel@ffwll.ch> for their support in creation and
+> + * refining of this idea.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published by
+> + * the Free Software Foundation.
+> + *
+> + * This program is distributed in the hope that it will be useful, but WITHOUT
+> + * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+> + * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+> + * more details.
+> + *
+> + * You should have received a copy of the GNU General Public License along with
+> + * this program.  If not, see <http://www.gnu.org/licenses/>.
+> + */
+> +#ifndef __DMA_BUF_H__
+> +#define __DMA_BUF_H__
+> +
+> +#include <linux/file.h>
+> +#include <linux/err.h>
+> +#include <linux/device.h>
+> +#include <linux/scatterlist.h>
+> +#include <linux/list.h>
+> +#include <linux/dma-mapping.h>
+> +
+> +struct dma_buf;
+> +
+> +/**
+> + * struct dma_buf_attachment - holds device-buffer attachment data
+
+OK, but what is the purpose of it?
+
+> + * @dmabuf: buffer for this attachment.
+> + * @dev: device attached to the buffer.
+                                ^^^ this
+> + * @node: list_head to allow manipulation of list of dma_buf_attachment.
+
+Just say: "list of dma_buf_attachment"'
+
+> + * @priv: exporter-specific attachment data.
+
+That "exporter-specific.." brings to my mind custom decleration forms. But maybe that is me.
+
+> + */
+> +struct dma_buf_attachment {
+> +	struct dma_buf *dmabuf;
+> +	struct device *dev;
+> +	struct list_head node;
+> +	void *priv;
+> +};
+
+Why don't you move the decleration of this below 'struct dma_buf'?
+It would easier than to read this structure..
+
+> +
+> +/**
+> + * struct dma_buf_ops - operations possible on struct dma_buf
+> + * @attach: allows different devices to 'attach' themselves to the given
+
+register?
+> + *	    buffer. It might return -EBUSY to signal that backing storage
+> + *	    is already allocated and incompatible with the requirements
+
+Wait.. allocated or attached?
+
+> + *	    of requesting device. [optional]
+
+What is optional? The return value? Or the 'attach' call? If the later , say
+that in the first paragraph.
+
+
+> + * @detach: detach a given device from this buffer. [optional]
+> + * @map_dma_buf: returns list of scatter pages allocated, increases usecount
+> + *		 of the buffer. Requires atleast one attach to be called
+> + *		 before. Returned sg list should already be mapped into
+> + *		 _device_ address space. This call may sleep. May also return
+
+Ok, there is some __might_sleep macro you should put on the function.
+
+> + *		 -EINTR.
+
+Ok. What is the return code if attach has _not_ been called?
+
+> + * @unmap_dma_buf: decreases usecount of buffer, might deallocate scatter
+> + *		   pages.
+> + * @release: release this buffer; to be called after the last dma_buf_put.
+> + * @sync_sg_for_cpu: sync the sg list for cpu.
+> + * @sync_sg_for_device: synch the sg list for device.
+
+Not seeing those two.
+> + */
+> +struct dma_buf_ops {
+> +	int (*attach)(struct dma_buf *, struct device *,
+> +			struct dma_buf_attachment *);
+> +
+> +	void (*detach)(struct dma_buf *, struct dma_buf_attachment *);
+> +
+> +	/* For {map,unmap}_dma_buf below, any specific buffer attributes
+> +	 * required should get added to device_dma_parameters accessible
+> +	 * via dev->dma_params.
 > +	 */
-> +	lru = page_lru(head);
-> +	mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
-> +	MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
->  }
->  #endif
->  
-> @@ -2656,10 +2619,9 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  	if (!page_is_file_cache(page))
->  		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
->  
-> -	if (!PageSwapCache(page)) {
-> +	if (!PageSwapCache(page))
->  		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-> -		WARN_ON_ONCE(PageLRU(page));
-> -	} else { /* page is swapcache/shmem */
-> +	else { /* page is swapcache/shmem */
->  		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &memcg);
->  		if (!ret)
->  			__mem_cgroup_commit_charge_swapin(page, memcg, type);
+> +	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
+> +						enum dma_data_direction);
+> +	void (*unmap_dma_buf)(struct dma_buf_attachment *,
+> +						struct sg_table *);
+> +	/* TODO: Add try_map_dma_buf version, to return immed with -EBUSY
+
+Ewww. Why? Why not just just the 'map_dma_buf' and return that?
+
+> +	 * if the call would block.
+> +	 */
+> +
+> +	/* after final dma_buf_put() */
+> +	void (*release)(struct dma_buf *);
+> +
+> +};
+> +
+> +/**
+> + * struct dma_buf - shared buffer object
+
+Missing the 'size'.
+
+> + * @file: file pointer used for sharing buffers across, and for refcounting.
+> + * @attachments: list of dma_buf_attachment that denotes all devices attached.
+> + * @ops: dma_buf_ops associated with this buffer object
+> + * @priv: user specific private data
+
+
+Can you elaborate on this? Is this the "exporter" using this? Or is
+it for the "user" using it? If so, why provide it? Wouldn't the 
+user of this have something like this:
+
+struct my_dma_bufs {
+	struct dma_buf[20];
+	void *priv;
+}
+
+Anyhow?
+
+> + */
+> +struct dma_buf {
+> +	size_t size;
+> +	struct file *file;
+> +	struct list_head attachments;
+> +	const struct dma_buf_ops *ops;
+> +	/* mutex to serialize list manipulation and other ops */
+> +	struct mutex lock;
+> +	void *priv;
+> +};
+> +
+> +#ifdef CONFIG_DMA_SHARED_BUFFER
+> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> +							struct device *dev);
+> +void dma_buf_detach(struct dma_buf *dmabuf,
+> +				struct dma_buf_attachment *dmabuf_attach);
+> +struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+> +			size_t size, int flags);
+> +int dma_buf_fd(struct dma_buf *dmabuf);
+> +struct dma_buf *dma_buf_get(int fd);
+> +void dma_buf_put(struct dma_buf *dmabuf);
+> +
+> +struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
+> +					enum dma_data_direction);
+> +void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *);
+> +#else
+> +
+> +static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> +							struct device *dev)
+> +{
+> +	return ERR_PTR(-ENODEV);
+> +}
+> +
+> +static inline void dma_buf_detach(struct dma_buf *dmabuf,
+> +				  struct dma_buf_attachment *dmabuf_attach)
+> +{
+> +	return;
+> +}
+> +
+> +static inline struct dma_buf *dma_buf_export(void *priv,
+> +						struct dma_buf_ops *ops,
+> +						size_t size, int flags)
+> +{
+> +	return ERR_PTR(-ENODEV);
+> +}
+> +
+> +static inline int dma_buf_fd(struct dma_buf *dmabuf)
+> +{
+> +	return -ENODEV;
+> +}
+> +
+> +static inline struct dma_buf *dma_buf_get(int fd)
+> +{
+> +	return ERR_PTR(-ENODEV);
+> +}
+> +
+> +static inline void dma_buf_put(struct dma_buf *dmabuf)
+> +{
+> +	return;
+> +}
+> +
+> +static inline struct sg_table *dma_buf_map_attachment(
+> +	struct dma_buf_attachment *attach, enum dma_data_direction write)
+> +{
+> +	return ERR_PTR(-ENODEV);
+> +}
+> +
+> +static inline void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
+> +						struct sg_table *sg)
+> +{
+> +	return;
+> +}
+> +
+> +#endif /* CONFIG_DMA_SHARED_BUFFER */
+> +
+> +#endif /* __DMA_BUF_H__ */
 > -- 
 > 1.7.4.1
 > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> _______________________________________________
+> dri-devel mailing list
+> dri-devel@lists.freedesktop.org
+> http://lists.freedesktop.org/mailman/listinfo/dri-devel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
