@@ -1,130 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 40D9C6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 15:20:29 -0500 (EST)
-Received: by yhgm50 with SMTP id m50so3843204yhg.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 12:20:28 -0800 (PST)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id E6E7E6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 16:36:03 -0500 (EST)
+Received: by iacb35 with SMTP id b35so11735117iac.14
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 13:36:03 -0800 (PST)
+Date: Tue, 20 Dec 2011 13:36:00 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+In-Reply-To: <20111220145654.GA26881@oksana.dev.rtsoft.ru>
+Message-ID: <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz> <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com> <20111220145654.GA26881@oksana.dev.rtsoft.ru>
 MIME-Version: 1.0
-In-Reply-To: <20111220193117.GD3883@phenom.ffwll.local>
-References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
-	<20111220193117.GD3883@phenom.ffwll.local>
-Date: Tue, 20 Dec 2011 20:20:28 +0000
-Message-ID: <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
-From: Dave Airlie <airlied@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, t.stanislaws@samsung.com, patches@linaro.org
-Cc: daniel@ffwll.ch
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
->>
->> This is RFC v3 for DMA buffer sharing mechanism - changes from v2 are in=
- the
->> changelog below.
->>
->> Various subsystems - V4L2, GPU-accessors, DRI to name a few - have felt =
-the
->> need to have a common mechanism to share memory buffers across different
->> devices - ARM, video hardware, GPU.
->>
->> This need comes forth from a variety of use cases including cameras, ima=
-ge
->> processing, video recorders, sound processing, DMA engines, GPU and disp=
-lay
->> buffers, and others.
->>
->> This RFC is an attempt to define such a buffer sharing mechanism- it is =
-the
->> result of discussions from a couple of memory-management mini-summits he=
-ld by
->> Linaro to understand and address common needs around memory management. =
-[1]
->>
->> A new dma_buf buffer object is added, with operations and API to allow e=
-asy
->> sharing of this buffer object across devices.
->>
->> The framework allows:
->> - a new buffer-object to be created with fixed size.
->> - different devices to 'attach' themselves to this buffer, to facilitate
->> =A0 backing storage negotiation, using dma_buf_attach() API.
->> - association of a file pointer with each user-buffer and associated
->> =A0 =A0allocator-defined operations on that buffer. This operation is ca=
-lled the
->> =A0 =A0'export' operation.
->> - this exported buffer-object to be shared with the other entity by aski=
-ng for
->> =A0 =A0its 'file-descriptor (fd)', and sharing the fd across.
->> - a received fd to get the buffer object back, where it can be accessed =
-using
->> =A0 =A0the associated exporter-defined operations.
->> - the exporter and user to share the scatterlist using map_dma_buf and
->> =A0 =A0unmap_dma_buf operations.
->>
->> Documentation present in the patch-set gives more details.
->>
->> This is based on design suggestions from many people at the mini-summits=
-,
->> most notably from Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> =
-and
->> Daniel Vetter <daniel@ffwll.ch>.
->>
->> The implementation is inspired from proof-of-concept patch-set from
->> Tomasz Stanislawski <t.stanislaws@samsung.com>, who demonstrated buffer =
-sharing
->> between two v4l2 devices. [2]
->>
->> References:
->> [1]: https://wiki.linaro.org/OfficeofCTO/MemoryManagement
->> [2]: http://lwn.net/Articles/454389
->>
->> Patchset based on top of 3.2-rc3, the current version can be found at
->>
->> http://git.linaro.org/gitweb?p=3Dpeople/sumitsemwal/linux-3.x.git
->> Branch: dma-buf-upstr-v2
->>
->> Earlier versions:
->> v2 at: https://lkml.org/lkml/2011/12/2/53
->> v1 at: https://lkml.org/lkml/2011/10/11/92
->>
->> Best regards,
->> ~Sumit Semwal
->
-> I think this is a really good v1 version of dma_buf. It contains all the
-> required bits (with well-specified semantics in the doc patch) to
-> implement some basic use-cases and start fleshing out the integration wit=
-h
-> various subsystem (like drm and v4l). All the things still under
-> discussion like
-> - userspace mmap support
-> - more advanced (and more strictly specified) coherency models
-> - and shared infrastructure for implementing exporters
-> are imo much clearer once we have a few example drivers at hand and a
-> better understanding of some of the insane corner cases we need to be abl=
-e
-> to handle.
->
-> And I think any risk that the resulting clarifications will break a basic
-> use-case is really minimal, so I think it'd be great if this could go int=
-o
-> 3.3 (maybe as some kind of staging/experimental infrastructure).
->
-> Hence for both patches:
-> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+On Tue, 20 Dec 2011, Anton Vorontsov wrote:
 
-Yeah I'm with Daniel, I like this one, I can definitely build the drm
-buffer sharing layer on top of this.
+> Hm, assuming that metadata is no longer an issue, why do you think avoiding
+> cgroups would be a good idea?
+> 
 
-How do we see this getting merged? I'm quite happy to push it to Linus
-if we don't have an identified path, though it could go via a Linaro
-tree as well.
-
-so feel free to add:
-Reviewed-by: Dave Airlie <airlied@redhat.com>
-
-Dave.
+It's helpful for certain end users, particularly those in the embedded 
+world, to be able to disable as many config options as possible to reduce 
+the size of kernel image as much as possible, so they'll want a minimal 
+amount of kernel functionality that allows such notifications.  Keep in 
+mind that CONFIG_CGROUP_MEM_RES_CTLR is not enabled by default because of 
+this (enabling it, CONFIG_RESOURCE_COUNTERS, and CONFIG_CGROUPS increases 
+the size of the kernel text by ~1%), and it's becoming increasingly 
+important for certain workloads to be notified of low memory conditions 
+without any restriction on its usage other than the amount of RAM that the 
+system has so that they can trigger internal memory freeing, explicit 
+memory compaction from the command line, drop caches, reducing scheduling 
+priority, etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
