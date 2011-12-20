@@ -1,52 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D0E9C6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 09:32:02 -0500 (EST)
-Date: Tue, 20 Dec 2011 15:31:59 +0100
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 632B66B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 09:41:17 -0500 (EST)
+Date: Tue, 20 Dec 2011 15:41:14 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3] page_alloc: break early in check_for_regular_memory()
-Message-ID: <20111220143159.GL10565@tiehlicka.suse.cz>
-References: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
+Subject: Re: [PATCH 3/3] page_cgroup: drop multi CONFIG_MEMORY_HOTPLUG
+Message-ID: <20111220144114.GM10565@tiehlicka.suse.cz>
+References: <1324375421-31358-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1324375421-31358-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de, tj@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
 
-On Tue 20-12-11 18:02:39, Bob Liu wrote:
-> If there is a zone below ZONE_NORMAL has present_pages, we can set
-> node state to N_NORMAL_MEMORY, no need to loop to end.
+On Tue 20-12-11 18:03:41, Bob Liu wrote:
+> No need two CONFIG_MEMORY_HOTPLUG place.
+
+I originally wanted to have alloc and dealloc at one location but this
+makes sense as well.
+
 > 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
-Looks good.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
 Thanks
 
 > ---
->  mm/page_alloc.c |    4 +++-
->  1 files changed, 3 insertions(+), 1 deletions(-)
+>  mm/page_cgroup.c |   30 ++++++++++++++----------------
+>  1 files changed, 14 insertions(+), 16 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7f28eb8..8d64ba0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4671,8 +4671,10 @@ static void check_for_regular_memory(pg_data_t *pgdat)
->  
->  	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
->  		struct zone *zone = &pgdat->node_zones[zone_type];
-> -		if (zone->present_pages)
-> +		if (zone->present_pages) {
->  			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-> +			break;
-> +		}
->  	}
->  #endif
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index b99d19e..de1616a 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -124,22 +124,6 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
+>  	return addr;
 >  }
+>  
+> -#ifdef CONFIG_MEMORY_HOTPLUG
+> -static void free_page_cgroup(void *addr)
+> -{
+> -	if (is_vmalloc_addr(addr)) {
+> -		vfree(addr);
+> -	} else {
+> -		struct page *page = virt_to_page(addr);
+> -		size_t table_size =
+> -			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+> -
+> -		BUG_ON(PageReserved(page));
+> -		free_pages_exact(addr, table_size);
+> -	}
+> -}
+> -#endif
+> -
+>  static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+>  {
+>  	struct mem_section *section;
+> @@ -176,6 +160,20 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+>  	return 0;
+>  }
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> +static void free_page_cgroup(void *addr)
+> +{
+> +	if (is_vmalloc_addr(addr)) {
+> +		vfree(addr);
+> +	} else {
+> +		struct page *page = virt_to_page(addr);
+> +		size_t table_size =
+> +			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+> +
+> +		BUG_ON(PageReserved(page));
+> +		free_pages_exact(addr, table_size);
+> +	}
+> +}
+> +
+>  void __free_page_cgroup(unsigned long pfn)
+>  {
+>  	struct mem_section *ms;
 > -- 
 > 1.7.0.4
 > 
