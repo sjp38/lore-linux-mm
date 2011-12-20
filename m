@@ -1,42 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id E757A6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 04:59:47 -0500 (EST)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id BA0C46B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 05:00:49 -0500 (EST)
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH 2/3] page_alloc: break early in check_for_regular_memory()
-Date: Tue, 20 Dec 2011 18:02:39 +0800
-Message-ID: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
+Subject: [PATCH 3/3] page_cgroup: drop multi CONFIG_MEMORY_HOTPLUG
+Date: Tue, 20 Dec 2011 18:03:41 +0800
+Message-ID: <1324375421-31358-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mgorman@suse.de, tj@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, Bob Liu <lliubbo@gmail.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, Bob Liu <lliubbo@gmail.com>
 
-If there is a zone below ZONE_NORMAL has present_pages, we can set
-node state to N_NORMAL_MEMORY, no need to loop to end.
+No need two CONFIG_MEMORY_HOTPLUG place.
 
 Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
- mm/page_alloc.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+ mm/page_cgroup.c |   30 ++++++++++++++----------------
+ 1 files changed, 14 insertions(+), 16 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7f28eb8..8d64ba0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4671,8 +4671,10 @@ static void check_for_regular_memory(pg_data_t *pgdat)
- 
- 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
- 		struct zone *zone = &pgdat->node_zones[zone_type];
--		if (zone->present_pages)
-+		if (zone->present_pages) {
- 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-+			break;
-+		}
- 	}
- #endif
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index b99d19e..de1616a 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -124,22 +124,6 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
+ 	return addr;
  }
+ 
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-static void free_page_cgroup(void *addr)
+-{
+-	if (is_vmalloc_addr(addr)) {
+-		vfree(addr);
+-	} else {
+-		struct page *page = virt_to_page(addr);
+-		size_t table_size =
+-			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-
+-		BUG_ON(PageReserved(page));
+-		free_pages_exact(addr, table_size);
+-	}
+-}
+-#endif
+-
+ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+ {
+ 	struct mem_section *section;
+@@ -176,6 +160,20 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+ 	return 0;
+ }
+ #ifdef CONFIG_MEMORY_HOTPLUG
++static void free_page_cgroup(void *addr)
++{
++	if (is_vmalloc_addr(addr)) {
++		vfree(addr);
++	} else {
++		struct page *page = virt_to_page(addr);
++		size_t table_size =
++			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
++
++		BUG_ON(PageReserved(page));
++		free_pages_exact(addr, table_size);
++	}
++}
++
+ void __free_page_cgroup(unsigned long pfn)
+ {
+ 	struct mem_section *ms;
 -- 
 1.7.0.4
 
