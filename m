@@ -1,74 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 49B246B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 04:59:00 -0500 (EST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id E757A6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 04:59:47 -0500 (EST)
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH 1/3] memcg: cleanup for_each_node_state()
-Date: Tue, 20 Dec 2011 18:01:52 +0800
-Message-ID: <1324375312-31252-1-git-send-email-lliubbo@gmail.com>
+Subject: [PATCH 2/3] page_alloc: break early in check_for_regular_memory()
+Date: Tue, 20 Dec 2011 18:02:39 +0800
+Message-ID: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org, Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, tj@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, Bob Liu <lliubbo@gmail.com>
 
-We already have for_each_node(node) define in nodemask.h, better to use it.
+If there is a zone below ZONE_NORMAL has present_pages, we can set
+node state to N_NORMAL_MEMORY, no need to loop to end.
 
 Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
- mm/memcontrol.c |   10 +++++-----
- 1 files changed, 5 insertions(+), 5 deletions(-)
+ mm/page_alloc.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6a417fe..a3d0420 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -570,7 +570,7 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
- 	struct mem_cgroup_per_zone *mz;
- 	struct mem_cgroup_tree_per_zone *mctz;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7f28eb8..8d64ba0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4671,8 +4671,10 @@ static void check_for_regular_memory(pg_data_t *pgdat)
  
--	for_each_node_state(node, N_POSSIBLE) {
-+	for_each_node(node) {
- 		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
- 			mz = mem_cgroup_zoneinfo(memcg, node, zone);
- 			mctz = soft_limit_tree_node_zone(node, zone);
-@@ -4972,7 +4972,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	mem_cgroup_remove_from_trees(memcg);
- 	free_css_id(&mem_cgroup_subsys, &memcg->css);
- 
--	for_each_node_state(node, N_POSSIBLE)
-+	for_each_node(node)
- 		free_mem_cgroup_per_zone_info(memcg, node);
- 
- 	free_percpu(memcg->stat);
-@@ -5031,7 +5031,7 @@ static int mem_cgroup_soft_limit_tree_init(void)
- 	struct mem_cgroup_tree_per_zone *rtpz;
- 	int tmp, node, zone;
- 
--	for_each_node_state(node, N_POSSIBLE) {
-+	for_each_node(node) {
- 		tmp = node;
- 		if (!node_state(node, N_NORMAL_MEMORY))
- 			tmp = -1;
-@@ -5050,7 +5050,7 @@ static int mem_cgroup_soft_limit_tree_init(void)
- 	return 0;
- 
- err_cleanup:
--	for_each_node_state(node, N_POSSIBLE) {
-+	for_each_node(node) {
- 		if (!soft_limit_tree.rb_tree_per_node[node])
- 			break;
- 		kfree(soft_limit_tree.rb_tree_per_node[node]);
-@@ -5071,7 +5071,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	if (!memcg)
- 		return ERR_PTR(error);
- 
--	for_each_node_state(node, N_POSSIBLE)
-+	for_each_node(node)
- 		if (alloc_mem_cgroup_per_zone_info(memcg, node))
- 			goto free_out;
- 
+ 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+ 		struct zone *zone = &pgdat->node_zones[zone_type];
+-		if (zone->present_pages)
++		if (zone->present_pages) {
+ 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
++			break;
++		}
+ 	}
+ #endif
+ }
 -- 
 1.7.0.4
 
