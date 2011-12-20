@@ -1,150 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 116BF6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 17:26:06 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so7164222vbb.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 14:26:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id A64FB6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 17:46:11 -0500 (EST)
+Date: Tue, 20 Dec 2011 17:45:58 -0500
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] mm: add missing mutex lock arround notify_change
+Message-ID: <20111220224558.GA27615@thunk.org>
+References: <20111216112534.GA13147@dztty>
+ <20111216125556.db2bf308.akpm@linux-foundation.org>
+ <20111217214137.GY2203@ZenIV.linux.org.uk>
+ <20111217221028.GZ2203@ZenIV.linux.org.uk>
+ <20111220220901.GA1770@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
-References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
-	<20111220193117.GD3883@phenom.ffwll.local>
-	<CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
-Date: Tue, 20 Dec 2011 16:26:05 -0600
-Message-ID: <CAF6AEGt9Ae_zVmhBmmtfyKrqC4EyBgAAO1RWdK_UhY-1RLfOSQ@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
-From: Rob Clark <rob@ti.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111220220901.GA1770@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Airlie <airlied@gmail.com>
-Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, t.stanislaws@samsung.com, patches@linaro.org, daniel@ffwll.ch
+To: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Djalal Harouni <tixxdz@opendz.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Neil Brown <neilb@suse.de>, Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>, Christoph Hellwig <hch@infradead.org>, linux-ext4@vger.kernel.org
 
-On Tue, Dec 20, 2011 at 2:20 PM, Dave Airlie <airlied@gmail.com> wrote:
->>>
->>> This is RFC v3 for DMA buffer sharing mechanism - changes from v2 are i=
-n the
->>> changelog below.
->>>
->>> Various subsystems - V4L2, GPU-accessors, DRI to name a few - have felt=
- the
->>> need to have a common mechanism to share memory buffers across differen=
-t
->>> devices - ARM, video hardware, GPU.
->>>
->>> This need comes forth from a variety of use cases including cameras, im=
-age
->>> processing, video recorders, sound processing, DMA engines, GPU and dis=
-play
->>> buffers, and others.
->>>
->>> This RFC is an attempt to define such a buffer sharing mechanism- it is=
- the
->>> result of discussions from a couple of memory-management mini-summits h=
-eld by
->>> Linaro to understand and address common needs around memory management.=
- [1]
->>>
->>> A new dma_buf buffer object is added, with operations and API to allow =
-easy
->>> sharing of this buffer object across devices.
->>>
->>> The framework allows:
->>> - a new buffer-object to be created with fixed size.
->>> - different devices to 'attach' themselves to this buffer, to facilitat=
-e
->>> =A0 backing storage negotiation, using dma_buf_attach() API.
->>> - association of a file pointer with each user-buffer and associated
->>> =A0 =A0allocator-defined operations on that buffer. This operation is c=
-alled the
->>> =A0 =A0'export' operation.
->>> - this exported buffer-object to be shared with the other entity by ask=
-ing for
->>> =A0 =A0its 'file-descriptor (fd)', and sharing the fd across.
->>> - a received fd to get the buffer object back, where it can be accessed=
- using
->>> =A0 =A0the associated exporter-defined operations.
->>> - the exporter and user to share the scatterlist using map_dma_buf and
->>> =A0 =A0unmap_dma_buf operations.
->>>
->>> Documentation present in the patch-set gives more details.
->>>
->>> This is based on design suggestions from many people at the mini-summit=
-s,
->>> most notably from Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com>=
- and
->>> Daniel Vetter <daniel@ffwll.ch>.
->>>
->>> The implementation is inspired from proof-of-concept patch-set from
->>> Tomasz Stanislawski <t.stanislaws@samsung.com>, who demonstrated buffer=
- sharing
->>> between two v4l2 devices. [2]
->>>
->>> References:
->>> [1]: https://wiki.linaro.org/OfficeofCTO/MemoryManagement
->>> [2]: http://lwn.net/Articles/454389
->>>
->>> Patchset based on top of 3.2-rc3, the current version can be found at
->>>
->>> http://git.linaro.org/gitweb?p=3Dpeople/sumitsemwal/linux-3.x.git
->>> Branch: dma-buf-upstr-v2
->>>
->>> Earlier versions:
->>> v2 at: https://lkml.org/lkml/2011/12/2/53
->>> v1 at: https://lkml.org/lkml/2011/10/11/92
->>>
->>> Best regards,
->>> ~Sumit Semwal
->>
->> I think this is a really good v1 version of dma_buf. It contains all the
->> required bits (with well-specified semantics in the doc patch) to
->> implement some basic use-cases and start fleshing out the integration wi=
-th
->> various subsystem (like drm and v4l). All the things still under
->> discussion like
->> - userspace mmap support
->> - more advanced (and more strictly specified) coherency models
->> - and shared infrastructure for implementing exporters
->> are imo much clearer once we have a few example drivers at hand and a
->> better understanding of some of the insane corner cases we need to be ab=
-le
->> to handle.
->>
->> And I think any risk that the resulting clarifications will break a basi=
-c
->> use-case is really minimal, so I think it'd be great if this could go in=
-to
->> 3.3 (maybe as some kind of staging/experimental infrastructure).
->>
->> Hence for both patches:
->> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
->
-> Yeah I'm with Daniel, I like this one, I can definitely build the drm
-> buffer sharing layer on top of this.
->
-> How do we see this getting merged? I'm quite happy to push it to Linus
-> if we don't have an identified path, though it could go via a Linaro
-> tree as well.
->
-> so feel free to add:
-> Reviewed-by: Dave Airlie <airlied@redhat.com>
+I just took a closer look, and we don't need to take immediate action;
+there is no security issue here were someone could modify a writable
+suid file as I had originally feared.  It's not as obvious as it could
+be because of how the code is broken up, but in mext_check_arguments()
+in fs/ext4/move_extent.c, we return with an error if the donor file
+has the SUID or SGID bit set, so we'll never actually end up calling
+file_remove_suid().  So in fact the right patch is just to remove the
+call to file_remove_suid() altogether.
 
-fwiw, patches to share buffers between drm and v4l2 are here:
-
-https://github.com/robclark/kernel-omap4/commits/drmplane-dmabuf
-
-(need a bit of cleanup before the vb2 patches are submitted.. but that
-is unrelated to the dmabuf patches)
-
-so,
-
-Reviewed-and-Tested-by: Rob Clark <rob.clark@linaro.org>
-
-> Dave.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-media" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
