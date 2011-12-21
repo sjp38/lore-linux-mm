@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 2EF406B005A
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:47:30 -0500 (EST)
-Received: by eekc41 with SMTP id c41so8262640eek.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 22:47:28 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH] vmalloc: remove #ifdef in function body
-References: <1324444679-9247-1-git-send-email-minchan@kernel.org>
- <1324445481.20505.7.camel@joe2Laptop>
- <20111221054531.GB28505@barrios-laptop.redhat.com>
- <1324447099.21340.6.camel@joe2Laptop> <op.v6ttagny3l0zgt@mpn-glaptop>
- <1324449156.21735.7.camel@joe2Laptop>
-Date: Wed, 21 Dec 2011 07:47:17 +0100
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id BA4FE6B005C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:47:58 -0500 (EST)
+Date: Wed, 21 Dec 2011 07:47:50 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: +
+ mm-hugetlb-fix-pgoff-computation-when-unmapping-page-from-vma-fix.patch
+ added to -mm tree
+Message-ID: <20111221064750.GA27137@tiehlicka.suse.cz>
+References: <20111220231716.94B8D5C0050@hpza9.eem.corp.google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v6tug3vi3l0zgt@mpn-glaptop>
-In-Reply-To: <1324449156.21735.7.camel@joe2Laptop>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111220231716.94B8D5C0050@hpza9.eem.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, aarcange@redhat.com, dhillf@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, linux-mm@kvack.org
 
-On Wed, 21 Dec 2011 07:32:36 +0100, Joe Perches <joe@perches.com> wrote:=
+On Tue 20-12-11 15:17:15, Andrew Morton wrote:
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-hugetlb-fix-pgoff-computation-when-unmapping-page-from-vma-fix
+> 
+> use vma_hugecache_offset() directly, per Michal
+> 
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Hillf Danton <dhillf@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/hugetlb.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN mm/hugetlb.c~mm-hugetlb-fix-pgoff-computation-when-unmapping-page-from-vma-fix mm/hugetlb.c
+> --- a/mm/hugetlb.c~mm-hugetlb-fix-pgoff-computation-when-unmapping-page-from-vma-fix
+> +++ a/mm/hugetlb.c
+> @@ -2315,7 +2315,7 @@ static int unmap_ref_private(struct mm_s
+>  	 * from page cache lookup which is in HPAGE_SIZE units.
+>  	 */
+>  	address = address & huge_page_mask(h);
+> -	pgoff = linear_hugepage_index(vma, address);
+> +	pgoff = vma_hugecache_offset(hstate, vma, address);
 
+You wanted
++	pgoff = vma_hugecache_offset(h, vma, address);
 
-> On Wed, 2011-12-21 at 07:21 +0100, Michal Nazarewicz wrote:
->> it seems the community prefers
->> having ifdefs outside of the function.
->
-> Some do, some don't.
->
-> http://comments.gmane.org/gmane.linux.network/214543
+right?
 
-This patch that you pointed to is against =E2=80=9C#ifdefs are ugly=E2=80=
-=9D style
-described in Documentation/SubmittingPatches.
-
-> If it's not in coding style, I suggest
-> it should be changed if it doesn't
-> add some other useful value.
-
-That my be true.  I guess no one took time to adding it to the document.=
-
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+>  	mapping = (struct address_space *)page_private(page);
+>  
+>  	/*
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
