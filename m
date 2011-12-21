@@ -1,83 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 545BC6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 19:03:18 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7B5C63EE0C0
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:03:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F2772AEA83
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:03:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 45AC0227D25
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:03:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 36EFA1DB8040
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:03:16 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E53451DB802F
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:03:15 +0900 (JST)
-Date: Wed, 21 Dec 2011 09:01:58 +0900
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id DC9246B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 19:10:53 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0BF0D3EE0BC
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:10:52 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DD30C45DE6E
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:10:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C442F45DE6A
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:10:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B2AB41DB802C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:10:51 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6202F1DB803C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:10:51 +0900 (JST)
+Date: Wed, 21 Dec 2011 09:09:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] memcg: simplify page cache charging.
-Message-Id: <20111221090158.64521b11.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111220135817.5ba7ab05.akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/4] memcg: simplify LRU handling by new rule
+Message-Id: <20111221090941.6bc25b6f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111220161615.GQ10565@tiehlicka.suse.cz>
 References: <20111214164734.4d7d6d97.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111214164922.05fb4afe.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111216142814.dbb77209.akpm@linux-foundation.org>
-	<20111219090122.66024659.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111220135817.5ba7ab05.akpm@linux-foundation.org>
+	<20111214165226.1c3b666e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20111220161615.GQ10565@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Tue, 20 Dec 2011 13:58:17 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Tue, 20 Dec 2011 17:16:15 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> On Mon, 19 Dec 2011 09:01:22 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed 14-12-11 16:52:26, KAMEZAWA Hiroyuki wrote:
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Now, at LRU handling, memory cgroup needs to do complicated works
+> > to see valid pc->mem_cgroup, which may be overwritten.
+> > 
+> > This patch is for relaxing the protocol. This patch guarantees
+> >    - when pc->mem_cgroup is overwritten, page must not be on LRU.
 > 
-> > On Fri, 16 Dec 2011 14:28:14 -0800
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Wed, 14 Dec 2011 16:49:22 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > Because of commit ef6a3c6311, FUSE uses replace_page_cache() instead
-> > > > of add_to_page_cache(). Then, mem_cgroup_cache_charge() is not
-> > > > called against FUSE's pages from splice.
-> > > 
-> > > Speaking of ef6a3c6311 ("mm: add replace_page_cache_page() function"),
-> > > may I pathetically remind people that it's rather inefficient?
-> > > 
-> > > http://lkml.indiana.edu/hypermail/linux/kernel/1109.1/00375.html
-> > > 
-> > 
-> > IIRC, people says inefficient because it uses memcg codes for page-migration
-> > for fixing up accounting. Now, We added replace-page-cache for memcg in
-> > memcg-add-mem_cgroup_replace_page_cache-to-fix-lru-issue.patch
-> > 
-> > So, I think the problem originally mentioned is fixed.
-> > 
-> 
-> No, the inefficiency in replace_page_cache_page() is still there.  Two
-> identical walks down the radix tree, a pointless decrement then
-> increment of mapping->nrpages, two writes to page->mapping, an often
-> pointless decrement then increment of NR_FILE_PAGES, and probably other things.
+> How the patch guarantees that? I do not see any enforcement. In fact we
+> depend on the previous patches, don't we.
 > 
 
-Hmm, then, replace_page_cache_page() itself has some problem.
-I'll look into that.
+Ah, yes. We depends on previous patch series.
+
+
+> > 
+> > By this, LRU routine can believe pc->mem_cgroup and don't need to
+> > check bits on pc->flags. This new rule may adds small overheads to
+> > swapin. But in most case, lru handling gets faster.
+> > 
+> > After this patch, PCG_ACCT_LRU bit is obsolete and removed.
+> 
+> It makes things much more simpler. I just think it needs a better
+> description.
+> 
+
+O.K.
+
+99% of memcg charging are done by following call path.
+
+   - alloc_page() -> charge() -> map/enter radix-tree -> add to LRU.
+
+We need some special case cares.
+
+   - SwapCache - newly allocated/fully unmapped pages are added to LRU
+                 before charge.
+     => handled by previous patch.
+   - FUSE      - unused pages are reused.
+     => handled by previous patch.
+
+   - move_account
+     => we do isolate_page().
+
+Now, we can guarantee pc->mem_cgroup is set when page is not added to
+LRU or under zone->lru_lock + isolate from LRU.
+
+I'll add some Documenation to...memcg_debug.txt
 
 Thanks,
 -Kame
 
-
-
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/page_cgroup.h |    8 -----
+> >  mm/memcontrol.c             |   72 ++++++++++--------------------------------
+> >  2 files changed, 17 insertions(+), 63 deletions(-)
+> > 
+> > diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> > index aaa60da..2cddacf 100644
+> > --- a/include/linux/page_cgroup.h
+> > +++ b/include/linux/page_cgroup.h
+> > @@ -10,8 +10,6 @@ enum {
+> >  	/* flags for mem_cgroup and file and I/O status */
+> >  	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
+> >  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+> > -	/* No lock in page_cgroup */
+> > -	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
+> >  	__NR_PCG_FLAGS,
+> >  };
+> >  
+> > @@ -75,12 +73,6 @@ TESTPCGFLAG(Used, USED)
+> >  CLEARPCGFLAG(Used, USED)
+> >  SETPCGFLAG(Used, USED)
+> >  
+> > -SETPCGFLAG(AcctLRU, ACCT_LRU)
+> > -CLEARPCGFLAG(AcctLRU, ACCT_LRU)
+> > -TESTPCGFLAG(AcctLRU, ACCT_LRU)
+> > -TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
+> > -
+> > -
+> >  SETPCGFLAG(FileMapped, FILE_MAPPED)
+> >  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+> >  TESTPCGFLAG(FileMapped, FILE_MAPPED)
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 2ae973d..d5e21e7 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -974,30 +974,8 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+> >  		return &zone->lruvec;
+> >  
+> >  	pc = lookup_page_cgroup(page);
+> > -	VM_BUG_ON(PageCgroupAcctLRU(pc));
+> > -	/*
+> > -	 * putback:				charge:
+> > -	 * SetPageLRU				SetPageCgroupUsed
+> > -	 * smp_mb				smp_mb
+> > -	 * PageCgroupUsed && add to memcg LRU	PageLRU && add to memcg LRU
+> > -	 *
+> > -	 * Ensure that one of the two sides adds the page to the memcg
+> > -	 * LRU during a race.
+> > -	 */
+> > -	smp_mb();
+> > -	/*
+> > -	 * If the page is uncharged, it may be freed soon, but it
+> > -	 * could also be swap cache (readahead, swapoff) that needs to
+> > -	 * be reclaimable in the future.  root_mem_cgroup will babysit
+> > -	 * it for the time being.
+> > -	 */
+> > -	if (PageCgroupUsed(pc)) {
+> > -		/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
+> > -		smp_rmb();
+> > -		memcg = pc->mem_cgroup;
+> > -		SetPageCgroupAcctLRU(pc);
+> > -	} else
+> > -		memcg = root_mem_cgroup;
+> > +	memcg = pc->mem_cgroup;
+> > +	VM_BUG_ON(!memcg);
+> >  	mz = page_cgroup_zoneinfo(memcg, page);
+> >  	/* compound_order() is stabilized through lru_lock */
+> >  	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
+> > @@ -1024,18 +1002,8 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
+> >  		return;
+> >  
+> >  	pc = lookup_page_cgroup(page);
+> > -	/*
+> > -	 * root_mem_cgroup babysits uncharged LRU pages, but
+> > -	 * PageCgroupUsed is cleared when the page is about to get
+> > -	 * freed.  PageCgroupAcctLRU remembers whether the
+> > -	 * LRU-accounting happened against pc->mem_cgroup or
+> > -	 * root_mem_cgroup.
+> > -	 */
+> > -	if (TestClearPageCgroupAcctLRU(pc)) {
+> > -		VM_BUG_ON(!pc->mem_cgroup);
+> > -		memcg = pc->mem_cgroup;
+> > -	} else
+> > -		memcg = root_mem_cgroup;
+> > +	memcg = pc->mem_cgroup;
+> > +	VM_BUG_ON(!memcg);
+> >  	mz = page_cgroup_zoneinfo(memcg, page);
+> >  	/* huge page split is done under lru_lock. so, we have no races. */
+> >  	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+> > @@ -2377,6 +2345,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+> >  
+> >  	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
+> >  	unlock_page_cgroup(pc);
+> > +	WARN_ON_ONCE(PageLRU(page));
+> >  	/*
+> >  	 * "charge_statistics" updated event counter. Then, check it.
+> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> > @@ -2388,7 +2357,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+> >  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> >  
+> >  #define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MOVE_LOCK) |\
+> > -			(1 << PCG_ACCT_LRU) | (1 << PCG_MIGRATION))
+> > +			(1 << PCG_MIGRATION))
+> >  /*
+> >   * Because tail pages are not marked as "used", set it. We're under
+> >   * zone->lru_lock, 'splitting on pmd' and compound_lock.
+> > @@ -2399,6 +2368,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+> >  {
+> >  	struct page_cgroup *head_pc = lookup_page_cgroup(head);
+> >  	struct page_cgroup *pc;
+> > +	struct mem_cgroup_per_zone *mz;
+> > +	enum lru_list lru;
+> >  	int i;
+> >  
+> >  	if (mem_cgroup_disabled())
+> > @@ -2407,23 +2378,15 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+> >  		pc = head_pc + i;
+> >  		pc->mem_cgroup = head_pc->mem_cgroup;
+> >  		smp_wmb();/* see __commit_charge() */
+> > -		/*
+> > -		 * LRU flags cannot be copied because we need to add tail
+> > -		 * page to LRU by generic call and our hooks will be called.
+> > -		 */
+> >  		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
+> >  	}
+> > -
+> > -	if (PageCgroupAcctLRU(head_pc)) {
+> > -		enum lru_list lru;
+> > -		struct mem_cgroup_per_zone *mz;
+> > -		/*
+> > -		 * We hold lru_lock, then, reduce counter directly.
+> > -		 */
+> > -		lru = page_lru(head);
+> > -		mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
+> > -		MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
+> > -	}
+> > +	/* 
+> > +	 * Tail pages will be added to LRU.
+> > +	 * We hold lru_lock,then,reduce counter directly.
+> > +	 */
+> > +	lru = page_lru(head);
+> > +	mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
+> > +	MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
+> >  }
+> >  #endif
+> >  
+> > @@ -2656,10 +2619,9 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+> >  	if (!page_is_file_cache(page))
+> >  		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> >  
+> > -	if (!PageSwapCache(page)) {
+> > +	if (!PageSwapCache(page))
+> >  		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
+> > -		WARN_ON_ONCE(PageLRU(page));
+> > -	} else { /* page is swapcache/shmem */
+> > +	else { /* page is swapcache/shmem */
+> >  		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &memcg);
+> >  		if (!ret)
+> >  			__mem_cgroup_commit_charge_swapin(page, memcg, type);
+> > -- 
+> > 1.7.4.1
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
