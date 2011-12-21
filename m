@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id D37016B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 20:00:27 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so7261825vbb.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 17:00:26 -0800 (PST)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id B65796B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 20:14:56 -0500 (EST)
+Message-ID: <4EF132EA.7000300@am.sony.com>
+Date: Tue, 20 Dec 2011 17:14:18 -0800
+From: Frank Rowand <frank.rowand@am.sony.com>
+Reply-To: <frank.rowand@am.sony.com>
 MIME-Version: 1.0
-In-Reply-To: <20111220151113.8aa05166.akpm@linux-foundation.org>
-References: <1324375503-31487-1-git-send-email-lliubbo@gmail.com>
-	<20111220151113.8aa05166.akpm@linux-foundation.org>
-Date: Wed, 21 Dec 2011 09:00:26 +0800
-Message-ID: <CAA_GA1f3Cc76zu2aZ7yxpiFPchpa+=-ip8adjWBL8X7R-pstKg@mail.gmail.com>
-Subject: Re: [RFC][PATCH] memcg: malloc memory for possible node in hotplug
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Android low memory killer vs. memory pressure notifications
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz> <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com> <20111220145654.GA26881@oksana.dev.rtsoft.ru> <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com> <20111221002853.GA11504@oksana.dev.rtsoft.ru>
+In-Reply-To: <20111221002853.GA11504@oksana.dev.rtsoft.ru>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, bsingharora@gmail.com
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, tbird20d@gmail.com
 
-On Wed, Dec 21, 2011 at 7:11 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 20 Dec 2011 18:05:03 +0800
-> Bob Liu <lliubbo@gmail.com> wrote:
->
->> Current struct mem_cgroup_per_node and struct mem_cgroup_tree_per_node a=
-re
->> malloced for all possible node during system boot.
+On 12/20/11 16:28, Anton Vorontsov wrote:
+> On Tue, Dec 20, 2011 at 01:36:00PM -0800, David Rientjes wrote:
+>> On Tue, 20 Dec 2011, Anton Vorontsov wrote:
 >>
->> This may cause some memory waste, better if move it to memory hotplug.
->
-> This adds a fair bit of complexity for what I suspect is a pretty small
-> memory saving. =C2=A0And that memory saving will be on pretty large machi=
-nes.
->
-> Can you please estimate how much memory this change will save? =C2=A0Taht
-> way we can decide whether the additional complexity is worthwhile.
->
+>>> Hm, assuming that metadata is no longer an issue, why do you think avoiding
+>>> cgroups would be a good idea?
+>>>
+>>
+>> It's helpful for certain end users, particularly those in the embedded 
+>> world, to be able to disable as many config options as possible to reduce 
+>> the size of kernel image as much as possible, so they'll want a minimal 
+>> amount of kernel functionality that allows such notifications.  Keep in 
+>> mind that CONFIG_CGROUP_MEM_RES_CTLR is not enabled by default because of 
+>> this (enabling it, CONFIG_RESOURCE_COUNTERS, and CONFIG_CGROUPS increases 
+>> the size of the kernel text by ~1%),
+> 
+> So for 2MB kernel that's about 20KB of an additional text... This seems
+> affordable, especially as a trade-off for the things that cgroups may
+> provide.
 
-Hm, yes, i should get some valuable test result to see whether worth it.
+A comment from http://lkml.indiana.edu/hypermail/linux/kernel/1102.1/00412.html:
 
->
-> Also, the operations in the new memcg_mem_hotplug_callback() are
-> copied-n-pasted from other places in memcontrol.c, such as from
-> mem_cgroup_soft_limit_tree_init(). =C2=A0We shouldn't do this - we should=
- be
-> able to factor the code so that both mem_cgroup_create() and
-> memcg_mem_hotplug_callback() emit simple calls to common helper
-> functions.
->
-> Thirdly, please don't forget to run scripts/checkpatch.pl!
+"I care about 5K. (But honestly, I don't actively hunt stuff less than
+10K in size, because there's too many of them to chase, currently)."
 
-Sorry for missed that.
-Thank you for your review.
+> 
+> The fact is, for desktop and server Linux, cgroups slowly becomes a
+> mandatory thing. And the reason for this is that cgroups mechanism
+> provides some very useful features (in an extensible way, like plugins),
+> i.e. a way to manage and track processes and its resources -- which is the
+> main purpose of cgroups.
 
---=20
-Regards,
---Bob
+And for embedded and for real-time, some of us do not want cgroups to be
+a mandatory thing.  We want it to remain configurable.  My personal
+interest is in keeping the latency of certain critical paths (especially
+in the scheduler) short and consistent.
+
+-Frank
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
