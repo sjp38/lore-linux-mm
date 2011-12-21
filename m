@@ -1,57 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 7D0906B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 12:06:00 -0500 (EST)
-Message-ID: <4EF211EC.7090002@oracle.com>
-Date: Wed, 21 Dec 2011 11:05:48 -0600
-From: Dave Kleikamp <dave.kleikamp@oracle.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 17DBF6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 12:27:26 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Date: Wed, 21 Dec 2011 17:27:16 +0000
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com> <20111220171437.GC3883@phenom.ffwll.local>
+In-Reply-To: <20111220171437.GC3883@phenom.ffwll.local>
 MIME-Version: 1.0
-Subject: [PATCH v2] vfs: __read_cache_page should use gfp argument rather
- than GFP_KERNEL
-References: <201112210054.46995.rjw@sisk.pl> <CA+55aFzee7ORKzjZ-_PrVy796k2ASyTe_Odz=ji7f1VzToOkKw@mail.gmail.com> <4EF15F42.4070104@oracle.com> <CA+55aFx=B9adsTR=-uYpmfJnQgdGN+1aL0KUabH5bSY6YcwO7Q@mail.gmail.com> <alpine.LSU.2.00.1112202213310.3987@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1112202213310.3987@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201112211727.17104.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, jfs-discussion@lists.sourceforge.net, Kernel Testers List <kernel-testers@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Maciej Rutecki <maciej.rutecki@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Florian Mickler <florian@mickler.org>, davem@davemloft.net, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: Rob Clark <robdclark@gmail.com>, "Semwal, Sumit" <sumit.semwal@ti.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-[ updated to remove now-obsolete comment in read_cache_page_gfp()]
+On Tuesday 20 December 2011, Daniel Vetter wrote:
+> > I'm thinking for a first version, we can get enough mileage out of it by saying:
+> > 1) only exporter can mmap to userspace
+> > 2) only importers that do not need CPU access to buffer..
 
-lockdep reports a deadlock in jfs because a special inode's rw semaphore
-is taken recursively. The mapping's gfp mask is GFP_NOFS, but is not used
-when __read_cache_page() calls add_to_page_cache_lru().
+Ok, that sounds possible. The alternative to this would be:
 
-Signed-off-by: Dave Kleikamp <dave.kleikamp@oracle.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Acked-by: Al Viro <viro@zeniv.linux.org.uk>
+1) The exporter has to use dma_alloc_coherent() or dma_alloc_writecombine()
+to allocate the buffer
+2. Every user space mapping has to go through dma_mmap_coherent()
+or dma_mmap_writecombine()
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c106d3b..5f0a3c9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1828,7 +1828,7 @@ repeat:
- 		page = __page_cache_alloc(gfp | __GFP_COLD);
- 		if (!page)
- 			return ERR_PTR(-ENOMEM);
--		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
-+		err = add_to_page_cache_lru(page, mapping, index, gfp);
- 		if (unlikely(err)) {
- 			page_cache_release(page);
- 			if (err == -EEXIST)
-@@ -1925,10 +1925,7 @@ static struct page *wait_on_page_read(struct page *page)
-  * @gfp:	the page allocator flags to use if allocating
-  *
-  * This is the same as "read_mapping_page(mapping, index, NULL)", but with
-- * any new page allocations done using the specified allocation flags. Note
-- * that the Radix tree operations will still use GFP_KERNEL, so you can't
-- * expect to do this atomically or anything like that - but you can pass in
-- * other page requirements.
-+ * any new page allocations done using the specified allocation flags.
-  *
-  * If the page does not get brought uptodate, return -EIO.
-  */
+We can extend the rules later to allow either one after we have gained
+some experience using it.
+
+> > This way we can get dmabuf into the kernel, maybe even for 3.3.  I
+> > know there are a lot of interesting potential uses where this stripped
+> > down version is good enough.  It probably isn't the final version,
+> > maybe more features are added over time to deal with importers that
+> > need CPU access to buffer, sync object, etc.  But we have to start
+> > somewhere.
+> 
+> I agree with Rob here - I think especially for the coherency discussion
+> some actual users of dma_buf on a bunch of insane platforms (i915
+> qualifies here too, because we do some cacheline flushing behind everyones
+> back) would massively help in clarifying things.
+
+Yes, agreed.
+
+> It also sounds like that at least for proper userspace mmap support we'd
+> need some dma api extensions on at least arm, and that might take a while
+> ...
+
+I think it's actually the opposite -- you'd need dma api extensions on
+everything else other than arm, which already has dma_mmap_coherent()
+and dma_mmap_writecombine() for this purpose.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
