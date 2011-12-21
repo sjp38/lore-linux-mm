@@ -1,153 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 26A666B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 18:09:45 -0500 (EST)
-Date: Wed, 21 Dec 2011 15:09:33 -0800
-From: tip-bot for Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-ID: <tip-ab69f41ef93d98d27402440039f805585e5447ac@git.kernel.org>
-Reply-To: mingo@redhat.com, hpa@zytor.com, levinsasha928@gmail.com,
-        linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl,
-        tglx@linutronix.de, linux-mm@kvack.org
-In-Reply-To: <1324470416.10752.1.camel@twins>
-References: <1324470416.10752.1.camel@twins>
-Subject: [tip:core/urgent] futex: Fix uninterruptible loop due to gate_area
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id BFDB86B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 18:41:32 -0500 (EST)
+Received: by wibhq12 with SMTP id hq12so3032792wib.14
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2011 15:41:30 -0800 (PST)
+Date: Thu, 22 Dec 2011 03:41:26 +0400
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+Message-ID: <20111221234126.GA14610@oksana.dev.rtsoft.ru>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru>
+ <20111219121255.GA2086@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com>
+ <20111220145654.GA26881@oksana.dev.rtsoft.ru>
+ <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com>
+ <20111221002853.GA11504@oksana.dev.rtsoft.ru>
+ <4EF132EA.7000300@am.sony.com>
+ <20111221020723.GA5214@oksana.dev.rtsoft.ru>
+ <4EF144D1.2020807@am.sony.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+In-Reply-To: <4EF144D1.2020807@am.sony.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, levinsasha928@gmail.com, hpa@zytor.com, mingo@redhat.com, a.p.zijlstra@chello.nl, tglx@linutronix.de, linux-mm@kvack.org
+To: Frank Rowand <frank.rowand@am.sony.com>
+Cc: "Rowand, Frank" <Frank_Rowand@sonyusa.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "tbird20d@gmail.com" <tbird20d@gmail.com>
 
-Commit-ID:  ab69f41ef93d98d27402440039f805585e5447ac
-Gitweb:     http://git.kernel.org/tip/ab69f41ef93d98d27402440039f805585e5447ac
-Author:     Peter Zijlstra <a.p.zijlstra@chello.nl>
-AuthorDate: Fri, 2 Dec 2011 14:12:06 +0100
-Committer:  Thomas Gleixner <tglx@linutronix.de>
-CommitDate: Wed, 21 Dec 2011 23:59:17 +0100
+On Tue, Dec 20, 2011 at 06:30:41PM -0800, Frank Rowand wrote:
+> >> And for embedded and for real-time, some of us do not want cgroups to be
+> >> a mandatory thing.  We want it to remain configurable.  My personal
+> >> interest is in keeping the latency of certain critical paths (especially
+> >> in the scheduler) short and consistent.
+> > 
+> > Much thanks for your input! That would be quite strong argument for going
+> > with /dev/mem_notify approach. Do you have any specific numbers how cgroups
+> > makes scheduler latencies worse?
+> 
+> Sorry, I don't have specific numbers.  And the numbers would be workload
+> specific anyway.
 
-futex: Fix uninterruptible loop due to gate_area
+OK, here are some numbers I captured using rt-tests suite.
 
-It was found (by Sasha) that if you use a futex located in the gate
-area we get stuck in an uninterruptible infinite loop, much like the
-ZERO_PAGE issue.
+I don't see any huge latency drops w/ cyclictest, but there is ~8% drop
+in hackbench. Might be interesting to cgroups folks?
 
-While looking at this problem, I realized you'll get into similar
-trouble when hitting any install_special_pages() mapping. The solution
-chosen was not to modify special_mapping_fault() to install a non-zero
-page->mapping because that might lead to issues when freeing these
-pages. Instead do a find_vma() when we find we're again in the
-!mapping branch.
+Kernel config, w/ preempt and only minimal options enabled for mem_cg:
+http://ix.io/22w
 
-Reported-by: Sasha Levin <levinsasha928@gmail.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: http://lkml.kernel.org/r/1324470416.10752.1.camel@twins
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- include/linux/mm.h |    1 +
- kernel/futex.c     |   40 +++++++++++++++++++++++++++++++++++-----
- mm/mmap.c          |    5 +++++
- 3 files changed, 41 insertions(+), 5 deletions(-)
+rt-tests: https://github.com/clrkwllms/rt-tests.git
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 4baadd1..3025cbc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1395,6 +1395,7 @@ extern int may_expand_vm(struct mm_struct *mm, unsigned long npages);
- extern int install_special_mapping(struct mm_struct *mm,
- 				   unsigned long addr, unsigned long len,
- 				   unsigned long flags, struct page **pages);
-+extern bool is_special_mapping(struct vm_area_struct *vma);
- 
- extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
- 
-diff --git a/kernel/futex.c b/kernel/futex.c
-index ea87f4d..4d66cd3 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -59,6 +59,7 @@
- #include <linux/magic.h>
- #include <linux/pid.h>
- #include <linux/nsproxy.h>
-+#include <linux/mm.h>
- 
- #include <asm/futex.h>
- 
-@@ -236,7 +237,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
- 	struct page *page, *page_head;
--	int err, ro = 0;
-+	int err, ro = 0, no_mapping_tries = 0;
- 
- 	/*
- 	 * The futex address must be "naturally" aligned.
-@@ -317,13 +318,42 @@ again:
- 	if (!page_head->mapping) {
- 		unlock_page(page_head);
- 		put_page(page_head);
-+
- 		/*
--		* ZERO_PAGE pages don't have a mapping. Avoid a busy loop
--		* trying to find one. RW mapping would have COW'd (and thus
--		* have a mapping) so this page is RO and won't ever change.
--		*/
-+		 * ZERO_PAGE pages don't have a mapping. Avoid a busy loop
-+		 * trying to find one. RW mapping would have COW'd (and thus
-+		 * have a mapping) so this page is RO and won't ever change.
-+		 */
- 		if ((page_head == ZERO_PAGE(address)))
- 			return -EFAULT;
-+
-+		/*
-+		 * Similar problem for the gate area.
-+		 */
-+		if (in_gate_area(mm, address))
-+			return -EFAULT;
-+
-+		/*
-+		 * There is a special class of pages that will have no mapping
-+		 * and yet is perfectly valid and not going anywhere. These
-+		 * are the pages from install_special_mapping(). Since looking
-+		 * up the vma is expensive, don't do so on the first go round.
-+		 */
-+		if (no_mapping_tries) {
-+			struct vm_area_struct *vma;
-+
-+			err = 0;
-+			down_read(&mm->mmap_sem);
-+			vma = find_vma(mm, address);
-+			if (vma && is_special_mapping(vma))
-+				err = -EFAULT;
-+			up_read(&mm->mmap_sem);
-+
-+			if (err)
-+				return err;
-+		}
-+
-+		++no_mapping_tries;
- 		goto again;
- 	}
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index eae90af..50fde2e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2479,6 +2479,11 @@ out:
- 	return ret;
- }
- 
-+bool is_special_mapping(struct vm_area_struct *vma)
-+{
-+	return vma->vm_ops == &special_mapping_vmops;
-+}
-+
- static DEFINE_MUTEX(mm_all_locks_mutex);
- 
- static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+- - - - - test script
+#!/bin/sh
+echo cyclic
+for i in `seq 1 3`; do ./cyclictest  -l 50000 -q ; done
+echo signal
+for i in `seq 1 3`; do ./signaltest  -l 30000 -q ; done
+echo hackbench
+for i in `seq 1 3`; do ./hackbench -l 1000 | grep Time ; done
+- - - - -
+
+I run this script inside a QEMU KVM guest on a idling host. The host's
+cpufreq governor is set to powersave (so that's effectively becomes a
+800 MHz machine). I can re-run this on a real HW, but I don't think
+that results would differ significantly.
+
+
+Results:
+
+bzImage_nocgroups_nopreempt
+---------------------------
+cyclic
+T: 0 ( 2240) P: 0 I:1000 C:  50000 Min:     46 Act:  228 Avg:  226 Max:    5693
+T: 0 ( 2242) P: 0 I:1000 C:  50000 Min:     57 Act:  234 Avg:  244 Max:    9041
+T: 0 ( 2244) P: 0 I:1000 C:  50000 Min:     47 Act:  246 Avg:  227 Max:    6612
+signal
+T: 0 ( 2247) P: 0 C:  30000 Min:      5 Act:    5 Avg:    6 Max:     236
+T: 1 ( 2248) P: 0 C:  30000 Min:      5 Act:    5 Avg:  645 Max:   11719
+T: 0 ( 2250) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:     248
+T: 1 ( 2251) P: 0 C:  30000 Min:      6 Act:    6 Avg:  647 Max:   14581
+T: 0 ( 2253) P: 0 C:  30000 Min:      5 Act:    5 Avg:    7 Max:     210
+T: 1 ( 2254) P: 0 C:  30000 Min:      5 Act:    6 Avg:  646 Max:   13892
+hackbench
+Time: 14.940
+Time: 14.883
+Time: 14.959
+
+bzImage_cgroups_nopreempt:
+--------------------------
+cyclic
+T: 0 (  963) P: 0 I:1000 C:  50000 Min:     52 Act:  248 Avg:  235 Max:    6497
+T: 0 (  965) P: 0 I:1000 C:  50000 Min:     55 Act:  230 Avg:  228 Max:   10438
+T: 0 (  967) P: 0 I:1000 C:  50000 Min:     51 Act:  173 Avg:  183 Max:    4396
+signal
+T: 0 (  970) P: 0 C:  30000 Min:      5 Act:    5 Avg:    6 Max:      98
+T: 1 (  971) P: 0 C:  30000 Min:      5 Act:    5 Avg:  646 Max:   13654
+T: 0 (  973) P: 0 C:  30000 Min:      5 Act:    5 Avg:    6 Max:     150
+T: 1 (  974) P: 0 C:  30000 Min:      5 Act:    5 Avg:  646 Max:   10560
+T: 0 (  976) P: 0 C:  30000 Min:      5 Act:    5 Avg:    6 Max:     107
+T: 1 (  977) P: 0 C:  30000 Min:      5 Act:    5 Avg:  646 Max:   13453
+hackbench
+Time: 15.857
+Time: 15.745
+Time: 15.588
+
+bzImage_cgroups_preempt:
+------------------------
+cyclic
+T: 0 (  986) P: 0 I:1000 C:  50000 Min:     50 Act:  278 Avg:  239 Max:    8259
+T: 0 (  988) P: 0 I:1000 C:  50000 Min:     53 Act:  236 Avg:  228 Max:    3565
+T: 0 (  990) P: 0 I:1000 C:  50000 Min:     76 Act:  242 Avg:  238 Max:    3902
+signal
+T: 0 (  993) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:     102
+T: 1 (  994) P: 0 C:  30000 Min:      6 Act:    6 Avg:  646 Max:   10683
+T: 0 (  996) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:     129
+T: 1 (  997) P: 0 C:  30000 Min:      6 Act:    6 Avg:  647 Max:   10973
+T: 0 (  999) P: 0 C:  30000 Min:      6 Act:   43 Avg:    7 Max:      95
+T: 1 ( 1000) P: 0 C:  30000 Min:      6 Act:   44 Avg:  646 Max:   10552
+hackbench
+Time: 15.632
+Time: 15.221
+Time: 15.443
+
+bzImage_nocgroups_preempt:
+--------------------------
+cyclic
+T: 0 (  974) P: 0 I:1000 C:  50000 Min:     50 Act:  268 Avg:  258 Max:    8324
+T: 0 (  976) P: 0 I:1000 C:  50000 Min:     61 Act:  185 Avg:  183 Max:    2998
+T: 0 (  978) P: 0 I:1000 C:  50000 Min:     55 Act:  234 Avg:  236 Max:    2858
+signal
+T: 0 (  981) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:      85
+T: 1 (  982) P: 0 C:  30000 Min:      6 Act:    6 Avg:  647 Max:   10479
+T: 0 (  984) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:     129
+T: 1 (  985) P: 0 C:  30000 Min:      6 Act:    6 Avg:  647 Max:   11178
+T: 0 (  987) P: 0 C:  30000 Min:      6 Act:    6 Avg:    7 Max:      94
+T: 1 (  988) P: 0 C:  30000 Min:      6 Act:    6 Avg:  647 Max:   11587
+hackbench
+Time: 14.488
+Time: 14.390
+Time: 14.310
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
