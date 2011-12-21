@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 17DBF6B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 12:27:26 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-Date: Wed, 21 Dec 2011 17:27:16 +0000
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com> <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com> <20111220171437.GC3883@phenom.ffwll.local>
-In-Reply-To: <20111220171437.GC3883@phenom.ffwll.local>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id C19796B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 12:32:38 -0500 (EST)
+Received: by obcwo8 with SMTP id wo8so4432206obc.14
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:32:37 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201112211727.17104.arnd@arndb.de>
+In-Reply-To: <4EEFA861.2050807@redfish-solutions.com>
+References: <1324241211-7651-1-git-send-email-philipp_subx@redfish-solutions.com>
+	<1324244805.2132.4.camel@shinybook.infradead.org>
+	<4EEFA861.2050807@redfish-solutions.com>
+Date: Wed, 21 Dec 2011 10:32:37 -0700
+Message-ID: <CAKipaEoN_uCLza7U10kL0JzWSecpw5odfHaEWsG_fXMUCZ1NQA@mail.gmail.com>
+Subject: Re: [PATCH 2/4] coreboot: Add support for detecting Coreboot BIOS signatures
+From: Jordan Crouse <jordan@cosmicpenguin.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: Rob Clark <robdclark@gmail.com>, "Semwal, Sumit" <sumit.semwal@ti.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Philip Prindeville <philipp_subx@redfish-solutions.com>
+Cc: David Woodhouse <dwmw2@infradead.org>, Ed Wildgoose <ed@wildgooses.com>, Andrew Morton <akpm@linux-foundation.org>, linux-geode@lists.infradead.org, Andres Salomon <dilinger@queued.net>, Nathan Williams <nathan@traverse.com.au>, Guy Ellis <guy@traverse.com.au>, Patrick Georgi <patrick.georgi@secunet.com>, Carl-Daniel Hailfinger <c-d.hailfinger.devel.2006@gmx.net>, linux-mm@kvack.org
 
-On Tuesday 20 December 2011, Daniel Vetter wrote:
-> > I'm thinking for a first version, we can get enough mileage out of it by saying:
-> > 1) only exporter can mmap to userspace
-> > 2) only importers that do not need CPU access to buffer..
+On Mon, Dec 19, 2011 at 2:10 PM, Philip Prindeville
+<philipp_subx@redfish-solutions.com> wrote:
+> On 12/18/11 1:46 PM, David Woodhouse wrote:
+>> On Sun, 2011-12-18 at 13:46 -0700, Philip Prindeville wrote:
+>>> Add support for Coreboot BIOS detection. This in turn can be used by
+>>> platform drivers to verify they are running on the correct hardware,
+>>> as many of the low-volume SBC's (especially in the Atom and Geode
+>>> universe) don't always identify themselves via DMI or PCI-ID.
+>> It's Coreboot. So doesn't that mean we can just fix it to pass a
+>> device-tree to the kernel properly?
+>>
+>> Don't we only need this kind of hack for boards with crappy
+>> closed-source firmware?
+>>
+>
+> How about this: we upstream the patches and as soon as I have access to a Geode-based box using a device-tree capable version of Coreboot, I'll add support...
+>
+> BTW: the patches themselves seem to be stalled waiting on list-owner approval... I'll see if I can get them dislodged.
+>
+> -Philip
 
-Ok, that sounds possible. The alternative to this would be:
+I have long since forgotten the admin password and I really need to
+pass on the adminship to somebody else.  Any
+takers?
 
-1) The exporter has to use dma_alloc_coherent() or dma_alloc_writecombine()
-to allocate the buffer
-2. Every user space mapping has to go through dma_mmap_coherent()
-or dma_mmap_writecombine()
-
-We can extend the rules later to allow either one after we have gained
-some experience using it.
-
-> > This way we can get dmabuf into the kernel, maybe even for 3.3.  I
-> > know there are a lot of interesting potential uses where this stripped
-> > down version is good enough.  It probably isn't the final version,
-> > maybe more features are added over time to deal with importers that
-> > need CPU access to buffer, sync object, etc.  But we have to start
-> > somewhere.
-> 
-> I agree with Rob here - I think especially for the coherency discussion
-> some actual users of dma_buf on a bunch of insane platforms (i915
-> qualifies here too, because we do some cacheline flushing behind everyones
-> back) would massively help in clarifying things.
-
-Yes, agreed.
-
-> It also sounds like that at least for proper userspace mmap support we'd
-> need some dma api extensions on at least arm, and that might take a while
-> ...
-
-I think it's actually the opposite -- you'd need dma api extensions on
-everything else other than arm, which already has dma_mmap_coherent()
-and dma_mmap_writecombine() for this purpose.
-
-	Arnd
+Jordan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
