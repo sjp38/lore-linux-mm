@@ -1,49 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id B72A96B005C
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:21:51 -0500 (EST)
-Received: by eekc41 with SMTP id c41so8248585eek.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 22:21:50 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 35BA66B005C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:22:41 -0500 (EST)
+Received: by qadc16 with SMTP id c16so5193865qad.14
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 22:22:40 -0800 (PST)
+Date: Wed, 21 Dec 2011 15:22:32 +0900
+From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH] vmalloc: remove #ifdef in function body
+Message-ID: <20111221062232.GE28505@barrios-laptop.redhat.com>
 References: <1324444679-9247-1-git-send-email-minchan@kernel.org>
- <1324445481.20505.7.camel@joe2Laptop>
- <20111221054531.GB28505@barrios-laptop.redhat.com>
- <1324447099.21340.6.camel@joe2Laptop>
-Date: Wed, 21 Dec 2011 07:21:42 +0100
+ <op.v6tsxbmb3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v6ttagny3l0zgt@mpn-glaptop>
-In-Reply-To: <1324447099.21340.6.camel@joe2Laptop>
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <op.v6tsxbmb3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Joe Perches <joe@perches.com>
+To: Michal Nazarewicz <mina86@mina86.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 21 Dec 2011 06:58:19 +0100, Joe Perches <joe@perches.com> wrote:=
+On Wed, Dec 21, 2011 at 07:13:49AM +0100, Michal Nazarewicz wrote:
+> On Wed, 21 Dec 2011 06:17:59 +0100, Minchan Kim <minchan@kernel.org> wrote:
+> >We don't like function body which include #ifdef.
+> >If we can, define null function to go out compile time.
+> >It's trivial, no functional change.
+> 
+> It actually adds a??flush_tlb_kenel_range()a?? call to the function so there
+> is functional change.
 
+Sorry. I can't understand your point.
+Why does it add flush_tlb_kernel_range in case of !CONFIG_DEBUG_PAGEALLOC?
 
-> On Wed, 2011-12-21 at 14:45 +0900, Minchan Kim wrote:
->> I feel it's no problem as it is because it's very short function now
->> but it's not style we prefer.
+> 
+> >Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >---
+> > mm/vmalloc.c |    9 +++++++--
+> > 1 files changed, 7 insertions(+), 2 deletions(-)
+> >
+> >diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> >index 0aca3ce..e1fa5a6 100644
+> >--- a/mm/vmalloc.c
+> >+++ b/mm/vmalloc.c
+> >@@ -505,6 +505,7 @@ static void unmap_vmap_area(struct vmap_area *va)
+> > 	vunmap_page_range(va->va_start, va->va_end);
+> > }
+> >+#ifdef CONFIG_DEBUG_PAGEALLOC
+> > static void vmap_debug_free_range(unsigned long start, unsigned long end)
+> > {
+> > 	/*
+> >@@ -520,11 +521,15 @@ static void vmap_debug_free_range(unsigned long start, unsigned long end)
+> > 	 * debugging doesn't do a broadcast TLB flush so it is a lot
+> > 	 * faster).
+> > 	 */
+> >-#ifdef CONFIG_DEBUG_PAGEALLOC
+> > 	vunmap_page_range(start, end);
+> > 	flush_tlb_kernel_range(start, end);
+> >-#endif
+> > }
+> >+#else
+> >+static inline void vmap_debug_free_range(unsigned long start,
+> >+					unsigned long end)
+> >+{
+> >+}
+> >+#endif
+> >/*
+> >  * lazy_max_pages is the maximum amount of virtual address space we gather up
+> 
+> -- 
+> Best regards,                                         _     _
+> .o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+> ..o | Computer Science,  MichaA? a??mina86a?? Nazarewicz    (o o)
+> ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
-> Who is this "we" you refer to?
->
-> There's nothing suggesting your patch as a preferred style
-> in Documentation/CodingStyle.
-
-There is plenty that is not documented, ;) yet it seems the community pr=
-efers
-having ifdefs outside of the function.
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
