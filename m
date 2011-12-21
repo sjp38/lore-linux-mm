@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id B5D856B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 06:09:46 -0500 (EST)
-Received: by iacb35 with SMTP id b35so12954591iac.14
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2011 03:09:46 -0800 (PST)
-Message-ID: <4EF1BE69.5090300@gmail.com>
-Date: Wed, 21 Dec 2011 19:09:29 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 165526B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 06:43:55 -0500 (EST)
+Received: by iacb35 with SMTP id b35so13005240iac.14
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2011 03:43:54 -0800 (PST)
+Date: Wed, 21 Dec 2011 20:43:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] cleanup: mm/migrate.c: cleanup comment for function
+ migration_entry_wait
+Message-ID: <20111221114337.GB12472@barrios-laptop.redhat.com>
+References: <4EF1BE69.5090300@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH] cleanup: mm/migrate.c: cleanup comment for function migration_entry_wait
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4EF1BE69.5090300@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wang Sheng-Hui <shhuiw@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-migration_entry_wait can also be called from hugetlb_fault now.
-Cleanup the comment.
+On Wed, Dec 21, 2011 at 07:09:29PM +0800, Wang Sheng-Hui wrote:
+> migration_entry_wait can also be called from hugetlb_fault now.
+> Cleanup the comment.
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- mm/migrate.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+Alternative is to add hugetlbe_fault in comment but I think it's not useful
+because We can find caller easily with cscope or just grep. 
+My feeling is that the comment isn't helpful.
+So I am okay to remove this comment.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 177aca4..640002a 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -181,8 +181,6 @@ static void remove_migration_ptes(struct page *old, struct page *new)
-  * Something used the pte of a page under migration. We need to
-  * get to the page and wait until migration is finished.
-  * When we return from this function the fault will be retried.
-- *
-- * This function is called from do_swap_page().
-  */
- void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
- 				unsigned long address)
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 -- 
-1.7.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
