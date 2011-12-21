@@ -1,146 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 49AED6B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 07:27:06 -0500 (EST)
-Message-ID: <1324470416.10752.1.camel@twins>
-Subject: [PATCH] futex: Fix uninterruptble loop due to gate_area
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 21 Dec 2011 13:26:56 +0100
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id B62066B005C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 07:28:28 -0500 (EST)
+Date: Wed, 21 Dec 2011 13:28:15 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] memcg: return -EINTR at bypassing try_charge().
+Message-ID: <20111221122815.GF3870@cmpxchg.org>
+References: <20111219165146.4d72f1bb.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111221172423.5d036cdd.kamezawa.hiroyu@jp.fujitsu.com>
+ <20111221192934.2751f8f1.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111221192934.2751f8f1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
 
-Subject: futex: Fix uninterruptble loop due to gate_area
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Fri Dec 02 14:12:06 CET 2011
+On Wed, Dec 21, 2011 at 07:29:34PM +0900, KAMEZAWA Hiroyuki wrote:
+> Thank you for review.
+> I'm sorry if my response is delayed.
+> ==
+> >From 1e8c917c64b3947d2e54c6e5073d53d80bd97c30 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 21 Dec 2011 16:27:25 +0900
+> Subject: [PATCH] memcg: return -EINTR at bypassing try_charge().
+> 
+> This patch is a fix for memcg-simplify-lru-handling-by-new-rule.patch
+> When running testprogram and stop it by Ctrl-C, add_lru/del_lru
+> will find pc->mem_cgroup is NULL and get panic. The reason
+> is bypass code in try_charge().
+> 
+> At try_charge(), it checks the thread is fatal or not as..
+> fatal_signal_pending() or TIF_MEMDIE. In this case, __try_charge()
+> returns 0(success) with setting *ptr as NULL.
+> 
+> Now, lruvec are deteremined by pc->mem_cgroup. So, it's better
+> to reset pc->mem_cgroup as root_mem_cgroup. This patch does
+> following change in try_charge()
+>   1. return -EINTR at bypassing.
+>   2. set *ptr = root_mem_cgroup at bypassing.
+> 
+> By this change, in page fault / radix-tree-insert path,
+> the page will be charged against root_mem_cgroup and the thread's
+> operations will go ahead without trouble. In other path,
+> migration or move_account etc..., -EINTR will stop the operation.
+> (may need some cleanup later..)
+> 
+> After this change, pc->mem_cgroup will have valid pointer if
+> the page is used.
+> 
+> Changelog: v2 -> v3
+>  - handle !mm case in another way.
+>  - removed redundant commments
+>  - fixed move_parent bug of uninitialized pointer
+> Changelog: v1 -> v2
+>  - returns -EINTR at bypassing.
+>  - change error code handling at callers.
+>  - changed the name of patch.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It was found (by Sasha) that if you use a futex located in the gate
-area we get stuck in an uninterruptible infinite loop, much like the
-ZERO_PAGE issue.
+Looks good now, thanks.
 
-While looking at this problem, I realized you'll get into similar
-trouble when hitting any install_special_pages() mapping. The solution
-chosen was not to modify special_mapping_fault() to install a non-zero
-page->mapping because that might lead to issues when freeing these
-pages. Instead do a find_vma() when we find we're again in the
-!mapping branch.
-
-Cc: stable@kernel.org
-Reported-by: Sasha Levin <levinsasha928@gmail.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/mm.h |    1 +
- kernel/futex.c     |   40 +++++++++++++++++++++++++++++++++++-----
- mm/mmap.c          |    5 +++++
- 3 files changed, 41 insertions(+), 5 deletions(-)
-Index: linux-2.6/include/linux/mm.h
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -1394,6 +1394,7 @@ extern int may_expand_vm(struct mm_struc
- extern int install_special_mapping(struct mm_struct *mm,
- 				   unsigned long addr, unsigned long len,
- 				   unsigned long flags, struct page **pages);
-+extern bool is_special_mapping(struct vm_area_struct *vma);
-=20
- extern unsigned long get_unmapped_area(struct file *, unsigned long, unsig=
-ned long, unsigned long, unsigned long);
-=20
-Index: linux-2.6/kernel/futex.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/kernel/futex.c
-+++ linux-2.6/kernel/futex.c
-@@ -59,6 +59,7 @@
- #include <linux/magic.h>
- #include <linux/pid.h>
- #include <linux/nsproxy.h>
-+#include <linux/mm.h>
-=20
- #include <asm/futex.h>
-=20
-@@ -236,7 +237,7 @@ get_futex_key(u32 __user *uaddr, int fsh
- 	unsigned long address =3D (unsigned long)uaddr;
- 	struct mm_struct *mm =3D current->mm;
- 	struct page *page, *page_head;
--	int err, ro =3D 0;
-+	int err, ro =3D 0, no_mapping_tries =3D 0;
-=20
- 	/*
- 	 * The futex address must be "naturally" aligned.
-@@ -317,13 +318,42 @@ get_futex_key(u32 __user *uaddr, int fsh
- 	if (!page_head->mapping) {
- 		unlock_page(page_head);
- 		put_page(page_head);
-+
- 		/*
--		* ZERO_PAGE pages don't have a mapping. Avoid a busy loop
--		* trying to find one. RW mapping would have COW'd (and thus
--		* have a mapping) so this page is RO and won't ever change.
--		*/
-+		 * ZERO_PAGE pages don't have a mapping. Avoid a busy loop
-+		 * trying to find one. RW mapping would have COW'd (and thus
-+		 * have a mapping) so this page is RO and won't ever change.
-+		 */
- 		if ((page_head =3D=3D ZERO_PAGE(address)))
- 			return -EFAULT;
-+
-+		/*
-+		 * Similar problem for the gate area.
-+		 */
-+		if (in_gate_area(mm, address))
-+			return -EFAULT;
-+
-+		/*
-+		 * There is a special class of pages that will have no mapping
-+		 * and yet is perfectly valid and not going anywhere. These
-+		 * are the pages from install_special_mapping(). Since looking
-+		 * up the vma is expensive, don't do so on the first go round.
-+		 */
-+		if (no_mapping_tries) {
-+			struct vm_area_struct *vma;
-+
-+			err =3D 0;
-+			down_read(&mm->mmap_sem);
-+			vma =3D find_vma(mm, address);
-+			if (vma && is_special_mapping(vma))
-+				err =3D -EFAULT;
-+			up_read(&mm->mmap_sem);
-+
-+			if (err)
-+				return err;
-+		}
-+
-+		++no_mapping_tries;
- 		goto again;
- 	}
-=20
-Index: linux-2.6/mm/mmap.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/mm/mmap.c
-+++ linux-2.6/mm/mmap.c
-@@ -2479,6 +2479,11 @@ int install_special_mapping(struct mm_st
- 	return ret;
- }
-=20
-+bool is_special_mapping(struct vm_area_struct *vma)
-+{
-+	return vma->vm_ops =3D=3D &special_mapping_vmops;
-+}
-+
- static DEFINE_MUTEX(mm_all_locks_mutex);
-=20
- static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_v=
-ma)
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
