@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 4C4BB6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 21:47:49 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 944F03EE0BB
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CB0545DEEA
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C32D45DEEC
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 503DA1DB803E
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F33061DB803C
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:46 +0900 (JST)
-Date: Wed, 21 Dec 2011 11:46:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: hugetlb: fix pgoff computation when unmapping page
- from vma
-Message-Id: <20111221114635.5b866875.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CAJd=RBDC9hxAFbbTvSWVa=t1kuyBH8=UoTYxRDtDm6iXLGkQWg@mail.gmail.com>
-References: <CAJd=RBDC9hxAFbbTvSWVa=t1kuyBH8=UoTYxRDtDm6iXLGkQWg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id BB6966B005A
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 21:50:26 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so5217740ghr.14
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 18:50:25 -0800 (PST)
+Date: Tue, 20 Dec 2011 18:50:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Android low memory killer vs. memory pressure notifications
+In-Reply-To: <20111221002853.GA11504@oksana.dev.rtsoft.ru>
+Message-ID: <alpine.DEB.2.00.1112201840340.11635@chino.kir.corp.google.com>
+References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz> <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com> <20111220145654.GA26881@oksana.dev.rtsoft.ru> <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com>
+ <20111221002853.GA11504@oksana.dev.rtsoft.ru>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 
-On Tue, 20 Dec 2011 21:45:51 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
+On Wed, 21 Dec 2011, Anton Vorontsov wrote:
 
-> The computation for pgoff is incorrect, at least with
+> > It's helpful for certain end users, particularly those in the embedded 
+> > world, to be able to disable as many config options as possible to reduce 
+> > the size of kernel image as much as possible, so they'll want a minimal 
+> > amount of kernel functionality that allows such notifications.  Keep in 
+> > mind that CONFIG_CGROUP_MEM_RES_CTLR is not enabled by default because of 
+> > this (enabling it, CONFIG_RESOURCE_COUNTERS, and CONFIG_CGROUPS increases 
+> > the size of the kernel text by ~1%),
 > 
-> 	(vma->vm_pgoff >> PAGE_SHIFT)
+> So for 2MB kernel that's about 20KB of an additional text... This seems
+> affordable, especially as a trade-off for the things that cgroups may
+> provide.
 > 
-> involved. It is fixed with the available method if HPAGE_SIZE is concerned in
-> page cache lookup.
-> 
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+No, this was with defconfig and then defconfig + CONFIG_CGROUPS + 
+CONFIG_RESOURCE_COUNTERS + CONFIG_CGROUP_MEM_RES_CTLR.  Configs that want 
+a very small kernel image will definitely not be running with defconfig, 
+they'll be using a stripped down version that allows for the smallest 
+footprint possible.  Requiring those config options would then increase 
+the size of the kernel text by much more than 1%.
+
+Compare this situation with using CONFIG_SLOB for embedded devices (which 
+is actually quite popular) over CONFIG_SLAB and CONFIG_SLUB specifically 
+for that low memory footprint.
+
+> The fact is, for desktop and server Linux, cgroups slowly becomes a
+> mandatory thing.
+
+And that's definitely in the wrong direction for Linux.  It would be like 
+asking users to convert to slab or slub because we don't want to maintain 
+a slob allocator that is specifically designed for an extremely low memory 
+footprint.  Such a proposal would be rejected outright unless you could 
+match the same footprint with the alternatives.
+
+> As Alan Cox pointed out, we should probably focus on improving (if needed)
+> existing solutions, instead of duplicating functionality for the sake of
+> doing the same thing, but in a more "lightweight" and ad-hocish way.
+> 
+
+I'm very in favor of extracting out notifiers of low-memory situations and 
+extended for global use rather than tying it specifically to the memory 
+controller.  Then, memcg would be responsible only for limitation of 
+resources rather than tying additional functionality to it that would be 
+generally useful to everyone (memory notifiers) and requiring them to 
+incur the overhead of memcg.
+
+> > and it's becoming increasingly 
+> > important for certain workloads to be notified of low memory conditions 
+> > without any restriction on its usage other than the amount of RAM that the 
+> > system has
+> 
+> I'm not sure what you mean here. Mem_cg may provide a way to the
+> userland to be notified on low memory conditions, i.e. amount of RAM
+> that the system has -- the same thing as /dev/mem_notify would do...
+> 
+
+Yes, but without the requirements of the above-mentioned subsystems.  The 
+point here is that some embedded devices may want notification of low-
+memory conditions without the overhead (both size and performance) of 
+cgroups or memcg.  Please focus on that specifically.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
