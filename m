@@ -1,243 +1,335 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 274F96B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 05:09:18 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3D4CF3EE0C0
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 19:09:16 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2095945DEE7
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 19:09:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 00FAB45DEEC
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 19:09:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E70C21DB8040
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 19:09:15 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92D321DB803C
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 19:09:15 +0900 (JST)
-Date: Wed, 21 Dec 2011 19:08:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v2] memcg: return -EINTR at bypassing try_charge().
-Message-Id: <20111221190801.5b10e80c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111221095708.GE3870@cmpxchg.org>
-References: <20111219165146.4d72f1bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111221172423.5d036cdd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111221095708.GE3870@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 173796B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 05:15:39 -0500 (EST)
+Message-ID: <1324462521.17322.12.camel@rybalov.eng.ttk.net>
+Subject: Re: Kswapd in 3.2.0-rc5 is a CPU hog
+From: nowhere <nowhere@hakkenden.ath.cx>
+Date: Wed, 21 Dec 2011 14:15:21 +0400
+In-Reply-To: <20111221095249.GA28474@tiehlicka.suse.cz>
+References: <1324437036.4677.5.camel@hakkenden.homenet>
+	 <20111221095249.GA28474@tiehlicka.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 Dec 2011 10:57:08 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+=D0=92 =D0=A1=D1=80., 21/12/2011 =D0=B2 10:52 +0100, Michal Hocko =D0=BF=D0=
+=B8=D1=88=D0=B5=D1=82:
+> [Let's CC linux-mm]
+>=20
+> On Wed 21-12-11 07:10:36, Nikolay S. wrote:
+> > Hello,
+> >=20
+> > I'm using 3.2-rc5 on a machine, which atm does almost nothing except
+> > file system operations and network i/o (i.e. file server). And there is
+> > a problem with kswapd.
+>=20
+> What kind of filesystem do you use?
 
-> On Wed, Dec 21, 2011 at 05:24:23PM +0900, KAMEZAWA Hiroyuki wrote:
-> > How about this ?
-> > --
-> > >From 6076425613f594d442c58a5d463c09f8309236aa Mon Sep 17 00:00:00 2001
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Date: Wed, 21 Dec 2011 16:27:25 +0900
-> > Subject: [PATCH] memcg: return -EINTR at bypassing try_charge().
-> > 
-> > This patch is a fix for memcg-simplify-lru-handling-by-new-rule.patch
-> > When running testprogram and stop it by Ctrl-C, add_lru/del_lru
-> > will find pc->mem_cgroup is NULL and get panic. The reason
-> > is bypass code in try_charge().
-> > 
-> > At try_charge(), it checks the thread is fatal or not as..
-> > fatal_signal_pending() or TIF_MEMDIE. In this case, __try_charge()
-> > returns 0(success) with setting *ptr as NULL.
-> > 
-> > Now, lruvec are deteremined by pc->mem_cgroup. So, it's better
-> > to reset pc->mem_cgroup as root_mem_cgroup. This patch does
-> > following change in try_charge()
-> >   1. return -EINTR at bypassing.
-> >   2. set *ptr = root_mem_cgroup at bypassing.
-> > 
-> > By this change, in page fault / radix-tree-insert path,
-> > the page will be charged against root_mem_cgroup and the thread's
-> > operations will go ahead without trouble. In other path,
-> > migration or move_account etc..., -EINTR will stop the operation.
-> > (may need some cleanup later..)
-> > 
-> > After this change, pc->mem_cgroup will have valid pointer if
-> > the page is used.
-> > 
-> > Changelog: v1 -> v2
-> >  - returns -EINTR at bypassing.
-> >  - change error code handling at callers.
-> >  - changed the name of patch.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |   53 +++++++++++++++++++++++++++++++++++++++++------------
-> >  1 files changed, 41 insertions(+), 12 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 9175097..3c6eb7e 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2185,6 +2185,23 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  }
-> >  
-> >  /*
-> > + * __mem_cgroup_try_charge() does
-> > + * 1. detect memcg to be charged against from passed *mm and *ptr,
-> > + * 2. update res_counter
-> > + * 3. call memory reclaim if necessary.
-> > + *
-> > + * In some special case, if the task is fatal, fatal_signal_pending() or
-> > + * TIF_MEMDIE or ->mm is NULL, this functoion returns -EINTR with filling
-> > + * *ptr as root_mem_cgroup. There are 2 reasons for this. 1st is that
-> > + * fatal threads should quit as soon as possible without any hazards.
-> > + * 2nd is that all page should have valid pc->mem_cgroup if it will be
-> > + * used.
-> > + *
-> > + * So, try_charge will return
-> > + *  0       ...  at success. filling *ptr with a valid memcg pointer.
-> > + *  -ENOMEM ...  charge failure because of resource limits.
-> > + *  -EINTR  ...  if thread is fatal. *ptr is filled with root_mem_cgroup.
-> > + *
-> >   * Unlike exported interface, "oom" parameter is added. if oom==true,
-> >   * oom-killer can be invoked.
-> >   */
-> > @@ -2316,8 +2333,8 @@ nomem:
-> >  	*ptr = NULL;
-> >  	return -ENOMEM;
-> >  bypass:
-> > -	*ptr = NULL;
-> > -	return 0;
-> > +	*ptr = root_mem_cgroup;
-> > +	return -EINTR;
-> >  }
-> 
-> What about this case:
-> 
-> 	/*
-> 	 * We always charge the cgroup the mm_struct belongs to.
-> 	 * The mm_struct's mem_cgroup changes on task migration if the
-> 	 * thread group leader migrates. It's possible that mm is not
-> 	 * set, if so charge the init_mm (happens for pagecache usage).
-> 	 */
-> 	if (!*ptr && !mm)
-> 		goto bypass;
-> 
+Well, that is XFS.
+I have a large volume with ~200000 files, and a periodic job, which
+checks all file's timestamps once per 30 minutes and makes actions if
+timestamp has changed.
 
-IIUC, task->mm is NULL when the task is about to exit.
-So, charge to root_mem_cgroup will be enough good.
-I'm not sure how 'mm_struct's mem_cgroup changes on.....' cases affect
-this path...
+>=20
+> >=20
+> > I'm playing with dd:
+> > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
+> >=20
+> > I.e. I'm filling page cache.
+> >=20
+> > So when the machine is just rebooted, kswapd during this operation is
+> > almost idle, just 5-8 percent according to top.
+> >=20
+> > After ~5 days of uptime (5 days,  2:10), the same operation demands ~70=
+%
+> > for kswapd:
+> >=20
+> >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
+> >   420 root      R   70  0.0  22:09.60    0 kswapd0
+> > 17717 nowhere   D   27  0.2   0:01.81  10m dd
+> >=20
+> > In fact, kswapd cpu usage on this operation steadily increases over
+> > time.
+> >=20
+> > Also read performance degrades over time. After reboot:
+> > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
+> > 1019+1 records in
+> > 1019+1 records out
+> > 8553494018 bytes (8.6 GB) copied, 16.211 s, 528 MB/s
+> >=20
+> > After ~5 days uptime:
+> > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
+> > 1019+1 records in
+> > 1019+1 records out
+> > 8553494018 bytes (8.6 GB) copied, 29.0507 s, 294 MB/s
+> >=20
+> > Whereas raw disk sequential read performance stays the same:
+> > dd if=3D/some/big/file of=3D/dev/null bs=3D8M iflag=3Ddirect
+> > 1019+1 records in
+> > 1019+1 records out
+> > 8553494018 bytes (8.6 GB) copied, 14.7286 s, 581 MB/s
+> >=20
+> > Also after dropping caches, situation somehow improves, but not to the
+> > state of freshly restarted system:
+> >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
+> >   420 root      S   39  0.0  23:31.17    0 kswapd0
+> > 19829 nowhere   D   24  0.2   0:02.72 7764 dd
+> >=20
+> > perf shows:
+> >=20
+> >     31.24%  kswapd0  [kernel.kallsyms]  [k] _raw_spin_lock
+> >     26.19%  kswapd0  [kernel.kallsyms]  [k] shrink_slab
+> >     16.28%  kswapd0  [kernel.kallsyms]  [k] prune_super
+> >      6.55%  kswapd0  [kernel.kallsyms]  [k] grab_super_passive
+> >      5.35%  kswapd0  [kernel.kallsyms]  [k] down_read_trylock
+> >      4.03%  kswapd0  [kernel.kallsyms]  [k] up_read
+> >      2.31%  kswapd0  [kernel.kallsyms]  [k] put_super
+> >      1.81%  kswapd0  [kernel.kallsyms]  [k] drop_super
+> >      0.99%  kswapd0  [kernel.kallsyms]  [k] __put_super
+> >      0.25%  kswapd0  [kernel.kallsyms]  [k] __isolate_lru_page
+> >      0.23%  kswapd0  [kernel.kallsyms]  [k] free_pcppages_bulk
+> >      0.19%  kswapd0  [r8169]            [k] rtl8169_interrupt
+> >      0.15%  kswapd0  [kernel.kallsyms]  [k] twa_interrupt
+>=20
+> Quite a lot of time spent shrinking slab (dcache I guess) and a lot of
+> spin lock contention.
 
+This is slabinfo, sorted by num objects:
 
+xfs_inode         192941 193205    960   17    4 : tunables    0    0    0 =
+: slabdata  11365  11365      0
+dentry            118818 118818    192   21    1 : tunables    0    0    0 =
+: slabdata   5658   5658      0
+kmalloc-256       107920 107920    256   16    1 : tunables    0    0    0 =
+: slabdata   6745   6745      0
+kmalloc-64         59912 102656     64   64    1 : tunables    0    0    0 =
+: slabdata   1604   1604      0
+radix_tree_node    30618  33474    568   14    2 : tunables    0    0    0 =
+: slabdata   2391   2391      0
+kmalloc-96         27092  41202     96   42    1 : tunables    0    0    0 =
+: slabdata    981    981      0
+buffer_head        24892  63843    104   39    1 : tunables    0    0    0 =
+: slabdata   1637   1637      0
+kmalloc-192        23332  34503    192   21    1 : tunables    0    0    0 =
+: slabdata   1643   1643      0
+sysfs_dir_cache    17444  17444    144   28    1 : tunables    0    0    0 =
+: slabdata    623    623      0
+arp_cache          12863  14796    320   12    1 : tunables    0    0    0 =
+: slabdata   1233   1233      0
+kmalloc-512        11051  11440    512   16    2 : tunables    0    0    0 =
+: slabdata    715    715      0
+kmalloc-128        10611  13152    128   32    1 : tunables    0    0    0 =
+: slabdata    411    411      0
+ext4_inode_cache    9660  18018    880   18    4 : tunables    0    0    0 =
+: slabdata   1001   1001      0
+kmalloc-8           8704   8704      8  512    1 : tunables    0    0    0 =
+: slabdata     17     17      0
+ext4_io_page        6912   6912     16  256    1 : tunables    0    0    0 =
+: slabdata     27     27      0
+anon_vma_chain      6701  10880     48   85    1 : tunables    0    0    0 =
+: slabdata    128    128      0
+Acpi-Namespace      6611   8058     40  102    1 : tunables    0    0    0 =
+: slabdata     79     79      0
+fsnotify_event_holder   6290   6970     24  170    1 : tunables    0    0  =
+  0 : slabdata     41     41      0
+kmalloc-1024        5813   5888   1024   16    4 : tunables    0    0    0 =
+: slabdata    368    368      0
+vm_area_struct      5664   5664    168   24    1 : tunables    0    0    0 =
+: slabdata    236    236      0
+reiser_inode_cache   3992   5198    704   23    4 : tunables    0    0    0=
+ : slabdata    226    226      0
+Acpi-ParseExt       3808   3808     72   56    1 : tunables    0    0    0 =
+: slabdata     68     68      0
+kmalloc-2048        3587   3888   2048   16    8 : tunables    0    0    0 =
+: slabdata    243    243      0
+proc_inode_cache    3498   3510    624   13    2 : tunables    0    0    0 =
+: slabdata    270    270      0
+anon_vma            3380   3640     72   56    1 : tunables    0    0    0 =
+: slabdata     65     65      0
+kmalloc-16          3072   3072     16  256    1 : tunables    0    0    0 =
+: slabdata     12     12      0
+inode_cache         3024   3024    560   14    2 : tunables    0    0    0 =
+: slabdata    216    216      0
+ext4_allocation_context   3000   3000    136   30    1 : tunables    0    0=
+    0 : slabdata    100    100      0
+nf_conntrack_ffffffff81776d40   2910   3549    312   13    1 : tunables    =
+0    0    0 : slabdata    273    273      0
+kmalloc-4096        2792   3136   4096    8    8 : tunables    0    0    0 =
+: slabdata    392    392      0
+ext4_free_data      2701   2701     56   73    1 : tunables    0    0    0 =
+: slabdata     37     37      0
+pid_namespace       2130   2130   2112   15    8 : tunables    0    0    0 =
+: slabdata    142    142      0
+mqueue_inode_cache   2124   2124    896   18    4 : tunables    0    0    0=
+ : slabdata    118    118      0
+jbd2_revoke_record   1664   1664     32  128    1 : tunables    0    0    0=
+ : slabdata     13     13      0
+kmalloc-32          1434   3072     32  128    1 : tunables    0    0    0 =
+: slabdata     24     24      0
+shmem_inode_cache   1400   1521    624   13    2 : tunables    0    0    0 =
+: slabdata    117    117      0
+xfs_ili             1139   1260    216   18    1 : tunables    0    0    0 =
+: slabdata     70     70      0
+nfsd4_stateids      1131   1496    120   34    1 : tunables    0    0    0 =
+: slabdata     44     44      0
+idr_layer_cache      900    900    544   15    2 : tunables    0    0    0 =
+: slabdata     60     60      0
+jbd2_journal_head    742   1008    112   36    1 : tunables    0    0    0 =
+: slabdata     28     28      0
+fsnotify_event       648    648    112   36    1 : tunables    0    0    0 =
+: slabdata     18     18      0
+sock_inode_cache     577    624    640   12    2 : tunables    0    0    0 =
+: slabdata     52     52      0
+tw_sock_TCP          504    504    192   21    1 : tunables    0    0    0 =
+: slabdata     24     24      0
+TCP                  356    414   1728   18    8 : tunables    0    0    0 =
+: slabdata     23     23      0
+RAW                  342    342    832   19    4 : tunables    0    0    0 =
+: slabdata     18     18      0
+jbd2_journal_handle    340    340     24  170    1 : tunables    0    0    =
+0 : slabdata      2      2      0
+blkdev_requests      322    322    344   23    2 : tunables    0    0    0 =
+: slabdata     14     14      0
+task_struct          293    357   1504   21    8 : tunables    0    0    0 =
+: slabdata     17     17      0
+UDP                  285    285    832   19    4 : tunables    0    0    0 =
+: slabdata     15     15      0
+files_cache          276    276    704   23    4 : tunables    0    0    0 =
+: slabdata     12     12      0
+nfsd4_openowners     220    320    392   20    2 : tunables    0    0    0 =
+: slabdata     16     16      0
+mm_struct            216    216    896   18    4 : tunables    0    0    0 =
+: slabdata     12     12      0
+sighand_cache        199    225   2112   15    8 : tunables    0    0    0 =
+: slabdata     15     15      0
+nfsd4_delegations    198    198    368   22    2 : tunables    0    0    0 =
+: slabdata      9      9      0
+kmem_cache_node      192    192     64   64    1 : tunables    0    0    0 =
+: slabdata      3      3      0
+xfs_buf_item         162    162    224   18    1 : tunables    0    0    0 =
+: slabdata      9      9      0
+ip_fib_trie          146    146     56   73    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+ext4_io_end          140    154   1128   14    4 : tunables    0    0    0 =
+: slabdata     11     11      0
+dnotify_mark         120    120    136   30    1 : tunables    0    0    0 =
+: slabdata      4      4      0
+TCPv6                104    119   1856   17    8 : tunables    0    0    0 =
+: slabdata      7      7      0
+cfq_queue            102    102    232   17    1 : tunables    0    0    0 =
+: slabdata      6      6      0
+Acpi-State           102    102     80   51    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+sigqueue             100    100    160   25    1 : tunables    0    0    0 =
+: slabdata      4      4      0
+xfs_efd_item          80     80    400   20    2 : tunables    0    0    0 =
+: slabdata      4      4      0
+tw_sock_TCPv6         64    144    256   16    1 : tunables    0    0    0 =
+: slabdata      9      9      0
+bdev_cache            57     57    832   19    4 : tunables    0    0    0 =
+: slabdata      3      3      0
+blkdev_queue          54     54   1744   18    8 : tunables    0    0    0 =
+: slabdata      3      3      0
+net_namespace         52     52   2432   13    8 : tunables    0    0    0 =
+: slabdata      4      4      0
+kmalloc-8192          52     52   8192    4    8 : tunables    0    0    0 =
+: slabdata     13     13      0
+kmem_cache            42     42    192   21    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+xfs_log_ticket        40     40    200   20    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+xfs_btree_cur         38     38    208   19    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+rpc_inode_cache       38     38    832   19    4 : tunables    0    0    0 =
+: slabdata      2      2      0
+nf_conntrack_expect     34     34    240   17    1 : tunables    0    0    =
+0 : slabdata      2      2      0
+xfs_da_state          32     32    488   16    2 : tunables    0    0    0 =
+: slabdata      2      2      0
+UDPv6                 32     32   1024   16    4 : tunables    0    0    0 =
+: slabdata      2      2      0
+xfs_trans             28     28    280   14    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+taskstats             24     24    328   12    1 : tunables    0    0    0 =
+: slabdata      2      2      0
+dio                   24     24    640   12    2 : tunables    0    0    0 =
+: slabdata      2      2      0
+posix_timers_cache     23     23    176   23    1 : tunables    0    0    0=
+ : slabdata      1      1      0
+hugetlbfs_inode_cache     14     14    560   14    2 : tunables    0    0  =
+  0 : slabdata      1      1      0
+xfrm_dst_cache         0      0    384   21    2 : tunables    0    0    0 =
+: slabdata      0      0      0
+user_namespace         0      0   1072   15    4 : tunables    0    0    0 =
+: slabdata      0      0      0
+UDPLITEv6              0      0   1024   16    4 : tunables    0    0    0 =
+: slabdata      0      0      0
+UDP-Lite               0      0    832   19    4 : tunables    0    0    0 =
+: slabdata      0      0      0
+kcopyd_job             0      0   3240   10    8 : tunables    0    0    0 =
+: slabdata      0      0      0
+flow_cache             0      0    104   39    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+ext2_xattr             0      0     88   46    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+ext2_inode_cache       0      0    752   21    4 : tunables    0    0    0 =
+: slabdata      0      0      0
+dquot                  0      0    256   16    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dm_uevent              0      0   2608   12    8 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-96         0      0     96   42    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-8192       0      0   8192    4    8 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-8          0      0      8  512    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-64         0      0     64   64    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-512        0      0    512   16    2 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-4096       0      0   4096    8    8 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-32         0      0     32  128    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-256        0      0    256   16    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-2048       0      0   2048   16    8 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-192        0      0    192   21    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-16         0      0     16  256    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-128        0      0    128   32    1 : tunables    0    0    0 =
+: slabdata      0      0      0
+dma-kmalloc-1024       0      0   1024   16    4 : tunables    0    0    0 =
+: slabdata      0      0      0
+bsg_cmd                0      0    312   13    1 : tunables    0    0    0 =
+: slabdata      0      0      0
 
+> Could you also take few snapshots of /proc/420/stack to see what kswapd
+> is doing.
 
-> > @@ -2564,7 +2581,7 @@ static int mem_cgroup_move_parent(struct page *page,
-> >  {
-> >  	struct cgroup *cg = child->css.cgroup;
-> >  	struct cgroup *pcg = cg->parent;
-> > -	struct mem_cgroup *parent;
-> > +	struct mem_cgroup *parent, *ptr;
-> >  	unsigned int nr_pages;
-> >  	unsigned long uninitialized_var(flags);
-> >  	int ret;
-> > @@ -2582,8 +2599,8 @@ static int mem_cgroup_move_parent(struct page *page,
-> >  	nr_pages = hpage_nr_pages(page);
-> >  
-> >  	parent = mem_cgroup_from_cont(pcg);
-> > -	ret = __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &parent, false);
-> > -	if (ret || !parent)
-> > +	ret = __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &ptr, false);
-> > +	if (ret)
-> >  		goto put_back;
-> 
-> That doesn't seem right.  That unitilialized ptr is used in
-> try_charge(), so this may crash, and it should really charge against
-> parent.
+Uhm, there is no such entry in proc. Guess I need to enable some kernel
+option and recompile?
+This will reset uptime and a problem for another 5-10 days..
 
-Ah, yes. my mistake.
+>=20
+> >=20
+> > P.S.: The message above was written couple of days ago. Now I'm at 10
+> > days uptime, and this is the result as of today
+> >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
+> >   420 root      R   93  0.0 110:48.48    0 kswapd0
+> > 30085 nowhere   D   42  0.2   0:04.36  10m dd
+> >=20
+> > PPS: Please CC me.
+>=20
 
-
-
-> > @@ -2630,9 +2647,9 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-> >  
-> >  	pc = lookup_page_cgroup(page);
-> >  	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
-> > -	if (ret || !memcg)
-> > +	if (ret == -ENOMEM)
-> >  		return ret;
-> > -
-> > +	/* we'll bypass -EINTR case and charge this page to root memcg */
-> >  	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype);
-> >  	return 0;
-> >  }
-> 
-> This comment is not very useful.  WHY do we do this?  Maybe just copy
-> the comment from try_charge_swapin()?
-> 
-Hmm, ok. I'll remove this comment.
-
-
-> > @@ -2703,6 +2720,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> >  		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-> >  	else { /* page is swapcache/shmem */
-> >  		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &memcg);
-> > +		/* see try_charge_swapi() for -EINTR case */
-> >  		if (!ret)
-> >  			__mem_cgroup_commit_charge_swapin(page, memcg, type);
-> >  	}
-> 
-> Missing n in the comment.
-> 
-
-will remove this, too.
-
-
-> > @@ -2743,11 +2761,21 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-> >  	*memcgp = memcg;
-> >  	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
-> >  	css_put(&memcg->css);
-> > +	/*
-> > +	 * If this thread is fatal, charge against root cgroup and allow
-> > +	 * this thread to exit in quick manner. EINTR is not handled
-> > +	 * in page fault path. So, just bypass this.
-> > +	 */
-> > +	if (ret == -EINTR)
-> > +		ret = 0;
-> >  	return ret;
-> >  charge_cur_mm:
-> >  	if (unlikely(!mm))
-> >  		mm = &init_mm;
-> > -	return __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
-> > +	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
-> > +	if (ret == -EINTR)
-> > +		ret = 0;
-> > +	return ret;
-> >  }
-> >  
-> >  static void
-> 
-> > @@ -3633,7 +3662,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
-> >  		pc = lookup_page_cgroup(page);
-> >  
-> >  		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
-> > -		if (ret == -ENOMEM)
-> > +		if (ret == -ENOMEM || ret == -EINTR)
-> >  			break;
-> 
-> if (ret)
-> 
-
--EBUSY check is below this code.
-
-I'll prepare v3. 
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
