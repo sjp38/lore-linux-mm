@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 3B4A96B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 14:02:50 -0500 (EST)
-Received: by werf1 with SMTP id f1so3962233wer.14
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:02:48 -0800 (PST)
-Date: Wed, 21 Dec 2011 20:04:33 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
- sharing mechanism
-Message-ID: <20111221190433.GE3827@phenom.ffwll.local>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
- <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com>
- <20111220171437.GC3883@phenom.ffwll.local>
- <201112211727.17104.arnd@arndb.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201112211727.17104.arnd@arndb.de>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 84E526B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 15:28:45 -0500 (EST)
+Date: Wed, 21 Dec 2011 12:28:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] vfs: __read_cache_page should use gfp argument
+ rather than GFP_KERNEL
+Message-Id: <20111221122843.18f673c7.akpm@linux-foundation.org>
+In-Reply-To: <4EF211EC.7090002@oracle.com>
+References: <201112210054.46995.rjw@sisk.pl>
+	<CA+55aFzee7ORKzjZ-_PrVy796k2ASyTe_Odz=ji7f1VzToOkKw@mail.gmail.com>
+	<4EF15F42.4070104@oracle.com>
+	<CA+55aFx=B9adsTR=-uYpmfJnQgdGN+1aL0KUabH5bSY6YcwO7Q@mail.gmail.com>
+	<alpine.LSU.2.00.1112202213310.3987@eggly.anvils>
+	<4EF211EC.7090002@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Daniel Vetter <daniel@ffwll.ch>, linux@arm.linux.org.uk, "Semwal, Sumit" <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Rob Clark <robdclark@gmail.com>, linux-arm-kernel@lists.infradead.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-media@vger.kernel.org
+To: Dave Kleikamp <dave.kleikamp@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, jfs-discussion@lists.sourceforge.net, Kernel Testers List <kernel-testers@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Maciej Rutecki <maciej.rutecki@gmail.com>, Florian Mickler <florian@mickler.org>, davem@davemloft.net, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
 
-On Wed, Dec 21, 2011 at 05:27:16PM +0000, Arnd Bergmann wrote:
-> On Tuesday 20 December 2011, Daniel Vetter wrote:
-> > It also sounds like that at least for proper userspace mmap support we'd
-> > need some dma api extensions on at least arm, and that might take a while
-> > ...
+On Wed, 21 Dec 2011 11:05:48 -0600
+Dave Kleikamp <dave.kleikamp@oracle.com> wrote:
+
+> [ updated to remove now-obsolete comment in read_cache_page_gfp()]
 > 
-> I think it's actually the opposite -- you'd need dma api extensions on
-> everything else other than arm, which already has dma_mmap_coherent()
-> and dma_mmap_writecombine() for this purpose.
+> lockdep reports a deadlock in jfs because a special inode's rw semaphore
+> is taken recursively. The mapping's gfp mask is GFP_NOFS, but is not used
+> when __read_cache_page() calls add_to_page_cache_lru().
 
-Yeah, that's actually what I wanted to say, but failed at ... Another
-thing is that at least for i915, _writecombine isn't what we want actually
-because:
-- It won't work anyway cause i915 maps stuff cached and does the flushing
-  itself and x86 PAT doesn't support mixed mappings (kinda like arm).
-- It isn't actually enough, there's another hidden buffer between the
-  memory controller interface and the gpu that i915 manually flushes
-  (because even a readback on a wc mapping doesn't flush things in there).
+Well hang on, it's not just a lockdep splat.  The kernel actually will
+deadlock if we reenter JFS via this GFP_KERNEL allocation attempt, yes?
 
-So I assume we'll have plenty of funny beating out a good api for cpu
-access ;-)
+Was that GFP_NOFS allocation recently added to JFS?  If not then we
+should backport this deadlock fix into -stable, no?
 
-Cheers, Daniel
--- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
