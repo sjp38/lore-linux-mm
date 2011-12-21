@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id BF85B6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 23:02:11 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AF7763EE0CD
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 13:02:09 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D81645DE4F
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 13:02:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 733F145DE53
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 13:02:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 60F611DB8044
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 13:02:09 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 007091DB803F
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 13:02:09 +0900 (JST)
-Date: Wed, 21 Dec 2011 13:00:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: reset to root_mem_cgroup at bypassing
-Message-Id: <20111221130056.2f4a39b2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.LSU.2.00.1112201847500.1310@eggly.anvils>
-References: <20111219165146.4d72f1bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.LSU.2.00.1112191218350.3639@eggly.anvils>
-	<CABEgKgrk4X13V2Ra_g+V5J0echpj2YZfK20zaFRKP-PhWRWiYQ@mail.gmail.com>
-	<20111221091347.4f1a10d8.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.LSU.2.00.1112201847500.1310@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 639BE6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 23:07:00 -0500 (EST)
+Date: Wed, 21 Dec 2011 15:06:56 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+Message-ID: <20111221040656.GB23662@dastard>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.666312513@intel.com>
+ <20111129152106.GN5635@quack.suse.cz>
+ <20111214063625.GA13824@localhost>
+ <20111219163241.GA4107@quack.suse.cz>
+ <20111221012935.GA13231@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111221012935.GA13231@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 20 Dec 2011 19:25:04 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Wed, Dec 21, 2011 at 09:29:36AM +0800, Wu Fengguang wrote:
+> On Tue, Dec 20, 2011 at 12:32:41AM +0800, Jan Kara wrote:
+> > On Wed 14-12-11 14:36:25, Wu Fengguang wrote:
+> > > >   This looks all inherently racy (which doesn't matter much as you suggest)
+> > > > so I just wanted to suggest that if you used per-cpu counters you'd get
+> > > > race-free and faster code at the cost of larger data structures and using
+> > > > percpu_counter_add() instead of ++ (which doesn't seem like a big
+> > > > complication to me).
+> > > 
+> > > OK, here is the incremental patch to use per-cpu counters :)
+> >   Thanks! This looks better. I just thought you would use per-cpu counters
+> > as defined in include/linux/percpu_counter.h and are used e.g. by bdi
+> > stats. This is more standard for statistics in the kernel than using
+> > per-cpu variables directly.
+> 
+> Ah yes, I overlooked that facility! However the percpu_counter's
+> ability to maintain and quickly retrieve the global value seems
+> unnecessary feature/overheads for readahead stats, because here we
+> only need to sum up the global value when the user requests it. If
+> switching to percpu_counter, I'm afraid every readahead(1MB) event
+> will lead to the update of percpu_counter global value (grabbing the
+> spinlock) due to 1MB > some small batch size. This actually performs
+> worse than the plain global array of values in the v1 patch.
 
-> On Wed, 21 Dec 2011, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 20 Dec 2011 09:24:47 +0900
-> > Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com> wrote:
-> > > 2011/12/20 Hugh Dickins <hughd@google.com>:
-> > > 
-> > > > I speak from experience: I did *exactly* the same at "bypass" when
-> > > > I introduced our mem_cgroup_reset_page(), which corresponds to your
-> > > > mem_cgroup_reset_owner(); it seemed right to me that a successful
-> > > > (return 0) call to try_charge() should provide a good *ptr.
-> > > >
-> > > ok.
-> > > 
-> > > > But others (Ying and Greg) pointed out that it changes the semantics
-> > > > of __mem_cgroup_try_charge() in this case, so you need to justify the
-> > > > change to all those places which do something like "if (ret || !memcg)"
-> > > > after calling it. A Perhaps it is a good change everywhere, but that's
-> > > > not obvious, so we chose caution.
-> > > >
-> > > > Doesn't it lead to bypass pages being marked as charged to root, so
-> > > > they don't get charged to the right owner next time they're touched?
-> > > >
-> > > Yes. You're right.
-> > > Hm. So, it seems I should add reset_owner() to the !memcg path
-> > > rather than here.
-> > > 
-> > Considering this again..
-> > 
-> > Now, we catch 'charge' event only once in lifetime of anon/file page.
-> > So, it doesn't depend on that it's marked as PCG_USED or not.
-> 
-> That's an interesting argument, I hadn't been looking at it that way.
-> It's not true of swapcache, but I guess we don't need to preserve its
-> peculiarities in this case.
-> 
-> I've not checked the (ret || !memcg) cases yet to see if any change
-> needed there.
-> 
-> I certainly like that the success return guarantees that memcg is set.
-> 
-Hmm. Ok, then....I'll update patch description to be precise.
-And check I can remove !memcg case in the same patch. Then, repost v2.
+So use a custom batch size so that typical increments don't require
+locking for every add. The bdi stat counters are an example of this
+sort of setup to reduce lock contention on typical IO workloads as
+concurrency increases.
 
-Thanks,
--Kame
+All these stats have is a requirement for a different batch size to
+avoid frequent lock grabs. The stats don't have to update the global
+counter very often (only to prvent overflow!) so you count get away
+with a batch size in the order of 2^30 without any issues....
+
+We have a general per-cpu counter infrastructure - we should be
+using it and improving it and not reinventing it a different way
+every time we need a per-cpu counter.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
