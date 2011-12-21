@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 671AA6B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 19:18:20 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 13B303EE0AE
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:18:19 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B647945DE5E
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:18:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A1BF45DE5B
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:18:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 875221DB8052
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:18:18 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F26E1DB804E
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:18:18 +0900 (JST)
-Date: Wed, 21 Dec 2011 09:17:06 +0900
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id E998F6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 19:19:31 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9431F3EE0B6
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:19:30 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78C0E45DEEC
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:19:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D97E45DEEA
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:19:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E92E61DB803C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:19:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FAF21DB8038
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:19:29 +0900 (JST)
+Date: Wed, 21 Dec 2011 09:18:19 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] page_alloc: break early in
- check_for_regular_memory()
-Message-Id: <20111221091706.aed44254.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
-References: <1324375359-31306-1-git-send-email-lliubbo@gmail.com>
+Subject: Re: [PATCH 3/3] page_cgroup: drop multi CONFIG_MEMORY_HOTPLUG
+Message-Id: <20111221091819.8d1f8e55.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1324375421-31358-1-git-send-email-lliubbo@gmail.com>
+References: <1324375421-31358-1-git-send-email-lliubbo@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de, tj@kernel.org, aarcange@redhat.com
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org
 
-On Tue, 20 Dec 2011 18:02:39 +0800
+On Tue, 20 Dec 2011 18:03:41 +0800
 Bob Liu <lliubbo@gmail.com> wrote:
 
-> If there is a zone below ZONE_NORMAL has present_pages, we can set
-> node state to N_NORMAL_MEMORY, no need to loop to end.
+> No need two CONFIG_MEMORY_HOTPLUG place.
 > 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
