@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 92D0C6B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 10:21:10 -0500 (EST)
-Date: Wed, 21 Dec 2011 10:21:01 -0500
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH] vmalloc: remove #ifdef in function body
-Message-ID: <20111221152101.GD24863@thunk.org>
-References: <1324444679-9247-1-git-send-email-minchan@kernel.org>
- <1324445481.20505.7.camel@joe2Laptop>
- <20111221054531.GB28505@barrios-laptop.redhat.com>
- <1324447099.21340.6.camel@joe2Laptop>
- <op.v6ttagny3l0zgt@mpn-glaptop>
- <1324449156.21735.7.camel@joe2Laptop>
- <op.v6tug3vi3l0zgt@mpn-glaptop>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 7D0906B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 12:06:00 -0500 (EST)
+Message-ID: <4EF211EC.7090002@oracle.com>
+Date: Wed, 21 Dec 2011 11:05:48 -0600
+From: Dave Kleikamp <dave.kleikamp@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <op.v6tug3vi3l0zgt@mpn-glaptop>
+Subject: [PATCH v2] vfs: __read_cache_page should use gfp argument rather
+ than GFP_KERNEL
+References: <201112210054.46995.rjw@sisk.pl> <CA+55aFzee7ORKzjZ-_PrVy796k2ASyTe_Odz=ji7f1VzToOkKw@mail.gmail.com> <4EF15F42.4070104@oracle.com> <CA+55aFx=B9adsTR=-uYpmfJnQgdGN+1aL0KUabH5bSY6YcwO7Q@mail.gmail.com> <alpine.LSU.2.00.1112202213310.3987@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1112202213310.3987@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Joe Perches <joe@perches.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, jfs-discussion@lists.sourceforge.net, Kernel Testers List <kernel-testers@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Maciej Rutecki <maciej.rutecki@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Florian Mickler <florian@mickler.org>, davem@davemloft.net, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
 
-On Wed, Dec 21, 2011 at 07:47:17AM +0100, Michal Nazarewicz wrote:
-> This patch that you pointed to is against a??#ifdefs are uglya?? style
-> described in Documentation/SubmittingPatches.
-> 
-> >If it's not in coding style, I suggest
-> >it should be changed if it doesn't
-> >add some other useful value.
-> 
-> That my be true.  I guess no one took time to adding it to the document.
+[ updated to remove now-obsolete comment in read_cache_page_gfp()]
 
-Like all things, judgement is required.  Some of the greatest artists
-know when it's OK (and in fact, a good thing) to break the rules.
-Beethoven, for example, broke the rules when he added a chorus of
-singers to his 9th Symphony.  Take a look at Bach's chorales,
-universally acknowledged to be works of genius.  Yet there Bach has
-occasionally double thirds, crossed voices, and engaged in parallel
-fifths --- and big no-no's which go against the textbook rules of
-chorale writing.
+lockdep reports a deadlock in jfs because a special inode's rw semaphore
+is taken recursively. The mapping's gfp mask is GFP_NOFS, but is not used
+when __read_cache_page() calls add_to_page_cache_lru().
 
-In this case, if you have an #ifdef surrounding an entire function
-body, I think common sense says that the it's fine.  There's also the
-rule which is says that all other things being equal, it's better not
-to waste vertical space and useless boiler plate.
+Signed-off-by: Dave Kleikamp <dave.kleikamp@oracle.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Acked-by: Al Viro <viro@zeniv.linux.org.uk>
 
-Worst of all is patches to change perfectly existing code because
-someone is trying to be a stickler for rules, since it can break other
-people's patches.  If you are need to make a change, it's best that it
-be checkpatch clean.  But sending random cleanups just because someone
-is trying to get their patch count in the kernel higher is Just
-Stupid, and should be strongly discouraged.
-
-(And that last, too, is a rule that has exceptions...)
-
-							- Ted
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c106d3b..5f0a3c9 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1828,7 +1828,7 @@ repeat:
+ 		page = __page_cache_alloc(gfp | __GFP_COLD);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
+-		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
++		err = add_to_page_cache_lru(page, mapping, index, gfp);
+ 		if (unlikely(err)) {
+ 			page_cache_release(page);
+ 			if (err == -EEXIST)
+@@ -1925,10 +1925,7 @@ static struct page *wait_on_page_read(struct page *page)
+  * @gfp:	the page allocator flags to use if allocating
+  *
+  * This is the same as "read_mapping_page(mapping, index, NULL)", but with
+- * any new page allocations done using the specified allocation flags. Note
+- * that the Radix tree operations will still use GFP_KERNEL, so you can't
+- * expect to do this atomically or anything like that - but you can pass in
+- * other page requirements.
++ * any new page allocations done using the specified allocation flags.
+  *
+  * If the page does not get brought uptodate, return -EIO.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
