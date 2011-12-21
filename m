@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 52B986B004D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 21:31:17 -0500 (EST)
-Message-ID: <4EF144D1.2020807@am.sony.com>
-Date: Tue, 20 Dec 2011 18:30:41 -0800
-From: Frank Rowand <frank.rowand@am.sony.com>
-Reply-To: <frank.rowand@am.sony.com>
-MIME-Version: 1.0
-Subject: Re: Android low memory killer vs. memory pressure notifications
-References: <20111219025328.GA26249@oksana.dev.rtsoft.ru> <20111219121255.GA2086@tiehlicka.suse.cz> <alpine.DEB.2.00.1112191110060.19949@chino.kir.corp.google.com> <20111220145654.GA26881@oksana.dev.rtsoft.ru> <alpine.DEB.2.00.1112201322170.22077@chino.kir.corp.google.com> <20111221002853.GA11504@oksana.dev.rtsoft.ru> <4EF132EA.7000300@am.sony.com> <20111221020723.GA5214@oksana.dev.rtsoft.ru>
-In-Reply-To: <20111221020723.GA5214@oksana.dev.rtsoft.ru>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 4C4BB6B004D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2011 21:47:49 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 944F03EE0BB
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CB0545DEEA
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C32D45DEEC
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 503DA1DB803E
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:47 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F33061DB803C
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 11:47:46 +0900 (JST)
+Date: Wed, 21 Dec 2011 11:46:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: hugetlb: fix pgoff computation when unmapping page
+ from vma
+Message-Id: <20111221114635.5b866875.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CAJd=RBDC9hxAFbbTvSWVa=t1kuyBH8=UoTYxRDtDm6iXLGkQWg@mail.gmail.com>
+References: <CAJd=RBDC9hxAFbbTvSWVa=t1kuyBH8=UoTYxRDtDm6iXLGkQWg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: "Rowand, Frank" <Frank_Rowand@sonyusa.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "tbird20d@gmail.com" <tbird20d@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 12/20/11 18:07, Anton Vorontsov wrote:
-> On Tue, Dec 20, 2011 at 05:14:18PM -0800, Frank Rowand wrote:
+On Tue, 20 Dec 2011 21:45:51 +0800
+Hillf Danton <dhillf@gmail.com> wrote:
 
-< snip >
-
->> And for embedded and for real-time, some of us do not want cgroups to be
->> a mandatory thing.  We want it to remain configurable.  My personal
->> interest is in keeping the latency of certain critical paths (especially
->> in the scheduler) short and consistent.
+> The computation for pgoff is incorrect, at least with
 > 
-> Much thanks for your input! That would be quite strong argument for going
-> with /dev/mem_notify approach. Do you have any specific numbers how cgroups
-> makes scheduler latencies worse?
+> 	(vma->vm_pgoff >> PAGE_SHIFT)
+> 
+> involved. It is fixed with the available method if HPAGE_SIZE is concerned in
+> page cache lookup.
+> 
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
 
-Sorry, I don't have specific numbers.  And the numbers would be workload
-specific anyway.
-
--Frank
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
