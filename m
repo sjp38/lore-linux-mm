@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB556B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:07:48 -0500 (EST)
-Received: by qadc16 with SMTP id c16so5188991qad.14
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 22:07:47 -0800 (PST)
-Date: Wed, 21 Dec 2011 15:07:39 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 3A0236B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 01:13:59 -0500 (EST)
+Received: by eekc41 with SMTP id c41so8244102eek.14
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2011 22:13:57 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
 Subject: Re: [PATCH] vmalloc: remove #ifdef in function body
-Message-ID: <20111221060739.GD28505@barrios-laptop.redhat.com>
 References: <1324444679-9247-1-git-send-email-minchan@kernel.org>
- <1324445481.20505.7.camel@joe2Laptop>
- <20111221054531.GB28505@barrios-laptop.redhat.com>
- <1324447099.21340.6.camel@joe2Laptop>
+Date: Wed, 21 Dec 2011 07:13:49 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1324447099.21340.6.camel@joe2Laptop>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v6tsxbmb3l0zgt@mpn-glaptop>
+In-Reply-To: <1324444679-9247-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 20, 2011 at 09:58:19PM -0800, Joe Perches wrote:
-> On Wed, 2011-12-21 at 14:45 +0900, Minchan Kim wrote:
-> > On Tue, Dec 20, 2011 at 09:31:21PM -0800, Joe Perches wrote:
-> > > On Wed, 2011-12-21 at 14:17 +0900, Minchan Kim wrote:
-> > > > We don't like function body which include #ifdef.
-> []
-> > > I don't like this change.
-> > > I think it's perfectly good style to use:
-> > I feel it's no problem as it is because it's very short function now
-> > but it's not style we prefer. 
-> 
-> Who is this "we" you refer to?
-> 
-> There's nothing suggesting your patch as a preferred style
-> in Documentation/CodingStyle.
+On Wed, 21 Dec 2011 06:17:59 +0100, Minchan Kim <minchan@kernel.org> wro=
+te:
+> We don't like function body which include #ifdef.
+> If we can, define null function to go out compile time.
+> It's trivial, no functional change.
 
-Yes. It doesn't have. 
-But I have thought we have done until now.
-I think we can see them easily.
+It actually adds =E2=80=9Cflush_tlb_kenel_range()=E2=80=9D call to the f=
+unction so there
+is functional change.
 
-#> grep -nRH 'static inline void' ./ | grep {} | wc -l
-936
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/vmalloc.c |    9 +++++++--
+>  1 files changed, 7 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 0aca3ce..e1fa5a6 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -505,6 +505,7 @@ static void unmap_vmap_area(struct vmap_area *va)
+>  	vunmap_page_range(va->va_start, va->va_end);
+>  }
+>+#ifdef CONFIG_DEBUG_PAGEALLOC
+>  static void vmap_debug_free_range(unsigned long start, unsigned long =
+end)
+>  {
+>  	/*
+> @@ -520,11 +521,15 @@ static void vmap_debug_free_range(unsigned long =
+start, unsigned long end)
+>  	 * debugging doesn't do a broadcast TLB flush so it is a lot
+>  	 * faster).
+>  	 */
+> -#ifdef CONFIG_DEBUG_PAGEALLOC
+>  	vunmap_page_range(start, end);
+>  	flush_tlb_kernel_range(start, end);
+> -#endif
+>  }
+> +#else
+> +static inline void vmap_debug_free_range(unsigned long start,
+> +					unsigned long end)
+> +{
+> +}
+> +#endif
+> /*
+>   * lazy_max_pages is the maximum amount of virtual address space we g=
+ather up
 
-If we consider line which don't include brace in one line, it would be many.
+-- =
 
-> 
-> cheers, Joe
-> 
-
--- 
-Kind regards,
-Minchan Kim
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
