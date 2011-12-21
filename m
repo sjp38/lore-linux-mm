@@ -1,117 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 40C9C6B004D
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:43:50 -0500 (EST)
-Received: from int-mx01.intmail.prod.int.phx2.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id pBLEhn1Y017409
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:43:49 -0500
-Received: from random.random (ovpn-113-32.phx2.redhat.com [10.3.113.32])
-	by int-mx01.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id pBLEhmX7030921
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 09:43:49 -0500
-Date: Wed, 21 Dec 2011 15:43:48 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [CFP] Linux Storage, Filesystem & Memory Management Summit 2012
- (April 1-2)
-Message-ID: <20111221144348.GA29313@redhat.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 92D0C6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2011 10:21:10 -0500 (EST)
+Date: Wed, 21 Dec 2011 10:21:01 -0500
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] vmalloc: remove #ifdef in function body
+Message-ID: <20111221152101.GD24863@thunk.org>
+References: <1324444679-9247-1-git-send-email-minchan@kernel.org>
+ <1324445481.20505.7.camel@joe2Laptop>
+ <20111221054531.GB28505@barrios-laptop.redhat.com>
+ <1324447099.21340.6.camel@joe2Laptop>
+ <op.v6ttagny3l0zgt@mpn-glaptop>
+ <1324449156.21735.7.camel@joe2Laptop>
+ <op.v6tug3vi3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <op.v6tug3vi3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Joe Perches <joe@perches.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The annual Linux Storage, Filesystem and Memory Management Summit for
-2012 will be held on the 2 days preceding the Linux Foundation
-Collaboration Summit at Hotel Nikko in San Francisco, CA:
+On Wed, Dec 21, 2011 at 07:47:17AM +0100, Michal Nazarewicz wrote:
+> This patch that you pointed to is against a??#ifdefs are uglya?? style
+> described in Documentation/SubmittingPatches.
+> 
+> >If it's not in coding style, I suggest
+> >it should be changed if it doesn't
+> >add some other useful value.
+> 
+> That my be true.  I guess no one took time to adding it to the document.
 
-	https://events.linuxfoundation.org/events/lsfmm-summit
-	https://events.linuxfoundation.org/events/collaboration-summit/
+Like all things, judgement is required.  Some of the greatest artists
+know when it's OK (and in fact, a good thing) to break the rules.
+Beethoven, for example, broke the rules when he added a chorus of
+singers to his 9th Symphony.  Take a look at Bach's chorales,
+universally acknowledged to be works of genius.  Yet there Bach has
+occasionally double thirds, crossed voices, and engaged in parallel
+fifths --- and big no-no's which go against the textbook rules of
+chorale writing.
 
-We'd therefore like to issue a call for agenda proposals that are
-suitable for cross-track discussion as well as more technical subjects
-for discussion in the breakout sessions.
+In this case, if you have an #ifdef surrounding an entire function
+body, I think common sense says that the it's fine.  There's also the
+rule which is says that all other things being equal, it's better not
+to waste vertical space and useless boiler plate.
 
-1) Suggestions for agenda topics should be sent before February 5th
-2012 to:
+Worst of all is patches to change perfectly existing code because
+someone is trying to be a stickler for rules, since it can break other
+people's patches.  If you are need to make a change, it's best that it
+be checkpatch clean.  But sending random cleanups just because someone
+is trying to get their patch count in the kernel higher is Just
+Stupid, and should be strongly discouraged.
 
-lsf-pc@lists.linux-foundation.org
+(And that last, too, is a rule that has exceptions...)
 
-and optionally cc the Linux list which would be most interested in it:
-
-SCSI: linux-scsi@vger.kernel.org
-FS: linux-fsdevel@vger.kernel.org
-MM: linux-mm@kvack.org
-
-Please remember to tag your subject with [LSF/MM TOPIC] to make it
-easier to track. Agenda topics and attendees will be selected by the
-programme committee, but the final agenda will be formed by consensus
-of the attendees on the day.
-
-We'll try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes at
-the venue.
-
-2) Requests to attend should be sent to:
-
-lsf-pc@lists.linux-foundation.org
-
-please summarize what expertise you will bring to the meeting, and what
-you'd like to discuss.  please also tag your email with [ATTEND] so
-there's less chance of it getting lost in the large mail pile.
-
-Presentations are allowed to guide discussion, but are strongly
-discouraged.  There will be no recording or audio bridge, however
-written minutes will be published as in previous years:
-
-2011:
-
-http://lwn.net/Articles/436871/
-http://lwn.net/Articles/437066/
-
-2010:
-http://lwn.net/Articles/399148/
-http://lwn.net/Articles/399313/
-http://lwn.net/Articles/400589/
-
-2009:
-http://lwn.net/Articles/327601/
-http://lwn.net/Articles/327740/
-http://lwn.net/Articles/328347/
-
-Prior years:
-http://www.usenix.org/events/lsf08/tech/lsf08sums.pdf
-http://www.usenix.org/publications/login/2007-06/openpdfs/lsf07sums.pdf
-
-3) If you have feedback on last year's meeting that we can use to
-improve this year's, please also send that to:
-
-lsf-pc@lists.linux-foundation.org
-
-Thank you on behalf of the Program Committee:
-
-Storage
-
-Jens Axboe
-James Bottomley
-Vivek Goyal
-Dan Williams
-
-Filesystems
-
-Trond Myklebust
-Chris Mason
-Christoph Hellwig
-Theodore Ts'o
-Mingming Cao
-Jan Kara
-Joel Becker
-
-MM
-
-Andrea Arcangeli
-Hugh Dickins
-Mel Gorman
+							- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
