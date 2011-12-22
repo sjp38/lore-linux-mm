@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 6FA496B004D
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 08:04:25 -0500 (EST)
-Received: by wibhq12 with SMTP id hq12so3434257wib.14
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2011 05:04:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 86CBD6B004D
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 08:36:36 -0500 (EST)
+Received: by wgbds13 with SMTP id ds13so13267268wgb.26
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2011 05:36:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1324506228-18327-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1324506228-18327-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Thu, 22 Dec 2011 21:04:23 +0800
-Message-ID: <CAJd=RBDxZbsk8RxFpHUJtsc=fq+=WWGeWvJGJX_SFFGj4AvuHg@mail.gmail.com>
-Subject: Re: [PATCH 2/4] thp: optimize away unnecessary page table locking
+Date: Thu, 22 Dec 2011 21:36:34 +0800
+Message-ID: <CAJd=RBBF=K5hHvEwb6uwZJwS4=jHKBCNYBTJq-pSbJ9j_ZaiaA@mail.gmail.com>
+Subject: [PATCH] mm: hugetlb: undo change to page mapcount in fault handler
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Dec 22, 2011 at 6:23 AM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> Currently when we check if we can handle thp as it is or we need to
-> split it into regular sized pages, we hold page table lock prior to
-> check whether a given pmd is mapping thp or not. Because of this,
-> when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
-> To remove it, this patch introduces a optimized check function and
-> replace several similar logics with it.
->
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: David Rientjes <rientjes@google.com>
-> ---
-> =C2=A0fs/proc/task_mmu.c =C2=A0 =C2=A0 =C2=A0| =C2=A0 74 ++++++++++------=
-------------
-> =C2=A0include/linux/huge_mm.h | =C2=A0 =C2=A07 +++
-> =C2=A0mm/huge_memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0124 +++++++++++=
-+++++++++++------------------------
-> =C2=A0mm/mremap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=
-=A03 +-
-> =C2=A04 files changed, 93 insertions(+), 115 deletions(-)
->
+Page mapcount is changed only when it is folded into page table entry.
 
-[...]
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
->
-> +/*
-> + * Returns 1 if a given pmd is mapping a thp and stable (not under split=
-ting.)
-> + * Returns 0 otherwise. Note that if it returns 1, this routine returns =
-without
-> + * unlocking page table locks. So callers must unlock them.
-> + */
-> +int check_and_wait_split_huge_pmd(pmd_t *pmd, struct vm_area_struct *vma=
-)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 if (!pmd_trans_huge(*pmd))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pmd_trans_splittin=
-g(*pmd)) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
+--- a/mm/hugetlb.c	Tue Dec 20 21:26:30 2011
++++ b/mm/hugetlb.c	Thu Dec 22 21:29:42 2011
+@@ -2509,6 +2509,7 @@ static int hugetlb_no_page(struct mm_str
+ {
+ 	struct hstate *h = hstate_vma(vma);
+ 	int ret = VM_FAULT_SIGBUS;
++	int anon_rmap = 0;
+ 	pgoff_t idx;
+ 	unsigned long size;
+ 	struct page *page;
+@@ -2563,14 +2564,13 @@ retry:
+ 			spin_lock(&inode->i_lock);
+ 			inode->i_blocks += blocks_per_huge_page(h);
+ 			spin_unlock(&inode->i_lock);
+-			page_dup_rmap(page);
+ 		} else {
+ 			lock_page(page);
+ 			if (unlikely(anon_vma_prepare(vma))) {
+ 				ret = VM_FAULT_OOM;
+ 				goto backout_unlocked;
+ 			}
+-			hugepage_add_new_anon_rmap(page, vma, address);
++			anon_rmap = 1;
+ 		}
+ 	} else {
+ 		/*
+@@ -2583,7 +2583,6 @@ retry:
+ 			      VM_FAULT_SET_HINDEX(h - hstates);
+ 			goto backout_unlocked;
+ 		}
+-		page_dup_rmap(page);
+ 	}
 
-                            return 0;   yes?
+ 	/*
+@@ -2607,6 +2606,10 @@ retry:
+ 	if (!huge_pte_none(huge_ptep_get(ptep)))
+ 		goto backout;
 
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 /* Thp mapped by 'pmd' is stable, so we can
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* handle it as it is. */
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 return 1;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
-> + =C2=A0 =C2=A0 =C2=A0 }
-> + =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
-> + =C2=A0 =C2=A0 =C2=A0 return 0;
-> +}
-> +
++	if (anon_rmap)
++		hugepage_add_new_anon_rmap(page, vma, address);
++	else
++		page_dup_rmap(page);
+ 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+ 				&& (vma->vm_flags & VM_SHARED)));
+ 	set_huge_pte_at(mm, address, ptep, new_pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
