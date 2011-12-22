@@ -1,119 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 3D59B6B004D
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 04:35:39 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6228B3EE0BC
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 18:35:37 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FB3E45DEB3
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 18:35:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EFE145DEB2
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 18:35:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 11A231DB8038
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 18:35:37 +0900 (JST)
-Received: from m024.s.css.fujitsu.com (m024.s.css.fujitsu.com [10.0.81.64])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2BD61DB8042
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 18:35:36 +0900 (JST)
-Message-ID: <4EF2F9EB.7000006@jp.fujitsu.com>
-Date: Thu, 22 Dec 2011 18:35:39 +0900
-From: Naotaka Hamaguchi <n.hamaguchi@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 6FA496B004D
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 08:04:25 -0500 (EST)
+Received: by wibhq12 with SMTP id hq12so3434257wib.14
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2011 05:04:23 -0800 (PST)
 MIME-Version: 1.0
-Subject: [PATCH] mm: mmap system call does not return EOVERFLOW
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1324506228-18327-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1324506228-18327-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 22 Dec 2011 21:04:23 +0800
+Message-ID: <CAJd=RBDxZbsk8RxFpHUJtsc=fq+=WWGeWvJGJX_SFFGj4AvuHg@mail.gmail.com>
+Subject: Re: [PATCH 2/4] thp: optimize away unnecessary page table locking
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-In the system call mmap(), if the value of "offset" plus "length"
-exceeds the offset maximum of "off_t", the error EOVERFLOW should be
-returned.
+On Thu, Dec 22, 2011 at 6:23 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> Currently when we check if we can handle thp as it is or we need to
+> split it into regular sized pages, we hold page table lock prior to
+> check whether a given pmd is mapping thp or not. Because of this,
+> when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
+> To remove it, this patch introduces a optimized check function and
+> replace several similar logics with it.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: David Rientjes <rientjes@google.com>
+> ---
+> =C2=A0fs/proc/task_mmu.c =C2=A0 =C2=A0 =C2=A0| =C2=A0 74 ++++++++++------=
+------------
+> =C2=A0include/linux/huge_mm.h | =C2=A0 =C2=A07 +++
+> =C2=A0mm/huge_memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0124 +++++++++++=
++++++++++++------------------------
+> =C2=A0mm/mremap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=
+=A03 +-
+> =C2=A04 files changed, 93 insertions(+), 115 deletions(-)
+>
 
-------------------------------------------------------------------------
-void *mmap(void *addr, size_t length, int prot, int flags,
-       	   int fd, off_t offset)
-------------------------------------------------------------------------
+[...]
 
-Here is the detail how EOVERFLOW is returned:
+>
+> +/*
+> + * Returns 1 if a given pmd is mapping a thp and stable (not under split=
+ting.)
+> + * Returns 0 otherwise. Note that if it returns 1, this routine returns =
+without
+> + * unlocking page table locks. So callers must unlock them.
+> + */
+> +int check_and_wait_split_huge_pmd(pmd_t *pmd, struct vm_area_struct *vma=
+)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 if (!pmd_trans_huge(*pmd))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+> +
+> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pmd_trans_splittin=
+g(*pmd)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
 
-The argument "offset" is shifted right by PAGE_SHIFT bits
-in sys_mmap(mmap systemcall).
+                            return 0;   yes?
 
-------------------------------------------------------------------------
-sys_mmap(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long off)
-{
-	error = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
-}
-------------------------------------------------------------------------
-
-In sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff), do_mmap_pgoff()
-is called as follows:
-
-------------------------------------------------------------------------
-sys_mmap_pgoff(unsigned long addr, unsigned long len,
-		unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long pgoff)
-{
-	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-}
-------------------------------------------------------------------------
-
-In do_mmap_pgoff(file, addr, len, prot, flags, pgoff),
-the code path which returns with the error EOVERFLOW exists already.
-
-------------------------------------------------------------------------
-do_mmap_pgoff(struct file *file, unsigned long addr,
-		unsigned long len, unsigned long prot,
-		unsigned long flags, unsigned long pgoff)
-{
-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-		return -EOVERFLOW;
-}
-------------------------------------------------------------------------
-
-However, in this case, giving off=0xfffffffffffff000 and
-len=0xfffffffffffff000 on x86_64 arch, EOVERFLOW is not
-returned. It is because the argument, "off" and "len" are shifted right
-by PAGE_SHIFT bits and thus the condition "(pgoff + (len >> PAGE_SHIFT)) < pgoff"
-never becomes true.
-
-To fix this bug, it is necessary to compare "off" plus "len"
-with "off" by units of "off_t". The patch is here:
-
-Signed-off-by: Naotaka Hamaguchi <n.hamaguchi@jp.fujitsu.com>
----
- mm/mmap.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index eae90af..e74e736 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -948,6 +948,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
-        vm_flags_t vm_flags;
-        int error;
-        unsigned long reqprot = prot;
-+       off_t off = pgoff << PAGE_SHIFT;
- 
-        /*
-         * Does the application expect PROT_READ to imply PROT_EXEC?
-@@ -971,7 +972,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
-                return -ENOMEM;
- 
-        /* offset overflow? */
--       if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-+       if ((off + len) < off)
-                return -EOVERFLOW;
- 
-        /* Too many mappings? */
--- 
-1.7.7.4
----
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /* Thp mapped by 'pmd' is stable, so we can
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* handle it as it is. */
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 return 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 return 0;
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
