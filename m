@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id DCCD46B005A
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 00:44:55 -0500 (EST)
-Received: by mail-vw0-f46.google.com with SMTP id fc26so8931973vbb.5
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2011 21:44:55 -0800 (PST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id ACC436B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 03:58:31 -0500 (EST)
+Message-ID: <4EF4428D.6010103@parallels.com>
+Date: Fri, 23 Dec 2011 12:57:49 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <CAF6AEGt9Ae_zVmhBmmtfyKrqC4EyBgAAO1RWdK_UhY-1RLfOSQ@mail.gmail.com>
-References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
- <20111220193117.GD3883@phenom.ffwll.local> <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
- <CAF6AEGt9Ae_zVmhBmmtfyKrqC4EyBgAAO1RWdK_UhY-1RLfOSQ@mail.gmail.com>
-From: "Semwal, Sumit" <sumit.semwal@ti.com>
-Date: Fri, 23 Dec 2011 11:14:34 +0530
-Message-ID: <CAB2ybb-CN9-APAqGBjm7tzHDfpuih0vN2Wry1_RqxujxVOy=OA@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v9 3/9] socket: initial cgroup code.
+References: <1323676029-5890-1-git-send-email-glommer@parallels.com> <1323676029-5890-4-git-send-email-glommer@parallels.com> <20111222211028.GB3916@redhat.com>
+In-Reply-To: <20111222211028.GB3916@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <rob@ti.com>
-Cc: Dave Airlie <airlied@gmail.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, t.stanislaws@samsung.com, patches@linaro.org, daniel@ffwll.ch
+To: Jason Baron <jbaron@redhat.com>
+Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, paul@paulmenage.org, lizf@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, gthelen@google.com, netdev@vger.kernel.org, linux-mm@kvack.org, kirill@shutemov.name, avagin@parallels.com, devel@openvz.org, eric.dumazet@gmail.com, cgroups@vger.kernel.org
 
-On Wed, Dec 21, 2011 at 3:56 AM, Rob Clark <rob@ti.com> wrote:
-> On Tue, Dec 20, 2011 at 2:20 PM, Dave Airlie <airlied@gmail.com> wrote:
->>>>
-<snip>
->>>
->>> I think this is a really good v1 version of dma_buf. It contains all th=
-e
->>> required bits (with well-specified semantics in the doc patch) to
->>> implement some basic use-cases and start fleshing out the integration w=
-ith
->>> various subsystem (like drm and v4l). All the things still under
->>> discussion like
->>> - userspace mmap support
->>> - more advanced (and more strictly specified) coherency models
->>> - and shared infrastructure for implementing exporters
->>> are imo much clearer once we have a few example drivers at hand and a
->>> better understanding of some of the insane corner cases we need to be a=
-ble
->>> to handle.
->>>
->>> And I think any risk that the resulting clarifications will break a bas=
-ic
->>> use-case is really minimal, so I think it'd be great if this could go i=
-nto
->>> 3.3 (maybe as some kind of staging/experimental infrastructure).
->>>
->>> Hence for both patches:
->>> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
->>
->> Yeah I'm with Daniel, I like this one, I can definitely build the drm
->> buffer sharing layer on top of this.
->>
->> How do we see this getting merged? I'm quite happy to push it to Linus
->> if we don't have an identified path, though it could go via a Linaro
->> tree as well.
->>
->> so feel free to add:
->> Reviewed-by: Dave Airlie <airlied@redhat.com>
+On 12/23/2011 01:10 AM, Jason Baron wrote:
+> On Mon, Dec 12, 2011 at 11:47:03AM +0400, Glauber Costa wrote:
+>> +
+>> +static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+>> +void sock_update_memcg(struct sock *sk)
+>> +{
+>> +	/* A socket spends its whole life in the same cgroup */
+>> +	if (sk->sk_cgrp) {
+>> +		WARN_ON(1);
+>> +		return;
+>> +	}
+>> +	if (static_branch(&memcg_socket_limit_enabled)) {
+>> +		struct mem_cgroup *memcg;
+>> +
+>> +		BUG_ON(!sk->sk_prot->proto_cgroup);
+>> +
+>> +		rcu_read_lock();
+>> +		memcg = mem_cgroup_from_task(current);
+>> +		if (!mem_cgroup_is_root(memcg)) {
+>> +			mem_cgroup_get(memcg);
+>> +			sk->sk_cgrp = sk->sk_prot->proto_cgroup(memcg);
+>> +		}
+>> +		rcu_read_unlock();
+>> +	}
+>> +}
+>> +EXPORT_SYMBOL(sock_update_memcg);
+>> +
+>> +void sock_release_memcg(struct sock *sk)
+>> +{
+>> +	if (static_branch(&memcg_socket_limit_enabled)&&  sk->sk_cgrp) {
+>> +		struct mem_cgroup *memcg;
+>> +		WARN_ON(!sk->sk_cgrp->memcg);
+>> +		memcg = sk->sk_cgrp->memcg;
+>> +		mem_cgroup_put(memcg);
+>> +	}
+>> +}
 >
-> fwiw, patches to share buffers between drm and v4l2 are here:
+> Hi Glauber,
 >
-> https://github.com/robclark/kernel-omap4/commits/drmplane-dmabuf
+> I think for 'sock_release_memcg()', you want:
 >
-> (need a bit of cleanup before the vb2 patches are submitted.. but that
-> is unrelated to the dmabuf patches)
+> static inline sock_release_memcg(sk)
+> {
+> 	if (static_branch())
+> 		__sock_release_memcg();
+> }
 >
-> so,
+> And then re-define the current sock_release_memcg ->  __sock_release_memcg().
+> In that way the straight line path is a single no-op. As currently
+> written, there is function call and then an immediate return.
 >
-> Reviewed-and-Tested-by: Rob Clark <rob.clark@linaro.org>
-Thanks Daniel, Dave, and Rob!
-BR,
-Sumit.
->
->> Dave.
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-media" i=
-n
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+
+Hello Jason,
+
+Thanks for the tip. I may be wrong here, but I don't think that the 
+release performance matters to that level. But your suggestion seems 
+good nevertheless. Since this is already sitting on a tree, would you 
+like to send a patch for that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
