@@ -1,102 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 03FAF6B004D
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 17:41:04 -0500 (EST)
-Received: from compute5.internal (compute5.nyi.mail.srv.osa [10.202.2.45])
-	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id 10D7C21199
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 17:41:04 -0500 (EST)
-Date: Thu, 22 Dec 2011 14:40:59 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging
- foundation
-Message-ID: <20111222224059.GA16558@kroah.com>
-References: <20111222155050.GA21405@ca-server1.us.oracle.com>
- <20111222173129.GB28856@kroah.com>
- <1f76c37d-15d4-4c62-8c64-8293d3382b4a@default>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 46C3E6B004D
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2011 22:33:25 -0500 (EST)
+Date: Fri, 23 Dec 2011 11:33:20 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+Message-ID: <20111223033320.GA21390@localhost>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.666312513@intel.com>
+ <20111129152106.GN5635@quack.suse.cz>
+ <20111214063625.GA13824@localhost>
+ <20111219163241.GA4107@quack.suse.cz>
+ <20111221012935.GA13231@localhost>
+ <20111221040656.GB23662@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1f76c37d-15d4-4c62-8c64-8293d3382b4a@default>
+In-Reply-To: <20111221040656.GB23662@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 22, 2011 at 02:06:26PM -0800, Dan Magenheimer wrote:
-> > From: Greg KH [mailto:greg@kroah.com]
-> 
-> Thanks for the quick response!
-> 
-> > Sent: Thursday, December 22, 2011 10:31 AM
-> > To: Dan Magenheimer
-> > Cc: devel@driverdev.osuosl.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org;
-> > Konrad Wilk; Kurt Hackel; sjenning@linux.vnet.ibm.com; Chris Mason
-> > Subject: Re: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging foundation
+On Wed, Dec 21, 2011 at 12:06:56PM +0800, Dave Chinner wrote:
+> On Wed, Dec 21, 2011 at 09:29:36AM +0800, Wu Fengguang wrote:
+> > On Tue, Dec 20, 2011 at 12:32:41AM +0800, Jan Kara wrote:
+> > > On Wed 14-12-11 14:36:25, Wu Fengguang wrote:
+> > > > >   This looks all inherently racy (which doesn't matter much as you suggest)
+> > > > > so I just wanted to suggest that if you used per-cpu counters you'd get
+> > > > > race-free and faster code at the cost of larger data structures and using
+> > > > > percpu_counter_add() instead of ++ (which doesn't seem like a big
+> > > > > complication to me).
+> > > > 
+> > > > OK, here is the incremental patch to use per-cpu counters :)
+> > >   Thanks! This looks better. I just thought you would use per-cpu counters
+> > > as defined in include/linux/percpu_counter.h and are used e.g. by bdi
+> > > stats. This is more standard for statistics in the kernel than using
+> > > per-cpu variables directly.
 > > 
-> > On Thu, Dec 22, 2011 at 07:50:50AM -0800, Dan Magenheimer wrote:
-> > > >From 93c00028709a5d423de77a2fc24d32ec10eca443 Mon Sep 17 00:00:00 2001
-> > > From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > > Date: Wed, 21 Dec 2011 14:01:54 -0700
-> > > Subject: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging foundation
-> > 
-> > Why duplicate this in the email body?  That forces me to edit the
-> > patches and remove them, please use git send-email...
+> > Ah yes, I overlooked that facility! However the percpu_counter's
+> > ability to maintain and quickly retrieve the global value seems
+> > unnecessary feature/overheads for readahead stats, because here we
+> > only need to sum up the global value when the user requests it. If
+> > switching to percpu_counter, I'm afraid every readahead(1MB) event
+> > will lead to the update of percpu_counter global value (grabbing the
+> > spinlock) due to 1MB > some small batch size. This actually performs
+> > worse than the plain global array of values in the v1 patch.
 > 
-> OK, sorry, will do.  Still learning the git tools and my mutt
-> scripts use that line to create the subject line.  I'll try
-> git-send-email next time.
->  
-> > > Copy cluster subdirectory from ocfs2.  These files implement
-> > > the basic cluster discovery, mapping, heartbeat / keepalive, and
-> > > messaging ("o2net") that ramster requires for internode communication.
-> > > Note: there are NO ramster-specific changes yet; this commit
-> > > does NOT pass checkpatch since the copied source files do not.
-> > 
-> > Why are you copying the files, and not just exporting the symbols you
-> > need/want to use here?  Are you going to be able to properly track
-> > keeping this code in sync?
+> So use a custom batch size so that typical increments don't require
+> locking for every add. The bdi stat counters are an example of this
+> sort of setup to reduce lock contention on typical IO workloads as
+> concurrency increases.
 > 
-> This particular part of ocfs2 has never been broken out for non-ocfs2
-> use before, some changes to the ocfs2 core cluster code is necessary
-> for ramster to use that code (see patch 3), and ramster is currently
-> incompatible with real ocfs2 anyway (requires !CONFIG_OCFS2_FS).  I will
-> definitely work with Joel Becker to see if these code interdependencies
-> can be merged before ramster could possibly be promoted out of staging but,
-> for now for staging, this seemed to be an expedient way to make
-> use of the ocfs2 core cluster code but still incorporate some required
-> ramster changes.  This way, also, I think it is not necessary to keep the
-> code in sync every release, but still allow for easy merging later.
+> All these stats have is a requirement for a different batch size to
+> avoid frequent lock grabs. The stats don't have to update the global
+> counter very often (only to prvent overflow!) so you count get away
+> with a batch size in the order of 2^30 without any issues....
 > 
-> > Same goes for your other patch in this series that copies code, why do
-> > that?
-> 
-> The other code copies are from drivers/staging/zcache.  The tmem.c/h
-> changes can definitely be shared between zcache and ramster (and
-> I've said before that the eventual destination tmem.c/h is the linux
-> lib directory).  The zcache.c changes are most likely mergeable but
-> I know that Seth Jennings and Nitin Gupta are working on some
-> other significant changes (including a new allocator which would
-> replace the lengthy zbud code and breaking zcache.c into many smaller
-> files), so thought it best to branch temporarily and merge later.
-> 
-> > Are there goals to eventually not have duplicated code?  If so,
-> > what are they, and why not mention them?
-> 
-> Sorry, you're right, I should have included the above paragraphs
-> in the commit comments.
+> We have a general per-cpu counter infrastructure - we should be
+> using it and improving it and not reinventing it a different way
+> every time we need a per-cpu counter.
 
-Ok, that makes sense.
+OK, let's try using percpu_counter, with a huge batch size.
 
-Can you ensure that the TODO file in this driver's directory says that
-you will remove the duplicated code from it before it can be merged into
-the main part of the kernel tree?
+It actually adds both code size and runtime overheads slightly.
+Are you sure you like this incremental patch?
 
-That, and fix up the other things mentioned and resend it and I'll be
-glad to queue it up.
+Thanks,
+Fengguang
 
-thanks,
+---
+ mm/readahead.c |   74 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 41 insertions(+), 33 deletions(-)
 
-greg k-h
+--- linux-next.orig/mm/readahead.c	2011-12-23 10:04:32.000000000 +0800
++++ linux-next/mm/readahead.c	2011-12-23 11:18:35.000000000 +0800
+@@ -61,7 +61,18 @@ enum ra_account {
+ 	RA_ACCOUNT_MAX,
+ };
+ 
+-static DEFINE_PER_CPU(unsigned long[RA_PATTERN_ALL][RA_ACCOUNT_MAX], ra_stat);
++#define RA_STAT_BATCH	(INT_MAX / 2)
++static struct percpu_counter ra_stat[RA_PATTERN_ALL][RA_ACCOUNT_MAX];
++
++static inline void add_ra_stat(int i, int j, s64 amount)
++{
++	__percpu_counter_add(&ra_stat[i][j], amount, RA_STAT_BATCH);
++}
++
++static inline void inc_ra_stat(int i, int j)
++{
++	add_ra_stat(i, j, 1);
++}
+ 
+ static void readahead_stats(struct address_space *mapping,
+ 			    pgoff_t offset,
+@@ -76,62 +87,54 @@ static void readahead_stats(struct addre
+ {
+ 	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
+ 
+-	preempt_disable();
+-
+-	__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_COUNT]);
+-	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_SIZE], size);
+-	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ASYNC_SIZE], async_size);
+-	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ACTUAL], actual);
++	inc_ra_stat(pattern, RA_ACCOUNT_COUNT);
++	add_ra_stat(pattern, RA_ACCOUNT_SIZE, size);
++	add_ra_stat(pattern, RA_ACCOUNT_ASYNC_SIZE, async_size);
++	add_ra_stat(pattern, RA_ACCOUNT_ACTUAL, actual);
+ 
+ 	if (start + size >= eof)
+-		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_EOF]);
++		inc_ra_stat(pattern, RA_ACCOUNT_EOF);
+ 	if (actual < size)
+-		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_CACHE_HIT]);
++		inc_ra_stat(pattern, RA_ACCOUNT_CACHE_HIT);
+ 
+ 	if (actual) {
+-		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_IOCOUNT]);
++		inc_ra_stat(pattern, RA_ACCOUNT_IOCOUNT);
+ 
+ 		if (start <= offset && offset < start + size)
+-			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_SYNC]);
++			inc_ra_stat(pattern, RA_ACCOUNT_SYNC);
+ 
+ 		if (for_mmap)
+-			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_MMAP]);
++			inc_ra_stat(pattern, RA_ACCOUNT_MMAP);
+ 		if (for_metadata)
+-			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_METADATA]);
++			inc_ra_stat(pattern, RA_ACCOUNT_METADATA);
+ 	}
+-
+-	preempt_enable();
+ }
+ 
+ static void ra_stats_clear(void)
+ {
+-	int cpu;
+ 	int i, j;
+ 
+-	for_each_online_cpu(cpu)
+-		for (i = 0; i < RA_PATTERN_ALL; i++)
+-			for (j = 0; j < RA_ACCOUNT_MAX; j++)
+-				per_cpu(ra_stat[i][j], cpu) = 0;
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++)
++			percpu_counter_set(&ra_stat[i][j], 0);
+ }
+ 
+-static void ra_stats_sum(unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
++static void ra_stats_sum(long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
+ {
+-	int cpu;
+ 	int i, j;
+ 
+-	for_each_online_cpu(cpu)
+-		for (i = 0; i < RA_PATTERN_ALL; i++)
+-			for (j = 0; j < RA_ACCOUNT_MAX; j++) {
+-				unsigned long n = per_cpu(ra_stat[i][j], cpu);
+-				ra_stats[i][j] += n;
+-				ra_stats[RA_PATTERN_ALL][j] += n;
+-			}
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++) {
++			s64 n = percpu_counter_sum(&ra_stat[i][j]);
++			ra_stats[i][j] += n;
++			ra_stats[RA_PATTERN_ALL][j] += n;
++		}
+ }
+ 
+ static int readahead_stats_show(struct seq_file *s, void *_)
+ {
+-	unsigned long i;
+-	unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
++	long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
++	int i;
+ 
+ 	seq_printf(s,
+ 		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+@@ -153,8 +156,8 @@ static int readahead_stats_show(struct s
+ 		if (iocount == 0)
+ 			iocount = 1;
+ 
+-		seq_printf(s, "%-10s %10lu %10lu %10lu %10lu %10lu "
+-			   "%10lu %10lu %10lu %10lu %10lu\n",
++		seq_printf(s, "%-10s %10lld %10lld %10lld %10lld %10lld "
++			   "%10lld %10lld %10lld %10lld %10lld\n",
+ 				ra_pattern_names[i].name,
+ 				ra_stats[i][RA_ACCOUNT_COUNT],
+ 				ra_stats[i][RA_ACCOUNT_EOF],
+@@ -196,6 +199,7 @@ static int __init readahead_create_debug
+ {
+ 	struct dentry *root;
+ 	struct dentry *entry;
++	int i, j;
+ 
+ 	root = debugfs_create_dir("readahead", NULL);
+ 	if (!root)
+@@ -211,6 +215,10 @@ static int __init readahead_create_debug
+ 	if (!entry)
+ 		goto out;
+ 
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++)
++			percpu_counter_init(&ra_stat[i][j], 0);
++
+ 	return 0;
+ out:
+ 	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
