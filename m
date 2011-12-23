@@ -1,178 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 327C66B004D
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 06:04:21 -0500 (EST)
-Message-ID: <1324638242.562.15.camel@rybalov.eng.ttk.net>
-Subject: Re: Kswapd in 3.2.0-rc5 is a CPU hog
-From: nowhere <nowhere@hakkenden.ath.cx>
-Date: Fri, 23 Dec 2011 15:04:02 +0400
-In-Reply-To: <20111223102027.GB12731@dastard>
-References: <1324437036.4677.5.camel@hakkenden.homenet>
-	 <20111221095249.GA28474@tiehlicka.suse.cz> <20111221225512.GG23662@dastard>
-	 <1324630880.562.6.camel@rybalov.eng.ttk.net>
-	 <20111223102027.GB12731@dastard>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 8F0DE6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 06:16:35 -0500 (EST)
+Date: Fri, 23 Dec 2011 12:16:11 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+Message-ID: <20111223111611.GB22691@quack.suse.cz>
+References: <20111129130900.628549879@intel.com>
+ <20111129131456.666312513@intel.com>
+ <20111129152106.GN5635@quack.suse.cz>
+ <20111214063625.GA13824@localhost>
+ <20111219163241.GA4107@quack.suse.cz>
+ <20111221012935.GA13231@localhost>
+ <20111221040656.GB23662@dastard>
+ <20111223033320.GA21390@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20111223033320.GA21390@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-=D0=92 =D0=9F=D1=82., 23/12/2011 =D0=B2 21:20 +1100, Dave Chinner =D0=BF=D0=
-=B8=D1=88=D0=B5=D1=82:
-> On Fri, Dec 23, 2011 at 01:01:20PM +0400, nowhere wrote:
-> > =D0=92 =D0=A7=D1=82., 22/12/2011 =D0=B2 09:55 +1100, Dave Chinner =D0=
-=BF=D0=B8=D1=88=D0=B5=D1=82:
-> > > On Wed, Dec 21, 2011 at 10:52:49AM +0100, Michal Hocko wrote:
-> > > > [Let's CC linux-mm]
-> > > >=20
-> > > > On Wed 21-12-11 07:10:36, Nikolay S. wrote:
-> > > > > Hello,
-> > > > >=20
-> > > > > I'm using 3.2-rc5 on a machine, which atm does almost nothing exc=
-ept
-> > > > > file system operations and network i/o (i.e. file server). And th=
-ere is
-> > > > > a problem with kswapd.
-> > > >=20
-> > > > What kind of filesystem do you use?
-> > > >=20
-> > > > >=20
-> > > > > I'm playing with dd:
-> > > > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > > > >=20
-> > > > > I.e. I'm filling page cache.
-> > > > >=20
-> > > > > So when the machine is just rebooted, kswapd during this operatio=
-n is
-> > > > > almost idle, just 5-8 percent according to top.
-> > > > >=20
-> > > > > After ~5 days of uptime (5 days,  2:10), the same operation deman=
-ds ~70%
-> > > > > for kswapd:
-> > > > >=20
-> > > > >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
-> > > > >   420 root      R   70  0.0  22:09.60    0 kswapd0
-> > > > > 17717 nowhere   D   27  0.2   0:01.81  10m dd
-> > > > >=20
-> > > > > In fact, kswapd cpu usage on this operation steadily increases ov=
-er
-> > > > > time.
-> > > > >=20
-> > > > > Also read performance degrades over time. After reboot:
-> > > > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > > > > 1019+1 records in
-> > > > > 1019+1 records out
-> > > > > 8553494018 bytes (8.6 GB) copied, 16.211 s, 528 MB/s
-> > > > >=20
-> > > > > After ~5 days uptime:
-> > > > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > > > > 1019+1 records in
-> > > > > 1019+1 records out
-> > > > > 8553494018 bytes (8.6 GB) copied, 29.0507 s, 294 MB/s
-> > > > >=20
-> > > > > Whereas raw disk sequential read performance stays the same:
-> > > > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M iflag=3Ddirect
-> > > > > 1019+1 records in
-> > > > > 1019+1 records out
-> > > > > 8553494018 bytes (8.6 GB) copied, 14.7286 s, 581 MB/s
-> > > > >=20
-> > > > > Also after dropping caches, situation somehow improves, but not t=
-o the
-> > > > > state of freshly restarted system:
-> > > > >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
-> > > > >   420 root      S   39  0.0  23:31.17    0 kswapd0
-> > > > > 19829 nowhere   D   24  0.2   0:02.72 7764 dd
-> > > > >=20
-> > > > > perf shows:
-> > > > >=20
-> > > > >     31.24%  kswapd0  [kernel.kallsyms]  [k] _raw_spin_lock
-> > > > >     26.19%  kswapd0  [kernel.kallsyms]  [k] shrink_slab
-> > > > >     16.28%  kswapd0  [kernel.kallsyms]  [k] prune_super
-> > > > >      6.55%  kswapd0  [kernel.kallsyms]  [k] grab_super_passive
-> > > > >      5.35%  kswapd0  [kernel.kallsyms]  [k] down_read_trylock
-> > > > >      4.03%  kswapd0  [kernel.kallsyms]  [k] up_read
-> > > > >      2.31%  kswapd0  [kernel.kallsyms]  [k] put_super
-> > > > >      1.81%  kswapd0  [kernel.kallsyms]  [k] drop_super
-> > > > >      0.99%  kswapd0  [kernel.kallsyms]  [k] __put_super
-> > > > >      0.25%  kswapd0  [kernel.kallsyms]  [k] __isolate_lru_page
-> > > > >      0.23%  kswapd0  [kernel.kallsyms]  [k] free_pcppages_bulk
-> > > > >      0.19%  kswapd0  [r8169]            [k] rtl8169_interrupt
-> > > > >      0.15%  kswapd0  [kernel.kallsyms]  [k] twa_interrupt
-> > > >=20
-> > > > Quite a lot of time spent shrinking slab (dcache I guess) and a lot=
- of
-> > > > spin lock contention.
-> > >=20
-> > > That's just scanning superblocks, not apparently doing anything
-> > > useful like shrinking dentries or inodes attached to each sb. i.e.
-> > > the shrinkers are being called an awful lot and basically have
-> > > nothing to do. I'd be suspecting a problem higher up in the stack to
-> > > do with how shrink_slab is operating or being called.
-> > >=20
-> > > I'd suggest gathering event traces for mm_shrink_slab_start/
-> > > mm_shrink_slab_end to try to see how the shrinkers are being
-> > > driven...
-> > >=20
-> > > Cheers,
-> > >=20
-> > > Dave.
-> >=20
-> > I have recompiled kernel with tracers, and today the problem is visible
-> > again. So here is the trace for mm_shrink_slab_start (it is HUGE):
-> >=20
-> >          kswapd0   421 [000] 103976.627873: mm_shrink_slab_start: prune=
-_super+0x0 0xffff88011b00d300: objects to shrink 12 gfp_flags GFP_KERNELGFP=
-_NOTRACK pgs_scanned 32 lru_pgs 942483 cache items 1500 delt
-> >          kswapd0   421 [000] 103976.627882: mm_shrink_slab_start: prune=
-_super+0x0 0xffff88011a20ab00: objects to shrink 267 gfp_flags GFP_KERNELGF=
-P_NOTRACK pgs_scanned 32 lru_pgs 942483 cache items 5300 del
->=20
-> And possibly useless in this form. I need to see the
-> mm_shrink_slab_start/mm_shrink_slab_end events interleaved so I can
-> see exactly how much work each shrinker call is doing, and the start
-> events are truncated so not all the info I need is present.
->=20
-> Perhaps you should install trace-cmd.
->=20
-> $ trace-cmd record -e mm_shrink_slab*
-> (wait 30s, then ^C)
-> $ trace-cmd report > shrink.trace
->=20
-> And then compress and attach the trace file or put up on the web
-> somewhere for me ot download if it's too large for email...
->=20
-> As it is, there's ~940k pages in the LRU, and shrink_slab is being
-> called after 32, 95, 8, 8, 32 and 32 pages on the LRU have been
-> scanned. That seems like the shrinkers are being called rather too
-> often.
->=20
-> The end traces indicate the shrinker caches aren't able to free
-> anything. So it looks like the vmscan code has got itself in a
-> situation where it is not scanning many pages between shrinker
-> callouts, and the shrinkers scan but can't make any progress. Looks
-> like a vmscan balancing problem right now, not anything to do with
-> the shrinker code. A better trace will confirm that.
->=20
-> FWIW, if you use trace-cmd, it might be worthwhile collecting all the
-> vmscan trace events too, as that might help the VM folk understand
-> the problem without needing to ask you for more info.
+On Fri 23-12-11 11:33:20, Wu Fengguang wrote:
+> On Wed, Dec 21, 2011 at 12:06:56PM +0800, Dave Chinner wrote:
+> > On Wed, Dec 21, 2011 at 09:29:36AM +0800, Wu Fengguang wrote:
+> > > On Tue, Dec 20, 2011 at 12:32:41AM +0800, Jan Kara wrote:
+> > > > On Wed 14-12-11 14:36:25, Wu Fengguang wrote:
+> > > > > >   This looks all inherently racy (which doesn't matter much as you suggest)
+> > > > > > so I just wanted to suggest that if you used per-cpu counters you'd get
+> > > > > > race-free and faster code at the cost of larger data structures and using
+> > > > > > percpu_counter_add() instead of ++ (which doesn't seem like a big
+> > > > > > complication to me).
+> > > > > 
+> > > > > OK, here is the incremental patch to use per-cpu counters :)
+> > > >   Thanks! This looks better. I just thought you would use per-cpu counters
+> > > > as defined in include/linux/percpu_counter.h and are used e.g. by bdi
+> > > > stats. This is more standard for statistics in the kernel than using
+> > > > per-cpu variables directly.
+> > > 
+> > > Ah yes, I overlooked that facility! However the percpu_counter's
+> > > ability to maintain and quickly retrieve the global value seems
+> > > unnecessary feature/overheads for readahead stats, because here we
+> > > only need to sum up the global value when the user requests it. If
+> > > switching to percpu_counter, I'm afraid every readahead(1MB) event
+> > > will lead to the update of percpu_counter global value (grabbing the
+> > > spinlock) due to 1MB > some small batch size. This actually performs
+> > > worse than the plain global array of values in the v1 patch.
+> > 
+> > So use a custom batch size so that typical increments don't require
+> > locking for every add. The bdi stat counters are an example of this
+> > sort of setup to reduce lock contention on typical IO workloads as
+> > concurrency increases.
+> > 
+> > All these stats have is a requirement for a different batch size to
+> > avoid frequent lock grabs. The stats don't have to update the global
+> > counter very often (only to prvent overflow!) so you count get away
+> > with a batch size in the order of 2^30 without any issues....
+> > 
+> > We have a general per-cpu counter infrastructure - we should be
+> > using it and improving it and not reinventing it a different way
+> > every time we need a per-cpu counter.
+> 
+> OK, let's try using percpu_counter, with a huge batch size.
+> 
+> It actually adds both code size and runtime overheads slightly.
+> Are you sure you like this incremental patch?
+  Well, I like it because it's easier to see the code is doing the right
+thing when it's using standard kernel infrastructure...
 
-./trace-cmd record -e vmscan/*
+								Honza
 
-Here is the report of trace-cmd while dd'ing
-https://80.237.6.56/report-dd.xz
-
-
-And one more during normal operation
-https://80.237.6.56/report-normal.xz
-
->=20
-> Cheers,
->=20
-> Dave.
-
+> ---
+>  mm/readahead.c |   74 ++++++++++++++++++++++++++---------------------
+>  1 file changed, 41 insertions(+), 33 deletions(-)
+> 
+> --- linux-next.orig/mm/readahead.c	2011-12-23 10:04:32.000000000 +0800
+> +++ linux-next/mm/readahead.c	2011-12-23 11:18:35.000000000 +0800
+> @@ -61,7 +61,18 @@ enum ra_account {
+>  	RA_ACCOUNT_MAX,
+>  };
+>  
+> -static DEFINE_PER_CPU(unsigned long[RA_PATTERN_ALL][RA_ACCOUNT_MAX], ra_stat);
+> +#define RA_STAT_BATCH	(INT_MAX / 2)
+> +static struct percpu_counter ra_stat[RA_PATTERN_ALL][RA_ACCOUNT_MAX];
+> +
+> +static inline void add_ra_stat(int i, int j, s64 amount)
+> +{
+> +	__percpu_counter_add(&ra_stat[i][j], amount, RA_STAT_BATCH);
+> +}
+> +
+> +static inline void inc_ra_stat(int i, int j)
+> +{
+> +	add_ra_stat(i, j, 1);
+> +}
+>  
+>  static void readahead_stats(struct address_space *mapping,
+>  			    pgoff_t offset,
+> @@ -76,62 +87,54 @@ static void readahead_stats(struct addre
+>  {
+>  	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
+>  
+> -	preempt_disable();
+> -
+> -	__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_COUNT]);
+> -	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_SIZE], size);
+> -	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ASYNC_SIZE], async_size);
+> -	__this_cpu_add(ra_stat[pattern][RA_ACCOUNT_ACTUAL], actual);
+> +	inc_ra_stat(pattern, RA_ACCOUNT_COUNT);
+> +	add_ra_stat(pattern, RA_ACCOUNT_SIZE, size);
+> +	add_ra_stat(pattern, RA_ACCOUNT_ASYNC_SIZE, async_size);
+> +	add_ra_stat(pattern, RA_ACCOUNT_ACTUAL, actual);
+>  
+>  	if (start + size >= eof)
+> -		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_EOF]);
+> +		inc_ra_stat(pattern, RA_ACCOUNT_EOF);
+>  	if (actual < size)
+> -		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_CACHE_HIT]);
+> +		inc_ra_stat(pattern, RA_ACCOUNT_CACHE_HIT);
+>  
+>  	if (actual) {
+> -		__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_IOCOUNT]);
+> +		inc_ra_stat(pattern, RA_ACCOUNT_IOCOUNT);
+>  
+>  		if (start <= offset && offset < start + size)
+> -			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_SYNC]);
+> +			inc_ra_stat(pattern, RA_ACCOUNT_SYNC);
+>  
+>  		if (for_mmap)
+> -			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_MMAP]);
+> +			inc_ra_stat(pattern, RA_ACCOUNT_MMAP);
+>  		if (for_metadata)
+> -			__this_cpu_inc(ra_stat[pattern][RA_ACCOUNT_METADATA]);
+> +			inc_ra_stat(pattern, RA_ACCOUNT_METADATA);
+>  	}
+> -
+> -	preempt_enable();
+>  }
+>  
+>  static void ra_stats_clear(void)
+>  {
+> -	int cpu;
+>  	int i, j;
+>  
+> -	for_each_online_cpu(cpu)
+> -		for (i = 0; i < RA_PATTERN_ALL; i++)
+> -			for (j = 0; j < RA_ACCOUNT_MAX; j++)
+> -				per_cpu(ra_stat[i][j], cpu) = 0;
+> +	for (i = 0; i < RA_PATTERN_ALL; i++)
+> +		for (j = 0; j < RA_ACCOUNT_MAX; j++)
+> +			percpu_counter_set(&ra_stat[i][j], 0);
+>  }
+>  
+> -static void ra_stats_sum(unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
+> +static void ra_stats_sum(long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
+>  {
+> -	int cpu;
+>  	int i, j;
+>  
+> -	for_each_online_cpu(cpu)
+> -		for (i = 0; i < RA_PATTERN_ALL; i++)
+> -			for (j = 0; j < RA_ACCOUNT_MAX; j++) {
+> -				unsigned long n = per_cpu(ra_stat[i][j], cpu);
+> -				ra_stats[i][j] += n;
+> -				ra_stats[RA_PATTERN_ALL][j] += n;
+> -			}
+> +	for (i = 0; i < RA_PATTERN_ALL; i++)
+> +		for (j = 0; j < RA_ACCOUNT_MAX; j++) {
+> +			s64 n = percpu_counter_sum(&ra_stat[i][j]);
+> +			ra_stats[i][j] += n;
+> +			ra_stats[RA_PATTERN_ALL][j] += n;
+> +		}
+>  }
+>  
+>  static int readahead_stats_show(struct seq_file *s, void *_)
+>  {
+> -	unsigned long i;
+> -	unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
+> +	long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
+> +	int i;
+>  
+>  	seq_printf(s,
+>  		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
+> @@ -153,8 +156,8 @@ static int readahead_stats_show(struct s
+>  		if (iocount == 0)
+>  			iocount = 1;
+>  
+> -		seq_printf(s, "%-10s %10lu %10lu %10lu %10lu %10lu "
+> -			   "%10lu %10lu %10lu %10lu %10lu\n",
+> +		seq_printf(s, "%-10s %10lld %10lld %10lld %10lld %10lld "
+> +			   "%10lld %10lld %10lld %10lld %10lld\n",
+>  				ra_pattern_names[i].name,
+>  				ra_stats[i][RA_ACCOUNT_COUNT],
+>  				ra_stats[i][RA_ACCOUNT_EOF],
+> @@ -196,6 +199,7 @@ static int __init readahead_create_debug
+>  {
+>  	struct dentry *root;
+>  	struct dentry *entry;
+> +	int i, j;
+>  
+>  	root = debugfs_create_dir("readahead", NULL);
+>  	if (!root)
+> @@ -211,6 +215,10 @@ static int __init readahead_create_debug
+>  	if (!entry)
+>  		goto out;
+>  
+> +	for (i = 0; i < RA_PATTERN_ALL; i++)
+> +		for (j = 0; j < RA_ACCOUNT_MAX; j++)
+> +			percpu_counter_init(&ra_stat[i][j], 0);
+> +
+>  	return 0;
+>  out:
+>  	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
