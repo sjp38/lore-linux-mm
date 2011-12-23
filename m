@@ -1,300 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id B65C16B005D
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 07:59:22 -0500 (EST)
-Date: Fri, 23 Dec 2011 20:59:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 07/10 v2] readahead: add /debug/readahead/stats
-Message-ID: <20111223125912.GA27232@localhost>
-References: <20111219102308.488847921@intel.com>
- <20111219102357.412324016@intel.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id CAD7F6B005D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 08:00:43 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so12446308wgb.2
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 05:00:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20111219102357.412324016@intel.com>
+In-Reply-To: <20111222163604.GB14983@tiehlicka.suse.cz>
+References: <CAJd=RBBF=K5hHvEwb6uwZJwS4=jHKBCNYBTJq-pSbJ9j_ZaiaA@mail.gmail.com>
+	<20111222163604.GB14983@tiehlicka.suse.cz>
+Date: Fri, 23 Dec 2011 21:00:41 +0800
+Message-ID: <CAJd=RBBY0sKdtdx9d8KXTchjaN6au0_hvMfE2+9JkdhvJe7eAw@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: undo change to page mapcount in fault handler
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-The accounting code will be compiled in by default (CONFIG_READAHEAD_STATS=y),
-and will remain inactive by default.
+On Fri, Dec 23, 2011 at 12:36 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>
+> The changelog is rather cryptic. What about something like:
+>
 
-It can be runtime enabled/disabled through the debugfs interface
+It is included in the following version, thanks.
 
-	echo 1 > /debug/readahead/stats_enable
-	echo 0 > /debug/readahead/stats_enable
+===CUT HERE===
+From: Hillf Danton <dhillf@gmail.com>
+Subject: [PATCH] mm: hugetlb: undo change to page mapcount in fault handler
 
-Example output:
-(taken from a fresh booted NFS-ROOT console box with rsize=524288)
+Page mapcount should be updated only if we are sure that the page ends
+up in the page table otherwise we would leak if we couldn't COW due to
+reservations or if idx is out of bounds.
 
-$ cat /debug/readahead/stats
-pattern     readahead    eof_hit  cache_hit         io    sync_io    mmap_io    meta_io       size async_size    io_size
-initial           702        511          0        692        692          0          0          2          0          2
-subsequent          7          0          1          7          1          1          0         23         22         23
-context           160        161          0          2          0          1          0          0          0         16
-around            184        184        177        184        184        184          0         58          0         53
-backwards           2          0          2          2          2          0          0          4          0          3
-fadvise          2593         47          8       2588       2588          0          0          1          0          1
-oversize            0          0          0          0          0          0          0          0          0          0
-random             45         20          0         44         44          0          0          1          0          1
-all              3697        923        188       3519       3511        186          0          4          0          4
-
-The two most important columns are
-- io		number of readahead IO
-- io_size	average readahead IO size
-
-CC: Ingo Molnar <mingo@elte.hu>
-CC: Jens Axboe <axboe@kernel.dk>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/Kconfig     |   15 +++
- mm/readahead.c |  202 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 217 insertions(+)
 
-This switches to the percpu_counter facilities.
-
---- linux-next.orig/mm/readahead.c	2011-12-23 20:29:14.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-12-23 20:50:04.000000000 +0800
-@@ -33,6 +33,202 @@ EXPORT_SYMBOL_GPL(file_ra_state_init);
- 
- #define list_to_page(head) (list_entry((head)->prev, struct page, lru))
- 
-+#ifdef CONFIG_READAHEAD_STATS
-+#include <linux/ftrace_event.h>
-+#include <linux/seq_file.h>
-+#include <linux/debugfs.h>
-+
-+static u32 readahead_stats_enable __read_mostly;
-+
-+static const struct trace_print_flags ra_pattern_names[] = {
-+	READAHEAD_PATTERNS
-+};
-+
-+enum ra_account {
-+	/* number of readaheads */
-+	RA_ACCOUNT_COUNT,	/* readahead request */
-+	RA_ACCOUNT_EOF,		/* readahead request covers EOF */
-+	RA_ACCOUNT_CACHE_HIT,	/* readahead request covers some cached pages */
-+	RA_ACCOUNT_IOCOUNT,	/* readahead IO */
-+	RA_ACCOUNT_SYNC,	/* readahead IO that is synchronous */
-+	RA_ACCOUNT_MMAP,	/* readahead IO by mmap page faults */
-+	RA_ACCOUNT_METADATA,	/* readahead IO on metadata */
-+	/* number of readahead pages */
-+	RA_ACCOUNT_SIZE,	/* readahead size */
-+	RA_ACCOUNT_ASYNC_SIZE,	/* readahead async size */
-+	RA_ACCOUNT_ACTUAL,	/* readahead actual IO size */
-+	/* end mark */
-+	RA_ACCOUNT_MAX,
-+};
-+
-+#define RA_STAT_BATCH	(INT_MAX / 2)
-+static struct percpu_counter ra_stat[RA_PATTERN_ALL][RA_ACCOUNT_MAX];
-+
-+static inline void add_ra_stat(int i, int j, s64 amount)
-+{
-+	__percpu_counter_add(&ra_stat[i][j], amount, RA_STAT_BATCH);
-+}
-+
-+static inline void inc_ra_stat(int i, int j)
-+{
-+	add_ra_stat(i, j, 1);
-+}
-+
-+static void readahead_stats(struct address_space *mapping,
-+			    pgoff_t offset,
-+			    unsigned long req_size,
-+			    bool for_mmap,
-+			    bool for_metadata,
-+			    enum readahead_pattern pattern,
-+			    pgoff_t start,
-+			    unsigned long size,
-+			    unsigned long async_size,
-+			    int actual)
-+{
-+	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
-+
-+	inc_ra_stat(pattern, RA_ACCOUNT_COUNT);
-+	add_ra_stat(pattern, RA_ACCOUNT_SIZE, size);
-+	add_ra_stat(pattern, RA_ACCOUNT_ASYNC_SIZE, async_size);
-+	add_ra_stat(pattern, RA_ACCOUNT_ACTUAL, actual);
-+
-+	if (start + size >= eof)
-+		inc_ra_stat(pattern, RA_ACCOUNT_EOF);
-+	if (actual < size)
-+		inc_ra_stat(pattern, RA_ACCOUNT_CACHE_HIT);
-+
-+	if (actual) {
-+		inc_ra_stat(pattern, RA_ACCOUNT_IOCOUNT);
-+
-+		if (start <= offset && offset < start + size)
-+			inc_ra_stat(pattern, RA_ACCOUNT_SYNC);
-+
-+		if (for_mmap)
-+			inc_ra_stat(pattern, RA_ACCOUNT_MMAP);
-+		if (for_metadata)
-+			inc_ra_stat(pattern, RA_ACCOUNT_METADATA);
-+	}
-+}
-+
-+static void readahead_stats_reset(void)
-+{
-+	int i, j;
-+
-+	for (i = 0; i < RA_PATTERN_ALL; i++)
-+		for (j = 0; j < RA_ACCOUNT_MAX; j++)
-+			percpu_counter_set(&ra_stat[i][j], 0);
-+}
-+
-+static void
-+readahead_stats_sum(long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
-+{
-+	int i, j;
-+
-+	for (i = 0; i < RA_PATTERN_ALL; i++)
-+		for (j = 0; j < RA_ACCOUNT_MAX; j++) {
-+			s64 n = percpu_counter_sum(&ra_stat[i][j]);
-+			ra_stats[i][j] += n;
-+			ra_stats[RA_PATTERN_ALL][j] += n;
-+		}
-+}
-+
-+static int readahead_stats_show(struct seq_file *s, void *_)
-+{
-+	long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
-+	int i;
-+
-+	seq_printf(s,
-+		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
-+		   "pattern", "readahead", "eof_hit", "cache_hit",
-+		   "io", "sync_io", "mmap_io", "meta_io",
-+		   "size", "async_size", "io_size");
-+
-+	memset(ra_stats, 0, sizeof(ra_stats));
-+	readahead_stats_sum(ra_stats);
-+
-+	for (i = 0; i < RA_PATTERN_MAX; i++) {
-+		unsigned long count = ra_stats[i][RA_ACCOUNT_COUNT];
-+		unsigned long iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
-+		/*
-+		 * avoid division-by-zero
-+		 */
-+		if (count == 0)
-+			count = 1;
-+		if (iocount == 0)
-+			iocount = 1;
-+
-+		seq_printf(s, "%-10s %10lld %10lld %10lld %10lld %10lld "
-+			   "%10lld %10lld %10lld %10lld %10lld\n",
-+				ra_pattern_names[i].name,
-+				ra_stats[i][RA_ACCOUNT_COUNT],
-+				ra_stats[i][RA_ACCOUNT_EOF],
-+				ra_stats[i][RA_ACCOUNT_CACHE_HIT],
-+				ra_stats[i][RA_ACCOUNT_IOCOUNT],
-+				ra_stats[i][RA_ACCOUNT_SYNC],
-+				ra_stats[i][RA_ACCOUNT_MMAP],
-+				ra_stats[i][RA_ACCOUNT_METADATA],
-+				ra_stats[i][RA_ACCOUNT_SIZE] / count,
-+				ra_stats[i][RA_ACCOUNT_ASYNC_SIZE] / count,
-+				ra_stats[i][RA_ACCOUNT_ACTUAL] / iocount);
-+	}
-+
-+	return 0;
-+}
-+
-+static int readahead_stats_open(struct inode *inode, struct file *file)
-+{
-+	return single_open(file, readahead_stats_show, NULL);
-+}
-+
-+static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
-+				     size_t size, loff_t *offset)
-+{
-+	readahead_stats_reset();
-+	return size;
-+}
-+
-+static const struct file_operations readahead_stats_fops = {
-+	.owner		= THIS_MODULE,
-+	.open		= readahead_stats_open,
-+	.write		= readahead_stats_write,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= single_release,
-+};
-+
-+static int __init readahead_create_debugfs(void)
-+{
-+	struct dentry *root;
-+	struct dentry *entry;
-+	int i, j;
-+
-+	root = debugfs_create_dir("readahead", NULL);
-+	if (!root)
-+		goto out;
-+
-+	entry = debugfs_create_file("stats", 0644, root,
-+				    NULL, &readahead_stats_fops);
-+	if (!entry)
-+		goto out;
-+
-+	entry = debugfs_create_bool("stats_enable", 0644, root,
-+				    &readahead_stats_enable);
-+	if (!entry)
-+		goto out;
-+
-+	for (i = 0; i < RA_PATTERN_ALL; i++)
-+		for (j = 0; j < RA_ACCOUNT_MAX; j++)
-+			percpu_counter_init(&ra_stat[i][j], 0);
-+
-+	return 0;
-+out:
-+	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
-+	return -ENOMEM;
-+}
-+
-+late_initcall(readahead_create_debugfs);
-+#endif
-+
- static inline void readahead_event(struct address_space *mapping,
- 				   pgoff_t offset,
- 				   unsigned long req_size,
-@@ -44,6 +240,12 @@ static inline void readahead_event(struc
- 				   unsigned long async_size,
- 				   int actual)
+--- a/mm/hugetlb.c	Tue Dec 20 21:26:30 2011
++++ b/mm/hugetlb.c	Thu Dec 22 21:29:42 2011
+@@ -2509,6 +2509,7 @@ static int hugetlb_no_page(struct mm_str
  {
-+#ifdef CONFIG_READAHEAD_STATS
-+	if (readahead_stats_enable)
-+		readahead_stats(mapping, offset, req_size,
-+				for_mmap, for_metadata,
-+				pattern, start, size, async_size, actual);
-+#endif
- 	trace_readahead(mapping, offset, req_size,
- 			pattern, start, size, async_size, actual);
- }
---- linux-next.orig/mm/Kconfig	2011-12-23 20:28:06.000000000 +0800
-+++ linux-next/mm/Kconfig	2011-12-23 20:29:31.000000000 +0800
-@@ -396,3 +396,18 @@ config FRONTSWAP
- 	  and swap data is stored as normal on the matching swap device.
- 
- 	  If unsure, say Y to enable frontswap.
-+
-+config READAHEAD_STATS
-+	bool "Collect page cache readahead stats"
-+	depends on DEBUG_FS
-+	default y
-+	help
-+	  This provides the readahead events accounting facilities.
-+
-+	  To do readahead accounting for a workload:
-+
-+	  echo 1 > /sys/kernel/debug/readahead/stats_enable
-+	  echo 0 > /sys/kernel/debug/readahead/stats  # reset counters
-+	  # run the workload
-+	  cat /sys/kernel/debug/readahead/stats       # check counters
-+	  echo 0 > /sys/kernel/debug/readahead/stats_enable
+ 	struct hstate *h = hstate_vma(vma);
+ 	int ret = VM_FAULT_SIGBUS;
++	int anon_rmap = 0;
+ 	pgoff_t idx;
+ 	unsigned long size;
+ 	struct page *page;
+@@ -2563,14 +2564,13 @@ retry:
+ 			spin_lock(&inode->i_lock);
+ 			inode->i_blocks += blocks_per_huge_page(h);
+ 			spin_unlock(&inode->i_lock);
+-			page_dup_rmap(page);
+ 		} else {
+ 			lock_page(page);
+ 			if (unlikely(anon_vma_prepare(vma))) {
+ 				ret = VM_FAULT_OOM;
+ 				goto backout_unlocked;
+ 			}
+-			hugepage_add_new_anon_rmap(page, vma, address);
++			anon_rmap = 1;
+ 		}
+ 	} else {
+ 		/*
+@@ -2583,7 +2583,6 @@ retry:
+ 			      VM_FAULT_SET_HINDEX(h - hstates);
+ 			goto backout_unlocked;
+ 		}
+-		page_dup_rmap(page);
+ 	}
+
+ 	/*
+@@ -2607,6 +2606,10 @@ retry:
+ 	if (!huge_pte_none(huge_ptep_get(ptep)))
+ 		goto backout;
+
++	if (anon_rmap)
++		hugepage_add_new_anon_rmap(page, vma, address);
++	else
++		page_dup_rmap(page);
+ 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+ 				&& (vma->vm_flags & VM_SHARED)));
+ 	set_huge_pte_at(mm, address, ptep, new_pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
