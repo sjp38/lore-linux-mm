@@ -1,438 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 1A1426B005A
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 1B4CD6B005C
 	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 07:28:00 -0500 (EST)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LWN007L3PAMRU@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 23 Dec 2011 12:27:58 +0000 (GMT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LWN005JUPAMO240@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 23 Dec 2011 12:27:58 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LWN003H0PALM1@spt2.w1.samsung.com> for
+ 2004)) with ESMTPA id <0LWN003GZPALM1@spt2.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 23 Dec 2011 12:27:58 +0000 (GMT)
-Date: Fri, 23 Dec 2011 13:27:21 +0100
+Date: Fri, 23 Dec 2011 13:27:19 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 02/14] X86: adapt for dma_map_ops changes
-In-reply-to: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1324643253-3024-3-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
-References: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+Subject: [PATCH 00/14] DMA-mapping framework redesign preparation
+Message-id: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
 
-From: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+Hello eveyone,
 
-Adapt core X86 architecture code for dma_map_ops changes: replace
-alloc/free_coherent with generic alloc/free methods.
+On Linaro Memory Management meeting in Budapest (May 2011) we have
+discussed about the design of DMA mapping framework. We tried to
+identify the drawbacks and limitations as well as to provide some a
+solution for them. The discussion was mainly about ARM architecture, but
+some of the conclusions need to be applied to cross-architecture code.
 
-Signed-off-by: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- arch/x86/include/asm/dma-mapping.h |   26 ++++++++++++++++----------
- arch/x86/kernel/amd_gart_64.c      |   11 ++++++-----
- arch/x86/kernel/pci-calgary_64.c   |    9 +++++----
- arch/x86/kernel/pci-dma.c          |    3 ++-
- arch/x86/kernel/pci-nommu.c        |    6 +++---
- arch/x86/kernel/pci-swiotlb.c      |   12 +++++++-----
- arch/x86/xen/pci-swiotlb-xen.c     |    4 ++--
- drivers/iommu/amd_iommu.c          |   10 ++++++----
- drivers/iommu/intel-iommu.c        |    9 +++++----
- drivers/xen/swiotlb-xen.c          |    5 +++--
- include/linux/swiotlb.h            |    6 ++++--
- include/xen/swiotlb-xen.h          |    6 ++++--
- lib/swiotlb.c                      |    5 +++--
- 13 files changed, 66 insertions(+), 46 deletions(-)
+The first issue we identified is the fact that on some platform (again,
+mainly ARM) there are several functions for allocating DMA buffers:
+dma_alloc_coherent, dma_alloc_writecombine and dma_alloc_noncoherent
+(not functional now). For each of them there is a match dma_free_*
+function. This gives us quite a lot of functions in the public API and
+complicates things when we need to have several different
+implementations for different devices selected in runtime (if IOMMU
+controller is available only for a few devices in the system). Also the
+drivers which use less common variants are less portable because of the
+lacks of dma_alloc_writecombine on other architectures.
 
-diff --git a/arch/x86/include/asm/dma-mapping.h b/arch/x86/include/asm/dma-mapping.h
-index ed3065f..4b4331d 100644
---- a/arch/x86/include/asm/dma-mapping.h
-+++ b/arch/x86/include/asm/dma-mapping.h
-@@ -59,7 +59,8 @@ extern int dma_supported(struct device *hwdev, u64 mask);
- extern int dma_set_mask(struct device *dev, u64 mask);
- 
- extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
--					dma_addr_t *dma_addr, gfp_t flag);
-+					dma_addr_t *dma_addr, gfp_t flag,
-+					struct dma_attrs *attrs);
- 
- static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
- {
-@@ -111,9 +112,11 @@ static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
-        return gfp;
- }
- 
-+#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-+
- static inline void *
--dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
--		gfp_t gfp)
-+dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
-+		gfp_t gfp, struct dma_attrs *attrs)
- {
- 	struct dma_map_ops *ops = get_dma_ops(dev);
- 	void *memory;
-@@ -129,18 +132,21 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
- 	if (!is_device_dma_capable(dev))
- 		return NULL;
- 
--	if (!ops->alloc_coherent)
-+	if (!ops->alloc)
- 		return NULL;
- 
--	memory = ops->alloc_coherent(dev, size, dma_handle,
--				     dma_alloc_coherent_gfp_flags(dev, gfp));
-+	memory = ops->alloc(dev, size, dma_handle,
-+			    dma_alloc_coherent_gfp_flags(dev, gfp), attrs);
- 	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
- 
- 	return memory;
- }
- 
--static inline void dma_free_coherent(struct device *dev, size_t size,
--				     void *vaddr, dma_addr_t bus)
-+#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-+
-+static inline void dma_free_attrs(struct device *dev, size_t size,
-+				  void *vaddr, dma_addr_t bus,
-+				  struct dma_attrs *attrs)
- {
- 	struct dma_map_ops *ops = get_dma_ops(dev);
- 
-@@ -150,8 +156,8 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
- 		return;
- 
- 	debug_dma_free_coherent(dev, size, vaddr, bus);
--	if (ops->free_coherent)
--		ops->free_coherent(dev, size, vaddr, bus);
-+	if (ops->free)
-+		ops->free(dev, size, vaddr, bus, attrs);
- }
- 
- #endif
-diff --git a/arch/x86/kernel/amd_gart_64.c b/arch/x86/kernel/amd_gart_64.c
-index b1e7c7f..e663112 100644
---- a/arch/x86/kernel/amd_gart_64.c
-+++ b/arch/x86/kernel/amd_gart_64.c
-@@ -477,7 +477,7 @@ error:
- /* allocate and map a coherent mapping */
- static void *
- gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
--		    gfp_t flag)
-+		    gfp_t flag, struct dma_attrs *attrs)
- {
- 	dma_addr_t paddr;
- 	unsigned long align_mask;
-@@ -500,7 +500,8 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
- 		}
- 		__free_pages(page, get_order(size));
- 	} else
--		return dma_generic_alloc_coherent(dev, size, dma_addr, flag);
-+		return dma_generic_alloc_coherent(dev, size, dma_addr, flag,
-+						  attrs);
- 
- 	return NULL;
- }
-@@ -508,7 +509,7 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
- /* free a coherent mapping */
- static void
- gart_free_coherent(struct device *dev, size_t size, void *vaddr,
--		   dma_addr_t dma_addr)
-+		   dma_addr_t dma_addr, struct dma_attrs *attrs)
- {
- 	gart_unmap_page(dev, dma_addr, size, DMA_BIDIRECTIONAL, NULL);
- 	free_pages((unsigned long)vaddr, get_order(size));
-@@ -700,8 +701,8 @@ static struct dma_map_ops gart_dma_ops = {
- 	.unmap_sg			= gart_unmap_sg,
- 	.map_page			= gart_map_page,
- 	.unmap_page			= gart_unmap_page,
--	.alloc_coherent			= gart_alloc_coherent,
--	.free_coherent			= gart_free_coherent,
-+	.alloc				= gart_alloc_coherent,
-+	.free				= gart_free_coherent,
- 	.mapping_error			= gart_mapping_error,
- };
- 
-diff --git a/arch/x86/kernel/pci-calgary_64.c b/arch/x86/kernel/pci-calgary_64.c
-index 726494b..07b587c 100644
---- a/arch/x86/kernel/pci-calgary_64.c
-+++ b/arch/x86/kernel/pci-calgary_64.c
-@@ -431,7 +431,7 @@ static void calgary_unmap_page(struct device *dev, dma_addr_t dma_addr,
- }
- 
- static void* calgary_alloc_coherent(struct device *dev, size_t size,
--	dma_addr_t *dma_handle, gfp_t flag)
-+	dma_addr_t *dma_handle, gfp_t flag, struct dma_attrs *attrs)
- {
- 	void *ret = NULL;
- 	dma_addr_t mapping;
-@@ -464,7 +464,8 @@ error:
- }
- 
- static void calgary_free_coherent(struct device *dev, size_t size,
--				  void *vaddr, dma_addr_t dma_handle)
-+				  void *vaddr, dma_addr_t dma_handle,
-+				  struct dma_attrs *attrs)
- {
- 	unsigned int npages;
- 	struct iommu_table *tbl = find_iommu_table(dev);
-@@ -477,8 +478,8 @@ static void calgary_free_coherent(struct device *dev, size_t size,
- }
- 
- static struct dma_map_ops calgary_dma_ops = {
--	.alloc_coherent = calgary_alloc_coherent,
--	.free_coherent = calgary_free_coherent,
-+	.alloc = calgary_alloc_coherent,
-+	.free = calgary_free_coherent,
- 	.map_sg = calgary_map_sg,
- 	.unmap_sg = calgary_unmap_sg,
- 	.map_page = calgary_map_page,
-diff --git a/arch/x86/kernel/pci-dma.c b/arch/x86/kernel/pci-dma.c
-index 80dc793..b8b9e47 100644
---- a/arch/x86/kernel/pci-dma.c
-+++ b/arch/x86/kernel/pci-dma.c
-@@ -87,7 +87,8 @@ void __init pci_iommu_alloc(void)
- 	}
- }
- void *dma_generic_alloc_coherent(struct device *dev, size_t size,
--				 dma_addr_t *dma_addr, gfp_t flag)
-+				 dma_addr_t *dma_addr, gfp_t flag,
-+				 struct dma_attrs *attrs)
- {
- 	unsigned long dma_mask;
- 	struct page *page;
-diff --git a/arch/x86/kernel/pci-nommu.c b/arch/x86/kernel/pci-nommu.c
-index 3af4af8..f960506 100644
---- a/arch/x86/kernel/pci-nommu.c
-+++ b/arch/x86/kernel/pci-nommu.c
-@@ -75,7 +75,7 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
- }
- 
- static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
--				dma_addr_t dma_addr)
-+				dma_addr_t dma_addr, struct dma_attrs *attrs)
- {
- 	free_pages((unsigned long)vaddr, get_order(size));
- }
-@@ -96,8 +96,8 @@ static void nommu_sync_sg_for_device(struct device *dev,
- }
- 
- struct dma_map_ops nommu_dma_ops = {
--	.alloc_coherent		= dma_generic_alloc_coherent,
--	.free_coherent		= nommu_free_coherent,
-+	.alloc			= dma_generic_alloc_coherent,
-+	.free			= nommu_free_coherent,
- 	.map_sg			= nommu_map_sg,
- 	.map_page		= nommu_map_page,
- 	.sync_single_for_device = nommu_sync_single_for_device,
-diff --git a/arch/x86/kernel/pci-swiotlb.c b/arch/x86/kernel/pci-swiotlb.c
-index 8f972cb..fa462a3 100644
---- a/arch/x86/kernel/pci-swiotlb.c
-+++ b/arch/x86/kernel/pci-swiotlb.c
-@@ -15,21 +15,23 @@
- int swiotlb __read_mostly;
- 
- static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
--					dma_addr_t *dma_handle, gfp_t flags)
-+					dma_addr_t *dma_handle, gfp_t flags,
-+					struct dma_attrs *attrs)
- {
- 	void *vaddr;
- 
--	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags);
-+	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags,
-+					   attrs);
- 	if (vaddr)
- 		return vaddr;
- 
--	return swiotlb_alloc_coherent(hwdev, size, dma_handle, flags);
-+	return swiotlb_alloc_coherent(hwdev, size, dma_handle, flags, attrs);
- }
- 
- static struct dma_map_ops swiotlb_dma_ops = {
- 	.mapping_error = swiotlb_dma_mapping_error,
--	.alloc_coherent = x86_swiotlb_alloc_coherent,
--	.free_coherent = swiotlb_free_coherent,
-+	.alloc = x86_swiotlb_alloc_coherent,
-+	.free = swiotlb_free_coherent,
- 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
- 	.sync_single_for_device = swiotlb_sync_single_for_device,
- 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
-diff --git a/arch/x86/xen/pci-swiotlb-xen.c b/arch/x86/xen/pci-swiotlb-xen.c
-index b480d42..967633a 100644
---- a/arch/x86/xen/pci-swiotlb-xen.c
-+++ b/arch/x86/xen/pci-swiotlb-xen.c
-@@ -12,8 +12,8 @@ int xen_swiotlb __read_mostly;
- 
- static struct dma_map_ops xen_swiotlb_dma_ops = {
- 	.mapping_error = xen_swiotlb_dma_mapping_error,
--	.alloc_coherent = xen_swiotlb_alloc_coherent,
--	.free_coherent = xen_swiotlb_free_coherent,
-+	.alloc = xen_swiotlb_alloc_coherent,
-+	.free = xen_swiotlb_free_coherent,
- 	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
- 	.sync_single_for_device = xen_swiotlb_sync_single_for_device,
- 	.sync_sg_for_cpu = xen_swiotlb_sync_sg_for_cpu,
-diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
-index 4ee277a..fc36f1e 100644
---- a/drivers/iommu/amd_iommu.c
-+++ b/drivers/iommu/amd_iommu.c
-@@ -2335,7 +2335,8 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
-  * The exported alloc_coherent function for dma_ops.
-  */
- static void *alloc_coherent(struct device *dev, size_t size,
--			    dma_addr_t *dma_addr, gfp_t flag)
-+			    dma_addr_t *dma_addr, gfp_t flag,
-+			    struct dma_attrs *attrs)
- {
- 	unsigned long flags;
- 	void *virt_addr;
-@@ -2393,7 +2394,8 @@ out_free:
-  * The exported free_coherent function for dma_ops.
-  */
- static void free_coherent(struct device *dev, size_t size,
--			  void *virt_addr, dma_addr_t dma_addr)
-+			  void *virt_addr, dma_addr_t dma_addr,
-+			  struct dma_attrs *attrs)
- {
- 	unsigned long flags;
- 	struct protection_domain *domain;
-@@ -2463,8 +2465,8 @@ static void prealloc_protection_domains(void)
- }
- 
- static struct dma_map_ops amd_iommu_dma_ops = {
--	.alloc_coherent = alloc_coherent,
--	.free_coherent = free_coherent,
-+	.alloc = alloc_coherent,
-+	.free = free_coherent,
- 	.map_page = map_page,
- 	.unmap_page = unmap_page,
- 	.map_sg = map_sg,
-diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
-index bdc447f..22982184 100644
---- a/drivers/iommu/intel-iommu.c
-+++ b/drivers/iommu/intel-iommu.c
-@@ -2925,7 +2925,8 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
- }
- 
- static void *intel_alloc_coherent(struct device *hwdev, size_t size,
--				  dma_addr_t *dma_handle, gfp_t flags)
-+				  dma_addr_t *dma_handle, gfp_t flags,
-+				  struct dma_attrs *attrs)
- {
- 	void *vaddr;
- 	int order;
-@@ -2957,7 +2958,7 @@ static void *intel_alloc_coherent(struct device *hwdev, size_t size,
- }
- 
- static void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
--				dma_addr_t dma_handle)
-+				dma_addr_t dma_handle, struct dma_attrs *attrs)
- {
- 	int order;
- 
-@@ -3102,8 +3103,8 @@ static int intel_mapping_error(struct device *dev, dma_addr_t dma_addr)
- }
- 
- struct dma_map_ops intel_dma_ops = {
--	.alloc_coherent = intel_alloc_coherent,
--	.free_coherent = intel_free_coherent,
-+	.alloc = intel_alloc_coherent,
-+	.free = intel_free_coherent,
- 	.map_sg = intel_map_sg,
- 	.unmap_sg = intel_unmap_sg,
- 	.map_page = intel_map_page,
-diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c
-index 284798a..6c67ed4 100644
---- a/drivers/xen/swiotlb-xen.c
-+++ b/drivers/xen/swiotlb-xen.c
-@@ -204,7 +204,8 @@ error:
- 
- void *
- xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
--			   dma_addr_t *dma_handle, gfp_t flags)
-+			   dma_addr_t *dma_handle, gfp_t flags,
-+			   struct dma_attrs *attrs)
- {
- 	void *ret;
- 	int order = get_order(size);
-@@ -253,7 +254,7 @@ EXPORT_SYMBOL_GPL(xen_swiotlb_alloc_coherent);
- 
- void
- xen_swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
--			  dma_addr_t dev_addr)
-+			  dma_addr_t dev_addr, struct dma_attrs *attrs)
- {
- 	int order = get_order(size);
- 	phys_addr_t phys;
-diff --git a/include/linux/swiotlb.h b/include/linux/swiotlb.h
-index 445702c..769f8bc 100644
---- a/include/linux/swiotlb.h
-+++ b/include/linux/swiotlb.h
-@@ -50,11 +50,13 @@ extern void swiotlb_bounce(phys_addr_t phys, char *dma_addr, size_t size,
- 
- extern void
- *swiotlb_alloc_coherent(struct device *hwdev, size_t size,
--			dma_addr_t *dma_handle, gfp_t flags);
-+			dma_addr_t *dma_handle, gfp_t flags,
-+			struct dma_attrs *attrs);
- 
- extern void
- swiotlb_free_coherent(struct device *hwdev, size_t size,
--		      void *vaddr, dma_addr_t dma_handle);
-+		      void *vaddr, dma_addr_t dma_handle,
-+		      struct dma_attrs *attrs);
- 
- extern dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
- 				   unsigned long offset, size_t size,
-diff --git a/include/xen/swiotlb-xen.h b/include/xen/swiotlb-xen.h
-index 2ea2fdc..4f4d449 100644
---- a/include/xen/swiotlb-xen.h
-+++ b/include/xen/swiotlb-xen.h
-@@ -7,11 +7,13 @@ extern void xen_swiotlb_init(int verbose);
- 
- extern void
- *xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
--			    dma_addr_t *dma_handle, gfp_t flags);
-+			    dma_addr_t *dma_handle, gfp_t flags,
-+			    struct dma_attrs *attrs);
- 
- extern void
- xen_swiotlb_free_coherent(struct device *hwdev, size_t size,
--			  void *vaddr, dma_addr_t dma_handle);
-+			  void *vaddr, dma_addr_t dma_handle,
-+			  struct dma_attrs *attrs);
- 
- extern dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
- 				       unsigned long offset, size_t size,
-diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-index 99093b3..10a4f68 100644
---- a/lib/swiotlb.c
-+++ b/lib/swiotlb.c
-@@ -565,7 +565,8 @@ EXPORT_SYMBOL_GPL(swiotlb_tbl_sync_single);
- 
- void *
- swiotlb_alloc_coherent(struct device *hwdev, size_t size,
--		       dma_addr_t *dma_handle, gfp_t flags)
-+		       dma_addr_t *dma_handle, gfp_t flags,
-+		       struct dma_attrs *attrs)
- {
- 	dma_addr_t dev_addr;
- 	void *ret;
-@@ -614,7 +615,7 @@ EXPORT_SYMBOL(swiotlb_alloc_coherent);
- 
- void
- swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
--		      dma_addr_t dev_addr)
-+		      dma_addr_t dev_addr, struct dma_attrs *attrs)
- {
- 	phys_addr_t paddr = dma_to_phys(hwdev, dev_addr);
- 
+The solution we found is to introduce a new public dma mapping functions
+with additional attributes argument: dma_alloc_attrs and
+dma_free_attrs(). This way all different kinds of architecture specific
+buffer mappings can be hidden behind the attributes without the need of
+creating several versions of dma_alloc_ function.
+
+dma_alloc_coherent() can be wrapped on top of new dma_alloc_attrs() with
+NULL attrs parameter. dma_alloc_writecombine and dma_alloc_noncoherent
+can be implemented as a simple wrappers which sets attributes to
+DMA_ATTRS_WRITECOMBINE or DMA_ATTRS_NON_CONSISTENT respectively. These
+new attributes will be implemented only on the architectures that really
+support them, the others will simply ignore them defaulting to the
+dma_alloc_coherent equivalent.
+
+The next step in dma mapping framework update is the introduction of
+dma_mmap/dma_mmap_attrs() function. There are a number of drivers
+(mainly V4L2 and ALSA) that only exports the DMA buffers to user space.
+Creating a userspace mapping with correct page attributes is not an easy
+task for the driver. Also the DMA-mapping framework is the only place
+where the complete information about the allocated pages is available,
+especially if the implementation uses IOMMU controller to provide a
+contiguous buffer in DMA address space which is scattered in physical
+memory space.
+
+Usually these drivers don't touch the buffer data at all, so the mapping
+in kernel virtual address space is not needed. We can introduce
+DMA_ATTRIB_NO_KERNEL_MAPPING attribute which lets kernel to skip/ignore
+creation of kernel virtual mapping. This way we can save previous
+vmalloc area and simply some mapping operation on a few architectures.
+
+This patch series is a preparation for the above changes in the public
+dma mapping API. The main goal is to modify dma_map_ops structure and
+let all users to use for implementation of the new public funtions.
+
+The proof-of-concept patches for ARM architecture have been already
+posted a few times and now they are working resonably well. They perform
+conversion to dma_map_ops based implementation and add support for
+generic IOMMU-based dma mapping implementation. To get them merged we
+first need to get acceptance for the changes in the common,
+cross-architecture structures. More information about these patches can
+be found in the following threads:
+
+http://www.spinics.net/lists/linux-mm/msg19856.html
+http://www.spinics.net/lists/linux-mm/msg21241.html
+http://lists.linaro.org/pipermail/linaro-mm-sig/2011-September/000571.html
+http://lists.linaro.org/pipermail/linaro-mm-sig/2011-September/000577.html
+http://www.spinics.net/lists/linux-mm/msg25490.html
+
+The patches are prepared on top of Linux Kernel v3.2-rc6. I would
+appreciate any comments and help with getting this patch series into
+linux-next tree.
+
+The idea apllied in this patch set have been also presented during the
+Kernel Summit 2011 and ELC-E 2011 in Prague, in the presentation 'ARM
+DMA-Mapping Framework Redesign and IOMMU integration'.
+
+I'm really sorry if I missed any of the relevant architecture mailing
+lists. I've did my best to include everyone. Feel free to forward this
+patchset to all interested developers and maintainers. I've already feel
+like a nasty spammer.
+
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
+Patch summary:
+
+Andrzej Pietrasiewicz (9):
+  X86: adapt for dma_map_ops changes
+  MIPS: adapt for dma_map_ops changes
+  PowerPC: adapt for dma_map_ops changes
+  IA64: adapt for dma_map_ops changes
+  SPARC: adapt for dma_map_ops changes
+  Alpha: adapt for dma_map_ops changes
+  SH: adapt for dma_map_ops changes
+  Microblaze: adapt for dma_map_ops changes
+  Unicore32: adapt for dma_map_ops changes
+
+Marek Szyprowski (5):
+  common: dma-mapping: introduce alloc_attrs and free_attrs methods
+  common: dma-mapping: remove old alloc_coherent and free_coherent
+    methods
+  common: dma-mapping: introduce mmap method
+  common: DMA-mapping: add WRITE_COMBINE attribute
+  common: DMA-mapping: add NON-CONSISTENT attribute
+
+ Documentation/DMA-attributes.txt          |   19 +++++++++++++++++++
+ arch/alpha/include/asm/dma-mapping.h      |   18 ++++++++++++------
+ arch/alpha/kernel/pci-noop.c              |   10 ++++++----
+ arch/alpha/kernel/pci_iommu.c             |   10 ++++++----
+ arch/ia64/hp/common/sba_iommu.c           |   11 ++++++-----
+ arch/ia64/include/asm/dma-mapping.h       |   18 ++++++++++++------
+ arch/ia64/kernel/pci-swiotlb.c            |    9 +++++----
+ arch/ia64/sn/pci/pci_dma.c                |    9 +++++----
+ arch/microblaze/include/asm/dma-mapping.h |   18 ++++++++++++------
+ arch/microblaze/kernel/dma.c              |   10 ++++++----
+ arch/mips/include/asm/dma-mapping.h       |   18 ++++++++++++------
+ arch/mips/mm/dma-default.c                |    8 ++++----
+ arch/powerpc/include/asm/dma-mapping.h    |   24 ++++++++++++++++--------
+ arch/powerpc/kernel/dma-iommu.c           |   10 ++++++----
+ arch/powerpc/kernel/dma-swiotlb.c         |    4 ++--
+ arch/powerpc/kernel/dma.c                 |   10 ++++++----
+ arch/powerpc/kernel/ibmebus.c             |   10 ++++++----
+ arch/powerpc/platforms/cell/iommu.c       |   16 +++++++++-------
+ arch/powerpc/platforms/ps3/system-bus.c   |   13 +++++++------
+ arch/sh/include/asm/dma-mapping.h         |   28 ++++++++++++++++++----------
+ arch/sh/kernel/dma-nommu.c                |    4 ++--
+ arch/sh/mm/consistent.c                   |    6 ++++--
+ arch/sparc/include/asm/dma-mapping.h      |   18 ++++++++++++------
+ arch/sparc/kernel/iommu.c                 |   10 ++++++----
+ arch/sparc/kernel/ioport.c                |   18 ++++++++++--------
+ arch/sparc/kernel/pci_sun4v.c             |    9 +++++----
+ arch/unicore32/include/asm/dma-mapping.h  |   18 ++++++++++++------
+ arch/unicore32/mm/dma-swiotlb.c           |    4 ++--
+ arch/x86/include/asm/dma-mapping.h        |   26 ++++++++++++++++----------
+ arch/x86/kernel/amd_gart_64.c             |   11 ++++++-----
+ arch/x86/kernel/pci-calgary_64.c          |    9 +++++----
+ arch/x86/kernel/pci-dma.c                 |    3 ++-
+ arch/x86/kernel/pci-nommu.c               |    6 +++---
+ arch/x86/kernel/pci-swiotlb.c             |   12 +++++++-----
+ arch/x86/xen/pci-swiotlb-xen.c            |    4 ++--
+ drivers/iommu/amd_iommu.c                 |   10 ++++++----
+ drivers/iommu/intel-iommu.c               |    9 +++++----
+ drivers/xen/swiotlb-xen.c                 |    5 +++--
+ include/linux/dma-attrs.h                 |    2 ++
+ include/linux/dma-mapping.h               |   13 +++++++++----
+ include/linux/swiotlb.h                   |    6 ++++--
+ include/xen/swiotlb-xen.h                 |    6 ++++--
+ lib/swiotlb.c                             |    5 +++--
+ 43 files changed, 305 insertions(+), 182 deletions(-)
+
 -- 
 1.7.1.569.g6f426
 
