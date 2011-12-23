@@ -1,391 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id E94486B004D
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 04:01:42 -0500 (EST)
-Message-ID: <1324630880.562.6.camel@rybalov.eng.ttk.net>
-Subject: Re: Kswapd in 3.2.0-rc5 is a CPU hog
-From: nowhere <nowhere@hakkenden.ath.cx>
-Date: Fri, 23 Dec 2011 13:01:20 +0400
-In-Reply-To: <20111221225512.GG23662@dastard>
-References: <1324437036.4677.5.camel@hakkenden.homenet>
-	 <20111221095249.GA28474@tiehlicka.suse.cz> <20111221225512.GG23662@dastard>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 46E3F6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 04:52:57 -0500 (EST)
+Received: by vcdn13 with SMTP id n13so13876631vcd.1
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 01:52:56 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20111220163650.GB3964@phenom.dumpdata.com>
+References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+ <1324283611-18344-3-git-send-email-sumit.semwal@ti.com> <20111220163650.GB3964@phenom.dumpdata.com>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Fri, 23 Dec 2011 15:22:35 +0530
+Message-ID: <CAB2ybb_jZNgQma7dv2qojOf8K0-1wutfMkNr3xjqFvfpw2aNTQ@mail.gmail.com>
+Subject: Re: [RFC v3 1/2] dma-buf: Introduce dma buffer sharing mechanism
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, t.stanislaws@samsung.com, linux@arm.linux.org.uk, arnd@arndb.de, patches@linaro.org, rob@ti.com, Sumit Semwal <sumit.semwal@linaro.org>, m.szyprowski@samsung.com
 
-=D0=92 =D0=A7=D1=82., 22/12/2011 =D0=B2 09:55 +1100, Dave Chinner =D0=BF=D0=
-=B8=D1=88=D0=B5=D1=82:
-> On Wed, Dec 21, 2011 at 10:52:49AM +0100, Michal Hocko wrote:
-> > [Let's CC linux-mm]
-> >=20
-> > On Wed 21-12-11 07:10:36, Nikolay S. wrote:
-> > > Hello,
-> > >=20
-> > > I'm using 3.2-rc5 on a machine, which atm does almost nothing except
-> > > file system operations and network i/o (i.e. file server). And there =
-is
-> > > a problem with kswapd.
-> >=20
-> > What kind of filesystem do you use?
-> >=20
-> > >=20
-> > > I'm playing with dd:
-> > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > >=20
-> > > I.e. I'm filling page cache.
-> > >=20
-> > > So when the machine is just rebooted, kswapd during this operation is
-> > > almost idle, just 5-8 percent according to top.
-> > >=20
-> > > After ~5 days of uptime (5 days,  2:10), the same operation demands ~=
-70%
-> > > for kswapd:
-> > >=20
-> > >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
-> > >   420 root      R   70  0.0  22:09.60    0 kswapd0
-> > > 17717 nowhere   D   27  0.2   0:01.81  10m dd
-> > >=20
-> > > In fact, kswapd cpu usage on this operation steadily increases over
-> > > time.
-> > >=20
-> > > Also read performance degrades over time. After reboot:
-> > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > > 1019+1 records in
-> > > 1019+1 records out
-> > > 8553494018 bytes (8.6 GB) copied, 16.211 s, 528 MB/s
-> > >=20
-> > > After ~5 days uptime:
-> > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M
-> > > 1019+1 records in
-> > > 1019+1 records out
-> > > 8553494018 bytes (8.6 GB) copied, 29.0507 s, 294 MB/s
-> > >=20
-> > > Whereas raw disk sequential read performance stays the same:
-> > > dd if=3D/some/big/file of=3D/dev/null bs=3D8M iflag=3Ddirect
-> > > 1019+1 records in
-> > > 1019+1 records out
-> > > 8553494018 bytes (8.6 GB) copied, 14.7286 s, 581 MB/s
-> > >=20
-> > > Also after dropping caches, situation somehow improves, but not to th=
-e
-> > > state of freshly restarted system:
-> > >   PID USER      S %CPU %MEM    TIME+  SWAP COMMAND
-> > >   420 root      S   39  0.0  23:31.17    0 kswapd0
-> > > 19829 nowhere   D   24  0.2   0:02.72 7764 dd
-> > >=20
-> > > perf shows:
-> > >=20
-> > >     31.24%  kswapd0  [kernel.kallsyms]  [k] _raw_spin_lock
-> > >     26.19%  kswapd0  [kernel.kallsyms]  [k] shrink_slab
-> > >     16.28%  kswapd0  [kernel.kallsyms]  [k] prune_super
-> > >      6.55%  kswapd0  [kernel.kallsyms]  [k] grab_super_passive
-> > >      5.35%  kswapd0  [kernel.kallsyms]  [k] down_read_trylock
-> > >      4.03%  kswapd0  [kernel.kallsyms]  [k] up_read
-> > >      2.31%  kswapd0  [kernel.kallsyms]  [k] put_super
-> > >      1.81%  kswapd0  [kernel.kallsyms]  [k] drop_super
-> > >      0.99%  kswapd0  [kernel.kallsyms]  [k] __put_super
-> > >      0.25%  kswapd0  [kernel.kallsyms]  [k] __isolate_lru_page
-> > >      0.23%  kswapd0  [kernel.kallsyms]  [k] free_pcppages_bulk
-> > >      0.19%  kswapd0  [r8169]            [k] rtl8169_interrupt
-> > >      0.15%  kswapd0  [kernel.kallsyms]  [k] twa_interrupt
-> >=20
-> > Quite a lot of time spent shrinking slab (dcache I guess) and a lot of
-> > spin lock contention.
->=20
-> That's just scanning superblocks, not apparently doing anything
-> useful like shrinking dentries or inodes attached to each sb. i.e.
-> the shrinkers are being called an awful lot and basically have
-> nothing to do. I'd be suspecting a problem higher up in the stack to
-> do with how shrink_slab is operating or being called.
->=20
-> I'd suggest gathering event traces for mm_shrink_slab_start/
-> mm_shrink_slab_end to try to see how the shrinkers are being
-> driven...
->=20
-> Cheers,
->=20
-> Dave.
+Hi Konrad,
 
-I have recompiled kernel with tracers, and today the problem is visible
-again. So here is the trace for mm_shrink_slab_start (it is HUGE):
+On Tue, Dec 20, 2011 at 10:06 PM, Konrad Rzeszutek Wilk
+<konrad.wilk@oracle.com> wrote:
+> On Mon, Dec 19, 2011 at 02:03:30PM +0530, Sumit Semwal wrote:
+>> This is the first step in defining a dma buffer sharing mechanism.
+>>
+>> A new buffer object dma_buf is added, with operations and API to allow e=
+asy
+>> sharing of this buffer object across devices.
+>>
+>> The framework allows:
+>> - different devices to 'attach' themselves to this buffer, to facilitate
+>> =A0 backing storage negotiation, using dma_buf_attach() API.
+>
+> Any thoughts of adding facility to track them? So you can see who is usin=
+g what?
+Not for version 1, but it would be a useful addition once we start
+using this mechanism.
 
-         kswapd0   421 [000] 103976.627873: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011b00d300: objects to shrink 12 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 32 lru_pgs 942483 cache items 1500 delt
-         kswapd0   421 [000] 103976.627882: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a20ab00: objects to shrink 267 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942483 cache items 5300 del
-         kswapd0   421 [000] 103976.627884: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a892300: objects to shrink 110 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942483 cache items 2000 del
-         kswapd0   421 [000] 103976.627887: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a893700: objects to shrink 31 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 32 lru_pgs 942483 cache items 4900 delt
-         kswapd0   421 [000] 103976.627888: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a386700: objects to shrink 0 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942483 cache items 300 delta=20
-         kswapd0   421 [000] 103976.627889: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381700: objects to shrink 6 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942483 cache items 4700 delta
-         kswapd0   421 [000] 103976.627890: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381300: objects to shrink 3 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942483 cache items 600 delta=20
-         kswapd0   421 [000] 103976.627893: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a171058: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 32 lru_pgs 942483 cache items 1 d
-         kswapd0   421 [000] 103976.627895: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a29e658: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 32 lru_pgs 942483 cache items 1 d
-         kswapd0   421 [000] 103976.627897: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011ab17300: objects to shrink 311 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942483 cache items 4900 del
-         kswapd0   421 [000] 103976.627897: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011b3c4d18: objects to shrink 27 gfp_flags GFP_KERNEL=
-GFP_NOTRACK pgs_scanned 32 lru_pgs 942483 cache items 49
-         kswapd0   421 [000] 103976.628108: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011b00d300: objects to shrink 12 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 95 lru_pgs 942483 cache items 1500 delt
-         kswapd0   421 [000] 103976.628110: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a20ab00: objects to shrink 267 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 95 lru_pgs 942483 cache items 5300 del
-         kswapd0   421 [000] 103976.628111: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a892300: objects to shrink 110 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 95 lru_pgs 942483 cache items 2000 del
-         kswapd0   421 [000] 103976.628112: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a893700: objects to shrink 31 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 95 lru_pgs 942483 cache items 4900 delt
-         kswapd0   421 [000] 103976.628113: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a386700: objects to shrink 0 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 95 lru_pgs 942483 cache items 300 delta=20
-         kswapd0   421 [000] 103976.628113: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381700: objects to shrink 6 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 95 lru_pgs 942483 cache items 4700 delta
-         kswapd0   421 [000] 103976.628114: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381300: objects to shrink 3 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 95 lru_pgs 942483 cache items 600 delta=20
-         kswapd0   421 [000] 103976.628115: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a171058: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 95 lru_pgs 942483 cache items 1 d
-         kswapd0   421 [000] 103976.628116: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a29e658: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 95 lru_pgs 942483 cache items 1 d
-         kswapd0   421 [000] 103976.628116: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011ab17300: objects to shrink 311 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 95 lru_pgs 942483 cache items 4900 del
-         kswapd0   421 [000] 103976.628117: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011b3c4d18: objects to shrink 27 gfp_flags GFP_KERNEL=
-GFP_NOTRACK pgs_scanned 95 lru_pgs 942483 cache items 49
-         kswapd0   421 [000] 103976.628161: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011b00d300: objects to shrink 12 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 8 lru_pgs 942483 cache items 1500 delta
-         kswapd0   421 [000] 103976.628163: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a20ab00: objects to shrink 268 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 8 lru_pgs 942483 cache items 5300 delt
-         kswapd0   421 [000] 103976.628163: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a892300: objects to shrink 110 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 8 lru_pgs 942483 cache items 2000 delt
-         kswapd0   421 [000] 103976.628165: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a893700: objects to shrink 31 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 8 lru_pgs 942483 cache items 4900 delta
-         kswapd0   421 [000] 103976.628165: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a386700: objects to shrink 0 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 8 lru_pgs 942483 cache items 300 delta 0
-         kswapd0   421 [000] 103976.628166: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381700: objects to shrink 6 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 8 lru_pgs 942483 cache items 4700 delta=20
-         kswapd0   421 [000] 103976.628167: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381300: objects to shrink 3 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 8 lru_pgs 942483 cache items 600 delta 0
-         kswapd0   421 [000] 103976.628167: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a171058: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 8 lru_pgs 942483 cache items 1 de
-         kswapd0   421 [000] 103976.628168: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a29e658: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 8 lru_pgs 942483 cache items 1 de
-         kswapd0   421 [000] 103976.628169: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011ab17300: objects to shrink 311 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 8 lru_pgs 942483 cache items 4900 delt
-         kswapd0   421 [000] 103976.628169: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011b3c4d18: objects to shrink 27 gfp_flags GFP_KERNEL=
-GFP_NOTRACK pgs_scanned 8 lru_pgs 942483 cache items 493
-         kswapd0   421 [000] 103976.628208: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011b00d300: objects to shrink 12 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 32 lru_pgs 942462 cache items 1500 delt
-         kswapd0   421 [000] 103976.628210: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a20ab00: objects to shrink 268 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942462 cache items 5300 del
-         kswapd0   421 [000] 103976.628210: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a892300: objects to shrink 110 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942462 cache items 2000 del
-         kswapd0   421 [000] 103976.628212: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a893700: objects to shrink 31 gfp_flags GFP_KERNELGFP_NOT=
-RACK pgs_scanned 32 lru_pgs 942462 cache items 4900 delt
-         kswapd0   421 [000] 103976.628212: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a386700: objects to shrink 0 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942462 cache items 300 delta=20
-         kswapd0   421 [000] 103976.628213: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381700: objects to shrink 6 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942462 cache items 4700 delta
-         kswapd0   421 [000] 103976.628214: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011a381300: objects to shrink 3 gfp_flags GFP_KERNELGFP_NOTR=
-ACK pgs_scanned 32 lru_pgs 942462 cache items 600 delta=20
-         kswapd0   421 [000] 103976.628214: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a171058: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 32 lru_pgs 942462 cache items 1 d
-         kswapd0   421 [000] 103976.628215: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011a29e658: objects to shrink 0 gfp_flags GFP_KERNELG=
-FP_NOTRACK pgs_scanned 32 lru_pgs 942462 cache items 1 d
-         kswapd0   421 [000] 103976.628216: mm_shrink_slab_start: prune_sup=
-er+0x0 0xffff88011ab17300: objects to shrink 311 gfp_flags GFP_KERNELGFP_NO=
-TRACK pgs_scanned 32 lru_pgs 942462 cache items 4900 del
-         kswapd0   421 [000] 103976.628216: mm_shrink_slab_start: xfs_bufta=
-rg_shrink+0x0 0xffff88011b3c4d18: objects to shrink 27 gfp_flags GFP_KERNEL=
-GFP_NOTRACK pgs_scanned 32 lru_pgs 942462 cache items 49
+>
+>> - association of a file pointer with each user-buffer and associated
+>> =A0 =A0allocator-defined operations on that buffer. This operation is ca=
+lled the
+>> =A0 =A0'export' operation.
+>
+> =A0'create'? or 'alloc' ?
+>
+> export implies an import somwhere and I don't think that is the case here=
+.
+I will rephrase it as suggested by Rob as well.
 
-And mm_shrink_slab_end:
+>
+>> - this exported buffer-object to be shared with the other entity by aski=
+ng for
+>> =A0 =A0its 'file-descriptor (fd)', and sharing the fd across.
+>> - a received fd to get the buffer object back, where it can be accessed =
+using
+>> =A0 =A0the associated exporter-defined operations.
+>> - the exporter and user to share the scatterlist using map_dma_buf and
+>> =A0 =A0unmap_dma_buf operations.
+>>
+>> Atleast one 'attach()' call is required to be made prior to calling the
+>> map_dma_buf() operation.
+>
+> for the whole memory region or just for the device itself?
+Rob has very eloquently and kindly explained it in his reply.
 
-         kswapd0   421 [000] 104433.026125: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011b00d300: unused scan count 85 new scan count 85 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026133: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a20ab00: unused scan count 265 new scan count 265 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026134: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a892300: unused scan count 217 new scan count 217 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026137: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a893700: unused scan count 421 new scan count 421 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026138: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a386700: unused scan count 0 new scan count 0 total_scan 0 =
-last shrinker return val 0
-         kswapd0   421 [000] 104433.026139: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381700: unused scan count 361 new scan count 361 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026140: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381300: unused scan count 20 new scan count 20 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026143: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a171058: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026144: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a29e658: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026146: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011ab17300: unused scan count 711 new scan count 725 total_sca=
-n 14 last shrinker return val 0
-         kswapd0   421 [000] 104433.026146: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011b3c4d18: unused scan count 50 new scan count 51 tota=
-l_scan 1 last shrinker return val 0
-         kswapd0   421 [000] 104433.026280: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011b00d300: unused scan count 85 new scan count 85 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026282: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a20ab00: unused scan count 265 new scan count 265 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026282: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a892300: unused scan count 217 new scan count 217 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026284: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a893700: unused scan count 421 new scan count 421 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026285: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a386700: unused scan count 0 new scan count 0 total_scan 0 =
-last shrinker return val 0
-         kswapd0   421 [000] 104433.026285: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381700: unused scan count 361 new scan count 361 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026286: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381300: unused scan count 20 new scan count 20 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026287: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a171058: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026287: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a29e658: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026288: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011ab17300: unused scan count 725 new scan count 759 total_sca=
-n 34 last shrinker return val 0
-         kswapd0   421 [000] 104433.026289: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011b3c4d18: unused scan count 51 new scan count 54 tota=
-l_scan 3 last shrinker return val 0
-         kswapd0   421 [000] 104433.026329: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011b00d300: unused scan count 85 new scan count 85 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026331: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a20ab00: unused scan count 265 new scan count 265 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026331: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a892300: unused scan count 217 new scan count 217 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026333: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a893700: unused scan count 421 new scan count 421 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026333: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a386700: unused scan count 0 new scan count 0 total_scan 0 =
-last shrinker return val 0
-         kswapd0   421 [000] 104433.026334: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381700: unused scan count 361 new scan count 361 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026335: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381300: unused scan count 20 new scan count 20 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026335: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a171058: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026336: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a29e658: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026337: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011ab17300: unused scan count 759 new scan count 760 total_sca=
-n 1 last shrinker return val 0
-         kswapd0   421 [000] 104433.026337: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011b3c4d18: unused scan count 54 new scan count 54 tota=
-l_scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026376: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011b00d300: unused scan count 85 new scan count 85 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026378: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a20ab00: unused scan count 265 new scan count 265 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026378: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a892300: unused scan count 217 new scan count 217 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026380: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a893700: unused scan count 421 new scan count 421 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026380: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a386700: unused scan count 0 new scan count 0 total_scan 0 =
-last shrinker return val 0
-         kswapd0   421 [000] 104433.026381: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381700: unused scan count 361 new scan count 361 total_sca=
-n 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026382: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011a381300: unused scan count 20 new scan count 20 total_scan =
-0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026382: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a171058: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026383: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011a29e658: unused scan count 0 new scan count 0 total_=
-scan 0 last shrinker return val 0
-         kswapd0   421 [000] 104433.026384: mm_shrink_slab_end: prune_super=
-+0x0 0xffff88011ab17300: unused scan count 760 new scan count 774 total_sca=
-n 14 last shrinker return val 0
-         kswapd0   421 [000] 104433.026384: mm_shrink_slab_end: xfs_buftarg=
-_shrink+0x0 0xffff88011b3c4d18: unused scan count 54 new scan count 55 tota=
-l_scan 1 last shrinker return val 0
+>
+>>
+<snip>
+>> +/*
+>> + * is_dma_buf_file - Check if struct file* is associated with dma_buf
+>> + */
+>> +static inline int is_dma_buf_file(struct file *file)
+>> +{
+>> + =A0 =A0 return file->f_op =3D=3D &dma_buf_fops;
+>> +}
+>> +
+>> +/**
+>
+> Wrong kerneldoc.
+I looked into scripts/kernel-doc, and
+Documentation/kernel-doc-na-HOWTO.txt =3D> both these places mention
+that the kernel-doc comments have to start with /**, and I couldn't
+spot an error in what's wrong with my usage - would you please
+elaborate on what you think is not right?
+>
+<snip>
+>> +/**
+>> + * struct dma_buf_attachment - holds device-buffer attachment data
+>
+> OK, but what is the purpose of it?
+I will add that in the comments.
+>
+>> + * @dmabuf: buffer for this attachment.
+>> + * @dev: device attached to the buffer.
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0^^^ this
+>> + * @node: list_head to allow manipulation of list of dma_buf_attachment=
+.
+>
+> Just say: "list of dma_buf_attachment"'
+ok.
+>
+>> + * @priv: exporter-specific attachment data.
+>
+> That "exporter-specific.." brings to my mind custom decleration forms. Bu=
+t maybe that is me.
+:) well, in context of dma-buf 'exporter', it makes sense.
 
-  PID USER      S %CPU %MEM    TIME+  COMMAND
- 4438 nowhere   D   27  0.2   0:02.54 dd
-  421 root      S   17  0.0   1:45.79 kswapd0
+>
+>> + */
+>> +struct dma_buf_attachment {
+>> + =A0 =A0 struct dma_buf *dmabuf;
+>> + =A0 =A0 struct device *dev;
+>> + =A0 =A0 struct list_head node;
+>> + =A0 =A0 void *priv;
+>> +};
+>
+> Why don't you move the decleration of this below 'struct dma_buf'?
+> It would easier than to read this structure..
+I could do that, but then anyways I will have to do a
+forward-declaration of dma_buf_attachment, since I have to use it in
+dma_buf_ops. If it improves readability, I am happy to move it below
+struct dma_buf.
 
-Uptime is 1 day,  5:02
+>
+>> +
+>> +/**
+>> + * struct dma_buf_ops - operations possible on struct dma_buf
+>> + * @attach: allows different devices to 'attach' themselves to the give=
+n
+>
+> register?
+>> + * =A0 =A0 =A0 buffer. It might return -EBUSY to signal that backing st=
+orage
+>> + * =A0 =A0 =A0 is already allocated and incompatible with the requireme=
+nts
+>
+> Wait.. allocated or attached?
+This and above comment on 'register' are already answered by Rob in
+his explanation of the sequence in earlier reply. [the Documentation
+patch [2/2] also tries to explain it]
+
+>
+>> + * =A0 =A0 =A0 of requesting device. [optional]
+>
+> What is optional? The return value? Or the 'attach' call? If the later , =
+say
+> that in the first paragraph.
+>
+ok, sure. it is meant for the attach op.
+>
+>> + * @detach: detach a given device from this buffer. [optional]
+>> + * @map_dma_buf: returns list of scatter pages allocated, increases use=
+count
+>> + * =A0 =A0 =A0 =A0 =A0 =A0of the buffer. Requires atleast one attach to=
+ be called
+>> + * =A0 =A0 =A0 =A0 =A0 =A0before. Returned sg list should already be ma=
+pped into
+>> + * =A0 =A0 =A0 =A0 =A0 =A0_device_ address space. This call may sleep. =
+May also return
+>
+> Ok, there is some __might_sleep macro you should put on the function.
+>
+That's a nice suggestion; I will add it to the wrapper function for
+map_dma_buf().
+
+>> + * =A0 =A0 =A0 =A0 =A0 =A0-EINTR.
+>
+> Ok. What is the return code if attach has _not_ been called?
+Will document it to return -EINVAL if atleast on attach() hasn't been calle=
+d.
+
+>
+>> + * @unmap_dma_buf: decreases usecount of buffer, might deallocate scatt=
+er
+>> + * =A0 =A0 =A0 =A0 =A0 =A0 =A0pages.
+>> + * @release: release this buffer; to be called after the last dma_buf_p=
+ut.
+>> + * @sync_sg_for_cpu: sync the sg list for cpu.
+>> + * @sync_sg_for_device: synch the sg list for device.
+>
+> Not seeing those two.
+Oops; removed in v3 - will correct.
+
+>> + */
+<snip>
+>> + =A0 =A0 /* TODO: Add try_map_dma_buf version, to return immed with -EB=
+USY
+>
+> Ewww. Why? Why not just just the 'map_dma_buf' and return that?
+Requirement is to allow for blocking and non-blocking versions of
+map_dma_buf. try_map_dma_buf could be used for the non-blocking
+version.
+
+>
+<snip>
+>> +/**
+>> + * struct dma_buf - shared buffer object
+>
+> Missing the 'size'.
+Will add.
+>
+>> + * @file: file pointer used for sharing buffers across, and for refcoun=
+ting.
+>> + * @attachments: list of dma_buf_attachment that denotes all devices at=
+tached.
+>> + * @ops: dma_buf_ops associated with this buffer object
+>> + * @priv: user specific private data
+>
+>
+> Can you elaborate on this? Is this the "exporter" using this? Or is
+> it for the "user" using it? If so, why provide it? Wouldn't the
+> user of this have something like this:
+>
+> struct my_dma_bufs {
+> =A0 =A0 =A0 =A0struct dma_buf[20];
+> =A0 =A0 =A0 =A0void *priv;
+> }
+>
+> Anyhow?
+My bad - it is meant for the exporter - exporter gives this as one of
+the parameters to 'dma_buf_export()' API. I will correct the comment.
+>
+Thanks for your review!
+Best regards,
+~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
