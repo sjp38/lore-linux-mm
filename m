@@ -1,37 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id A61F46B005A
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 05:00:39 -0500 (EST)
-Received: by mail-vw0-f42.google.com with SMTP id fd1so7275211vbb.15
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 02:00:39 -0800 (PST)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 35FF86B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 05:08:25 -0500 (EST)
+Received: by vcbfo11 with SMTP id fo11so7551384vcb.9
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 02:08:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <201112211727.17104.arnd@arndb.de>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
- <CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com>
- <20111220171437.GC3883@phenom.ffwll.local> <201112211727.17104.arnd@arndb.de>
+In-Reply-To: <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
+References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+ <20111220193117.GD3883@phenom.ffwll.local> <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
 From: "Semwal, Sumit" <sumit.semwal@ti.com>
-Date: Fri, 23 Dec 2011 15:30:18 +0530
-Message-ID: <CAB2ybb_XcwLd8fx+vvditt+MUq2L2+WmsUpxH-gBKsbrVk7jGA@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
- sharing mechanism
+Date: Fri, 23 Dec 2011 15:38:03 +0530
+Message-ID: <CAB2ybb-+VTR=V1hwhF1GKxgkhTrssZ1JVOwcP6spO5O3AXqivA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Daniel Vetter <daniel@ffwll.ch>, Rob Clark <robdclark@gmail.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Dave Airlie <airlied@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, t.stanislaws@samsung.com, patches@linaro.org, daniel@ffwll.ch
 
-On Wed, Dec 21, 2011 at 10:57 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Tuesday 20 December 2011, Daniel Vetter wrote:
->> > I'm thinking for a first version, we can get enough mileage out of it by saying:
->> > 1) only exporter can mmap to userspace
->> > 2) only importers that do not need CPU access to buffer..
-
-Thanks Rob - and the exporter can do the mmap outside of dma-buf
-usage, right? I mean, we don't need to provide an mmap to dma_buf()
-and restrict it to exporter, when the exporter has more 'control' of
-the buffer anyways.
+On Wed, Dec 21, 2011 at 1:50 AM, Dave Airlie <airlied@gmail.com> wrote:
+<snip>
+>>
+>> I think this is a really good v1 version of dma_buf. It contains all the
+>> required bits (with well-specified semantics in the doc patch) to
+>> implement some basic use-cases and start fleshing out the integration with
+>> various subsystem (like drm and v4l). All the things still under
+>> discussion like
+>> - userspace mmap support
+>> - more advanced (and more strictly specified) coherency models
+>> - and shared infrastructure for implementing exporters
+>> are imo much clearer once we have a few example drivers at hand and a
+>> better understanding of some of the insane corner cases we need to be able
+>> to handle.
+>>
+>> And I think any risk that the resulting clarifications will break a basic
+>> use-case is really minimal, so I think it'd be great if this could go into
+>> 3.3 (maybe as some kind of staging/experimental infrastructure).
+>>
+>> Hence for both patches:
+>> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
 >
-BR,
+> Yeah I'm with Daniel, I like this one, I can definitely build the drm
+> buffer sharing layer on top of this.
+>
+> How do we see this getting merged? I'm quite happy to push it to Linus
+> if we don't have an identified path, though it could go via a Linaro
+> tree as well.
+>
+> so feel free to add:
+> Reviewed-by: Dave Airlie <airlied@redhat.com>
+Thanks Daniel and Dave!
+
+I guess we can start with staging for 3.3, and see how it shapes up. I
+will post the latest patch version pretty soon.
+
+Arnd, Dave: do you have any preference on the path it takes to get
+merged? In my mind, Linaro tree might make more sense, but I would
+leave it upto you gentlemen.
+>
+> Dave.
+Best regards,
 ~Sumit.
 
 --
