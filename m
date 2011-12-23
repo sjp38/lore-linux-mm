@@ -1,91 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id E51EA6B004D
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 12:20:07 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so10154909vbb.14
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 09:20:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id B5E8C6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 14:08:28 -0500 (EST)
+Received: by obcwo8 with SMTP id wo8so6938395obc.14
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 11:08:27 -0800 (PST)
+Date: Fri, 23 Dec 2011 11:08:19 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
+ own LRU
+In-Reply-To: <20111220095544.GP3487@suse.de>
+Message-ID: <alpine.LSU.2.00.1112231039030.17640@eggly.anvils>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de> <1323877293-15401-12-git-send-email-mgorman@suse.de> <20111217160822.GA10064@barrios-laptop.redhat.com> <20111219132615.GL3487@suse.de> <20111220071026.GA19025@barrios-laptop.redhat.com>
+ <20111220095544.GP3487@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <CAB2ybb-+VTR=V1hwhF1GKxgkhTrssZ1JVOwcP6spO5O3AXqivA@mail.gmail.com>
-References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
-	<20111220193117.GD3883@phenom.ffwll.local>
-	<CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
-	<CAB2ybb-+VTR=V1hwhF1GKxgkhTrssZ1JVOwcP6spO5O3AXqivA@mail.gmail.com>
-Date: Fri, 23 Dec 2011 11:20:06 -0600
-Message-ID: <CAF6AEGs-Xgi_kmz5oag76=4v20RP5PfAM2-pyt_PyvWizgdW8Q@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
-From: Rob Clark <rob@ti.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Semwal, Sumit" <sumit.semwal@ti.com>
-Cc: Dave Airlie <airlied@gmail.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, t.stanislaws@samsung.com, patches@linaro.org, daniel@ffwll.ch
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 23, 2011 at 4:08 AM, Semwal, Sumit <sumit.semwal@ti.com> wrote:
-> On Wed, Dec 21, 2011 at 1:50 AM, Dave Airlie <airlied@gmail.com> wrote:
-> <snip>
->>>
->>> I think this is a really good v1 version of dma_buf. It contains all th=
-e
->>> required bits (with well-specified semantics in the doc patch) to
->>> implement some basic use-cases and start fleshing out the integration w=
-ith
->>> various subsystem (like drm and v4l). All the things still under
->>> discussion like
->>> - userspace mmap support
->>> - more advanced (and more strictly specified) coherency models
->>> - and shared infrastructure for implementing exporters
->>> are imo much clearer once we have a few example drivers at hand and a
->>> better understanding of some of the insane corner cases we need to be a=
-ble
->>> to handle.
->>>
->>> And I think any risk that the resulting clarifications will break a bas=
-ic
->>> use-case is really minimal, so I think it'd be great if this could go i=
-nto
->>> 3.3 (maybe as some kind of staging/experimental infrastructure).
->>>
->>> Hence for both patches:
->>> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
->>
->> Yeah I'm with Daniel, I like this one, I can definitely build the drm
->> buffer sharing layer on top of this.
->>
->> How do we see this getting merged? I'm quite happy to push it to Linus
->> if we don't have an identified path, though it could go via a Linaro
->> tree as well.
->>
->> so feel free to add:
->> Reviewed-by: Dave Airlie <airlied@redhat.com>
-> Thanks Daniel and Dave!
->
-> I guess we can start with staging for 3.3, and see how it shapes up. I
-> will post the latest patch version pretty soon.
+Sorry, Mel, I've had to revert this patch (and its two little children)
+from my 3.2.0-rc6-next-20111222 testing: you really do need a page flag
+(or substitute) for your "immediate" lru.
 
-not sure about staging, but could make sense to mark as experimental.
+How else can a del_page_from_lru[_list]() know whether to decrement
+the count of the immediate or the inactive list?  page_lru() says to
+decrement the count of the inactive list, so in due course that wraps
+to a gigantic number, and then page reclaim livelocks trying to wring
+pages out of an empty list.  It's the memcg case I've been hitting,
+but presumably the same happens with global counts.
 
-> Arnd, Dave: do you have any preference on the path it takes to get
-> merged? In my mind, Linaro tree might make more sense, but I would
-> leave it upto you gentlemen.
+There is another such accounting bug in -next, been there longer and
+not so easy to hit: I'm fairly sure it will turn out to be memcg
+misaccounting a THPage somewhere, I'll have a look around shortly.
 
-Looks like Dave is making some progress on drm usage of buffer sharing
-between gpu's.. if that is ready to go in at the same time, it might
-be a bit logistically simpler for him to put dmabuf in the same pull
-req.  I don't have strong preference one way or another, so do what is
-collectively simpler ;-)
+Hugh
 
-BR,
--R
-
->>
->> Dave.
-> Best regards,
-> ~Sumit.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-media" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+p.s. Immediate?  Isn't that an odd name for a list of pages which are
+not immediately freeable?  Maybe Rik's launder/laundry name would be
+better: pages which are currently being cleaned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
