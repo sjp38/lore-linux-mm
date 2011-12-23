@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 139116B004D
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 11:35:19 -0500 (EST)
-Date: Fri, 23 Dec 2011 09:35:16 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH 00/14] DMA-mapping framework redesign preparation
-Message-ID: <20111223163516.GO20129@parisc-linux.org>
-References: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id CC7C66B004D
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 12:10:08 -0500 (EST)
+Received: by vcge1 with SMTP id e1so8625670vcg.14
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2011 09:10:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <CAB2ybb_XcwLd8fx+vvditt+MUq2L2+WmsUpxH-gBKsbrVk7jGA@mail.gmail.com>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
+	<CAF6AEGtOjO6Z6yfHz-ZGz3+NuEMH2M-8=20U6+-xt-gv9XtzaQ@mail.gmail.com>
+	<20111220171437.GC3883@phenom.ffwll.local>
+	<201112211727.17104.arnd@arndb.de>
+	<CAB2ybb_XcwLd8fx+vvditt+MUq2L2+WmsUpxH-gBKsbrVk7jGA@mail.gmail.com>
+Date: Fri, 23 Dec 2011 11:10:07 -0600
+Message-ID: <CAF6AEGtGR0-vtfrP4i++kBxb2wGgGzv2MDu-K3CjmhEBXQyDnA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC v2 1/2] dma-buf: Introduce dma buffer
+ sharing mechanism
+From: Rob Clark <robdclark@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+To: "Semwal, Sumit" <sumit.semwal@ti.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Daniel Vetter <daniel@ffwll.ch>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Fri, Dec 23, 2011 at 01:27:19PM +0100, Marek Szyprowski wrote:
-> The first issue we identified is the fact that on some platform (again,
-> mainly ARM) there are several functions for allocating DMA buffers:
-> dma_alloc_coherent, dma_alloc_writecombine and dma_alloc_noncoherent
+On Fri, Dec 23, 2011 at 4:00 AM, Semwal, Sumit <sumit.semwal@ti.com> wrote:
+> On Wed, Dec 21, 2011 at 10:57 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> On Tuesday 20 December 2011, Daniel Vetter wrote:
+>>> > I'm thinking for a first version, we can get enough mileage out of it by saying:
+>>> > 1) only exporter can mmap to userspace
+>>> > 2) only importers that do not need CPU access to buffer..
+>
+> Thanks Rob - and the exporter can do the mmap outside of dma-buf
+> usage, right?
 
-Is this write-combining from the point of view of the device (ie iommu),
-or from the point of view of the CPU, or both?
+Yes
 
-> The next step in dma mapping framework update is the introduction of
-> dma_mmap/dma_mmap_attrs() function. There are a number of drivers
-> (mainly V4L2 and ALSA) that only exports the DMA buffers to user space.
-> Creating a userspace mapping with correct page attributes is not an easy
-> task for the driver. Also the DMA-mapping framework is the only place
-> where the complete information about the allocated pages is available,
-> especially if the implementation uses IOMMU controller to provide a
-> contiguous buffer in DMA address space which is scattered in physical
-> memory space.
+> I mean, we don't need to provide an mmap to dma_buf()
+> and restrict it to exporter, when the exporter has more 'control' of
+> the buffer anyways.
 
-Surely we only need a helper which drivrs can call from their mmap routine to solve this?
+No, if it is only for the exporter, it really doesn't need to be in
+dmabuf (ie. the exporter already knows how he is)
 
-> Usually these drivers don't touch the buffer data at all, so the mapping
-> in kernel virtual address space is not needed. We can introduce
-> DMA_ATTRIB_NO_KERNEL_MAPPING attribute which lets kernel to skip/ignore
-> creation of kernel virtual mapping. This way we can save previous
-> vmalloc area and simply some mapping operation on a few architectures.
+BR,
+-R
 
-I really think this wants to be a separate function.  dma_alloc_coherent
-is for allocating memory to be shared between the kernel and a driver;
-we already have dma_map_sg for mapping userspace I/O as an alternative
-interface.  This feels like it's something different again rather than
-an option to dma_alloc_coherent.
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+>>
+> BR,
+> ~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
