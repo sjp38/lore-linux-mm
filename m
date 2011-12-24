@@ -1,13 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id AD7A96B005A
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id A950E6B004D
 	for <linux-mm@kvack.org>; Fri, 23 Dec 2011 22:00:25 -0500 (EST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH 3/6] memcg: remove unused variable
-Date: Sat, 24 Dec 2011 05:00:16 +0200
-Message-Id: <1324695619-5537-3-git-send-email-kirill@shutemov.name>
-In-Reply-To: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
-References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
+Subject: [PATCH 1/6] memcg: fix unused variable warning
+Date: Sat, 24 Dec 2011 05:00:14 +0200
+Message-Id: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -18,34 +16,37 @@ Cc: linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAW
 
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 
-mm/memcontrol.c: In function a??mc_handle_file_ptea??:
-mm/memcontrol.c:5206:16: warning: variable a??inodea?? set but not used [-Wunused-but-set-variable]
+mm/memcontrol.c: In function a??memcg_check_eventsa??:
+mm/memcontrol.c:784:22: warning: unused variable a??do_numainfoa?? [-Wunused-variable]
 
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- mm/memcontrol.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+ mm/memcontrol.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4bac3a2..627c19e 100644
+index d643bd6..a5e92bd 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5203,7 +5203,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
- 			unsigned long addr, pte_t ptent, swp_entry_t *entry)
- {
- 	struct page *page = NULL;
--	struct inode *inode;
- 	struct address_space *mapping;
- 	pgoff_t pgoff;
+@@ -781,14 +781,15 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 	/* threshold event is triggered in finer grain than soft limit */
+ 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_THRESH))) {
+-		bool do_softlimit, do_numainfo;
++		bool do_softlimit;
  
-@@ -5212,7 +5211,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
- 	if (!move_file())
- 		return NULL;
+-		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+-						MEM_CGROUP_TARGET_SOFTLIMIT);
+ #if MAX_NUMNODES > 1
++		bool do_numainfo;
+ 		do_numainfo = mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_NUMAINFO);
+ #endif
++		do_softlimit = mem_cgroup_event_ratelimit(memcg,
++						MEM_CGROUP_TARGET_SOFTLIMIT);
+ 		preempt_enable();
  
--	inode = vma->vm_file->f_path.dentry->d_inode;
- 	mapping = vma->vm_file->f_mapping;
- 	if (pte_none(ptent))
- 		pgoff = linear_page_index(vma, addr);
+ 		mem_cgroup_threshold(memcg);
 -- 
 1.7.7.3
 
