@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id A69D96B004F
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2011 15:46:03 -0500 (EST)
-Message-ID: <4EF78B85.6070909@parallels.com>
-Date: Mon, 26 Dec 2011 00:45:57 +0400
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id DF6E66B005A
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2011 15:46:24 -0500 (EST)
+Message-ID: <4EF78B99.1020109@parallels.com>
+Date: Mon, 26 Dec 2011 00:46:17 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3] mincore: Introduce named constant for existing bit
+Subject: [PATCH 2/3] mincore: Introduce the MINCORE_ANON bit
 References: <4EF78B6A.8020904@parallels.com>
 In-Reply-To: <4EF78B6A.8020904@parallels.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -15,89 +15,75 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+When creating a memory dump of a running application it is better to have
+the smallest possible set of pages. Using the existing mincore() bit helps,
+but not much -- it repotes pages from page cache, which have not necessarily
+being mapped by an application, and pages from private file mappings, that
+are not yet being cow-ed and thus their contents doesn't differ from file.
+
+Introduce the 2nd bit of mincore, that reports whether a page is not backed
+by a file on disk. I.e. all pages from anonymous mappings and those pages
+from private file mappings, that have already being cow-ed by write.
 
 Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
 ---
- include/linux/mman.h |    2 ++
- mm/huge_memory.c     |    2 +-
- mm/mincore.c         |   10 +++++-----
- 3 files changed, 8 insertions(+), 6 deletions(-)
+ include/linux/mman.h |    1 +
+ mm/mincore.c         |   15 +++++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 8b74e9b..e4fda1e 100644
+index e4fda1e..9d1de16 100644
 --- a/include/linux/mman.h
 +++ b/include/linux/mman.h
-@@ -10,6 +10,8 @@
- #define OVERCOMMIT_ALWAYS		1
+@@ -11,6 +11,7 @@
  #define OVERCOMMIT_NEVER		2
  
-+#define MINCORE_RESIDENT	0x1
-+
+ #define MINCORE_RESIDENT	0x1
++#define MINCORE_ANON		0x2
+ 
  #ifdef __KERNEL__
  #include <linux/mm.h>
- #include <linux/percpu_counter.h>
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 36b3d98..4f87067 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1045,7 +1045,7 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			 * All logical pages in the range are present
- 			 * if backed by a huge page.
- 			 */
--			memset(vec, 1, (end - addr) >> PAGE_SHIFT);
-+			memset(vec, MINCORE_RESIDENT, (end - addr) >> PAGE_SHIFT);
- 		}
- 	} else
- 		spin_unlock(&vma->vm_mm->page_table_lock);
 diff --git a/mm/mincore.c b/mm/mincore.c
-index 636a868..b719cdd 100644
+index b719cdd..3163dfb 100644
 --- a/mm/mincore.c
 +++ b/mm/mincore.c
 @@ -38,7 +38,7 @@ static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
  				       addr & huge_page_mask(h));
  		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
  		while (1) {
--			*vec = present;
-+			*vec = (present ? MINCORE_RESIDENT : 0);
+-			*vec = (present ? MINCORE_RESIDENT : 0);
++			*vec = (present ? MINCORE_RESIDENT : 0) | MINCORE_ANON;
  			vec++;
  			addr += PAGE_SIZE;
  			if (addr == end)
-@@ -83,7 +83,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 		page_cache_release(page);
- 	}
- 
--	return present;
-+	return present ? MINCORE_RESIDENT : 0;
+@@ -86,6 +86,17 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 	return present ? MINCORE_RESIDENT : 0;
  }
  
++static unsigned char mincore_pte(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
++{
++	struct page *pg;
++
++	pg = vm_normal_page(vma, addr, pte);
++	if (!pg)
++		return 0;
++	else
++		return PageAnon(pg) ? MINCORE_ANON : 0;
++}
++
  static void mincore_unmapped_range(struct vm_area_struct *vma,
-@@ -122,7 +122,7 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 				unsigned long addr, unsigned long end,
+ 				unsigned char *vec)
+@@ -122,7 +133,7 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
  		if (pte_none(pte))
  			mincore_unmapped_range(vma, addr, next, vec);
  		else if (pte_present(pte))
--			*vec = 1;
-+			*vec = MINCORE_RESIDENT;
+-			*vec = MINCORE_RESIDENT;
++			*vec = MINCORE_RESIDENT | mincore_pte(vma, addr, pte);
  		else if (pte_file(pte)) {
  			pgoff = pte_to_pgoff(pte);
  			*vec = mincore_page(vma->vm_file->f_mapping, pgoff);
-@@ -131,14 +131,14 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 			if (is_migration_entry(entry)) {
- 				/* migration entries are always uptodate */
--				*vec = 1;
-+				*vec = MINCORE_RESIDENT;
- 			} else {
- #ifdef CONFIG_SWAP
- 				pgoff = entry.val;
- 				*vec = mincore_page(&swapper_space, pgoff);
- #else
- 				WARN_ON(1);
--				*vec = 1;
-+				*vec = MINCORE_RESIDENT;
- #endif
- 			}
- 		}
 -- 
 1.5.5.6
 
