@@ -1,59 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 439176B004F
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2011 15:46:41 -0500 (EST)
-Message-ID: <4EF78BAB.9030508@parallels.com>
-Date: Mon, 26 Dec 2011 00:46:35 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 3FC536B004F
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2011 19:05:30 -0500 (EST)
+Received: by yhgm50 with SMTP id m50so6365395yhg.14
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2011 16:05:29 -0800 (PST)
 MIME-Version: 1.0
-Subject: [PATCH 3/3] mincore: Introduce the MINCORE_SWAP bit
-References: <4EF78B6A.8020904@parallels.com>
-In-Reply-To: <4EF78B6A.8020904@parallels.com>
+In-Reply-To: <4EF78B99.1020109@parallels.com>
+References: <4EF78B6A.8020904@parallels.com> <4EF78B99.1020109@parallels.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sun, 25 Dec 2011 19:05:08 -0500
+Message-ID: <CAHGf_=r5mmUJUaQLKgrY1rf9Qx0gO0hEJaHFehm5Zz7ZKMYUkQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mincore: Introduce the MINCORE_ANON bit
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-When a page is swapped out it should be included in the memory dump,
-but the existing mincore() doesn't report the set bit for such pages.
+> +static unsigned char mincore_pte(struct vm_area_struct *vma, unsigned lo=
+ng addr, pte_t pte)
+> +{
+> + =A0 =A0 =A0 struct page *pg;
+> +
+> + =A0 =A0 =A0 pg =3D vm_normal_page(vma, addr, pte);
+> + =A0 =A0 =A0 if (!pg)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+> + =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return PageAnon(pg) ? MINCORE_ANON : 0;
+> +}
+> +
 
-Thus add a bit for swapped out pages.
-
-Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
-
----
- include/linux/mman.h |    1 +
- mm/mincore.c         |    2 +-
- 2 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 9d1de16..bfe4038 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -12,6 +12,7 @@
- 
- #define MINCORE_RESIDENT	0x1
- #define MINCORE_ANON		0x2
-+#define MINCORE_SWAP		0x4
- 
- #ifdef __KERNEL__
- #include <linux/mm.h>
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 3163dfb..82c5c3e 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -146,7 +146,7 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			} else {
- #ifdef CONFIG_SWAP
- 				pgoff = entry.val;
--				*vec = mincore_page(&swapper_space, pgoff);
-+				*vec = mincore_page(&swapper_space, pgoff) | MINCORE_SWAP;
- #else
- 				WARN_ON(1);
- 				*vec = MINCORE_RESIDENT;
--- 
-1.5.5.6
+How do your program handle tmpfs pages (and/or ram device pages)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
