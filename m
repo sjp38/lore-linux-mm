@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id D13366B004F
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 07:35:48 -0500 (EST)
-Received: by werf1 with SMTP id f1so6832249wer.14
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2011 04:35:47 -0800 (PST)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 256716B004F
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 11:07:49 -0500 (EST)
+Message-ID: <4EF89BCB.8070306@parallels.com>
+Date: Mon, 26 Dec 2011 20:07:39 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1324808519.29243.8.camel@hakkenden.homenet>
-References: <1324437036.4677.5.camel@hakkenden.homenet>
-	<20111221095249.GA28474@tiehlicka.suse.cz>
-	<20111221225512.GG23662@dastard>
-	<1324630880.562.6.camel@rybalov.eng.ttk.net>
-	<20111223102027.GB12731@dastard>
-	<1324638242.562.15.camel@rybalov.eng.ttk.net>
-	<20111223204503.GC12731@dastard>
-	<CAJd=RBDa4LT1gbh6zPx+bzoOtSUeX=puJe6DVC-WyKoF4nw-dg@mail.gmail.com>
-	<1324808519.29243.8.camel@hakkenden.homenet>
-Date: Mon, 26 Dec 2011 20:35:46 +0800
-Message-ID: <CAJd=RBAyw2rapPPhYFYKxyjEQ-EAG2j_UCP-4A6Uk5GSP5LE6A@mail.gmail.com>
-Subject: Re: Kswapd in 3.2.0-rc5 is a CPU hog
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 2/3] mincore: Introduce the MINCORE_ANON bit
+References: <4EF78B6A.8020904@parallels.com> <4EF78B99.1020109@parallels.com> <CAHGf_=r5mmUJUaQLKgrY1rf9Qx0gO0hEJaHFehm5Zz7ZKMYUkQ@mail.gmail.com>
+In-Reply-To: <CAHGf_=r5mmUJUaQLKgrY1rf9Qx0gO0hEJaHFehm5Zz7ZKMYUkQ@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Nikolay S." <nowhere@hakkenden.ath.cx>
-Cc: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sun, Dec 25, 2011 at 6:21 PM, Nikolay S. <nowhere@hakkenden.ath.cx> wrote:
->
-> Uhm.., is this patch against 3.2-rc4? I can not apply it. There's no
-> mem_cgroup_lru_del_list(), but void mem_cgroup_del_lru_list(). Should I
-> place changes there?
->
-> And also, -rc7 is here. May the problem be addressed as part of some
-> ongoing work? Is there any reason to try -rc7 (the problem requires
-> several days of uptime to become obvious)?
->
+On 12/26/2011 04:05 AM, KOSAKI Motohiro wrote:
+>> +static unsigned char mincore_pte(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+>> +{
+>> +       struct page *pg;
+>> +
+>> +       pg = vm_normal_page(vma, addr, pte);
+>> +       if (!pg)
+>> +               return 0;
+>> +       else
+>> +               return PageAnon(pg) ? MINCORE_ANON : 0;
+>> +}
+>> +
+> 
+> How do your program handle tmpfs pages (and/or ram device pages)?
+> .
 
-Sorry, Nikolay, it is not based on the -next, nor on the -rc5(I assumed it was).
-The following is based on -next, and if you want to test -rc5, please
-grep MEM_CGROUP_ZSTAT mm/memcontrol.c and change it.
+Do you mean mapped files from tmpfs? Currently just any other file.
+Do you see problems with this patch wrt tmpfs?
 
-Best regard
-
-Hillf
----
-
---- a/mm/memcontrol.c	Mon Dec 26 20:34:38 2011
-+++ b/mm/memcontrol.c	Mon Dec 26 20:37:54 2011
-@@ -1076,7 +1076,11 @@ void mem_cgroup_lru_del_list(struct page
- 	VM_BUG_ON(!memcg);
- 	mz = page_cgroup_zoneinfo(memcg, page);
- 	/* huge page split is done under lru_lock. so, we have no races. */
--	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
-+	if (WARN_ON_ONCE(MEM_CGROUP_ZSTAT(mz, lru) <
-+				(1 << compound_order(page))))
-+		MEM_CGROUP_ZSTAT(mz, lru) = 0;
-+	else
-+		MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
- }
-
- void mem_cgroup_lru_del(struct page *page)
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
