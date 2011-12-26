@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id A230F6B005D
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 04:24:26 -0500 (EST)
-From: Sumit Semwal <sumit.semwal@ti.com>
-Subject: [PATCH 3/3] dma-buf: mark EXPERIMENTAL for 1st release.
-Date: Mon, 26 Dec 2011 14:53:17 +0530
-Message-ID: <1324891397-10877-4-git-send-email-sumit.semwal@ti.com>
-In-Reply-To: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
-References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 993346B004F
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 04:45:09 -0500 (EST)
+Received: by iacb35 with SMTP id b35so21958347iac.14
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2011 01:45:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20111223141619.GA19720@x61.redhat.com>
+References: <20111223141619.GA19720@x61.redhat.com>
+Date: Mon, 26 Dec 2011 18:45:08 +0900
+Message-ID: <CAEwNFnBYVvqQO6Q2wUoUcpy0FdtVrD1A6R=hVK0=VpNKDzubzQ@mail.gmail.com>
+Subject: Re: [PATCH] tracing: adjust shrink_slab beginning trace event name
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com
-Cc: linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, patches@linaro.org, Sumit Semwal <sumit.semwal@ti.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Mark dma-buf buffer sharing API as EXPERIMENTAL for first release.
-We will remove this in later versions, once it gets smoothed out
-and has more users.
+On Fri, Dec 23, 2011 at 11:16 PM, Rafael Aquini <aquini@redhat.com> wrote:
+> While reviewing vmscan tracing events, I realized all functions which est=
+ablish paired tracepoints (one at the beginning and another at the end of t=
+he function block) were following this naming pattern:
+> =C2=A0<tracepoint-name>_begin
+> =C2=A0<tarcepoint-name>_end
+>
+> However, the 'beginning' tracing event for shrink_slab() did not follow t=
+he aforementioned naming pattern. This patch renames that trace event to ad=
+just this naming inconsistency.
+>
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
----
- drivers/base/Kconfig |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 8a0e87f..e95c67e 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -178,6 +178,7 @@ config DMA_SHARED_BUFFER
- 	bool "Buffer framework to be shared between drivers"
- 	default n
- 	select ANON_INODES
-+	depends on EXPERIMENTAL
- 	help
- 	  This option enables the framework for buffer-sharing between
- 	  multiple drivers. A buffer is associated with a file using driver
--- 
-1.7.5.4
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
