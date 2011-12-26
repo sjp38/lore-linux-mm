@@ -1,92 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 037546B004F
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 01:51:21 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 84B9E3EE0C3
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 15:51:20 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B5DC45DE58
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 15:51:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 501A545DE3E
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 15:51:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 440201DB8049
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 15:51:20 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EB7481DB8045
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 15:51:19 +0900 (JST)
-Date: Mon, 26 Dec 2011 15:50:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/6] memcg: fix unused variable warning
-Message-Id: <20111226155008.9ab21c6f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20111226064734.GA13355@shutemov.name>
-References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
-	<20111226152531.e0335ec4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111226063652.GA13273@shutemov.name>
-	<20111226154252.d3621532.kamezawa.hiroyu@jp.fujitsu.com>
-	<20111226064734.GA13355@shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 545C16B004F
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 01:52:07 -0500 (EST)
+Received: by vbih1 with SMTP id h1so847457vbi.26
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2011 22:52:06 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAF6AEGs-Xgi_kmz5oag76=4v20RP5PfAM2-pyt_PyvWizgdW8Q@mail.gmail.com>
+References: <1324283611-18344-1-git-send-email-sumit.semwal@ti.com>
+ <20111220193117.GD3883@phenom.ffwll.local> <CAPM=9tzi5MyCBMJhWBM_ouL=QOaxX3K6KZ8K+t7dUYJLQrF+yA@mail.gmail.com>
+ <CAB2ybb-+VTR=V1hwhF1GKxgkhTrssZ1JVOwcP6spO5O3AXqivA@mail.gmail.com> <CAF6AEGs-Xgi_kmz5oag76=4v20RP5PfAM2-pyt_PyvWizgdW8Q@mail.gmail.com>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Mon, 26 Dec 2011 12:21:45 +0530
+Message-ID: <CAB2ybb-iAN_GPoUkPaEgUyhZmm9mZfoC9cf6oeaPehhCnHGu4g@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC v3 0/2] Introduce DMA buffer sharing mechanism
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Rob Clark <rob@ti.com>
+Cc: Dave Airlie <airlied@gmail.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, t.stanislaws@samsung.com, patches@linaro.org, daniel@ffwll.ch
 
-On Mon, 26 Dec 2011 08:47:34 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Mon, Dec 26, 2011 at 03:42:52PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 26 Dec 2011 08:36:52 +0200
-> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> > 
-> > > On Mon, Dec 26, 2011 at 03:25:31PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > On Sat, 24 Dec 2011 05:00:14 +0200
-> > > > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> > > > 
-> > > > > From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> > > > > 
-> > > > > mm/memcontrol.c: In function ‘memcg_check_events’:
-> > > > > mm/memcontrol.c:784:22: warning: unused variable ‘do_numainfo’ [-Wunused-variable]
-> > > > > 
-> > > > > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> > > > 
-> > > > Hmm ? Doesn't this fix cause a new Warning ?
-> > > > 
-> > > > mm/memcontrol.c: In function ?memcg_check_events?:
-> > > > mm/memcontrol.c:789: warning: ISO C90 forbids mixed declarations and code
-> > > 
-> > > I don't see how. The result code is:
-> > > 
-> > > 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
-> > > 						MEM_CGROUP_TARGET_THRESH))) {
-> > > 		bool do_softlimit;
-> > > 
-> > > #if MAX_NUMNODES > 1
-> > > 		bool do_numainfo;
-> > > 		do_numainfo = mem_cgroup_event_ratelimit(memcg,
-> > > 						MEM_CGROUP_TARGET_NUMAINFO);
-> > > #endif
-> > > 		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> > > 						MEM_CGROUP_TARGET_SOFTLIMIT);
-> > > 		preempt_enable();
-> > > 
-> > > 		mem_cgroup_threshold(memcg);
-> > > 
-> > 
-> > Ah. please see linux-next and rebase onto that.
-> 
-> The patchset is on top of next-20111222. Have I missed something?
-> 
-Ah, ok. my mistake. Sorry.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-
-
+On Fri, Dec 23, 2011 at 10:50 PM, Rob Clark <rob@ti.com> wrote:
+> On Fri, Dec 23, 2011 at 4:08 AM, Semwal, Sumit <sumit.semwal@ti.com> wrot=
+e:
+>> On Wed, Dec 21, 2011 at 1:50 AM, Dave Airlie <airlied@gmail.com> wrote:
+>> <snip>
+>>>>
+>>>> Hence for both patches:
+>>>> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+>>>
+>>> Yeah I'm with Daniel, I like this one, I can definitely build the drm
+>>> buffer sharing layer on top of this.
+>>>
+>>> How do we see this getting merged? I'm quite happy to push it to Linus
+>>> if we don't have an identified path, though it could go via a Linaro
+>>> tree as well.
+>>>
+>>> so feel free to add:
+>>> Reviewed-by: Dave Airlie <airlied@redhat.com>
+>> Thanks Daniel and Dave!
+>>
+>> I guess we can start with staging for 3.3, and see how it shapes up. I
+>> will post the latest patch version pretty soon.
+>
+> not sure about staging, but could make sense to mark as experimental.
+Thanks, I will mark it experimental for the first version; we can
+remove that once it is more widely used and tested.
+>
+>> Arnd, Dave: do you have any preference on the path it takes to get
+>> merged? In my mind, Linaro tree might make more sense, but I would
+>> leave it upto you gentlemen.
+>
+> Looks like Dave is making some progress on drm usage of buffer sharing
+> between gpu's.. if that is ready to go in at the same time, it might
+> be a bit logistically simpler for him to put dmabuf in the same pull
+> req. =A0I don't have strong preference one way or another, so do what is
+> collectively simpler ;-)
+:) Right - I am quite happy for it to get merged in either ways :)
+>
+> BR,
+> -R
+Best regards,
+~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
