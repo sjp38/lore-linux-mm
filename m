@@ -1,77 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id B90236B004D
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 18:43:53 -0500 (EST)
-Date: Tue, 27 Dec 2011 15:43:52 -0800
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id BB4846B004D
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 18:51:33 -0500 (EST)
+Date: Tue, 27 Dec 2011 15:51:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: hugetlb: fix non-atomic enqueue of huge page
-Message-Id: <20111227154352.0595b3a8.akpm@linux-foundation.org>
-In-Reply-To: <CAJd=RBB-d19=Z0og0i5OrbUVCQFozaqMbVs9Fzw23j=-EFc+DQ@mail.gmail.com>
-References: <CAJd=RBB-d19=Z0og0i5OrbUVCQFozaqMbVs9Fzw23j=-EFc+DQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
+Message-Id: <20111227155132.d64fd6d8.akpm@linux-foundation.org>
+In-Reply-To: <20111227125701.GG5344@tiehlicka.suse.cz>
+References: <CAJd=RBCS3-PoFa3FUVwhiznPTQH5xq7fTYa3m01a0-buACQbCA@mail.gmail.com>
+	<20111227125701.GG5344@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Fri, 23 Dec 2011 21:35:25 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
+On Tue, 27 Dec 2011 13:57:01 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> From: Hillf Danton <dhillf@gmail.com>
-> Subject: [PATCH] mm: hugetlb: fix non-atomic enqueue of huge page
+> On Fri 23-12-11 21:38:38, Hillf Danton wrote:
+> > From: Hillf Danton <dhillf@gmail.com>
+> > Subject: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
+> > 
+> > If we have to hand back the newly allocated huge page to page allocator,
+> > for any reason, the changed counter should be recovered.
+> > 
+> > Cc: Michal Hocko <mhocko@suse.cz>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Hillf Danton <dhillf@gmail.com>
 > 
-> If huge page is enqueued under the protection of hugetlb_lock, then
-> the operation is atomic and safe.
-> 
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
-> 
-> --- a/mm/hugetlb.c	Tue Dec 20 21:26:30 2011
-> +++ b/mm/hugetlb.c	Fri Dec 23 21:16:28 2011
-> @@ -901,7 +901,6 @@ retry:
->  	h->resv_huge_pages += delta;
->  	ret = 0;
-> 
-> -	spin_unlock(&hugetlb_lock);
->  	/* Free the needed pages to the hugetlb pool */
->  	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
->  		if ((--needed) < 0)
-> @@ -915,6 +914,7 @@ retry:
->  		VM_BUG_ON(page_count(page));
->  		enqueue_huge_page(h, page);
->  	}
-> +	spin_unlock(&hugetlb_lock);
-> 
->  	/* Free unnecessary surplus pages to the buddy allocator */
+> Broken since 2.6.27 (caff3a2c: hugetlb: call arch_prepare_hugepage() for
+> surplus pages) so a stable material
 
-btw,
+afacit only s390 is affected, and s390's page_table_alloc() is fairly
+immortal, using GFP_KERNEL|__GFP_REPEAT.
 
-	/* Free the needed pages to the hugetlb pool */
-	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-		if ((--needed) < 0)
-			break;
-		list_del(&page->lru);
-		/*
-		 * This page is now managed by the hugetlb allocator and has
-		 * no users -- drop the buddy allocator's reference.
-		 */
-		put_page_testzero(page);
-		VM_BUG_ON(page_count(page));
-		enqueue_huge_page(h, page);
-	}
-	spin_unlock(&hugetlb_lock);
-
-
-That VM_BUG_ON() largely duplicates the one in put_page_testzero().
-
-(Putting a VM_BUG_ON() in put_page_testzero() was pretty expensive,
-too.  I wonder how many people are enabling VM_BUG_ON()?  We should be
-sparing in using these things)
+So unless Martin and Heiko disagree, I think we can merge this in 3.3-rc1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
