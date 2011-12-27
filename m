@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 395AA6B004F
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 23:45:40 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 570483EE0C0
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:45:38 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3025645DE52
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:45:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 12C8C45DE4E
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:45:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 02E531DB8040
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:45:38 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A70B51DB8037
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:45:37 +0900 (JST)
-Date: Tue, 27 Dec 2011 13:44:05 +0900
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C40B16B004F
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2011 23:58:14 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C5C153EE0BC
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:58:12 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A774345DF58
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:58:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 903F445DF54
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:58:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 774781DB8044
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:58:12 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CA481DB802C
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 13:58:12 +0900 (JST)
+Date: Tue, 27 Dec 2011 13:56:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: Kswapd in 3.2.0-rc5 is a CPU hog
-Message-Id: <20111227134405.9902dcbb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1324954208.4634.2.camel@hakkenden.homenet>
+Message-Id: <20111227135658.08c8016a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20111227035730.GA22840@barrios-laptop.redhat.com>
 References: <1324437036.4677.5.camel@hakkenden.homenet>
 	<20111221095249.GA28474@tiehlicka.suse.cz>
 	<20111221225512.GG23662@dastard>
@@ -30,19 +30,19 @@ References: <1324437036.4677.5.camel@hakkenden.homenet>
 	<1324638242.562.15.camel@rybalov.eng.ttk.net>
 	<20111223204503.GC12731@dastard>
 	<20111227111543.5e486eb7.kamezawa.hiroyu@jp.fujitsu.com>
-	<1324954208.4634.2.camel@hakkenden.homenet>
+	<20111227035730.GA22840@barrios-laptop.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Nikolay S." <nowhere@hakkenden.ath.cx>
-Cc: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, nowhere <nowhere@hakkenden.ath.cx>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 27 Dec 2011 06:50:08 +0400
-"Nikolay S." <nowhere@hakkenden.ath.cx> wrote:
+On Tue, 27 Dec 2011 12:57:31 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-> В Вт., 27/12/2011 в 11:15 +0900, KAMEZAWA Hiroyuki пишет:
+> On Tue, Dec 27, 2011 at 11:15:43AM +0900, KAMEZAWA Hiroyuki wrote:
 > > On Sat, 24 Dec 2011 07:45:03 +1100
 > > Dave Chinner <david@fromorbit.com> wrote:
 > > 
@@ -89,80 +89,67 @@ On Tue, 27 Dec 2011 06:50:08 +0400
 > > >
 > >  
 > > Can you show /proc/zoneinfo ? I want to know each zone's size.
+> > 
+> > Below is my memo.
+> > 
+> > In trace log, priority = 11 or 12. Then, I think kswapd can reclaim memory
+> > to satisfy "sc.nr_reclaimed >= SWAP_CLUSTER_MAX" condition and loops again.
+> > 
+> > Seeing balance_pgdat() and trace log, I guess it does
+> > 
+> > 	wake up
+> > 
+> > 	shrink_zone(zone=0(DMA?))     => nothing to reclaim.
+> > 		shrink_slab()
+> > 	shrink_zone(zone=1(DMA32?))   => reclaim 32,32,31 pages 
+> > 		shrink_slab()
+> > 	shrink_zone(zone=2(NORMAL?))  => reclaim 13 pages. 
+> > 		srhink_slab()
+> > 
+> > 	sleep or retry.
+> > 
+> > Why shrink_slab() need to be called frequently like this ?
+> 
+> I guess it's caused by small NORMAL zone.
+
+You're right. I confirmed his zoneinfo.
+
+> The scenario I think is as follows,
+> 
+> 1. dd comsumes memory in NORMAL zone
+> 2. dd enter direct reclaim and wakeup kswapd
+> 3. kswapd reclaims some memory in NORMAL zone until it reclaims high wamrk
+> 4. schedule
+> 5. dd consumes memory again in NORMAL zone
+> 6. kswapd fail to reclaim memory by high watermark due to 5.
+> 7. loop again, goto 3.
+> 
+> The point is speed between reclaim VS memory consumption.
+> So kswapd cannot reach a point which enough pages are in NORMAL zone.
+> 
+> > 
+> > BTW. I'm sorry if I miss something ...Why only kswapd reclaims memory
+> > while 'dd' operation ? (no direct relcaim by dd.)
+> > Is this log record cpu hog after 'dd' ?
+> 
+> If above scenario is right, dd couldn't enter direct reclaim to reclaim memory.
 > 
 
-Thanks, 
-Qeustion:
- 1. does this system has no swap ?
- 2. What version of kernel which you didn't see the kswapd issue ?
- 3. Is this real host ? or virtualized ?
+I think you're right. IIUC, kswapd's behavior is what we usually see.
 
+Hmm, if I understand correctly,
 
-> $ cat /proc/zoneinfo 
-...
-Node 0, zone    DMA32
-  pages free     19620
-        min      14715
-        low      18393
-        high     22072
-        scanned  0
-        spanned  1044480
-        present  896960
-    nr_free_pages 19620
-    nr_inactive_anon 43203
-    nr_active_anon 206577
-    nr_inactive_file 412249
-    nr_active_file 126151
+ - dd's speed down is caused by kswapd's cpu consumption.
+ - kswapd's cpu consumption is enlarged by shrink_slab() (by perf)
+ - kswapd can't stop because NORMAL zone is small.
+ - memory reclaim speed is enough because dd can't get enough cpu.
 
-Then, DMA32(zone=1) files are enough large (> 32 << 12)
-Hmm. assuming all frees are used for file(of dd)
+I wonder reducing to call shrink_slab() may be a help but I'm not sure
+where lock conention comes from...
 
-
-(412249 + 126151 + 19620) >> 12 = 136
-
-So, 32, 32, 30 scan seems to work as desgined.
-
-> Node 0, zone   Normal
->   pages free     2854
->         min      2116
->         low      2645
->         high     3174
->         scanned  0
->         spanned  131072
->         present  129024
->     nr_free_pages 2854
->     nr_inactive_anon 20682
->     nr_active_anon 10262
->     nr_inactive_file 47083
->     nr_active_file 11292
-
-Hmm, NORMAL is much smaller than DMA32. (only 500MB.)
-
-Then, at priority=12,
-
-  13 << 12 = 53248
-
-13 pages per a scan seems to work as designed.
-To me,  it seems kswapd does usual work...reclaim small memory until free
-gets enough. And it seems 'dd' allocates its memory from ZONE_DMA32 because
-of gfp_t fallbacks.
-
-
-Memo.
-
-1. why shrink_slab() should be called per zone, which is not zone aware.
-   Isn't it enough to call it per priority ?
-
-2. what spinlock contention that perf showed ?
-   And if shrink_slab() doesn't consume cpu as trace shows, why perf 
-   says shrink_slab() is heavy..
-
-3. because 8/9 of memory is in DMA32, calling shrink_slab() frequently
-   at scanning NORMAL seems to be time wasting.
- 
-
-Thanks,
+Regards,
 -Kame
+
 
 
 
