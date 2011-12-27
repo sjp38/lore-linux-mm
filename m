@@ -1,62 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 920736B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 08:58:00 -0500 (EST)
-Date: Tue, 27 Dec 2011 14:57:52 +0100
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id C4DF26B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:05:18 -0500 (EST)
+Date: Tue, 27 Dec 2011 15:05:15 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] Makefiles: Disable unused-variable warning (was: Re: [PATCH
- 1/6] memcg: fix unused variable warning)
-Message-ID: <20111227135752.GK5344@tiehlicka.suse.cz>
+Subject: Re: [PATCH 2/6] memcg: mark more functions/variables as static
+Message-ID: <20111227140515.GL5344@tiehlicka.suse.cz>
 References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
+ <1324695619-5537-2-git-send-email-kirill@shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
+In-Reply-To: <1324695619-5537-2-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Marek <mmarek@suse.cz>, linux-kbuild@vger.kernel.org
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat 24-12-11 05:00:14, Kirill A. Shutemov wrote:
+On Sat 24-12-11 05:00:15, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill@shutemov.name>
 > 
-> mm/memcontrol.c: In function a??memcg_check_eventsa??:
-> mm/memcontrol.c:784:22: warning: unused variable a??do_numainfoa?? [-Wunused-variable]
+> Based on sparse output.
 > 
 > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+
+Looks good.
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks
 > ---
->  mm/memcontrol.c |    7 ++++---
->  1 files changed, 4 insertions(+), 3 deletions(-)
+>  mm/memcontrol.c |   12 ++++++------
+>  1 files changed, 6 insertions(+), 6 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d643bd6..a5e92bd 100644
+> index a5e92bd..4bac3a2 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -781,14 +781,15 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->  	/* threshold event is triggered in finer grain than soft limit */
->  	if (unlikely(mem_cgroup_event_ratelimit(memcg,
->  						MEM_CGROUP_TARGET_THRESH))) {
-> -		bool do_softlimit, do_numainfo;
-> +		bool do_softlimit;
+> @@ -59,7 +59,7 @@
 >  
-> -		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> -						MEM_CGROUP_TARGET_SOFTLIMIT);
->  #if MAX_NUMNODES > 1
-> +		bool do_numainfo;
->  		do_numainfo = mem_cgroup_event_ratelimit(memcg,
->  						MEM_CGROUP_TARGET_NUMAINFO);
->  #endif
-> +		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> +						MEM_CGROUP_TARGET_SOFTLIMIT);
+>  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+>  #define MEM_CGROUP_RECLAIM_RETRIES	5
+> -struct mem_cgroup *root_mem_cgroup __read_mostly;
+> +static struct mem_cgroup *root_mem_cgroup __read_mostly;
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+> @@ -1573,7 +1573,7 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+>   * unused nodes. But scan_nodes is lazily updated and may not cotain
+>   * enough new information. We need to do double check.
+>   */
+> -bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+> +static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+>  {
+>  	int nid;
+>  
+> @@ -1608,7 +1608,7 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+>  	return 0;
+>  }
+>  
+> -bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+> +static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+>  {
+>  	return test_mem_cgroup_node_reclaimable(memcg, 0, noswap);
+>  }
+> @@ -1782,7 +1782,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+>  /*
+>   * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+>   */
+> -bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
+> +static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
+>  {
+>  	struct oom_wait_info owait;
+>  	bool locked, need_to_kill;
+> @@ -3765,7 +3765,7 @@ try_to_free:
+>  	goto move_account;
+>  }
+>  
+> -int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+> +static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+>  {
+>  	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
+>  }
+> @@ -4044,7 +4044,7 @@ struct mcs_total_stat {
+>  	s64 stat[NR_MCS_STAT];
+>  };
+>  
+> -struct {
+> +static struct {
+>  	char *local_name;
+>  	char *total_name;
+>  } memcg_stat_strings[NR_MCS_STAT] = {
+> -- 
+> 1.7.7.3
+> 
 
-I don't like this very much. Maybe we should get rid of both do_* and
-do it with flags? But maybe it is not worth the additional code at
-all...
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
-Anyway, I am wondering why unused-but-set-variable is disabled while
-unused-variable is enabled. Shouldn't we just disable it as well rather
-than workaround this in the code? The warning is just pure noise in this
-case.
-What about something like:
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
