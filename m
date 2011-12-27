@@ -1,95 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id C4DF26B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:05:18 -0500 (EST)
-Date: Tue, 27 Dec 2011 15:05:15 +0100
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 54CE26B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:08:12 -0500 (EST)
+Date: Tue, 27 Dec 2011 15:08:09 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/6] memcg: mark more functions/variables as static
-Message-ID: <20111227140515.GL5344@tiehlicka.suse.cz>
+Subject: Re: [PATCH 3/6] memcg: remove unused variable
+Message-ID: <20111227140809.GM5344@tiehlicka.suse.cz>
 References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
- <1324695619-5537-2-git-send-email-kirill@shutemov.name>
+ <1324695619-5537-3-git-send-email-kirill@shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1324695619-5537-2-git-send-email-kirill@shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1324695619-5537-3-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat 24-12-11 05:00:15, Kirill A. Shutemov wrote:
+On Sat 24-12-11 05:00:16, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill@shutemov.name>
 > 
-> Based on sparse output.
+> mm/memcontrol.c: In function a??mc_handle_file_ptea??:
+> mm/memcontrol.c:5206:16: warning: variable a??inodea?? set but not used [-Wunused-but-set-variable]
 > 
 > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 
 Looks good.
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks
+Thanks!
 > ---
->  mm/memcontrol.c |   12 ++++++------
->  1 files changed, 6 insertions(+), 6 deletions(-)
+>  mm/memcontrol.c |    2 --
+>  1 files changed, 0 insertions(+), 2 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a5e92bd..4bac3a2 100644
+> index 4bac3a2..627c19e 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -59,7 +59,7 @@
->  
->  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
-> -struct mem_cgroup *root_mem_cgroup __read_mostly;
-> +static struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
-> @@ -1573,7 +1573,7 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
->   * unused nodes. But scan_nodes is lazily updated and may not cotain
->   * enough new information. We need to do double check.
->   */
-> -bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
-> +static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+> @@ -5203,7 +5203,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+>  			unsigned long addr, pte_t ptent, swp_entry_t *entry)
 >  {
->  	int nid;
+>  	struct page *page = NULL;
+> -	struct inode *inode;
+>  	struct address_space *mapping;
+>  	pgoff_t pgoff;
 >  
-> @@ -1608,7 +1608,7 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
->  	return 0;
->  }
+> @@ -5212,7 +5211,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+>  	if (!move_file())
+>  		return NULL;
 >  
-> -bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
-> +static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
->  {
->  	return test_mem_cgroup_node_reclaimable(memcg, 0, noswap);
->  }
-> @@ -1782,7 +1782,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
->  /*
->   * try to call OOM killer. returns false if we should exit memory-reclaim loop.
->   */
-> -bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
-> +static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
->  {
->  	struct oom_wait_info owait;
->  	bool locked, need_to_kill;
-> @@ -3765,7 +3765,7 @@ try_to_free:
->  	goto move_account;
->  }
->  
-> -int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
-> +static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
->  {
->  	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
->  }
-> @@ -4044,7 +4044,7 @@ struct mcs_total_stat {
->  	s64 stat[NR_MCS_STAT];
->  };
->  
-> -struct {
-> +static struct {
->  	char *local_name;
->  	char *total_name;
->  } memcg_stat_strings[NR_MCS_STAT] = {
+> -	inode = vma->vm_file->f_path.dentry->d_inode;
+>  	mapping = vma->vm_file->f_mapping;
+>  	if (pte_none(ptent))
+>  		pgoff = linear_page_index(vma, addr);
 > -- 
 > 1.7.7.3
 > 
