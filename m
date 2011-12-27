@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 724CB6B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:11:31 -0500 (EST)
-Date: Tue, 27 Dec 2011 15:11:28 +0100
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id E4ED26B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:17:09 -0500 (EST)
+Date: Tue, 27 Dec 2011 15:17:06 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/6] memcg: mark stat field of mem_cgroup struct as
- __percpu
-Message-ID: <20111227141128.GN5344@tiehlicka.suse.cz>
+Subject: Re: [PATCH 5/6] memcg: fix broken boolen expression
+Message-ID: <20111227141706.GO5344@tiehlicka.suse.cz>
 References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
- <1324695619-5537-4-git-send-email-kirill@shutemov.name>
+ <1324695619-5537-5-git-send-email-kirill@shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1324695619-5537-4-git-send-email-kirill@shutemov.name>
+In-Reply-To: <1324695619-5537-5-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat 24-12-11 05:00:17, Kirill A. Shutemov wrote:
+On Sat 24-12-11 05:00:18, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill@shutemov.name>
 > 
-> It fixes a lot of sparse warnings.
+> action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
 > 
 > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-Looks good.
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks
+Thanks!
 
 > ---
 >  mm/memcontrol.c |    2 +-
 >  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 627c19e..b27ce0f 100644
+> index b27ce0f..3833a7b 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -291,7 +291,7 @@ struct mem_cgroup {
->  	/*
->  	 * percpu counter.
->  	 */
-> -	struct mem_cgroup_stat_cpu *stat;
-> +	struct mem_cgroup_stat_cpu __percpu *stat;
->  	/*
->  	 * used when a cpu is offlined or other synchronizations
->  	 * See mem_cgroup_read_stat().
+> @@ -2100,7 +2100,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  		return NOTIFY_OK;
+>  	}
+>  
+> -	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
+> +	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+>  		return NOTIFY_OK;
+>  
+>  	for_each_mem_cgroup(iter)
 > -- 
 > 1.7.7.3
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Michal Hocko
