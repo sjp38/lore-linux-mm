@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id EF3ED6B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 15:05:43 -0500 (EST)
-Subject: Re: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging foundation
-In-Reply-To: Your message of "Thu, 22 Dec 2011 07:50:50 PST."
-             <20111222155050.GA21405@ca-server1.us.oracle.com>
-From: Valdis.Kletnieks@vt.edu
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id F228F6B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 15:30:02 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <7866f872-ce94-4516-bd23-936ea3d0b4e3@default>
+Date: Tue, 27 Dec 2011 12:29:46 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging
+ foundation
 References: <20111222155050.GA21405@ca-server1.us.oracle.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1325016332_3579P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 27 Dec 2011 15:05:32 -0500
-Message-ID: <243729.1325016332@turing-police.cc.vt.edu>
+ <243729.1325016332@turing-police.cc.vt.edu>
+In-Reply-To: <243729.1325016332@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: greg@kroah.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, kurt.hackel@oracle.com, sjenning@linux.vnet.ibm.com, chris.mason@oracle.com
+To: Valdis.Kletnieks@vt.edu
+Cc: greg@kroah.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>
 
---==_Exmh_1325016332_3579P
-Content-Type: text/plain; charset=us-ascii
+> From: Valdis.Kletnieks@vt.edu [mailto:Valdis.Kletnieks@vt.edu]
+> Sent: Tuesday, December 27, 2011 1:06 PM
+> To: Dan Magenheimer
+> Cc: greg@kroah.com; devel@driverdev.osuosl.org; linux-kernel@vger.kernel.=
+org; linux-mm@kvack.org;
+> ngupta@vflare.org; Konrad Wilk; Kurt Hackel; sjenning@linux.vnet.ibm.com;=
+ Chris Mason
+> Subject: Re: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging fo=
+undation
+>=20
+> On Thu, 22 Dec 2011 07:50:50 PST, Dan Magenheimer said:
+>=20
+> > Copy cluster subdirectory from ocfs2.  These files implement
+> > the basic cluster discovery, mapping, heartbeat / keepalive, and
+> > messaging ("o2net") that ramster requires for internode communication.
+>=20
+> Instead of doing this, can we have the shared files copied to a common
+> subdirectory so that ramster and ocfs2 can share them, and we only
+> have to fix bugs once?
 
-On Thu, 22 Dec 2011 07:50:50 PST, Dan Magenheimer said:
+Hi Valdis --
 
-> Copy cluster subdirectory from ocfs2.  These files implement
-> the basic cluster discovery, mapping, heartbeat / keepalive, and
-> messaging ("o2net") that ramster requires for internode communication.
+Thanks for your reply!
 
-Instead of doing this, can we have the shared files copied to a common
-subdirectory so that ramster and ocfs2 can share them, and we only
-have to fix bugs once?
+Per the discussion at:
+https://lkml.org/lkml/2011/12/22/369=20
+your suggestion of the common subdirectory will definitely need to happen
+before ramster can be promoted out of staging and, at GregKH's request,
+I have added a TODO file in V3 to state that.  Before that can happen,
+we'll need to work with the ocfs2 maintainers to merge the
+necessary ramster-specific changes and implement a separately CONFIG-able
+subdirectory for the ocfs2 cluster code.
 
---==_Exmh_1325016332_3579P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFO+iUMcC3lWbTT17ARAmGfAKCENDjN79TxO+C7OZ06guBX0h6vowCgusxg
-htspX2q/+e756QN70cO8BEg=
-=d18g
------END PGP SIGNATURE-----
-
---==_Exmh_1325016332_3579P--
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
