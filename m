@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 7EA826B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 07:48:43 -0500 (EST)
-Date: Tue, 27 Dec 2011 13:48:37 +0100
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 07F546B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 07:57:03 -0500 (EST)
+Date: Tue, 27 Dec 2011 13:57:01 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: hugetlb: fix non-atomic enqueue of huge page
-Message-ID: <20111227124837.GF5344@tiehlicka.suse.cz>
-References: <CAJd=RBB-d19=Z0og0i5OrbUVCQFozaqMbVs9Fzw23j=-EFc+DQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
+Message-ID: <20111227125701.GG5344@tiehlicka.suse.cz>
+References: <CAJd=RBCS3-PoFa3FUVwhiznPTQH5xq7fTYa3m01a0-buACQbCA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBB-d19=Z0og0i5OrbUVCQFozaqMbVs9Fzw23j=-EFc+DQ@mail.gmail.com>
+In-Reply-To: <CAJd=RBCS3-PoFa3FUVwhiznPTQH5xq7fTYa3m01a0-buACQbCA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
 Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri 23-12-11 21:35:25, Hillf Danton wrote:
+On Fri 23-12-11 21:38:38, Hillf Danton wrote:
 > From: Hillf Danton <dhillf@gmail.com>
-> Subject: [PATCH] mm: hugetlb: fix non-atomic enqueue of huge page
+> Subject: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
 > 
-> If huge page is enqueued under the protection of hugetlb_lock, then
-> the operation is atomic and safe.
+> If we have to hand back the newly allocated huge page to page allocator,
+> for any reason, the changed counter should be recovered.
 > 
 > Cc: Michal Hocko <mhocko@suse.cz>
 > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Signed-off-by: Hillf Danton <dhillf@gmail.com>
 
-Yes, looks correct even though the changelog could be more verbose.
-The code is broken since .37
+Broken since 2.6.27 (caff3a2c: hugetlb: call arch_prepare_hugepage() for
+surplus pages) so a stable material
 
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
@@ -37,23 +37,21 @@ Thanks
 > ---
 > 
 > --- a/mm/hugetlb.c	Tue Dec 20 21:26:30 2011
-> +++ b/mm/hugetlb.c	Fri Dec 23 21:16:28 2011
-> @@ -901,7 +901,6 @@ retry:
->  	h->resv_huge_pages += delta;
->  	ret = 0;
+> +++ b/mm/hugetlb.c	Fri Dec 23 21:18:06 2011
+> @@ -800,7 +800,7 @@ static struct page *alloc_buddy_huge_pag
 > 
-> -	spin_unlock(&hugetlb_lock);
->  	/* Free the needed pages to the hugetlb pool */
->  	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
->  		if ((--needed) < 0)
-> @@ -915,6 +914,7 @@ retry:
->  		VM_BUG_ON(page_count(page));
->  		enqueue_huge_page(h, page);
+>  	if (page && arch_prepare_hugepage(page)) {
+>  		__free_pages(page, huge_page_order(h));
+> -		return NULL;
+> +		page = NULL;
 >  	}
-> +	spin_unlock(&hugetlb_lock);
 > 
->  	/* Free unnecessary surplus pages to the buddy allocator */
->  free:
+>  	spin_lock(&hugetlb_lock);
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Michal Hocko
