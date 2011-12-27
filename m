@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 07F546B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 07:57:03 -0500 (EST)
-Date: Tue, 27 Dec 2011 13:57:01 +0100
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 956456B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 07:59:48 -0500 (EST)
+Date: Tue, 27 Dec 2011 13:59:45 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
-Message-ID: <20111227125701.GG5344@tiehlicka.suse.cz>
-References: <CAJd=RBCS3-PoFa3FUVwhiznPTQH5xq7fTYa3m01a0-buACQbCA@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: add might_sleep() for gigantic page
+Message-ID: <20111227125945.GH5344@tiehlicka.suse.cz>
+References: <CAJd=RBCXTp0GrMGw+MBDdj0K15+L5v+O2t6EcDghFk34aNwt1g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBCS3-PoFa3FUVwhiznPTQH5xq7fTYa3m01a0-buACQbCA@mail.gmail.com>
+In-Reply-To: <CAJd=RBCXTp0GrMGw+MBDdj0K15+L5v+O2t6EcDghFk34aNwt1g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
 Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri 23-12-11 21:38:38, Hillf Danton wrote:
+On Fri 23-12-11 21:41:08, Hillf Danton wrote:
 > From: Hillf Danton <dhillf@gmail.com>
-> Subject: [PATCH] mm: hugetlb: avoid bogus counter of surplus huge page
+> Subject: [PATCH] mm: hugetlb: add might_sleep() for gigantic page
 > 
-> If we have to hand back the newly allocated huge page to page allocator,
-> for any reason, the changed counter should be recovered.
+> Like the case of huge page, might_sleep() is added for gigantic page, then
+> both are treated in same way.
+
+Why do we need to call might_sleep here? There is cond_resched in the
+loop...
+
 > 
 > Cc: Michal Hocko <mhocko@suse.cz>
 > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Signed-off-by: Hillf Danton <dhillf@gmail.com>
-
-Broken since 2.6.27 (caff3a2c: hugetlb: call arch_prepare_hugepage() for
-surplus pages) so a stable material
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks
 > ---
 > 
 > --- a/mm/hugetlb.c	Tue Dec 20 21:26:30 2011
-> +++ b/mm/hugetlb.c	Fri Dec 23 21:18:06 2011
-> @@ -800,7 +800,7 @@ static struct page *alloc_buddy_huge_pag
+> +++ b/mm/hugetlb.c	Fri Dec 23 21:19:18 2011
+> @@ -401,6 +401,7 @@ static void copy_gigantic_page(struct pa
+>  	struct page *dst_base = dst;
+>  	struct page *src_base = src;
 > 
->  	if (page && arch_prepare_hugepage(page)) {
->  		__free_pages(page, huge_page_order(h));
-> -		return NULL;
-> +		page = NULL;
->  	}
-> 
->  	spin_lock(&hugetlb_lock);
+> +	might_sleep();
+>  	for (i = 0; i < pages_per_huge_page(h); ) {
+>  		cond_resched();
+>  		copy_highpage(dst, src);
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
 > the body of a message to majordomo@vger.kernel.org
