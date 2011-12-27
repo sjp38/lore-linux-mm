@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id F228F6B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 15:30:02 -0500 (EST)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 531D96B004D
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 15:46:08 -0500 (EST)
 MIME-Version: 1.0
-Message-ID: <7866f872-ce94-4516-bd23-936ea3d0b4e3@default>
-Date: Tue, 27 Dec 2011 12:29:46 -0800 (PST)
+Message-ID: <98bc4ff9-07bd-44ab-bb25-156c04d8f1e1@default>
+Date: Tue, 27 Dec 2011 12:34:37 -0800 (PST)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging
  foundation
 References: <20111222155050.GA21405@ca-server1.us.oracle.com>
- <243729.1325016332@turing-police.cc.vt.edu>
-In-Reply-To: <243729.1325016332@turing-police.cc.vt.edu>
+ <20111222173129.GB28856@kroah.com>
+ <1f76c37d-15d4-4c62-8c64-8293d3382b4a@default>
+ <20111222224059.GA16558@kroah.com>
+In-Reply-To: <20111222224059.GA16558@kroah.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: greg@kroah.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>
+To: Greg KH <greg@kroah.com>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>
 
-> From: Valdis.Kletnieks@vt.edu [mailto:Valdis.Kletnieks@vt.edu]
-> Sent: Tuesday, December 27, 2011 1:06 PM
-> To: Dan Magenheimer
-> Cc: greg@kroah.com; devel@driverdev.osuosl.org; linux-kernel@vger.kernel.=
-org; linux-mm@kvack.org;
-> ngupta@vflare.org; Konrad Wilk; Kurt Hackel; sjenning@linux.vnet.ibm.com;=
- Chris Mason
-> Subject: Re: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging fo=
-undation
+> From: Greg KH [mailto:greg@kroah.com]
 >=20
-> On Thu, 22 Dec 2011 07:50:50 PST, Dan Magenheimer said:
+> Ok, that makes sense.
 >=20
-> > Copy cluster subdirectory from ocfs2.  These files implement
-> > the basic cluster discovery, mapping, heartbeat / keepalive, and
-> > messaging ("o2net") that ramster requires for internode communication.
+> Can you ensure that the TODO file in this driver's directory says that
+> you will remove the duplicated code from it before it can be merged into
+> the main part of the kernel tree?
 >=20
-> Instead of doing this, can we have the shared files copied to a common
-> subdirectory so that ramster and ocfs2 can share them, and we only
-> have to fix bugs once?
+> That, and fix up the other things mentioned and resend it and I'll be
+> glad to queue it up.
 
-Hi Valdis --
+Done and reposted, but....
 
-Thanks for your reply!
+ARGH! Greg, somehow I left your direct email address off of the To list
+for the repost!  Will you be able to get them from the drivers (or mm
+or lkml) list, or will you need me to re-post them (just to you or
+also again to the same To list?)
 
-Per the discussion at:
-https://lkml.org/lkml/2011/12/22/369=20
-your suggestion of the common subdirectory will definitely need to happen
-before ramster can be promoted out of staging and, at GregKH's request,
-I have added a TODO file in V3 to state that.  Before that can happen,
-we'll need to work with the ocfs2 maintainers to merge the
-necessary ramster-specific changes and implement a separately CONFIG-able
-subdirectory for the ocfs2 cluster code.
-
+Sorry,
 Dan
+
+P.S. V3 starts with: https://lkml.org/lkml/2011/12/27/158 or
+http://driverdev.linuxdriverproject.org/pipermail/devel/2011-December/02373=
+6.html=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
