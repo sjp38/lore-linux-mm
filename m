@@ -1,136 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 8F1E26B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:28:37 -0500 (EST)
-Date: Tue, 27 Dec 2011 15:28:34 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 6/6] memcg: drop redundant brackets
-Message-ID: <20111227142834.GP5344@tiehlicka.suse.cz>
-References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
- <1324695619-5537-6-git-send-email-kirill@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1324695619-5537-6-git-send-email-kirill@shutemov.name>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id E86B36B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 12:53:22 -0500 (EST)
+Subject: RE: [PATCH 00/14] DMA-mapping framework redesign preparation
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <000901ccc471$15db8bc0$4192a340$%szyprowski@samsung.com>
+References: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+	 <20111223163516.GO20129@parisc-linux.org>
+	 <000901ccc471$15db8bc0$4192a340$%szyprowski@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 27 Dec 2011 17:53:13 +0000
+Message-ID: <1325008393.14252.5.camel@dabdike>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: 'Matthew Wilcox' <matthew@wil.cx>, linux-kernel@vger.kernel.org, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Stephen Rothwell' <sfr@canb.auug.org.au>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Jonathan Corbet' <corbet@lwn.net>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
 
-On Sat 24-12-11 05:00:19, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
+On Tue, 2011-12-27 at 09:25 +0100, Marek Szyprowski wrote:
+[...]
+> > > Usually these drivers don't touch the buffer data at all, so the mapping
+> > > in kernel virtual address space is not needed. We can introduce
+> > > DMA_ATTRIB_NO_KERNEL_MAPPING attribute which lets kernel to skip/ignore
+> > > creation of kernel virtual mapping. This way we can save previous
+> > > vmalloc area and simply some mapping operation on a few architectures.
+> > 
+> > I really think this wants to be a separate function.  dma_alloc_coherent
+> > is for allocating memory to be shared between the kernel and a driver;
+> > we already have dma_map_sg for mapping userspace I/O as an alternative
+> > interface.  This feels like it's something different again rather than
+> > an option to dma_alloc_coherent.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-
-I wasn't very convinced at first but it makes some sense as we should be
-consistent. So
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c |   28 ++++++++++++++--------------
->  1 files changed, 14 insertions(+), 14 deletions(-)
+> That is just a starting point for the discussion. 
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3833a7b..48cba05 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -73,7 +73,7 @@ static int really_do_swap_account __initdata = 0;
->  #endif
->  
->  #else
-> -#define do_swap_account		(0)
-> +#define do_swap_account		0
->  #endif
->  
->  
-> @@ -113,9 +113,9 @@ enum mem_cgroup_events_target {
->  	MEM_CGROUP_TARGET_NUMAINFO,
->  	MEM_CGROUP_NTARGETS,
->  };
-> -#define THRESHOLDS_EVENTS_TARGET (128)
-> -#define SOFTLIMIT_EVENTS_TARGET (1024)
-> -#define NUMAINFO_EVENTS_TARGET	(1024)
-> +#define THRESHOLDS_EVENTS_TARGET 128
-> +#define SOFTLIMIT_EVENTS_TARGET 1024
-> +#define NUMAINFO_EVENTS_TARGET	1024
->  
->  struct mem_cgroup_stat_cpu {
->  	long count[MEM_CGROUP_STAT_NSTATS];
-> @@ -148,7 +148,7 @@ struct mem_cgroup_per_zone {
->  						/* use container_of	   */
->  };
->  /* Macro for accessing counter */
-> -#define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
-> +#define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[idx])
->  
->  struct mem_cgroup_per_node {
->  	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
-> @@ -346,8 +346,8 @@ static bool move_file(void)
->   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
->   * limit reclaim to prevent infinite loops, if they ever occur.
->   */
-> -#define	MEM_CGROUP_MAX_RECLAIM_LOOPS		(100)
-> -#define	MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS	(2)
-> +#define	MEM_CGROUP_MAX_RECLAIM_LOOPS		100
-> +#define	MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS	2
->  
->  enum charge_type {
->  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
-> @@ -368,11 +368,11 @@ enum mem_type {
->  	_KMEM,
->  };
->  
-> -#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-> -#define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
-> +#define MEMFILE_PRIVATE(x, val)	((x) << 16 | (val))
-> +#define MEMFILE_TYPE(val)	((val) >> 16 & 0xffff)
->  #define MEMFILE_ATTR(val)	((val) & 0xffff)
->  /* Used for OOM nofiier */
-> -#define OOM_CONTROL		(0)
-> +#define OOM_CONTROL		0
->  
->  /*
->   * Reclaim flags for mem_cgroup_hierarchical_reclaim
-> @@ -1913,7 +1913,7 @@ struct memcg_stock_pcp {
->  	unsigned int nr_pages;
->  	struct work_struct work;
->  	unsigned long flags;
-> -#define FLUSHING_CACHED_CHARGE	(0)
-> +#define FLUSHING_CACHED_CHARGE	0
->  };
->  static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
->  static DEFINE_MUTEX(percpu_charge_mutex);
-> @@ -2094,7 +2094,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
->  	struct memcg_stock_pcp *stock;
->  	struct mem_cgroup *iter;
->  
-> -	if ((action == CPU_ONLINE)) {
-> +	if (action == CPU_ONLINE) {
->  		for_each_mem_cgroup(iter)
->  			synchronize_mem_cgroup_on_move(iter, cpu);
->  		return NOTIFY_OK;
-> @@ -2458,8 +2458,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  
-> -#define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MOVE_LOCK) |\
-> -			(1 << PCG_MIGRATION))
-> +#define PCGF_NOCOPY_AT_SPLIT (1 << PCG_LOCK | 1 << PCG_MOVE_LOCK |\
-> +		1 << PCG_MIGRATION)
->  /*
->   * Because tail pages are not marked as "used", set it. We're under
->   * zone->lru_lock, 'splitting on pmd' and compound_lock.
-> -- 
-> 1.7.7.3
-> 
+> I thought about this API a bit and came to conclusion that there is no much
+> difference between a dma_alloc_coherent which creates a mapping in kernel
+> virtual space and the one that does not. It is just a hint from the driver
+> that it will not use that mapping at all. Of course this attribute makes sense
+> only together with adding a dma_mmap_attrs() call, because otherwise drivers
+> won't be able to get access to the buffer data.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+This depends.  On Virtually indexed systems like PA-RISC, there are two
+ways of making a DMA range coherent.  One is to make the range uncached.
+This is incredibly slow and not what we do by default, but it can be
+used to make multiple mappings coherent.  The other is to load the
+virtual address up as a coherence index into the IOMMU.  This makes it a
+full peer in the coherence process, but means we can only designate a
+single virtual range to be coherent (not multiple mappings unless they
+happen to be congruent).  Perhaps it doesn't matter that much, since I
+don't see a use for this on PA, but if any other architecture works the
+same, you'd have to designate a single mapping as the coherent one and
+essentially promise not to use the other mapping if we followed our
+normal coherence protocols.
+
+Obviously, the usual range we currently make coherent is the kernel
+mapping (that's actually the only virtual address we have by the time
+we're deep in the iommu code), so designating a different virtual
+address would need some surgery to the guts of the iommu code.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
