@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 54CE26B004F
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:08:12 -0500 (EST)
-Date: Tue, 27 Dec 2011 15:08:09 +0100
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 724CB6B004F
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 09:11:31 -0500 (EST)
+Date: Tue, 27 Dec 2011 15:11:28 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/6] memcg: remove unused variable
-Message-ID: <20111227140809.GM5344@tiehlicka.suse.cz>
+Subject: Re: [PATCH 4/6] memcg: mark stat field of mem_cgroup struct as
+ __percpu
+Message-ID: <20111227141128.GN5344@tiehlicka.suse.cz>
 References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
- <1324695619-5537-3-git-send-email-kirill@shutemov.name>
+ <1324695619-5537-4-git-send-email-kirill@shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1324695619-5537-3-git-send-email-kirill@shutemov.name>
+In-Reply-To: <1324695619-5537-4-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat 24-12-11 05:00:16, Kirill A. Shutemov wrote:
+On Sat 24-12-11 05:00:17, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill@shutemov.name>
 > 
-> mm/memcontrol.c: In function a??mc_handle_file_ptea??:
-> mm/memcontrol.c:5206:16: warning: variable a??inodea?? set but not used [-Wunused-but-set-variable]
+> It fixes a lot of sparse warnings.
 > 
 > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 
 Looks good.
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks!
+Thanks
+
 > ---
->  mm/memcontrol.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4bac3a2..627c19e 100644
+> index 627c19e..b27ce0f 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -5203,7 +5203,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
->  			unsigned long addr, pte_t ptent, swp_entry_t *entry)
->  {
->  	struct page *page = NULL;
-> -	struct inode *inode;
->  	struct address_space *mapping;
->  	pgoff_t pgoff;
->  
-> @@ -5212,7 +5211,6 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
->  	if (!move_file())
->  		return NULL;
->  
-> -	inode = vma->vm_file->f_path.dentry->d_inode;
->  	mapping = vma->vm_file->f_mapping;
->  	if (pte_none(ptent))
->  		pgoff = linear_page_index(vma, addr);
+> @@ -291,7 +291,7 @@ struct mem_cgroup {
+>  	/*
+>  	 * percpu counter.
+>  	 */
+> -	struct mem_cgroup_stat_cpu *stat;
+> +	struct mem_cgroup_stat_cpu __percpu *stat;
+>  	/*
+>  	 * used when a cpu is offlined or other synchronizations
+>  	 * See mem_cgroup_read_stat().
 > -- 
 > 1.7.7.3
 > 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Michal Hocko
