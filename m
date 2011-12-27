@@ -1,49 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 531D96B004D
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 15:46:08 -0500 (EST)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 4A9066B004D
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2011 17:54:20 -0500 (EST)
+Received: by ggni2 with SMTP id i2so10375833ggn.14
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2011 14:54:19 -0800 (PST)
 MIME-Version: 1.0
-Message-ID: <98bc4ff9-07bd-44ab-bb25-156c04d8f1e1@default>
-Date: Tue, 27 Dec 2011 12:34:37 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V2 1/6] drivers/staging/ramster: cluster/messaging
- foundation
-References: <20111222155050.GA21405@ca-server1.us.oracle.com>
- <20111222173129.GB28856@kroah.com>
- <1f76c37d-15d4-4c62-8c64-8293d3382b4a@default>
- <20111222224059.GA16558@kroah.com>
-In-Reply-To: <20111222224059.GA16558@kroah.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <4EF8A59C.9050601@parallels.com>
+References: <4EF78B6A.8020904@parallels.com> <4EF78B99.1020109@parallels.com>
+ <CAHGf_=r5mmUJUaQLKgrY1rf9Qx0gO0hEJaHFehm5Zz7ZKMYUkQ@mail.gmail.com>
+ <4EF89BCB.8070306@parallels.com> <CAHGf_=rJhpQyhWiVk_BALM7SG=rgbVLscLMqdmmC4OLBR70mOA@mail.gmail.com>
+ <4EF8A59C.9050601@parallels.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 27 Dec 2011 17:53:58 -0500
+Message-ID: <CAHGf_=q3yH4RgjcTLXSxaOKU12DswnCNY9v_hWwX4h_N6WkmzA@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mincore: Introduce the MINCORE_ANON bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, Kurt Hackel <kurt.hackel@oracle.com>, sjenning@linux.vnet.ibm.com, Chris Mason <chris.mason@oracle.com>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-> From: Greg KH [mailto:greg@kroah.com]
->=20
-> Ok, that makes sense.
->=20
-> Can you ensure that the TODO file in this driver's directory says that
-> you will remove the duplicated code from it before it can be merged into
-> the main part of the kernel tree?
->=20
-> That, and fix up the other things mentioned and resend it and I'll be
-> glad to queue it up.
+> The tmpfs contents itself is supposed to be preserved, it's not a problem. The problem I'm trying
+> to solve here is which page from task mappings (i.e. vm_area_struct-s) to save and which not to.
+>
+> Do the proposed MINCORE_RESIDENT and MINCORE_ANON bits have problems with this from
+> your POV?
 
-Done and reposted, but....
-
-ARGH! Greg, somehow I left your direct email address off of the To list
-for the repost!  Will you be able to get them from the drivers (or mm
-or lkml) list, or will you need me to re-post them (just to you or
-also again to the same To list?)
-
-Sorry,
-Dan
-
-P.S. V3 starts with: https://lkml.org/lkml/2011/12/27/158 or
-http://driverdev.linuxdriverproject.org/pipermail/devel/2011-December/02373=
-6.html=20
+No problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
