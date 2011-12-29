@@ -1,104 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 090A16B005A
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 11:59:58 -0500 (EST)
-Date: Thu, 29 Dec 2011 16:59:51 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
- own LRU
-Message-ID: <20111229165951.GA15729@suse.de>
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
- <1323877293-15401-12-git-send-email-mgorman@suse.de>
- <20111217160822.GA10064@barrios-laptop.redhat.com>
- <20111219132615.GL3487@suse.de>
- <20111220071026.GA19025@barrios-laptop.redhat.com>
- <20111220095544.GP3487@suse.de>
- <alpine.LSU.2.00.1112231039030.17640@eggly.anvils>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 7DEBE6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 12:07:51 -0500 (EST)
+Received: by iacb35 with SMTP id b35so28719478iac.14
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 09:07:50 -0800 (PST)
+Date: Thu, 29 Dec 2011 09:07:45 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: memblock and bootmem problems if start + size = 4GB
+Message-ID: <20111229170745.GE3516@google.com>
+References: <4EEF42F5.7040002@monstr.eu>
+ <20111219162835.GA24519@google.com>
+ <4EF05316.5050803@monstr.eu>
+ <20111229155836.GB3516@google.com>
+ <4EFC995A.5090904@monstr.eu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1112231039030.17640@eggly.anvils>
+In-Reply-To: <4EFC995A.5090904@monstr.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Simek <monstr@monstr.eu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-I was offline for several days for the holidays and I'm not back
-online properly until Jan 4th, hence the delay in responding.
+Hello,
 
-On Fri, Dec 23, 2011 at 11:08:19AM -0800, Hugh Dickins wrote:
-> Sorry, Mel, I've had to revert this patch (and its two little children)
-> from my 3.2.0-rc6-next-20111222 testing: you really do need a page flag
-> (or substitute) for your "immediate" lru.
+On Thu, Dec 29, 2011 at 05:46:18PM +0100, Michal Simek wrote:
+> First of all I don't like to use your term "extend range coverages".
+> We don't want to extend any ranges - we just wanted to place memory to the end
+> of address space and be able to work with.
+
+It is, as long as we use address ranges.  Either we can express length
+of zero or include the last address.
+
+> It is limitation which should be fixed somehow.
+> And I would expect that PFN_XX(base + size) will be in u32 range.
+>
+> Probably the best solution will be to use PFN macro in one place and
+> do not covert addresses in common code.
 > 
+> + change parameters in bootmem code because some arch do
+> free_bootmem_node(..., PFN_PHYS(), ...)
+> and
+> reserve_bootmem_node(..., PFN_PHYS(), ...)
 
-Don't be sorry at all. I prefer that this was caught before merging
-to mainline and thanks for catching this.
+So now we're talking about a lot of code just for ONE page and
+regardless of the representation in the memblock or other memory
+management code, I think trying to use that page is fundamentally a
+bad idea.  There are a lot of places in the kernel where phys_addr_t
+is used.  Using that one last page risks obscure overflow bug if any
+of them is using [start,end) ranges and bugs triggered such way would
+be extremely difficult to track down.  It doesn't make any sense to do
+that for that one last page.  It's less severe but in the same vein as
+trying to use %NULL as a valid address.  It's an absurdly silly
+tradeoff.
 
-> How else can a del_page_from_lru[_list]() know whether to decrement
-> the count of the immediate or the inactive list? 
+So, FWIW, I think that is a horrible idea.
 
-You are right, it cannot and because pages are removed from the
-LRU list in contexts such as invalidating a mapping, we cannot be
-sure whether a page is on the immediate LRU or inactive_file in all
-cases. It is further complicated by the fact that PageReclaim and
-PageReadhead use the same page flag.
-
-> page_lru() says to
-> decrement the count of the inactive list, so in due course that wraps
-> to a gigantic number, and then page reclaim livelocks trying to wring
-> pages out of an empty list.  It's the memcg case I've been hitting,
-> but presumably the same happens with global counts.
+> >  On
+> >extreme cases, people even carry separate valid flag to use %NULL as
+> >valid address, which is pretty silly, IMHO.  So, unless there's some
+> >benefit that I'm missing, I still think it's an overkill.  It's more
+> >complex and difficult to test and verify.  Why bother for a single
+> >page?
 > 
+> Where do you think this page should be placed? In common code or in architecture memory
+> code where one page from the top of 4G should be subtract?
 
-I've verified that the accounting can break. I did not see it wrap
-negative because in my testing it was rare the problem occurred but it
-would happen eventually.
-
-I considered a few ways of fixing this. The obvious one is to add a
-new page flag but that is difficult to justify as the high-cpu-usage
-problem should only occur when there is a lot of writeback to slow
-storage which I believe is a rare case. It is not a suitable use for
-an extended page flag.
-
-The second was to keep these PageReclaim pages off the LRU but this
-leads to complications of its own.
-
-The third was to use a combination of flags to mark pages that
-are on the immediate LRU such as how PG_compound and PG_reclaim in
-combination mark tail pages. This would not be free of races and would
-eventually cause corruption. There is also the problem that we cannot
-atomically set multiple bits so setting the bits in contexts such as
-set_page_dirty() may be problematic.
-
-Andrew, as there is not an easy uncontroversial fix can you remove
-the following patches from mmotm please?
-
-mm-isolate-pages-for-immediate-reclaim-on-their-own-lru.patch
-mm-isolate-pages-for-immediate-reclaim-on-their-own-lru-fix.patch
-mm-isolate-pages-for-immediate-reclaim-on-their-own-lru-fix-2.patch
-
-The impact is that users writing to slow stage may see higher CPU usage
-as the pages under writeback have to be skipped by scanning once the
-dirty pages move to the end of the LRU list. I'm assuming once they
-are removed from mmotm that they also get removed from linux-next.
-
-> There is another such accounting bug in -next, been there longer and
-> not so easy to hit: I'm fairly sure it will turn out to be memcg
-> misaccounting a THPage somewhere, I'll have a look around shortly.
-> 
-> p.s. Immediate?  Isn't that an odd name for a list of pages which are
-> not immediately freeable?  Maybe Rik's launder/laundry name would be
-> better: pages which are currently being cleaned.
-
-That is potentially very misleading as not all pages being laundered are
-on that list. reclaim_writeback might be a better name.
+With the pending updates to memblock code in tip scheduled for the
+coming merge window, I *think* it would be a single (or a few) line
+change in memblock_add_region() where it checks for overflow.
 
 Thanks.
 
 -- 
-Mel Gorman
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
