@@ -1,38 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id B91276B004D
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 17:55:49 -0500 (EST)
-Date: Thu, 29 Dec 2011 14:55:48 -0800
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id C06266B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 18:07:18 -0500 (EST)
+Date: Thu, 29 Dec 2011 15:07:17 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
-Message-Id: <20111229145548.e34cb2f3.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.00.1112282037000.1362@eggly.anvils>
-References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils>
-	<alpine.LSU.2.00.1112282037000.1362@eggly.anvils>
+Subject: Re: [PATCH] mm: vmscan: fix typo in isolating lru pages
+Message-Id: <20111229150717.6c8ba825.akpm@linux-foundation.org>
+In-Reply-To: <CAJd=RBAp=ooYGoDqJG0qkUhRuYTsSKG9h+bUvC0dvuVCvfkCgQ@mail.gmail.com>
+References: <CAJd=RBAp=ooYGoDqJG0qkUhRuYTsSKG9h+bUvC0dvuVCvfkCgQ@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, 28 Dec 2011 20:39:36 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Thu, 29 Dec 2011 20:38:41 +0800
+Hillf Danton <dhillf@gmail.com> wrote:
 
-> Replace pagevecs in putback_lru_pages() and move_active_pages_to_lru()
-> by lists of pages_to_free
+> It is not the tag page but the cursor page that we should process, and it looks
+> a typo.
+> 
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> ---
+> 
+> --- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
+> +++ b/mm/vmscan.c	Thu Dec 29 20:23:30 2011
+> @@ -1231,13 +1231,13 @@ static unsigned long isolate_lru_pages(u
+> 
+>  				mem_cgroup_lru_del(cursor_page);
+>  				list_move(&cursor_page->lru, dst);
+> -				isolated_pages = hpage_nr_pages(page);
+> +				isolated_pages = hpage_nr_pages(cursor_page);
+>  				nr_taken += isolated_pages;
+>  				nr_lumpy_taken += isolated_pages;
+>  				if (PageDirty(cursor_page))
+>  					nr_lumpy_dirty += isolated_pages;
+>  				scan++;
+> -				pfn += isolated_pages-1;
+> +				pfn += isolated_pages - 1;
+>  			} else {
+>  				/*
+>  				 * Check if the page is freed already.
 
-One effect of the pagevec handling was to limit lru_lock hold times and
-interrupt-disabled times.
+This problem looks pretty benign in mainline.  But Andrea's "mm:
+vmscan: check if we isolated a compound page during lumpy scan" came
+along and uses isolated_pages rather a lot more, including using it to
+advance across the pfn array.
 
-This patch removes that upper bound and has the potential to cause
-various latency problems when processing large numbers of pages.
-
-The affected functions have rather a lot of callers.  I don't think
-that auditing all these callers and convincing ourselves that none of
-them pass in 10,000 pages is sufficient, because that doesn't prevent us
-from introducing such latency problems as the MM code evolves.
+I jiggled your patch to suit current mainline then reworked everything
+else so we end up with this result.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
