@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C06266B004D
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 18:07:18 -0500 (EST)
-Date: Thu, 29 Dec 2011 15:07:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: vmscan: fix typo in isolating lru pages
-Message-Id: <20111229150717.6c8ba825.akpm@linux-foundation.org>
-In-Reply-To: <CAJd=RBAp=ooYGoDqJG0qkUhRuYTsSKG9h+bUvC0dvuVCvfkCgQ@mail.gmail.com>
-References: <CAJd=RBAp=ooYGoDqJG0qkUhRuYTsSKG9h+bUvC0dvuVCvfkCgQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id D1CC06B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 18:27:31 -0500 (EST)
+Received: by iacb35 with SMTP id b35so29238296iac.14
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 15:27:31 -0800 (PST)
+Date: Thu, 29 Dec 2011 15:27:17 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
+In-Reply-To: <20111229145548.e34cb2f3.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1112291510390.4888@eggly.anvils>
+References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils> <alpine.LSU.2.00.1112282037000.1362@eggly.anvils> <20111229145548.e34cb2f3.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
 
-On Thu, 29 Dec 2011 20:38:41 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
-
-> It is not the tag page but the cursor page that we should process, and it looks
-> a typo.
+On Thu, 29 Dec 2011, Andrew Morton wrote:
+> On Wed, 28 Dec 2011 20:39:36 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
 > 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> ---
+> > Replace pagevecs in putback_lru_pages() and move_active_pages_to_lru()
+> > by lists of pages_to_free
 > 
-> --- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
-> +++ b/mm/vmscan.c	Thu Dec 29 20:23:30 2011
-> @@ -1231,13 +1231,13 @@ static unsigned long isolate_lru_pages(u
+> One effect of the pagevec handling was to limit lru_lock hold times and
+> interrupt-disabled times.
 > 
->  				mem_cgroup_lru_del(cursor_page);
->  				list_move(&cursor_page->lru, dst);
-> -				isolated_pages = hpage_nr_pages(page);
-> +				isolated_pages = hpage_nr_pages(cursor_page);
->  				nr_taken += isolated_pages;
->  				nr_lumpy_taken += isolated_pages;
->  				if (PageDirty(cursor_page))
->  					nr_lumpy_dirty += isolated_pages;
->  				scan++;
-> -				pfn += isolated_pages-1;
-> +				pfn += isolated_pages - 1;
->  			} else {
->  				/*
->  				 * Check if the page is freed already.
+> This patch removes that upper bound and has the potential to cause
+> various latency problems when processing large numbers of pages.
+> 
+> The affected functions have rather a lot of callers.  I don't think
+> that auditing all these callers and convincing ourselves that none of
+> them pass in 10,000 pages is sufficient, because that doesn't prevent us
+> from introducing such latency problems as the MM code evolves.
 
-This problem looks pretty benign in mainline.  But Andrea's "mm:
-vmscan: check if we isolated a compound page during lumpy scan" came
-along and uses isolated_pages rather a lot more, including using it to
-advance across the pfn array.
+That's an interesting slant on it, that hadn't crossed my mind;
+but it looks like intervening changes have answered that concern.
 
-I jiggled your patch to suit current mainline then reworked everything
-else so we end up with this result.
+putback_lru_pages() has one caller, shrink_inactive_list();
+move_active_pages_to_lru() has one caller, shrink_active_list().
+Following those back, they're in all cases capped to SWAP_CLUSTER_MAX
+pages per call.  That's 32 pages, not so very much more than the 14
+page limit the pagevecs were imposing.
+
+And both shrink_inactive_list() and shrink_active_list() gather these
+pages with isolate_lru_pages(), which does not drop lock or enable
+interrupts at all - probably why the SWAP_CLUSTER_MAX cap got imposed.
+
+(Don't be deceived by mm/migrate.c's putback_lru_pages()!
+That's a distinct function, unaffected by this patch.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
