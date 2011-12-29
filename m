@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 821296B004D
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 14:31:30 -0500 (EST)
-Message-ID: <4EFCC008.30803@redhat.com>
-Date: Thu, 29 Dec 2011 14:31:20 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id ADA516B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 17:21:04 -0500 (EST)
+Received: by iacb35 with SMTP id b35so29154411iac.14
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 14:21:04 -0800 (PST)
+Date: Thu, 29 Dec 2011 14:20:47 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
+In-Reply-To: <4EFC4C74.9010705@openvz.org>
+Message-ID: <alpine.LSU.2.00.1112291408180.4781@eggly.anvils>
+References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils> <alpine.LSU.2.00.1112282037000.1362@eggly.anvils> <4EFC4C74.9010705@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
- own LRU
-References: <1323877293-15401-1-git-send-email-mgorman@suse.de> <1323877293-15401-12-git-send-email-mgorman@suse.de> <20111217160822.GA10064@barrios-laptop.redhat.com> <20111219132615.GL3487@suse.de> <20111220071026.GA19025@barrios-laptop.redhat.com> <20111220095544.GP3487@suse.de> <alpine.LSU.2.00.1112231039030.17640@eggly.anvils> <20111229165951.GA15729@suse.de>
-In-Reply-To: <20111229165951.GA15729@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 12/29/2011 11:59 AM, Mel Gorman wrote:
+On Thu, 29 Dec 2011, Konstantin Khlebnikov wrote:
+> 
+> Nice patch
+> 
+> Reviewed-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-> I considered a few ways of fixing this. The obvious one is to add a
-> new page flag but that is difficult to justify as the high-cpu-usage
-> problem should only occur when there is a lot of writeback to slow
-> storage which I believe is a rare case. It is not a suitable use for
-> an extended page flag.
+Thanks.
 
-Actually, don't we already have three LRU related
-bits in the page flags?
+> As I see, this patch is on top "memcg naturalization" patchset,
+> it does not apply clearly against Linus tree.
 
-We could stop using those as bit flags, and use
-them as a number instead. That way we could encode
-up to 7 or 8 (depending on how we use all-zeroes)
-LRU lists with the number of bits we have now.
+Right, it's certainly not intended as a last-minute "fix" to 3.2,
+but as a patch for mmotm and linux-next then 3.3.  Linus doesn't
+even have your free_hot_cold_page_list() yet.
 
--- 
-All rights reversed
+> 
+> > +		if (put_page_testzero(page)) {
+> > +			__ClearPageLRU(page);
+> > +			__ClearPageActive(page);
+> > +			del_page_from_lru_list(zone, page, lru);
+> > +
+> > +			if (unlikely(PageCompound(page))) {
+> > +				spin_unlock_irq(&zone->lru_lock);
+> 
+> There is good place for VM_BUG_ON(!PageHead(page));
+
+Well, my inertia wanted to find a reason to disagree with you on that,
+and indeed I found one!  If this were a tail page, the preceding
+put_page_testzero() should already have hit its
+	VM_BUG_ON(atomic_read(&page->_count) == 0);
+(since Andrea changed the THP refcounting to respect get_page_unless_zero).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
