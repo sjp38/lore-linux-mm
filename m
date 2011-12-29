@@ -1,71 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 30B066B00B1
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 07:45:16 -0500 (EST)
-Received: by wibhq12 with SMTP id hq12so8766987wib.14
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 04:45:14 -0800 (PST)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 1BECD6B00B3
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 08:44:24 -0500 (EST)
+Received: by eekc41 with SMTP id c41so14953345eek.14
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 05:44:22 -0800 (PST)
+Message-ID: <4EFC6EB3.3010905@monstr.eu>
+Date: Thu, 29 Dec 2011 14:44:19 +0100
+From: Michal Simek <monstr@monstr.eu>
+Reply-To: monstr@monstr.eu
 MIME-Version: 1.0
-Date: Thu, 29 Dec 2011 20:45:14 +0800
-Message-ID: <CAJd=RBBJG+hLLc3mR-WzByU1gZEcdFUAoZzyir+1A4a0tVnSmg@mail.gmail.com>
-Subject: [PATCH] mm: vmscam: check page order in isolating lru pages
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: memblock and bootmem problems if start + size = 4GB
+References: <4EEF42F5.7040002@monstr.eu> <20111219162835.GA24519@google.com> <4EF05316.5050803@monstr.eu>
+In-Reply-To: <4EF05316.5050803@monstr.eu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Before we try to isolate physically contiguous pages, check for page order is
-added, and if the reclaim order is no larger than page order, we should give up
-the attempt.
+Michal Simek wrote:
+> Hi Tejun,
+> 
+>> On Mon, Dec 19, 2011 at 02:58:13PM +0100, Michal Simek wrote:
+>>> I have reached some problems with memblock and bootmem code for some 
+>>> configurations.
+>>> We can completely setup the whole system and all addresses in it.
+>>> The problem happens if we place main memory to the end of address 
+>>> space when
+>>> mem_start + size reach 4GB limit.
+>>>
+>>> For example:
+>>> mem_start      0xF000 0000
+>>> mem_size       0x1000 0000 (or better lowmem size)
+>>> mem_end        0xFFFF FFFF
+>>> start + size 0x1 0000 0000 (u32 limit reached).
+>>>
+>>> I have done some patches which completely remove start + size values 
+>>> from architecture specific
+>>> code but I have found some problem in generic code too.
+>>>
+>>> For example in bootmem code where are three places where physaddr + 
+>>> size is used.
+>>> I would prefer to retype it to u64 because baseaddr and size don't 
+>>> need to be 2^n.
+>>>
+>>> Is it correct solution? If yes, I will create proper patch.
+>>
+>> Yeah, that's an inherent problem in using [) ranges but I think
+>> chopping off the last page probably is simpler and more robust
+>> solution.  Currently, memblock_add_region() would simply ignore if
+>> address range overflows but making it just ignore the last page is
+>> several lines of addition.  Wouldn't that be effective enough while
+>> staying very simple?
+> 
+> The main problem is with PFN_DOWN/UP macros and it is in __init section.
+> The result will be definitely u32 type (for 32bit archs) anyway and 
+> seems to me
+> better solution than ignoring the last page.
+> 
+> Is there any internal kernel test code to test all pages - try to 
+> allocate/use/test it?
+> It will be especially good to do so on the last page to see if there is 
+> any problem or not.
+> 
+> That two conditions in memblock should be ok.
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>
----
+Tejun and Andrew: any other comment?
 
---- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
-+++ b/mm/vmscan.c	Thu Dec 29 20:28:14 2011
-@@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
- 		unsigned long end_pfn;
- 		unsigned long page_pfn;
- 		int zone_id;
-+		unsigned int isolated_pages = 0;
+Thanks,
+Michal
 
- 		page = lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
-@@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
- 		case 0:
- 			mem_cgroup_lru_del(page);
- 			list_move(&page->lru, dst);
--			nr_taken += hpage_nr_pages(page);
-+			isolated_pages = hpage_nr_pages(page);
- 			break;
-
- 		case -EBUSY:
-@@ -1184,8 +1185,11 @@ static unsigned long isolate_lru_pages(u
- 			BUG();
- 		}
-
-+		nr_taken += isolated_pages;
- 		if (!order)
- 			continue;
-+		if (isolated_pages != 1 && isolated_pages >= (1 << order))
-+			continue;
-
- 		/*
- 		 * Attempt to take all pages in the order aligned region
-@@ -1227,7 +1231,6 @@ static unsigned long isolate_lru_pages(u
- 				break;
-
- 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
--				unsigned int isolated_pages;
-
- 				mem_cgroup_lru_del(cursor_page);
- 				list_move(&cursor_page->lru, dst);
+-- 
+Michal Simek, Ing. (M.Eng)
+w: www.monstr.eu p: +42-0-721842854
+Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
+Microblaze U-BOOT custodian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
