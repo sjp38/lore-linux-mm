@@ -1,53 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id ADA516B004D
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 17:21:04 -0500 (EST)
-Received: by iacb35 with SMTP id b35so29154411iac.14
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 14:21:04 -0800 (PST)
-Date: Thu, 29 Dec 2011 14:20:47 -0800 (PST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 2A4ED6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 17:46:11 -0500 (EST)
+Received: by iacb35 with SMTP id b35so29185895iac.14
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 14:46:10 -0800 (PST)
+Date: Thu, 29 Dec 2011 14:46:02 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
-In-Reply-To: <4EFC4C74.9010705@openvz.org>
-Message-ID: <alpine.LSU.2.00.1112291408180.4781@eggly.anvils>
-References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils> <alpine.LSU.2.00.1112282037000.1362@eggly.anvils> <4EFC4C74.9010705@openvz.org>
+Subject: Re: [PATCH 2/3] mm: cond_resched in scan_mapping_unevictable_pages
+In-Reply-To: <alpine.LSU.2.00.1112282142360.2405@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1112291421280.4781@eggly.anvils>
+References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils> <alpine.LSU.2.00.1112282035250.1362@eggly.anvils> <4EFBF732.1070303@gmail.com> <alpine.LSU.2.00.1112282142360.2405@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-On Thu, 29 Dec 2011, Konstantin Khlebnikov wrote:
+On Wed, 28 Dec 2011, Hugh Dickins wrote:
+> On Thu, 29 Dec 2011, KOSAKI Motohiro wrote:
+> > 
+> > Hmm...
+> > scan_mapping_unevictable_pages() is always under spinlock?
 > 
-> Nice patch
-> 
-> Reviewed-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Yikes, how dreadful!  Dreadful that it's like that, and dreadful
+> that I didn't notice.  Many thanks for spotting, consider this
+> patch summarily withdrawn.  All the more need for some patch like
+> this, but no doubt it was "easier" to do it all under the spinlock,
+> so the right replacement patch may not be so obvious.
 
-Thanks.
+It's not so bad, I think: that info->lock isn't really needed across
+scan_mapping_unevictable_pages(), which has to deal with races on a
+page by page basis anyway.
 
-> As I see, this patch is on top "memcg naturalization" patchset,
-> it does not apply clearly against Linus tree.
+But it's not the only spinlock, there is also ipc_lock() (often) held
+in the level above: so I'll have to restructure it a little.  And now
+that it's no longer a one-liner, I really ought to add a patch fixing
+another bug I introduced here - if there were swapped pages when the
+area was SHM_LOCKed, find_get_pages() will give up if it hits a row
+of PAGEVEC_SIZE swap entries, leaving subsequent pages unevictable.
 
-Right, it's certainly not intended as a last-minute "fix" to 3.2,
-but as a patch for mmotm and linux-next then 3.3.  Linus doesn't
-even have your free_hot_cold_page_list() yet.
-
-> 
-> > +		if (put_page_testzero(page)) {
-> > +			__ClearPageLRU(page);
-> > +			__ClearPageActive(page);
-> > +			del_page_from_lru_list(zone, page, lru);
-> > +
-> > +			if (unlikely(PageCompound(page))) {
-> > +				spin_unlock_irq(&zone->lru_lock);
-> 
-> There is good place for VM_BUG_ON(!PageHead(page));
-
-Well, my inertia wanted to find a reason to disagree with you on that,
-and indeed I found one!  If this were a tail page, the preceding
-put_page_testzero() should already have hit its
-	VM_BUG_ON(atomic_read(&page->_count) == 0);
-(since Andrea changed the THP refcounting to respect get_page_unless_zero).
+But I'd better empty my queue of trivia before going on to that.
 
 Hugh
 
