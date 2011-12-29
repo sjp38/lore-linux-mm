@@ -1,268 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 55F486B00A3
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 07:39:21 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LWY00L40TTFOL80@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 29 Dec 2011 12:39:16 +0000 (GMT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 93C546B00A2
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 07:39:22 -0500 (EST)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LWY007GKTTHCV@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 29 Dec 2011 12:39:18 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LWY00L1UTTFZ0@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 29 Dec 2011 12:39:15 +0000 (GMT)
-Date: Thu, 29 Dec 2011 13:39:05 +0100
+ 2004)) with ESMTPA id <0LWY00JDZTTG54@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 29 Dec 2011 12:39:17 +0000 (GMT)
+Date: Thu, 29 Dec 2011 13:39:08 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 04/11] mm: page_alloc: introduce alloc_contig_range()
+Subject: [PATCH 07/11] mm: add optional memory reclaim in split_free_page()
 In-reply-to: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1325162352-24709-8-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-From: Michal Nazarewicz <mina86@mina86.com>
+split_free_page() function is used by migration code to grab a free page
+once the migration has been finished. This function must obey the same
+rules as memory allocation functions to keep the correct level of
+memory watermarks. Memory compaction code calls it under locks, so it
+cannot perform any *_slowpath style reclaim. However when this function
+is called by migration code for Contiguous Memory Allocator, the sleeping
+context is permitted and the function can make a real reclaim to ensure
+that the call succeeds.
 
-This commit adds the alloc_contig_range() function which tries
-to allocate given range of pages.  It tries to migrate all
-already allocated pages that fall in the range thus freeing them.
-Once all pages in the range are freed they are removed from the
-buddy system thus allocated for the caller to use.
+The reclaim code is based on the __alloc_page_slowpath() function.
 
-__alloc_contig_migrate_range() borrows some code from KAMEZAWA
-Hiroyuki's __alloc_contig_pages().
-
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- include/linux/page-isolation.h |    3 +
- mm/page_alloc.c                |  190 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 193 insertions(+), 0 deletions(-)
+ include/linux/mm.h |    2 +-
+ mm/compaction.c    |    6 ++--
+ mm/internal.h      |    2 +-
+ mm/page_alloc.c    |   79 +++++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 65 insertions(+), 24 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 051c1b1..d305080 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -33,5 +33,8 @@ test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
- extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4baadd1..8b15b21 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -450,7 +450,7 @@ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
  
-+/* The below functions must be run on a range from a single zone. */
-+int alloc_contig_range(unsigned long start, unsigned long end);
-+void free_contig_range(unsigned long pfn, unsigned nr_pages);
+ void split_page(struct page *page, unsigned int order);
+-int split_free_page(struct page *page);
++int split_free_page(struct page *page, int force_reclaim);
  
- #endif
+ /*
+  * Compound pages have a destructor function.  Provide a
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 46783b4..d6c5cb7 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -46,7 +46,7 @@ static inline bool is_migrate_cma_or_movable(int migratetype)
+ unsigned long
+ isolate_freepages_range(struct zone *zone,
+ 			unsigned long start_pfn, unsigned long end_pfn,
+-			struct list_head *freelist)
++			struct list_head *freelist, int force_reclaim)
+ {
+ 	unsigned long nr_scanned = 0, total_isolated = 0;
+ 	unsigned long pfn = start_pfn;
+@@ -67,7 +67,7 @@ isolate_freepages_range(struct zone *zone,
+ 			goto next;
+ 
+ 		/* Found a free page, break it into order-0 pages */
+-		n = split_free_page(page);
++		n = split_free_page(page, force_reclaim);
+ 		total_isolated += n;
+ 		if (freelist) {
+ 			struct page *p = page;
+@@ -376,7 +376,7 @@ static void isolate_freepages(struct zone *zone,
+ 		if (suitable_migration_target(page)) {
+ 			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
+ 			isolated = isolate_freepages_range(zone, pfn,
+-					end_pfn, freelist);
++					end_pfn, freelist, false);
+ 			nr_freepages += isolated;
+ 		}
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+diff --git a/mm/internal.h b/mm/internal.h
+index 4a226d8..8b80027 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -129,7 +129,7 @@ struct compact_control {
+ unsigned long
+ isolate_freepages_range(struct zone *zone,
+ 			unsigned long start, unsigned long end,
+-			struct list_head *freelist);
++			struct list_head *freelist, int force_reclaim);
+ unsigned long
+ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 			   unsigned long low_pfn, unsigned long end_pfn);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f88b320..47b0a85 100644
+index 8b47c85..a3d5892 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -57,6 +57,7 @@
- #include <linux/ftrace_event.h>
- #include <linux/memcontrol.h>
- #include <linux/prefetch.h>
-+#include <linux/migrate.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -5711,6 +5712,195 @@ out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
+@@ -1302,17 +1302,65 @@ void split_page(struct page *page, unsigned int order)
+ 		set_page_refcounted(page + i);
  }
  
-+static unsigned long pfn_align_to_maxpage_down(unsigned long pfn)
++static inline
++void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
++						enum zone_type high_zoneidx,
++						enum zone_type classzone_idx)
 +{
-+	return pfn & ~(MAX_ORDER_NR_PAGES - 1);
++	struct zoneref *z;
++	struct zone *zone;
++
++	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
++		wakeup_kswapd(zone, order, classzone_idx);
 +}
 +
-+static unsigned long pfn_align_to_maxpage_up(unsigned long pfn)
-+{
-+	return ALIGN(pfn, MAX_ORDER_NR_PAGES);
-+}
-+
-+static struct page *
-+__cma_migrate_alloc(struct page *page, unsigned long private, int **resultp)
-+{
-+	return alloc_page(GFP_HIGHUSER_MOVABLE);
-+}
-+
-+static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-+{
-+	/* This function is based on compact_zone() from compaction.c. */
-+
-+	unsigned long pfn = start;
-+	int ret = -EBUSY;
-+	unsigned tries = 0;
-+
-+	struct compact_control cc = {
-+		.nr_migratepages = 0,
-+		.order = -1,
-+		.zone = page_zone(pfn_to_page(start)),
-+		.sync = true,
-+	};
-+	INIT_LIST_HEAD(&cc.migratepages);
-+
-+	migrate_prep_local();
-+
-+	while (pfn < end || cc.nr_migratepages) {
-+		/* Abort on signal */
-+		if (fatal_signal_pending(current)) {
-+			ret = -EINTR;
-+			goto done;
-+		}
-+
-+		/* Get some pages to migrate. */
-+		if (list_empty(&cc.migratepages)) {
-+			cc.nr_migratepages = 0;
-+			pfn = isolate_migratepages_range(cc.zone, &cc,
-+							 pfn, end);
-+			if (!pfn) {
-+				ret = -EINTR;
-+				goto done;
-+			}
-+			tries = 0;
-+		}
-+
-+		/* Try to migrate. */
-+		ret = migrate_pages(&cc.migratepages, __cma_migrate_alloc,
-+				    0, false, true);
-+
-+		/* Migrated all of them? Great! */
-+		if (list_empty(&cc.migratepages))
-+			continue;
-+
-+		/* Try five times. */
-+		if (++tries == 5) {
-+			ret = ret < 0 ? ret : -EBUSY;
-+			goto done;
-+		}
-+
-+		/* Before each time drain everything and reschedule. */
-+		lru_add_drain_all();
-+		drain_all_pages();
-+		cond_resched();
-+	}
-+	ret = 0;
-+
-+done:
-+	/* Make sure all pages are isolated. */
-+	if (!ret) {
-+		lru_add_drain_all();
-+		drain_all_pages();
-+		if (WARN_ON(test_pages_isolated(start, end)))
-+			ret = -EBUSY;
-+	}
-+
-+	/* Release pages */
-+	putback_lru_pages(&cc.migratepages);
-+
-+	return ret;
-+}
-+
-+/**
-+ * alloc_contig_range() -- tries to allocate given range of pages
-+ * @start:	start PFN to allocate
-+ * @end:	one-past-the-last PFN to allocate
-+ *
-+ * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-+ * aligned, hovewer it's callers responsibility to guarantee that we
-+ * are the only thread that changes migrate type of pageblocks the
-+ * pages fall in.
-+ *
-+ * Returns zero on success or negative error code.  On success all
-+ * pages which PFN is in (start, end) are allocated for the caller and
-+ * need to be freed with free_contig_range().
++/*
++ * Trigger memory pressure bump to reclaim at least 2^order of free pages.
++ * Does similar work as it is done in __alloc_pages_slowpath(). Used only
++ * by migration code to allocate contiguous memory range.
 + */
-+int alloc_contig_range(unsigned long start, unsigned long end)
++static int __force_memory_reclaim(int order, struct zone *zone)
 +{
-+	unsigned long outer_start, outer_end;
-+	int ret;
++	gfp_t gfp_mask = GFP_HIGHUSER_MOVABLE;
++	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
++	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
++	struct reclaim_state reclaim_state;
++	int did_some_progress = 0;
 +
-+	/*
-+	 * What we do here is we mark all pageblocks in range as
-+	 * MIGRATE_ISOLATE.  Because of the way page allocator work, we
-+	 * align the range to MAX_ORDER pages so that page allocator
-+	 * won't try to merge buddies from different pageblocks and
-+	 * change MIGRATE_ISOLATE to some other migration type.
-+	 *
-+	 * Once the pageblocks are marked as MIGRATE_ISOLATE, we
-+	 * migrate the pages from an unaligned range (ie. pages that
-+	 * we are interested in).  This will put all the pages in
-+	 * range back to page allocator as MIGRATE_ISOLATE.
-+	 *
-+	 * When this is done, we take the pages in range from page
-+	 * allocator removing them from the buddy system.  This way
-+	 * page allocator will never consider using them.
-+	 *
-+	 * This lets us mark the pageblocks back as
-+	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-+	 * MAX_ORDER aligned range but not in the unaligned, original
-+	 * range are put back to page allocator so that buddy can use
-+	 * them.
-+	 */
++	wake_all_kswapd(order, zonelist, high_zoneidx, zone_idx(zone));
 +
-+	ret = start_isolate_page_range(pfn_align_to_maxpage_down(start),
-+				       pfn_align_to_maxpage_up(end));
-+	if (ret)
-+		goto done;
++	/* We now go into synchronous reclaim */
++	cpuset_memory_pressure_bump();
++	current->flags |= PF_MEMALLOC;
++	lockdep_set_current_reclaim_state(gfp_mask);
++	reclaim_state.reclaimed_slab = 0;
++	current->reclaim_state = &reclaim_state;
 +
-+	ret = __alloc_contig_migrate_range(start, end);
-+	if (ret)
-+		goto done;
++	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask, NULL);
 +
-+	/*
-+	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-+	 * aligned blocks that are marked as MIGRATE_ISOLATE.  What's
-+	 * more, all pages in [start, end) are free in page allocator.
-+	 * What we are going to do is to allocate all pages from
-+	 * [start, end) (that is remove them from page allocater).
-+	 *
-+	 * The only problem is that pages at the beginning and at the
-+	 * end of interesting range may be not aligned with pages that
-+	 * page allocator holds, ie. they can be part of higher order
-+	 * pages.  Because of this, we reserve the bigger range and
-+	 * once this is done free the pages we are not interested in.
-+	 */
++	current->reclaim_state = NULL;
++	lockdep_clear_current_reclaim_state();
++	current->flags &= ~PF_MEMALLOC;
 +
-+	ret = 0;
-+	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
-+		if (WARN_ON(++ret >= MAX_ORDER)) {
-+			ret = -EINVAL;
-+			goto done;
-+		}
++	cond_resched();
 +
-+	outer_start = start & (~0UL << ret);
-+	outer_end = isolate_freepages_range(page_zone(pfn_to_page(outer_start)),
-+					    outer_start, end, NULL);
-+	if (!outer_end) {
-+		ret = -EBUSY;
-+		goto done;
++	if (!did_some_progress) {
++		/* Exhausted what can be done so it's blamo time */
++		out_of_memory(zonelist, gfp_mask, order, NULL);
 +	}
-+	outer_end += outer_start;
-+
-+	/* Free head and tail (if any) */
-+	if (start != outer_start)
-+		free_contig_range(outer_start, start - outer_start);
-+	if (end != outer_end)
-+		free_contig_range(end, outer_end - end);
-+
-+	ret = 0;
-+done:
-+	undo_isolate_page_range(pfn_align_to_maxpage_down(start),
-+				pfn_align_to_maxpage_up(end));
-+	return ret;
++	return order;
 +}
 +
-+void free_contig_range(unsigned long pfn, unsigned nr_pages)
-+{
-+	for (; nr_pages--; ++pfn)
-+		__free_page(pfn_to_page(pfn));
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
  /*
-  * All pages in the range must be isolated before calling this.
+  * Similar to split_page except the page is already free. As this is only
+  * being used for migration, the migratetype of the block also changes.
+- * As this is called with interrupts disabled, the caller is responsible
+- * for calling arch_alloc_page() and kernel_map_page() after interrupts
+- * are enabled.
++ * The caller is responsible for calling arch_alloc_page() and kernel_map_page()
++ * after interrupts are enabled.
+  *
+  * Note: this is probably too low level an operation for use in drivers.
+  * Please consult with lkml before using this in your driver.
+  */
+-int split_free_page(struct page *page)
++int split_free_page(struct page *page, int force_reclaim)
+ {
+ 	unsigned int order;
+ 	unsigned long watermark;
+@@ -1323,10 +1371,15 @@ int split_free_page(struct page *page)
+ 	zone = page_zone(page);
+ 	order = page_order(page);
+ 
++try_again:
+ 	/* Obey watermarks as if the page was being allocated */
+ 	watermark = low_wmark_pages(zone) + (1 << order);
+-	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+-		return 0;
++	if (!zone_watermark_ok(zone, 0, watermark, 0, 0)) {
++		if (force_reclaim && __force_memory_reclaim(order, zone))
++			goto try_again;
++		else
++			return 0;
++	}
+ 
+ 	/* Remove page from free list */
+ 	list_del(&page->lru);
+@@ -2086,18 +2139,6 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+ 	return page;
+ }
+ 
+-static inline
+-void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+-						enum zone_type high_zoneidx,
+-						enum zone_type classzone_idx)
+-{
+-	struct zoneref *z;
+-	struct zone *zone;
+-
+-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+-		wakeup_kswapd(zone, order, classzone_idx);
+-}
+-
+ static inline int
+ gfp_to_alloc_flags(gfp_t gfp_mask)
+ {
+@@ -5917,7 +5958,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	outer_start = start & (~0UL << ret);
+ 	outer_end = isolate_freepages_range(page_zone(pfn_to_page(outer_start)),
+-					    outer_start, end, NULL);
++					    outer_start, end, NULL, true);
+ 	if (!outer_end) {
+ 		ret = -EBUSY;
+ 		goto done;
 -- 
 1.7.1.569.g6f426
 
