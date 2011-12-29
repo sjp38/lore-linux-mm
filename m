@@ -1,88 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id EF6BB6B00B5
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 11:46:22 -0500 (EST)
-Received: by eekc41 with SMTP id c41so15085500eek.14
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 08:46:21 -0800 (PST)
-Message-ID: <4EFC995A.5090904@monstr.eu>
-Date: Thu, 29 Dec 2011 17:46:18 +0100
-From: Michal Simek <monstr@monstr.eu>
-Reply-To: monstr@monstr.eu
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 090A16B005A
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 11:59:58 -0500 (EST)
+Date: Thu, 29 Dec 2011 16:59:51 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 11/11] mm: Isolate pages for immediate reclaim on their
+ own LRU
+Message-ID: <20111229165951.GA15729@suse.de>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
+ <1323877293-15401-12-git-send-email-mgorman@suse.de>
+ <20111217160822.GA10064@barrios-laptop.redhat.com>
+ <20111219132615.GL3487@suse.de>
+ <20111220071026.GA19025@barrios-laptop.redhat.com>
+ <20111220095544.GP3487@suse.de>
+ <alpine.LSU.2.00.1112231039030.17640@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: memblock and bootmem problems if start + size = 4GB
-References: <4EEF42F5.7040002@monstr.eu> <20111219162835.GA24519@google.com> <4EF05316.5050803@monstr.eu> <20111229155836.GB3516@google.com>
-In-Reply-To: <20111229155836.GB3516@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1112231039030.17640@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Tejun Heo wrote:
-> Hello,
+I was offline for several days for the holidays and I'm not back
+online properly until Jan 4th, hence the delay in responding.
+
+On Fri, Dec 23, 2011 at 11:08:19AM -0800, Hugh Dickins wrote:
+> Sorry, Mel, I've had to revert this patch (and its two little children)
+> from my 3.2.0-rc6-next-20111222 testing: you really do need a page flag
+> (or substitute) for your "immediate" lru.
 > 
-> On Tue, Dec 20, 2011 at 10:19:18AM +0100, Michal Simek wrote:
->>> Yeah, that's an inherent problem in using [) ranges but I think
->>> chopping off the last page probably is simpler and more robust
->>> solution.  Currently, memblock_add_region() would simply ignore if
->>> address range overflows but making it just ignore the last page is
->>> several lines of addition.  Wouldn't that be effective enough while
->>> staying very simple?
->> The main problem is with PFN_DOWN/UP macros and it is in __init section.
->> The result will be definitely u32 type (for 32bit archs) anyway and seems to me
->> better solution than ignoring the last page.
+
+Don't be sorry at all. I prefer that this was caught before merging
+to mainline and thanks for catching this.
+
+> How else can a del_page_from_lru[_list]() know whether to decrement
+> the count of the immediate or the inactive list? 
+
+You are right, it cannot and because pages are removed from the
+LRU list in contexts such as invalidating a mapping, we cannot be
+sure whether a page is on the immediate LRU or inactive_file in all
+cases. It is further complicated by the fact that PageReclaim and
+PageReadhead use the same page flag.
+
+> page_lru() says to
+> decrement the count of the inactive list, so in due course that wraps
+> to a gigantic number, and then page reclaim livelocks trying to wring
+> pages out of an empty list.  It's the memcg case I've been hitting,
+> but presumably the same happens with global counts.
 > 
-> Other than being able to use one more 4k page, is there any other
-> benefit? Maybe others had different experiences but in my exprience
-> trying to extend range coverages - be it stack top/end pointers,
-> address ranges or whatnot - using [] ranges or special flag usually
-> ended up adding complexity while adding almost nothing tangible.
 
-First of all I don't like to use your term "extend range coverages".
-We don't want to extend any ranges - we just wanted to place memory to the end
-of address space and be able to work with. It is limitation which should be fixed somehow.
-And I would expect that PFN_XX(base + size) will be in u32 range.
+I've verified that the accounting can break. I did not see it wrap
+negative because in my testing it was rare the problem occurred but it
+would happen eventually.
 
-Probably the best solution will be to use PFN macro in one place and do not covert
-addresses in common code.
+I considered a few ways of fixing this. The obvious one is to add a
+new page flag but that is difficult to justify as the high-cpu-usage
+problem should only occur when there is a lot of writeback to slow
+storage which I believe is a rare case. It is not a suitable use for
+an extended page flag.
 
-+ change parameters in bootmem code because some arch do
-free_bootmem_node(..., PFN_PHYS(), ...)
-and
-reserve_bootmem_node(..., PFN_PHYS(), ...)
+The second was to keep these PageReclaim pages off the LRU but this
+leads to complications of its own.
 
-and then in that functions(free/reseve_bootmem_code) are used PFN_DOWN/PFN_UP macros.
-If alignment is handled by architecture code (which I believe is) then should be possible to change parameters.
+The third was to use a combination of flags to mark pages that
+are on the immediate LRU such as how PG_compound and PG_reclaim in
+combination mark tail pages. This would not be free of races and would
+eventually cause corruption. There is also the problem that we cannot
+atomically set multiple bits so setting the bits in contexts such as
+set_page_dirty() may be problematic.
 
-For example:
-void __init free_bootmem_node(pg_data_t *pgdat, unsigned long start_pfn,
-			      unsigned long end_pfn)
+Andrew, as there is not an easy uncontroversial fix can you remove
+the following patches from mmotm please?
 
-int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long start_pfn,
-				 unsigned long end_pfn, int flags)
+mm-isolate-pages-for-immediate-reclaim-on-their-own-lru.patch
+mm-isolate-pages-for-immediate-reclaim-on-their-own-lru-fix.patch
+mm-isolate-pages-for-immediate-reclaim-on-their-own-lru-fix-2.patch
 
-Is there any reason to use use physical addresses instead of pfns in bootmem code?
+The impact is that users writing to slow stage may see higher CPU usage
+as the pages under writeback have to be skipped by scanning once the
+dirty pages move to the end of the LRU list. I'm assuming once they
+are removed from mmotm that they also get removed from linux-next.
 
- >  On
-> extreme cases, people even carry separate valid flag to use %NULL as
-> valid address, which is pretty silly, IMHO.  So, unless there's some
-> benefit that I'm missing, I still think it's an overkill.  It's more
-> complex and difficult to test and verify.  Why bother for a single
-> page?
+> There is another such accounting bug in -next, been there longer and
+> not so easy to hit: I'm fairly sure it will turn out to be memcg
+> misaccounting a THPage somewhere, I'll have a look around shortly.
+> 
+> p.s. Immediate?  Isn't that an odd name for a list of pages which are
+> not immediately freeable?  Maybe Rik's launder/laundry name would be
+> better: pages which are currently being cleaned.
 
-Where do you think this page should be placed? In common code or in architecture memory
-code where one page from the top of 4G should be subtract?
+That is potentially very misleading as not all pages being laundered are
+on that list. reclaim_writeback might be a better name.
 
-Thanks,
-Michal
-
+Thanks.
 
 -- 
-Michal Simek, Ing. (M.Eng)
-w: www.monstr.eu p: +42-0-721842854
-Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
-Microblaze U-BOOT custodian
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
