@@ -1,126 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 193C06B004D
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 22:39:23 -0500 (EST)
-Received: by qcsd17 with SMTP id d17so9987196qcs.14
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2011 19:39:22 -0800 (PST)
-Message-ID: <4EFD3266.4080701@gmail.com>
-Date: Thu, 29 Dec 2011 22:39:18 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] pagemap: avoid splitting thp when reading /proc/pid/pagemap
-References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324506228-18327-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1324506228-18327-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 2AE0F6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2011 22:55:42 -0500 (EST)
+Date: Thu, 29 Dec 2011 19:59:17 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
+Message-Id: <20111229195917.13f15974.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1112291753350.3614@eggly.anvils>
+References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils>
+	<alpine.LSU.2.00.1112282037000.1362@eggly.anvils>
+	<20111229145548.e34cb2f3.akpm@linux-foundation.org>
+	<alpine.LSU.2.00.1112291510390.4888@eggly.anvils>
+	<4EFD04B2.7050407@gmail.com>
+	<alpine.LSU.2.00.1112291753350.3614@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-(12/21/11 5:23 PM), Naoya Horiguchi wrote:
-> Thp split is not necessary if we explicitly check whether pmds are
-> mapping thps or not. This patch introduces the check and the code
-> to generate pagemap entries for pmds mapping thps, which results in
-> less performance impact of pagemap on thp.
+On Thu, 29 Dec 2011 17:55:14 -0800 (PST) Hugh Dickins <hughd@google.com> wrote:
+
+> > However, at that time, I think this patch behave
+> > better than old. If we release and retake zone lock per 14 pages,
+> > other tasks can easily steal a part of lumpy reclaimed pages. and then
+> > long latency wrongness will be happen when system is under large page
+> > memory allocation pressure. That's the reason why I posted very similar patch
+> > a long time ago.
 > 
-> Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
-> Reviewed-by: Andi Kleen<ak@linux.intel.com>
-> 
-> Changes since v1:
->    - move pfn declaration to the beginning of pagemap_pte_range()
-> ---
->   fs/proc/task_mmu.c |   49 +++++++++++++++++++++++++++++++++++++++++++------
->   1 files changed, 43 insertions(+), 6 deletions(-)
-> 
-> diff --git 3.2-rc5.orig/fs/proc/task_mmu.c 3.2-rc5/fs/proc/task_mmu.c
-> index e418c5a..0df61ab 100644
-> --- 3.2-rc5.orig/fs/proc/task_mmu.c
-> +++ 3.2-rc5/fs/proc/task_mmu.c
-> @@ -600,6 +600,9 @@ struct pagemapread {
->   	u64 *buffer;
->   };
-> 
-> +#define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-> +#define PAGEMAP_WALK_MASK	(PMD_MASK)
-> +
->   #define PM_ENTRY_BYTES      sizeof(u64)
->   #define PM_STATUS_BITS      3
->   #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-> @@ -658,6 +661,22 @@ static u64 pte_to_pagemap_entry(pte_t pte)
->   	return pme;
->   }
-> 
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +static u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-> +{
-> +	u64 pme = 0;
-> +	if (pte_present(pte))
+> Aha, and another good point.  Thank you.
 
-When does pte_present() return 0?
+I hope you understand it better than I :(
 
-> +		pme = PM_PFRAME(pte_pfn(pte) + offset)
-> +			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
-> +	return pme;
-> +}
-> +#else
-> +static inline u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-> +{
-> +	return 0;
-> +}
-> +#endif
-> +
->   static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->   			     struct mm_walk *walk)
->   {
-> @@ -665,14 +684,34 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->   	struct pagemapread *pm = walk->private;
->   	pte_t *pte;
->   	int err = 0;
-> -
-> -	split_huge_page_pmd(walk->mm, pmd);
-> +	u64 pfn = PM_NOT_PRESENT;
-> 
->   	/* find the first VMA at or above 'addr' */
->   	vma = find_vma(walk->mm, addr);
-> -	for (; addr != end; addr += PAGE_SIZE) {
-> -		u64 pfn = PM_NOT_PRESENT;
-> 
-> +	spin_lock(&walk->mm->page_table_lock);
-> +	if (pmd_trans_huge(*pmd)) {
-> +		if (pmd_trans_splitting(*pmd)) {
-> +			spin_unlock(&walk->mm->page_table_lock);
-> +			wait_split_huge_page(vma->anon_vma, pmd);
-> +		} else {
-> +			for (; addr != end; addr += PAGE_SIZE) {
-> +				int offset = (addr&  ~PAGEMAP_WALK_MASK)
-> +					>>  PAGE_SHIFT;
+Long lock hold times and long irq-off times are demonstrable problems
+which have hurt people in the past.  Whereas the someone-stole-my-page
+issue is theoretical, undemonstrated and unquantified.  And for
+some people, lengthy worst-case latency is a serious problem, doesn't
+matter whether the system is under memory pressure or not - that simply
+determines when the worst-case hits.
 
-implicit narrowing conversion. offset should be unsigned long.
+This is not all some handwavy theoretical thing either.  If we've gone
+and introduced serious latency issues, people *will* hit them and treat
+it as a regression.
 
 
-> +				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
-> +							       offset);
+Now, a way out here is to remove lumpy reclaim (please).  And make the
+problem not come back by promising to never call putback_lru_pages(lots
+of pages) (how do we do this?).
 
-This (pte_t*) cast looks introduce new implicit assumption. Please don't
-put x86 assumption here directly.
-
-
-
-
-> +				err = add_to_pagemap(addr, pfn, pm);
-> +				if (err)
-> +					break;
-> +			}
-> +			spin_unlock(&walk->mm->page_table_lock);
-> +			return err;
-> +		}
-> +	} else {
-> +		spin_unlock(&walk->mm->page_table_lock);
-> +	}
-
-coding standard violation. plz run check_patch.pl.
-
+So I think the best way ahead here is to distribute this patch in the
+same release in which we remove lumpy reclaim (pokes Mel).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
