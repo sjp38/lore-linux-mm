@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 333036B004D
-	for <linux-mm@kvack.org>; Sat, 31 Dec 2011 03:45:52 -0500 (EST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 32D4C6B004D
+	for <linux-mm@kvack.org>; Sat, 31 Dec 2011 04:08:49 -0500 (EST)
 From: Huang Shijie <b32955@freescale.com>
-Subject: [PATCH] mm/compaction : fix the wrong return value for isolate_migratepages()
-Date: Sat, 31 Dec 2011 16:46:48 +0800
-Message-ID: <1325321208-15778-1-git-send-email-b32955@freescale.com>
+Subject: [PATCH v2] mm/compaction : fix the wrong return value for isolate_migratepages()
+Date: Sat, 31 Dec 2011 17:09:45 +0800
+Message-ID: <1325322585-16216-1-git-send-email-b32955@freescale.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -14,8 +14,6 @@ To: akpm@linux-foundation.org
 Cc: mgorman@suse.de, linux-mm@kvack.org, shijie8@gmail.com, Huang Shijie <b32955@freescale.com>
 
 When we do not get any migrate page, we should return ISOLATE_NONE.
-If we return ISOLATE_SUCCESS in this case, we may migrate the NORMAL
-zone's pages to DMA zone.
 
 Signed-off-by: Huang Shijie <b32955@freescale.com>
 ---
