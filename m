@@ -1,64 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 2596B6B004D
-	for <linux-mm@kvack.org>; Sat, 31 Dec 2011 09:32:44 -0500 (EST)
-Received: by wibhq12 with SMTP id hq12so10562436wib.14
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 06:32:42 -0800 (PST)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1DAF36B004D
+	for <linux-mm@kvack.org>; Sat, 31 Dec 2011 09:55:24 -0500 (EST)
+Received: by werf1 with SMTP id f1so9613919wer.14
+        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 06:55:22 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20111229150717.6c8ba825.akpm@linux-foundation.org>
-References: <CAJd=RBAp=ooYGoDqJG0qkUhRuYTsSKG9h+bUvC0dvuVCvfkCgQ@mail.gmail.com>
-	<20111229150717.6c8ba825.akpm@linux-foundation.org>
-Date: Sat, 31 Dec 2011 22:25:29 +0800
-Message-ID: <CAJd=RBAp-nC2-VoxgfZ2NjDz08hVkjD_YOoRWuO54ASQCL5hvA@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: fix typo in isolating lru pages
+In-Reply-To: <4EFCA4F9.7070703@gmail.com>
+References: <CAJd=RBBJG+hLLc3mR-WzByU1gZEcdFUAoZzyir+1A4a0tVnSmg@mail.gmail.com>
+	<4EFCA4F9.7070703@gmail.com>
+Date: Sat, 31 Dec 2011 22:55:22 +0800
+Message-ID: <CAJd=RBCuh=zDLZ7J9sV_p_ghoXP-VX6PEAx01t8p_pziTimxnA@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscam: check page order in isolating lru pages
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-T24gRnJpLCBEZWMgMzAsIDIwMTEgYXQgNzowNyBBTSwgQW5kcmV3IE1vcnRvbgo8YWtwbUBsaW51
-eC1mb3VuZGF0aW9uLm9yZz4gd3JvdGU6Cj4gT24gVGh1LCAyOSBEZWMgMjAxMSAyMDozODo0MSAr
-MDgwMAo+IEhpbGxmIERhbnRvbiA8ZGhpbGxmQGdtYWlsLmNvbT4gd3JvdGU6Cj4KPj4gSXQgaXMg
-bm90IHRoZSB0YWcgcGFnZSBidXQgdGhlIGN1cnNvciBwYWdlIHRoYXQgd2Ugc2hvdWxkIHByb2Nl
-c3MsIGFuZCBpdCBsb29rcwo+PiBhIHR5cG8uCj4+Cj4+IFNpZ25lZC1vZmYtYnk6IEhpbGxmIERh
-bnRvbiA8ZGhpbGxmQGdtYWlsLmNvbT4KPj4gQ2M6IE1pY2hhbCBIb2NrbyA8bWhvY2tvQHN1c2Uu
-Y3o+Cj4+IENjOiBLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0c3Uu
-Y29tPgo+PiBDYzogQW5kcmV3IE1vcnRvbiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz4KPj4g
-Q2M6IERhdmlkIFJpZW50amVzIDxyaWVudGplc0Bnb29nbGUuY29tPgo+PiBDYzogSHVnaCBEaWNr
-aW5zIDxodWdoZEBnb29nbGUuY29tPgo+PiAtLS0KPj4KPj4gLS0tIGEvbW0vdm1zY2FuLmMgwqAg
-wqAgVGh1IERlYyAyOSAyMDoyMDoxNiAyMDExCj4+ICsrKyBiL21tL3Ztc2Nhbi5jIMKgIMKgIFRo
-dSBEZWMgMjkgMjA6MjM6MzAgMjAxMQo+PiBAQCAtMTIzMSwxMyArMTIzMSwxMyBAQCBzdGF0aWMg
-dW5zaWduZWQgbG9uZyBpc29sYXRlX2xydV9wYWdlcyh1Cj4+Cj4+IMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbV9jZ3JvdXBfbHJ1X2RlbChjdXJzb3JfcGFn
-ZSk7Cj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxpc3Rf
-bW92ZSgmY3Vyc29yX3BhZ2UtPmxydSwgZHN0KTsKPj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCBpc29sYXRlZF9wYWdlcyA9IGhwYWdlX25yX3BhZ2VzKHBhZ2Up
-Owo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlzb2xhdGVk
-X3BhZ2VzID0gaHBhZ2VfbnJfcGFnZXMoY3Vyc29yX3BhZ2UpOwo+PiDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBucl90YWtlbiArPSBpc29sYXRlZF9wYWdlczsK
-Pj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbnJfbHVtcHlf
-dGFrZW4gKz0gaXNvbGF0ZWRfcGFnZXM7Cj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIGlmIChQYWdlRGlydHkoY3Vyc29yX3BhZ2UpKQo+PiDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBucl9sdW1weV9k
-aXJ0eSArPSBpc29sYXRlZF9wYWdlczsKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgc2NhbisrOwo+PiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIHBmbiArPSBpc29sYXRlZF9wYWdlcy0xOwo+PiArIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHBmbiArPSBpc29sYXRlZF9wYWdlcyAtIDE7Cj4+
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIH0gZWxzZSB7Cj4+IMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8qCj4+IMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBDaGVjayBpZiB0aGUgcGFnZSBpcyBmcmVl
-ZCBhbHJlYWR5Lgo+Cj4gVGhpcyBwcm9ibGVtIGxvb2tzIHByZXR0eSBiZW5pZ24gaW4gbWFpbmxp
-bmUuIMKgQnV0IEFuZHJlYSdzICJtbToKPiB2bXNjYW46IGNoZWNrIGlmIHdlIGlzb2xhdGVkIGEg
-Y29tcG91bmQgcGFnZSBkdXJpbmcgbHVtcHkgc2NhbiIgY2FtZQo+IGFsb25nIGFuZCB1c2VzIGlz
-b2xhdGVkX3BhZ2VzIHJhdGhlciBhIGxvdCBtb3JlLCBpbmNsdWRpbmcgdXNpbmcgaXQgdG8KPiBh
-ZHZhbmNlIGFjcm9zcyB0aGUgcGZuIGFycmF5Lgo+Cj4gSSBqaWdnbGVkIHlvdXIgcGF0Y2ggdG8g
-c3VpdCBjdXJyZW50IG1haW5saW5lIHRoZW4gcmV3b3JrZWQgZXZlcnl0aGluZwo+IGVsc2Ugc28g
-d2UgZW5kIHVwIHdpdGggdGhpcyByZXN1bHQuCj4KSGkgZm9sa3MKClRoYW5rcyBmb3IgeW91ciBj
-b21tZW50cywgYWNrIGFuZCBuYWNrLCBpbiAyMDExLgoKSGFwcHkgTmV3IFllYXIKCkhpbGxmIERh
-bnRvbgo=
+On Fri, Dec 30, 2011 at 1:35 AM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> (12/29/11 7:45 AM), Hillf Danton wrote:
+>>
+>> Before we try to isolate physically contiguous pages, check for page ord=
+er
+>> is
+>> added, and if the reclaim order is no larger than page order, we should
+>> give up
+>> the attempt.
+>>
+>> Signed-off-by: Hillf Danton<dhillf@gmail.com>
+>> Cc: Michal Hocko<mhocko@suse.cz>
+>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Andrew Morton<akpm@linux-foundation.org>
+>> Cc: David Rientjes<rientjes@google.com>
+>> Cc: Hugh Dickins<hughd@google.com>
+>> ---
+>>
+>> --- a/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Thu Dec 29 20:20:16 2011
+>> +++ b/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Thu Dec 29 20:28:14 2011
+>> @@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long end=
+_pfn;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long pag=
+e_pfn;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0int zone_id;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned int isolated=
+_pages =3D 0;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D lru_to_p=
+age(src);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0prefetchw_prev_lr=
+u_page(page, src, flags);
+>> @@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case 0:
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0mem_cgroup_lru_del(page);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0list_move(&page->lru, dst);
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 nr_taken +=3D hpage_nr_pages(page);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 isolated_pages =3D hpage_nr_pages(page);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0break;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case -EBUSY:
+>> @@ -1184,8 +1185,11 @@ static unsigned long isolate_lru_pages(u
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0BUG();
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>>
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_taken +=3D isolate=
+d_pages;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!order)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0continue;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (isolated_pages !=
+=3D 1&& =C2=A0isolated_pages>=3D (1<< =C2=A0order))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 continue;
+>
+>
+> strange space alignment. and I don't think we need "isolated_pages !=3D 1=
+"
+> check.
+>
+> Otherwise, Looks good to me.
+>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+
+Hi KOSAKI
+
+It is re-prepared and please review again.
+1, changelog is updated,
+2, the check for page order is refined,
+3, comment is also added.
+
+Thanks
+Hillf
+
+=3D=3D=3Dcut please=3D=3D=3D
+From: Hillf Danton <dhillf@gmail.com>
+Subject: [PATCH] mm: vmscam: check page order in isolating lru pages
+
+Before try to isolate physically contiguous pages, check for page order is
+added, and if it is not regular page, we should give up the attempt.
+
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+---
+
+--- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
++++ b/mm/vmscan.c	Sat Dec 31 22:44:16 2011
+@@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
+ 		unsigned long end_pfn;
+ 		unsigned long page_pfn;
+ 		int zone_id;
++		unsigned int isolated_pages =3D 1;
+
+ 		page =3D lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+@@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
+ 		case 0:
+ 			mem_cgroup_lru_del(page);
+ 			list_move(&page->lru, dst);
+-			nr_taken +=3D hpage_nr_pages(page);
++			isolated_pages =3D hpage_nr_pages(page);
+ 			break;
+
+ 		case -EBUSY:
+@@ -1184,8 +1185,12 @@ static unsigned long isolate_lru_pages(u
+ 			BUG();
+ 		}
+
++		nr_taken +=3D isolated_pages;
+ 		if (!order)
+ 			continue;
++		/* try pfn-based isolation only for regular page */
++		if (isolated_pages !=3D 1)
++			continue;
+
+ 		/*
+ 		 * Attempt to take all pages in the order aligned region
+@@ -1227,7 +1232,6 @@ static unsigned long isolate_lru_pages(u
+ 				break;
+
+ 			if (__isolate_lru_page(cursor_page, mode, file) =3D=3D 0) {
+-				unsigned int isolated_pages;
+
+ 				mem_cgroup_lru_del(cursor_page);
+ 				list_move(&cursor_page->lru, dst);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
