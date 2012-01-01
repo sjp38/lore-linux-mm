@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 80DD46B009C
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 02:39:09 -0500 (EST)
-Received: by iacb35 with SMTP id b35so33327046iac.14
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 23:39:08 -0800 (PST)
-Date: Sat, 31 Dec 2011 23:39:06 -0800 (PST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 2E34B6B009D
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 02:41:27 -0500 (EST)
+Received: by iacb35 with SMTP id b35so33329068iac.14
+        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 23:41:26 -0800 (PST)
+Date: Sat, 31 Dec 2011 23:41:23 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 0/6] mm: trivial cleanups
-Message-ID: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils>
+Subject: [PATCH 1/6] mm: fewer underscores in ____pagevec_lru_add
+In-Reply-To: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1112312339550.18500@eggly.anvils>
+References: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,33 +17,101 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-Six trivial cleanups to some mm files, mainly swap.c and vmscan.c.
-The last less trivial than the others, renaming putback_lru_pages and
-rearranging a little of the stats updating.  That one does assume my
-"mm: take pagevecs off reclaim stack" is still in mmotm/next: should
-be easy to settle its lock-hold-time if that's still a worry.
+What's so special about ____pagevec_lru_add() that it needs four
+leading underscores?  Nothing, it just helped to distinguish from
+__pagevec_lru_add() in 2.6.28 development.  Cut two leading underscores.
 
-(I did have a patch to factor isolate_lumpy_pages out of isolate_lru_pages;
-but lumpy remains a battleground of frequent little fixups, so I think it
-will be easier for everyone if I leave it as is for now, and cope with
-the deep indentation later on.)
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+ include/linux/pagevec.h |   10 +++++-----
+ mm/swap.c               |   12 ++++++------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
-[PATCH 1/6] mm: fewer underscores in ____pagevec_lru_add
-[PATCH 2/6] mm: no blank line after EXPORT_SYMBOL in swap.c
-[PATCH 3/6] mm: enum lru_list lru
-[PATCH 4/6] mm: remove del_page_from_lru, add page_off_lru
-[PATCH 5/6] mm: remove isolate_pages
-[PATCH 6/6] mm: rearrange putback_inactive_pages
-
- include/linux/mm_inline.h |   37 ++++---
- include/linux/mmzone.h    |   16 +--
- include/linux/pagevec.h   |   10 +-
- mm/page_alloc.c           |    6 -
- mm/swap.c                 |   21 +---
- mm/vmscan.c               |  179 ++++++++++++++++--------------------
- 6 files changed, 126 insertions(+), 143 deletions(-)
-
-Hugh
+--- mmotm.orig/include/linux/pagevec.h	2011-12-30 21:21:34.735338589 -0800
++++ mmotm/include/linux/pagevec.h	2011-12-30 21:29:45.671350259 -0800
+@@ -21,7 +21,7 @@ struct pagevec {
+ };
+ 
+ void __pagevec_release(struct pagevec *pvec);
+-void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
++void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
+@@ -66,22 +66,22 @@ static inline void pagevec_release(struc
+ 
+ static inline void __pagevec_lru_add_anon(struct pagevec *pvec)
+ {
+-	____pagevec_lru_add(pvec, LRU_INACTIVE_ANON);
++	__pagevec_lru_add(pvec, LRU_INACTIVE_ANON);
+ }
+ 
+ static inline void __pagevec_lru_add_active_anon(struct pagevec *pvec)
+ {
+-	____pagevec_lru_add(pvec, LRU_ACTIVE_ANON);
++	__pagevec_lru_add(pvec, LRU_ACTIVE_ANON);
+ }
+ 
+ static inline void __pagevec_lru_add_file(struct pagevec *pvec)
+ {
+-	____pagevec_lru_add(pvec, LRU_INACTIVE_FILE);
++	__pagevec_lru_add(pvec, LRU_INACTIVE_FILE);
+ }
+ 
+ static inline void __pagevec_lru_add_active_file(struct pagevec *pvec)
+ {
+-	____pagevec_lru_add(pvec, LRU_ACTIVE_FILE);
++	__pagevec_lru_add(pvec, LRU_ACTIVE_FILE);
+ }
+ 
+ static inline void pagevec_lru_add_file(struct pagevec *pvec)
+--- mmotm.orig/mm/swap.c	2011-12-30 21:21:34.735338589 -0800
++++ mmotm/mm/swap.c	2011-12-30 21:29:45.675350259 -0800
+@@ -378,7 +378,7 @@ void __lru_cache_add(struct page *page,
+ 
+ 	page_cache_get(page);
+ 	if (!pagevec_add(pvec, page))
+-		____pagevec_lru_add(pvec, lru);
++		__pagevec_lru_add(pvec, lru);
+ 	put_cpu_var(lru_add_pvecs);
+ }
+ EXPORT_SYMBOL(__lru_cache_add);
+@@ -506,7 +506,7 @@ static void drain_cpu_pagevecs(int cpu)
+ 	for_each_lru(lru) {
+ 		pvec = &pvecs[lru - LRU_BASE];
+ 		if (pagevec_count(pvec))
+-			____pagevec_lru_add(pvec, lru);
++			__pagevec_lru_add(pvec, lru);
+ 	}
+ 
+ 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
+@@ -698,7 +698,7 @@ void lru_add_page_tail(struct zone* zone
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+-static void ____pagevec_lru_add_fn(struct page *page, void *arg)
++static void __pagevec_lru_add_fn(struct page *page, void *arg)
+ {
+ 	enum lru_list lru = (enum lru_list)arg;
+ 	struct zone *zone = page_zone(page);
+@@ -720,14 +720,14 @@ static void ____pagevec_lru_add_fn(struc
+  * Add the passed pages to the LRU, then drop the caller's refcount
+  * on them.  Reinitialises the caller's pagevec.
+  */
+-void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
++void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+ {
+ 	VM_BUG_ON(is_unevictable_lru(lru));
+ 
+-	pagevec_lru_move_fn(pvec, ____pagevec_lru_add_fn, (void *)lru);
++	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)lru);
+ }
+ 
+-EXPORT_SYMBOL(____pagevec_lru_add);
++EXPORT_SYMBOL(__pagevec_lru_add);
+ 
+ /**
+  * pagevec_lookup - gang pagecache lookup
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
