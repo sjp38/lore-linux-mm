@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 8568B6B00B0
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 03:19:15 -0500 (EST)
-Received: by qabg40 with SMTP id g40so8041460qab.14
-        for <linux-mm@kvack.org>; Sun, 01 Jan 2012 00:19:14 -0800 (PST)
-Message-ID: <4F001700.5050404@gmail.com>
-Date: Sun, 01 Jan 2012 03:19:12 -0500
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 143B76B00B2
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 03:22:50 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so10888966qcs.14
+        for <linux-mm@kvack.org>; Sun, 01 Jan 2012 00:22:49 -0800 (PST)
+Message-ID: <4F0017D7.4090301@gmail.com>
+Date: Sun, 01 Jan 2012 03:22:47 -0500
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/6] mm: enum lru_list lru
-References: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils> <alpine.LSU.2.00.1112312342540.18500@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1112312342540.18500@eggly.anvils>
+Subject: Re: [PATCH 4/6] mm: remove del_page_from_lru, add page_off_lru
+References: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils> <alpine.LSU.2.00.1112312343570.18500@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1112312343570.18500@eggly.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,17 +18,12 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-(1/1/12 2:43 AM), Hugh Dickins wrote:
-> Mostly we use "enum lru_list lru": change those few "l"s to "lru"s.
+(1/1/12 2:45 AM), Hugh Dickins wrote:
+> del_page_from_lru() repeats del_page_from_lru_list(), also working out
+> which LRU the page was on, clearing the relevant bits.  Decouple those
+> functions: remove del_page_from_lru() and add page_off_lru().
 >
 > Signed-off-by: Hugh Dickins<hughd@google.com>
-> ---
->   include/linux/mm_inline.h |   26 +++++++++++++-------------
->   include/linux/mmzone.h    |   16 ++++++++--------
->   mm/page_alloc.c           |    6 +++---
->   mm/vmscan.c               |   22 +++++++++++-----------
->   4 files changed, 35 insertions(+), 35 deletions(-)
->
 
 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
