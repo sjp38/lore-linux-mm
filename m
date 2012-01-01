@@ -1,103 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 201676B004D
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 13:52:34 -0500 (EST)
-Received: by eekc41 with SMTP id c41so17036088eek.14
-        for <linux-mm@kvack.org>; Sun, 01 Jan 2012 10:52:32 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 01/11] mm: page_alloc: set_migratetype_isolate: drain PCP
- prior to isolating
-References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
- <1325162352-24709-2-git-send-email-m.szyprowski@samsung.com>
- <CAOtvUMeAVgDwRNsDTcG07ChYnAuNgNJjQ+sKALJ79=Ezikos-A@mail.gmail.com>
- <op.v7ew5cvg3l0zgt@mpn-glaptop>
- <CAOtvUMfKDiLwxaH5FCS6wC=CgPiDz3ZAPbVv4b=Oxdx4ZpMCYw@mail.gmail.com>
-Date: Sun, 01 Jan 2012 19:52:16 +0100
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 1538C6B004D
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 15:09:58 -0500 (EST)
+Date: Sun, 1 Jan 2012 22:09:51 +0200
+From: Sakari Ailus <sakari.ailus@iki.fi>
+Subject: Re: [PATCH 2/3] dma-buf: Documentation for buffer sharing framework
+Message-ID: <20120101200951.GH3677@valkosipuli.localdomain>
+References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
+ <1324891397-10877-3-git-send-email-sumit.semwal@ti.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v7e5demq3l0zgt@mpn-glaptop>
-In-Reply-To: <CAOtvUMfKDiLwxaH5FCS6wC=CgPiDz3ZAPbVv4b=Oxdx4ZpMCYw@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1324891397-10877-3-git-send-email-sumit.semwal@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq
- Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
+To: Sumit Semwal <sumit.semwal@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, t.stanislaws@samsung.com, patches@linaro.org, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Sun, 01 Jan 2012 17:06:53 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
-m> wrote:
+Hi Sumit and Arnd,
 
-> 2012/1/1 Michal Nazarewicz <mina86@mina86.com>:
->> Looks interesting, I'm not entirely sure why it does not end up a rac=
-e
->> condition, but in case of __zone_drain_all_pages() we already hold
+On Mon, Dec 26, 2011 at 02:53:16PM +0530, Sumit Semwal wrote:
+> Add documentation for dma buffer sharing framework, explaining the
+> various operations, members and API of the dma buffer sharing
+> framework.
+> 
+> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+> Signed-off-by: Sumit Semwal <sumit.semwal@ti.com>
+> Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+> ---
+>  Documentation/dma-buf-sharing.txt |  224 +++++++++++++++++++++++++++++++++++++
+>  1 files changed, 224 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/dma-buf-sharing.txt
+> 
+> diff --git a/Documentation/dma-buf-sharing.txt b/Documentation/dma-buf-sharing.txt
+> new file mode 100644
+> index 0000000..510eab3
+> --- /dev/null
+> +++ b/Documentation/dma-buf-sharing.txt
+> @@ -0,0 +1,224 @@
+> +                    DMA Buffer Sharing API Guide
+> +                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> +
+> +                            Sumit Semwal
+> +                <sumit dot semwal at linaro dot org>
+> +                 <sumit dot semwal at ti dot com>
+> +
+> +This document serves as a guide to device-driver writers on what is the dma-buf
+> +buffer sharing API, how to use it for exporting and using shared buffers.
+> +
+> +Any device driver which wishes to be a part of DMA buffer sharing, can do so as
+> +either the 'exporter' of buffers, or the 'user' of buffers.
+> +
+> +Say a driver A wants to use buffers created by driver B, then we call B as the
+> +exporter, and A as buffer-user.
+> +
+> +The exporter
+> +- implements and manages operations[1] for the buffer
+> +- allows other users to share the buffer by using dma_buf sharing APIs,
+> +- manages the details of buffer allocation,
+> +- decides about the actual backing storage where this allocation happens,
+> +- takes care of any migration of scatterlist - for all (shared) users of this
+> +   buffer,
+> +
+> +The buffer-user
+> +- is one of (many) sharing users of the buffer.
+> +- doesn't need to worry about how the buffer is allocated, or where.
+> +- needs a mechanism to get access to the scatterlist that makes up this buffer
+> +   in memory, mapped into its own address space, so it can access the same area
+> +   of memory.
+> +
+> +*IMPORTANT*: [see https://lkml.org/lkml/2011/12/20/211 for more details]
+> +For this first version, A buffer shared using the dma_buf sharing API:
+> +- *may* be exported to user space using "mmap" *ONLY* by exporter, outside of
+> +   this framework.
+> +- may be used *ONLY* by importers that do not need CPU access to the buffer.
+> +
+> +The dma_buf buffer sharing API usage contains the following steps:
+> +
+> +1. Exporter announces that it wishes to export a buffer
+> +2. Userspace gets the file descriptor associated with the exported buffer, and
+> +   passes it around to potential buffer-users based on use case
+> +3. Each buffer-user 'connects' itself to the buffer
+> +4. When needed, buffer-user requests access to the buffer from exporter
+> +5. When finished with its use, the buffer-user notifies end-of-DMA to exporter
+> +6. when buffer-user is done using this buffer completely, it 'disconnects'
+> +   itself from the buffer.
+> +
+> +
+> +1. Exporter's announcement of buffer export
+> +
+> +   The buffer exporter announces its wish to export a buffer. In this, it
+> +   connects its own private buffer data, provides implementation for operations
+> +   that can be performed on the exported dma_buf, and flags for the file
+> +   associated with this buffer.
+> +
+> +   Interface:
+> +      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+> +				     size_t size, int flags)
+> +
+> +   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
+> +   pointer to the same. It also associates an anonymous file with this buffer,
+> +   so it can be exported. On failure to allocate the dma_buf object, it returns
+> +   NULL.
+> +
+> +2. Userspace gets a handle to pass around to potential buffer-users
+> +
+> +   Userspace entity requests for a file-descriptor (fd) which is a handle to the
+> +   anonymous file associated with the buffer. It can then share the fd with other
+> +   drivers and/or processes.
+> +
+> +   Interface:
+> +      int dma_buf_fd(struct dma_buf *dmabuf)
+> +
+> +   This API installs an fd for the anonymous file associated with this buffer;
+> +   returns either 'fd', or error.
+> +
+> +3. Each buffer-user 'connects' itself to the buffer
+> +
+> +   Each buffer-user now gets a reference to the buffer, using the fd passed to
+> +   it.
+> +
+> +   Interface:
+> +      struct dma_buf *dma_buf_get(int fd)
+> +
+> +   This API will return a reference to the dma_buf, and increment refcount for
+> +   it.
+> +
+> +   After this, the buffer-user needs to attach its device with the buffer, which
+> +   helps the exporter to know of device buffer constraints.
+> +
+> +   Interface:
+> +      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> +                                                struct device *dev)
+> +
+> +   This API returns reference to an attachment structure, which is then used
+> +   for scatterlist operations. It will optionally call the 'attach' dma_buf
+> +   operation, if provided by the exporter.
+> +
+> +   The dma-buf sharing framework does the bookkeeping bits related to managing
+> +   the list of all attachments to a buffer.
+> +
+> +Until this stage, the buffer-exporter has the option to choose not to actually
+> +allocate the backing storage for this buffer, but wait for the first buffer-user
+> +to request use of buffer for allocation.
+> +
+> +
+> +4. When needed, buffer-user requests access to the buffer
+> +
+> +   Whenever a buffer-user wants to use the buffer for any DMA, it asks for
+> +   access to the buffer using dma_buf_map_attachment API. At least one attach to
+> +   the buffer must have happened before map_dma_buf can be called.
+> +
+> +   Interface:
+> +      struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
+> +                                         enum dma_data_direction);
+> +
+> +   This is a wrapper to dma_buf->ops->map_dma_buf operation, which hides the
+> +   "dma_buf->ops->" indirection from the users of this interface.
+> +
+> +   In struct dma_buf_ops, map_dma_buf is defined as
+> +      struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
+> +                                                enum dma_data_direction);
+> +
+> +   It is one of the buffer operations that must be implemented by the exporter.
+> +   It should return the sg_table containing scatterlist for this buffer, mapped
+> +   into caller's address space.
+> +
+> +   If this is being called for the first time, the exporter can now choose to
+> +   scan through the list of attachments for this buffer, collate the requirements
+> +   of the attached devices, and choose an appropriate backing storage for the
+> +   buffer.
+> +
+> +   Based on enum dma_data_direction, it might be possible to have multiple users
+> +   accessing at the same time (for reading, maybe), or any other kind of sharing
+> +   that the exporter might wish to make available to buffer-users.
+> +
+> +   map_dma_buf() operation can return -EINTR if it is interrupted by a signal.
+> +
+> +
+> +5. When finished, the buffer-user notifies end-of-DMA to exporter
+> +
+> +   Once the DMA for the current buffer-user is over, it signals 'end-of-DMA' to
+> +   the exporter using the dma_buf_unmap_attachment API.
+> +
+> +   Interface:
+> +      void dma_buf_unmap_attachment(struct dma_buf_attachment *,
+> +                                    struct sg_table *);
+> +
+> +   This is a wrapper to dma_buf->ops->unmap_dma_buf() operation, which hides the
+> +   "dma_buf->ops->" indirection from the users of this interface.
+> +
+> +   In struct dma_buf_ops, unmap_dma_buf is defined as
+> +      void (*unmap_dma_buf)(struct dma_buf_attachment *, struct sg_table *);
+> +
+> +   unmap_dma_buf signifies the end-of-DMA for the attachment provided. Like
+> +   map_dma_buf, this API also must be implemented by the exporter.
 
-> If a page is in the PCP list when we check, you'll send the IPI and al=
-l is well.
->
-> If it isn't when we check and gets added later you could just the same=
- have
-> situation where we send the IPI, try to do try an empty PCP list and t=
-hen
-> the page gets added. So we are not adding a race condition that is not=
- there
-> already :-)
+How is this API expected to be used with user space APIs which use
+V4L2-style queueing of the buffers, i.e. several hardware devices may have a
+single buffer mapped at any given point of time and the user is responsible
+for passing the buffer for processing between hardware devices?
 
-Right, makes sense.
+In that case also cache handling would need to be performed explicitly by
+drivers --- the V4L2 API already provides a way to tell drivers to skip
+cache cleaning or invalidation if the user does not intend to touch the
+buffer between passing it between two separate devices.
 
->> zone->lock, so my fears are somehow gone..  I'll give it a try, and p=
-repare
->> a patch for __zone_drain_all_pages().
+> +
+> +6. when buffer-user is done using this buffer, it 'disconnects' itself from the
+> +   buffer.
+> +
+> +   After the buffer-user has no more interest in using this buffer, it should
+> +   disconnect itself from the buffer:
+> +
+> +   - it first detaches itself from the buffer.
+> +
+> +   Interface:
+> +      void dma_buf_detach(struct dma_buf *dmabuf,
+> +                          struct dma_buf_attachment *dmabuf_attach);
+> +
+> +   This API removes the attachment from the list in dmabuf, and optionally calls
+> +   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
+> +
+> +   - Then, the buffer-user returns the buffer reference to exporter.
+> +
+> +   Interface:
+> +     void dma_buf_put(struct dma_buf *dmabuf);
+> +
+> +   This API then reduces the refcount for this buffer.
+> +
+> +   If, as a result of this call, the refcount becomes 0, the 'release' file
+> +   operation related to this fd is called. It calls the dmabuf->ops->release()
+> +   operation in turn, and frees the memory allocated for dmabuf when exported.
+> +
+> +NOTES:
+> +- Importance of attach-detach and {map,unmap}_dma_buf operation pairs
+> +   The attach-detach calls allow the exporter to figure out backing-storage
+> +   constraints for the currently-interested devices. This allows preferential
+> +   allocation, and/or migration of pages across different types of storage
+> +   available, if possible.
+> +
+> +   Bracketing of DMA access with {map,unmap}_dma_buf operations is essential
+> +   to allow just-in-time backing of storage, and migration mid-way through a
+> +   use-case.
+> +
+> +- Migration of backing storage if needed
+> +   If after
+> +   - at least one map_dma_buf has happened,
+> +   - and the backing storage has been allocated for this buffer,
+> +   another new buffer-user intends to attach itself to this buffer, it might
+> +   be allowed, if possible for the exporter.
+> +
+> +   In case it is allowed by the exporter:
+> +    if the new buffer-user has stricter 'backing-storage constraints', and the
+> +    exporter can handle these constraints, the exporter can just stall on the
+> +    map_dma_buf until all outstanding access is completed (as signalled by
+> +    unmap_dma_buf).
 
-> I plan to send V5 of the IPI noise patch after some testing. It has a =
-new
-> version of the drain_all_pages, with no allocation in the reclaim path=
+I would expect this to take place in V4L2 context when streaming is
+disabled; it would make sense to return EBUSY instead since it's not known
+when the unmapping will be done.
 
-> and no locking. You might want to wait till that one is out to base on=
- it.
+> +    Once all users have finished accessing and have unmapped this buffer, the
+> +    exporter could potentially move the buffer to the stricter backing-storage,
+> +    and then allow further {map,unmap}_dma_buf operations from any buffer-user
+> +    from the migrated backing-storage.
+> +
+> +   If the exporter cannot fulfil the backing-storage constraints of the new
+> +   buffer-user device as requested, dma_buf_attach() would return an error to
+> +   denote non-compatibility of the new buffer-sharing request with the current
+> +   buffer.
+> +
+> +   If the exporter chooses not to allow an attach() operation once a
+> +   map_dma_buf() API has been called, it simply returns an error.
+> +
+> +References:
+> +[1] struct dma_buf_ops in include/linux/dma-buf.h
+> +[2] All interfaces mentioned above defined in include/linux/dma-buf.h
 
-This shouldn't be a problem for my case as set_migratetype_isolate() is =
-hardly
-ever called in reclaim path. :)
+Kind regards,
 
-The change so far seems rather obvious:
-
-  mm/page_alloc.c |   14 +++++++++++++-
-  1 files changed, 13 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 424d36a..eaa686b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1181,7 +1181,19 @@ static void __zone_drain_local_pages(void *arg)
-   */
-  static void __zone_drain_all_pages(struct zone *zone)
-  {
--	on_each_cpu(__zone_drain_local_pages, zone, 1);
-+	struct per_cpu_pageset *pcp;
-+	cpumask_var_t cpus;
-+	int cpu;
-+
-+	if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC | __GFP_NOWARN))) {
-+		for_each_online_cpu(cpu)
-+			if (per_cpu_ptr(zone->pageset, cpu)->pcp.count)
-+				cpumask_set_cpu(cpu, cpus);
-+		on_each_cpu_mask(cpus, __zone_drain_local_pages, zone, 1);
-+		free_cpumask_var(cpus);
-+	} else {
-+		on_each_cpu(__zone_drain_local_pages, zone, 1);
-+	}
-  }
-
-  #ifdef CONFIG_HIBERNATION
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+-- 
+Sakari Ailus
+e-mail: sakari.ailus@iki.fi	jabber/XMPP/Gmail: sailus@retiisi.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
