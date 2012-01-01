@@ -1,91 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 4CB3C6B00AB
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 03:03:43 -0500 (EST)
-Received: by vbbfn1 with SMTP id fn1so15620216vbb.14
-        for <linux-mm@kvack.org>; Sun, 01 Jan 2012 00:03:42 -0800 (PST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 572556B00AC
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 03:17:57 -0500 (EST)
+Received: by qcsd17 with SMTP id d17so10888182qcs.14
+        for <linux-mm@kvack.org>; Sun, 01 Jan 2012 00:17:56 -0800 (PST)
+Message-ID: <4F0016B2.5080705@gmail.com>
+Date: Sun, 01 Jan 2012 03:17:54 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOtvUMdCJEcDBD2KJ0T=Fygnag4sXaDMziYaH1oyeoQ42iZjaQ@mail.gmail.com>
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
-	<1321960128-15191-6-git-send-email-gilad@benyossef.com>
-	<20111223102810.GT3487@suse.de>
-	<CAOtvUMd6+ZZVLp-FbbEwbq3UZLRvSRo+_MMYj1aCGT3gBhxMwg@mail.gmail.com>
-	<20111230150421.GE15729@suse.de>
-	<4EFDD7FA.9000903@tilera.com>
-	<20111230160857.GH15729@suse.de>
-	<CAOtvUMdCJEcDBD2KJ0T=Fygnag4sXaDMziYaH1oyeoQ42iZjaQ@mail.gmail.com>
-Date: Sun, 1 Jan 2012 10:03:42 +0200
-Message-ID: <CAOtvUMcbjhV3-ZTjvLqgP0BN19qyPfCQwbZER3TTwfd5mfZong@mail.gmail.com>
-Subject: Re: [PATCH v4 5/5] mm: Only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 1/6] mm: fewer underscores in ____pagevec_lru_add
+References: <alpine.LSU.2.00.1112312333380.18500@eggly.anvils> <alpine.LSU.2.00.1112312339550.18500@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1112312339550.18500@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Chris Metcalf <cmetcalf@tilera.com>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On Fri, Dec 30, 2011 at 10:29 PM, Gilad Ben-Yossef <gilad@benyossef.com> wr=
-ote:
-> On Fri, Dec 30, 2011 at 6:08 PM, Mel Gorman <mgorman@suse.de> wrote:
->> On Fri, Dec 30, 2011 at 10:25:46AM -0500, Chris Metcalf wrote:
+(1/1/12 2:41 AM), Hugh Dickins wrote:
+> What's so special about ____pagevec_lru_add() that it needs four
+> leading underscores?  Nothing, it just helped to distinguish from
+> __pagevec_lru_add() in 2.6.28 development.  Cut two leading underscores.
 >
->>> Alternately, since we really don't want more than one cpu running the d=
-rain
->>> code anyway, you could imagine using a static cpumask, along with a loc=
-k to
->>> serialize attempts to drain all the pages. =A0(Locking here would be tr=
-icky,
->>> since we need to run on_each_cpu with interrupts enabled, but there's
->>> probably some reasonable way to make it work.)
->>>
->>
->> Good suggestion, that would at least shut up my complaining
->> about allocation costs! A statically-declared mutex similar
->> to hugetlb_instantiation_mutex should do it. The context that
->> drain_all_pages is called from will have interrupts enabled.
->>
->> Serialising processes entering direct reclaim may result in some stalls
->> but overall I think the impact of that would be less than increasing
->> memory pressure when low on memory.
->>
->
-> Chris, I like the idea :-)
->
-> Actually, assuming for a second that on_each_cpu* and underlying code
-> wont mind if the cpumask will change mid call (I know it does, just think=
-ing out
-> loud), you could say you don't even need the lock if you careful in how y=
-ou
-> set/unset the per cpu bits of the cpumask, since they track the same thin=
-g...
+> Signed-off-by: Hugh Dickins<hughd@google.com>
 
-I took a look and smp_call_function_many is actually fine with the
-passed cpumask getting changed in mid call.
+Yes, this is just historical reason.
 
-I think this means we can do away with a single global cpumask without
-any locking and the cost becomes the allocation space for the single cpumas=
-k and
-the cache bouncing for concurrent updating of the cpumask if
-drain_all_pages races
- against itself on other cpus.
-
-I'll spin a patch based on this idea.
-
-Happy new year :-)
-Gilad
-
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
