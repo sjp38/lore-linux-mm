@@ -1,71 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 882926B0085
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 02:33:28 -0500 (EST)
-Received: by iacb35 with SMTP id b35so33322230iac.14
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 23:33:28 -0800 (PST)
-Date: Sat, 31 Dec 2011 23:33:24 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 5/5] memcg: remove redundant returns
-In-Reply-To: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1112312331590.18500@eggly.anvils>
-References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 29A1E6B0088
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 02:34:03 -0500 (EST)
+Received: by qadc16 with SMTP id c16so11039764qad.14
+        for <linux-mm@kvack.org>; Sat, 31 Dec 2011 23:34:02 -0800 (PST)
+Message-ID: <4F000C67.7080101@gmail.com>
+Date: Sun, 01 Jan 2012 02:33:59 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
+References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils> <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org
 
-Remove redundant returns from ends of functions, and one blank line.
+(1/1/12 2:27 AM), Hugh Dickins wrote:
+> Correct an #endif comment in memcontrol.h from MEM_CONT to MEM_RES_CTLR.
+>
+> Signed-off-by: Hugh Dickins<hughd@google.com>
+> ---
+>   include/linux/memcontrol.h |    2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> --- mmotm.orig/include/linux/memcontrol.h	2011-12-30 21:21:34.923338593 -0800
+> +++ mmotm/include/linux/memcontrol.h	2011-12-30 21:21:51.939338993 -0800
+> @@ -396,7 +396,7 @@ static inline void mem_cgroup_replace_pa
+>   static inline void mem_cgroup_reset_owner(struct page *page)
+>   {
+>   }
+> -#endif /* CONFIG_CGROUP_MEM_CONT */
+> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- mm/memcontrol.c |    5 -----
- 1 file changed, 5 deletions(-)
-
---- mmotm.orig/mm/memcontrol.c	2011-12-30 21:29:03.695349263 -0800
-+++ mmotm/mm/memcontrol.c	2011-12-30 21:29:37.611350065 -0800
-@@ -1362,7 +1362,6 @@ void mem_cgroup_print_oom_info(struct me
- 	if (!memcg || !p)
- 		return;
- 
--
- 	rcu_read_lock();
- 
- 	mem_cgrp = memcg->css.cgroup;
-@@ -1897,7 +1896,6 @@ out:
- 	if (unlikely(need_unlock))
- 		move_unlock_page_cgroup(pc, &flags);
- 	rcu_read_unlock();
--	return;
- }
- EXPORT_SYMBOL(mem_cgroup_update_page_stat);
- 
-@@ -2691,7 +2689,6 @@ __mem_cgroup_commit_charge_lrucare(struc
- 		SetPageLRU(page);
- 	}
- 	spin_unlock_irqrestore(&zone->lru_lock, flags);
--	return;
- }
- 
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-@@ -2881,7 +2878,6 @@ direct_uncharge:
- 		res_counter_uncharge(&memcg->memsw, nr_pages * PAGE_SIZE);
- 	if (unlikely(batch->memcg != memcg))
- 		memcg_oom_recover(memcg);
--	return;
- }
- 
- /*
-@@ -3935,7 +3931,6 @@ static void memcg_get_hierarchical_limit
- out:
- 	*mem_limit = min_limit;
- 	*memsw_limit = min_memsw_limit;
--	return;
- }
- 
- static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
