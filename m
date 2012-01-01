@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 64FA06B004D
-	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 11:50:39 -0500 (EST)
-Message-ID: <4F008ECA.5040703@redhat.com>
-Date: Sun, 01 Jan 2012 18:50:18 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 8C0176B004D
+	for <linux-mm@kvack.org>; Sun,  1 Jan 2012 12:01:46 -0500 (EST)
+Date: Sun, 1 Jan 2012 19:01:44 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 0/5] memcg: trivial cleanups
+Message-ID: <20120101170144.GA3203@shutemov.name>
+References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com> <1321960128-15191-5-git-send-email-gilad@benyossef.com> <alpine.LFD.2.02.1111230822270.1773@tux.localdomain> <4F00547A.9090204@redhat.com> <CAOtvUMcCzK=tNkHudOrzxjdGkdkZPt02krO8QYRGjyXm+cvRSw@mail.gmail.com>
-In-Reply-To: <CAOtvUMcCzK=tNkHudOrzxjdGkdkZPt02krO8QYRGjyXm+cvRSw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, apkm@linux-foundation.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-On 01/01/2012 06:12 PM, Gilad Ben-Yossef wrote:
-> >
-> > Since this seems to be a common pattern, how about:
-> >
-> >   zalloc_cpumask_var_or_all_online_cpus(&cpus, GFTP_ATOMIC);
-> >   ...
-> >   free_cpumask_var(cpus);
-> >
-> > The long-named function at the top of the block either returns a newly
-> > allocated zeroed cpumask, or a static cpumask with all online cpus set.
-> > The code in the middle is only allowed to set bits in the cpumask
-> > (should be the common usage).  free_cpumask_var() needs to check whether
-> > the freed object is the static variable.
->
-> Thanks for the feedback and advice! I totally agree the repeating
-> pattern needs abstracting.
->
-> I ended up chosing to try a different abstraction though - basically a wrapper
-> on_each_cpu_cond that gets a predicate function to run per CPU to
-> build the mask
-> to send the IPI to. It seems cleaner to me not having to mess with
-> free_cpumask_var
-> and it abstracts more of the general pattern.
->
+On Sat, Dec 31, 2011 at 11:26:42PM -0800, Hugh Dickins wrote:
+> Obviously I've missed the boat for per-memcg per-zone LRU locking in 3.3,
+> but I've split out a shameless bunch of trivial cleanups from that work,
+> and hoping these might still sneak in unless they're controversial.
+>=20
+> Following on from my earlier mmotm/next patches, here's five
+> to memcontrol.c and .h, followed by six to the rest of mm.
+>=20
+> [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
+> [PATCH 2/5] memcg: replace mem and mem_cont stragglers
+> [PATCH 3/5] memcg: lru_size instead of MEM_CGROUP_ZSTAT
+> [PATCH 4/5] memcg: enum lru_list lru
+> [PATCH 5/5] memcg: remove redundant returns
 
-This converts the algorithm to O(NR_CPUS) from a potentially lower
-complexity algorithm.  Also, the existing algorithm may not like to be
-driven by cpu number.  Both are true for kvm.
+Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 
--- 
-error compiling committee.c: too many arguments to function
+>=20
+>  include/linux/memcontrol.h |    2=20
+>  mm/memcontrol.c            |  121 ++++++++++++++++-------------------
+>  2 files changed, 58 insertions(+), 65 deletions(-)
+>=20
+> Hugh
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
+=2Eca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+
+--=20
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
