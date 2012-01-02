@@ -1,122 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 2FD246B005D
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 05:25:23 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id AB4CB6B0068
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 05:25:26 -0500 (EST)
 Received: by mail-ee0-f41.google.com with SMTP id c41so17353876eek.14
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 02:25:22 -0800 (PST)
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 02:25:26 -0800 (PST)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v5 4/8] smp: Add func to IPI cpus based on parameter func
-Date: Mon,  2 Jan 2012 12:24:15 +0200
-Message-Id: <1325499859-2262-5-git-send-email-gilad@benyossef.com>
+Subject: [PATCH v5 5/8] slub: Only IPI CPUs that have per cpu obj to flush
+Date: Mon,  2 Jan 2012 12:24:16 +0200
+Message-Id: <1325499859-2262-6-git-send-email-gilad@benyossef.com>
 In-Reply-To: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
 References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-Add the on_each_cpu_required() function that wraps on_each_cpu_mask()
-and calculates the cpumask of cpus to IPI by calling a function supplied
-as a parameter in order to determine whether to IPI each specific cpu.
+flush_all() is called for each kmem_cahce_destroy(). So every cache
+being destroyed dynamically ended up sending an IPI to each CPU in the
+system, regardless if the cache has ever been used there.
 
-The function deals with allocation failure of cpumask variable in
-CONFIG_CPUMASK_OFFSTACK=y by sending IPI to all cpus via on_each_cpu()
-instead.
+For example, if you close the Infinband ipath driver char device file,
+the close file ops calls kmem_cache_destroy(). So running some
+infiniband config tool on one a single CPU dedicated to system tasks
+might interrupt the rest of the 127 CPUs I dedicated to some CPU
+intensive task.
 
-The function is useful since it allows to seperate the specific
-code that decided in each case whether to IPI a specific cpu for
-a specific request from the common boilerplate code of handling
-creating the mask, handling failures etc.
+I suspect there is a good chance that every line in the output of "git
+grep kmem_cache_destroy linux/ | grep '\->'" has a similar scenario.
+
+This patch attempts to rectify this issue by sending an IPI to flush
+the per cpu objects back to the free lists only to CPUs that seems to
+have such objects.
+
+The check which CPU to IPI is racy but we don't care since asking a
+CPU without per cpu objects to flush does no damage and as far as I
+can tell the flush_all by itself is racy against allocs on remote
+CPUs anyway, so if you meant the flush_all to be determinstic, you
+had to arrange for locking regardless.
+
+Without this patch the following artificial test case:
+
+$ cd /sys/kernel/slab
+$ for DIR in *; do cat $DIR/alloc_calls > /dev/null; done
+
+produces 166 IPIs on an cpuset isolated CPU. With it it produces none.
+
+The code path of memory allocation failure for CPUMASK_OFFSTACK=y
+config was tested using fault injection framework.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Acked-by: Pekka Enberg <penberg@kernel.org>
+CC: Christoph Lameter <cl@linux.com>
 CC: Chris Metcalf <cmetcalf@tilera.com>
-CC: Christoph Lameter <cl@linux-foundation.org>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 CC: Frederic Weisbecker <fweisbec@gmail.com>
 CC: Russell King <linux@arm.linux.org.uk>
 CC: linux-mm@kvack.org
-CC: Pekka Enberg <penberg@kernel.org>
 CC: Matt Mackall <mpm@selenic.com>
 CC: Sasha Levin <levinsasha928@gmail.com>
 CC: Rik van Riel <riel@redhat.com>
 CC: Andi Kleen <andi@firstfloor.org>
+CC: Mel Gorman <mel@csn.ul.ie>
+CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Alexander Viro <viro@zeniv.linux.org.uk>
 CC: linux-fsdevel@vger.kernel.org
 CC: Avi Kivity <avi@redhat.com>
 ---
- include/linux/smp.h |   16 ++++++++++++++++
- kernel/smp.c        |   27 +++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/smp.h b/include/linux/smp.h
-index 60628d7..ef85a3d 100644
---- a/include/linux/smp.h
-+++ b/include/linux/smp.h
-@@ -109,6 +109,14 @@ void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
- 		void *info, bool wait);
+ The Acks were for a previous version that had the code
+ of on_each_cpu_cond() inlined at the call site.
+
+ mm/slub.c |   10 +++++++++-
+ 1 files changed, 9 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ed3334d..c53aa2c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2013,9 +2013,17 @@ static void flush_cpu_slab(void *d)
+ 	__flush_cpu_slab(s, smp_processor_id());
+ }
+ 
++static int has_cpu_slab(int cpu, void *info)
++{
++	struct kmem_cache *s = info;
++	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
++
++	return !!(c->page);
++}
++
+ static void flush_all(struct kmem_cache *s)
+ {
+-	on_each_cpu(flush_cpu_slab, s, 1);
++	on_each_cpu_cond(has_cpu_slab, flush_cpu_slab, s, 1);
+ }
  
  /*
-+ * Call a function on each processor for which the supplied function
-+ * cond_func returns a positive value. This may include the local
-+ * processor.
-+ */
-+void on_each_cpu_cond(int (*cond_func) (int cpu, void *info),
-+		void (*func)(void *), void *info, bool wait);
-+
-+/*
-  * Mark the boot cpu "online" so that it can call console drivers in
-  * printk() and can access its per-cpu storage.
-  */
-@@ -147,6 +155,14 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
- 			local_irq_enable();		\
- 		}					\
- 	} while (0)
-+#define on_each_cpu_cond(cond_func, func, info, wait) \
-+	do {						\
-+		if (cond_func(0, info)) {		\
-+			local_irq_disable();		\
-+			(func)(info);			\
-+			local_irq_enable();		\
-+		}					\
-+	} while (0)
- 
- static inline void smp_send_reschedule(int cpu) { }
- #define num_booting_cpus()			1
-diff --git a/kernel/smp.c b/kernel/smp.c
-index 7c0cbd7..5f7b24e 100644
---- a/kernel/smp.c
-+++ b/kernel/smp.c
-@@ -721,3 +721,30 @@ void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
- 	put_cpu();
- }
- EXPORT_SYMBOL(on_each_cpu_mask);
-+
-+/*
-+ * Call a function on each processor for which the supplied function
-+ * cond_func returns a positive value. This may include the local
-+ * processor, optionally waiting for all the required CPUs to finish.
-+ * The function may be called on all online CPUs without running the
-+ * cond_func function in extreme circumstance (memory allocation
-+ * failure condition when CONFIG_CPUMASK_OFFSTACK=y)
-+ * All the limitations specified in smp_call_function_many apply.
-+ */
-+void on_each_cpu_cond(int (*cond_func) (int cpu, void *info),
-+			void (*func)(void *), void *info, bool wait)
-+{
-+	cpumask_var_t cpus;
-+	int cpu;
-+
-+	if (likely(zalloc_cpumask_var(&cpus, GFP_ATOMIC))) {
-+		for_each_online_cpu(cpu)
-+			if (cond_func(cpu, info))
-+				cpumask_set_cpu(cpu, cpus);
-+		on_each_cpu_mask(cpus, func, info, wait);
-+		free_cpumask_var(cpus);
-+	} else
-+		on_each_cpu(func, info, wait);
-+}
-+EXPORT_SYMBOL(on_each_cpu_cond);
-+
 -- 
 1.7.0.4
 
