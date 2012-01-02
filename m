@@ -1,93 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 324D36B006C
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 05:25:36 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c41so17353876eek.14
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 02:25:35 -0800 (PST)
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v5 8/8] mm: add vmstat counters for tracking PCP drains
-Date: Mon,  2 Jan 2012 12:24:19 +0200
-Message-Id: <1325499859-2262-9-git-send-email-gilad@benyossef.com>
-In-Reply-To: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3D16B004D
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 06:53:27 -0500 (EST)
+Date: Mon, 2 Jan 2012 12:53:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
+Message-ID: <20120102115322.GE7910@tiehlicka.suse.cz>
+References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
+ <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-This patch introduces two new vmstat counters: pcp_global_drain
-that counts the number of times a per-cpu pages global drain was
-requested and pcp_global_ipi_saved that counts the number of times
-the number of CPUs with per-cpu pages in any zone were less then
-1/2 of the number of online CPUs.
+On Sat 31-12-11 23:27:59, Hugh Dickins wrote:
+> Correct an #endif comment in memcontrol.h from MEM_CONT to MEM_RES_CTLR.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-The patch purpose is to show the usefulness of only sending an IPI
-asking to drain per-cpu pages to CPUs that actually have them
-instead of a blind global IPI. It is probably not useful by itself.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Chris Metcalf <cmetcalf@tilera.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Frederic Weisbecker <fweisbec@gmail.com>
-CC: linux-mm@kvack.org
-CC: Pekka Enberg <penberg@kernel.org>
-CC: Matt Mackall <mpm@selenic.com>
-CC: Sasha Levin <levinsasha928@gmail.com>
-CC: Rik van Riel <riel@redhat.com>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Mel Gorman <mel@csn.ul.ie>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
-CC: Avi Kivity <avi@redhat.com>
----
- include/linux/vm_event_item.h |    1 +
- mm/page_alloc.c               |    4 ++++
- mm/vmstat.c                   |    2 ++
- 3 files changed, 7 insertions(+), 0 deletions(-)
+Thanks
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 03b90cd..3657f6f 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -58,6 +58,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_COLLAPSE_ALLOC_FAILED,
- 		THP_SPLIT,
- #endif
-+		PCP_GLOBAL_DRAIN, PCP_GLOBAL_IPI_SAVED,
- 		NR_VM_EVENT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 092c331..4ca6bfa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1140,6 +1140,10 @@ void drain_all_pages(void)
- 				cpumask_clear_cpu(cpu, cpus_with_pcps);
- 		}
- 	on_each_cpu_mask(cpus_with_pcps, drain_local_pages, NULL, 1);
-+
-+	count_vm_event(PCP_GLOBAL_DRAIN);
-+	if (cpumask_weight(cpus_with_pcps) < (cpumask_weight(cpu_online_mask) / 2))
-+		count_vm_event(PCP_GLOBAL_IPI_SAVED);
- }
- 
- #ifdef CONFIG_HIBERNATION
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 8fd603b..daf632c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -786,6 +786,8 @@ const char * const vmstat_text[] = {
- 	"thp_collapse_alloc_failed",
- 	"thp_split",
- #endif
-+	"pcp_global_drain",
-+	"pcp_global_ipi_saved"
- 
- #endif /* CONFIG_VM_EVENTS_COUNTERS */
- };
+> ---
+>  include/linux/memcontrol.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- mmotm.orig/include/linux/memcontrol.h	2011-12-30 21:21:34.923338593 -0800
+> +++ mmotm/include/linux/memcontrol.h	2011-12-30 21:21:51.939338993 -0800
+> @@ -396,7 +396,7 @@ static inline void mem_cgroup_replace_pa
+>  static inline void mem_cgroup_reset_owner(struct page *page)
+>  {
+>  }
+> -#endif /* CONFIG_CGROUP_MEM_CONT */
+> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
+>  
+>  #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+>  static inline bool
+
 -- 
-1.7.0.4
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
