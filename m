@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 55A0C6B005A
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 08:31:12 -0500 (EST)
-Message-ID: <4F01B187.7060008@redhat.com>
-Date: Mon, 02 Jan 2012 15:30:47 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 318886B004D
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 14:43:42 -0500 (EST)
+Received: by iacb35 with SMTP id b35so35779525iac.14
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 11:43:41 -0800 (PST)
+Date: Mon, 2 Jan 2012 11:43:27 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/5] memcg: lru_size instead of MEM_CGROUP_ZSTAT
+In-Reply-To: <20120102125913.GG7910@tiehlicka.suse.cz>
+Message-ID: <alpine.LSU.2.00.1201021104160.1854@eggly.anvils>
+References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils> <alpine.LSU.2.00.1112312329240.18500@eggly.anvils> <20120102125913.GG7910@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to flush
-References: <1321960128-15191-1-git-send-email-gilad@benyossef.com> <1321960128-15191-5-git-send-email-gilad@benyossef.com> <alpine.LFD.2.02.1111230822270.1773@tux.localdomain> <4F00547A.9090204@redhat.com> <CAOtvUMcCzK=tNkHudOrzxjdGkdkZPt02krO8QYRGjyXm+cvRSw@mail.gmail.com> <4F008ECA.5040703@redhat.com> <CAOtvUMfWKpXaR6Ph1ZN6g0QhgmZtbcf=hMSgtkD-1pLpkzSuNA@mail.gmail.com>
-In-Reply-To: <CAOtvUMfWKpXaR6Ph1ZN6g0QhgmZtbcf=hMSgtkD-1pLpkzSuNA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, apkm@linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-On 01/02/2012 01:59 PM, Gilad Ben-Yossef wrote:
-> On Sun, Jan 1, 2012 at 6:50 PM, Avi Kivity <avi@redhat.com> wrote:
-> > On 01/01/2012 06:12 PM, Gilad Ben-Yossef wrote:
-> >> >
-> >> > Since this seems to be a common pattern, how about:
-> >> >
-> >> >   zalloc_cpumask_var_or_all_online_cpus(&cpus, GFTP_ATOMIC);
-> >> >   ...
-> >> >   free_cpumask_var(cpus);
-> >> >
-> >> > The long-named function at the top of the block either returns a newly
-> >> > allocated zeroed cpumask, or a static cpumask with all online cpus set.
-> >> > The code in the middle is only allowed to set bits in the cpumask
-> >> > (should be the common usage).  free_cpumask_var() needs to check whether
-> >> > the freed object is the static variable.
-> >>
-> >> Thanks for the feedback and advice! I totally agree the repeating
-> >> pattern needs abstracting.
-> >>
-> >> I ended up chosing to try a different abstraction though - basically a wrapper
-> >> on_each_cpu_cond that gets a predicate function to run per CPU to
-> >> build the mask
-> >> to send the IPI to. It seems cleaner to me not having to mess with
-> >> free_cpumask_var
-> >> and it abstracts more of the general pattern.
-> >>
-> >
-> > This converts the algorithm to O(NR_CPUS) from a potentially lower
-> > complexity algorithm.  Also, the existing algorithm may not like to be
-> > driven by cpu number.  Both are true for kvm.
-> >
->
-> Right, I was only thinking on my own uses, which are O(NR_CPUS) by nature.
->
-> I wonder if it would be better to create a safe_cpumask_var type with
-> its own alloc function
-> free and and sset_cpu function but no clear_cpu function so that the
-> compiler will catch
-> cases of trying to clear bits off of such a cpumask?
->
-> It seems safer and also makes handling the free function easier.
->
-> Does that makes sense or am I over engineering it? :-)
+On Mon, 2 Jan 2012, Michal Hocko wrote:
+> On Sat 31-12-11 23:30:38, Hugh Dickins wrote:
+> > I never understood why we need a MEM_CGROUP_ZSTAT(mz, idx) macro
+> > to obscure the LRU counts.  For easier searching?  So call it
+> > lru_size rather than bare count (lru_length sounds better, but
+> > would be wrong, since each huge page raises lru_size hugely).
+> 
+> lru_size is unique at the global scope at the moment but this might
+> change in the future. MEM_CGROUP_ZSTAT should be unique and so easier
+> to grep or cscope. 
+> On the other hand lru_size sounds like a better name so I am all for
+> renaming but we should make sure that we somehow get memcg into it
+> (either to macro MEM_CGROUP_LRU_SIZE or get rid of macro and have
+> memcg_lru_size field name - which is ugly long).
 
-It makes sense.  Depends on the number of call sites, really.  If there
-are several, consolidation helps, also makes it easier to further refactor.
+I do disagree.  You're asking to introduce artificial differences,
+whereas generally we're trying to minimize the differences between
+global and memcg.
 
--- 
-error compiling committee.c: too many arguments to function
+I'm happy with the way mem_cgroup_zone_lruvec(), for example, returns
+a pointer to the relevant structure, whether it's global or per-memcg,
+and we then work with the contents of that structure, whichever it is:
+lruvec in each case, not global_lruvec in one case and memcg_lruvec
+in the other.
+
+And certainly not GLOBAL_ZLRUVEC or MEM_CGROUP_ZLRUVEC!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
