@@ -1,80 +1,55 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 0CFB36B002C
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 23:56:07 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1D5F83EE0AE
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:56:06 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 033E245DF47
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:56:06 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E1C8945DEA1
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:56:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D4CDB1DB802F
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:56:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C7731DB803B
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:56:05 +0900 (JST)
-Date: Wed, 1 Feb 2012 13:54:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [LSF/MM TOPIC] [ATTEND] memcg: soft limit reclaim (continue)
- and others
-Message-Id: <20120201135442.0491d882.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CALWz4iypV=k-7gVcFx=OsHJsWcUzQsfEoYbQ4+ySQoTob_PWcQ@mail.gmail.com>
-References: <CALWz4iypV=k-7gVcFx=OsHJsWcUzQsfEoYbQ4+ySQoTob_PWcQ@mail.gmail.com>
+From: =?ks_c_5601-1987?B?uc7C+cij?= <chanho.min@lge.com>
+Subject: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is detached
+Date: Mon, 2 Jan 2012 18:38:21 +0900
+Message-ID: <39610.57091733$1325497113@news.gmane.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+	charset="ks_c_5601-1987"
 Content-Transfer-Encoding: 7bit
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1RheLb-0003iD-OG
+	for glkm-linux-mm-2@m.gmane.org; Mon, 02 Jan 2012 10:38:28 +0100
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3116B004D
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 04:38:23 -0500 (EST)
+Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: 'Jens Axboe' <axboe@kernel.dk>, 'Wu Fengguang' <fengguang.wu@intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Tue, 31 Jan 2012 11:59:40 -0800
-Ying Han <yinghan@google.com> wrote:
+from Chanho Min <chanho.min@lge.com>
 
-> some topics that I would like to discuss this year:
-> 
-> 1) we talked about soft limit redesign during last LSF, and there are
-> quite a lot of efforts and changes being pushed after that. I would
-> like to take this time to sync-up our efforts and also discuss some of
-> the remaining issues.
-> 
-> Discussion from last year :
-> http://www.spinics.net/lists/linux-mm/msg17102.html and lots of
-> changes have been made since then.
-> 
+System may crash in backing-dev.c when removal SCSI device is detached.
+bdi task is killed by bdi_unregister()/'khubd', but task's point remains.
+Shortly afterward, If 'wb->wakeup_timer' is expired before
+del_timer()/bdi_forker_thread,
+wakeup_timer_fn() may wake up the dead thread which cause the crash.
+'bdi->wb.task' should be NULL as this patch.
 
-Yes, it seems re-sync is required.
+Signed-off-by: Chanho Min <chanho.min@lge.com>
+---
+ mm/backing-dev.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-> 2) memory.stat, this is the main stat file for all memcg statistics.
-> are we planning to keep stuff it for something like per-memcg
-> vmscan_stat, vmstat or not.
-> 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 71034f4..4378a5e 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct backing_dev_info
+*bdi)
+        if (bdi->wb.task) {
+                thaw_process(bdi->wb.task);
+                kthread_stop(bdi->wb.task);
++               bdi->wb.task = NULL;
+        }
+ }
 
-Could you calrify ? Do you want to have another stat file like memory.vmstat ?
-
-
-> 3) root cgroup now becomes quite interesting, especially after we
-> bring back the exclusive lru to root. To be more specific, root cgroup
-> now is like a sink which contains pages allocated on its own, and also
-> pages being re-parented. Those pages won't be reclaimed until there is
-> a global pressure, and we want to see anything we can do better.
-> 
-
-I'm sorry I can't get your point. 
-
-Do you think it's better to shrink root mem cgroup LRU even if there are
-no memory pressure ? The benefit will be reduced memory reclaim latency.
-Or Do you think root memcg should have some soft limit and should be
-reclaimed in the same schedule line as other memcgs ? The benefit will be fairness.
-
-or other idea ?
-
-Thanks,
--Kame 
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
