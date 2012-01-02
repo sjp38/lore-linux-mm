@@ -1,54 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 3D3D16B004D
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 06:53:27 -0500 (EST)
-Date: Mon, 2 Jan 2012 12:53:22 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
-Message-ID: <20120102115322.GE7910@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
- <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C54D96B005C
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 06:59:31 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so16146720vbb.14
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 03:59:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+In-Reply-To: <4F008ECA.5040703@redhat.com>
+References: <1321960128-15191-1-git-send-email-gilad@benyossef.com>
+	<1321960128-15191-5-git-send-email-gilad@benyossef.com>
+	<alpine.LFD.2.02.1111230822270.1773@tux.localdomain>
+	<4F00547A.9090204@redhat.com>
+	<CAOtvUMcCzK=tNkHudOrzxjdGkdkZPt02krO8QYRGjyXm+cvRSw@mail.gmail.com>
+	<4F008ECA.5040703@redhat.com>
+Date: Mon, 2 Jan 2012 13:59:30 +0200
+Message-ID: <CAOtvUMfWKpXaR6Ph1ZN6g0QhgmZtbcf=hMSgtkD-1pLpkzSuNA@mail.gmail.com>
+Subject: Re: [PATCH v4 4/5] slub: Only IPI CPUs that have per cpu obj to flush
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, apkm@linux-foundation.org
 
-On Sat 31-12-11 23:27:59, Hugh Dickins wrote:
-> Correct an #endif comment in memcontrol.h from MEM_CONT to MEM_RES_CTLR.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+On Sun, Jan 1, 2012 at 6:50 PM, Avi Kivity <avi@redhat.com> wrote:
+> On 01/01/2012 06:12 PM, Gilad Ben-Yossef wrote:
+>> >
+>> > Since this seems to be a common pattern, how about:
+>> >
+>> > =A0 zalloc_cpumask_var_or_all_online_cpus(&cpus, GFTP_ATOMIC);
+>> > =A0 ...
+>> > =A0 free_cpumask_var(cpus);
+>> >
+>> > The long-named function at the top of the block either returns a newly
+>> > allocated zeroed cpumask, or a static cpumask with all online cpus set=
+.
+>> > The code in the middle is only allowed to set bits in the cpumask
+>> > (should be the common usage). =A0free_cpumask_var() needs to check whe=
+ther
+>> > the freed object is the static variable.
+>>
+>> Thanks for the feedback and advice! I totally agree the repeating
+>> pattern needs abstracting.
+>>
+>> I ended up chosing to try a different abstraction though - basically a w=
+rapper
+>> on_each_cpu_cond that gets a predicate function to run per CPU to
+>> build the mask
+>> to send the IPI to. It seems cleaner to me not having to mess with
+>> free_cpumask_var
+>> and it abstracts more of the general pattern.
+>>
+>
+> This converts the algorithm to O(NR_CPUS) from a potentially lower
+> complexity algorithm. =A0Also, the existing algorithm may not like to be
+> driven by cpu number. =A0Both are true for kvm.
+>
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Right, I was only thinking on my own uses, which are O(NR_CPUS) by nature.
 
-Thanks
+I wonder if it would be better to create a safe_cpumask_var type with
+its own alloc function
+free and and sset_cpu function but no clear_cpu function so that the
+compiler will catch
+cases of trying to clear bits off of such a cpumask?
 
-> ---
->  include/linux/memcontrol.h |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- mmotm.orig/include/linux/memcontrol.h	2011-12-30 21:21:34.923338593 -0800
-> +++ mmotm/include/linux/memcontrol.h	2011-12-30 21:21:51.939338993 -0800
-> @@ -396,7 +396,7 @@ static inline void mem_cgroup_replace_pa
->  static inline void mem_cgroup_reset_owner(struct page *page)
->  {
->  }
-> -#endif /* CONFIG_CGROUP_MEM_CONT */
-> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
->  
->  #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
->  static inline bool
+It seems safer and also makes handling the free function easier.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Does that makes sense or am I over engineering it? :-)
+
+Gilad
+
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"Unfortunately, cache misses are an equal opportunity pain provider."
+-- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
