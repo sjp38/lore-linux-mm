@@ -1,98 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 866456B004D
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 23:49:38 -0500 (EST)
-Date: Tue, 3 Jan 2012 12:49:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is
- detached
-Message-ID: <20120103044933.GA31778@localhost>
-References: <004401ccc932$444a0070$ccde0150$@min@lge.com>
- <20120102095711.GA16570@localhost>
- <002e01ccc9c7$1928c940$4b7a5bc0$@min@lge.com>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 626246B004D
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 02:51:41 -0500 (EST)
+Received: by eekc41 with SMTP id c41so17999914eek.14
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 23:51:39 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH v5 1/8] smp: Introduce a generic on_each_cpu_mask function
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+ <1325499859-2262-2-git-send-email-gilad@benyossef.com>
+Date: Tue, 03 Jan 2012 08:51:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <002e01ccc9c7$1928c940$4b7a5bc0$@min@lge.com>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v7hz3pbc3l0zgt@mpn-glaptop>
+In-Reply-To: <1325499859-2262-2-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chanho Min <chanho.min@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>, Rabin Vincent <rabin.vincent@stericsson.com>, Linus Walleij <linus.walleij@linaro.org>
+To: linux-kernel@vger.kernel.org, Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell
+ King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-On Tue, Jan 03, 2012 at 12:23:44PM +0900, Chanho Min wrote:
-> >On Mon, Jan 02, 2012 at 06:38:21PM +0900, i? 1/2 i? 1/2 i? 1/2 i? 1/2 EGBP wrote:
-> >> from Chanho Min <chanho.min@lge.com>
-> >>
-> >> System may crash in backing-dev.c when removal SCSI device is detached.
-> >> bdi task is killed by bdi_unregister()/'khubd', but task's point remains.
-> >> Shortly afterward, If 'wb->wakeup_timer' is expired before
-> >> del_timer()/bdi_forker_thread,
-> >> wakeup_timer_fn() may wake up the dead thread which cause the crash.
-> >> 'bdi->wb.task' should be NULL as this patch.
-> >
-> >Is it some race condition between del_timer() and del_timer_sync()?
-> >
-> >bdi_unregister() calls
-> >
-> >        del_timer_sync
-> >        bdi_wb_shutdown
-> >            kthread_stop
-> >
-> >in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is
-> >no longer called to access the stopped task.
-> >
-> 
-> It is not race condition. This happens when USB is removed during write-access.
-> bdi_wakeup_thread_delayed is called after kthread_stop, and timer is activated again.
-> 
-> 	bdi_unregister
-> 		kthread_stop
-> 	bdi_wakeup_thread_delayed (sys_write mostly calls this)
-> 	timer fires
+On Mon, 02 Jan 2012 11:24:12 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
+m> wrote:
+> @@ -102,6 +102,13 @@ static inline void call_function_init(void) { }
+>  int on_each_cpu(smp_call_func_t func, void *info, int wait);
+> /*
+> + * Call a function on processors specified by mask, which might inclu=
+de
+> + * the local one.
+> + */
+> +void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *=
+),
+> +		void *info, bool wait);
+> +
 
-Ah OK, the timer could be restarted in the mean while, which breaks
-the synchronization rule in del_timer_sync().
+on_each_cpu() returns an int.  For consistency reasons, would it make se=
+nse to
+make on_each_cpu_maks() to return and int?  I know that the difference i=
+s that
+smp_call_function() returns and int and smp_call_function_many() returns=
+ void,
+but to me it actually seems strange and either I'm missing something imp=
+ortant
+(which is likely) or this needs to get cleaned up at one point as well.
 
-I noticed a related fix is merged recently, does your test kernel
-contain this commit?
+> +/*
+>   * Mark the boot cpu "online" so that it can call console drivers in
+>   * printk() and can access its per-cpu storage.
+>   */
 
-commit 7a401a972df8e184b3d1a3fc958c0a4ddee8d312
-Author: Rabin Vincent <rabin.vincent@stericsson.com>
-Date:   Fri Nov 11 13:29:04 2011 +0100
+-- =
 
-    backing-dev: ensure wakeup_timer is deleted
-
-> Anyway,Is this safeguard to prevent from waking up killed thread?
-
-This patch makes no guarantee wakeup_timer_fn() will see NULL
-bdi->wb.task before the task is stopped, so there is still race
-conditions. And still, the complete fix would be to prevent
-wakeup_timer_fn() from being called at all.
-
-Thanks,
-Fengguang
-
-> >> Signed-off-by: Chanho Min <chanho.min@lge.com>
-> >> ---
-> >>  mm/backing-dev.c |    1 +
-> >>  1 files changed, 1 insertions(+), 0 deletions(-)
-> >>
-> >> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> >> index 71034f4..4378a5e 100644
-> >> --- a/mm/backing-dev.c
-> >> +++ b/mm/backing-dev.c
-> >> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct backing_dev_info
-> >> *bdi)
-> >>         if (bdi->wb.task) {
-> >>                 thaw_process(bdi->wb.task);
-> >>                 kthread_stop(bdi->wb.task);
-> >> +               bdi->wb.task = NULL;
-> >>         }
-> >>  }
-> >>
-> >> --
-> >> 1.7.0.4
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
