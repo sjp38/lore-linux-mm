@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 1AED66B00A2
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 17:13:25 -0500 (EST)
-Received: by ggni2 with SMTP id i2so12862097ggn.14
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 14:13:24 -0800 (PST)
-Message-ID: <4F037D84.5070502@gmail.com>
-Date: Tue, 03 Jan 2012 17:13:24 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 8/8] mm: add vmstat counters for tracking PCP drains
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com> <1325499859-2262-9-git-send-email-gilad@benyossef.com> <4F033F44.6020403@gmail.com> <CAOtvUMc259XZ5BdOqys3Kbv_u=Qa0matnuFyGrJhMPLtRKKkUA@mail.gmail.com>
-In-Reply-To: <CAOtvUMc259XZ5BdOqys3Kbv_u=Qa0matnuFyGrJhMPLtRKKkUA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id A2FE36B00A2
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 17:26:26 -0500 (EST)
+Date: Tue, 3 Jan 2012 14:26:24 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 1/8] smp: Introduce a generic on_each_cpu_mask
+ function
+Message-Id: <20120103142624.faf46d77.akpm@linux-foundation.org>
+In-Reply-To: <1325499859-2262-2-git-send-email-gilad@benyossef.com>
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+	<1325499859-2262-2-git-send-email-gilad@benyossef.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-(1/3/12 2:00 PM), Gilad Ben-Yossef wrote:
-> 2012/1/3 KOSAKI Motohiro<kosaki.motohiro@gmail.com>:
->> (1/2/12 5:24 AM), Gilad Ben-Yossef wrote:
->>> This patch introduces two new vmstat counters: pcp_global_drain
->>> that counts the number of times a per-cpu pages global drain was
->>> requested and pcp_global_ipi_saved that counts the number of times
->>> the number of CPUs with per-cpu pages in any zone were less then
->>> 1/2 of the number of online CPUs.
->>>
->>> The patch purpose is to show the usefulness of only sending an IPI
->>> asking to drain per-cpu pages to CPUs that actually have them
->>> instead of a blind global IPI. It is probably not useful by itself.
+On Mon,  2 Jan 2012 12:24:12 +0200
+Gilad Ben-Yossef <gilad@benyossef.com> wrote:
+
+> on_each_cpu_mask calls a function on processors specified my cpumask,
+> which may include the local processor.
+> 
+> All the limitation specified in smp_call_function_many apply.
+> 
 > ...
 >
->               }
->>>        on_each_cpu_mask(cpus_with_pcps, drain_local_pages, NULL, 1);
->>> +
->>> +     count_vm_event(PCP_GLOBAL_DRAIN);
->>> +     if (cpumask_weight(cpus_with_pcps)<    (cpumask_weight(cpu_online_mask) / 2))
->>> +             count_vm_event(PCP_GLOBAL_IPI_SAVED);
->>
->> NAK.
->>
->> PCP_GLOBAL_IPI_SAVED is only useful at development phase. I can't
->> imagine normal admins use it.
->
-> As the description explains, the purpose of the patch is to show why i
-> claim the previous
-> patch is useful. I did not meant it to be applied to mainline. My
-> apologies for not
-> stating this more clearly. I agree it is not useful for an admin,
-> although perhaps PCP_GLOBAL_DRAIN
-> alone might - I am not sure?
+> --- a/include/linux/smp.h
+> +++ b/include/linux/smp.h
+> @@ -102,6 +102,13 @@ static inline void call_function_init(void) { }
+>  int on_each_cpu(smp_call_func_t func, void *info, int wait);
+>  
+>  /*
+> + * Call a function on processors specified by mask, which might include
+> + * the local one.
+> + */
+> +void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
+> +		void *info, bool wait);
+> +
+> +/*
+>   * Mark the boot cpu "online" so that it can call console drivers in
+>   * printk() and can access its per-cpu storage.
+>   */
+> @@ -132,6 +139,15 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
+>  		local_irq_enable();		\
+>  		0;				\
+>  	})
+> +#define on_each_cpu_mask(mask, func, info, wait) \
+> +	do {						\
+> +		if (cpumask_test_cpu(0, (mask))) {	\
+> +			local_irq_disable();		\
+> +			(func)(info);			\
+> +			local_irq_enable();		\
+> +		}					\
+> +	} while (0)
 
-Until we found a good usecase, we shouldn't append any stat. It is not
-zero overhead even though nobody uses.
+Why is the cpumask_test_cpu() call there?  It's hard to think of a
+reason why "mask" would specify any CPU other than "0" in a
+uniprocessor kernel.
 
-That's why I almost always disagree adding statistics from point of 
-developers view.
+If this code remains as-is, please add a comment here explaining this,
+so others don't wonder the same thing.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
