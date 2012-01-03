@@ -1,74 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id D1EB26B0088
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 14:00:18 -0500 (EST)
-Received: by vcge1 with SMTP id e1so15624628vcg.14
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 11:00:17 -0800 (PST)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 3A2726B0087
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 15:09:11 -0500 (EST)
+Message-ID: <4F035FF6.7020206@ah.jp.nec.com>
+Date: Tue, 03 Jan 2012 15:07:18 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <4F033F44.6020403@gmail.com>
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
-	<1325499859-2262-9-git-send-email-gilad@benyossef.com>
-	<4F033F44.6020403@gmail.com>
-Date: Tue, 3 Jan 2012 21:00:17 +0200
-Message-ID: <CAOtvUMc259XZ5BdOqys3Kbv_u=Qa0matnuFyGrJhMPLtRKKkUA@mail.gmail.com>
-Subject: Re: [PATCH v5 8/8] mm: add vmstat counters for tracking PCP drains
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 1/4] pagemap: avoid splitting thp when reading /proc/pid/pagemap
+References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324506228-18327-2-git-send-email-n-horiguchi@ah.jp.nec.com> <4EFD3266.4080701@gmail.com>
+In-Reply-To: <4EFD3266.4080701@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-2012/1/3 KOSAKI Motohiro <kosaki.motohiro@gmail.com>:
-> (1/2/12 5:24 AM), Gilad Ben-Yossef wrote:
->> This patch introduces two new vmstat counters: pcp_global_drain
->> that counts the number of times a per-cpu pages global drain was
->> requested and pcp_global_ipi_saved that counts the number of times
->> the number of CPUs with per-cpu pages in any zone were less then
->> 1/2 of the number of online CPUs.
->>
->> The patch purpose is to show the usefulness of only sending an IPI
->> asking to drain per-cpu pages to CPUs that actually have them
->> instead of a blind global IPI. It is probably not useful by itself.
+Hi,
+
+Thank you for your reviewing.
+
+On Thu, Dec 29, 2011 at 10:39:18PM -0500, KOSAKI Motohiro wrote:
 ...
+> > --- 3.2-rc5.orig/fs/proc/task_mmu.c
+> > +++ 3.2-rc5/fs/proc/task_mmu.c
+> > @@ -600,6 +600,9 @@ struct pagemapread {
+> >   	u64 *buffer;
+> >   };
+> > 
+> > +#define PAGEMAP_WALK_SIZE	(PMD_SIZE)
+> > +#define PAGEMAP_WALK_MASK	(PMD_MASK)
+> > +
+> >   #define PM_ENTRY_BYTES      sizeof(u64)
+> >   #define PM_STATUS_BITS      3
+> >   #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
+> > @@ -658,6 +661,22 @@ static u64 pte_to_pagemap_entry(pte_t pte)
+> >   	return pme;
+> >   }
+> > 
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +static u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
+> > +{
+> > +	u64 pme = 0;
+> > +	if (pte_present(pte))
+> 
+> When does pte_present() return 0?
 
- =A0 =A0 =A0 =A0 =A0 =A0 }
->> =A0 =A0 =A0 on_each_cpu_mask(cpus_with_pcps, drain_local_pages, NULL, 1)=
-;
->> +
->> + =A0 =A0 count_vm_event(PCP_GLOBAL_DRAIN);
->> + =A0 =A0 if (cpumask_weight(cpus_with_pcps)< =A0(cpumask_weight(cpu_onl=
-ine_mask) / 2))
->> + =A0 =A0 =A0 =A0 =A0 =A0 count_vm_event(PCP_GLOBAL_IPI_SAVED);
+It does when the page pointed to by pte is swapped-out, under page migration,
+or HWPOISONed. But currenly it can't happen on thp because thp will be
+splitted before these operations are processed.
+So this if-sentense is not necessary for now, but I think it's not a bad idea
+to put it now to prepare for future implementation.
+
 >
-> NAK.
->
-> PCP_GLOBAL_IPI_SAVED is only useful at development phase. I can't
-> imagine normal admins use it.
+> > +		pme = PM_PFRAME(pte_pfn(pte) + offset)
+> > +			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
+> > +	return pme;
+> > +}
+> > +#else
+> > +static inline u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
+> > +{
+> > +	return 0;
+> > +}
+> > +#endif
+> > +
+> >   static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> >   			     struct mm_walk *walk)
+> >   {
+> > @@ -665,14 +684,34 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> >   	struct pagemapread *pm = walk->private;
+> >   	pte_t *pte;
+> >   	int err = 0;
+> > -
+> > -	split_huge_page_pmd(walk->mm, pmd);
+> > +	u64 pfn = PM_NOT_PRESENT;
+> > 
+> >   	/* find the first VMA at or above 'addr' */
+> >   	vma = find_vma(walk->mm, addr);
+> > -	for (; addr != end; addr += PAGE_SIZE) {
+> > -		u64 pfn = PM_NOT_PRESENT;
+> > 
+> > +	spin_lock(&walk->mm->page_table_lock);
+> > +	if (pmd_trans_huge(*pmd)) {
+> > +		if (pmd_trans_splitting(*pmd)) {
+> > +			spin_unlock(&walk->mm->page_table_lock);
+> > +			wait_split_huge_page(vma->anon_vma, pmd);
+> > +		} else {
+> > +			for (; addr != end; addr += PAGE_SIZE) {
+> > +				int offset = (addr&  ~PAGEMAP_WALK_MASK)
+> > +					>>  PAGE_SHIFT;
+> 
+> implicit narrowing conversion. offset should be unsigned long.
 
-As the description explains, the purpose of the patch is to show why i
-claim the previous
-patch is useful. I did not meant it to be applied to mainline. My
-apologies for not
-stating this more clearly. I agree it is not useful for an admin,
-although perhaps PCP_GLOBAL_DRAIN
-alone might - I am not sure?
+OK.
 
-Gilad
+> 
+> 
+> > +				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
+> > +							       offset);
+> 
+> This (pte_t*) cast looks introduce new implicit assumption. Please don't
+> put x86 assumption here directly.
 
+OK, I think it's better to write a separate patch for this job because
+similar assumption is used in smaps_pte_range() and gather_pte_stats().
 
+> 
+> 
+> > +				err = add_to_pagemap(addr, pfn, pm);
+> > +				if (err)
+> > +					break;
+> > +			}
+> > +			spin_unlock(&walk->mm->page_table_lock);
+> > +			return err;
+> > +		}
+> > +	} else {
+> > +		spin_unlock(&walk->mm->page_table_lock);
+> > +	}
+> 
+> coding standard violation. plz run check_patch.pl.
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+checkpatch.pl says nothing for here. According to Documentation/CodingStyle,
+"no braces for single statement" rule is not applicable for else-blocks with
+one statement if corresponding if-blocks have multiple statements.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
