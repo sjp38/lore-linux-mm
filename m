@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 4305B6B00AD
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 18:29:21 -0500 (EST)
-Date: Tue, 3 Jan 2012 15:29:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
-Message-Id: <20120103152919.f7348ffb.akpm@linux-foundation.org>
-In-Reply-To: <4F038C97.606@gmail.com>
-References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils>
-	<alpine.LSU.2.00.1112282037000.1362@eggly.anvils>
-	<20111229145548.e34cb2f3.akpm@linux-foundation.org>
-	<alpine.LSU.2.00.1112291510390.4888@eggly.anvils>
-	<4EFD04B2.7050407@gmail.com>
-	<alpine.LSU.2.00.1112291753350.3614@eggly.anvils>
-	<20111229195917.13f15974.akpm@linux-foundation.org>
-	<alpine.LSU.2.00.1112312302010.18500@eggly.anvils>
-	<20120103151236.893d2460.akpm@linux-foundation.org>
-	<4F038C97.606@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 3FE626B00AF
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 18:34:02 -0500 (EST)
+Received: by yenq10 with SMTP id q10so10902676yen.14
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 15:34:01 -0800 (PST)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH 1/2] memcg: root_mem_cgroup makes static
+Date: Tue,  3 Jan 2012 18:33:51 -0500
+Message-Id: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
 
-On Tue, 03 Jan 2012 18:17:43 -0500
-KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> >> I'm sure there are better reasons for removing lumpy than that I posted
-> >> a patch which happened to remove some limitation.  No need to poke Mel
-> >> on my behalf!
-> >
-> > No harm done - Mel's been getting rather unpoked lately.
-> >
-> > Not that poking works very well anyway<checks to see if mm/thrash.c
-> > is still there>
-> 
-> Maybe I touched mm/thrash.c at last. Do you have any problem in it?
-> 
+root_mem_cgroup is only referenced from memcontrol.c. It should be static.
 
-https://lkml.org/lkml/2011/8/27/13
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>,
+Cc: cgroups@vger.kernel.org
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-The thrash detection logic was accidentally disabled over a year ago,
-and nobody has noticed.  To me, this information says "kill it".
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 90fdaeb..6adeeec 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -59,7 +59,7 @@
+ 
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+-struct mem_cgroup *root_mem_cgroup __read_mostly;
++static struct mem_cgroup *root_mem_cgroup __read_mostly;
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
