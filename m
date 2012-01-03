@@ -1,115 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 8A69A6B006E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 06:23:22 -0500 (EST)
-From: "Chanho Min" <chanho.min@lge.com>
-References: <004401ccc932$444a0070$ccde0150$@min@lge.com> <20120102095711.GA16570@localhost> <002e01ccc9c7$1928c940$4b7a5bc0$@min@lge.com> <20120103044933.GA31778@localhost>
-In-Reply-To: <20120103044933.GA31778@localhost>
-Subject: RE: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is detached
-Date: Tue, 3 Jan 2012 20:22:50 +0900
-Message-ID: <000301ccca0a$1288a310$3799e930$@min@lge.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 1D28E6B0071
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 11:04:15 -0500 (EST)
+Date: Tue, 3 Jan 2012 17:04:11 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: how to make memory.memsw.failcnt is nonzero
+Message-ID: <20120103160411.GD3891@tiehlicka.suse.cz>
+References: <4EFADFF8.5020703@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Language: ko
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4EFADFF8.5020703@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Wu Fengguang' <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Rabin Vincent' <rabin.vincent@stericsson.com>, 'Linus Walleij' <linus.walleij@linaro.org>
+To: Peng Haitao <penght@cn.fujitsu.com>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
->On Tue, Jan 03, 2012 at 12:23:44PM +0900, Chanho Min wrote:
->> >On Mon, Jan 02, 2012 at 06:38:21PM +0900, =
-=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=C8=A3 wrote:
->> >> from Chanho Min <chanho.min@lge.com>
->> >>
->> >> System may crash in backing-dev.c when removal SCSI device is =
-detached.
->> >> bdi task is killed by bdi_unregister()/'khubd', but task's point
->remains.
->> >> Shortly afterward, If 'wb->wakeup_timer' is expired before
->> >> del_timer()/bdi_forker_thread,
->> >> wakeup_timer_fn() may wake up the dead thread which cause the =
-crash.
->> >> 'bdi->wb.task' should be NULL as this patch.
->> >
->> >Is it some race condition between del_timer() and del_timer_sync()?
->> >
->> >bdi_unregister() calls
->> >
->> >        del_timer_sync
->> >        bdi_wb_shutdown
->> >            kthread_stop
->> >
->> >in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is
->> >no longer called to access the stopped task.
->> >
->>
->> It is not race condition. This happens when USB is removed during =
-write-
->access.
->> bdi_wakeup_thread_delayed is called after kthread_stop, and timer is
->activated again.
->>
->> 	bdi_unregister
->> 		kthread_stop
->> 	bdi_wakeup_thread_delayed (sys_write mostly calls this)
->> 	timer fires
->
->Ah OK, the timer could be restarted in the mean while, which breaks
->the synchronization rule in del_timer_sync().
->
->I noticed a related fix is merged recently, does your test kernel
->contain this commit?
->
+[Let's add some people to the CC list]
 
-No, I will try to reproduce with this patch.=20
-But, bdi_destroy is not called during write-access. Same result is =
-expected.
+Hi,
+sorry for the late reply (some vacation and holiday)
 
->commit 7a401a972df8e184b3d1a3fc958c0a4ddee8d312
->Author: Rabin Vincent <rabin.vincent@stericsson.com>
->Date:   Fri Nov 11 13:29:04 2011 +0100
->
->    backing-dev: ensure wakeup_timer is deleted
->
->> Anyway,Is this safeguard to prevent from waking up killed thread?
->
->This patch makes no guarantee wakeup_timer_fn() will see NULL
->bdi->wb.task before the task is stopped, so there is still race
->conditions. And still, the complete fix would be to prevent
->wakeup_timer_fn() from being called at all.
+On Wed 28-12-11 17:23:04, Peng Haitao wrote:
+> 
+> memory.memsw.failcnt shows the number of memory+Swap hits limits.
+> So I think when memory+swap usage is equal to limit, memsw.failcnt should be nonzero.
+> 
+> I test as follows:
+> 
+> # uname -a
+> Linux K-test 3.2.0-rc7-17-g371de6e #2 SMP Wed Dec 28 12:02:52 CST 2011 x86_64 x86_64 x86_64 GNU/Linux
+> # mkdir /cgroup/memory/group
+> # cd /cgroup/memory/group/
+> # echo 10M > memory.limit_in_bytes
+> # echo 10M > memory.memsw.limit_in_bytes
+> # echo $$ > tasks
+> # dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
+> Killed
+> # cat memory.memsw.failcnt
+> 0
+> # grep "failcnt" /var/log/messages | tail -2
+> Dec 28 17:05:52 K-test kernel: memory: usage 10240kB, limit 10240kB, failcnt 21
+> Dec 28 17:05:52 K-test kernel: memory+swap: usage 10240kB, limit 10240kB, failcnt 0
+> 
+> memory+swap usage is equal to limit, but memsw.failcnt is zero.
+> 
+> I change memory.memsw.limit_in_bytes to 15M.
+> 
+> # echo 15M > memory.memsw.limit_in_bytes
+> # dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
+> Killed
+> # grep "failcnt" /var/log/messages | tail -2
+> Dec 28 17:08:45 K-test kernel: memory: usage 10240kB, limit 10240kB, failcnt 86
+> Dec 28 17:08:45 K-test kernel: memory+swap: usage 10240kB, limit 15360kB, failcnt 0
+> # cat memory.memsw.failcnt
+> 0
+> 
+> The limit is 15M, but memory+swap usage also is 10M.
+> I think memory+swap usage should be 15M and memsw.failcnt should be nonzero.
+> 
+> This is a kernel bug or I misunderstand memory+swap?
 
-If wakeup_timer_fn() see NULL bdi->wb.task, wakeup_timer_fn regards task =
-as killed
-and wake up forker thread instead of the defined thread.
-Is this intended behavior of the bdi?
+Well, we might end up with memory.failcnt > 0 while memory.memsw.failcnt == 0
+quite easily and that would happen in the cases like you describe above
+when there is a big pagecache pressure on the hardlimit without much
+anonymous memory so there is not much that could be swapped out.
 
->
->Thanks,
->Fengguang
->
->> >> Signed-off-by: Chanho Min <chanho.min@lge.com>
->> >> ---
->> >>  mm/backing-dev.c |    1 +
->> >>  1 files changed, 1 insertions(+), 0 deletions(-)
->> >>
->> >> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
->> >> index 71034f4..4378a5e 100644
->> >> --- a/mm/backing-dev.c
->> >> +++ b/mm/backing-dev.c
->> >> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct =
-backing_dev_info
->> >> *bdi)
->> >>         if (bdi->wb.task) {
->> >>                 thaw_process(bdi->wb.task);
->> >>                 kthread_stop(bdi->wb.task);
->> >> +               bdi->wb.task =3D NULL;
->> >>         }
->> >>  }
->> >>
->> >> --
->> >> 1.7.0.4
+Please note that memsw.limit_in_bytes is triggered only if we have
+consumed some swap space already (and the feature is primarily intended
+to stop extensive swap usage in fact).
+It goes like this: If we trigger hard limit (memory.limit_in_bytes) then
+we start the direct reclaim (with swap available). If we trigger memsw
+limit then we try to reclaim without swap available. We will OOM if we
+cannot reclaim enough to satisfy the respective limit.
+
+The other part of the answer is, yes there is something wrong going
+on her because we definitely shouldn't OOM. The workload is a single
+threaded and we have a plenty of page cache that could be reclaimed
+easily. On the other hand we end up with:
+# echo $$ > tasks 
+/dev/memctl/a# echo 10M > memory.limit_in_bytes 
+/dev/memctl/a# echo 10M > memory.memsw.limit_in_bytes 
+/dev/memctl/a# dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
+Killed
+/dev/memctl/a# cat memory.stat 
+cache 9265152
+rss 143360
+mapped_file 0
+pgpgin 3352
+pgpgout 1055
+swap 0
+pgfault 798
+pgmajfault 1
+inactive_anon 12288
+active_anon 114688
+inactive_file 9261056
+active_file 4096
+unevictable 0
+[...]
+
+So there is almost 10M of page cache that we can simply reclaim. If we
+use 40M limit then we are OK. So this looks like the small limit somehow
+tricks our math in the reclaim path and we think there is nothing to
+reclaim.
+I will look into this.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
