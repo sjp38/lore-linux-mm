@@ -1,50 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 318886B004D
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 14:43:42 -0500 (EST)
-Received: by iacb35 with SMTP id b35so35779525iac.14
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2012 11:43:41 -0800 (PST)
-Date: Mon, 2 Jan 2012 11:43:27 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/5] memcg: lru_size instead of MEM_CGROUP_ZSTAT
-In-Reply-To: <20120102125913.GG7910@tiehlicka.suse.cz>
-Message-ID: <alpine.LSU.2.00.1201021104160.1854@eggly.anvils>
-References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils> <alpine.LSU.2.00.1112312329240.18500@eggly.anvils> <20120102125913.GG7910@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id C1F816B004D
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 22:23:46 -0500 (EST)
+From: "Chanho Min" <chanho.min@lge.com>
+References: <004401ccc932$444a0070$ccde0150$@min@lge.com> <20120102095711.GA16570@localhost>
+In-Reply-To: <20120102095711.GA16570@localhost>
+Subject: RE: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is detached
+Date: Tue, 3 Jan 2012 12:23:44 +0900
+Message-ID: <002e01ccc9c7$1928c940$4b7a5bc0$@min@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
+To: 'Wu Fengguang' <fengguang.wu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Mon, 2 Jan 2012, Michal Hocko wrote:
-> On Sat 31-12-11 23:30:38, Hugh Dickins wrote:
-> > I never understood why we need a MEM_CGROUP_ZSTAT(mz, idx) macro
-> > to obscure the LRU counts.  For easier searching?  So call it
-> > lru_size rather than bare count (lru_length sounds better, but
-> > would be wrong, since each huge page raises lru_size hugely).
-> 
-> lru_size is unique at the global scope at the moment but this might
-> change in the future. MEM_CGROUP_ZSTAT should be unique and so easier
-> to grep or cscope. 
-> On the other hand lru_size sounds like a better name so I am all for
-> renaming but we should make sure that we somehow get memcg into it
-> (either to macro MEM_CGROUP_LRU_SIZE or get rid of macro and have
-> memcg_lru_size field name - which is ugly long).
+>On Mon, Jan 02, 2012 at 06:38:21PM +0900, =
+=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=C8=A3 wrote:
+>> from Chanho Min <chanho.min@lge.com>
+>>
+>> System may crash in backing-dev.c when removal SCSI device is =
+detached.
+>> bdi task is killed by bdi_unregister()/'khubd', but task's point =
+remains.
+>> Shortly afterward, If 'wb->wakeup_timer' is expired before
+>> del_timer()/bdi_forker_thread,
+>> wakeup_timer_fn() may wake up the dead thread which cause the crash.
+>> 'bdi->wb.task' should be NULL as this patch.
+>
+>Is it some race condition between del_timer() and del_timer_sync()?
+>
+>bdi_unregister() calls
+>
+>        del_timer_sync
+>        bdi_wb_shutdown
+>            kthread_stop
+>
+>in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is
+>no longer called to access the stopped task.
+>
 
-I do disagree.  You're asking to introduce artificial differences,
-whereas generally we're trying to minimize the differences between
-global and memcg.
+It is not race condition. This happens when USB is removed during =
+write-access.
+bdi_wakeup_thread_delayed is called after kthread_stop, and timer is =
+activated again.
 
-I'm happy with the way mem_cgroup_zone_lruvec(), for example, returns
-a pointer to the relevant structure, whether it's global or per-memcg,
-and we then work with the contents of that structure, whichever it is:
-lruvec in each case, not global_lruvec in one case and memcg_lruvec
-in the other.
+	bdi_unregister
+		kthread_stop
+	bdi_wakeup_thread_delayed (sys_write mostly calls this)
+	timer fires
 
-And certainly not GLOBAL_ZLRUVEC or MEM_CGROUP_ZLRUVEC!
+Anyway,Is this safeguard to prevent from waking up killed thread?
 
-Hugh
+Thanks,
+Chanho
+
+>Thanks,
+>Fengguang
+>
+>
+>> Signed-off-by: Chanho Min <chanho.min@lge.com>
+>> ---
+>>  mm/backing-dev.c |    1 +
+>>  1 files changed, 1 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+>> index 71034f4..4378a5e 100644
+>> --- a/mm/backing-dev.c
+>> +++ b/mm/backing-dev.c
+>> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct =
+backing_dev_info
+>> *bdi)
+>>         if (bdi->wb.task) {
+>>                 thaw_process(bdi->wb.task);
+>>                 kthread_stop(bdi->wb.task);
+>> +               bdi->wb.task =3D NULL;
+>>         }
+>>  }
+>>
+>> --
+>> 1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
