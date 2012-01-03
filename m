@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id D1A366B0062
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 03:57:57 -0500 (EST)
-Received: by eekc41 with SMTP id c41so18036734eek.14
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 00:57:56 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH v5 1/8] smp: Introduce a generic on_each_cpu_mask function
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
- <1325499859-2262-2-git-send-email-gilad@benyossef.com>
- <op.v7hz3pbc3l0zgt@mpn-glaptop>
- <CAOtvUMdk6DdcHK3Rp8ctwa8BqkF9YLwa09PHTUFCE53VdAY_6A@mail.gmail.com>
-Date: Tue, 03 Jan 2012 09:57:35 +0100
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 5317F6B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 06:05:20 -0500 (EST)
+Date: Tue, 3 Jan 2012 12:05:16 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/5] memcg: lru_size instead of MEM_CGROUP_ZSTAT
+Message-ID: <20120103110516.GK7910@tiehlicka.suse.cz>
+References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
+ <alpine.LSU.2.00.1112312329240.18500@eggly.anvils>
+ <20120102125913.GG7910@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1201021104160.1854@eggly.anvils>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v7h259ad3l0zgt@mpn-glaptop>
-In-Reply-To: <CAOtvUMdk6DdcHK3Rp8ctwa8BqkF9YLwa09PHTUFCE53VdAY_6A@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1201021104160.1854@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-> 2012/1/3 Michal Nazarewicz <mina86@mina86.com>:
->> on_each_cpu() returns an int.  For consistency reasons, would it make=
- sense
->> to make on_each_cpu_maks() to return and int?  I know that the differ=
-ence
->> is that smp_call_function() returns and int and smp_call_function_man=
-y()
->> returns void, but to me it actually seems strange and either I'm miss=
-ing
->> something important (which is likely) or this needs to get cleaned up=
- at
->> one point as well.
+On Mon 02-01-12 11:43:27, Hugh Dickins wrote:
+> On Mon, 2 Jan 2012, Michal Hocko wrote:
+> > On Sat 31-12-11 23:30:38, Hugh Dickins wrote:
+> > > I never understood why we need a MEM_CGROUP_ZSTAT(mz, idx) macro
+> > > to obscure the LRU counts.  For easier searching?  So call it
+> > > lru_size rather than bare count (lru_length sounds better, but
+> > > would be wrong, since each huge page raises lru_size hugely).
+> > 
+> > lru_size is unique at the global scope at the moment but this might
+> > change in the future. MEM_CGROUP_ZSTAT should be unique and so easier
+> > to grep or cscope. 
+> > On the other hand lru_size sounds like a better name so I am all for
+> > renaming but we should make sure that we somehow get memcg into it
+> > (either to macro MEM_CGROUP_LRU_SIZE or get rid of macro and have
+> > memcg_lru_size field name - which is ugly long).
+> 
+> I do disagree.  You're asking to introduce artificial differences,
+> whereas generally we're trying to minimize the differences between
+> global and memcg.
 
-On Tue, 03 Jan 2012 09:12:21 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
-m> wrote:
-> I'd say we should go the other way around - kill the return value on
-> on_each_cpu()
->
-> The return value is always a hard coded zero and we have some code tha=
-t tests
-> for that return value. Silly...
->
-> It looks like it's there for hysterical reasons to me :-)
+I am not asking to _introduce_ a new artificial difference I just wanted
+to make memcg lru accounting obvious. 
+Currently, if I want to check that we account correctly I cscope/grep
+__mod_zone_page_state on the global level and we have MEM_CGROUP_ZSTAT
+for the memcg. If you remove the macro then it would be little bit
+harder (it won't actually because lru_size is unique at the moment it is
+just not that obvious).
 
-That might be right.  Of course, this goes deeper then on_each_cpu() sin=
-ce
-some of the smp_call_function functions have an int return value, but I
-couldn't find an instance when they return non-zero.
+> I'm happy with the way mem_cgroup_zone_lruvec(), for example, returns
+> a pointer to the relevant structure, whether it's global or per-memcg,
+> and we then work with the contents of that structure, whichever it is:
+> lruvec in each case, not global_lruvec in one case and memcg_lruvec
+> in the other.
 
-I'd offer to volunteer to do the clean-up but I have too little experien=
-ce
-in IPI to say with confidence that we in fact can and want to drop the =E2=
-=80=9Cint=E2=80=9D
-return value from all of those functions.
+Yes, I like it as well but we do not account the same way for memcg and
+global.
 
--- =
+Anyway, I do not have any strong opinion about the macro. Nevertheless,
+I definitely like the count->lru_size renaming.
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
