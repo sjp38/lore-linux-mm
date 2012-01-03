@@ -1,8 +1,7 @@
-From: "Chanho Min" <chanho.min@lge.com>
+From: "'Chanho Min'" <chanho.min@lge.com>
 Subject: RE: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is detached
-Date: Tue, 3 Jan 2012 12:23:44 +0900
-Message-ID: <45334.1441847899$1325561039@news.gmane.org>
-References: <004401ccc932$444a0070$ccde0150$@min@lge.com> <20120102095711.GA16570@localhost>
+Date: Tue, 3 Jan 2012 12:47:23 +0900
+Message-ID: <48666.168927639$1325562453@news.gmane.org>
 Mime-Version: 1.0
 Content-Type: text/plain;
 	charset="utf-8"
@@ -11,27 +10,25 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Rhuyf-00030D-4q
-	for glkm-linux-mm-2@m.gmane.org; Tue, 03 Jan 2012 04:23:53 +0100
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id C1F816B004D
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 22:23:46 -0500 (EST)
-In-Reply-To: <20120102095711.GA16570@localhost>
+	id 1RhvLT-0000eF-Tu
+	for glkm-linux-mm-2@m.gmane.org; Tue, 03 Jan 2012 04:47:28 +0100
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 7886D6B004D
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2012 22:47:25 -0500 (EST)
 Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: 'Wu Fengguang' <fengguang.wu@intel.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>
 
->On Mon, Jan 02, 2012 at 06:38:21PM +0900, =
-=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=C8=A3 wrote:
+>On Mon, Jan 02, 2012 at 06:38:21PM +0900,     =C8=A3 wrote:
 >> from Chanho Min <chanho.min@lge.com>
 >>
 >> System may crash in backing-dev.c when removal SCSI device is =
 detached.
 >> bdi task is killed by bdi_unregister()/'khubd', but task's point =
 remains.
->> Shortly afterward, If 'wb->wakeup_timer' is expired before
+>> Shortly afterward, If 'wb->wakeup_timer' is expired before=20
 >> del_timer()/bdi_forker_thread,
 >> wakeup_timer_fn() may wake up the dead thread which cause the crash.
 >> 'bdi->wb.task' should be NULL as this patch.
@@ -44,8 +41,8 @@ remains.
 >        bdi_wb_shutdown
 >            kthread_stop
 >
->in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is
->no longer called to access the stopped task.
+>in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is no=20
+>longer called to access the stopped task.
 >
 
 It is not race condition. This happens when USB is removed during =
@@ -72,12 +69,12 @@ Chanho
 >>  mm/backing-dev.c |    1 +
 >>  1 files changed, 1 insertions(+), 0 deletions(-)
 >>
->> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
->> index 71034f4..4378a5e 100644
+>> diff --git a/mm/backing-dev.c b/mm/backing-dev.c index=20
+>> 71034f4..4378a5e 100644
 >> --- a/mm/backing-dev.c
 >> +++ b/mm/backing-dev.c
->> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct =
-backing_dev_info
+>> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct=20
+>> backing_dev_info
 >> *bdi)
 >>         if (bdi->wb.task) {
 >>                 thaw_process(bdi->wb.task);
