@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 3A2726B0087
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 15:09:11 -0500 (EST)
-Message-ID: <4F035FF6.7020206@ah.jp.nec.com>
-Date: Tue, 03 Jan 2012 15:07:18 -0500
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id E39926B006C
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 15:09:41 -0500 (EST)
+Message-ID: <4F036041.4090605@ah.jp.nec.com>
+Date: Tue, 03 Jan 2012 15:08:33 -0500
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] pagemap: avoid splitting thp when reading /proc/pid/pagemap
-References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324506228-18327-2-git-send-email-n-horiguchi@ah.jp.nec.com> <4EFD3266.4080701@gmail.com>
-In-Reply-To: <4EFD3266.4080701@gmail.com>
+Subject: Re: [PATCH 2/4] thp: optimize away unnecessary page table locking
+References: <1324506228-18327-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1324506228-18327-3-git-send-email-n-horiguchi@ah.jp.nec.com> <4EFD3739.7070609@gmail.com>
+In-Reply-To: <4EFD3739.7070609@gmail.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,113 +16,145 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-Hi,
-
-Thank you for your reviewing.
-
-On Thu, Dec 29, 2011 at 10:39:18PM -0500, KOSAKI Motohiro wrote:
+On Thu, Dec 29, 2011 at 10:59:53PM -0500, KOSAKI Motohiro wrote:
 ...
-> > --- 3.2-rc5.orig/fs/proc/task_mmu.c
-> > +++ 3.2-rc5/fs/proc/task_mmu.c
-> > @@ -600,6 +600,9 @@ struct pagemapread {
-> >   	u64 *buffer;
-> >   };
-> > 
-> > +#define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-> > +#define PAGEMAP_WALK_MASK	(PMD_MASK)
-> > +
-> >   #define PM_ENTRY_BYTES      sizeof(u64)
-> >   #define PM_STATUS_BITS      3
-> >   #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-> > @@ -658,6 +661,22 @@ static u64 pte_to_pagemap_entry(pte_t pte)
-> >   	return pme;
-> >   }
-> > 
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +static u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-> > +{
-> > +	u64 pme = 0;
-> > +	if (pte_present(pte))
-> 
-> When does pte_present() return 0?
-
-It does when the page pointed to by pte is swapped-out, under page migration,
-or HWPOISONed. But currenly it can't happen on thp because thp will be
-splitted before these operations are processed.
-So this if-sentense is not necessary for now, but I think it's not a bad idea
-to put it now to prepare for future implementation.
-
->
-> > +		pme = PM_PFRAME(pte_pfn(pte) + offset)
-> > +			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
-> > +	return pme;
-> > +}
-> > +#else
-> > +static inline u64 thp_pte_to_pagemap_entry(pte_t pte, int offset)
-> > +{
-> > +	return 0;
-> > +}
-> > +#endif
-> > +
-> >   static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-> >   			     struct mm_walk *walk)
-> >   {
-> > @@ -665,14 +684,34 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-> >   	struct pagemapread *pm = walk->private;
-> >   	pte_t *pte;
-> >   	int err = 0;
-> > -
-> > -	split_huge_page_pmd(walk->mm, pmd);
-> > +	u64 pfn = PM_NOT_PRESENT;
-> > 
+> > @@ -689,26 +681,19 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 > >   	/* find the first VMA at or above 'addr' */
 > >   	vma = find_vma(walk->mm, addr);
-> > -	for (; addr != end; addr += PAGE_SIZE) {
-> > -		u64 pfn = PM_NOT_PRESENT;
 > > 
-> > +	spin_lock(&walk->mm->page_table_lock);
-> > +	if (pmd_trans_huge(*pmd)) {
+> > -	spin_lock(&walk->mm->page_table_lock);
+> > -	if (pmd_trans_huge(*pmd)) {
+> > -		if (pmd_trans_splitting(*pmd)) {
+> > -			spin_unlock(&walk->mm->page_table_lock);
+> > -			wait_split_huge_page(vma->anon_vma, pmd);
+> > -		} else {
+> > -			for (; addr != end; addr += PAGE_SIZE) {
+> > -				int offset = (addr&  ~PAGEMAP_WALK_MASK)
+> > -					>>  PAGE_SHIFT;
+> > -				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
+> > -							       offset);
+> > -				err = add_to_pagemap(addr, pfn, pm);
+> > -				if (err)
+> > -					break;
+> > -			}
+> > -			spin_unlock(&walk->mm->page_table_lock);
+> > -			return err;
+> > +	/* David comment */
+> 
+> This commnet doesn't explain anything.
+
+Sorry, I forgot to remove.
+
+...
+> > diff --git 3.2-rc5.orig/mm/huge_memory.c 3.2-rc5/mm/huge_memory.c
+> > index 36b3d98..b73c744 100644
+> > --- 3.2-rc5.orig/mm/huge_memory.c
+> > +++ 3.2-rc5/mm/huge_memory.c
+...
+> > @@ -1104,27 +1080,45 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> >   	struct mm_struct *mm = vma->vm_mm;
+> >   	int ret = 0;
+> > 
+> > -	spin_lock(&mm->page_table_lock);
+> > -	if (likely(pmd_trans_huge(*pmd))) {
+> > -		if (unlikely(pmd_trans_splitting(*pmd))) {
+> > -			spin_unlock(&mm->page_table_lock);
+> > -			wait_split_huge_page(vma->anon_vma, pmd);
+> > -		} else {
+> > -			pmd_t entry;
+> > +	if (likely(check_and_wait_split_huge_pmd(pmd, vma))) {
+> > +		pmd_t entry;
+> > 
+> > -			entry = pmdp_get_and_clear(mm, addr, pmd);
+> > -			entry = pmd_modify(entry, newprot);
+> > -			set_pmd_at(mm, addr, pmd, entry);
+> > -			spin_unlock(&vma->vm_mm->page_table_lock);
+> > -			flush_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
+> > -			ret = 1;
+> > -		}
+> > -	} else
+> > +		entry = pmdp_get_and_clear(mm, addr, pmd);
+> > +		entry = pmd_modify(entry, newprot);
+> > +		set_pmd_at(mm, addr, pmd, entry);
+> >   		spin_unlock(&vma->vm_mm->page_table_lock);
+> > +		flush_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
+> > +		ret = 1;
+> > +	}
+> > 
+> >   	return ret;
+> >   }
+> > 
+> > +/*
+> > + * Returns 1 if a given pmd is mapping a thp and stable (not under splitting.)
+> > + * Returns 0 otherwise. Note that if it returns 1, this routine returns without
+> > + * unlocking page table locks. So callers must unlock them.
+> > + */
+> > +int check_and_wait_split_huge_pmd(pmd_t *pmd, struct vm_area_struct *vma)
+> 
+> We always should avoid a name of "check". It doesn't explain what the
+> function does.
+
+How about pmd_trans_huge_stable()?
+
+> 
+> > +{
+> 
+> VM_BUG_ON(!rwsem_is_locked(vma->mm)) here?
+
+OK, I will add VM_BUG_ON(!rwsem_is_locked(vma->mm->mmap_sem)),
+which helps us make sure that new user of this function holds mmap_sem.
+
+> > +	if (!pmd_trans_huge(*pmd))
+> > +		return 0;
+> > +
+> > +	spin_lock(&vma->vm_mm->page_table_lock);
+> > +	if (likely(pmd_trans_huge(*pmd))) {
 > > +		if (pmd_trans_splitting(*pmd)) {
-> > +			spin_unlock(&walk->mm->page_table_lock);
+> > +			spin_unlock(&vma->vm_mm->page_table_lock);
 > > +			wait_split_huge_page(vma->anon_vma, pmd);
 > > +		} else {
-> > +			for (; addr != end; addr += PAGE_SIZE) {
-> > +				int offset = (addr&  ~PAGEMAP_WALK_MASK)
-> > +					>>  PAGE_SHIFT;
-> 
-> implicit narrowing conversion. offset should be unsigned long.
-
-OK.
-
-> 
-> 
-> > +				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
-> > +							       offset);
-> 
-> This (pte_t*) cast looks introduce new implicit assumption. Please don't
-> put x86 assumption here directly.
-
-OK, I think it's better to write a separate patch for this job because
-similar assumption is used in smaps_pte_range() and gather_pte_stats().
-
-> 
-> 
-> > +				err = add_to_pagemap(addr, pfn, pm);
-> > +				if (err)
-> > +					break;
-> > +			}
-> > +			spin_unlock(&walk->mm->page_table_lock);
-> > +			return err;
+> > +			/* Thp mapped by 'pmd' is stable, so we can
+> > +			 * handle it as it is. */
+> > +			return 1;
 > > +		}
-> > +	} else {
-> > +		spin_unlock(&walk->mm->page_table_lock);
 > > +	}
+> > +	spin_unlock(&vma->vm_mm->page_table_lock);
+> > +	return 0;
+> > +}
+> > +
+> >   pmd_t *page_check_address_pmd(struct page *page,
+> >   			      struct mm_struct *mm,
+> >   			      unsigned long address,
+> > diff --git 3.2-rc5.orig/mm/mremap.c 3.2-rc5/mm/mremap.c
+> > index d6959cb..d534668 100644
+> > --- 3.2-rc5.orig/mm/mremap.c
+> > +++ 3.2-rc5/mm/mremap.c
+> > @@ -155,9 +155,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+> >   			if (err>  0) {
+> >   				need_flush = true;
+> >   				continue;
+> > -			} else if (!err) {
+> > -				split_huge_page_pmd(vma->vm_mm, old_pmd);
+> >   			}
+> > +			split_huge_page_pmd(vma->vm_mm, old_pmd);
 > 
-> coding standard violation. plz run check_patch.pl.
+> unrelated hunk?
 
-checkpatch.pl says nothing for here. According to Documentation/CodingStyle,
-"no braces for single statement" rule is not applicable for else-blocks with
-one statement if corresponding if-blocks have multiple statements.
+All users (except one) of the logic which I want to replace with
+check_and_wait_split_huge_pmd() expect it to return:
+  1: when pmd maps thp and is not under splitting,
+  0: when pmd maps thp and is under splitting,
+  0: when pmd doesn't map thp.
+
+But only move_huge_pmd() expects differently:
+  1: when pmd maps thp and is not under splitting,
+ -1: when pmd maps thp and is under splitting,
+  0: when pmd doesn't map thp.
+
+move_huge_pmd() is used only around the above hunk, so I chose to change
+the caller. It makes no behavioral change because split_huge_page_pmd()
+does nothing when old_pmd doesn't map thp.
+Is it better to separate changing return value into another patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
