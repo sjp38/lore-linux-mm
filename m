@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 678936B00B1
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 18:34:03 -0500 (EST)
-Received: by yhgm50 with SMTP id m50so9504223yhg.14
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 15:34:02 -0800 (PST)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH 2/2] memcg: mark rcu protected member as __rcu
-Date: Tue,  3 Jan 2012 18:33:52 -0500
-Message-Id: <1325633632-9978-2-git-send-email-kosaki.motohiro@gmail.com>
-In-Reply-To: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id E34086B005A
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 19:03:16 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so10811641ghr.14
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2012 16:03:16 -0800 (PST)
+Message-ID: <4F039742.1000703@gmail.com>
+Date: Tue, 03 Jan 2012 19:03:14 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] mm: take pagevecs off reclaim stack
+References: <alpine.LSU.2.00.1112282028160.1362@eggly.anvils> <alpine.LSU.2.00.1112282037000.1362@eggly.anvils> <20111229145548.e34cb2f3.akpm@linux-foundation.org> <alpine.LSU.2.00.1112291510390.4888@eggly.anvils> <4EFD04B2.7050407@gmail.com> <alpine.LSU.2.00.1112291753350.3614@eggly.anvils> <20111229195917.13f15974.akpm@linux-foundation.org> <alpine.LSU.2.00.1112312302010.18500@eggly.anvils> <20120103151236.893d2460.akpm@linux-foundation.org> <4F038C97.606@gmail.com> <20120103152919.f7348ffb.akpm@linux-foundation.org>
+In-Reply-To: <20120103152919.f7348ffb.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+(1/3/12 6:29 PM), Andrew Morton wrote:
+> On Tue, 03 Jan 2012 18:17:43 -0500
+> KOSAKI Motohiro<kosaki.motohiro@gmail.com>  wrote:
+>
+>>>> I'm sure there are better reasons for removing lumpy than that I posted
+>>>> a patch which happened to remove some limitation.  No need to poke Mel
+>>>> on my behalf!
+>>>
+>>> No harm done - Mel's been getting rather unpoked lately.
+>>>
+>>> Not that poking works very well anyway<checks to see if mm/thrash.c
+>>> is still there>
+>>
+>> Maybe I touched mm/thrash.c at last. Do you have any problem in it?
+>>
+>
+> https://lkml.org/lkml/2011/8/27/13
+>
+> The thrash detection logic was accidentally disabled over a year ago,
+> and nobody has noticed.  To me, this information says "kill it".
 
-Currently "make C=2 mm/memcontrol.o" makes following warnings. fix it.
+Thanks, I'm looking at it later.
 
-mm/memcontrol.c:4243:21: error: incompatible types in comparison expression (different address spaces)
-mm/memcontrol.c:4245:21: error: incompatible types in comparison expression (different address spaces)
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6adeeec..138be2b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -195,7 +195,7 @@ struct mem_cgroup_threshold_ary {
- 
- struct mem_cgroup_thresholds {
- 	/* Primary thresholds array */
--	struct mem_cgroup_threshold_ary *primary;
-+	struct mem_cgroup_threshold_ary __rcu *primary;
- 	/*
- 	 * Spare threshold array.
- 	 * This is needed to make mem_cgroup_unregister_event() "never fail".
--- 
-1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
