@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 0B3536B004D
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2012 03:46:14 -0500 (EST)
-Date: Wed, 4 Jan 2012 09:46:11 +0100
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id B736A6B004D
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2012 04:01:05 -0500 (EST)
+Date: Wed, 4 Jan 2012 10:01:03 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] memcg: root_mem_cgroup makes static
-Message-ID: <20120104084611.GA12581@tiehlicka.suse.cz>
+Subject: Re: [PATCH 2/2] memcg: mark rcu protected member as __rcu
+Message-ID: <20120104090102.GB12581@tiehlicka.suse.cz>
 References: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com>
+ <1325633632-9978-2-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1325633632-9978-2-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kosaki.motohiro@gmail.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org
 
-On Tue 03-01-12 18:33:51, kosaki.motohiro@gmail.com wrote:
+On Tue 03-01-12 18:33:52, kosaki.motohiro@gmail.com wrote:
 > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> root_mem_cgroup is only referenced from memcontrol.c. It should be static.
-
-This has been already posted by Kirill
-https://lkml.org/lkml/2011/12/23/292
-
+> Currently "make C=2 mm/memcontrol.o" makes following warnings. fix it.
+> 
+> mm/memcontrol.c:4243:21: error: incompatible types in comparison expression (different address spaces)
+> mm/memcontrol.c:4245:21: error: incompatible types in comparison expression (different address spaces)
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>,
+> Cc: Michal Hocko <mhocko@suse.cz>
 > Cc: cgroups@vger.kernel.org
+
+Looks correct.
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks
+
 > ---
 >  mm/memcontrol.c |    2 +-
 >  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 90fdaeb..6adeeec 100644
+> index 6adeeec..138be2b 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -59,7 +59,7 @@
+> @@ -195,7 +195,7 @@ struct mem_cgroup_threshold_ary {
 >  
->  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
-> -struct mem_cgroup *root_mem_cgroup __read_mostly;
-> +static struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+>  struct mem_cgroup_thresholds {
+>  	/* Primary thresholds array */
+> -	struct mem_cgroup_threshold_ary *primary;
+> +	struct mem_cgroup_threshold_ary __rcu *primary;
+>  	/*
+>  	 * Spare threshold array.
+>  	 * This is needed to make mem_cgroup_unregister_event() "never fail".
 > -- 
 > 1.7.1
 > 
