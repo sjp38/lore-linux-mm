@@ -1,56 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 8979C6B005D
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2012 12:24:43 -0500 (EST)
-From: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
-Subject: [PATCH 3.2.0-rc1 1/3] Making si_swapinfo exportable
-Date: Wed,  4 Jan 2012 19:21:54 +0200
-Message-Id: <58b74a5014e323cebeb4d3654f7f8a18c2f8d132.1325696593.git.leonid.moiseichuk@nokia.com>
-In-Reply-To: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-In-Reply-To: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 396366B005A
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2012 12:35:02 -0500 (EST)
+Received: by yenq10 with SMTP id q10so11229514yen.14
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2012 09:35:01 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20120104084611.GA12581@tiehlicka.suse.cz>
+References: <1325633632-9978-1-git-send-email-kosaki.motohiro@gmail.com> <20120104084611.GA12581@tiehlicka.suse.cz>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 4 Jan 2012 12:34:39 -0500
+Message-ID: <CAHGf_=o-mBAZxAW=vHSKKBCGqtzc+ooXrc9+vHvPoo_t4A9Chg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] memcg: root_mem_cgroup makes static
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org
 
-If we will make si_swapinfo() exportable it could be called from modules.
-Otherwise modules have no interface to obtain information about swap usage.
-Change made in the same way as si_meminfo() declared.
+2012/1/4 Michal Hocko <mhocko@suse.cz>:
+> On Tue 03-01-12 18:33:51, kosaki.motohiro@gmail.com wrote:
+>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>
+>> root_mem_cgroup is only referenced from memcontrol.c. It should be static.
+>
+> This has been already posted by Kirill
+> https://lkml.org/lkml/2011/12/23/292
 
-Signed-off-by: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
----
- mm/swapfile.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+Oops. I haven't noticed.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index b1cd120..192cc25 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -5,10 +5,12 @@
-  *  Swap reorganised 29.12.95, Stephen Tweedie
-  */
- 
-+#include <linux/export.h>
- #include <linux/mm.h>
- #include <linux/hugetlb.h>
- #include <linux/mman.h>
- #include <linux/slab.h>
-+#include <linux/kernel.h>
- #include <linux/kernel_stat.h>
- #include <linux/swap.h>
- #include <linux/vmalloc.h>
-@@ -2177,6 +2179,7 @@ void si_swapinfo(struct sysinfo *val)
- 	val->totalswap = total_swap_pages + nr_to_be_unused;
- 	spin_unlock(&swap_lock);
- }
-+EXPORT_SYMBOL(si_swapinfo);
- 
- /*
-  * Verify that a swap entry is valid and increment its swap map count.
--- 
-1.7.7.3
+Thank you, Michal!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
