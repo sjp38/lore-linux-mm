@@ -1,62 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 63F416B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 10:18:12 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
-Date: Thu, 5 Jan 2012 15:17:26 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB9826904554575@008-AM1MPN1-003.mgdnok.nokia.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id E74FF6B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 10:22:56 -0500 (EST)
+Date: Thu, 5 Jan 2012 15:22:53 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
+Message-ID: <20120105152253.GB27881@csn.ul.ie>
 References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
  <e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com>
- <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com>
- <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com>
- <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
- <4F05BC1F.7070009@redhat.com>
-In-Reply-To: <4F05BC1F.7070009@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com, penberg@kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, aarcange@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-SHVoLA0KRWFybHkgbm90aWZpY2F0aW9uIG5vdCBtdWNoIGJldHRlciB0aGVuIGxhdGUuIENhY2hl
-IHNpemUgaW1wYWN0cyBtb3N0bHkgdXNlci1zcGFjZSByZXNwb25zaXZlbmVzcywgc28gY2FjaGUg
-aXMgYWNjb3VudGVkIGFzIGZyZWUgbWVtb3J5IGJ1dCBkZXZpY2UgbmVlZCBiZSB0dW5lZCBkZXZl
-bG9wbWVudCB0aW1lIGFjY29yZGluZyBob3cgZmFzdCBpdCBzaG91bGQgYmUgaW4gZGlmZmVyZW50
-IGRldmljZS1zcGVjaWZpYyB1c2UtY2FzZXMgKGl0IGRlcGVuZHMgZnJvbSB6aWxsaW9ucyB0ZWNo
-bmljYWwgYW5kIG5vbi10ZWNobmljYWwgZmFjdG9ycyBlLmcuICBwcm9kdWNlciBuZWVkcykuDQpJ
-IGZpeGVkIGFsbCBrbm93biBmaW5kaW5ncyBhbmQgdHJ5aW5nIHRvIGZpbmQgcGxhY2VzIHRvIGlu
-dGVncmF0ZSBpbnRvIHZtc2Nhbi9wYWdlLXdyaXRlYmFjayBhcyBQZWtrYSBoYXMgYWR2aXNlZC4g
-DQoNCldpdGggQmVzdCBXaXNoZXMsDQpMZW9uaWQNCg0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2Ut
-LS0tLQ0KRnJvbTogZXh0IFJpayB2YW4gUmllbCBbbWFpbHRvOnJpZWxAcmVkaGF0LmNvbV0gDQpT
-ZW50OiAwNSBKYW51YXJ5LCAyMDEyIDE3OjA1DQpUbzogUGVra2EgRW5iZXJnDQpDYzogTW9pc2Vp
-Y2h1ayBMZW9uaWQgKE5va2lhLU1QL0hlbHNpbmtpKTsga2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0
-c3UuY29tOyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7
-IGNlc2FyYkBjZXNhcmIubmV0OyBlbXVuc29uQG1nZWJtLm5ldDsgYWFyY2FuZ2VAcmVkaGF0LmNv
-bTsgbWVsQGNzbi51bC5pZTsgcmllbnRqZXNAZ29vZ2xlLmNvbTsgZGltYUBhbmRyb2lkLmNvbTsg
-Z3JlZ2toQHN1c2UuZGU7IHJlYmVjY2FAYW5kcm9pZC5jb207IHNhbkBnb29nbGUuY29tOyBha3Bt
-QGxpbnV4LWZvdW5kYXRpb24ub3JnOyBKYWFza2VsYWluZW4gVmVzYSAoTm9raWEtTVAvSGVsc2lu
-a2kpDQpTdWJqZWN0OiBSZTogW1BBVENIIDMuMi4wLXJjMSAyLzNdIE1NIGhvb2sgZm9yIHBhZ2Ug
-YWxsb2NhdGlvbiBhbmQgcmVsZWFzZQ0KDQpPbiAwMS8wNS8yMDEyIDA3OjQ5IEFNLCBQZWtrYSBF
-bmJlcmcgd3JvdGU6DQo+IE9uIFRodSwgSmFuIDUsIDIwMTIgYXQgMToyNiBQTSw8bGVvbmlkLm1v
-aXNlaWNodWtAbm9raWEuY29tPiAgd3JvdGU6DQo+PiBJIGFncmVlIHRoYXQgaG9va2luZyBhbGxv
-Y19wYWdlcyBpcyB1Z2x5IHdheS4gU28gYWx0ZXJuYXRpdmVzIEkgc2VlOg0KPj4NCj4+IC0gc2hy
-aW5rZXJzIChhcyBlLmcuIEFuZHJvaWQgT09NIHVzZWQpIGJ1dCBzaHJpbmtfc2xhYiBjYWxsZWQg
-b25seSANCj4+IGZyb20gdHJ5X3RvX2ZyZWVfcGFnZXMgb25seSBpZiB3ZSBhcmUgb24gc2xvdyBy
-ZWNsYWltIHBhdGggb24gbWVtb3J5IA0KPj4gYWxsb2NhdGlvbiwgc28gaXQgY2Fubm90IGJlIHVz
-ZWQgZm9yIGUuZy4gNzUlIG1lbW9yeSB0cmFja2luZyBvciB3aGVuIA0KPj4gcGFnZXMgcmVsZWFz
-ZWQgdG8gbm90aWZ5IHVzZXIgc3BhY2UgdGhhdCB3ZSBhcmUgT0suIEJ1dCBhY2NvcmRpbmcgdG8g
-DQo+PiBlYXN5IHRvIHVzZSBpdCB3aWxsIGJlIHRoZSBiZXN0IGFwcHJvYWNoLg0KDQpXZWxsLCB0
-aGVyZSBpcyBhbHdheXMgdGhlIHBhZ2UgY2FjaGUuDQoNCklmLCBhdCByZWNsYWltIHRpbWUsIHRo
-ZSBhbW91bnQgb2YgcGFnZSBjYWNoZSArIGZyZWUgbWVtb3J5IGlzIGJlbG93IHRoZSBmcmVlIHRo
-cmVzaG9sZCwgd2Ugc2hvdWxkIHN0aWxsIGhhdmUgc3BhY2UgbGVmdCB0byBoYW5kbGUgdXNlcnNw
-YWNlIHRoaW5ncy4NCg0KSXQgbWF5IGJlIHBvc3NpYmxlIHRvIGhpamFjayBtZW1jZyBhY2NvdW50
-aW5nIHRvIGdldCBsb3dlciB1c2FnZSB0aHJlc2hvbGRzIGZvciBlYXJsaWVyIG5vdGlmaWNhdGlv
-bi4gIFRoYXQgd2F5IHRoZSBjb2RlIGNhbiBzdGF5IG91dCBvZiB0aGUgdHJ1ZSBmYXN0IHBhdGhz
-IGxpa2UgYWxsb2NfcGFnZXMuDQoNCi0tDQpBbGwgcmlnaHRzIHJldmVyc2VkDQo=
+On Wed, Jan 04, 2012 at 07:21:55PM +0200, Leonid Moiseichuk wrote:
+> That is required by Used Memory Meter (UMM) pseudo-device
+> to track memory utilization in system. It is expected that
+> hook MUST be very light to prevent performance impact
+> on the hot allocation path. Accuracy of number managed pages
+> does not expected to be absolute but fact of allocation or
+> deallocation must be registered.
+> 
+> Signed-off-by: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
+> ---
+>  include/linux/mm.h |   15 +++++++++++++++
+>  mm/Kconfig         |    8 ++++++++
+>  mm/page_alloc.c    |   31 +++++++++++++++++++++++++++++++
+>  3 files changed, 54 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 3dc3a8c..d133f73 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1618,6 +1618,21 @@ extern int soft_offline_page(struct page *page, int flags);
+>  
+>  extern void dump_page(struct page *page);
+>  
+> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
+> +/*
+> + * Hook function type which called when some pages allocated or released.
+> + * Value of nr_pages is positive for post-allocation calls and negative
+> + * after free.
+> + */
+> +typedef void (*mm_alloc_free_hook_t)(int nr_pages);
+> +
+> +/*
+
+I'm going to chime in and say that hooks like this into the page
+allocator are a no-go unless there really is absolutely no other option.
+There is too much scope for abuse.
+
+Even if they were not, this takes no account of the zone or node
+we are allocating from making it useful only in the case where the
+system had a single node and zone. This applies to mobile devices
+but not a lot of other systems.
+
+It also would have very poor information about memory pressure which
+is likely to be far more interesting and for that, awareness of what
+is happening in page reclaim is required.
+
+I haven't looked at the alternatives but there has been some vague
+discussion recently on reviving the concept of a low memory notifier,
+somehow making the existing memcg oom notifier global or maybe the
+andro lowmem killer can be adapted to your needs.
+
+> @@ -2298,6 +2322,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  	put_mems_allowed();
+>  
+>  	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
+> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
+> +	call_alloc_free_hook(1 << order);
+> +#endif
+> +
+>  	return page;
+>  }
+
+you are calling a free hook there in the alloc path. Seems odd.
+
+This is just a side-note but as this information is meant to be
+consumed by userspace you have the option of hooking into the
+mm_page_alloc tracepoint. You get the same information about how
+many pages are allocated or freed. I accept that it will probably be
+a bit slower but on the plus side it'll be backwards compatible and
+you don't need a kernel patch for it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
