@@ -1,191 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 3587B6B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 06:28:13 -0500 (EST)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 6883D6B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 06:50:20 -0500 (EST)
 From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
-Date: Thu, 5 Jan 2012 11:26:34 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com>
+Subject: RE: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and
+ related changes in MM
+Date: Thu, 5 Jan 2012 11:47:21 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045542B5@008-AM1MPN1-003.mgdnok.nokia.com>
 References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-	<e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com>
- <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120104195612.GB19181@suse.de>
+In-Reply-To: <20120104195612.GB19181@suse.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: gregkh@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
 Hi,
 
-I agree that hooking alloc_pages is ugly way. So alternatives I see:
+Android OOM (AOOM) is a different thing. Briefly Android OOM is a safety be=
+lt, but I try to introduce look-ahead radar to stop before hitting wall.
 
-- shrinkers (as e.g. Android OOM used) but shrink_slab called only from try=
-_to_free_pages only if we are on slow reclaim path on memory allocation, so=
- it cannot be used for e.g. 75% memory tracking or when pages released to n=
-otify user space that we are OK. But according to easy to use it will be th=
-e best approach.
+As I understand AOOM it wait until situation is reached bad conditions whic=
+h required memory reclaiming, selects application according to free memory =
+and oom_adj level and kills it.
+So no intermediate levels could be checked (e.g. 75% usage),  nothing could=
+ be done in user-space to prevent killing, no notification for case when me=
+mory becomes OK.
 
-- memcg-kind of changes like mem_cgroup_newpage_charge/uncharge_page but wi=
-thout blocking decision making logic. Seems to me more changes. Threshold c=
-urrently in memcg set 128 pages per CPU, that is quite often for level trac=
-king needs.
+What I try to do is to get notification in any application that memory beco=
+mes low, and do something about it like stop processing data, close unused =
+pages or correctly shuts applications, daemons.
+Application(s) might have necessity to install several notification levels,=
+ so reaction could be adjusted based on current utilization level per each =
+application, not globally.
 
-- tracking situation using timer? Maybe not due to will impact battery.
+Rik van Riel have pointed Kosaki-san's low memory notification. I know abou=
+t mem_notify but according to Anton Vorontsov's statement [1] it is died si=
+nce 2008 and for me it is really good news that is still not.=20
+I need to re-investigate it.
 
 With Best Wishes,
 Leonid
 
+[1] http://permalink.gmane.org/gmane.linux.kernel.mm/71626
 
 -----Original Message-----
-From: ext KAMEZAWA Hiroyuki [mailto:kamezawa.hiroyu@jp.fujitsu.com]=20
-Sent: 05 January, 2012 09:00
+From: ext Greg KH [mailto:gregkh@suse.de]=20
+Sent: 04 January, 2012 21:56
 To: Moiseichuk Leonid (Nokia-MP/Helsinki)
-Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; cesarb@cesarb.net; em=
-unson@mgebm.net; penberg@kernel.org; aarcange@redhat.com; riel@redhat.com; =
-mel@csn.ul.ie; rientjes@google.com; dima@android.com; gregkh@suse.de; rebec=
-ca@android.com; san@google.com; akpm@linux-foundation.org; Jaaskelainen Ves=
-a (Nokia-MP/Helsinki)
-Subject: Re: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
+Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; cesarb@cesarb.net; ka=
+mezawa.hiroyu@jp.fujitsu.com; emunson@mgebm.net; penberg@kernel.org; aarcan=
+ge@redhat.com; riel@redhat.com; mel@csn.ul.ie; rientjes@google.com; dima@an=
+droid.com; rebecca@android.com; san@google.com; akpm@linux-foundation.org; =
+Jaaskelainen Vesa (Nokia-MP/Helsinki)
+Subject: Re: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and rela=
+ted changes in MM
 
-On Wed,  4 Jan 2012 19:21:55 +0200
-Leonid Moiseichuk <leonid.moiseichuk@nokia.com> wrote:
-
-> That is required by Used Memory Meter (UMM) pseudo-device to track=20
-> memory utilization in system. It is expected that hook MUST be very=20
-> light to prevent performance impact on the hot allocation path.=20
-> Accuracy of number managed pages does not expected to be absolute but=20
-> fact of allocation or deallocation must be registered.
+On Wed, Jan 04, 2012 at 07:21:53PM +0200, Leonid Moiseichuk wrote:
+> The main idea of Used Memory Meter (UMM) is to provide low-cost=20
+> interface for user-space to notify about memory consumption using=20
+> similar approach /proc/meminfo does but focusing only on "modified" pages=
+ which cannot be fogotten.
 >=20
-> Signed-off-by: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
-
-I never like arbitrary hooks to alloc_pages().
-Could you find another way ?
-
-Hmm. memcg uses per-cpu counters for counting event of alloc/free and trigg=
-er threashold check per 128 event on a cpu.
-
-
-Thanks,
--Kame
-
-
-> ---
->  include/linux/mm.h |   15 +++++++++++++++
->  mm/Kconfig         |    8 ++++++++
->  mm/page_alloc.c    |   31 +++++++++++++++++++++++++++++++
->  3 files changed, 54 insertions(+), 0 deletions(-)
+> The calculation formula in terms of meminfo looks the following:
+>   UsedMemory =3D (MemTotal - MemFree - Buffers - Cached - SwapCached) +
+>                                                (SwapTotal - SwapFree)=20
+> It reflects well amount of system memory used in applications in heaps an=
+d shared pages.
 >=20
-> diff --git a/include/linux/mm.h b/include/linux/mm.h index=20
-> 3dc3a8c..d133f73 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1618,6 +1618,21 @@ extern int soft_offline_page(struct page *page,=20
-> int flags);
-> =20
->  extern void dump_page(struct page *page);
-> =20
-> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
-> +/*
-> + * Hook function type which called when some pages allocated or released=
-.
-> + * Value of nr_pages is positive for post-allocation calls and=20
-> +negative
-> + * after free.
-> + */
-> +typedef void (*mm_alloc_free_hook_t)(int nr_pages);
-> +
-> +/*
-> + * Setups specified hook function for tracking pages allocation.
-> + * Returns value of old hook to organize chains of calls if necessary.
-> + */
-> +mm_alloc_free_hook_t set_mm_alloc_free_hook(mm_alloc_free_hook_t=20
-> +hook); #endif
-> +
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS) =20
-> extern void clear_huge_page(struct page *page,
->  			    unsigned long addr,
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 011b110..2aaa1e9 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -373,3 +373,11 @@ config CLEANCACHE
->  	  in a negligible performance hit.
-> =20
->  	  If unsure, say Y to enable cleancache
-> +
-> +config MM_ALLOC_FREE_HOOK
-> +	bool "Enable callback support for pages allocation and releasing"
-> +	default n
-> +	help
-> +	  Required for some features like used memory meter.
-> +	  If unsure, say N to disable alloc/free hook.
-> +
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c index 9dd443d..9307800=20
-> 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -236,6 +236,30 @@ static void set_pageblock_migratetype(struct page=20
-> *page, int migratetype)
-> =20
->  bool oom_killer_disabled __read_mostly;
-> =20
-> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
-> +static atomic_long_t alloc_free_hook __read_mostly =3D=20
-> +ATOMIC_LONG_INIT(0);
-> +
-> +mm_alloc_free_hook_t set_mm_alloc_free_hook(mm_alloc_free_hook_t=20
-> +hook) {
-> +	const mm_alloc_free_hook_t old_hook =3D
-> +		(mm_alloc_free_hook_t)atomic_long_read(&alloc_free_hook);
-> +
-> +	atomic_long_set(&alloc_free_hook, (long)hook);
-> +	pr_info("MM alloc/free hook set to 0x%p (was 0x%p)\n", hook,=20
-> +old_hook);
-> +
-> +	return old_hook;
-> +}
-> +EXPORT_SYMBOL(set_mm_alloc_free_hook);
-> +
-> +static inline void call_alloc_free_hook(int pages) {
-> +	const mm_alloc_free_hook_t hook =3D
-> +		(mm_alloc_free_hook_t)atomic_long_read(&alloc_free_hook);
-> +	if (hook)
-> +		hook(pages);
-> +}
-> +#endif
-> +
->  #ifdef CONFIG_DEBUG_VM
->  static int page_outside_zone_boundaries(struct zone *zone, struct=20
-> page *page)  { @@ -2298,6 +2322,10 @@ __alloc_pages_nodemask(gfp_t=20
-> gfp_mask, unsigned int order,
->  	put_mems_allowed();
-> =20
->  	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
-> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
-> +	call_alloc_free_hook(1 << order);
-> +#endif
-> +
->  	return page;
->  }
->  EXPORT_SYMBOL(__alloc_pages_nodemask);
-> @@ -2345,6 +2373,9 @@ void __free_pages(struct page *page, unsigned int o=
-rder)
->  			free_hot_cold_page(page, 0);
->  		else
->  			__free_pages_ok(page, order);
-> +#ifdef CONFIG_MM_ALLOC_FREE_HOOK
-> +		call_alloc_free_hook(-(1 << order)); #endif
->  	}
->  }
-> =20
-> --
-> 1.7.7.3
+> Previously (n770..n900) we had lowmem.c [1] which used LSM and did a=20
+> lot other things,
+> n9 implementation based on memcg [2] which has own problems, so the=20
+> proposed variant I hope is the best one for n9:
+> - Keeps connections from user space
+> - When amount of modified pages reaches crossed pointed value for particu=
+lar connection
+>   makes POLLIN and allow user-space app to read it and react
+> - Economic as much as possible, so currently its operates if allocation h=
+igher than 487
+>   pages or last check happened 250 ms before Of course if no=20
+> allocation happened then no activities performed, use-time must be not=20
+> affected.
 >=20
+> Testing results:
+> - Checkpatch produced 0 warning
+> - Sparse does not produce warnings
+> - One check costs ~20 us or less (could be checked with probe=3D1=20
+> insmod)
+> - One connection costs 20 bytes in kernel-space  (see observer=20
+> structure) for 32-bit variant
+> - For 10K connections poll update in requested in ~10ms, but for practica=
+lly device expected
+>   to will have about 10 connections (like n9 has now).
 >=20
+> Known weak points which I do not know how to fix but will if you have a b=
+rillian idea:
+> - Having hook in MM is nasty but MM/shrinker cannot be used there and=20
+> LSM even worse idea
+> - If I made=20
+> 	$cat /dev/used_memory
+>   it is produced lines in non-stop mode. Adding position check in umm_rea=
+d seems doesn not help,
+>   so "head -1 /dev/used_memory" should be used if you need to quick=20
+> check
+> - Format of output is USED_PAGES:AVAILABLE_PAGES, primitive but enough=20
+> for tasks module does
+>=20
+> Tested on ARM, x86-32 and x86-64 with and without CONFIG_SWAP. Seems work=
+s in all combinations.
+> Sorry for wide distributions but list of names were produced by=20
+> scripts/get_maintainer.pl
+
+How does this compare with the lowmemorykiller.c driver from the android de=
+velopers that is currently in the linux-next tree?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
