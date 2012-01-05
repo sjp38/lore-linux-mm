@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 259676B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 07:40:51 -0500 (EST)
-Received: by obcwo8 with SMTP id wo8so687635obc.14
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 04:40:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id EEBA06B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 07:49:42 -0500 (EST)
+Received: by obcwo8 with SMTP id wo8so701419obc.14
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 04:49:42 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <84FF21A720B0874AA94B46D76DB98269045542B5@008-AM1MPN1-003.mgdnok.nokia.com>
+In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com>
 References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-	<20120104195612.GB19181@suse.de>
-	<84FF21A720B0874AA94B46D76DB98269045542B5@008-AM1MPN1-003.mgdnok.nokia.com>
-Date: Thu, 5 Jan 2012 14:40:49 +0200
-Message-ID: <CAOJsxLEdTMB6JtYViRJq5gZ4_w5aaV18S3q-1rOXGzaMtmiW6A@mail.gmail.com>
-Subject: Re: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and related
- changes in MM
+	<e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com>
+	<20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com>
+	<84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com>
+Date: Thu, 5 Jan 2012 14:49:42 +0200
+Message-ID: <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
+Subject: Re: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: leonid.moiseichuk@nokia.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-On Thu, Jan 5, 2012 at 1:47 PM,  <leonid.moiseichuk@nokia.com> wrote:
-> As I understand AOOM it wait until situation is reached bad conditions which
-> required memory reclaiming, selects application according to free memory and
-> oom_adj level and kills it.  So no intermediate levels could be checked (e.g.
-> 75% usage),  nothing could be done in user-space to prevent killing, no
-> notification for case when memory becomes OK.
+On Thu, Jan 5, 2012 at 1:26 PM,  <leonid.moiseichuk@nokia.com> wrote:
+> I agree that hooking alloc_pages is ugly way. So alternatives I see:
 >
-> What I try to do is to get notification in any application that memory
-> becomes low, and do something about it like stop processing data, close
-> unused pages or correctly shuts applications, daemons.  Application(s) might
-> have necessity to install several notification levels, so reaction could be
-> adjusted based on current utilization level per each application, not
-> globally.
+> - shrinkers (as e.g. Android OOM used) but shrink_slab called only from
+> try_to_free_pages only if we are on slow reclaim path on memory allocation,
+> so it cannot be used for e.g. 75% memory tracking or when pages released to
+> notify user space that we are OK. But according to easy to use it will be the
+> best approach.
+>
+> - memcg-kind of changes like mem_cgroup_newpage_charge/uncharge_page but
+> without blocking decision making logic. Seems to me more changes. Threshold
+> currently in memcg set 128 pages per CPU, that is quite often for level
+> tracking needs.
+>
+> - tracking situation using timer? Maybe not due to will impact battery.
 
-Sure. However, from VM point of view, both have the exact same
-functionality: detect when we reach low memory condition (for some
-configurable threshold) and notify userspace or kernel subsystem about
-it.
+Can we hook into mm/vmscan.c and mm/page-writeback.c for this?
 
-That's the part I'd like to see implemented in mm/notify.c or similar.
-I really don't care what Android or any other folks use it for exactly
-as long as the generic code is light-weight, clean, and we can
-reasonably assume that distros can actually enable it.
+                                Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
