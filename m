@@ -1,91 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id AAC346B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 13:35:14 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 5 Jan 2012 13:35:13 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q05IZ9r4259832
-	for <linux-mm@kvack.org>; Thu, 5 Jan 2012 13:35:09 -0500
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q05IZ6pm011280
-	for <linux-mm@kvack.org>; Thu, 5 Jan 2012 11:35:08 -0700
-Date: Thu, 5 Jan 2012 10:35:04 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 7/8] mm: Only IPI CPUs to drain local pages if they
- exist
-Message-ID: <20120105183504.GF2393@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
- <1325499859-2262-8-git-send-email-gilad@benyossef.com>
- <4F033EC9.4050909@gmail.com>
- <20120105142017.GA27881@csn.ul.ie>
- <20120105144011.GU11810@n2100.arm.linux.org.uk>
- <20120105161739.GD27881@csn.ul.ie>
- <20120105163529.GA11810@n2100.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120105163529.GA11810@n2100.arm.linux.org.uk>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 823A56B005C
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 14:20:39 -0500 (EST)
+Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LXC0005LB2DA4@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 05 Jan 2012 19:20:37 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LXC000HPB2DBK@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Jan 2012 19:20:37 +0000 (GMT)
+Date: Thu, 05 Jan 2012 20:20:33 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 01/11] mm: page_alloc: set_migratetype_isolate: drain PCP
+ prior to isolating
+In-reply-to: <op.v7ma4hm33l0zgt@mpn-glaptop>
+Message-id: <000601cccbdf$18a87320$49f95960$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-language: pl
+Content-transfer-encoding: quoted-printable
+References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
+ <1325162352-24709-2-git-send-email-m.szyprowski@samsung.com>
+ <op.v7ma4hm33l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: 'Michal Nazarewicz' <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>
 
-On Thu, Jan 05, 2012 at 04:35:29PM +0000, Russell King - ARM Linux wrote:
-> On Thu, Jan 05, 2012 at 04:17:39PM +0000, Mel Gorman wrote:
-> > Link please?
-> 
-> Forwarded, as its still in my mailbox.
-> 
-> > I'm including a patch below under development that is
-> > intended to only cope with the page allocator case under heavy memory
-> > pressure. Currently it does not pass testing because eventually RCU
-> > gets stalled with the following trace
-> > 
-> > [ 1817.176001]  [<ffffffff810214d7>] arch_trigger_all_cpu_backtrace+0x87/0xa0
-> > [ 1817.176001]  [<ffffffff810c4779>] __rcu_pending+0x149/0x260
-> > [ 1817.176001]  [<ffffffff810c48ef>] rcu_check_callbacks+0x5f/0x110
-> > [ 1817.176001]  [<ffffffff81068d7f>] update_process_times+0x3f/0x80
-> > [ 1817.176001]  [<ffffffff8108c4eb>] tick_sched_timer+0x5b/0xc0
-> > [ 1817.176001]  [<ffffffff8107f28e>] __run_hrtimer+0xbe/0x1a0
-> > [ 1817.176001]  [<ffffffff8107f581>] hrtimer_interrupt+0xc1/0x1e0
-> > [ 1817.176001]  [<ffffffff81020ef3>] smp_apic_timer_interrupt+0x63/0xa0
-> > [ 1817.176001]  [<ffffffff81449073>] apic_timer_interrupt+0x13/0x20
-> > [ 1817.176001]  [<ffffffff8116c135>] vfsmount_lock_local_lock+0x25/0x30
-> > [ 1817.176001]  [<ffffffff8115c855>] path_init+0x2d5/0x370
-> > [ 1817.176001]  [<ffffffff8115eecd>] path_lookupat+0x2d/0x620
-> > [ 1817.176001]  [<ffffffff8115f4ef>] do_path_lookup+0x2f/0xd0
-> > [ 1817.176001]  [<ffffffff811602af>] user_path_at_empty+0x9f/0xd0
-> > [ 1817.176001]  [<ffffffff81154e7b>] vfs_fstatat+0x4b/0x90
-> > [ 1817.176001]  [<ffffffff81154f4f>] sys_newlstat+0x1f/0x50
-> > [ 1817.176001]  [<ffffffff81448692>] system_call_fastpath+0x16/0x1b
-> > 
-> > It might be a separate bug, don't know for sure.
+Hello,
 
-Do you get multiple RCU CPU stall-warning messages?  If so, it can
-be helpful to look at how the stack frame changes over time.  These
-stalls are normally caused by a loop in the kernel with preemption
-disabled, though other scenarios can also cause them.
+On Thursday, January 05, 2012 4:40 PM Micha=C5=82 Nazarewicz wrote:
 
-I am assuming that the CPU is reporting a stall on itself in this case.
-If not, then it is necessary to look at the stack of the CPU that the
-stall is being reported for.
+> On Thu, 29 Dec 2011 13:39:02 +0100, Marek Szyprowski =
+<m.szyprowski@samsung.com> wrote:
+> > From: Michal Nazarewicz <mina86@mina86.com>
+> >
+> > When set_migratetype_isolate() sets pageblock's migrate type, it =
+does
+> > not change each page_private data.  This makes sense, as the =
+function
+> > has no way of knowing what kind of information page_private stores.
+> >
+> > Unfortunately, if a page is on PCP list, it's page_private indicates
+> > its migrate type.  This means, that if a page on PCP list gets
+> > isolated, a call to free_pcppages_bulk() will assume it has the old
+> > migrate type rather than MIGRATE_ISOLATE.  This means, that a page
+> > which should be isolated, will end up on a free list of it's old
+> > migrate type.
+> >
+> > Coincidentally, at the very end, set_migratetype_isolate() calls
+> > drain_all_pages() which leads to calling free_pcppages_bulk(), which
+> > does the wrong thing.
+> >
+> > To avoid this situation, this commit moves the draining prior to
+> > setting pageblock's migratetype and moving pages from old free list =
+to
+> > MIGRATETYPE_ISOLATE's free list.
+> >
+> > Because of spin locks this is a non-trivial change however as both
+> > set_migratetype_isolate() and free_pcppages_bulk() grab zone->lock.
+> > To solve this problem, this commit renames free_pcppages_bulk() to
+> > __free_pcppages_bulk() and changes it so that it no longer grabs
+> > zone->lock instead requiring caller to hold it.  This commit later
+> > adds a __zone_drain_all_pages() function which works just like
+> > drain_all_pages() expects that it drains only pages from a single =
+zone
+> > and assumes that caller holds zone->lock.
+>=20
+> As it turns out, with some more testing on SMP systems, this whole =
+patch
+> turned out to be incorrect.
+>=20
+> We have been thinking about other approach and, if we were to use =
+something
+> else then the first patch from CMAv17[1], the best thing we could came =
+up
+> with was to unconditionally call drain_all_pages() at the beginning of
+> set_migratetype_isolate() before the call to spin_lock_irqsave().  It =
+has
+> a possible race condition but a nightly stress test did have not shown =
+any
+> problems.
+>=20
+> Nonetheless, the cleanest, in my opinion, solution is to use the first =
+patch
+>  from CMAv17 which can be found at [1].
+>=20
+> So, to sum up: if you intend to test CMAv18, instead of applying this =
+first
+> patch either use first patch from CMAv17[1] or put an unconditional =
+call to
+> drain_all_pages() at the beginning of set_migrate_isolate() function.
+>=20
+> Sorry for the troubles.
+>=20
+> [1] http://www.spinics.net/lists/arm-kernel/msg148494.html
 
-							Thanx, Paul
+I've updated our public git repository to include this workaround. You =
+can
+pull the patches from the following addresses:
 
-> I'm not going to even pretend to understand what the above backtrace
-> means: it doesn't look like what I'd expect from the problem which
-> PeterZ's patch is supposed to address.  It certainly doesn't do anything
-> to address the cpu-going-offline problem you seem to have found.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+git://git.infradead.org/users/kmpark/linux-samsung 3.2-rc7-cma-v18
+
+http://git.infradead.org/users/kmpark/linux-samsung/shortlog/refs/heads/3=
+.2-rc7-cma-v18
+
+Best regards
+--=20
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
