@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 37C3A6B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 08:03:16 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and
- related changes in MM
-Date: Thu, 5 Jan 2012 13:02:23 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB9826904554391@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
-	<20120104195612.GB19181@suse.de>
-	<84FF21A720B0874AA94B46D76DB98269045542B5@008-AM1MPN1-003.mgdnok.nokia.com>
- <CAOJsxLEdTMB6JtYViRJq5gZ4_w5aaV18S3q-1rOXGzaMtmiW6A@mail.gmail.com>
-In-Reply-To: <CAOJsxLEdTMB6JtYViRJq5gZ4_w5aaV18S3q-1rOXGzaMtmiW6A@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 1C04C6B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 08:17:59 -0500 (EST)
+Received: by eekc41 with SMTP id c41so410504eek.14
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 05:17:57 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH v5 1/8] smp: Introduce a generic on_each_cpu_mask function
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+ <1325499859-2262-2-git-send-email-gilad@benyossef.com>
+ <20120103142624.faf46d77.akpm@linux-foundation.org>
+Date: Thu, 05 Jan 2012 14:17:54 +0100
 MIME-Version: 1.0
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v7l4j4ms3l0zgt@mpn-glaptop>
+In-Reply-To: <20120103142624.faf46d77.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@kernel.org
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Gilad Ben-Yossef <gilad@benyossef.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-Well, mm/notify.c seems a bit global for me. At the first step I handle inp=
-uts from Greg and try to find less destructive approach to allocation track=
-ing rather than page_alloc.
-The issue is I know quite well my problem, so other guys who needs memory t=
-racking has own requirements how account memory, how often notify/which gra=
-nularity, =20
-how  many clients could be and so one. If I get some inputs I will be happy=
- to implement them.
+On Tue, 03 Jan 2012 23:26:24 +0100, Andrew Morton <akpm@linux-foundation=
+.org> wrote:
 
-With Best Wishes,
-Leonid
-
-
------Original Message-----
-From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of ext Pekka E=
-nberg
-Sent: 05 January, 2012 14:41
-To: Moiseichuk Leonid (Nokia-MP/Helsinki)
-Cc: gregkh@suse.de; linux-mm@kvack.org; linux-kernel@vger.kernel.org; cesar=
-b@cesarb.net; kamezawa.hiroyu@jp.fujitsu.com; emunson@mgebm.net; aarcange@r=
-edhat.com; riel@redhat.com; mel@csn.ul.ie; rientjes@google.com; dima@androi=
-d.com; rebecca@android.com; san@google.com; akpm@linux-foundation.org; Jaas=
-kelainen Vesa (Nokia-MP/Helsinki)
-Subject: Re: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and rela=
-ted changes in MM
-
-On Thu, Jan 5, 2012 at 1:47 PM,  <leonid.moiseichuk@nokia.com> wrote:
-> As I understand AOOM it wait until situation is reached bad conditions=20
-> which required memory reclaiming, selects application according to=20
-> free memory and oom_adj level and kills it.  So no intermediate levels co=
-uld be checked (e.g.
-> 75% usage),  nothing could be done in user-space to prevent killing,=20
-> no notification for case when memory becomes OK.
+> On Mon,  2 Jan 2012 12:24:12 +0200
+> Gilad Ben-Yossef <gilad@benyossef.com> wrote:
 >
-> What I try to do is to get notification in any application that memory=20
-> becomes low, and do something about it like stop processing data,=20
-> close unused pages or correctly shuts applications, daemons. =20
-> Application(s) might have necessity to install several notification=20
-> levels, so reaction could be adjusted based on current utilization=20
-> level per each application, not globally.
+>> on_each_cpu_mask calls a function on processors specified my cpumask,=
 
-Sure. However, from VM point of view, both have the exact same
-functionality: detect when we reach low memory condition (for some configur=
-able threshold) and notify userspace or kernel subsystem about it.
+>> which may include the local processor.
 
-That's the part I'd like to see implemented in mm/notify.c or similar.
-I really don't care what Android or any other folks use it for exactly as l=
-ong as the generic code is light-weight, clean, and we can reasonably assum=
-e that distros can actually enable it.
+>> @@ -132,6 +139,15 @@ static inline int up_smp_call_function(smp_call_=
+func_t func, void *info)
+>>  		local_irq_enable();		\
+>>  		0;				\
+>>  	})
+>> +#define on_each_cpu_mask(mask, func, info, wait) \
+>> +	do {						\
+>> +		if (cpumask_test_cpu(0, (mask))) {	\
+>> +			local_irq_disable();		\
+>> +			(func)(info);			\
+>> +			local_irq_enable();		\
+>> +		}					\
+>> +	} while (0)
+>
+> Why is the cpumask_test_cpu() call there?  It's hard to think of a
+> reason why "mask" would specify any CPU other than "0" in a
+> uniprocessor kernel.
+
+It may specify none.  For instance, in drain_all_pages() case, if the
+CPU has no pages on PCP lists, the mask will be empty and so the
+cpumask_test_cpu() will return zero.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
