@@ -1,61 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id F0D9A6B0075
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 18:10:14 -0500 (EST)
-Received: by obcwo8 with SMTP id wo8so1585726obc.14
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 15:10:14 -0800 (PST)
-Date: Thu, 5 Jan 2012 15:10:11 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 3.2.0-rc1 0/3] Used Memory Meter pseudo-device and related
- changes in MM
-In-Reply-To: <84FF21A720B0874AA94B46D76DB98269045545E5@008-AM1MPN1-003.mgdnok.nokia.com>
-Message-ID: <alpine.DEB.2.00.1201051503530.10521@chino.kir.corp.google.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <20120104195612.GB19181@suse.de> <84FF21A720B0874AA94B46D76DB98269045542B5@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLEdTMB6JtYViRJq5gZ4_w5aaV18S3q-1rOXGzaMtmiW6A@mail.gmail.com>
- <84FF21A720B0874AA94B46D76DB9826904554391@008-AM1MPN1-003.mgdnok.nokia.com> <20120105145753.GA3937@suse.de> <84FF21A720B0874AA94B46D76DB98269045545E5@008-AM1MPN1-003.mgdnok.nokia.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id AF10D6B0085
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 18:19:21 -0500 (EST)
+Date: Thu, 5 Jan 2012 15:19:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 7/8] mm: Only IPI CPUs to drain local pages if they
+ exist
+Message-Id: <20120105151919.37d64365.akpm@linux-foundation.org>
+In-Reply-To: <20120105223106.GG27881@csn.ul.ie>
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+	<1325499859-2262-8-git-send-email-gilad@benyossef.com>
+	<4F033EC9.4050909@gmail.com>
+	<20120105142017.GA27881@csn.ul.ie>
+	<20120105144011.GU11810@n2100.arm.linux.org.uk>
+	<20120105161739.GD27881@csn.ul.ie>
+	<20120105140645.42498cdd.akpm@linux-foundation.org>
+	<20120105223106.GG27881@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: gregkh@suse.de, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-On Thu, 5 Jan 2012, leonid.moiseichuk@nokia.com wrote:
+On Thu, 5 Jan 2012 22:31:06 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> I tried to sort out all inputs coming. But before doing the next step I 
-> prefer to have tests passed. Changes you proposed are strain forward and 
-> understandable. 
-> Hooking in mm/vmscan.c and mm/page-writeback.c is not so easy, I need 
-> to find proper place and make adequate proposal.
-> Using memcg is doesn't not look for me now as a good way because I 
-> wouldn't like to change memory accounting - memcg has strong reason to 
-> keep caches.
+> On Thu, Jan 05, 2012 at 02:06:45PM -0800, Andrew Morton wrote:
+> > On Thu, 5 Jan 2012 16:17:39 +0000
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > 
+> > > mm: page allocator: Guard against CPUs going offline while draining per-cpu page lists
+> > > 
+> > > While running a CPU hotplug stress test under memory pressure, I
+> > > saw cases where under enough stress the machine would halt although
+> > > it required a machine with 8 cores and plenty memory. I think the
+> > > problems may be related.
+> > 
+> > When we first implemented them, the percpu pages in the page allocator
+> > were of really really marginal benefit.  I didn't merge the patches at
+> > all for several cycles, and it was eventually a 49/51 decision.
+> > 
+> > So I suggest that our approach to solving this particular problem
+> > should be to nuke the whole thing, then see if that caused any
+> > observeable problems.  If it did, can we solve those problems by means
+> > other than bringing the dang things back?
+> > 
 > 
+> Sounds drastic.
 
-If you can accept the overhead of the memory controller (increase in 
-kernel text size and amount of metadata for page_cgroup), then you can 
-already do this with a combination of memory thresholds with 
-cgroup.event_control and disabling of the oom killer entirely with 
-memory.oom_control.  You can also get notified when the oom killer is 
-triggered by using eventfd(2) on memory.oom_control even though it's 
-disabled in the kernel.  Then, the userspace task attached to that control 
-file can send signals to applications to free their memory or, in the 
-worst case, choose to kill an application but have all that policy be 
-implemented in userspace.
+Wrong thinking ;)
 
-We actually have extended that internally to have an oom killer delay, 
-i.e. a specific amount of time must pass for userspace to react to the oom 
-situation or the oom killer will actually be triggered.  This is needed in 
-case our userspace is blocked or can't respond for whatever reason and is 
-a nice fallback so that we're guaranteed to never end up livelocked.  That 
-delay gets reset anytime a page is uncharged to a memcg, the memcg limit 
-is increased, or the delay is rewritten (for userspace to say "I've 
-handled the event").  Those patches were posted on linux-mm several months 
-ago but never merged upstream.  You should be able to use the same concept 
-apart from the memory controller and implement it generically.
+Simplifying the code should always be the initial proposal.  Adding
+more complexity on top is the worst-case when-all-else-failed option. 
+Yet we so often reach for that option first :(
 
-You also presented this as an alternative for "embedded or small" users so 
-I wasn't aware that using the memory controller was an acceptable solution 
-given its overhead.
+> It would be less controversial to replace this patch
+> with a version that calls get_online_cpu() in drain_all_pages() but
+> remove the call to drain_all_pages() call from the page allocator on
+> the grounds it is not safe against CPU hotplug and to hell with the
+> slightly elevated allocation failure rates and stalls. That would avoid
+> the try_get_online_cpus() crappiness and be less complex.
+
+If we can come up with a reasonably simple patch which improves or even
+fixes the problem then I suppose there is some value in that, as it
+provides users of earlier kernels with something to backport if they
+hit problems.
+
+But the social downside of that is that everyone would shuffle off
+towards other bright and shiny things and we'd be stuck with more
+complexity piled on top of dubiously beneficial code.
+
+> If you really want to consider deleting the per-cpu allocator, maybe
+> it could be a LSF/MM topic?
+
+eek, spare me.
+
+Anyway, we couldn't discuss such a topic without data.  Such data would
+be obtained by deleting the code and measuring the results.  Which is
+what I just said ;)
+
+> Personally I would be wary of deleting
+> it but mostly because I lack regular access to the type of hardware
+> to evaulate whether it was safe to remove or not. Minimally, removing
+> the per-cpu allocator could make the zone lock very hot even though slub
+> probably makes it very hot already.
+
+Much of the testing of the initial code was done on mbligh's weirdass
+NUMAq box: 32-way 386 NUMA which suffered really badly if there were
+contention issues.  And even on that box, the code was marginal.  So
+I'm hopeful that things will be similar on current machines.  Of
+course, it's possible that calling patterns have changed in ways which
+make the code more beneficial than it used to be.
+
+But this all ties into my proposal yesterday to remove
+mm/swap.c:lru_*_pvecs.  Most or all of the heavy one-page-at-a-time
+code can pretty easily be converted to operate on batches of pages. 
+Folowing on from that, it should be pretty simple to extend the
+batching down into the page freeing.  Look at put_pages_list() and
+weep.  And stuff like free_hot_cold_page_list() which could easily free
+the pages directly whilebatching the locking.
+
+Page freeing should be relatively straightforward.  Batching page
+allocation is hard in some cases (anonymous pagefaults).
+
+Please do note that the above suggestions are only needed if removing
+the pcp lists causes a problem!  It may not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
