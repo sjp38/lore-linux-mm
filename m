@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id B71C96B005C
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 01:31:23 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 722783EE0AE
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:31:21 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 54D4145DE68
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:31:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AB6745DE55
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:31:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CA671DB803E
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:31:21 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C8D5B1DB803A
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:31:20 +0900 (JST)
-Date: Thu, 5 Jan 2012 15:30:09 +0900
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 0F2B96B0062
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 01:32:40 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 85EC73EE0C8
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:32:38 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B66245DEEF
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:32:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BFF045DEEB
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:32:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EECD1DB8041
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:32:38 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EB1DE1DB803B
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 15:32:37 +0900 (JST)
+Date: Thu, 5 Jan 2012 15:31:24 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
-Message-Id: <20120105153009.98c35b07.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+Subject: Re: [PATCH 2/5] memcg: replace mem and mem_cont stragglers
+Message-Id: <20120105153124.e25af3f1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1112312328070.18500@eggly.anvils>
 References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
-	<alpine.LSU.2.00.1112312326540.18500@eggly.anvils>
+	<alpine.LSU.2.00.1112312328070.18500@eggly.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,12 +32,14 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-On Sat, 31 Dec 2011 23:27:59 -0800 (PST)
+On Sat, 31 Dec 2011 23:29:14 -0800 (PST)
 Hugh Dickins <hughd@google.com> wrote:
 
-> Correct an #endif comment in memcontrol.h from MEM_CONT to MEM_RES_CTLR.
+> Replace mem and mem_cont stragglers in memcontrol.c by memcg.
 > 
 > Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Thank you.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
