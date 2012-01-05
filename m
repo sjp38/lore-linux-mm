@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id AF2736B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 05:50:50 -0500 (EST)
-Date: Thu, 5 Jan 2012 10:50:44 +0000
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id BF69B6B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 05:53:12 -0500 (EST)
+Date: Thu, 5 Jan 2012 10:53:08 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm/compaction : fix the wrong return value for
- isolate_migratepages()
-Message-ID: <20120105105044.GE28031@suse.de>
-References: <1325322585-16216-1-git-send-email-b32955@freescale.com>
- <20120105101222.GD28031@suse.de>
- <4F057BF2.5040206@freescale.com>
+Subject: Re: [PATCH] mm/compaction : check the watermark when cc->order is -1
+Message-ID: <20120105105308.GF28031@suse.de>
+References: <1325312323-13565-1-git-send-email-b32955@freescale.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4F057BF2.5040206@freescale.com>
+In-Reply-To: <1325312323-13565-1-git-send-email-b32955@freescale.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Huang Shijie <b32955@freescale.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shijie8@gmail.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Thu, Jan 05, 2012 at 06:31:14PM +0800, Huang Shijie wrote:
-> >Why?
-> >
-> >
-> >Returning ISOLATE_SUCCESS means that we fall through. This means busy
-> >work in migrate_pages(), updating list accounting and the list. It's
-> >wasteful but is it functionally incorrect? What problem did you observe?
->
-> there may are many times the cc->migratepages is zero, but the
-> return value is ISOLATE_SUCCESS.
+On Sat, Dec 31, 2011 at 02:18:43PM +0800, Huang Shijie wrote:
+> We get cc->order is -1 when user echos to /proc/sys/vm/compact_memory.
+> In this case, we should check that if we have enough pages for
+> the compaction in the zone.
 > 
-
-Ok, this is a reasonable assertion. How often will depend on a large
-number of factors.
-
-> >If this is simply a performance issue then minimally COMPACTBLOCKS
->
-> yes, My concern is the performance.
+> If we do not check this, in our MX6Q board(arm), i ever observed
+> COMPACT_CLUSTER_MAX pages were compaction failed in per migrate_pages().
+> That's mean we can not alloc any pages by the free scanner in the zone.
 > 
-
-For future reference, please explain this in the changelog.
-
-> the comment of ISOLATE_NONE makes me confused.  :(
+> This patch checks the watermark to avoid this problem.
 > 
-
-I see your confusion. The main difference between ISOLATE_NONE and
-ISOLATE_SUCCESS is that scanning within the pageblock took place even
-if no pages were isolated by the scan. Maybe it would be easier if
-your patch clarified the meaning of the return values. Something like;
-
-typedef enum {
-        ISOLATE_ABORT,          /* Abort compaction now */
-        ISOLATE_NONE,           /* No pages scanned, consider next pageblock */
-        ISOLATE_SUCCESS,        /* Pages scanned and maybe isolated, migrate */
-} isolate_migrate_t;
-
-and then check if pages were really isolated on ISOLATE_SUCCESS?
-
-
-> If you think we should update the COMPACTBLOCK in this case, my
-> patch is wrong.
+> Signed-off-by: Huang Shijie <b32955@freescale.com>
+> ---
+>  mm/compaction.c |   14 ++++++++++++--
+>  1 files changed, 12 insertions(+), 2 deletions(-)
 > 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 899d956..0f12cc9 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -442,8 +442,13 @@ static int compact_finished(struct zone *zone,
+>  	 * order == -1 is expected when compacting via
+>  	 * /proc/sys/vm/compact_memory
+>  	 */
+> -	if (cc->order == -1)
+> +	if (cc->order == -1) {
+> +		/* Check if we have enough pages now. */
+> +		watermark = low_wmark_pages(zone) + COMPACT_CLUSTER_MAX * 2;
+> +		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> +			return COMPACT_SKIPPED;
+>  		return COMPACT_CONTINUE;
+> +	}
+>  
 
-I think the overhead is unnecessary and worth fixing but because the
-scanning took place, the COMPACTBLOCK counter should be bumped and
-the tracepoint triggered.
+We already do the watermark check in compact_finished. Would moving
+the cc->order == -1 check below it not be functionally equivalent? This
+would be preferable to duplicating the code for the watermark check.
 
-> >still needs to be updated, we still want to see the tracepoint etc. To
->
-> ok.
-
-Thanks.
+Same for the second check in your patch.
 
 -- 
 Mel Gorman
