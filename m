@@ -1,43 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id B3C626B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 10:05:48 -0500 (EST)
-Message-ID: <4F05BC1F.7070009@redhat.com>
-Date: Thu, 05 Jan 2012 10:05:03 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 63F416B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 10:18:12 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
+Date: Thu, 5 Jan 2012 15:17:26 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB9826904554575@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
+ <e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com>
+ <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com>
+ <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com>
+ <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
+ <4F05BC1F.7070009@redhat.com>
+In-Reply-To: <4F05BC1F.7070009@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com> <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com> <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
-In-Reply-To: <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, aarcange@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: riel@redhat.com, penberg@kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, aarcange@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-On 01/05/2012 07:49 AM, Pekka Enberg wrote:
-> On Thu, Jan 5, 2012 at 1:26 PM,<leonid.moiseichuk@nokia.com>  wrote:
->> I agree that hooking alloc_pages is ugly way. So alternatives I see:
->>
->> - shrinkers (as e.g. Android OOM used) but shrink_slab called only from
->> try_to_free_pages only if we are on slow reclaim path on memory allocation,
->> so it cannot be used for e.g. 75% memory tracking or when pages released to
->> notify user space that we are OK. But according to easy to use it will be the
->> best approach.
-
-Well, there is always the page cache.
-
-If, at reclaim time, the amount of page cache + free memory
-is below the free threshold, we should still have space left
-to handle userspace things.
-
-It may be possible to hijack memcg accounting to get lower
-usage thresholds for earlier notification.  That way the code
-can stay out of the true fast paths like alloc_pages.
-
--- 
-All rights reversed
+SHVoLA0KRWFybHkgbm90aWZpY2F0aW9uIG5vdCBtdWNoIGJldHRlciB0aGVuIGxhdGUuIENhY2hl
+IHNpemUgaW1wYWN0cyBtb3N0bHkgdXNlci1zcGFjZSByZXNwb25zaXZlbmVzcywgc28gY2FjaGUg
+aXMgYWNjb3VudGVkIGFzIGZyZWUgbWVtb3J5IGJ1dCBkZXZpY2UgbmVlZCBiZSB0dW5lZCBkZXZl
+bG9wbWVudCB0aW1lIGFjY29yZGluZyBob3cgZmFzdCBpdCBzaG91bGQgYmUgaW4gZGlmZmVyZW50
+IGRldmljZS1zcGVjaWZpYyB1c2UtY2FzZXMgKGl0IGRlcGVuZHMgZnJvbSB6aWxsaW9ucyB0ZWNo
+bmljYWwgYW5kIG5vbi10ZWNobmljYWwgZmFjdG9ycyBlLmcuICBwcm9kdWNlciBuZWVkcykuDQpJ
+IGZpeGVkIGFsbCBrbm93biBmaW5kaW5ncyBhbmQgdHJ5aW5nIHRvIGZpbmQgcGxhY2VzIHRvIGlu
+dGVncmF0ZSBpbnRvIHZtc2Nhbi9wYWdlLXdyaXRlYmFjayBhcyBQZWtrYSBoYXMgYWR2aXNlZC4g
+DQoNCldpdGggQmVzdCBXaXNoZXMsDQpMZW9uaWQNCg0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2Ut
+LS0tLQ0KRnJvbTogZXh0IFJpayB2YW4gUmllbCBbbWFpbHRvOnJpZWxAcmVkaGF0LmNvbV0gDQpT
+ZW50OiAwNSBKYW51YXJ5LCAyMDEyIDE3OjA1DQpUbzogUGVra2EgRW5iZXJnDQpDYzogTW9pc2Vp
+Y2h1ayBMZW9uaWQgKE5va2lhLU1QL0hlbHNpbmtpKTsga2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0
+c3UuY29tOyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7
+IGNlc2FyYkBjZXNhcmIubmV0OyBlbXVuc29uQG1nZWJtLm5ldDsgYWFyY2FuZ2VAcmVkaGF0LmNv
+bTsgbWVsQGNzbi51bC5pZTsgcmllbnRqZXNAZ29vZ2xlLmNvbTsgZGltYUBhbmRyb2lkLmNvbTsg
+Z3JlZ2toQHN1c2UuZGU7IHJlYmVjY2FAYW5kcm9pZC5jb207IHNhbkBnb29nbGUuY29tOyBha3Bt
+QGxpbnV4LWZvdW5kYXRpb24ub3JnOyBKYWFza2VsYWluZW4gVmVzYSAoTm9raWEtTVAvSGVsc2lu
+a2kpDQpTdWJqZWN0OiBSZTogW1BBVENIIDMuMi4wLXJjMSAyLzNdIE1NIGhvb2sgZm9yIHBhZ2Ug
+YWxsb2NhdGlvbiBhbmQgcmVsZWFzZQ0KDQpPbiAwMS8wNS8yMDEyIDA3OjQ5IEFNLCBQZWtrYSBF
+bmJlcmcgd3JvdGU6DQo+IE9uIFRodSwgSmFuIDUsIDIwMTIgYXQgMToyNiBQTSw8bGVvbmlkLm1v
+aXNlaWNodWtAbm9raWEuY29tPiAgd3JvdGU6DQo+PiBJIGFncmVlIHRoYXQgaG9va2luZyBhbGxv
+Y19wYWdlcyBpcyB1Z2x5IHdheS4gU28gYWx0ZXJuYXRpdmVzIEkgc2VlOg0KPj4NCj4+IC0gc2hy
+aW5rZXJzIChhcyBlLmcuIEFuZHJvaWQgT09NIHVzZWQpIGJ1dCBzaHJpbmtfc2xhYiBjYWxsZWQg
+b25seSANCj4+IGZyb20gdHJ5X3RvX2ZyZWVfcGFnZXMgb25seSBpZiB3ZSBhcmUgb24gc2xvdyBy
+ZWNsYWltIHBhdGggb24gbWVtb3J5IA0KPj4gYWxsb2NhdGlvbiwgc28gaXQgY2Fubm90IGJlIHVz
+ZWQgZm9yIGUuZy4gNzUlIG1lbW9yeSB0cmFja2luZyBvciB3aGVuIA0KPj4gcGFnZXMgcmVsZWFz
+ZWQgdG8gbm90aWZ5IHVzZXIgc3BhY2UgdGhhdCB3ZSBhcmUgT0suIEJ1dCBhY2NvcmRpbmcgdG8g
+DQo+PiBlYXN5IHRvIHVzZSBpdCB3aWxsIGJlIHRoZSBiZXN0IGFwcHJvYWNoLg0KDQpXZWxsLCB0
+aGVyZSBpcyBhbHdheXMgdGhlIHBhZ2UgY2FjaGUuDQoNCklmLCBhdCByZWNsYWltIHRpbWUsIHRo
+ZSBhbW91bnQgb2YgcGFnZSBjYWNoZSArIGZyZWUgbWVtb3J5IGlzIGJlbG93IHRoZSBmcmVlIHRo
+cmVzaG9sZCwgd2Ugc2hvdWxkIHN0aWxsIGhhdmUgc3BhY2UgbGVmdCB0byBoYW5kbGUgdXNlcnNw
+YWNlIHRoaW5ncy4NCg0KSXQgbWF5IGJlIHBvc3NpYmxlIHRvIGhpamFjayBtZW1jZyBhY2NvdW50
+aW5nIHRvIGdldCBsb3dlciB1c2FnZSB0aHJlc2hvbGRzIGZvciBlYXJsaWVyIG5vdGlmaWNhdGlv
+bi4gIFRoYXQgd2F5IHRoZSBjb2RlIGNhbiBzdGF5IG91dCBvZiB0aGUgdHJ1ZSBmYXN0IHBhdGhz
+IGxpa2UgYWxsb2NfcGFnZXMuDQoNCi0tDQpBbGwgcmlnaHRzIHJldmVyc2VkDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
