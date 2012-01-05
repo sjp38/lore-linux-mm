@@ -1,64 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 1C04C6B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 08:17:59 -0500 (EST)
-Received: by eekc41 with SMTP id c41so410504eek.14
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 05:17:57 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH v5 1/8] smp: Introduce a generic on_each_cpu_mask function
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
- <1325499859-2262-2-git-send-email-gilad@benyossef.com>
- <20120103142624.faf46d77.akpm@linux-foundation.org>
-Date: Thu, 05 Jan 2012 14:17:54 +0100
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 5F1F36B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 08:32:54 -0500 (EST)
+Date: Thu, 5 Jan 2012 13:32:48 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: vmscam: check page order in isolating lru pages
+Message-ID: <20120105133248.GH28031@suse.de>
+References: <CAJd=RBBJG+hLLc3mR-WzByU1gZEcdFUAoZzyir+1A4a0tVnSmg@mail.gmail.com>
+ <4EFCA4F9.7070703@gmail.com>
+ <CAJd=RBCuh=zDLZ7J9sV_p_ghoXP-VX6PEAx01t8p_pziTimxnA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v7l4j4ms3l0zgt@mpn-glaptop>
-In-Reply-To: <20120103142624.faf46d77.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBCuh=zDLZ7J9sV_p_ghoXP-VX6PEAx01t8p_pziTimxnA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, 03 Jan 2012 23:26:24 +0100, Andrew Morton <akpm@linux-foundation=
-.org> wrote:
+On Sat, Dec 31, 2011 at 10:55:22PM +0800, Hillf Danton wrote:
+> From: Hillf Danton <dhillf@gmail.com>
+> Subject: [PATCH] mm: vmscam: check page order in isolating lru pages
+> 
+> Before try to isolate physically contiguous pages, check for page order is
+> added, and if it is not regular page, we should give up the attempt.
+> 
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> ---
+> 
+> --- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
+> +++ b/mm/vmscan.c	Sat Dec 31 22:44:16 2011
+> @@ -1162,6 +1162,7 @@ static unsigned long isolate_lru_pages(u
+>  		unsigned long end_pfn;
+>  		unsigned long page_pfn;
+>  		int zone_id;
+> +		unsigned int isolated_pages = 1;
+> 
+>  		page = lru_to_page(src);
+>  		prefetchw_prev_lru_page(page, src, flags);
+> @@ -1172,7 +1173,7 @@ static unsigned long isolate_lru_pages(u
+>  		case 0:
+>  			mem_cgroup_lru_del(page);
+>  			list_move(&page->lru, dst);
+> -			nr_taken += hpage_nr_pages(page);
+> +			isolated_pages = hpage_nr_pages(page);
+>  			break;
+> 
+>  		case -EBUSY:
+> @@ -1184,8 +1185,12 @@ static unsigned long isolate_lru_pages(u
+>  			BUG();
+>  		}
+> 
+> +		nr_taken += isolated_pages;
+>  		if (!order)
+>  			continue;
+> +		/* try pfn-based isolation only for regular page */
+> +		if (isolated_pages != 1)
+> +			continue;
+> 
 
-> On Mon,  2 Jan 2012 12:24:12 +0200
-> Gilad Ben-Yossef <gilad@benyossef.com> wrote:
->
->> on_each_cpu_mask calls a function on processors specified my cpumask,=
+Please put more detail in your changelogs explaining the intention
+of your patch.  Judging from it, this is a marginal performance
+improvement when THPs are being isolated from the LRU by bypassing
+lumpy reclaim.
 
->> which may include the local processor.
+However, basing the check on "isolated_pages" is obscure and it also
+disables lumpy reclaim for the cases where order > HPAGE_SHIFT . This
+is very rare (might never even happen) but it's still broken. Minimally
+the check should have been something like
 
->> @@ -132,6 +139,15 @@ static inline int up_smp_call_function(smp_call_=
-func_t func, void *info)
->>  		local_irq_enable();		\
->>  		0;				\
->>  	})
->> +#define on_each_cpu_mask(mask, func, info, wait) \
->> +	do {						\
->> +		if (cpumask_test_cpu(0, (mask))) {	\
->> +			local_irq_disable();		\
->> +			(func)(info);			\
->> +			local_irq_enable();		\
->> +		}					\
->> +	} while (0)
->
-> Why is the cpumask_test_cpu() call there?  It's hard to think of a
-> reason why "mask" would specify any CPU other than "0" in a
-> uniprocessor kernel.
+if (!order || isolated_pages >= (1 << order))
+	continue;
 
-It may specify none.  For instance, in drain_all_pages() case, if the
-CPU has no pages on PCP lists, the mask will be empty and so the
-cpumask_test_cpu() will return zero.
+with a comment explaining that there is no point taking pages around
+a naturally-aligned region if we just isolated a page larger than it.
+This would look better, avoid reusing isolated_pages, be less obscure
+and still work for cases where the requested order is larger than
+a THP.
 
--- =
+Nak to this version.
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
