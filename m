@@ -1,64 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 34BD66B004D
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 09:41:17 -0500 (EST)
-Date: Thu, 5 Jan 2012 14:40:11 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH v5 7/8] mm: Only IPI CPUs to drain local pages if they
-	exist
-Message-ID: <20120105144011.GU11810@n2100.arm.linux.org.uk>
-References: <1325499859-2262-1-git-send-email-gilad@benyossef.com> <1325499859-2262-8-git-send-email-gilad@benyossef.com> <4F033EC9.4050909@gmail.com> <20120105142017.GA27881@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id B3C626B004D
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2012 10:05:48 -0500 (EST)
+Message-ID: <4F05BC1F.7070009@redhat.com>
+Date: Thu, 05 Jan 2012 10:05:03 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120105142017.GA27881@csn.ul.ie>
+Subject: Re: [PATCH 3.2.0-rc1 2/3] MM hook for page allocation and release
+References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <e78b4ac9d3d51ac16180114c08733e4bf62ec65e.1325696593.git.leonid.moiseichuk@nokia.com> <20120105155950.9e49651b.kamezawa.hiroyu@jp.fujitsu.com> <84FF21A720B0874AA94B46D76DB9826904554270@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
+In-Reply-To: <CAOJsxLF706VeThxqWostJr84N_8q8UXoQzxGmMXj8mpgTLCagg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, emunson@mgebm.net, aarcange@redhat.com, mel@csn.ul.ie, rientjes@google.com, dima@android.com, gregkh@suse.de, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-On Thu, Jan 05, 2012 at 02:20:17PM +0000, Mel Gorman wrote:
-> On Tue, Jan 03, 2012 at 12:45:45PM -0500, KOSAKI Motohiro wrote:
-> > >   void drain_all_pages(void)
-> > >   {
-> > > -	on_each_cpu(drain_local_pages, NULL, 1);
-> > > +	int cpu;
-> > > +	struct per_cpu_pageset *pcp;
-> > > +	struct zone *zone;
-> > > +
-> > 
-> > get_online_cpu() ?
-> > 
-> 
-> Just a separate note;
-> 
-> I'm looking at some mysterious CPU hotplug problems that only happen
-> under heavy load. My strongest suspicion at the moment that the problem
-> is related to on_each_cpu() being used without get_online_cpu() but you
-> cannot simply call get_online_cpu() in this path without causing
-> deadlock.
+On 01/05/2012 07:49 AM, Pekka Enberg wrote:
+> On Thu, Jan 5, 2012 at 1:26 PM,<leonid.moiseichuk@nokia.com>  wrote:
+>> I agree that hooking alloc_pages is ugly way. So alternatives I see:
+>>
+>> - shrinkers (as e.g. Android OOM used) but shrink_slab called only from
+>> try_to_free_pages only if we are on slow reclaim path on memory allocation,
+>> so it cannot be used for e.g. 75% memory tracking or when pages released to
+>> notify user space that we are OK. But according to easy to use it will be the
+>> best approach.
 
-Mel,
+Well, there is always the page cache.
 
-That's a known hotplug problems.  PeterZ has a patch which (probably)
-solves it, but there seems to be very little traction of any kind to
-merge it.  I've been chasing that patch and getting no replies what so
-ever from folk like Peter, Thomas and Ingo.
+If, at reclaim time, the amount of page cache + free memory
+is below the free threshold, we should still have space left
+to handle userspace things.
 
-The problem affects all IPI-raising functions, which mask with
-cpu_online_mask directly.
+It may be possible to hijack memcg accounting to get lower
+usage thresholds for earlier notification.  That way the code
+can stay out of the true fast paths like alloc_pages.
 
-I'm not sure that smp_call_function() can use get_online_cpu() as it
-looks like it's not permitted to sleep (it spins in csd_lock_wait if
-it is to wait for the called function to complete on all CPUs,
-rather than using a sleepable completion.)  get_online_cpu() solves
-the online mask problem by sleeping until it's safe to access it.
-
-So, I think this whole CPU bringup mess needs to be re-thought, and
-the seemingly constant to pile more and more restrictions onto the
-bringup path needs resolving.  It's got to the point where there's
-soo many restrictions that actually it's impossible for arch code to
-simultaneously satisfy them all.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
