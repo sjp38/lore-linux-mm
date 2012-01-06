@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 35BF46B004F
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 01:18:24 -0500 (EST)
-Received: by yenq10 with SMTP id q10so640963yen.14
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2012 22:18:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 810B46B004F
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 01:21:43 -0500 (EST)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 5 Jan 2012 23:21:42 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q066LOEQ127864
+	for <linux-mm@kvack.org>; Thu, 5 Jan 2012 23:21:24 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q066LL12002224
+	for <linux-mm@kvack.org>; Thu, 5 Jan 2012 23:21:24 -0700
+Date: Fri, 6 Jan 2012 11:44:07 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v8 3.2.0-rc5 1/9] uprobes: Install and remove
+ breakpoints.
+Message-ID: <20120106061407.GC14946@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111216122756.2085.95791.sendpatchset@srdronam.in.ibm.com>
+ <20111216122808.2085.76986.sendpatchset@srdronam.in.ibm.com>
+ <1325695788.2697.3.camel@twins>
 MIME-Version: 1.0
-In-Reply-To: <4F069120.8060300@tao.ma>
-References: <1325226961-4271-1-git-send-email-tm@tao.ma> <CAHGf_=qOGy3MQgiFyfeG82+gbDXTBT5KQjgR7JqMfQ7e7RSGpA@mail.gmail.com>
- <4EFD7AE3.8020403@tao.ma> <CAHGf_=pODc6fLGJAEZWzQtUd6fj6v=fV9n6UTwysqRR1SwY++A@mail.gmail.com>
- <4EFD8832.6010905@tao.ma> <CAHGf_=qA3Pnb00n_smhJVKDDCDDr0d-a3E03Rrhnb-S4xK8_fQ@mail.gmail.com>
- <4F069120.8060300@tao.ma>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 6 Jan 2012 01:18:02 -0500
-Message-ID: <CAHGf_=qhKbVCeUe+y8Hmb=ke-f417K5EYFo=j4ZODVGwewgh6A@mail.gmail.com>
-Subject: Re: [PATCH] mm: do not drain pagevecs for mlock
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1325695788.2697.3.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tao Ma <tm@tao.ma>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-2012/1/6 Tao Ma <tm@tao.ma>:
-> Hi Kosaki,
-> On 12/30/2011 06:07 PM, KOSAKI Motohiro wrote:
->>>> Because your test program is too artificial. 20sec/100000times =
->>>> 200usec. And your
->>>> program repeat mlock and munlock the exact same address. so, yes, if
->>>> lru_add_drain_all() is removed, it become near no-op. but it's
->>>> worthless comparision.
->>>> none of any practical program does such strange mlock usage.
->>> yes, I should say it is artificial. But mlock did cause the problem in
->>> our product system and perf shows that the mlock uses the system time
->>> much more than others. That's the reason we created this program to test
->>> whether mlock really sucks. And we compared the result with
->>> rhel5(2.6.18) which runs much much faster.
->>>
->>> And from the commit log you described, we can remove lru_add_drain_all
->>> safely here, so why add it? At least removing it makes mlock much faster
->>> compared to the vanilla kernel.
->>
->> If we remove it, we lose to a test way of mlock. "Memlocked" field of
->> /proc/meminfo
->> show inaccurate number very easily. So, if 200usec is no avoidable,
->> I'll ack you.
->> But I'm not convinced yet.
-> Do you find something new for this?
+* Peter Zijlstra <peterz@infradead.org> [2012-01-04 17:49:48]:
 
-No.
+> On Fri, 2011-12-16 at 17:58 +0530, Srikar Dronamraju wrote:
+> > +static void __unregister_uprobe(struct uprobe *uprobe)
+> > +{
+> > +       if (!register_for_each_vma(uprobe, false))
+> > +               delete_uprobe(uprobe);
+> > +
+> > +       /* TODO : cant unregister? schedule a worker thread */
+> > +} 
+> 
+> I was about to suggest we merge it, but we really can't with a hole that
+> size..
+> 
 
-Or more exactly, 200usec is my calculation mistake. your program call mlock
-3 times per each iteration. so, correct cost is 66usec.
+On failure of unregister due to low memory condition:
+	- uprobe is left in the rbtree.  So subsequent probe hits can
+	  still refer the nodes.
+
+	- UPROBES_RUN_HANDLER flag still gets reset unconditionally. So
+	  handlers will not run on subsequent probe hits that correspond
+	  to this uprobe.
+
+	- consumers for the uprobe is NULL, so mmap_uprobe will not
+	  insert new breakpoints which correspond to this uprobe until
+	  or unless another consumer gets added for the same probe.
+
+	- If a new consumer gets added for this probe, we reuse the
+	  uprobe struct.
+	
+So in the highly unlikely case of uprobes not being able to unregister
+cleanly because of low memory conditions, existing tasks that have this
+probe in their address space will incur an extra cost of handling
+exceptions.
+
+However scheduling a kworker thread (or removing the underlying
+breakpoint if we detect the probe doesnt have UPROBES_RUN_HANDLER flag
+set) will reduce this overhead. 
+
+Since we are looking at an extra overhead and no change in behaviour,
+should this be a reason to stop merging this feature?
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
