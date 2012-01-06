@@ -1,36 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 38D856B0073
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 12:53:01 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so953803ghr.14
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2012 09:53:00 -0800 (PST)
-Date: Fri, 6 Jan 2012 09:52:57 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] slub: debug_guardpage_minorder documentation tweak
-In-Reply-To: <alpine.DEB.2.00.1112161315220.6862@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1201060952300.10460@chino.kir.corp.google.com>
-References: <1321633507-13614-1-git-send-email-sgruszka@redhat.com> <alpine.DEB.2.00.1112081303100.8127@chino.kir.corp.google.com> <20111212145948.GA2380@redhat.com> <201112130021.41429.rjw@sisk.pl> <alpine.DEB.2.00.1112131640240.32369@chino.kir.corp.google.com>
- <20111216132155.GA14271@redhat.com> <20111216132349.GB14271@redhat.com> <alpine.DEB.2.00.1112161315220.6862@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id CA5226B005C
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 15:57:57 -0500 (EST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [RESEND, PATCH 4/6] memcg: fix broken boolean expression
+Date: Fri,  6 Jan 2012 22:57:50 +0200
+Message-Id: <1325883472-5614-4-git-send-email-kirill@shutemov.name>
+In-Reply-To: <1325883472-5614-1-git-send-email-kirill@shutemov.name>
+References: <1325883472-5614-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stanislaw Gruszka <sgruszka@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, stable@kernel.org
 
-On Fri, 16 Dec 2011, David Rientjes wrote:
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 
-> > Signed-off-by: Stanislaw Gruszka <sgruszka@redhat.com>
-> 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
-> Andrew, this should be folded into 
-> slub-document-setting-min-order-with-debug_guardpage_minorder-0.patch 
-> which should be folded into 
-> slub-min-order-when-debug_guardpage_minorder-0.patch
-> 
+action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
 
-Andrew, this documentation improvement is still missing from linux-next.
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: <stable@kernel.org>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 831cdc4..0b5a3f8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2085,7 +2085,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ 		return NOTIFY_OK;
+ 	}
+ 
+-	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
++	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+ 		return NOTIFY_OK;
+ 
+ 	for_each_mem_cgroup(iter)
+-- 
+1.7.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
