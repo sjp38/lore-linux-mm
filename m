@@ -1,89 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id F0A2C6B004D
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 05:12:22 -0500 (EST)
-Date: Fri, 6 Jan 2012 11:12:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: how to make memory.memsw.failcnt is nonzero
-Message-ID: <20120106101219.GB10292@tiehlicka.suse.cz>
-References: <4EFADFF8.5020703@cn.fujitsu.com>
- <20120103160411.GD3891@tiehlicka.suse.cz>
- <4F06C31E.4010904@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id C5EF16B004D
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2012 05:47:02 -0500 (EST)
+Date: Fri, 6 Jan 2012 10:46:58 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH v5 7/8] mm: Only IPI CPUs to drain local pages if they
+ exist
+Message-ID: <20120106104658.GH27881@csn.ul.ie>
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+ <1325499859-2262-8-git-send-email-gilad@benyossef.com>
+ <4F033EC9.4050909@gmail.com>
+ <20120105142017.GA27881@csn.ul.ie>
+ <20120105144011.GU11810@n2100.arm.linux.org.uk>
+ <20120105161739.GD27881@csn.ul.ie>
+ <20120105163529.GA11810@n2100.arm.linux.org.uk>
+ <20120105183504.GF2393@linux.vnet.ibm.com>
+ <20120105222116.GF27881@csn.ul.ie>
+ <4F068F53.50402@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4F06C31E.4010904@cn.fujitsu.com>
+In-Reply-To: <4F068F53.50402@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peng Haitao <penght@cn.fujitsu.com>
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Greg KH <gregkh@suse.de>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-On Fri 06-01-12 17:47:10, Peng Haitao wrote:
+On Fri, Jan 06, 2012 at 11:36:11AM +0530, Srivatsa S. Bhat wrote:
+> On 01/06/2012 03:51 AM, Mel Gorman wrote:
 > 
-> Michal Hocko said the following on 2012-1-4 0:04:
-> >> # echo 15M > memory.memsw.limit_in_bytes
-> >> # dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
-> >> Killed
-> >> # grep "failcnt" /var/log/messages | tail -2
-> >> Dec 28 17:08:45 K-test kernel: memory: usage 10240kB, limit 10240kB, failcnt 86
-> >> Dec 28 17:08:45 K-test kernel: memory+swap: usage 10240kB, limit 15360kB, failcnt 0
-> >> # cat memory.memsw.failcnt
-> >> 0
+> > (Adding Greg to cc to see if he recalls seeing issues with sysfs dentry
+> > suffering from recursive locking recently)
+> > 
+> > On Thu, Jan 05, 2012 at 10:35:04AM -0800, Paul E. McKenney wrote:
+> >> On Thu, Jan 05, 2012 at 04:35:29PM +0000, Russell King - ARM Linux wrote:
+> >>> On Thu, Jan 05, 2012 at 04:17:39PM +0000, Mel Gorman wrote:
+> >>>> Link please?
+> >>>
+> >>> Forwarded, as its still in my mailbox.
+> >>>
+> >>>> I'm including a patch below under development that is
+> >>>> intended to only cope with the page allocator case under heavy memory
+> >>>> pressure. Currently it does not pass testing because eventually RCU
+> >>>> gets stalled with the following trace
+> >>>>
+> >>>> [ 1817.176001]  [<ffffffff810214d7>] arch_trigger_all_cpu_backtrace+0x87/0xa0
+> >>>> [ 1817.176001]  [<ffffffff810c4779>] __rcu_pending+0x149/0x260
+> >>>> [ 1817.176001]  [<ffffffff810c48ef>] rcu_check_callbacks+0x5f/0x110
+> >>>> [ 1817.176001]  [<ffffffff81068d7f>] update_process_times+0x3f/0x80
+> >>>> [ 1817.176001]  [<ffffffff8108c4eb>] tick_sched_timer+0x5b/0xc0
+> >>>> [ 1817.176001]  [<ffffffff8107f28e>] __run_hrtimer+0xbe/0x1a0
+> >>>> [ 1817.176001]  [<ffffffff8107f581>] hrtimer_interrupt+0xc1/0x1e0
+> >>>> [ 1817.176001]  [<ffffffff81020ef3>] smp_apic_timer_interrupt+0x63/0xa0
+> >>>> [ 1817.176001]  [<ffffffff81449073>] apic_timer_interrupt+0x13/0x20
+> >>>> [ 1817.176001]  [<ffffffff8116c135>] vfsmount_lock_local_lock+0x25/0x30
+> >>>> [ 1817.176001]  [<ffffffff8115c855>] path_init+0x2d5/0x370
+> >>>> [ 1817.176001]  [<ffffffff8115eecd>] path_lookupat+0x2d/0x620
+> >>>> [ 1817.176001]  [<ffffffff8115f4ef>] do_path_lookup+0x2f/0xd0
+> >>>> [ 1817.176001]  [<ffffffff811602af>] user_path_at_empty+0x9f/0xd0
+> >>>> [ 1817.176001]  [<ffffffff81154e7b>] vfs_fstatat+0x4b/0x90
+> >>>> [ 1817.176001]  [<ffffffff81154f4f>] sys_newlstat+0x1f/0x50
+> >>>> [ 1817.176001]  [<ffffffff81448692>] system_call_fastpath+0x16/0x1b
+> >>>>
+> >>>> It might be a separate bug, don't know for sure.
 > >>
-> >> The limit is 15M, but memory+swap usage also is 10M.
-> >> I think memory+swap usage should be 15M and memsw.failcnt should be nonzero.
-> >>
-> > So there is almost 10M of page cache that we can simply reclaim. If we
-> > use 40M limit then we are OK. So this looks like the small limit somehow
-> > tricks our math in the reclaim path and we think there is nothing to
-> > reclaim.
-> > I will look into this.
+> > 
+> > I rebased the patch on top of 3.2 and tested again with a bunch of
+> > debugging options set (PROVE_RCU, PROVE_LOCKING etc). Same results. CPU
+> > hotplug is a lot more reliable and less likely to hang but eventually
+> > gets into trouble.
+> > 
 > 
-> Thanks for you reply.
-> If there is something wrong, I think the bug will be in mem_cgroup_do_charge()
-> of mm/memcontrol.c
+> I was running some CPU hotplug stress tests recently and found it to be
+> problematic too. Mel, I have some logs from those tests which appear very
+> relevant to the "IPI to offline CPU" issue that has been discussed in this
+> thread.
 > 
-> 2210         ret = res_counter_charge(&memcg->res, csize, &fail_res);
-> 2211 
-> 2212         if (likely(!ret)) {
-> 2213                 if (!do_swap_account)
-> 2214                         return CHARGE_OK;
-> 2215                 ret = res_counter_charge(&memcg->memsw, csize, &fail_res);
-> 2216                 if (likely(!ret))
-> 2217                         return CHARGE_OK;
-> 2218 
-> 2219                 res_counter_uncharge(&memcg->res, csize);
-> 2220                 mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-> 2221                 flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> 2222         } else
-> 2223                 mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
-> 
-> When hit memory.limit_in_bytes, res_counter_charge() will return -ENOMEM,
-> this will execute line 2222: } else.
-> But I think when hit memory.limit_in_bytes, the function should determine further
-> to memory.memsw.limit_in_bytes.
-> This think is OK?
+> Kernel: 3.2-rc7
+> Here is the log: 
+> (Unfortunately I couldn't capture the log intact, due to some annoying
+> serial console issues, but I hope this log is good enough to analyze.)
+>   
 
-I don't think so. We have an invariant (hard limit is "stronger" than
-memsw limit) memory.limit_in_bytes <= memory.memsw.limit_in_bytes so
-when we hit the hard limit we do not have to consider memsw because
-resource counter:
- a) we already have to do reclaim for hard limit
- b) we check whether we might swap out later on in
- mem_cgroup_hierarchical_reclaim (root_memcg->memsw_is_minimum) so we
- will not end up swapping just to make hard limit ok and go over memsw
- limit.
+Ok, it looks vaguely similar to what I'm seeing. I think I spotted
+the sysfs problem as well and am testing a series. I'll add you to
+the cc if it passes tests locally.
 
-Please also note that we will retry charging after reclaim if there is a
-chance to meet the limit.
-Makes sense?
+Thanks.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
