@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id BE1F76B005A
-	for <linux-mm@kvack.org>; Sat,  7 Jan 2012 03:28:37 -0500 (EST)
-Received: by qcsd17 with SMTP id d17so1540289qcs.14
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2012 00:28:36 -0800 (PST)
-Message-ID: <4F08022C.1020208@gmail.com>
-Date: Sat, 07 Jan 2012 03:28:28 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id A520A6B005A
+	for <linux-mm@kvack.org>; Sat,  7 Jan 2012 11:52:08 -0500 (EST)
+Received: from /spool/local
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sat, 7 Jan 2012 09:52:07 -0700
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q07Gq4mH120060
+	for <linux-mm@kvack.org>; Sat, 7 Jan 2012 09:52:04 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q07Gq31m019139
+	for <linux-mm@kvack.org>; Sat, 7 Jan 2012 09:52:04 -0700
+Date: Sat, 7 Jan 2012 08:52:01 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 7/8] mm: Only IPI CPUs to drain local pages if they
+ exist
+Message-ID: <20120107165201.GA23939@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1325499859-2262-1-git-send-email-gilad@benyossef.com>
+ <1325499859-2262-8-git-send-email-gilad@benyossef.com>
+ <4F033EC9.4050909@gmail.com>
+ <20120105142017.GA27881@csn.ul.ie>
+ <20120105144011.GU11810@n2100.arm.linux.org.uk>
+ <20120105161739.GD27881@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] SHM_UNLOCK: fix long unpreemptible section
-References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120105161739.GD27881@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-(1/6/12 4:10 PM), Hugh Dickins wrote:
-> scan_mapping_unevictable_pages() is used to make SysV SHM_LOCKed pages
-> evictable again once the shared memory is unlocked.  It does this with
-> pagevec_lookup()s across the whole object (which might occupy most of
-> memory), and takes 300ms to unlock 7GB here.  A cond_resched() every
-> PAGEVEC_SIZE pages would be good.
->
-> However, KOSAKI-san points out that this is called under shmem.c's
-> info->lock, and it's also under shm.c's shm_lock(), both spinlocks.
-> There is no strong reason for that: we need to take these pages off
-> the unevictable list soonish, but those locks are not required for it.
->
-> So move the call to scan_mapping_unevictable_pages() from shmem.c's
-> unlock handling up to shm.c's unlock handling.  Remove the recently
-> added barrier, not needed now we have spin_unlock() before the scan.
->
-> Use get_file(), with subsequent fput(), to make sure we have a
-> reference to mapping throughout scan_mapping_unevictable_pages():
-> that's something that was previously guaranteed by the shm_lock().
->
-> Remove shmctl's lru_add_drain_all(): we don't fault in pages at
-> SHM_LOCK time, and we lazily discover them to be Unevictable later,
-> so it serves no purpose for SHM_LOCK; and serves no purpose for
-> SHM_UNLOCK, since pages still on pagevec are not marked Unevictable.
->
-> The original code avoided redundant rescans by checking VM_LOCKED
-> flag at its level: now avoid them by checking shp's SHM_LOCKED.
->
-> The original code called scan_mapping_unevictable_pages() on a
-> locked area at shm_destroy() time: perhaps we once had accounting
-> cross-checks which required that, but not now, so skip the overhead
-> and just let inode eviction deal with them.
->
-> Put check_move_unevictable_page() and scan_mapping_unevictable_pages()
-> under CONFIG_SHMEM (with stub for the TINY case when ramfs is used),
-> more as comment than to save space; comment them used for SHM_UNLOCK.
->
-> Signed-off-by: Hugh Dickins<hughd@google.com>
-> Cc: stable@vger.kernel.org [back to 2.6.32 but will need respins]
+On Thu, Jan 05, 2012 at 04:17:39PM +0000, Mel Gorman wrote:
+> On Thu, Jan 05, 2012 at 02:40:11PM +0000, Russell King - ARM Linux wrote:
+> > On Thu, Jan 05, 2012 at 02:20:17PM +0000, Mel Gorman wrote:
 
-Looks completely make sense.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+[ . . . ]
+
+> > I've been chasing that patch and getting no replies what so
+> > ever from folk like Peter, Thomas and Ingo.
+> > 
+> > The problem affects all IPI-raising functions, which mask with
+> > cpu_online_mask directly.
+> 
+> Actually, in one sense I'm glad to hear it because from my brief
+> poking around, I was having trouble understanding why we were always
+> safe from sending IPIs to CPUs in the process of being offlined.
+
+The trick is to disable preemption (not interrupts!) across the IPI, which
+prevents CPU-hotplug's stop_machine() from running.  You also have to
+have checked that the CPU is online within this same preemption-disabled
+section of code.  This means that the outgoing CPU has to accept IPIs
+even after its CPU_DOWN_PREPARE notifier has been called -- right up
+to the stop_machine() call to take_cpu_down().
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
