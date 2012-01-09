@@ -1,105 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 1DE5A6B005A
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:25:26 -0500 (EST)
-Received: by iacb35 with SMTP id b35so9027808iac.14
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 14:25:25 -0800 (PST)
-Date: Mon, 9 Jan 2012 14:25:06 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after
- swap
-In-Reply-To: <4F0B5146.6090200@gmail.com>
-Message-ID: <alpine.LSU.2.00.1201091342300.1272@eggly.anvils>
-References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils> <alpine.LSU.2.00.1201061310340.12082@eggly.anvils> <4F0B5146.6090200@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 186256B005A
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:52:27 -0500 (EST)
+Received: from /spool/local
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 9 Jan 2012 17:52:25 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q09MqNM22895966
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:23 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q09MqLec005426
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:22 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 0/5] staging: zsmalloc: memory allocator for compressed pages
+Date: Mon,  9 Jan 2012 16:51:55 -0600
+Message-Id: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@suse.de>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Mon, 9 Jan 2012, KOSAKI Motohiro wrote:
-> 2012/1/6 Hugh Dickins <hughd@google.com>:
+This patchset introduces a new memory allocation library named
+zsmalloc.  zsmalloc was designed to fulfill the needs
+of users where:
+ 1) Memory is constrained, preventing contiguous page allocations
+    larger than order 0 and
+ 2) Allocations are all/commonly greater than half a page.
 
-[ check_move_unevictable_page(s) ]
+In a generic allocator, an allocation set like this would
+cause high fragmentation.  The allocations can't span non-
+contiguous page boundaries; therefore, the part of the page
+unused by each allocation is wasted.
 
-> > 
-> > Leave out the "rotate unevictable list" block: that's a leftover
-> > from when this was used for /proc/sys/vm/scan_unevictable_pages,
-> > whose flawed handling involved looking at pages at tail of LRU.
-> > 
-> > Was there significance to the sequence first ClearPageUnevictable,
-> > then test page_evictable, then SetPageUnevictable here?  I think
-> > not, we're under LRU lock, and have no barriers between those.
-> 
-> If I understand correctly, this is not exactly correct. Because of,
+zsmalloc is a slab-based allocator that uses a non-standard
+malloc interface, requiring the user to map the allocation
+before accessing it. This allows allocations to span two
+non-contiguous pages using virtual memory mapping, greatly
+reducing fragmentation in the memory pool.
 
-Thank you for giving it serious thought:
-such races are hard work to think about.
+Nitin Gupta (3):
+  staging: zsmalloc: zsmalloc memory allocation library
+  staging: zram: replace xvmalloc with zsmalloc
+  staging: zram: remove xvmalloc
 
-> PG_mlocked operation is not protected by LRU lock. So, I think we
+Seth Jennings (2):
+  staging: add zsmalloc to Kconfig/Makefile
+  staging: zcache: replace xvmalloc with zsmalloc
 
-Right.  But I don't see that I've made a significant change there.
+ drivers/staging/Kconfig                  |    2 +
+ drivers/staging/Makefile                 |    2 +-
+ drivers/staging/zcache/Kconfig           |    2 +-
+ drivers/staging/zcache/zcache-main.c     |   83 ++--
+ drivers/staging/zram/Kconfig             |    6 +-
+ drivers/staging/zram/Makefile            |    1 -
+ drivers/staging/zram/xvmalloc.c          |  510 --------------------
+ drivers/staging/zram/xvmalloc.h          |   30 --
+ drivers/staging/zram/xvmalloc_int.h      |   95 ----
+ drivers/staging/zram/zram_drv.c          |   89 ++--
+ drivers/staging/zram/zram_drv.h          |   10 +-
+ drivers/staging/zram/zram_sysfs.c        |    2 +-
+ drivers/staging/zsmalloc/Kconfig         |   11 +
+ drivers/staging/zsmalloc/Makefile        |    3 +
+ drivers/staging/zsmalloc/zsmalloc-main.c |  756 ++++++++++++++++++++++++++++++
+ drivers/staging/zsmalloc/zsmalloc.h      |   31 ++
+ drivers/staging/zsmalloc/zsmalloc_int.h  |  126 +++++
+ 17 files changed, 1020 insertions(+), 739 deletions(-)
+ delete mode 100644 drivers/staging/zram/xvmalloc.c
+ delete mode 100644 drivers/staging/zram/xvmalloc.h
+ delete mode 100644 drivers/staging/zram/xvmalloc_int.h
+ create mode 100644 drivers/staging/zsmalloc/Kconfig
+ create mode 100644 drivers/staging/zsmalloc/Makefile
+ create mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
+ create mode 100644 drivers/staging/zsmalloc/zsmalloc.h
+ create mode 100644 drivers/staging/zsmalloc/zsmalloc_int.h
 
-I may be being lazy, and rushing back to answer you, without giving
-constructive thought to what the precise race is that you see, and
-how we might fix it.  If the case you have in mind is easy for you
-to describe in detail, please do so; but don't hesitate to tell me
-to my own work for myself!
-
-Since the original code didn't have any barriers in it (in the
-!page_evictable path, in the global case: I think that's true of the
-memcg case also, but that is more complicated), how did it differ from
-
-retry:
-	if (page_evictable)
-		blah blah blah;
-	else if (page_evictable)
-		goto retry;
-
-which could be made even "safer" ;) if it were replaced by
-
-retry:
-	if (page_evictable)
-		blah blah blah;
-	else if (page_evictable)
-		goto retry;
-	else if (page_evictable)
-		goto retry;
-
-putback_lru_page() goes through similar doubts as to whether it's made
-the right decision ("Oh, did I leave the oven on?"), but it does contain
-an explicit smp_mb() and comment.
-
-I am being lazy, I haven't even stopped to convince myself that that
-smp_mb() is correctly placed (I'm not saying it isn't, I just haven't
-done the thinking).
-
-> have three choice.
-> 
-> 1) check_move_unevictable_pages() aimed retry logic and put pages back
->    into correct lru.
-
-I think we'd need more than just the old retry.
-
-> 2) check_move_unevictable_pages() unconditionally move the pages into
->    evictable lru, and vmacan put them back into correct lru later.
-
-That's a good thought: these are all pages which we allowed to be found
-Unevictable lazily in the first place, so why should be so anxious to
-assign them right now.  Ah, but if they are still unevictable, then it's
-because they're Mlocked, and we do make much more effort to account the
-Mlocked pages right.  We'd probably best keep on trying.
-
-> 3) To protect PG_mlock operation by lru lock.
-
-Surely not if we can avoid it.  Certainly not to bolster my cleanup.
-
-> 
-> other parts looks fine to me.
-
-Thanks,
-Hugh
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
