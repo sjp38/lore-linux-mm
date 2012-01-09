@@ -1,356 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 11B866B0069
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:52:33 -0500 (EST)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 6CCD56B0073
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:53:39 -0500 (EST)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 9 Jan 2012 17:52:32 -0500
+	Mon, 9 Jan 2012 17:53:38 -0500
 Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q09MqTM6314266
-	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:29 -0500
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q09MqTMa177148
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:34 -0500
 Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q09MqSjA006020
-	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:29 -0500
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q09MqRF8005915
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:28 -0500
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH 4/5] staging: zram: replace xvmalloc with zsmalloc
-Date: Mon,  9 Jan 2012 16:51:59 -0600
-Message-Id: <1326149520-31720-5-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
+Date: Mon,  9 Jan 2012 16:51:58 -0600
+Message-Id: <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@suse.de>
-Cc: Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-From: Nitin Gupta <ngupta@vflare.org>
+Replaces xvmalloc with zsmalloc as the persistent memory allocator
+for zcache
 
-Replaces xvmalloc with zsmalloc as the compressed page allocator
-for zram
-
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
- drivers/staging/zram/Kconfig      |    6 +--
- drivers/staging/zram/Makefile     |    1 -
- drivers/staging/zram/zram_drv.c   |   89 ++++++++++++++++---------------------
- drivers/staging/zram/zram_drv.h   |   10 ++--
- drivers/staging/zram/zram_sysfs.c |    2 +-
- 5 files changed, 46 insertions(+), 62 deletions(-)
+ drivers/staging/zcache/Kconfig       |    2 +-
+ drivers/staging/zcache/zcache-main.c |   83 +++++++++++++++++----------------
+ 2 files changed, 44 insertions(+), 41 deletions(-)
 
-diff --git a/drivers/staging/zram/Kconfig b/drivers/staging/zram/Kconfig
-index 3bec4db..ee23a86 100644
---- a/drivers/staging/zram/Kconfig
-+++ b/drivers/staging/zram/Kconfig
-@@ -1,11 +1,7 @@
--config XVMALLOC
--	bool
--	default n
--
- config ZRAM
- 	tristate "Compressed RAM block device support"
- 	depends on BLOCK && SYSFS
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+index 1b7bba7..94e48aa 100644
+--- a/drivers/staging/zcache/Kconfig
++++ b/drivers/staging/zcache/Kconfig
+@@ -1,7 +1,7 @@
+ config ZCACHE
+ 	tristate "Dynamic compression of swap pages and clean pagecache pages"
+ 	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO
 -	select XVMALLOC
 +	select ZSMALLOC
- 	select LZO_COMPRESS
- 	select LZO_DECOMPRESS
+ 	select CRYPTO_LZO
  	default n
-diff --git a/drivers/staging/zram/Makefile b/drivers/staging/zram/Makefile
-index 2a6d321..7f4a301 100644
---- a/drivers/staging/zram/Makefile
-+++ b/drivers/staging/zram/Makefile
-@@ -1,4 +1,3 @@
- zram-y	:=	zram_drv.o zram_sysfs.o
+ 	help
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 2faa9a7..bcc8440 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -9,7 +9,7 @@
+  * page-accessible memory [1] interfaces, both utilizing the crypto compression
+  * API:
+  * 1) "compression buddies" ("zbud") is used for ephemeral pages
+- * 2) xvmalloc is used for persistent pages.
++ * 2) zsmalloc is used for persistent pages.
+  * Xvmalloc (based on the TLSF allocator) has very low fragmentation
+  * so maximizes space efficiency, while zbud allows pairs (and potentially,
+  * in the future, more than a pair of) compressed pages to be closely linked
+@@ -33,7 +33,7 @@
+ #include <linux/string.h>
+ #include "tmem.h"
  
- obj-$(CONFIG_ZRAM)	+=	zram.o
--obj-$(CONFIG_XVMALLOC)	+=	xvmalloc.o
-\ No newline at end of file
-diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-index 09de99f..91a2c87 100644
---- a/drivers/staging/zram/zram_drv.c
-+++ b/drivers/staging/zram/zram_drv.c
-@@ -135,13 +135,9 @@ static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
- 
- static void zram_free_page(struct zram *zram, size_t index)
- {
--	u32 clen;
--	void *obj;
-+	void *handle = zram->table[index].handle;
- 
--	struct page *page = zram->table[index].page;
--	u32 offset = zram->table[index].offset;
--
--	if (unlikely(!page)) {
-+	if (unlikely(!handle)) {
- 		/*
- 		 * No memory is allocated for zero filled pages.
- 		 * Simply clear zero page flag.
-@@ -154,27 +150,24 @@ static void zram_free_page(struct zram *zram, size_t index)
- 	}
- 
- 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
--		clen = PAGE_SIZE;
--		__free_page(page);
-+		__free_page(handle);
- 		zram_clear_flag(zram, index, ZRAM_UNCOMPRESSED);
- 		zram_stat_dec(&zram->stats.pages_expand);
- 		goto out;
- 	}
- 
--	obj = kmap_atomic(page, KM_USER0) + offset;
--	clen = xv_get_object_size(obj) - sizeof(struct zobj_header);
--	kunmap_atomic(obj, KM_USER0);
-+	zs_free(zram->mem_pool, handle);
- 
--	xv_free(zram->mem_pool, page, offset);
--	if (clen <= PAGE_SIZE / 2)
-+	if (zram->table[index].size <= PAGE_SIZE / 2)
- 		zram_stat_dec(&zram->stats.good_compress);
- 
- out:
--	zram_stat64_sub(zram, &zram->stats.compr_size, clen);
-+	zram_stat64_sub(zram, &zram->stats.compr_size,
-+			zram->table[index].size);
- 	zram_stat_dec(&zram->stats.pages_stored);
- 
--	zram->table[index].page = NULL;
--	zram->table[index].offset = 0;
-+	zram->table[index].handle = NULL;
-+	zram->table[index].size = 0;
- }
- 
- static void handle_zero_page(struct bio_vec *bvec)
-@@ -196,7 +189,7 @@ static void handle_uncompressed_page(struct zram *zram, struct bio_vec *bvec,
- 	unsigned char *user_mem, *cmem;
- 
- 	user_mem = kmap_atomic(page, KM_USER0);
--	cmem = kmap_atomic(zram->table[index].page, KM_USER1);
-+	cmem = kmap_atomic(zram->table[index].handle, KM_USER1);
- 
- 	memcpy(user_mem + bvec->bv_offset, cmem + offset, bvec->bv_len);
- 	kunmap_atomic(cmem, KM_USER1);
-@@ -227,7 +220,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
- 	}
- 
- 	/* Requested page is not present in compressed area */
--	if (unlikely(!zram->table[index].page)) {
-+	if (unlikely(!zram->table[index].handle)) {
- 		pr_debug("Read before write: sector=%lu, size=%u",
- 			 (ulong)(bio->bi_sector), bio->bi_size);
- 		handle_zero_page(bvec);
-@@ -254,11 +247,10 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
- 		uncmem = user_mem;
- 	clen = PAGE_SIZE;
- 
--	cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
--		zram->table[index].offset;
-+	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle);
- 
- 	ret = lzo1x_decompress_safe(cmem + sizeof(*zheader),
--				    xv_get_object_size(cmem) - sizeof(*zheader),
-+				    zram->table[index].size,
- 				    uncmem, &clen);
- 
- 	if (is_partial_io(bvec)) {
-@@ -267,7 +259,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
- 		kfree(uncmem);
- 	}
- 
--	kunmap_atomic(cmem, KM_USER1);
-+	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
- 	kunmap_atomic(user_mem, KM_USER0);
- 
- 	/* Should NEVER happen. Return bio error if it does. */
-@@ -290,13 +282,12 @@ static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
- 	unsigned char *cmem;
- 
- 	if (zram_test_flag(zram, index, ZRAM_ZERO) ||
--	    !zram->table[index].page) {
-+	    !zram->table[index].handle) {
- 		memset(mem, 0, PAGE_SIZE);
- 		return 0;
- 	}
- 
--	cmem = kmap_atomic(zram->table[index].page, KM_USER0) +
--		zram->table[index].offset;
-+	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle);
- 
- 	/* Page is stored uncompressed since it's incompressible */
- 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
-@@ -306,9 +297,9 @@ static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
- 	}
- 
- 	ret = lzo1x_decompress_safe(cmem + sizeof(*zheader),
--				    xv_get_object_size(cmem) - sizeof(*zheader),
-+				    zram->table[index].size,
- 				    mem, &clen);
--	kunmap_atomic(cmem, KM_USER0);
-+	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
- 
- 	/* Should NEVER happen. Return bio error if it does. */
- 	if (unlikely(ret != LZO_E_OK)) {
-@@ -326,6 +317,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	int ret;
- 	u32 store_offset;
- 	size_t clen;
-+	void *handle;
- 	struct zobj_header *zheader;
- 	struct page *page, *page_store;
- 	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
-@@ -355,7 +347,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	 * System overwrites unused sectors. Free memory associated
- 	 * with this sector now.
- 	 */
--	if (zram->table[index].page ||
-+	if (zram->table[index].handle ||
- 	    zram_test_flag(zram, index, ZRAM_ZERO))
- 		zram_free_page(zram, index);
- 
-@@ -407,26 +399,22 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		store_offset = 0;
- 		zram_set_flag(zram, index, ZRAM_UNCOMPRESSED);
- 		zram_stat_inc(&zram->stats.pages_expand);
--		zram->table[index].page = page_store;
-+		handle = page_store;
- 		src = kmap_atomic(page, KM_USER0);
-+		cmem = kmap_atomic(page_store, KM_USER1);
- 		goto memstore;
- 	}
- 
--	if (xv_malloc(zram->mem_pool, clen + sizeof(*zheader),
--		      &zram->table[index].page, &store_offset,
--		      GFP_NOIO | __GFP_HIGHMEM)) {
-+	handle = zs_malloc(zram->mem_pool, clen + sizeof(*zheader));
-+	if (!handle) {
- 		pr_info("Error allocating memory for compressed "
- 			"page: %u, size=%zu\n", index, clen);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+	cmem = zs_map_object(zram->mem_pool, handle);
- 
- memstore:
--	zram->table[index].offset = store_offset;
--
--	cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
--		zram->table[index].offset;
--
- #if 0
- 	/* Back-reference needed for memory defragmentation */
- 	if (!zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)) {
-@@ -438,9 +426,15 @@ memstore:
- 
- 	memcpy(cmem, src, clen);
- 
--	kunmap_atomic(cmem, KM_USER1);
--	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
-+	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
-+		kunmap_atomic(cmem, KM_USER1);
- 		kunmap_atomic(src, KM_USER0);
-+	} else {
-+		zs_unmap_object(zram->mem_pool, handle);
-+	}
-+
-+	zram->table[index].handle = handle;
-+	zram->table[index].size = clen;
- 
- 	/* Update stats */
- 	zram_stat64_add(zram, &zram->stats.compr_size, clen);
-@@ -598,25 +592,20 @@ void __zram_reset_device(struct zram *zram)
- 
- 	/* Free all pages that are still in this zram device */
- 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
--		struct page *page;
--		u16 offset;
--
--		page = zram->table[index].page;
--		offset = zram->table[index].offset;
--
--		if (!page)
-+		void *handle = zram->table[index].handle;
-+		if (!handle)
- 			continue;
- 
- 		if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
--			__free_page(page);
-+			__free_page(handle);
- 		else
--			xv_free(zram->mem_pool, page, offset);
-+			zs_free(zram->mem_pool, handle);
- 	}
- 
- 	vfree(zram->table);
- 	zram->table = NULL;
- 
--	xv_destroy_pool(zram->mem_pool);
-+	zs_destroy_pool(zram->mem_pool);
- 	zram->mem_pool = NULL;
- 
- 	/* Reset stats */
-@@ -673,7 +662,7 @@ int zram_init_device(struct zram *zram)
- 	/* zram devices sort of resembles non-rotational disks */
- 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
- 
--	zram->mem_pool = xv_create_pool();
-+	zram->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
- 	if (!zram->mem_pool) {
- 		pr_err("Error creating memory pool\n");
- 		ret = -ENOMEM;
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index e5cd246..572faa8 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -18,7 +18,7 @@
- #include <linux/spinlock.h>
- #include <linux/mutex.h>
- 
--#include "xvmalloc.h"
+-#include "../zram/xvmalloc.h" /* if built in drivers/staging */
 +#include "../zsmalloc/zsmalloc.h"
  
- /*
-  * Some arbitrary value. This is just to catch
-@@ -51,7 +51,7 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
+ #if (!defined(CONFIG_CLEANCACHE) && !defined(CONFIG_FRONTSWAP))
+ #error "zcache is useless without CONFIG_CLEANCACHE or CONFIG_FRONTSWAP"
+@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
  
- /*
-  * NOTE: max_zpage_size must be less than or equal to:
-- *   XV_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
-+ *   ZS_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
-  * otherwise, xv_malloc() would always return failure.
-  */
+ struct zcache_client {
+ 	struct tmem_pool *tmem_pools[MAX_POOLS_PER_CLIENT];
+-	struct xv_pool *xvpool;
++	struct zs_pool *zspool;
+ 	bool allocated;
+ 	atomic_t refcount;
+ };
+@@ -658,7 +658,7 @@ static int zbud_show_cumul_chunk_counts(char *buf)
+ #endif
  
-@@ -81,8 +81,8 @@ enum zram_pageflags {
- 
- /* Allocated for each disk page */
- struct table {
--	struct page *page;
--	u16 offset;
-+	void *handle;
-+	u16 size;	/* object size (excluding header) */
- 	u8 count;	/* object ref count (not yet used) */
- 	u8 flags;
- } __attribute__((aligned(4)));
-@@ -102,7 +102,7 @@ struct zram_stats {
+ /**********
+- * This "zv" PAM implementation combines the TLSF-based xvMalloc
++ * This "zv" PAM implementation combines the slab-based zsmalloc
+  * with the crypto compression API to maximize the amount of data that can
+  * be packed into a physical page.
+  *
+@@ -672,6 +672,7 @@ struct zv_hdr {
+ 	uint32_t pool_id;
+ 	struct tmem_oid oid;
+ 	uint32_t index;
++	size_t size;
+ 	DECL_SENTINEL
  };
  
- struct zram {
--	struct xv_pool *mem_pool;
-+	struct zs_pool *mem_pool;
- 	void *compress_workmem;
- 	void *compress_buffer;
- 	struct table *table;
-diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-index 0ea8ed2..ea2f269 100644
---- a/drivers/staging/zram/zram_sysfs.c
-+++ b/drivers/staging/zram/zram_sysfs.c
-@@ -187,7 +187,7 @@ static ssize_t mem_used_total_show(struct device *dev,
- 	struct zram *zram = dev_to_zram(dev);
+@@ -693,71 +694,73 @@ static unsigned int zv_max_mean_zsize = (PAGE_SIZE / 8) * 5;
+ static atomic_t zv_curr_dist_counts[NCHUNKS];
+ static atomic_t zv_cumul_dist_counts[NCHUNKS];
  
- 	if (zram->init_done) {
--		val = xv_get_total_size_bytes(zram->mem_pool) +
-+		val = zs_get_total_size_bytes(zram->mem_pool) +
- 			((u64)(zram->stats.pages_expand) << PAGE_SHIFT);
+-static struct zv_hdr *zv_create(struct xv_pool *xvpool, uint32_t pool_id,
++static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
+ 				struct tmem_oid *oid, uint32_t index,
+ 				void *cdata, unsigned clen)
+ {
+-	struct page *page;
+-	struct zv_hdr *zv = NULL;
+-	uint32_t offset;
+-	int alloc_size = clen + sizeof(struct zv_hdr);
+-	int chunks = (alloc_size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
+-	int ret;
++	struct zv_hdr *zv;
++	u32 size = clen + sizeof(struct zv_hdr);
++	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
++	void *handle = NULL;
++	char *buf;
+ 
+ 	BUG_ON(!irqs_disabled());
+ 	BUG_ON(chunks >= NCHUNKS);
+-	ret = xv_malloc(xvpool, alloc_size,
+-			&page, &offset, ZCACHE_GFP_MASK);
+-	if (unlikely(ret))
++	handle = zs_malloc(pool, size);
++	if (!handle)
+ 		goto out;
+ 	atomic_inc(&zv_curr_dist_counts[chunks]);
+ 	atomic_inc(&zv_cumul_dist_counts[chunks]);
+-	zv = kmap_atomic(page, KM_USER0) + offset;
++	zv = (struct zv_hdr *)((char *)cdata - sizeof(*zv));
+ 	zv->index = index;
+ 	zv->oid = *oid;
+ 	zv->pool_id = pool_id;
++	zv->size = clen;
+ 	SET_SENTINEL(zv, ZVH);
+-	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
+-	kunmap_atomic(zv, KM_USER0);
++	buf = zs_map_object(pool, handle);
++	memcpy(buf, zv, clen + sizeof(*zv));
++	zs_unmap_object(pool, handle);
+ out:
+-	return zv;
++	return handle;
+ }
+ 
+-static void zv_free(struct xv_pool *xvpool, struct zv_hdr *zv)
++static void zv_free(struct zs_pool *pool, void *handle)
+ {
+ 	unsigned long flags;
+-	struct page *page;
+-	uint32_t offset;
+-	uint16_t size = xv_get_object_size(zv);
+-	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
++	struct zv_hdr *zv;
++	uint16_t size;
++	int chunks;
+ 
++	zv = zs_map_object(pool, handle);
+ 	ASSERT_SENTINEL(zv, ZVH);
++	size = zv->size + sizeof(struct zv_hdr);
++	INVERT_SENTINEL(zv, ZVH);
++	zs_unmap_object(pool, handle);
++
++	chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
+ 	BUG_ON(chunks >= NCHUNKS);
+ 	atomic_dec(&zv_curr_dist_counts[chunks]);
+-	size -= sizeof(*zv);
+-	BUG_ON(size == 0);
+-	INVERT_SENTINEL(zv, ZVH);
+-	page = virt_to_page(zv);
+-	offset = (unsigned long)zv & ~PAGE_MASK;
++
+ 	local_irq_save(flags);
+-	xv_free(xvpool, page, offset);
++	zs_free(pool, handle);
+ 	local_irq_restore(flags);
+ }
+ 
+-static void zv_decompress(struct page *page, struct zv_hdr *zv)
++static void zv_decompress(struct page *page, void *handle)
+ {
+ 	unsigned int clen = PAGE_SIZE;
+ 	char *to_va;
+-	unsigned size;
+ 	int ret;
++	struct zv_hdr *zv;
+ 
++	zv = zs_map_object(zcache_host.zspool, handle);
++	BUG_ON(zv->size == 0);
+ 	ASSERT_SENTINEL(zv, ZVH);
+-	size = xv_get_object_size(zv) - sizeof(*zv);
+-	BUG_ON(size == 0);
+ 	to_va = kmap_atomic(page, KM_USER0);
+ 	ret = zcache_comp_op(ZCACHE_COMPOP_DECOMPRESS, (char *)zv + sizeof(*zv),
+-				size, to_va, &clen);
++				zv->size, to_va, &clen);
+ 	kunmap_atomic(to_va, KM_USER0);
++	zs_unmap_object(zcache_host.zspool, handle);
+ 	BUG_ON(ret);
+ 	BUG_ON(clen != PAGE_SIZE);
+ }
+@@ -984,8 +987,8 @@ int zcache_new_client(uint16_t cli_id)
+ 		goto out;
+ 	cli->allocated = 1;
+ #ifdef CONFIG_FRONTSWAP
+-	cli->xvpool = xv_create_pool();
+-	if (cli->xvpool == NULL)
++	cli->zspool = zs_create_pool("zcache", ZCACHE_GFP_MASK);
++	if (cli->zspool == NULL)
+ 		goto out;
+ #endif
+ 	ret = 0;
+@@ -1216,7 +1219,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
+ 		}
+ 		/* reject if mean compression is too poor */
+ 		if ((clen > zv_max_mean_zsize) && (curr_pers_pampd_count > 0)) {
+-			total_zsize = xv_get_total_size_bytes(cli->xvpool);
++			total_zsize = zs_get_total_size_bytes(cli->zspool);
+ 			zv_mean_zsize = div_u64(total_zsize,
+ 						curr_pers_pampd_count);
+ 			if (zv_mean_zsize > zv_max_mean_zsize) {
+@@ -1224,7 +1227,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
+ 				goto out;
+ 			}
+ 		}
+-		pampd = (void *)zv_create(cli->xvpool, pool->pool_id,
++		pampd = (void *)zv_create(cli->zspool, pool->pool_id,
+ 						oid, index, cdata, clen);
+ 		if (pampd == NULL)
+ 			goto out;
+@@ -1282,7 +1285,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
+ 		atomic_dec(&zcache_curr_eph_pampd_count);
+ 		BUG_ON(atomic_read(&zcache_curr_eph_pampd_count) < 0);
+ 	} else {
+-		zv_free(cli->xvpool, (struct zv_hdr *)pampd);
++		zv_free(cli->zspool, pampd);
+ 		atomic_dec(&zcache_curr_pers_pampd_count);
+ 		BUG_ON(atomic_read(&zcache_curr_pers_pampd_count) < 0);
  	}
+@@ -2072,7 +2075,7 @@ static int __init zcache_init(void)
  
+ 		old_ops = zcache_frontswap_register_ops();
+ 		pr_info("zcache: frontswap enabled using kernel "
+-			"transcendent memory and xvmalloc\n");
++			"transcendent memory and zsmalloc\n");
+ 		if (old_ops.init != NULL)
+ 			pr_warning("zcache: frontswap_ops overridden");
+ 	}
 -- 
 1.7.5.4
 
