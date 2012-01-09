@@ -1,55 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id E3A116B0073
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 12:57:51 -0500 (EST)
-Message-ID: <4F0B2A9D.5020208@tilera.com>
-Date: Mon, 9 Jan 2012 12:57:49 -0500
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B89F96B005A
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 15:42:51 -0500 (EST)
+Received: by iacb35 with SMTP id b35so8881787iac.14
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 12:42:51 -0800 (PST)
+Message-ID: <4F0B5146.6090200@gmail.com>
+Date: Mon, 09 Jan 2012 15:42:46 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 0/8] Reduce cross CPU IPI interference
-References: <y> <1326040026-7285-1-git-send-email-gilad@benyossef.com>
-In-Reply-To: <1326040026-7285-1-git-send-email-gilad@benyossef.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after
+ swap
+References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils> <alpine.LSU.2.00.1201061310340.12082@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1201061310340.12082@eggly.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.org>, Kosaki Motohiro <kosaki.motohiro@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: kosaki.motohiro@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 1/8/2012 11:26 AM, Gilad Ben-Yossef wrote:
-> We have lots of infrastructure in place to partition a multi-core systems
-> such that we have a group of CPUs that are dedicated to specific task:
-> cgroups, scheduler and interrupt affinity and cpuisol boot parameter.
-> Still, kernel code will some time interrupt all CPUs in the system via IPIs
-> for various needs. These IPIs are useful and cannot be avoided altogether,
-> but in certain cases it is possible to interrupt only specific CPUs that
-> have useful work to do and not the entire system.
+
+
+2012/1/6 Hugh Dickins <hughd@google.com>:
+> Commit cc39c6a9bbde "mm: account skipped entries to avoid looping in
+> find_get_pages" correctly fixed an infinite loop; but left a problem
+> that find_get_pages() on shmem would return 0 (appearing to callers
+> to mean end of tree) when it meets a run of nr_pages swap entries.
 >
-> This patch set, inspired by discussions with Peter Zijlstra and Frederic
-> Weisbecker when testing the nohz task patch set, is a first stab at trying
-> to explore doing this by locating the places where such global IPI calls
-> are being made and turning a global IPI into an IPI for a specific group
-> of CPUs.  The purpose of the patch set is to get feedback if this is the
-> right way to go for dealing with this issue and indeed, if the issue is
-> even worth dealing with at all. Based on the feedback from this patch set
-> I plan to offer further patches that address similar issue in other code
-> paths.
+> The only uses of find_get_pages() on shmem are via pagevec_lookup(),
+> called from invalidate_mapping_pages(), and from shmctl SHM_UNLOCK's
+> scan_mapping_unevictable_pages().  The first is already commented,
+> and not worth worrying about; but the second can leave pages on the
+> Unevictable list after an unusual sequence of swapping and locking.
 >
-> The patch creates an on_each_cpu_mask and on_each_cpu_conf infrastructure 
-> API (the former derived from existing arch specific versions in Tile and 
-> Arm) and and uses them to turn several global IPI invocation to per CPU 
-> group invocations.
+> Fix that by using shmem_find_get_pages_and_swap() (then ignoring
+> the swap) instead of pagevec_lookup().
+>
+> But I don't want to contaminate vmscan.c with shmem internals, nor
+> shmem.c with LRU locking.  So move scan_mapping_unevictable_pages()
+> into shmem.c, renaming it shmem_unlock_mapping(); and rename
+> check_move_unevictable_page() to check_move_unevictable_pages(),
+> looping down an array of pages, oftentimes under the same lock.
+>
+> Leave out the "rotate unevictable list" block: that's a leftover
+> from when this was used for /proc/sys/vm/scan_unevictable_pages,
+> whose flawed handling involved looking at pages at tail of LRU.
+>
+> Was there significance to the sequence first ClearPageUnevictable,
+> then test page_evictable, then SetPageUnevictable here?  I think
+> not, we're under LRU lock, and have no barriers between those.
 
-Acked-by: Chris Metcalf <cmetcalf@tilera.com>
+If I understand correctly, this is not exactly correct. Because of,
+PG_mlocked operation is not protected by LRU lock. So, I think we
+have three choice.
 
-(To be fair, mostly this acks the proposed infrastructure, and moving the
-functions out of the tile architecture and into the generic code; I not
-expert enough at slub or the invalidate_bh_lrus path to ack those changes,
-other than to say I like how they look.)
+1) check_move_unevictable_pages() aimed retry logic and put pages back
+    into correct lru.
+2) check_move_unevictable_pages() unconditionally move the pages into
+    evictable lru, and vmacan put them back into correct lru later.
+3) To protect PG_mlock operation by lru lock.
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+
+other parts looks fine to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
