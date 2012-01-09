@@ -1,53 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 15D386B0069
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 01:28:57 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so1690623ghr.14
-        for <linux-mm@kvack.org>; Sun, 08 Jan 2012 22:28:56 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1326078369-2814-1-git-send-email-shijie8@gmail.com>
-References: <1326078369-2814-1-git-send-email-shijie8@gmail.com>
-Date: Mon, 9 Jan 2012 14:28:56 +0800
-Message-ID: <CAMiH66FobuG7OCYDDi5iVrOyijovA6Jz-5-Xo2OpHD1SYEOmpw@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc.c : fix the typo of __zone_watermark_ok()
-From: Huang Shijie <shijie8@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id F03AB6B0068
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 02:16:52 -0500 (EST)
+Subject: Re: [patch v3]numa: add a sysctl to control interleave allocation
+ granularity from each node to improve I/O performance
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <1323912471.22361.431.camel@sli10-conroe>
+References: <1323655125.22361.376.camel@sli10-conroe>
+	 <20111213190632.GA5830@tassilo.jf.intel.com>
+	 <alpine.DEB.2.00.1112131412320.27186@router.home>
+	 <20111213203856.GA6312@tassilo.jf.intel.com>
+	 <1323830027.22361.401.camel@sli10-conroe>
+	 <20111214175302.GA2600@alboin.jf.intel.com>
+	 <1323912471.22361.431.camel@sli10-conroe>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 09 Jan 2012 15:31:52 +0800
+Message-ID: <1326094312.22361.557.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>
 
-sorry for the noise.
+On Thu, 2011-12-15 at 09:27 +0800, Shaohua Li wrote:
+> On Thu, 2011-12-15 at 01:53 +0800, Andi Kleen wrote:
+> > > That's what I want to avoid letting each apps to explicitly do it, it's
+> > > a lot of burden.
+> > 
+> > Usually apps that set NUMA policy can change it. Most don't anyways.
+> > If it's just a script with numactl it's easily changed.
+> Hmm, why should apps set different granularity? the granularity change
+> is to speed up I/O, which should have the same value for all apps.
+> 
+> > > That's true only workload with heavy I/O wants this. but I don't expect
+> > > it will harm other workloads.
+> > 
+> > How do you know?
+> I can't imagine how it could harm. Some arches can use big pages, big
+> granularity should already been tested for years.
+ping ...
 
-Please ignore this patch.
-
-On Mon, Jan 9, 2012 at 11:06 AM, Huang Shijie <shijie8@gmail.com> wrote:
-> The current code does keep the same meaning as the original code.
-> The patch fixes it.
->
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> ---
-> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A02 +-
-> =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bdc804c..63f9026 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1435,7 +1435,7 @@ static bool __zone_watermark_ok(struct zone *z, int=
- order, unsigned long mark,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0long min =3D mark;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0int o;
->
-> - =C2=A0 =C2=A0 =C2=A0 free_pages -=3D (1 << order) + 1;
-> + =C2=A0 =C2=A0 =C2=A0 free_pages -=3D (1 << order) - 1;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (alloc_flags & ALLOC_HIGH)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0min -=3D min / 2;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (alloc_flags & ALLOC_HARDER)
-> --
-> 1.7.4
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
