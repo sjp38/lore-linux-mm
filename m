@@ -1,36 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 989ED6B005C
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 09:04:14 -0500 (EST)
-Date: Mon, 9 Jan 2012 15:04:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND, PATCH 4/6] memcg: fix broken boolean expression
-Message-ID: <20120109140404.GG3588@cmpxchg.org>
-References: <1325883472-5614-1-git-send-email-kirill@shutemov.name>
- <1325883472-5614-4-git-send-email-kirill@shutemov.name>
+Received: from psmtp.com (na6sys010bmx109.postini.com [74.125.246.209])
+	by kanga.kvack.org (Postfix) with SMTP id E91AF6B005C
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 10:17:05 -0500 (EST)
+Received: by vbbfn1 with SMTP id fn1so3392775vbb.14
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 07:17:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1325883472-5614-4-git-send-email-kirill@shutemov.name>
+In-Reply-To: <CAAQKjZMEsuib18RYE7OvZPUqhKnvrZ8i3+EMuZSXr9KPVygo_Q@mail.gmail.com>
+References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
+	<1322816252-19955-2-git-send-email-sumit.semwal@ti.com>
+	<CAAQKjZPFh6666JKc-XJfKYePQ_F0MNF6FkY=zKypWb52VVX3YQ@mail.gmail.com>
+	<20120109081030.GA3723@phenom.ffwll.local>
+	<CAAQKjZMEsuib18RYE7OvZPUqhKnvrZ8i3+EMuZSXr9KPVygo_Q@mail.gmail.com>
+Date: Mon, 9 Jan 2012 09:17:05 -0600
+Message-ID: <CAF6AEGsTGOxyTX6Xijvm8UXGjtVTtYg5X5xfJo8D+47o+xU+bA@mail.gmail.com>
+Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
+From: Rob Clark <rob@ti.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, stable@kernel.org
+To: InKi Dae <daeinki@gmail.com>
+Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, t.stanislaws@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>, daniel@ffwll.ch
 
-On Fri, Jan 06, 2012 at 10:57:50PM +0200, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> 
-> action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: <stable@kernel.org>
+On Mon, Jan 9, 2012 at 4:10 AM, InKi Dae <daeinki@gmail.com> wrote:
+> note : in case of sharing a buffer between v4l2 and drm driver, the
+> memory info would be copied vb2_xx_buf to xx_gem or xx_gem to
+> vb2_xx_buf through sg table. in this case, only memory info is used to
+> share, not some objects.
 
-I think you don't need to actually CC stable via email.  If you
-include that tag, they will pick it up once the patch hits mainline.
+which v4l2/vb2 patches are you looking at?  The patches I was using,
+vb2 holds a reference to the 'struct dma_buf *' internally, not just
+keeping the sg_table
 
-The changelog is too terse, doubly so for a patch that should go into
-stable.  How is the code supposed to work?  What are the consequences
-of the bug?
+BR,
+-R
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
