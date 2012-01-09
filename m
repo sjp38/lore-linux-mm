@@ -1,249 +1,709 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 6CCD56B0073
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:53:39 -0500 (EST)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id AC27F6B0074
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:54:11 -0500 (EST)
 Received: from /spool/local
-	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 9 Jan 2012 17:53:38 -0500
+	Mon, 9 Jan 2012 17:53:58 -0500
 Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q09MqTMa177148
-	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:34 -0500
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q09MqVas306604
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:35 -0500
 Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q09MqRF8005915
-	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:28 -0500
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q09MqU1G006195
+	for <linux-mm@kvack.org>; Mon, 9 Jan 2012 17:52:31 -0500
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
-Date: Mon,  9 Jan 2012 16:51:58 -0600
-Message-Id: <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 5/5] staging: zram: remove xvmalloc
+Date: Mon,  9 Jan 2012 16:52:00 -0600
+Message-Id: <1326149520-31720-6-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@suse.de>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+Cc: Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Replaces xvmalloc with zsmalloc as the persistent memory allocator
-for zcache
+From: Nitin Gupta <ngupta@vflare.org>
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Removes the xvmalloc allocator code from the zram driver
+
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/Kconfig       |    2 +-
- drivers/staging/zcache/zcache-main.c |   83 +++++++++++++++++----------------
- 2 files changed, 44 insertions(+), 41 deletions(-)
+ drivers/staging/Makefile            |    1 -
+ drivers/staging/zram/xvmalloc.c     |  510 -----------------------------------
+ drivers/staging/zram/xvmalloc.h     |   30 --
+ drivers/staging/zram/xvmalloc_int.h |   95 -------
+ 4 files changed, 0 insertions(+), 636 deletions(-)
+ delete mode 100644 drivers/staging/zram/xvmalloc.c
+ delete mode 100644 drivers/staging/zram/xvmalloc.h
+ delete mode 100644 drivers/staging/zram/xvmalloc_int.h
 
-diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-index 1b7bba7..94e48aa 100644
---- a/drivers/staging/zcache/Kconfig
-+++ b/drivers/staging/zcache/Kconfig
-@@ -1,7 +1,7 @@
- config ZCACHE
- 	tristate "Dynamic compression of swap pages and clean pagecache pages"
- 	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO
--	select XVMALLOC
-+	select ZSMALLOC
- 	select CRYPTO_LZO
- 	default n
- 	help
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 2faa9a7..bcc8440 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -9,7 +9,7 @@
-  * page-accessible memory [1] interfaces, both utilizing the crypto compression
-  * API:
-  * 1) "compression buddies" ("zbud") is used for ephemeral pages
-- * 2) xvmalloc is used for persistent pages.
-+ * 2) zsmalloc is used for persistent pages.
-  * Xvmalloc (based on the TLSF allocator) has very low fragmentation
-  * so maximizes space efficiency, while zbud allows pairs (and potentially,
-  * in the future, more than a pair of) compressed pages to be closely linked
-@@ -33,7 +33,7 @@
- #include <linux/string.h>
- #include "tmem.h"
- 
--#include "../zram/xvmalloc.h" /* if built in drivers/staging */
-+#include "../zsmalloc/zsmalloc.h"
- 
- #if (!defined(CONFIG_CLEANCACHE) && !defined(CONFIG_FRONTSWAP))
- #error "zcache is useless without CONFIG_CLEANCACHE or CONFIG_FRONTSWAP"
-@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
- 
- struct zcache_client {
- 	struct tmem_pool *tmem_pools[MAX_POOLS_PER_CLIENT];
--	struct xv_pool *xvpool;
-+	struct zs_pool *zspool;
- 	bool allocated;
- 	atomic_t refcount;
- };
-@@ -658,7 +658,7 @@ static int zbud_show_cumul_chunk_counts(char *buf)
- #endif
- 
- /**********
-- * This "zv" PAM implementation combines the TLSF-based xvMalloc
-+ * This "zv" PAM implementation combines the slab-based zsmalloc
-  * with the crypto compression API to maximize the amount of data that can
-  * be packed into a physical page.
-  *
-@@ -672,6 +672,7 @@ struct zv_hdr {
- 	uint32_t pool_id;
- 	struct tmem_oid oid;
- 	uint32_t index;
-+	size_t size;
- 	DECL_SENTINEL
- };
- 
-@@ -693,71 +694,73 @@ static unsigned int zv_max_mean_zsize = (PAGE_SIZE / 8) * 5;
- static atomic_t zv_curr_dist_counts[NCHUNKS];
- static atomic_t zv_cumul_dist_counts[NCHUNKS];
- 
--static struct zv_hdr *zv_create(struct xv_pool *xvpool, uint32_t pool_id,
-+static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
- 				struct tmem_oid *oid, uint32_t index,
- 				void *cdata, unsigned clen)
- {
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index c4b60db..1fa978a 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -36,7 +36,6 @@ obj-$(CONFIG_VME_BUS)		+= vme/
+ obj-$(CONFIG_DX_SEP)            += sep/
+ obj-$(CONFIG_IIO)		+= iio/
+ obj-$(CONFIG_ZRAM)		+= zram/
+-obj-$(CONFIG_XVMALLOC)		+= zram/
+ obj-$(CONFIG_ZCACHE)		+= zcache/
+ obj-$(CONFIG_ZSMALLOC)		+= zsmalloc/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+diff --git a/drivers/staging/zram/xvmalloc.c b/drivers/staging/zram/xvmalloc.c
+deleted file mode 100644
+index 1f9c508..0000000
+--- a/drivers/staging/zram/xvmalloc.c
++++ /dev/null
+@@ -1,510 +0,0 @@
+-/*
+- * xvmalloc memory allocator
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- */
+-
+-#ifdef CONFIG_ZRAM_DEBUG
+-#define DEBUG
+-#endif
+-
+-#include <linux/module.h>
+-#include <linux/kernel.h>
+-#include <linux/bitops.h>
+-#include <linux/errno.h>
+-#include <linux/highmem.h>
+-#include <linux/init.h>
+-#include <linux/string.h>
+-#include <linux/slab.h>
+-
+-#include "xvmalloc.h"
+-#include "xvmalloc_int.h"
+-
+-static void stat_inc(u64 *value)
+-{
+-	*value = *value + 1;
+-}
+-
+-static void stat_dec(u64 *value)
+-{
+-	*value = *value - 1;
+-}
+-
+-static int test_flag(struct block_header *block, enum blockflags flag)
+-{
+-	return block->prev & BIT(flag);
+-}
+-
+-static void set_flag(struct block_header *block, enum blockflags flag)
+-{
+-	block->prev |= BIT(flag);
+-}
+-
+-static void clear_flag(struct block_header *block, enum blockflags flag)
+-{
+-	block->prev &= ~BIT(flag);
+-}
+-
+-/*
+- * Given <page, offset> pair, provide a dereferencable pointer.
+- * This is called from xv_malloc/xv_free path, so it
+- * needs to be fast.
+- */
+-static void *get_ptr_atomic(struct page *page, u16 offset, enum km_type type)
+-{
+-	unsigned char *base;
+-
+-	base = kmap_atomic(page, type);
+-	return base + offset;
+-}
+-
+-static void put_ptr_atomic(void *ptr, enum km_type type)
+-{
+-	kunmap_atomic(ptr, type);
+-}
+-
+-static u32 get_blockprev(struct block_header *block)
+-{
+-	return block->prev & PREV_MASK;
+-}
+-
+-static void set_blockprev(struct block_header *block, u16 new_offset)
+-{
+-	block->prev = new_offset | (block->prev & FLAGS_MASK);
+-}
+-
+-static struct block_header *BLOCK_NEXT(struct block_header *block)
+-{
+-	return (struct block_header *)
+-		((char *)block + block->size + XV_ALIGN);
+-}
+-
+-/*
+- * Get index of free list containing blocks of maximum size
+- * which is less than or equal to given size.
+- */
+-static u32 get_index_for_insert(u32 size)
+-{
+-	if (unlikely(size > XV_MAX_ALLOC_SIZE))
+-		size = XV_MAX_ALLOC_SIZE;
+-	size &= ~FL_DELTA_MASK;
+-	return (size - XV_MIN_ALLOC_SIZE) >> FL_DELTA_SHIFT;
+-}
+-
+-/*
+- * Get index of free list having blocks of size greater than
+- * or equal to requested size.
+- */
+-static u32 get_index(u32 size)
+-{
+-	if (unlikely(size < XV_MIN_ALLOC_SIZE))
+-		size = XV_MIN_ALLOC_SIZE;
+-	size = ALIGN(size, FL_DELTA);
+-	return (size - XV_MIN_ALLOC_SIZE) >> FL_DELTA_SHIFT;
+-}
+-
+-/**
+- * find_block - find block of at least given size
+- * @pool: memory pool to search from
+- * @size: size of block required
+- * @page: page containing required block
+- * @offset: offset within the page where block is located.
+- *
+- * Searches two level bitmap to locate block of at least
+- * the given size. If such a block is found, it provides
+- * <page, offset> to identify this block and returns index
+- * in freelist where we found this block.
+- * Otherwise, returns 0 and <page, offset> params are not touched.
+- */
+-static u32 find_block(struct xv_pool *pool, u32 size,
+-			struct page **page, u32 *offset)
+-{
+-	ulong flbitmap, slbitmap;
+-	u32 flindex, slindex, slbitstart;
+-
+-	/* There are no free blocks in this pool */
+-	if (!pool->flbitmap)
+-		return 0;
+-
+-	/* Get freelist index correspoding to this size */
+-	slindex = get_index(size);
+-	slbitmap = pool->slbitmap[slindex / BITS_PER_LONG];
+-	slbitstart = slindex % BITS_PER_LONG;
+-
+-	/*
+-	 * If freelist is not empty at this index, we found the
+-	 * block - head of this list. This is approximate best-fit match.
+-	 */
+-	if (test_bit(slbitstart, &slbitmap)) {
+-		*page = pool->freelist[slindex].page;
+-		*offset = pool->freelist[slindex].offset;
+-		return slindex;
+-	}
+-
+-	/*
+-	 * No best-fit found. Search a bit further in bitmap for a free block.
+-	 * Second level bitmap consists of series of 32-bit chunks. Search
+-	 * further in the chunk where we expected a best-fit, starting from
+-	 * index location found above.
+-	 */
+-	slbitstart++;
+-	slbitmap >>= slbitstart;
+-
+-	/* Skip this search if we were already at end of this bitmap chunk */
+-	if ((slbitstart != BITS_PER_LONG) && slbitmap) {
+-		slindex += __ffs(slbitmap) + 1;
+-		*page = pool->freelist[slindex].page;
+-		*offset = pool->freelist[slindex].offset;
+-		return slindex;
+-	}
+-
+-	/* Now do a full two-level bitmap search to find next nearest fit */
+-	flindex = slindex / BITS_PER_LONG;
+-
+-	flbitmap = (pool->flbitmap) >> (flindex + 1);
+-	if (!flbitmap)
+-		return 0;
+-
+-	flindex += __ffs(flbitmap) + 1;
+-	slbitmap = pool->slbitmap[flindex];
+-	slindex = (flindex * BITS_PER_LONG) + __ffs(slbitmap);
+-	*page = pool->freelist[slindex].page;
+-	*offset = pool->freelist[slindex].offset;
+-
+-	return slindex;
+-}
+-
+-/*
+- * Insert block at <page, offset> in freelist of given pool.
+- * freelist used depends on block size.
+- */
+-static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
+-			struct block_header *block)
+-{
+-	u32 flindex, slindex;
+-	struct block_header *nextblock;
+-
+-	slindex = get_index_for_insert(block->size);
+-	flindex = slindex / BITS_PER_LONG;
+-
+-	block->link.prev_page = NULL;
+-	block->link.prev_offset = 0;
+-	block->link.next_page = pool->freelist[slindex].page;
+-	block->link.next_offset = pool->freelist[slindex].offset;
+-	pool->freelist[slindex].page = page;
+-	pool->freelist[slindex].offset = offset;
+-
+-	if (block->link.next_page) {
+-		nextblock = get_ptr_atomic(block->link.next_page,
+-					block->link.next_offset, KM_USER1);
+-		nextblock->link.prev_page = page;
+-		nextblock->link.prev_offset = offset;
+-		put_ptr_atomic(nextblock, KM_USER1);
+-		/* If there was a next page then the free bits are set. */
+-		return;
+-	}
+-
+-	__set_bit(slindex % BITS_PER_LONG, &pool->slbitmap[flindex]);
+-	__set_bit(flindex, &pool->flbitmap);
+-}
+-
+-/*
+- * Remove block from freelist. Index 'slindex' identifies the freelist.
+- */
+-static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
+-			struct block_header *block, u32 slindex)
+-{
+-	u32 flindex = slindex / BITS_PER_LONG;
+-	struct block_header *tmpblock;
+-
+-	if (block->link.prev_page) {
+-		tmpblock = get_ptr_atomic(block->link.prev_page,
+-				block->link.prev_offset, KM_USER1);
+-		tmpblock->link.next_page = block->link.next_page;
+-		tmpblock->link.next_offset = block->link.next_offset;
+-		put_ptr_atomic(tmpblock, KM_USER1);
+-	}
+-
+-	if (block->link.next_page) {
+-		tmpblock = get_ptr_atomic(block->link.next_page,
+-				block->link.next_offset, KM_USER1);
+-		tmpblock->link.prev_page = block->link.prev_page;
+-		tmpblock->link.prev_offset = block->link.prev_offset;
+-		put_ptr_atomic(tmpblock, KM_USER1);
+-	}
+-
+-	/* Is this block is at the head of the freelist? */
+-	if (pool->freelist[slindex].page == page
+-	   && pool->freelist[slindex].offset == offset) {
+-
+-		pool->freelist[slindex].page = block->link.next_page;
+-		pool->freelist[slindex].offset = block->link.next_offset;
+-
+-		if (pool->freelist[slindex].page) {
+-			struct block_header *tmpblock;
+-			tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
+-					pool->freelist[slindex].offset,
+-					KM_USER1);
+-			tmpblock->link.prev_page = NULL;
+-			tmpblock->link.prev_offset = 0;
+-			put_ptr_atomic(tmpblock, KM_USER1);
+-		} else {
+-			/* This freelist bucket is empty */
+-			__clear_bit(slindex % BITS_PER_LONG,
+-				    &pool->slbitmap[flindex]);
+-			if (!pool->slbitmap[flindex])
+-				__clear_bit(flindex, &pool->flbitmap);
+-		}
+-	}
+-
+-	block->link.prev_page = NULL;
+-	block->link.prev_offset = 0;
+-	block->link.next_page = NULL;
+-	block->link.next_offset = 0;
+-}
+-
+-/*
+- * Allocate a page and add it to freelist of given pool.
+- */
+-static int grow_pool(struct xv_pool *pool, gfp_t flags)
+-{
 -	struct page *page;
--	struct zv_hdr *zv = NULL;
--	uint32_t offset;
--	int alloc_size = clen + sizeof(struct zv_hdr);
--	int chunks = (alloc_size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
--	int ret;
-+	struct zv_hdr *zv;
-+	u32 size = clen + sizeof(struct zv_hdr);
-+	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
-+	void *handle = NULL;
-+	char *buf;
- 
- 	BUG_ON(!irqs_disabled());
- 	BUG_ON(chunks >= NCHUNKS);
--	ret = xv_malloc(xvpool, alloc_size,
--			&page, &offset, ZCACHE_GFP_MASK);
--	if (unlikely(ret))
-+	handle = zs_malloc(pool, size);
-+	if (!handle)
- 		goto out;
- 	atomic_inc(&zv_curr_dist_counts[chunks]);
- 	atomic_inc(&zv_cumul_dist_counts[chunks]);
--	zv = kmap_atomic(page, KM_USER0) + offset;
-+	zv = (struct zv_hdr *)((char *)cdata - sizeof(*zv));
- 	zv->index = index;
- 	zv->oid = *oid;
- 	zv->pool_id = pool_id;
-+	zv->size = clen;
- 	SET_SENTINEL(zv, ZVH);
--	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
--	kunmap_atomic(zv, KM_USER0);
-+	buf = zs_map_object(pool, handle);
-+	memcpy(buf, zv, clen + sizeof(*zv));
-+	zs_unmap_object(pool, handle);
- out:
--	return zv;
-+	return handle;
- }
- 
--static void zv_free(struct xv_pool *xvpool, struct zv_hdr *zv)
-+static void zv_free(struct zs_pool *pool, void *handle)
- {
- 	unsigned long flags;
+-	struct block_header *block;
+-
+-	page = alloc_page(flags);
+-	if (unlikely(!page))
+-		return -ENOMEM;
+-
+-	stat_inc(&pool->total_pages);
+-
+-	spin_lock(&pool->lock);
+-	block = get_ptr_atomic(page, 0, KM_USER0);
+-
+-	block->size = PAGE_SIZE - XV_ALIGN;
+-	set_flag(block, BLOCK_FREE);
+-	clear_flag(block, PREV_FREE);
+-	set_blockprev(block, 0);
+-
+-	insert_block(pool, page, 0, block);
+-
+-	put_ptr_atomic(block, KM_USER0);
+-	spin_unlock(&pool->lock);
+-
+-	return 0;
+-}
+-
+-/*
+- * Create a memory pool. Allocates freelist, bitmaps and other
+- * per-pool metadata.
+- */
+-struct xv_pool *xv_create_pool(void)
+-{
+-	u32 ovhd_size;
+-	struct xv_pool *pool;
+-
+-	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+-	pool = kzalloc(ovhd_size, GFP_KERNEL);
+-	if (!pool)
+-		return NULL;
+-
+-	spin_lock_init(&pool->lock);
+-
+-	return pool;
+-}
+-EXPORT_SYMBOL_GPL(xv_create_pool);
+-
+-void xv_destroy_pool(struct xv_pool *pool)
+-{
+-	kfree(pool);
+-}
+-EXPORT_SYMBOL_GPL(xv_destroy_pool);
+-
+-/**
+- * xv_malloc - Allocate block of given size from pool.
+- * @pool: pool to allocate from
+- * @size: size of block to allocate
+- * @page: page no. that holds the object
+- * @offset: location of object within page
+- *
+- * On success, <page, offset> identifies block allocated
+- * and 0 is returned. On failure, <page, offset> is set to
+- * 0 and -ENOMEM is returned.
+- *
+- * Allocation requests with size > XV_MAX_ALLOC_SIZE will fail.
+- */
+-int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
+-		u32 *offset, gfp_t flags)
+-{
+-	int error;
+-	u32 index, tmpsize, origsize, tmpoffset;
+-	struct block_header *block, *tmpblock;
+-
+-	*page = NULL;
+-	*offset = 0;
+-	origsize = size;
+-
+-	if (unlikely(!size || size > XV_MAX_ALLOC_SIZE))
+-		return -ENOMEM;
+-
+-	size = ALIGN(size, XV_ALIGN);
+-
+-	spin_lock(&pool->lock);
+-
+-	index = find_block(pool, size, page, offset);
+-
+-	if (!*page) {
+-		spin_unlock(&pool->lock);
+-		if (flags & GFP_NOWAIT)
+-			return -ENOMEM;
+-		error = grow_pool(pool, flags);
+-		if (unlikely(error))
+-			return error;
+-
+-		spin_lock(&pool->lock);
+-		index = find_block(pool, size, page, offset);
+-	}
+-
+-	if (!*page) {
+-		spin_unlock(&pool->lock);
+-		return -ENOMEM;
+-	}
+-
+-	block = get_ptr_atomic(*page, *offset, KM_USER0);
+-
+-	remove_block(pool, *page, *offset, block, index);
+-
+-	/* Split the block if required */
+-	tmpoffset = *offset + size + XV_ALIGN;
+-	tmpsize = block->size - size;
+-	tmpblock = (struct block_header *)((char *)block + size + XV_ALIGN);
+-	if (tmpsize) {
+-		tmpblock->size = tmpsize - XV_ALIGN;
+-		set_flag(tmpblock, BLOCK_FREE);
+-		clear_flag(tmpblock, PREV_FREE);
+-
+-		set_blockprev(tmpblock, *offset);
+-		if (tmpblock->size >= XV_MIN_ALLOC_SIZE)
+-			insert_block(pool, *page, tmpoffset, tmpblock);
+-
+-		if (tmpoffset + XV_ALIGN + tmpblock->size != PAGE_SIZE) {
+-			tmpblock = BLOCK_NEXT(tmpblock);
+-			set_blockprev(tmpblock, tmpoffset);
+-		}
+-	} else {
+-		/* This block is exact fit */
+-		if (tmpoffset != PAGE_SIZE)
+-			clear_flag(tmpblock, PREV_FREE);
+-	}
+-
+-	block->size = origsize;
+-	clear_flag(block, BLOCK_FREE);
+-
+-	put_ptr_atomic(block, KM_USER0);
+-	spin_unlock(&pool->lock);
+-
+-	*offset += XV_ALIGN;
+-
+-	return 0;
+-}
+-EXPORT_SYMBOL_GPL(xv_malloc);
+-
+-/*
+- * Free block identified with <page, offset>
+- */
+-void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
+-{
+-	void *page_start;
+-	struct block_header *block, *tmpblock;
+-
+-	offset -= XV_ALIGN;
+-
+-	spin_lock(&pool->lock);
+-
+-	page_start = get_ptr_atomic(page, 0, KM_USER0);
+-	block = (struct block_header *)((char *)page_start + offset);
+-
+-	/* Catch double free bugs */
+-	BUG_ON(test_flag(block, BLOCK_FREE));
+-
+-	block->size = ALIGN(block->size, XV_ALIGN);
+-
+-	tmpblock = BLOCK_NEXT(block);
+-	if (offset + block->size + XV_ALIGN == PAGE_SIZE)
+-		tmpblock = NULL;
+-
+-	/* Merge next block if its free */
+-	if (tmpblock && test_flag(tmpblock, BLOCK_FREE)) {
+-		/*
+-		 * Blocks smaller than XV_MIN_ALLOC_SIZE
+-		 * are not inserted in any free list.
+-		 */
+-		if (tmpblock->size >= XV_MIN_ALLOC_SIZE) {
+-			remove_block(pool, page,
+-				    offset + block->size + XV_ALIGN, tmpblock,
+-				    get_index_for_insert(tmpblock->size));
+-		}
+-		block->size += tmpblock->size + XV_ALIGN;
+-	}
+-
+-	/* Merge previous block if its free */
+-	if (test_flag(block, PREV_FREE)) {
+-		tmpblock = (struct block_header *)((char *)(page_start) +
+-						get_blockprev(block));
+-		offset = offset - tmpblock->size - XV_ALIGN;
+-
+-		if (tmpblock->size >= XV_MIN_ALLOC_SIZE)
+-			remove_block(pool, page, offset, tmpblock,
+-				    get_index_for_insert(tmpblock->size));
+-
+-		tmpblock->size += block->size + XV_ALIGN;
+-		block = tmpblock;
+-	}
+-
+-	/* No used objects in this page. Free it. */
+-	if (block->size == PAGE_SIZE - XV_ALIGN) {
+-		put_ptr_atomic(page_start, KM_USER0);
+-		spin_unlock(&pool->lock);
+-
+-		__free_page(page);
+-		stat_dec(&pool->total_pages);
+-		return;
+-	}
+-
+-	set_flag(block, BLOCK_FREE);
+-	if (block->size >= XV_MIN_ALLOC_SIZE)
+-		insert_block(pool, page, offset, block);
+-
+-	if (offset + block->size + XV_ALIGN != PAGE_SIZE) {
+-		tmpblock = BLOCK_NEXT(block);
+-		set_flag(tmpblock, PREV_FREE);
+-		set_blockprev(tmpblock, offset);
+-	}
+-
+-	put_ptr_atomic(page_start, KM_USER0);
+-	spin_unlock(&pool->lock);
+-}
+-EXPORT_SYMBOL_GPL(xv_free);
+-
+-u32 xv_get_object_size(void *obj)
+-{
+-	struct block_header *blk;
+-
+-	blk = (struct block_header *)((char *)(obj) - XV_ALIGN);
+-	return blk->size;
+-}
+-EXPORT_SYMBOL_GPL(xv_get_object_size);
+-
+-/*
+- * Returns total memory used by allocator (userdata + metadata)
+- */
+-u64 xv_get_total_size_bytes(struct xv_pool *pool)
+-{
+-	return pool->total_pages << PAGE_SHIFT;
+-}
+-EXPORT_SYMBOL_GPL(xv_get_total_size_bytes);
+diff --git a/drivers/staging/zram/xvmalloc.h b/drivers/staging/zram/xvmalloc.h
+deleted file mode 100644
+index 5b1a81a..0000000
+--- a/drivers/staging/zram/xvmalloc.h
++++ /dev/null
+@@ -1,30 +0,0 @@
+-/*
+- * xvmalloc memory allocator
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- */
+-
+-#ifndef _XV_MALLOC_H_
+-#define _XV_MALLOC_H_
+-
+-#include <linux/types.h>
+-
+-struct xv_pool;
+-
+-struct xv_pool *xv_create_pool(void);
+-void xv_destroy_pool(struct xv_pool *pool);
+-
+-int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
+-			u32 *offset, gfp_t flags);
+-void xv_free(struct xv_pool *pool, struct page *page, u32 offset);
+-
+-u32 xv_get_object_size(void *obj);
+-u64 xv_get_total_size_bytes(struct xv_pool *pool);
+-
+-#endif
+diff --git a/drivers/staging/zram/xvmalloc_int.h b/drivers/staging/zram/xvmalloc_int.h
+deleted file mode 100644
+index b5f1f7f..0000000
+--- a/drivers/staging/zram/xvmalloc_int.h
++++ /dev/null
+@@ -1,95 +0,0 @@
+-/*
+- * xvmalloc memory allocator
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- */
+-
+-#ifndef _XV_MALLOC_INT_H_
+-#define _XV_MALLOC_INT_H_
+-
+-#include <linux/kernel.h>
+-#include <linux/types.h>
+-
+-/* User configurable params */
+-
+-/* Must be power of two */
+-#ifdef CONFIG_64BIT
+-#define XV_ALIGN_SHIFT 3
+-#else
+-#define XV_ALIGN_SHIFT	2
+-#endif
+-#define XV_ALIGN	(1 << XV_ALIGN_SHIFT)
+-#define XV_ALIGN_MASK	(XV_ALIGN - 1)
+-
+-/* This must be greater than sizeof(link_free) */
+-#define XV_MIN_ALLOC_SIZE	32
+-#define XV_MAX_ALLOC_SIZE	(PAGE_SIZE - XV_ALIGN)
+-
+-/*
+- * Free lists are separated by FL_DELTA bytes
+- * This value is 3 for 4k pages and 4 for 64k pages, for any
+- * other page size, a conservative (PAGE_SHIFT - 9) is used.
+- */
+-#if PAGE_SHIFT == 16
+-#define FL_DELTA_SHIFT 4
+-#else
+-#define FL_DELTA_SHIFT (PAGE_SHIFT - 9)
+-#endif
+-#define FL_DELTA	(1 << FL_DELTA_SHIFT)
+-#define FL_DELTA_MASK	(FL_DELTA - 1)
+-#define NUM_FREE_LISTS	((XV_MAX_ALLOC_SIZE - XV_MIN_ALLOC_SIZE) \
+-				/ FL_DELTA + 1)
+-
+-#define MAX_FLI		DIV_ROUND_UP(NUM_FREE_LISTS, BITS_PER_LONG)
+-
+-/* End of user params */
+-
+-enum blockflags {
+-	BLOCK_FREE,
+-	PREV_FREE,
+-	__NR_BLOCKFLAGS,
+-};
+-
+-#define FLAGS_MASK	XV_ALIGN_MASK
+-#define PREV_MASK	(~FLAGS_MASK)
+-
+-struct freelist_entry {
 -	struct page *page;
--	uint32_t offset;
--	uint16_t size = xv_get_object_size(zv);
--	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
-+	struct zv_hdr *zv;
-+	uint16_t size;
-+	int chunks;
- 
-+	zv = zs_map_object(pool, handle);
- 	ASSERT_SENTINEL(zv, ZVH);
-+	size = zv->size + sizeof(struct zv_hdr);
-+	INVERT_SENTINEL(zv, ZVH);
-+	zs_unmap_object(pool, handle);
-+
-+	chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
- 	BUG_ON(chunks >= NCHUNKS);
- 	atomic_dec(&zv_curr_dist_counts[chunks]);
--	size -= sizeof(*zv);
--	BUG_ON(size == 0);
--	INVERT_SENTINEL(zv, ZVH);
--	page = virt_to_page(zv);
--	offset = (unsigned long)zv & ~PAGE_MASK;
-+
- 	local_irq_save(flags);
--	xv_free(xvpool, page, offset);
-+	zs_free(pool, handle);
- 	local_irq_restore(flags);
- }
- 
--static void zv_decompress(struct page *page, struct zv_hdr *zv)
-+static void zv_decompress(struct page *page, void *handle)
- {
- 	unsigned int clen = PAGE_SIZE;
- 	char *to_va;
--	unsigned size;
- 	int ret;
-+	struct zv_hdr *zv;
- 
-+	zv = zs_map_object(zcache_host.zspool, handle);
-+	BUG_ON(zv->size == 0);
- 	ASSERT_SENTINEL(zv, ZVH);
--	size = xv_get_object_size(zv) - sizeof(*zv);
--	BUG_ON(size == 0);
- 	to_va = kmap_atomic(page, KM_USER0);
- 	ret = zcache_comp_op(ZCACHE_COMPOP_DECOMPRESS, (char *)zv + sizeof(*zv),
--				size, to_va, &clen);
-+				zv->size, to_va, &clen);
- 	kunmap_atomic(to_va, KM_USER0);
-+	zs_unmap_object(zcache_host.zspool, handle);
- 	BUG_ON(ret);
- 	BUG_ON(clen != PAGE_SIZE);
- }
-@@ -984,8 +987,8 @@ int zcache_new_client(uint16_t cli_id)
- 		goto out;
- 	cli->allocated = 1;
- #ifdef CONFIG_FRONTSWAP
--	cli->xvpool = xv_create_pool();
--	if (cli->xvpool == NULL)
-+	cli->zspool = zs_create_pool("zcache", ZCACHE_GFP_MASK);
-+	if (cli->zspool == NULL)
- 		goto out;
- #endif
- 	ret = 0;
-@@ -1216,7 +1219,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
- 		}
- 		/* reject if mean compression is too poor */
- 		if ((clen > zv_max_mean_zsize) && (curr_pers_pampd_count > 0)) {
--			total_zsize = xv_get_total_size_bytes(cli->xvpool);
-+			total_zsize = zs_get_total_size_bytes(cli->zspool);
- 			zv_mean_zsize = div_u64(total_zsize,
- 						curr_pers_pampd_count);
- 			if (zv_mean_zsize > zv_max_mean_zsize) {
-@@ -1224,7 +1227,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
- 				goto out;
- 			}
- 		}
--		pampd = (void *)zv_create(cli->xvpool, pool->pool_id,
-+		pampd = (void *)zv_create(cli->zspool, pool->pool_id,
- 						oid, index, cdata, clen);
- 		if (pampd == NULL)
- 			goto out;
-@@ -1282,7 +1285,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
- 		atomic_dec(&zcache_curr_eph_pampd_count);
- 		BUG_ON(atomic_read(&zcache_curr_eph_pampd_count) < 0);
- 	} else {
--		zv_free(cli->xvpool, (struct zv_hdr *)pampd);
-+		zv_free(cli->zspool, pampd);
- 		atomic_dec(&zcache_curr_pers_pampd_count);
- 		BUG_ON(atomic_read(&zcache_curr_pers_pampd_count) < 0);
- 	}
-@@ -2072,7 +2075,7 @@ static int __init zcache_init(void)
- 
- 		old_ops = zcache_frontswap_register_ops();
- 		pr_info("zcache: frontswap enabled using kernel "
--			"transcendent memory and xvmalloc\n");
-+			"transcendent memory and zsmalloc\n");
- 		if (old_ops.init != NULL)
- 			pr_warning("zcache: frontswap_ops overridden");
- 	}
+-	u16 offset;
+-	u16 pad;
+-};
+-
+-struct link_free {
+-	struct page *prev_page;
+-	struct page *next_page;
+-	u16 prev_offset;
+-	u16 next_offset;
+-};
+-
+-struct block_header {
+-	union {
+-		/* This common header must be XV_ALIGN bytes */
+-		u8 common[XV_ALIGN];
+-		struct {
+-			u16 size;
+-			u16 prev;
+-		};
+-	};
+-	struct link_free link;
+-};
+-
+-struct xv_pool {
+-	ulong flbitmap;
+-	ulong slbitmap[MAX_FLI];
+-	u64 total_pages;	/* stats */
+-	struct freelist_entry freelist[NUM_FREE_LISTS];
+-	spinlock_t lock;
+-};
+-
+-#endif
 -- 
 1.7.5.4
 
