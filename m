@@ -1,49 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 5FD4A6B005A
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 15:55:11 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so2114859ghr.14
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 12:55:10 -0800 (PST)
-Date: Mon, 9 Jan 2012 12:55:06 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
-In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com>
-Message-ID: <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com> <20120104195521.GA19181@suse.de> <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 1DE5A6B005A
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 17:25:26 -0500 (EST)
+Received: by iacb35 with SMTP id b35so9027808iac.14
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 14:25:25 -0800 (PST)
+Date: Mon, 9 Jan 2012 14:25:06 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after
+ swap
+In-Reply-To: <4F0B5146.6090200@gmail.com>
+Message-ID: <alpine.LSU.2.00.1201091342300.1272@eggly.anvils>
+References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils> <alpine.LSU.2.00.1201061310340.12082@eggly.anvils> <4F0B5146.6090200@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 9 Jan 2012, leonid.moiseichuk@nokia.com wrote:
+On Mon, 9 Jan 2012, KOSAKI Motohiro wrote:
+> 2012/1/6 Hugh Dickins <hughd@google.com>:
 
-> > I'm not sure why you need to detect low memory thresholds if you're not
-> > interested in using the memory controller, why not just use the oom killer
-> > delay that I suggested earlier and allow userspace to respond to conditions
-> > when you are known to failed reclaim and require that something be killed?
+[ check_move_unevictable_page(s) ]
+
+> > 
+> > Leave out the "rotate unevictable list" block: that's a leftover
+> > from when this was used for /proc/sys/vm/scan_unevictable_pages,
+> > whose flawed handling involved looking at pages at tail of LRU.
+> > 
+> > Was there significance to the sequence first ClearPageUnevictable,
+> > then test page_evictable, then SetPageUnevictable here?  I think
+> > not, we're under LRU lock, and have no barriers between those.
 > 
-> As I understand that is required to turn on memcg and memcg is a thing 
-> I try to avoid.
+> If I understand correctly, this is not exactly correct. Because of,
+
+Thank you for giving it serious thought:
+such races are hard work to think about.
+
+> PG_mlocked operation is not protected by LRU lock. So, I think we
+
+Right.  But I don't see that I've made a significant change there.
+
+I may be being lazy, and rushing back to answer you, without giving
+constructive thought to what the precise race is that you see, and
+how we might fix it.  If the case you have in mind is easy for you
+to describe in detail, please do so; but don't hesitate to tell me
+to my own work for myself!
+
+Since the original code didn't have any barriers in it (in the
+!page_evictable path, in the global case: I think that's true of the
+memcg case also, but that is more complicated), how did it differ from
+
+retry:
+	if (page_evictable)
+		blah blah blah;
+	else if (page_evictable)
+		goto retry;
+
+which could be made even "safer" ;) if it were replaced by
+
+retry:
+	if (page_evictable)
+		blah blah blah;
+	else if (page_evictable)
+		goto retry;
+	else if (page_evictable)
+		goto retry;
+
+putback_lru_page() goes through similar doubts as to whether it's made
+the right decision ("Oh, did I leave the oven on?"), but it does contain
+an explicit smp_mb() and comment.
+
+I am being lazy, I haven't even stopped to convince myself that that
+smp_mb() is correctly placed (I'm not saying it isn't, I just haven't
+done the thinking).
+
+> have three choice.
 > 
+> 1) check_move_unevictable_pages() aimed retry logic and put pages back
+>    into correct lru.
 
-Maybe there's some confusion: the proposed oom killer delay that I'm 
-referring to here is not upstream and has never been written for global 
-oom conditions.  My reference to it earlier was as an internal patch that 
-we carry on top of memory controller, but what I'm proposing here is for 
-it to be implemented globally.
+I think we'd need more than just the old retry.
 
-So if the page allocator can make no progress in freeing memory, we would 
-introduce a delay in out_of_memory() if it were configured via a sysctl 
-from userspace.  When this delay is started, applications waiting on this 
-event can be notified with eventfd(2) that the delay has started and they 
-have however many milliseconds to address the situation.  When they 
-rewrite the sysctl, the delay is cleared.  If they don't rewrite the 
-sysctl and the delay expires, the oom killer proceeds with killing.
+> 2) check_move_unevictable_pages() unconditionally move the pages into
+>    evictable lru, and vmacan put them back into correct lru later.
 
-What's missing for your usecase with this proposal?
+That's a good thought: these are all pages which we allowed to be found
+Unevictable lazily in the first place, so why should be so anxious to
+assign them right now.  Ah, but if they are still unevictable, then it's
+because they're Mlocked, and we do make much more effort to account the
+Mlocked pages right.  We'd probably best keep on trying.
+
+> 3) To protect PG_mlock operation by lru lock.
+
+Surely not if we can avoid it.  Certainly not to bolster my cleanup.
+
+> 
+> other parts looks fine to me.
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
