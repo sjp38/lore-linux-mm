@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 800316B005A
-	for <linux-mm@kvack.org>; Sun,  8 Jan 2012 02:05:05 -0500 (EST)
-Received: by wibhq12 with SMTP id hq12so2791092wib.14
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2012 23:05:03 -0800 (PST)
-MIME-Version: 1.0
-Date: Sun, 8 Jan 2012 15:05:03 +0800
-Message-ID: <CAJd=RBAqzawZ=jEFt7TrZgU0gaejMkfiBxzH7Y19qqNnsZrJGw@mail.gmail.com>
-Subject: [PATCH] mm: vmscan: fix setting reclaim mode
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id E1E136B005A
+	for <linux-mm@kvack.org>; Sun,  8 Jan 2012 09:05:46 -0500 (EST)
+Received: by iacb35 with SMTP id b35so6606682iac.14
+        for <linux-mm@kvack.org>; Sun, 08 Jan 2012 06:05:46 -0800 (PST)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] mm/page_alloc.c : fix the typo of __zone_watermark_ok()
+Date: Sun,  8 Jan 2012 22:06:09 -0500
+Message-Id: <1326078369-2814-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 
-The check for under memory pressure is corrected, then lumpy reclaim or
-reclaim/compaction could be avoided either when for order-O reclaim or
-when free pages are already low enough.
+The current code does keep the same meaning as the original code.
+The patch fixes it.
 
-
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
 ---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
---- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
-+++ b/mm/vmscan.c	Sun Jan  8 13:22:12 2012
-@@ -365,8 +365,7 @@ out:
- 	return ret;
- }
-
--static void set_reclaim_mode(int priority, struct scan_control *sc,
--				   bool sync)
-+static void set_reclaim_mode(int priority, struct scan_control *sc, bool sync)
- {
- 	reclaim_mode_t syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
-
-@@ -381,13 +380,12 @@ static void set_reclaim_mode(int priorit
- 		sc->reclaim_mode = RECLAIM_MODE_LUMPYRECLAIM;
-
- 	/*
--	 * Avoid using lumpy reclaim or reclaim/compaction if possible by
--	 * restricting when its set to either costly allocations or when
--	 * under memory pressure
-+	 * Avoid lumpy reclaim or reclaim/compaction either
-+	 * when for order-O reclaim or when under memory pressure
- 	 */
- 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
- 		sc->reclaim_mode |= syncmode;
--	else if (sc->order && priority < DEF_PRIORITY - 2)
-+	else if (sc->order && priority >= DEF_PRIORITY - 2)
- 		sc->reclaim_mode |= syncmode;
- 	else
- 		sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bdc804c..63f9026 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1435,7 +1435,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 	long min = mark;
+ 	int o;
+ 
+-	free_pages -= (1 << order) + 1;
++	free_pages -= (1 << order) - 1;
+ 	if (alloc_flags & ALLOC_HIGH)
+ 		min -= min / 2;
+ 	if (alloc_flags & ALLOC_HARDER)
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
