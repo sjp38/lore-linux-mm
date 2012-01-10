@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id E76806B005A
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 03:42:27 -0500 (EST)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 2E9F76B0068
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 03:42:34 -0500 (EST)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LXK00H18QUPH9@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 10 Jan 2012 08:42:25 +0000 (GMT)
+ with ESMTP id <0LXK00C19QUWWM@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 10 Jan 2012 08:42:32 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LXK00K0PQUP0H@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 10 Jan 2012 08:42:25 +0000 (GMT)
-Date: Tue, 10 Jan 2012 09:42:13 +0100
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LXK003JRQUW88@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 10 Jan 2012 08:42:32 +0000 (GMT)
+Date: Tue, 10 Jan 2012 09:42:28 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv18 0/11] Contiguous Memory Allocator
-In-reply-to: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <012401cccf73$c013bf10$403b3d30$%szyprowski@samsung.com>
+Subject: RE: [PATCH 00/14] DMA-mapping framework redesign preparation
+In-reply-to: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <012501cccf73$c90246a0$5b06d3e0$%szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii
 Content-language: pl
 Content-transfer-encoding: 7BIT
-References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
+References: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
-Cc: 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>, 'Kukjin Kim' <kgene.kim@samsung.com>, 'KyongHo Cho' <pullip.cho@samsung.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org
+Cc: 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Stephen Rothwell' <sfr@canb.auug.org.au>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Jonathan Corbet' <corbet@lwn.net>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
 
 Hello,
 
