@@ -1,147 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id D4EF96B005A
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 02:28:52 -0500 (EST)
-Received: by wibhq12 with SMTP id hq12so4549104wib.14
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2012 23:28:51 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAB2ybb-vZuriqE+KeBAkbc33y8YvNkT+f0xnMUeOdXmJH0dSag@mail.gmail.com>
-References: <1322816252-19955-1-git-send-email-sumit.semwal@ti.com>
-	<1322816252-19955-2-git-send-email-sumit.semwal@ti.com>
-	<CAAQKjZPFh6666JKc-XJfKYePQ_F0MNF6FkY=zKypWb52VVX3YQ@mail.gmail.com>
-	<20120109081030.GA3723@phenom.ffwll.local>
-	<CAAQKjZMEsuib18RYE7OvZPUqhKnvrZ8i3+EMuZSXr9KPVygo_Q@mail.gmail.com>
-	<CAF6AEGsTGOxyTX6Xijvm8UXGjtVTtYg5X5xfJo8D+47o+xU+bA@mail.gmail.com>
-	<CAAQKjZNM51Oenhi-S-9kyq_mLYHBEsMQA3M6=6L_XNnKu5pLbA@mail.gmail.com>
-	<CAF6AEGsQdd+K6-OOsdyFi_VVnMCniZFk2QvYqv8m8GgU7bd7zQ@mail.gmail.com>
-	<CAB2ybb-vZuriqE+KeBAkbc33y8YvNkT+f0xnMUeOdXmJH0dSag@mail.gmail.com>
-Date: Tue, 10 Jan 2012 16:28:50 +0900
-Message-ID: <CAAQKjZPH10a0-yjyUrqPYWv2nyZ9m2KJ6nm2d+pAqRb2CxRwsQ@mail.gmail.com>
-Subject: Re: [RFC v2 1/2] dma-buf: Introduce dma buffer sharing mechanism
-From: InKi Dae <daeinki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E76806B005A
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 03:42:27 -0500 (EST)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LXK00H18QUPH9@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 10 Jan 2012 08:42:25 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LXK00K0PQUP0H@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 10 Jan 2012 08:42:25 +0000 (GMT)
+Date: Tue, 10 Jan 2012 09:42:13 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv18 0/11] Contiguous Memory Allocator
+In-reply-to: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <012401cccf73$c013bf10$403b3d30$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Semwal, Sumit" <sumit.semwal@ti.com>
-Cc: Rob Clark <rob@ti.com>, t.stanislaws@samsung.com, linux@arm.linux.org.uk, arnd@arndb.de, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, m.szyprowski@samsung.com, Sumit Semwal <sumit.semwal@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>, 'Kukjin Kim' <kgene.kim@samsung.com>, 'KyongHo Cho' <pullip.cho@samsung.com>
 
-2012/1/10 Semwal, Sumit <sumit.semwal@ti.com>:
-> On Tue, Jan 10, 2012 at 7:44 AM, Rob Clark <rob@ti.com> wrote:
->> On Mon, Jan 9, 2012 at 7:34 PM, InKi Dae <daeinki@gmail.com> wrote:
->>> 2012/1/10 Rob Clark <rob@ti.com>:
->>> at least with no IOMMU, the memory information(containing physical
->>> memory address) would be copied to vb2_xx_buf object if drm gem
->>> exported its own buffer and vb2 wants to use that buffer at this time,
->>> sg table is used to share that buffer. and the problem I pointed out
->>> is that this buffer(also physical memory region) could be released by
->>> vb2 framework(as you know, vb2_xx_buf object and the memory region for
->>> buf->dma_addr pointing) but the Exporter(drm gem) couldn't know that
->>> so some problems would be induced once drm gem tries to release or
->>> access that buffer. and I have tried to resolve this issue adding
->>> get_shared_cnt() callback to dma-buf.h but I'm not sure that this is
->>> good way. maybe there would be better way.
-> Hi Inki,
-> As also mentioned in the documentation patch, importer (the user of
-> the buffer) - in this case for current RFC patches on
-> v4l2-as-a-user[1] vb2 framework - shouldn't release the backing memory
-> of the buffer directly - it should only use the dma-buf callbacks in
-> the right sequence to let the exporter know that it is done using this
-> buffer, so the exporter can release it if allowed and needed.
+Hello,
 
-thank you for your comments.:) and below are some tables about dmabuf
-operations with ideal use and these tables indicate reference count of
-when buffer is created, shared and released. so if there are any
-problems, please let me know. P.S. these are just simple cases so
-there would be others.
+To help everyone in testing and adapting our patches for his hardware 
+platform I've rebased our patches onto the latest v3.2 Linux kernel and
+prepared a few GIT branches in our public repository. These branches
+contain our memory management related patches posted in the following
+threads:
+
+"[PATCHv18 0/11] Contiguous Memory Allocator":
+http://www.spinics.net/lists/linux-mm/msg28125.html
+later called CMAv18,
+
+"[PATCH 00/14] DMA-mapping framework redesign preparation":
+http://www.spinics.net/lists/linux-sh/msg09777.html
+and
+"[PATCH 0/8 v4] ARM: DMA-mapping framework redesign":
+http://www.spinics.net/lists/arm-kernel/msg151147.html
+with the following update:
+http://www.spinics.net/lists/arm-kernel/msg154889.html
+later called DMAv5.
+
+These branches are available in our public GIT repository:
+
+git://git.infradead.org/users/kmpark/linux-samsung
+http://git.infradead.org/users/kmpark/linux-samsung/
+
+The following branches are available:
+
+1) 3.2-cma-v18
+Vanilla Linux v3.2 with fixed CMA v18 patches (first patch replaced
+with the one from v17 to fix SMP issues, see the respective thread).
+
+2) 3.2-dma-v5
+Vanilla Linux v3.2 + iommu/next (IOMMU maintainer's patches) branch
+with DMA-preparation and DMA-mapping framework redesign patches.
+
+3) 3.2-cma-v18-dma-v5
+Previous two branches merged together (DMA-mapping on top of CMA)
+
+4) 3.2-cma-v18-dma-v5-exynos
+Previous branch rebased on top of iommu/next + kgene/for-next (Samsung
+SoC platform maintainer's patches) with new Exynos4 IOMMU driver by 
+KyongHo Cho and relevant glue code.
+
+5) 3.2-dma-v5-exynos
+Branch from point 2 rebased on top of iommu/next + kgene/for-next 
+(Samsung SoC maintainer's patches) with new Exynos4 IOMMU driver by 
+KyongHo Cho and relevant glue code.
+
+I hope everyone will find a branch that suits his needs. :)
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 
-in case of using only drm gem and dmabuf,
-
-operations                       gem refcount    file f_count   buf refcoun=
-t
----------------------------------------------------------------------------=
----------------------
-1. gem create                   A:1                                   A:0
-2. export(handle A -> fd)    A:2                A:1              A:0
-3. import(fd -> handle B)    A:2, B:1         A:2              A:1
-4. file close(A)                  A:2, B:1         A:1              A:1
-5. gem close(A)                A:1, B:1         A:1              A:1
-6. gem close(B)                A:1, B:0         A:1              A:0
-7. file close(A)                  A:0                A:0
----------------------------------------------------------------------------=
---------------------
-3. handle B shares the buf of handle A.
-6. release handle B but its buf.
-7. release gem handle A and dmabuf of file A and also physical memory regio=
-n.
-
-
-and in case of using drm gem, vb2 and dmabuf,
-
-operations                  gem, vb2 refcount    file f_count   buf refcoun=
-t
----------------------------------------------------------------------------=
----------------------
-1. gem create                   A:1                 A:0
-   (GEM side)
-2. export(handle A -> fd)    A:2                 A:1              A:0
-   (GEM side)
-3. import(fd -> handle B)    A:2, B:1          A:2              A:1
-   (VB2 side)
-4. file close(A)                  A:2, B:1          A:1              A:1
-   (VB2 side)
-5. vb2 close(B)                 A:2, B:0          A:1              A:0
-   (VB2 side)
-6. gem close(A)                A:1                A:1              A:0
-   (GEM side)
-7. file close(A)                  A:0                A:0
-   (GEM side)
----------------------------------------------------------------------------=
----------------------
-3. vb2 handle B is shared with the buf of gem handle A.
-5. release vb2 handle B and decrease refcount of the buf pointed by it.
-7. release gem handle A and dmabuf of file A and also physical memory regio=
-n.
-
->>
->> the exporter (in this case your driver's drm/gem bits) shouldn't
->> release that mapping / sgtable until the importer (in this case v4l2)
->> calls dma_buf_unmap fxn..
->>
->> It would be an error if the importer did a dma_buf_put() without first
->> calling dma_buf_unmap_attachment() (if currently mapped) and then
->> dma_buf_detach() (if currently attached). =A0Perhaps somewhere there
->> should be some sanity checking debug code which could be enabled to do
->> a WARN_ON() if the importer does the wrong thing. =A0It shouldn't really
->> be part of the API, I don't think, but it actually does seem like a
->> good thing, esp. as new drivers start trying to use dmabuf, to have
->> some debug options which could be enabled.
->>
->> It is entirely possible that something was missed on the vb2 patches,
->> but the way it is intended to work is like this:
->> https://github.com/robclark/kernel-omap4/blob/0961428143cd10269223e3d0f2=
-4bc3a66a96185f/drivers/media/video/videobuf2-core.c#L92
->>
->> where it does a detach() before the dma_buf_put(), and the vb2-contig
->> backend checks here that it is also unmapped():
->> https://github.com/robclark/kernel-omap4/blob/0961428143cd10269223e3d0f2=
-4bc3a66a96185f/drivers/media/video/videobuf2-dma-contig.c#L251
->
-> The proposed RFC for V4L2 adaptation at [1] does exactly the same
-> thing; detach() before dma_buf_put(), and check in vb2-contig backend
-> for unmapped() as mentioned above.
->
->>
->> BR,
->> -R
->>
-> BR,
-> Sumit.
->
-> [1]: V4l2 as a dma-buf user RFC:
-> http://comments.gmane.org/gmane.linux.drivers.video-input-infrastructure/=
-42966
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
