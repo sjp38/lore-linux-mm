@@ -1,152 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 0E82E6B0068
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 21:34:36 -0500 (EST)
-Date: Mon, 9 Jan 2012 21:33:57 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm 2/2] mm: kswapd carefully invoke compaction
-Message-ID: <20120109213357.148e7927@annuminas.surriel.com>
-In-Reply-To: <20120109213156.0ff47ee5@annuminas.surriel.com>
-References: <20120109213156.0ff47ee5@annuminas.surriel.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 031C86B005A
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2012 22:03:07 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 263363EE0BB
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 12:03:06 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D56B45DEDA
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 12:03:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA01A45DED8
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 12:03:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C09371DB8047
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 12:03:05 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F00D1DB8043
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 12:03:05 +0900 (JST)
+Date: Tue, 10 Jan 2012 12:01:18 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: vmscan: cleanup with s/reclaim_mode/isolate_mode/
+Message-Id: <20120110120118.994b0bc4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CAJd=RBBifQggNFtBsq0-Q_fG6mOJ-rJ544Me9pLFXbMi3Xn0gQ@mail.gmail.com>
+References: <CAJd=RBBifQggNFtBsq0-Q_fG6mOJ-rJ544Me9pLFXbMi3Xn0gQ@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, aarcange@redhat.com
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 
-With CONFIG_COMPACTION enabled, kswapd does not try to free
-contiguous free pages, even when it is woken for a higher order
-request.
+On Fri, 6 Jan 2012 22:01:03 +0800
+Hillf Danton <dhillf@gmail.com> wrote:
 
-This could be bad for eg. jumbo frame network allocations, which
-are done from interrupt context and cannot compact memory themselves.
-Higher than before allocation failure rates in the network receive
-path have been observed in kernels with compaction enabled.
+> With tons of reclaim_mode(defined as one field of struct scan_control) already
+> in the file, it is clearer to rename it when setting up the isolation mode.
+> 
+> 
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
 
-Teach kswapd to defragment the memory zones in a node, but only
-if required and compaction is not deferred in a zone.
+I like this.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/compaction.h |    6 ++++++
- mm/compaction.c            |   22 ++++++++++++++--------
- mm/vmscan.c                |    9 +++++++++
- 3 files changed, 29 insertions(+), 8 deletions(-)
-
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index bb2bbdb..df31dab 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -23,6 +23,7 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
- 			bool sync);
-+extern int compact_pgdat(pg_data_t *pgdat, int order, bool force);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
- 
- /* Do not skip compaction more than 64 times */
-@@ -62,6 +63,11 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	return COMPACT_CONTINUE;
- }
- 
-+static inline int compact_pgdat(pg_data_t *pgdat, int order, bool force)
-+{
-+	return COMPACT_CONTINUE;
-+}
-+
- static inline unsigned long compaction_suitable(struct zone *zone, int order)
- {
- 	return COMPACT_SKIPPED;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 1253d7a..1962a0e 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -651,16 +651,11 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 
- 
- /* Compact all zones within a node */
--static int compact_node(int nid)
-+int compact_pgdat(pg_data_t *pgdat, int order, bool force)
- {
- 	int zoneid;
--	pg_data_t *pgdat;
- 	struct zone *zone;
- 
--	if (nid < 0 || nid >= nr_node_ids || !node_online(nid))
--		return -EINVAL;
--	pgdat = NODE_DATA(nid);
--
- 	/* Flush pending updates to the LRU lists */
- 	lru_add_drain_all();
- 
-@@ -668,7 +663,7 @@ static int compact_node(int nid)
- 		struct compact_control cc = {
- 			.nr_freepages = 0,
- 			.nr_migratepages = 0,
--			.order = -1,
-+			.order = order,
- 		};
- 
- 		zone = &pgdat->node_zones[zoneid];
-@@ -679,7 +674,8 @@ static int compact_node(int nid)
- 		INIT_LIST_HEAD(&cc.freepages);
- 		INIT_LIST_HEAD(&cc.migratepages);
- 
--		compact_zone(zone, &cc);
-+		if (force || !compaction_deferred(zone))
-+			compact_zone(zone, &cc);
- 
- 		VM_BUG_ON(!list_empty(&cc.freepages));
- 		VM_BUG_ON(!list_empty(&cc.migratepages));
-@@ -688,6 +684,16 @@ static int compact_node(int nid)
- 	return 0;
- }
- 
-+static int compact_node(int nid)
-+{
-+	pg_data_t *pgdat;
-+	if (nid < 0 || nid >= nr_node_ids || !node_online(nid))
-+		return -EINVAL;
-+	pgdat = NODE_DATA(nid);
-+
-+	return compact_pgdat(pgdat, -1, true);
-+}
-+
- /* Compact all nodes in the system */
- static int compact_nodes(void)
- {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0fb469a..65bf21db 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2522,6 +2522,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	int priority;
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-+	int zones_need_compaction = 1;
- 	unsigned long total_scanned;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_soft_reclaimed;
-@@ -2788,9 +2789,17 @@ out:
- 				goto loop_again;
- 			}
- 
-+			/* Check if the memory needs to be defragmented. */
-+			if (zone_watermark_ok(zone, order,
-+				    low_wmark_pages(zone), *classzone_idx, 0))
-+				zones_need_compaction = 0;
-+
- 			/* If balanced, clear the congested flag */
- 			zone_clear_flag(zone, ZONE_CONGESTED);
- 		}
-+
-+		if (zones_need_compaction)
-+			compact_pgdat(pgdat, order, false);
- 	}
- 
- 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
