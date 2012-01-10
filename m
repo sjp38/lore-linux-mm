@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 2E9F76B0068
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 03:42:34 -0500 (EST)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 15E536B0069
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 03:42:44 -0500 (EST)
 Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LXK00C19QUWWM@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 10 Jan 2012 08:42:32 +0000 (GMT)
+ with ESMTP id <0LXK00E44QV5DV@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 10 Jan 2012 08:42:41 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LXK003JRQUW88@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 10 Jan 2012 08:42:32 +0000 (GMT)
-Date: Tue, 10 Jan 2012 09:42:28 +0100
+ 2004)) with ESMTPA id <0LXK003KOQV488@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 10 Jan 2012 08:42:41 +0000 (GMT)
+Date: Tue, 10 Jan 2012 09:42:37 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 00/14] DMA-mapping framework redesign preparation
-In-reply-to: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <012501cccf73$c90246a0$5b06d3e0$%szyprowski@samsung.com>
+Subject: RE: [PATCH 0/8 v4] ARM: DMA-mapping framework redesign
+In-reply-to: <1323448798-18184-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <012601cccf73$ce09a8f0$6a1cfad0$%szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii
 Content-language: pl
 Content-transfer-encoding: 7BIT
-References: <1324643253-3024-1-git-send-email-m.szyprowski@samsung.com>
+References: <1323448798-18184-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org
-Cc: 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Stephen Rothwell' <sfr@canb.auug.org.au>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Jonathan Corbet' <corbet@lwn.net>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org
+Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'KyongHo Cho' <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Kukjin Kim' <kgene.kim@samsung.com>'KyongHo Cho' <pullip.cho@samsung.com>
 
 Hello,
 
