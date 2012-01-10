@@ -1,297 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id CAE2D6B005A
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 09:16:17 -0500 (EST)
-Date: Tue, 10 Jan 2012 14:16:13 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 04/11] mm: page_alloc: introduce alloc_contig_range()
-Message-ID: <20120110141613.GB3910@csn.ul.ie>
-References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
- <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 1875B6B005A
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 09:32:38 -0500 (EST)
+Received: by wgbds11 with SMTP id ds11so2480606wgb.26
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2012 06:32:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <20120110124442.ffb63d63.kamezawa.hiroyu@jp.fujitsu.com>
+References: <CAJd=RBAMtT04n8p4ht4oCSOYKVcUcG0-hbSvmjrP-yhwBYhU1A@mail.gmail.com>
+	<20120110124442.ffb63d63.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 10 Jan 2012 22:32:36 +0800
+Message-ID: <CAJd=RBAS-hz1=ACF86cRKkzrOSyU5LWcHeLmSL+JfMHdE8wh9g@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: recompute page status when putting back
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 29, 2011 at 01:39:05PM +0100, Marek Szyprowski wrote:
-> From: Michal Nazarewicz <mina86@mina86.com>
-> 
-> This commit adds the alloc_contig_range() function which tries
-> to allocate given range of pages.  It tries to migrate all
-> already allocated pages that fall in the range thus freeing them.
-> Once all pages in the range are freed they are removed from the
-> buddy system thus allocated for the caller to use.
-> 
-> __alloc_contig_migrate_range() borrows some code from KAMEZAWA
-> Hiroyuki's __alloc_contig_pages().
-> 
-> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> ---
->  include/linux/page-isolation.h |    3 +
->  mm/page_alloc.c                |  190 ++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 193 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 051c1b1..d305080 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -33,5 +33,8 @@ test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
->  extern int set_migratetype_isolate(struct page *page);
->  extern void unset_migratetype_isolate(struct page *page);
->  
-> +/* The below functions must be run on a range from a single zone. */
-> +int alloc_contig_range(unsigned long start, unsigned long end);
-> +void free_contig_range(unsigned long pfn, unsigned nr_pages);
->  
->  #endif
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f88b320..47b0a85 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -57,6 +57,7 @@
->  #include <linux/ftrace_event.h>
->  #include <linux/memcontrol.h>
->  #include <linux/prefetch.h>
-> +#include <linux/migrate.h>
->  
->  #include <asm/tlbflush.h>
->  #include <asm/div64.h>
-> @@ -5711,6 +5712,195 @@ out:
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  }
->  
-> +static unsigned long pfn_align_to_maxpage_down(unsigned long pfn)
-> +{
-> +	return pfn & ~(MAX_ORDER_NR_PAGES - 1);
-> +}
-> +
-> +static unsigned long pfn_align_to_maxpage_up(unsigned long pfn)
-> +{
-> +	return ALIGN(pfn, MAX_ORDER_NR_PAGES);
-> +}
-> +
-> +static struct page *
-> +__cma_migrate_alloc(struct page *page, unsigned long private, int **resultp)
-> +{
-> +	return alloc_page(GFP_HIGHUSER_MOVABLE);
-> +}
-> +
-> +static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-> +{
+On Tue, Jan 10, 2012 at 11:44 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 6 Jan 2012 22:07:29 +0800
+> Hillf Danton <dhillf@gmail.com> wrote:
+>
+>> If unlikely the given page is isolated from lru list again, its status i=
+s
+>> recomputed before putting back to lru list, since the comment says page'=
+s
+>> status can change while we move it among lru.
+>>
+>>
+>> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>> ---
+>>
+>> --- a/mm/vmscan.c =C2=A0 =C2=A0 Thu Dec 29 20:20:16 2011
+>> +++ b/mm/vmscan.c =C2=A0 =C2=A0 Fri Jan =C2=A06 21:31:56 2012
+>> @@ -633,12 +633,14 @@ int remove_mapping(struct address_space
+>> =C2=A0void putback_lru_page(struct page *page)
+>> =C2=A0{
+>> =C2=A0 =C2=A0 =C2=A0 int lru;
+>> - =C2=A0 =C2=A0 int active =3D !!TestClearPageActive(page);
+>> - =C2=A0 =C2=A0 int was_unevictable =3D PageUnevictable(page);
+>> + =C2=A0 =C2=A0 int active;
+>> + =C2=A0 =C2=A0 int was_unevictable;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(PageLRU(page));
+>>
+>> =C2=A0redo:
+>> + =C2=A0 =C2=A0 active =3D !!TestClearPageActive(page);
+>> + =C2=A0 =C2=A0 was_unevictable =3D PageUnevictable(page);
+>> =C2=A0 =C2=A0 =C2=A0 ClearPageUnevictable(page);
+>>
+>> =C2=A0 =C2=A0 =C2=A0 if (page_evictable(page, NULL)) {
+>
+> Hm. Do you handle this case ?
+> =3D=3D
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * page's status can change while we move it a=
+mong lru. If an evictable
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * page is on unevictable list, it never be fr=
+eed. To avoid that,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * check after we added it to the list, again.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (lru =3D=3D LRU_UNEVICTABLE && page_evictab=
+le(page, NULL)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!isolate_lru_p=
+age(page)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0put_page(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0goto redo;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =3D=3D
+>
+> Ok, let's start from "was_unevictable"
+>
+> "was_unevicatable" is used for this
+> =3D=3D
+> =C2=A0if (was_unevictable && lru !=3D LRU_UNEVICTABLE)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0count_vm_event(UNE=
+VICTABLE_PGRESCUED);
+> =3D=3D
+> This is for checking that the page turned out to be evictable while we pu=
+t it
+> into LRU. Assume the 'redo' case, the page's state chages from UNEVICTABL=
+E to
+> ACTIVE_ANON (for example)
+>
+> =C2=A01. at start of function: Page was Unevictable, was_unevictable=3Dtr=
+ue
+> =C2=A02. lru =3D LRU_UNEVICTABLE
+> =C2=A03, add the page to LRU.
+> =C2=A04. check page_evictable(),..... it returns 'true'.
+> =C2=A05. isoalte the page again and goto redo.
+> =C2=A06. lru =3D LRU_ACTIVE_ANON
+> =C2=A07. add the page to LRU.
+> =C2=A08. was_unevictable=3D=3Dtrue, then, count_vm_event(UNEVICTABLE_PGRE=
+SCUED);
+>
+> Your patch overwrites was_unevictable between 5. and 6., then,
+> corrupts this event counting.
+>
+> about "active" flag.
+>
+> PageActive() flag will be set in lru_cache_add_lru() and
+> there will be no inconsistency between page->flags and LRU.
+> And, in what case the changes in 'active' will be problematic ?
+>
+Hi Kame
 
-This is compiled in even if !CONFIG_CMA
+Thanks for reviewing my work.
 
-> +	/* This function is based on compact_zone() from compaction.c. */
-> +
-> +	unsigned long pfn = start;
-> +	int ret = -EBUSY;
-> +	unsigned tries = 0;
-> +
-> +	struct compact_control cc = {
-> +		.nr_migratepages = 0,
-> +		.order = -1,
-> +		.zone = page_zone(pfn_to_page(start)),
-> +		.sync = true,
-> +	};
+With focus on the case that redo occurs, the patch was prepared based on th=
+e
+assumption that any isolated page could be processed by the function.
 
-Handle the case where start and end PFNs are in different zones. It
-should never happen but it should be caught, warned about and an
-error returned because someone will eventually get it wrong.
+If redo does occur, though unlikely, there are two rounds of isolation+putb=
+ack
+or more for the given page. As shown by my workout of page status, differen=
+ce
+exists in the two cases.
 
-> +	INIT_LIST_HEAD(&cc.migratepages);
-> +
-> +	migrate_prep_local();
-> +
-> +	while (pfn < end || cc.nr_migratepages) {
-> +		/* Abort on signal */
-> +		if (fatal_signal_pending(current)) {
-> +			ret = -EINTR;
-> +			goto done;
-> +		}
-> +
-> +		/* Get some pages to migrate. */
-> +		if (list_empty(&cc.migratepages)) {
-> +			cc.nr_migratepages = 0;
-> +			pfn = isolate_migratepages_range(cc.zone, &cc,
-> +							 pfn, end);
-> +			if (!pfn) {
-> +				ret = -EINTR;
-> +				goto done;
-> +			}
-> +			tries = 0;
-> +		}
-> +
-> +		/* Try to migrate. */
-> +		ret = migrate_pages(&cc.migratepages, __cma_migrate_alloc,
-> +				    0, false, true);
-> +
-> +		/* Migrated all of them? Great! */
-> +		if (list_empty(&cc.migratepages))
-> +			continue;
-> +
-> +		/* Try five times. */
-> +		if (++tries == 5) {
-> +			ret = ret < 0 ? ret : -EBUSY;
-> +			goto done;
-> +		}
-> +
-> +		/* Before each time drain everything and reschedule. */
-> +		lru_add_drain_all();
-> +		drain_all_pages();
+     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+                                     without redo           with redo
+     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+       active                      true  50%              true
+                                     false 50%              false  100%
+     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+       was_unevictable       true  50%              true   100%
+                                      false 50%              false
+     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
 
-Why drain everything on each migration failure? I do not see how it
-would help.
+And the case with redo could be covered by the case without redo, so there =
+is
+no corruption of VM events.
 
-> +		cond_resched();
-
-The cond_resched() should be outside the failure path if it exists at
-all.
-
-> +	}
-> +	ret = 0;
-> +
-> +done:
-> +	/* Make sure all pages are isolated. */
-> +	if (!ret) {
-> +		lru_add_drain_all();
-> +		drain_all_pages();
-> +		if (WARN_ON(test_pages_isolated(start, end)))
-> +			ret = -EBUSY;
-> +	}
-
-Another global IPI seems overkill. Drain pages only from the local CPU
-(drain_pages(get_cpu()); put_cpu()) and test if the pages are isolated.
-Then and only then do a global drain before trying again, warning and
-retyrning -EBUSY. I expect the common case is that a global drain is
-unneccessary.
-
-> +
-> +	/* Release pages */
-> +	putback_lru_pages(&cc.migratepages);
-> +
-> +	return ret;
-> +}
-> +
-> +/**
-> + * alloc_contig_range() -- tries to allocate given range of pages
-> + * @start:	start PFN to allocate
-> + * @end:	one-past-the-last PFN to allocate
-> + *
-> + * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-> + * aligned, hovewer it's callers responsibility to guarantee that we
-
-s/hovewer/however/
-
-s/it's/it's the'
-
-> + * are the only thread that changes migrate type of pageblocks the
-> + * pages fall in.
-> + *
-> + * Returns zero on success or negative error code.  On success all
-> + * pages which PFN is in (start, end) are allocated for the caller and
-> + * need to be freed with free_contig_range().
-> + */
-> +int alloc_contig_range(unsigned long start, unsigned long end)
-> +{
-> +	unsigned long outer_start, outer_end;
-> +	int ret;
-> +
-> +	/*
-> +	 * What we do here is we mark all pageblocks in range as
-> +	 * MIGRATE_ISOLATE.  Because of the way page allocator work, we
-> +	 * align the range to MAX_ORDER pages so that page allocator
-> +	 * won't try to merge buddies from different pageblocks and
-> +	 * change MIGRATE_ISOLATE to some other migration type.
-> +	 *
-> +	 * Once the pageblocks are marked as MIGRATE_ISOLATE, we
-> +	 * migrate the pages from an unaligned range (ie. pages that
-> +	 * we are interested in).  This will put all the pages in
-> +	 * range back to page allocator as MIGRATE_ISOLATE.
-> +	 *
-> +	 * When this is done, we take the pages in range from page
-> +	 * allocator removing them from the buddy system.  This way
-> +	 * page allocator will never consider using them.
-> +	 *
-> +	 * This lets us mark the pageblocks back as
-> +	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-> +	 * MAX_ORDER aligned range but not in the unaligned, original
-> +	 * range are put back to page allocator so that buddy can use
-> +	 * them.
-> +	 */
-> +
-> +	ret = start_isolate_page_range(pfn_align_to_maxpage_down(start),
-> +				       pfn_align_to_maxpage_up(end));
-> +	if (ret)
-> +		goto done;
-> +
-> +	ret = __alloc_contig_migrate_range(start, end);
-> +	if (ret)
-> +		goto done;
-> +
-> +	/*
-> +	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-> +	 * aligned blocks that are marked as MIGRATE_ISOLATE.  What's
-> +	 * more, all pages in [start, end) are free in page allocator.
-> +	 * What we are going to do is to allocate all pages from
-> +	 * [start, end) (that is remove them from page allocater).
-> +	 *
-> +	 * The only problem is that pages at the beginning and at the
-> +	 * end of interesting range may be not aligned with pages that
-> +	 * page allocator holds, ie. they can be part of higher order
-> +	 * pages.  Because of this, we reserve the bigger range and
-> +	 * once this is done free the pages we are not interested in.
-> +	 */
-> +
-> +	ret = 0;
-> +	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
-> +		if (WARN_ON(++ret >= MAX_ORDER)) {
-> +			ret = -EINVAL;
-> +			goto done;
-> +		}
-> +
-> +	outer_start = start & (~0UL << ret);
-> +	outer_end = isolate_freepages_range(page_zone(pfn_to_page(outer_start)),
-> +					    outer_start, end, NULL);
-> +	if (!outer_end) {
-> +		ret = -EBUSY;
-> +		goto done;
-> +	}
-> +	outer_end += outer_start;
-> +
-> +	/* Free head and tail (if any) */
-> +	if (start != outer_start)
-> +		free_contig_range(outer_start, start - outer_start);
-> +	if (end != outer_end)
-> +		free_contig_range(end, outer_end - end);
-> +
-> +	ret = 0;
-> +done:
-> +	undo_isolate_page_range(pfn_align_to_maxpage_down(start),
-> +				pfn_align_to_maxpage_up(end));
-> +	return ret;
-> +}
-> +
-> +void free_contig_range(unsigned long pfn, unsigned nr_pages)
-> +{
-> +	for (; nr_pages--; ++pfn)
-> +		__free_page(pfn_to_page(pfn));
-> +}
-> +
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  /*
->   * All pages in the range must be isolated before calling this.
-> -- 
-> 1.7.1.569.g6f426
-> 
-
--- 
-Mel Gorman
-SUSE Labs
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
