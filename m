@@ -1,402 +1,327 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id E8FFC6B0069
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 06:56:40 -0500 (EST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 8CE8B6B006E
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 06:56:57 -0500 (EST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 10 Jan 2012 17:26:38 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0ABuZBr4518058
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 17:26:35 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0ABuX21001939
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 22:56:34 +1100
+	Tue, 10 Jan 2012 17:26:54 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0ABujG21171478
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 17:26:45 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0ABuhpG027030
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2012 22:56:45 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Tue, 10 Jan 2012 17:18:52 +0530
-Message-Id: <20120110114852.17610.43013.sendpatchset@srdronam.in.ibm.com>
+Date: Tue, 10 Jan 2012 17:19:02 +0530
+Message-Id: <20120110114902.17610.81038.sendpatchset@srdronam.in.ibm.com>
 In-Reply-To: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
 References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH v9 3.2 3/9] uprobes: slot allocation.
+Subject: [PATCH v9 3.2 4/9] uprobes: counter to optimize probe hits.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
 
-Uprobes executes the original instruction at a probed location out of
-line. For this, we allocate a page (per mm) upon the first uprobe hit,
-in the process' user address space, divide it into slots that are used
-to store the actual instructions to be singlestepped.
+Maintain a per-mm counter (number of uprobes that are inserted on
+this process address space). This counter can be used at probe hit
+time to determine if we need to do a uprobe lookup in the uprobes
+rbtree. Everytime a probe gets inserted successfully, the probe
+count is incremented and everytime a probe gets removed successfully
+the probe count is removed.
 
-Care is taken to ensure that the allocation is in an unmapped area as
-close to the top of the user address space as possible, with appropriate
-permission settings to keep selinux like frameworks happy.
+A new hook munmap_uprobe is added to keep the counter to be correct
+even when a region is unmapped or remapped. This patch expects that
+once a munmap_uprobe() is called, the vma either go away or a
+subsequent mmap_uprobe gets called before a removal of a probe from
+unregister_uprobe in the same address space.
 
-Upon a uprobe hit, a free slot is acquired, and is released after the
-singlestep completes.
+On every executable vma thats cowed at fork, mmap_uprobe is called
+so that the mm_uprobes_count is in sync.
 
-[ Folded a fix for build issue on powerpc fixed and reported by Stephen
-Rothwell]
+When a vma of interest is mapped, insert the breakpoint at the right
+address. Upon munmap, just make sure the data structures are
+adjusted/cleaned up.
 
-Lots of improvements courtesy suggestions/inputs from Peter and Oleg.
+On process creation, make sure the probes count in the child is set
+correctly.
 
-Signed-off-by: Jim Keniston <jkenisto@us.ibm.com>
+Special cases that are taken care include:
+a. mremap()
+b. VM_DONTCOPY vmas on fork()
+c. insertion/removal races in the parent during fork().
+
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
 Changelog (since v5)
-- no more spin lock needed for slot allocation.
-- use install_special_mapping to add a vma. (previous approach used
-  init_creds)
-- set uprobes_xol_area while holding map_sem exclusively.
+- While forking, handle vma's that have VM_DONTCOPY.
+- While forking, handle race of new breakpoints being inserted / removed
+  in the parent process.
 
- include/linux/mm_types.h |    4 +
- include/linux/uprobes.h  |   25 ++++++
- kernel/fork.c            |    4 +
- kernel/uprobes.c         |  202 ++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 235 insertions(+), 0 deletions(-)
+Changelog (since v7)
+- Separate this patch from the patch that implements mmap_uprobe.
+- Increment counter only after verifying that the probe lies underneath.
+
+ include/linux/mm_types.h |    1 
+ include/linux/uprobes.h  |    4 ++
+ kernel/fork.c            |    4 ++
+ kernel/uprobes.c         |  103 ++++++++++++++++++++++++++++++++++++++++++++--
+ mm/mmap.c                |   10 ++++
+ 5 files changed, 117 insertions(+), 5 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5b42f1b..e9eac38 100644
+index e9eac38..2595c9c 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -12,6 +12,7 @@
- #include <linux/completion.h>
- #include <linux/cpumask.h>
- #include <linux/page-debug-flags.h>
-+#include <linux/uprobes.h>
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-@@ -389,6 +390,9 @@ struct mm_struct {
- #ifdef CONFIG_CPUMASK_OFFSTACK
+@@ -391,6 +391,7 @@ struct mm_struct {
  	struct cpumask cpumask_allocation;
  #endif
-+#ifdef CONFIG_UPROBES
-+	struct uprobes_xol_area *uprobes_xol_area;
-+#endif
+ #ifdef CONFIG_UPROBES
++	atomic_t mm_uprobes_count;
+ 	struct uprobes_xol_area *uprobes_xol_area;
+ #endif
  };
- 
- static inline void mm_init_cpumask(struct mm_struct *mm)
 diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index 41037e9..9e25c41 100644
+index 9e25c41..adaa8d3 100644
 --- a/include/linux/uprobes.h
 +++ b/include/linux/uprobes.h
-@@ -27,6 +27,7 @@
- #include <linux/rbtree.h>
- 
- struct vm_area_struct;
-+struct mm_struct;
- #ifdef CONFIG_ARCH_SUPPORTS_UPROBES
- #include <asm/uprobes.h>
- #else
-@@ -92,6 +93,26 @@ struct uprobe_task {
- 	struct uprobe *active_uprobe;
- };
- 
-+/*
-+ * On a breakpoint hit, thread contests for a slot.  It free the
-+ * slot after singlestep.  Only definite number of slots are
-+ * allocated.
-+ */
-+
-+struct uprobes_xol_area {
-+	wait_queue_head_t wq;	/* if all slots are busy */
-+	atomic_t slot_count;	/* currently in use slots */
-+	unsigned long *bitmap;	/* 0 = free slot */
-+	struct page *page;
-+
-+	/*
-+	 * We keep the vma's vm_start rather than a pointer to the vma
-+	 * itself.  The probed process or a naughty kernel module could make
-+	 * the vma go away, and we must handle that reasonably gracefully.
-+	 */
-+	unsigned long vaddr;		/* Page(s) of instruction slots */
-+};
-+
- #ifdef CONFIG_UPROBES
- extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
- 							unsigned long vaddr);
-@@ -103,6 +124,7 @@ extern int register_uprobe(struct inode *inode, loff_t offset,
- extern void unregister_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer);
+@@ -126,6 +126,7 @@ extern void unregister_uprobe(struct inode *inode, loff_t offset,
  extern void free_uprobe_utask(struct task_struct *tsk);
-+extern void free_uprobes_xol_area(struct mm_struct *mm);
+ extern void free_uprobes_xol_area(struct mm_struct *mm);
  extern int mmap_uprobe(struct vm_area_struct *vma);
++extern void munmap_uprobe(struct vm_area_struct *vma);
  extern unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs);
  extern int uprobe_post_notifier(struct pt_regs *regs);
-@@ -138,5 +160,8 @@ static inline unsigned long get_uprobe_bkpt_addr(struct pt_regs *regs)
- static inline void free_uprobe_utask(struct task_struct *tsk)
+ extern int uprobe_bkpt_notifier(struct pt_regs *regs);
+@@ -146,6 +147,9 @@ static inline int mmap_uprobe(struct vm_area_struct *vma)
  {
+ 	return 0;
  }
-+static inline void free_uprobes_xol_area(struct mm_struct *mm)
++static inline void munmap_uprobe(struct vm_area_struct *vma)
 +{
 +}
- #endif /* CONFIG_UPROBES */
- #endif	/* _LINUX_UPROBES_H */
+ static inline void uprobe_notify_resume(struct pt_regs *regs)
+ {
+ }
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 7a0b7d7..2da316e 100644
+index 2da316e..2b3a5e0 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -550,6 +550,7 @@ void mmput(struct mm_struct *mm)
- 	might_sleep();
+@@ -417,6 +417,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
  
- 	if (atomic_dec_and_test(&mm->mm_users)) {
-+		free_uprobes_xol_area(mm);
- 		exit_aio(mm);
- 		ksm_exit(mm);
- 		khugepaged_exit(mm); /* must run before exit_mmap */
-@@ -736,6 +737,9 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		if (retval)
+ 			goto out;
++
++		if (file && mmap_uprobe(tmp))
++			goto out;
+ 	}
+ 	/* a new mm has just been created */
+ 	arch_dup_mmap(oldmm, mm);
+@@ -738,6 +741,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
  	mm->pmd_huge_pte = NULL;
  #endif
-+#ifdef CONFIG_UPROBES
-+	mm->uprobes_xol_area = NULL;
-+#endif
+ #ifdef CONFIG_UPROBES
++	atomic_set(&mm->mm_uprobes_count, 0);
+ 	mm->uprobes_xol_area = NULL;
+ #endif
  
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
 diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 674d6da..73d223e 100644
+index 73d223e..21ce23c 100644
 --- a/kernel/uprobes.c
 +++ b/kernel/uprobes.c
-@@ -33,6 +33,9 @@
- #include <linux/kdebug.h>	/* notifier mechanism */
- #include <linux/uprobes.h>
+@@ -615,6 +615,30 @@ static int copy_insn(struct uprobe *uprobe, struct vm_area_struct *vma,
+ 	return __copy_insn(mapping, vma, uprobe->insn, bytes, uprobe->offset);
+ }
  
-+#define UINSNS_PER_PAGE	(PAGE_SIZE/UPROBES_XOL_SLOT_BYTES)
-+#define MAX_UPROBES_XOL_SLOTS UINSNS_PER_PAGE
++/*
++ * How mm_uprobes_count gets updated
++ * mmap_uprobe() increments the count if
++ * 	- it successfully adds a breakpoint.
++ * 	- it not add a breakpoint, but sees that there is a underlying
++ * 	  breakpoint (via a is_bkpt_at_addr()).
++ *
++ * munmap_uprobe() decrements the count if
++ * 	- it sees a underlying breakpoint, (via is_bkpt_at_addr)
++ * 	- Subsequent unregister_uprobe wouldnt find the breakpoint
++ * 	  unless a mmap_uprobe kicks in, since the old vma would be
++ * 	  dropped just after munmap_uprobe.
++ *
++ * register_uprobe increments the count if:
++ * 	- it successfully adds a breakpoint.
++ *
++ * unregister_uprobe decrements the count if:
++ * 	- it sees a underlying breakpoint and removes successfully.
++ * 			(via is_bkpt_at_addr)
++ * 	- Subsequent munmap_uprobe wouldnt find the breakpoint
++ * 	  since there is no underlying breakpoint after the
++ * 	  breakpoint removal.
++ */
 +
- static struct srcu_struct uprobes_srcu;
- static struct rb_root uprobes_tree = RB_ROOT;
- static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
-@@ -992,6 +995,201 @@ int mmap_uprobe(struct vm_area_struct *vma)
+ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ 				struct vm_area_struct *vma, loff_t vaddr)
+ {
+@@ -646,7 +670,19 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ 
+ 		uprobe->flags |= UPROBES_COPY_INSN;
+ 	}
++
++	/*
++	 * Ideally, should be updating the probe count after the breakpoint
++	 * has been successfully inserted. However a thread could hit the
++	 * breakpoint we just inserted even before the probe count is
++	 * incremented. If this is the first breakpoint placed, breakpoint
++	 * notifier might ignore uprobes and pass the trap to the thread.
++	 * Hence increment before and decrement on failure.
++	 */
++	atomic_inc(&mm->mm_uprobes_count);
+ 	ret = set_bkpt(mm, uprobe, addr);
++	if (ret)
++		atomic_dec(&mm->mm_uprobes_count);
+ 
+ 	return ret;
+ }
+@@ -654,7 +690,8 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ 							loff_t vaddr)
+ {
+-	set_orig_insn(mm, uprobe, (unsigned long)vaddr, true);
++	if (!set_orig_insn(mm, uprobe, (unsigned long)vaddr, true))
++		atomic_dec(&mm->mm_uprobes_count);
+ }
+ 
+ /*
+@@ -960,7 +997,7 @@ int mmap_uprobe(struct vm_area_struct *vma)
+ 	struct list_head tmp_list;
+ 	struct uprobe *uprobe, *u;
+ 	struct inode *inode;
+-	int ret = 0;
++	int ret = 0, count = 0;
+ 
+ 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, true))
+ 		return ret;	/* Bail-out */
+@@ -984,17 +1021,74 @@ int mmap_uprobe(struct vm_area_struct *vma)
+ 			}
+ 			ret = install_breakpoint(vma->vm_mm, uprobe, vma,
+ 								vaddr);
+-			if (ret == -EEXIST)
++			if (ret == -EEXIST) {
+ 				ret = 0;
++				if (!is_bkpt_at_addr(vma->vm_mm, vaddr))
++					continue;
++
++				/*
++				 * Unable to insert a breakpoint, but
++				 * breakpoint lies underneath. Increment the
++				 * probe count.
++				 */
++				atomic_inc(&vma->vm_mm->mm_uprobes_count);
++			}
++			if (!ret)
++				count++;
++
+ 		}
+ 		put_uprobe(uprobe);
+ 	}
+ 
+ 	mutex_unlock(uprobes_mmap_hash(inode));
++	if (ret)
++		atomic_sub(count, &vma->vm_mm->mm_uprobes_count);
+ 
  	return ret;
  }
  
-+/* Slot allocation for XOL */
-+static int xol_add_vma(struct uprobes_xol_area *area)
-+{
-+	struct mm_struct *mm;
-+	int ret;
-+
-+	area->page = alloc_page(GFP_HIGHUSER);
-+	if (!area->page)
-+		return -ENOMEM;
-+
-+	mm = current->mm;
-+	down_write(&mm->mmap_sem);
-+	ret = -EALREADY;
-+	if (mm->uprobes_xol_area)
-+		goto fail;
-+
-+	ret = -ENOMEM;
-+
-+	/* Try to map as high as possible, this is only a hint. */
-+	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
-+							PAGE_SIZE, 0, 0);
-+	if (area->vaddr & ~PAGE_MASK) {
-+		ret = area->vaddr;
-+		goto fail;
-+	}
-+
-+	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
-+				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO,
-+				&area->page);
-+	if (ret)
-+		goto fail;
-+
-+	smp_wmb();	/* pairs with get_uprobes_xol_area() */
-+	mm->uprobes_xol_area = area;
-+	ret = 0;
-+
-+fail:
-+	up_write(&mm->mmap_sem);
-+	if (ret)
-+		__free_page(area->page);
-+
-+	return ret;
-+}
-+
-+static struct uprobes_xol_area *get_uprobes_xol_area(struct mm_struct *mm)
-+{
-+	struct uprobes_xol_area *area = mm->uprobes_xol_area;
-+	smp_read_barrier_depends();/* pairs with wmb in xol_add_vma() */
-+	return area;
-+}
-+
 +/*
-+ * xol_alloc_area - Allocate process's uprobes_xol_area.
-+ * This area will be used for storing instructions for execution out of
-+ * line.
-+ *
-+ * Returns the allocated area or NULL.
++ * Called in context of a munmap of a vma.
 + */
-+static struct uprobes_xol_area *xol_alloc_area(void)
++void munmap_uprobe(struct vm_area_struct *vma)
 +{
-+	struct uprobes_xol_area *area;
++	struct list_head tmp_list;
++	struct uprobe *uprobe, *u;
++	struct inode *inode;
 +
-+	area = kzalloc(sizeof(*area), GFP_KERNEL);
-+	if (unlikely(!area))
-+		return NULL;
++	if (!atomic_read(&uprobe_events) || !valid_vma(vma, false))
++		return;		/* Bail-out */
 +
-+	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
-+								GFP_KERNEL);
-+
-+	if (!area->bitmap)
-+		goto fail;
-+
-+	init_waitqueue_head(&area->wq);
-+	if (!xol_add_vma(area))
-+		return area;
-+
-+fail:
-+	kfree(area->bitmap);
-+	kfree(area);
-+	return get_uprobes_xol_area(current->mm);
-+}
-+
-+/*
-+ * free_uprobes_xol_area - Free the area allocated for slots.
-+ */
-+void free_uprobes_xol_area(struct mm_struct *mm)
-+{
-+	struct uprobes_xol_area *area = mm->uprobes_xol_area;
-+
-+	if (!area)
++	if (!atomic_read(&vma->vm_mm->mm_uprobes_count))
 +		return;
 +
-+	put_page(area->page);
-+	kfree(area->bitmap);
-+	kfree(area);
-+}
++	inode = vma->vm_file->f_mapping->host;
++	if (!inode)
++		return;
 +
-+/*
-+ *  - search for a free slot.
-+ */
-+static unsigned long xol_take_insn_slot(struct uprobes_xol_area *area)
-+{
-+	unsigned long slot_addr;
-+	int slot_nr;
++	INIT_LIST_HEAD(&tmp_list);
++	mutex_lock(uprobes_mmap_hash(inode));
++	build_probe_list(inode, &tmp_list);
++	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
++		loff_t vaddr;
 +
-+	do {
-+		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
-+		if (slot_nr < UINSNS_PER_PAGE) {
-+			if (!test_and_set_bit(slot_nr, area->bitmap))
-+				break;
++		list_del(&uprobe->pending_list);
++		vaddr = vma_address(vma, uprobe->offset);
++		if (vaddr >= vma->vm_start && vaddr < vma->vm_end) {
 +
-+			slot_nr = UINSNS_PER_PAGE;
-+			continue;
++			/*
++			 * An unregister could have removed the probe before
++			 * unmap. So check before we decrement the count.
++			 */
++			if (is_bkpt_at_addr(vma->vm_mm, vaddr) == 1)
++				atomic_dec(&vma->vm_mm->mm_uprobes_count);
 +		}
-+		wait_event(area->wq,
-+			(atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
-+	} while (slot_nr >= UINSNS_PER_PAGE);
-+
-+	slot_addr = area->vaddr + (slot_nr * UPROBES_XOL_SLOT_BYTES);
-+	atomic_inc(&area->slot_count);
-+	return slot_addr;
-+}
-+
-+/*
-+ * xol_get_insn_slot - If was not allocated a slot, then
-+ * allocate a slot.
-+ * Returns the allocated slot address or 0.
-+ */
-+static unsigned long xol_get_insn_slot(struct uprobe *uprobe,
-+					unsigned long slot_addr)
-+{
-+	struct uprobes_xol_area *area;
-+	unsigned long offset;
-+	void *vaddr;
-+
-+	area = get_uprobes_xol_area(current->mm);
-+	if (!area) {
-+		area = xol_alloc_area();
-+		if (!area)
-+			return 0;
++		put_uprobe(uprobe);
 +	}
-+	current->utask->xol_vaddr = xol_take_insn_slot(area);
-+
-+	/*
-+	 * Initialize the slot if xol_vaddr points to valid
-+	 * instruction slot.
-+	 */
-+	if (unlikely(!current->utask->xol_vaddr))
-+		return 0;
-+
-+	current->utask->vaddr = slot_addr;
-+	offset = current->utask->xol_vaddr & ~PAGE_MASK;
-+	vaddr = kmap_atomic(area->page);
-+	memcpy(vaddr + offset, uprobe->insn, MAX_UINSN_BYTES);
-+	kunmap_atomic(vaddr);
-+	return current->utask->xol_vaddr;
++	mutex_unlock(uprobes_mmap_hash(inode));
++	return;
 +}
 +
-+/*
-+ * xol_free_insn_slot - If slot was earlier allocated by
-+ * @xol_get_insn_slot(), make the slot available for
-+ * subsequent requests.
-+ */
-+static void xol_free_insn_slot(struct task_struct *tsk)
-+{
-+	struct uprobes_xol_area *area;
-+	unsigned long vma_end;
-+	unsigned long slot_addr;
-+
-+	if (!tsk->mm || !tsk->mm->uprobes_xol_area || !tsk->utask)
-+		return;
-+
-+	slot_addr = tsk->utask->xol_vaddr;
-+
-+	if (unlikely(!slot_addr || IS_ERR_VALUE(slot_addr)))
-+		return;
-+
-+	area = tsk->mm->uprobes_xol_area;
-+	vma_end = area->vaddr + PAGE_SIZE;
-+	if (area->vaddr <= slot_addr && slot_addr < vma_end) {
-+		int slot_nr;
-+		unsigned long offset = slot_addr - area->vaddr;
-+
-+		slot_nr = offset / UPROBES_XOL_SLOT_BYTES;
-+		if (slot_nr >= UINSNS_PER_PAGE)
-+			return;
-+
-+		clear_bit(slot_nr, area->bitmap);
-+		atomic_dec(&area->slot_count);
-+		if (waitqueue_active(&area->wq))
-+			wake_up(&area->wq);
-+		tsk->utask->xol_vaddr = 0;
-+	}
-+}
-+
- /**
-  * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
-  * @regs: Reflects the saved state of the task after it has hit a breakpoint
-@@ -1020,6 +1218,7 @@ void free_uprobe_utask(struct task_struct *tsk)
- 	if (utask->active_uprobe)
- 		put_uprobe(utask->active_uprobe);
- 
-+	xol_free_insn_slot(tsk);
- 	kfree(utask);
- 	tsk->utask = NULL;
- }
-@@ -1049,6 +1248,8 @@ static struct uprobe_task *add_utask(void)
- static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
- 				unsigned long vaddr)
+ /* Slot allocation for XOL */
+ static int xol_add_vma(struct uprobes_xol_area *area)
  {
-+	if (xol_get_insn_slot(uprobe, vaddr) && !pre_xol(uprobe, regs))
-+		return 0;
- 	return -EFAULT;
+@@ -1397,7 +1491,8 @@ int uprobe_bkpt_notifier(struct pt_regs *regs)
+ {
+ 	struct uprobe_task *utask;
+ 
+-	if (!current->mm)
++	if (!current->mm || !atomic_read(&current->mm->mm_uprobes_count))
++		/* task is currently not uprobed */
+ 		return 0;
+ 
+ 	utask = current->utask;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0966418..83813fa 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -218,6 +218,7 @@ void unlink_file_vma(struct vm_area_struct *vma)
+ 		mutex_lock(&mapping->i_mmap_mutex);
+ 		__remove_shared_vm_struct(vma, file, mapping);
+ 		mutex_unlock(&mapping->i_mmap_mutex);
++		munmap_uprobe(vma);
+ 	}
  }
  
-@@ -1166,6 +1367,7 @@ void uprobe_notify_resume(struct pt_regs *regs)
- 		utask->active_uprobe = NULL;
- 		utask->state = UTASK_RUNNING;
- 		user_disable_single_step(current);
-+		xol_free_insn_slot(current);
+@@ -546,8 +547,14 @@ again:			remove_next = 1 + (end > next->vm_end);
  
- 		spin_lock_irq(&current->sighand->siglock);
- 		recalc_sigpending(); /* see uprobe_deny_signal() */
+ 	if (file) {
+ 		mapping = file->f_mapping;
+-		if (!(vma->vm_flags & VM_NONLINEAR))
++		if (!(vma->vm_flags & VM_NONLINEAR)) {
+ 			root = &mapping->i_mmap;
++			munmap_uprobe(vma);
++
++			if (adjust_next)
++				munmap_uprobe(next);
++		}
++
+ 		mutex_lock(&mapping->i_mmap_mutex);
+ 		if (insert) {
+ 			/*
+@@ -626,6 +633,7 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 
+ 	if (remove_next) {
+ 		if (file) {
++			munmap_uprobe(next);
+ 			fput(file);
+ 			if (next->vm_flags & VM_EXECUTABLE)
+ 				removed_exe_file_vma(mm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
