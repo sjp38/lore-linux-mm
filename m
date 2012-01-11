@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 8C48E6B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 07:12:46 -0500 (EST)
-Received: by werf1 with SMTP id f1so647353wer.14
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 04:12:45 -0800 (PST)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id F40566B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 07:14:53 -0500 (EST)
+Received: by wics10 with SMTP id s10so433167wic.14
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 04:14:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120110164407.GD4118@suse.de>
-References: <CAJd=RBAqzawZ=jEFt7TrZgU0gaejMkfiBxzH7Y19qqNnsZrJGw@mail.gmail.com>
-	<20120110094452.GC4118@suse.de>
-	<CAJd=RBA7vj83SFQFMS5WaRCfz2ndGJXepBqi5tK0LPjnBYYgfg@mail.gmail.com>
-	<20120110164407.GD4118@suse.de>
-Date: Wed, 11 Jan 2012 20:12:44 +0800
-Message-ID: <CAJd=RBA8j4Edia9oFuuY9-=a4Y41K6TAHjexCMszP=7XK2mF1Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: fix setting reclaim mode
+In-Reply-To: <20120110165743.GE4118@suse.de>
+References: <CAJd=RBDAoNt=TZWhNeLs0MaCJ_ormEp=ya55-PA+B0BAxfGbbQ@mail.gmail.com>
+	<20120110094026.GB4118@suse.de>
+	<CAJd=RBBNK6P=Kq09G88UDEsiU8KUPiko5WTfLgQqKzry8tVH5A@mail.gmail.com>
+	<20120110165743.GE4118@suse.de>
+Date: Wed, 11 Jan 2012 20:14:52 +0800
+Message-ID: <CAJd=RBAMn0Zi49iukLfV1S3je08OCqFv3nu=CZG1WTNyom7nig@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: no change of reclaim mode if unevictable page encountered
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -20,33 +20,17 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 11, 2012 at 12:44 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Tue, Jan 10, 2012 at 11:58:03PM +0800, Hillf Danton wrote:
->> From: Hillf Danton <dhillf@gmail.com>
->> [PATCH] mm: vmscan: fix setting reclaim mode
->>
->> The comment says, initially assume we are entering either lumpy reclaim or
->> reclaim/compaction, and depending on the reclaim order, we will either set the
->> sync mode or just reclaim order-0 pages later.
->>
->> On other hand, order-0 reclaim, instead of sync reclaim, is expected when
->> under memory pressure, but the check for memory pressure is incorrect,
->> leading to sync reclaim at low reclaim priorities.
->>
->> And the result is sync reclaim is set for high priorities.
->>
+On Wed, Jan 11, 2012 at 12:57 AM, Mel Gorman <mgorman@suse.de> wrote:
 >
-> RECLAIM_MODE_SYNC is only set for RECLAIM_MODE_LUMPYRECLAIM. Even when
-> using RECLAIM_MODE_LUMPYRECLAIM, it should only be set when reclaim
-> is under memory pressure and failing to reclaim the necessry pages
-> (priority < DEF_PRIORITY - 2). Once in symc reclaim, reclaim will call
-> wait_on_page_writeback() on dirty pages which potentially leads to
-> significant stalls (one of the reasons why RECLAIM_MODE_LUMPYRECLAIM
-> sucks and why compaction is preferred). Your patch means sync reclaim
-> is used even when priority == DEF_PRIORITY. This is unexpected.
+> When I said it needed more justification, I meant that you need to show
+> a workload or usecase that suffers as a result of reset_reclaim_mode
+> being called here. I explained already that the reset errs on the
+> side of caution by making reclaim work less.
 >
-
-Got and thanks for correcting Hillf
+> You need to describe what problem your workload is suffering from and
+> why this patch fixes it.
+>
+Got and thanks for review /Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
