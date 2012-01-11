@@ -1,69 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 364356B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 03:23:16 -0500 (EST)
-Received: by bkuw5 with SMTP id w5so451663bku.14
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 00:23:14 -0800 (PST)
-Message-ID: <4F0D46EF.4060705@openvz.org>
-Date: Wed, 11 Jan 2012 12:23:11 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E7B1C6B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 03:28:50 -0500 (EST)
+Received: by vcge1 with SMTP id e1so414727vcg.14
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 00:28:49 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-References: <20120106173827.11700.74305.stgit@zurg>	<20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1326265449_1658@mail4.comsite.net>
+References: <1326040026-7285-1-git-send-email-gilad@benyossef.com>
+	<1326265449_1658@mail4.comsite.net>
+Date: Wed, 11 Jan 2012 10:28:49 +0200
+Message-ID: <CAOtvUMf6v5iqdLaf6qocfso-HwEdJbHNt_SbY_7vWz6-1gA73g@mail.gmail.com>
+Subject: Re: [PATCH v6 0/8] Reduce cross CPU IPI interference
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Milton Miller <miltonm@bga.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.org>, Kosaki Motohiro <kosaki.motohiro@gmail.com>
 
-KAMEZAWA Hiroyuki wrote:
-> On Fri, 06 Jan 2012 21:38:56 +0400
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+On Wed, Jan 11, 2012 at 9:04 AM, Milton Miller <miltonm@bga.com> wrote:
 >
->> Memory migration fill pte with migration entry and it didn't update rss counters.
->> Then it replace migration entry with new page (or old one if migration was failed).
->> But between this two passes this pte can be unmaped, or task can fork child and
->> it will get copy of this migration entry. Nobody account this into rss counters.
->>
->> This patch properly adjust rss counters for migration entries in zap_pte_range()
->> and copy_one_pte(). Thus we avoid extra atomic operations on migration fast-path.
->>
->> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> Hi Gilad. =A0 A few minor corrections for several of the patch logs, but =
+some
+> meater discussions on several of the patches.
 >
-> It's better to show wheter this is a bug-fix or not in changelog.
->
-> IIUC, the bug-fix is the 1st harf of this patch + patch [2/3].
-> Your new bug-check code is in patch[1/3] and 2nd half of this patch.
->
+> Overall I like the series and hope you see it through.
 
-No, there only one new bug-check in 1st patch, this is non-fatal warning.
-I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
-rss counters covers whole page-table management, this is very good invariant.
-Currently I can trigger this warning only on this rare race -- extremely loaded
-memory compaction catches this every several seconds.
 
-1/3 bug-check
-2/3 fix preparation
-3/3 bugfix in two places:
-     do rss++ in copy_one_pte()
-     do rss-- in zap_pte_range()
+Hi Milton. Thanks so much for the detailed review.
 
-> I think it's better to do bug-fix 1st and add bug-check later.
->
-> So, could you reorder patches to bug-fix and new-bug-check ?
+As you've no doubt noticed,=A0English is=A0not my mother=A0tongue (as oppos=
+ed to
+=A0C),=A0so a special=A0thank you for the patch logs review :-)
 
-Patches didn't share any context, so they can be applied in any order.
 
 >
-> To the logic itself,
-> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Please CC when you repost.
->
->
->
+> <SNIP>
 
+
+
+>
+> > +void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *)=
+,
+> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *info, bool wait)
+> > +{
+> > + =A0 =A0 int cpu =3D get_cpu();
+> > +
+> > + =A0 =A0 smp_call_function_many(mask, func, info, wait);
+> > + =A0 =A0 if (cpumask_test_cpu(cpu, mask)) {
+> > + =A0 =A0 =A0 =A0 =A0 =A0 local_irq_disable();
+> > + =A0 =A0 =A0 =A0 =A0 =A0 func(info);
+> > + =A0 =A0 =A0 =A0 =A0 =A0 local_irq_enable();
+> > + =A0 =A0 }
+> > + =A0 =A0 put_cpu();
+> > +}
+> > +EXPORT_SYMBOL(on_each_cpu_mask);
+>
+> It should be less code if we rewrite on_each_cpu as the one liner
+> on_each_cpu_mask(cpu_online_mask). =A0I think the trade off of less
+> code is worth the cost of the added test of cpu being in online_mask.
+>
+> That could be a seperate patch, but will be easier to read the result
+> if on_each_cpu_mask is placed above on_each_cpu in this one.
+
+
+Yes, it does look cleaner and I agree that the extra test is not a big
+price to pay for simplee code.
+
+However, to do that, on_each_cpu return value need to go away and
+all caller needs to be adjusted. I=A0figured=A0this is out of scope for thi=
+s
+patch set.
+
+I did send out a=A0separate patch set to do the needed work =A0(see:
+https://lkml.org/lkml/2012/1/8/48) and I suggest that after both of
+them go in, I'll send a patch to do exactly what you suggested.
+
+Thanks!
+Gilad
+--
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"Unfortunately, cache misses are an equal opportunity pain provider."
+-- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
