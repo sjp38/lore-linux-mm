@@ -1,50 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id B86EB6B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 08:34:39 -0500 (EST)
-Message-ID: <4F0D8FCE.7080202@redhat.com>
-Date: Wed, 11 Jan 2012 08:34:06 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id A4A496B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 09:11:52 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm 2/2] mm: kswapd carefully invoke compaction
-References: <20120109213156.0ff47ee5@annuminas.surriel.com> <20120109213357.148e7927@annuminas.surriel.com> <CAHGf_=rj=aDVGWXqdq7fh_LrCFnug_mPNuuE=YdXaWpvwyjfzg@mail.gmail.com>
-In-Reply-To: <CAHGf_=rj=aDVGWXqdq7fh_LrCFnug_mPNuuE=YdXaWpvwyjfzg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <20237.39051.575883.450826@quad.stoffel.home>
+Date: Wed, 11 Jan 2012 09:11:23 -0500
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [PATCH -mm] make swapin readahead skip over holes
+In-Reply-To: <CAHGf_=odfZxYS+PcMfeJ2ddFm76+-KbOLNrjGBtoEdExdQmL3Q@mail.gmail.com>
+References: <20120109181023.7c81d0be@annuminas.surriel.com>
+	<4F0B7D1F.7040802@gmail.com>
+	<4F0BABE0.8080107@redhat.com>
+	<CAHGf_=qtpA5VTw5W0zaAhB2WCX1+-k59szTnDLnqDJeg+q9Jsw@mail.gmail.com>
+	<CAHGf_=odfZxYS+PcMfeJ2ddFm76+-KbOLNrjGBtoEdExdQmL3Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 01/11/2012 02:25 AM, KOSAKI Motohiro wrote:
->> With CONFIG_COMPACTION enabled, kswapd does not try to free
->> contiguous free pages, even when it is woken for a higher order
->> request.
->>
->> This could be bad for eg. jumbo frame network allocations, which
->> are done from interrupt context and cannot compact memory themselves.
->> Higher than before allocation failure rates in the network receive
->> path have been observed in kernels with compaction enabled.
->>
->> Teach kswapd to defragment the memory zones in a node, but only
->> if required and compaction is not deferred in a zone.
->>
->> Signed-off-by: Rik van Riel<riel@redhat.com>
->
-> I agree with we need asynchronous defragmentations feature. But, do we
-> really need to use kswapd for compaction? While kswapd take a
-> compaction work, it can't work to make free memory.
+>>>>> "KOSAKI" == KOSAKI Motohiro <kosaki.motohiro@gmail.com> writes:
 
-I believe we do need some background compaction, especially
-to help allocations from network interrupts.
+>> Also, I doubt current swap_cluster default is best value on nowadays.
+KOSAKI> I meant, current average hdd spec is,
+KOSAKI>  - average seek time: 8.5ms
+KOSAKI>  - sequential access performance: about 60MB/sec
 
-If you believe the compaction is better done from some
-other thread, I guess we could do that, but truthfully, if
-kswapd spends a lot of time doing compaction, I made a
-mistake somewhere :)
+KOSAKI> so, we can eat free lunch up to 7MB ~= 60(MB/sec) * 1000 / 8.5(ms).
 
--- 
-All rights reversed
+What if the disk is busy doing other writeout or readin during this
+time?  You can't assume you have the full disk bandwidth available,
+esp when you hit a swap storm like this.  
+
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
