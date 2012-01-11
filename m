@@ -1,96 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 18A756B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:12:21 -0500 (EST)
-Date: Wed, 11 Jan 2012 14:12:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
-Message-Id: <20120111141219.271d3a97.akpm@linux-foundation.org>
-In-Reply-To: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
-References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 3D5AD6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:25:49 -0500 (EST)
+Received: by yhoo21 with SMTP id o21so719727yho.14
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 14:25:48 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20237.63802.982209.699996@quad.stoffel.home>
+References: <20120109181023.7c81d0be@annuminas.surriel.com>
+ <4F0B7D1F.7040802@gmail.com> <4F0BABE0.8080107@redhat.com>
+ <CAHGf_=qtpA5VTw5W0zaAhB2WCX1+-k59szTnDLnqDJeg+q9Jsw@mail.gmail.com>
+ <CAHGf_=odfZxYS+PcMfeJ2ddFm76+-KbOLNrjGBtoEdExdQmL3Q@mail.gmail.com>
+ <20237.39051.575883.450826@quad.stoffel.home> <alpine.DEB.2.00.1201111305440.31239@router.home>
+ <20237.63802.982209.699996@quad.stoffel.home>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 11 Jan 2012 17:25:27 -0500
+Message-ID: <CAHGf_=qcoYGi=t7DLJsmhU07g2sWoCTVs9+FZ8EG7Y7+O9D-KQ@mail.gmail.com>
+Subject: Re: [PATCH -mm] make swapin readahead skip over holes
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: lizf@cn.fujitsu.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
+To: John Stoffel <john@stoffel.org>
+Cc: Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, 11 Jan 2012 18:50:36 +0200
-Sasha Levin <levinsasha928@gmail.com> wrote:
+> Christoph> The assumptions by Kosaki are quite conservative.
+>
+> Just checking
+>
+> Christoph> What if one did not get a disk from the garbage heap but
+> Christoph> instead has a state of the art storage cluster or simply an
+> Christoph> SSD (in particular relevant now since HDs are in short
+> Christoph> supply given the situation in Asia)?
+>
+> I don't know, I was just trying to make sure he thinks about disks
+> which are slower than he expects, since there are lots of them still
+> out there.
 
-> memdup_user() is called when we need to copy data from userspace. This
-> means that a user is able to trigger warnings if the kmalloc() inside
-> memdup_user() fails.
-> 
-> For example, this is one caused by writing to much data to ecryptdev:
-> 
-> [  912.739685] ------------[ cut here ]------------
-> [  912.745080] WARNING: at mm/page_alloc.c:2217 __alloc_pages_nodemask+0x22c/0x910()
-> [  912.746525] Pid: 19977, comm: trinity Not tainted 3.2.0-next-20120110-sasha #120
-> [  912.747915] Call Trace:
-> [  912.748415]  [<ffffffff8115ec5c>] ? __alloc_pages_nodemask+0x22c/0x910
-> [  912.749651]  [<ffffffff8109a2d5>] warn_slowpath_common+0x75/0xb0
-> [  912.750756]  [<ffffffff8109a3d5>] warn_slowpath_null+0x15/0x20
-> [  912.751831]  [<ffffffff8115ec5c>] __alloc_pages_nodemask+0x22c/0x910
-> [  912.754230]  [<ffffffff81070fd5>] ? pvclock_clocksource_read+0x55/0xd0
-> [  912.755484]  [<ffffffff8106ff56>] ? kvm_clock_read+0x46/0x80
-> [  912.756565]  [<ffffffff810d1548>] ? sched_clock_cpu+0xc8/0x140
-> [  912.757667]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
-> [  912.758731]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
-> [  912.759890]  [<ffffffff81341a4b>] ? ecryptfs_miscdev_write+0x6b/0x240
-> [  912.761119]  [<ffffffff81196c80>] alloc_pages_current+0xa0/0x110
-> [  912.762269]  [<ffffffff8115ba1f>] __get_free_pages+0xf/0x40
-> [  912.763347]  [<ffffffff811a6082>] __kmalloc_track_caller+0x172/0x190
-> [  912.764561]  [<ffffffff8116f0ab>] memdup_user+0x2b/0x90
-> [  912.765526]  [<ffffffff81341a4b>] ecryptfs_miscdev_write+0x6b/0x240
-> [  912.766669]  [<ffffffff813419e0>] ? ecryptfs_miscdev_open+0x190/0x190
-> [  912.767832]  [<ffffffff811ba360>] do_loop_readv_writev+0x50/0x80
-> [  912.770735]  [<ffffffff811ba69e>] do_readv_writev+0x1ce/0x1e0
-> [  912.773059]  [<ffffffff8251bbbc>] ? __mutex_unlock_slowpath+0x10c/0x200
-> [  912.774634]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
-> [  912.775699]  [<ffffffff810cc8dd>] ? sub_preempt_count+0x9d/0xd0
-> [  912.776827]  [<ffffffff8251f09d>] ? retint_swapgs+0x13/0x1b
-> [  912.777887]  [<ffffffff811ba758>] vfs_writev+0x48/0x60
-> [  912.779162]  [<ffffffff811ba86f>] sys_writev+0x4f/0xb0
-> [  912.780152]  [<ffffffff8251f979>] system_call_fastpath+0x16/0x1b
-> [  912.793046] ---[ end trace 50c38c9cdee53379 ]---
-> [  912.793906] ecryptfs_miscdev_write: memdup_user returned error [-12]
-> 
-> Failing memdup_user() shouldn't be generating warnings, instead it should
-> be notifying userspace about the error.
-> 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> ---
->  mm/util.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/util.c b/mm/util.c
-> index 136ac4f..88bb4d4 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -91,7 +91,7 @@ void *memdup_user(const void __user *src, size_t len)
->  	 * cause pagefault, which makes it pointless to use GFP_NOFS
->  	 * or GFP_ATOMIC.
->  	 */
-> -	p = kmalloc_track_caller(len, GFP_KERNEL);
-> +	p = kmalloc_track_caller(len, GFP_KERNEL | __GFP_NOWARN);
->  	if (!p)
->  		return ERR_PTR(-ENOMEM);
+If you have a rotate disk, a bottoleneck is almost always IOPS, not
+disk bandwidth.
+at least when the systems are under swap-in, I can't imagine the system is under
+disk bandwidth neck. Therefore we can eat free lunch if and only if we
+don't increase
+number of IOs.
 
-There's nothing particularly special about memdup_user(): there are
-many ways in which userspace can trigger GFP_KERNEL allocations.
-
-The problem here (one which your patch carefully covers up) is that
-ecryptfs_miscdev_write() is passing an unchecked userspace-provided
-`count' direct into kmalloc().  This is a bit problematic for other
-reasons: it gives userspace a way to trigger heavy reclaim activity and
-perhaps even to trigger the oom-killer.
-
-A better fix here would be to validate the incoming arg before using
-it.  Preferably by running ecryptfs_parse_packet_length() before taking
-a copy of the data.  That would require adding a small copy_from_user()
-to peek at the message header.
+In opposite, if you have much rich IO devices, that's more simple. You
+don't need
+worry about a few MB/s swap IO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
