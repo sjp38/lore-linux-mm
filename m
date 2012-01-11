@@ -1,141 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 3CEAD6B006E
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 14:24:46 -0500 (EST)
-Message-ID: <4F0DE1CE.5000006@redhat.com>
-Date: Wed, 11 Jan 2012 14:23:58 -0500
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 80F546B006E
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 14:31:08 -0500 (EST)
+Date: Wed, 11 Jan 2012 14:30:44 -0500
 From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] make swapin readahead skip over holes
-References: <20120109181023.7c81d0be@annuminas.surriel.com> <20120111165123.GF3910@csn.ul.ie>
-In-Reply-To: <20120111165123.GF3910@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: [PATCH v2 -mm] make swapin readahead skip over holes
+Message-ID: <20120111143044.3c538d46@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, akpm@linux-foundation.org, mel@csn.un.ie, hannes@cmpxchg.org, minchan.kim@gmail.com
 
-On 01/11/2012 11:51 AM, Mel Gorman wrote:
-> On Mon, Jan 09, 2012 at 06:10:23PM -0500, Rik van Riel wrote:
+Ever since abandoning the virtual scan of processes, for scalability
+reasons, swap space has been a little more fragmented than before.
+This can lead to the situation where a large memory user is killed,
+swap space ends up full of "holes" and swapin readahead is totally
+ineffective.
 
->> +	get_swap_cluster(entry,&offset,&end_offset);
->> +
->> +	for (; offset<= end_offset ; offset++) {
->>   		/* Ok, do the async read-ahead now */
->>   		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
->>   						gfp_mask, vma, addr);
->>   		if (!page)
->> -			break;
->> +			continue;
->>   		page_cache_release(page);
->>   	}
->
-> For a heavily fragmented swap file, this will result in more IO and
-> the gamble is that pages nearby are needed soon. You say your virtual
-> machines swapin faster and that does not surprise me. I also expect
-> they need the data so it's a net win.
+On my home system, after killing a leaky firefox it took over an
+hour to page just under 2GB of memory back in, slowing the virtual
+machines down to a crawl.
 
-More IO operations, yes.  However, IO operations from nearby
-blocks can often be done without incurring extra disk seeks,
-because the disk head is already in the right place.
+This patch makes swapin readahead simply skip over holes, instead
+of stopping at them.  This allows the system to swap things back in
+at rates of several MB/second, instead of a few hundred kB/second.
 
-This seems to be born out by the fact that I saw swapin
-rates increase from maybe 200-300kB/s to 5-15MB/s...
+The checks done in valid_swaphandles are already done in 
+read_swap_cache_async as well, allowing us to remove a fair amount
+of code.
 
-Even on some SSDs it could avoid some bank switches, though
-of course there I would expect the effect to be much less
-pronounced.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+-v2: cleanups suggested by Mel Gorman
+     skip swap offset zero
 
-> There is an possibility that under memory pressure that swapping in
-> more pages will cause more memory pressure (increased swapin causing
-> clean page cache discards and pageout) and be an overall loss. This may
-> be a net loss in some cases such as where the working set size is just
-> over physical memory and the increased swapin causes a problem. I doubt
-> this case is common but it is worth bearing in mind if future bug
-> reports complain about increased swap activity.
+ include/linux/swap.h |    2 +-
+ mm/swap_state.c      |   17 ++++----------
+ mm/swapfile.c        |   59 +++++++++++++------------------------------------
+ 3 files changed, 22 insertions(+), 56 deletions(-)
 
-True, there may be workloads that benefit from a smaller
-page-cluster. The fact that the recently swapped in pages
-are all put on the inactive anon list should help protect
-the working set, too.
-
-Another alternative may be a time based decision. If we
-have swapped something out recently, go with a less
-aggressive swapin readahead.
-
-That would automatically give us fast swapin readahead
-when in "memory hog just exited, let the system recover"
-mode, and conservative swapin readahead in your situation.
-
-However, that could still hurt badly if the system is just
-moving the working set from one part of a program to another.
-
-I suspect we will be faster off by having faster swap IO,
-which this patch seems to provide.
-
->> -	si = swap_info[swp_type(entry)];
->> -	target = swp_offset(entry);
->> -	base = (target>>  our_page_cluster)<<  our_page_cluster;
->> -	end = base + (1<<  our_page_cluster);
->> -	if (!base)		/* first page is swap header */
->> -		base++;
-
->> +	si = swap_info[swp_type(entry)];
->> +	/* Round the begin down to a page_cluster boundary. */
->> +	offset = (offset>>  page_cluster)<<  page_cluster;
->
-> Minor nit but it would feel more natural to me to see
->
-> offset&  ~((1<<  page_cluster) - 1)
->
-> but I understand that you are reusing the existing code.
-
-Sure, I can do that.
-
-While I'm there, I can also add that if (!base) base++
-thing back in :)
-
->> +	*begin = offset;
->> +	/* Round the end up, but not beyond the end of the swap device. */
->> +	offset = offset + (1<<  page_cluster);
->> +	if (offset>  si->max)
->> +		offset = si->max;
->> +	*end = offset;
->>   	spin_unlock(&swap_lock);
->> -
->> -	/*
->> -	 * Indicate starting offset, and return number of pages to get:
->> -	 * if only 1, say 0, since there's then no readahead to be done.
->> -	 */
->> -	*offset = ++toff;
->> -	return nr_pages? ++nr_pages: 0;
->>   }
->
-> This section deletes code which is nice but there is a
-> problem. Your changelog says that this is duplicating the effort of
-> read_swap_cache_async() which is true but what it does is
->
-> 1. a swap cache lookup which will probably fail
-> 2. alloc_page_vma()
-> 3. radix_tree_preload()
-> 4. swapcache_prepare
->     - calls __swap_duplicate()
->     - finds the hole, bails out
->
-> That's a lot of work before the hole is found. Would it be worth
-> doing a racy check in swapin_readahead without swap lock held before
-> calling read_swap_cache_async()?
-
-The problem is that without the swap_lock held, the swap_info
-struct may disappear completely because of the swapin_readahead
-happening concurrently with a swapoff.
-
-I suspect that the CPU time spent doing 1-4 above will be
-negligible compared to the amount of time spent doing disk IO,
-but if there turns out to be a problem it should be possible
-to move the swap hole identification closer to the top of
-swap_cache_read_async().
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 1e22e12..6e1282e 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -328,7 +328,7 @@ extern long total_swap_pages;
+ extern void si_swapinfo(struct sysinfo *);
+ extern swp_entry_t get_swap_page(void);
+ extern swp_entry_t get_swap_page_of_type(int);
+-extern int valid_swaphandles(swp_entry_t, unsigned long *);
++extern void get_swap_cluster(swp_entry_t, unsigned long *, unsigned long *);
+ extern int add_swap_count_continuation(swp_entry_t, gfp_t);
+ extern void swap_shmem_alloc(swp_entry_t);
+ extern int swap_duplicate(swp_entry_t);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index ea6b32d..3ec4886 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -372,25 +372,18 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 			struct vm_area_struct *vma, unsigned long addr)
+ {
+-	int nr_pages;
+ 	struct page *page;
+-	unsigned long offset;
++	unsigned long offset = swp_offset(entry);
+ 	unsigned long end_offset;
+ 
+-	/*
+-	 * Get starting offset for readaround, and number of pages to read.
+-	 * Adjust starting address by readbehind (for NUMA interleave case)?
+-	 * No, it's very unlikely that swap layout would follow vma layout,
+-	 * more likely that neighbouring swap pages came from the same node:
+-	 * so use the same "addr" to choose the same node for each swap read.
+-	 */
+-	nr_pages = valid_swaphandles(entry, &offset);
+-	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
++	get_swap_cluster(entry, &offset, &end_offset);
++
++	for (; offset <= end_offset ; offset++) {
+ 		/* Ok, do the async read-ahead now */
+ 		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+ 						gfp_mask, vma, addr);
+ 		if (!page)
+-			break;
++			continue;
+ 		page_cache_release(page);
+ 	}
+ 	lru_add_drain();	/* Push any new pages onto the LRU now */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index b1cd120..f09182e 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2289,55 +2289,28 @@ int swapcache_prepare(swp_entry_t entry)
+ }
+ 
+ /*
+- * swap_lock prevents swap_map being freed. Don't grab an extra
+- * reference on the swaphandle, it doesn't matter if it becomes unused.
++ * Return a swap cluster sized and aligned block around offset.
+  */
+-int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
++void get_swap_cluster(swp_entry_t entry, unsigned long *begin,
++			unsigned long *end)
+ {
+ 	struct swap_info_struct *si;
+-	int our_page_cluster = page_cluster;
+-	pgoff_t target, toff;
+-	pgoff_t base, end;
+-	int nr_pages = 0;
+-
+-	if (!our_page_cluster)	/* no readahead */
+-		return 0;
+-
+-	si = swap_info[swp_type(entry)];
+-	target = swp_offset(entry);
+-	base = (target >> our_page_cluster) << our_page_cluster;
+-	end = base + (1 << our_page_cluster);
+-	if (!base)		/* first page is swap header */
+-		base++;
++	unsigned long offset = swp_offset(entry);
++	unsigned long mask = (1 << page_cluster) - 1;
+ 
+ 	spin_lock(&swap_lock);
+-	if (end > si->max)	/* don't go beyond end of map */
+-		end = si->max;
+-
+-	/* Count contiguous allocated slots above our target */
+-	for (toff = target; ++toff < end; nr_pages++) {
+-		/* Don't read in free or bad pages */
+-		if (!si->swap_map[toff])
+-			break;
+-		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
+-			break;
+-	}
+-	/* Count contiguous allocated slots below our target */
+-	for (toff = target; --toff >= base; nr_pages++) {
+-		/* Don't read in free or bad pages */
+-		if (!si->swap_map[toff])
+-			break;
+-		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
+-			break;
+-	}
++	si = swap_info[swp_type(entry)];
++	/* Round the begin down to a page_cluster boundary. */
++	offset &= ~mask;
++	if (!offset)	/* First page is swap header. */
++		offset++;
++	*begin = offset;
++	/* Round the end up, but not beyond the end of the swap device. */
++	offset |= mask;
++	if (offset > si->max)
++		offset = si->max;
++	*end = offset;
+ 	spin_unlock(&swap_lock);
+-
+-	/*
+-	 * Indicate starting offset, and return number of pages to get:
+-	 * if only 1, say 0, since there's then no readahead to be done.
+-	 */
+-	*offset = ++toff;
+-	return nr_pages? ++nr_pages: 0;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
