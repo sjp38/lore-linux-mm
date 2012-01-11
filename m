@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id B35F76B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 07:47:16 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
-Date: Wed, 11 Jan 2012 12:46:33 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
- <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com>
- <20120104195521.GA19181@suse.de>
- <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com>
- <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id B86EB6B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 08:34:39 -0500 (EST)
+Message-ID: <4F0D8FCE.7080202@redhat.com>
+Date: Wed, 11 Jan 2012 08:34:06 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH -mm 2/2] mm: kswapd carefully invoke compaction
+References: <20120109213156.0ff47ee5@annuminas.surriel.com> <20120109213357.148e7927@annuminas.surriel.com> <CAHGf_=rj=aDVGWXqdq7fh_LrCFnug_mPNuuE=YdXaWpvwyjfzg@mail.gmail.com>
+In-Reply-To: <CAHGf_=rj=aDVGWXqdq7fh_LrCFnug_mPNuuE=YdXaWpvwyjfzg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-mm@kvack.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com
 
-> -----Original Message-----
-> From: ext David Rientjes [mailto:rientjes@google.com]
-> Sent: 09 January, 2012 21:55
-...
->=20
-> Maybe there's some confusion: the proposed oom killer delay that I'm
-> referring to here is not upstream and has never been written for global o=
-om
-> conditions.  My reference to it earlier was as an internal patch that we =
-carry
-> on top of memory controller, but what I'm proposing here is for it to be
-> implemented globally.
+On 01/11/2012 02:25 AM, KOSAKI Motohiro wrote:
+>> With CONFIG_COMPACTION enabled, kswapd does not try to free
+>> contiguous free pages, even when it is woken for a higher order
+>> request.
+>>
+>> This could be bad for eg. jumbo frame network allocations, which
+>> are done from interrupt context and cannot compact memory themselves.
+>> Higher than before allocation failure rates in the network receive
+>> path have been observed in kernels with compaction enabled.
+>>
+>> Teach kswapd to defragment the memory zones in a node, but only
+>> if required and compaction is not deferred in a zone.
+>>
+>> Signed-off-by: Rik van Riel<riel@redhat.com>
+>
+> I agree with we need asynchronous defragmentations feature. But, do we
+> really need to use kswapd for compaction? While kswapd take a
+> compaction work, it can't work to make free memory.
 
-That is explains situation - I know how memcg can handle OOM in cgroup but =
-not about internal patch.
+I believe we do need some background compaction, especially
+to help allocations from network interrupts.
 
-> So if the page allocator can make no progress in freeing memory, we would
-> introduce a delay in out_of_memory() if it were configured via a sysctl f=
-rom
-> userspace.  When this delay is started, applications waiting on this even=
-t can
-> be notified with eventfd(2) that the delay has started and they have
-> however many milliseconds to address the situation.  When they rewrite th=
-e
-> sysctl, the delay is cleared.  If they don't rewrite the sysctl and the d=
-elay
-> expires, the oom killer proceeds with killing.
->=20
-> What's missing for your use case with this proposal?
+If you believe the compaction is better done from some
+other thread, I guess we could do that, but truthfully, if
+kswapd spends a lot of time doing compaction, I made a
+mistake somewhere :)
 
-Timed delays in multi-process handling in case OOM looks for me fragile con=
-struction due to delays are not predicable.
-Memcg supports [1] better approach to freeze whole group and kick pointed u=
-ser-space application to handle it. We planned
-to use it as:
-- enlarge cgroup
-- send SIGTERM to selected "bad" application e.g. based on oom_score
-- wait a bit
-- send SIGKILL to "bad" application
-- reduce group size
-
-But finally default OOM killer starts to work fine.
-
-[1] http://lwn.net/Articles/377708/
-
-=20
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
