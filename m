@@ -1,50 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 240106B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 16:04:23 -0500 (EST)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 7CB4E6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 16:10:39 -0500 (EST)
+Date: Wed, 11 Jan 2012 22:10:31 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 -mm] make swapin readahead skip over holes
+Message-ID: <20120111205041.GE24386@cmpxchg.org>
+References: <20120111143044.3c538d46@cuia.bos.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <20237.63802.982209.699996@quad.stoffel.home>
-Date: Wed, 11 Jan 2012 16:03:54 -0500
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [PATCH -mm] make swapin readahead skip over holes
-In-Reply-To: <alpine.DEB.2.00.1201111305440.31239@router.home>
-References: <20120109181023.7c81d0be@annuminas.surriel.com>
-	<4F0B7D1F.7040802@gmail.com>
-	<4F0BABE0.8080107@redhat.com>
-	<CAHGf_=qtpA5VTw5W0zaAhB2WCX1+-k59szTnDLnqDJeg+q9Jsw@mail.gmail.com>
-	<CAHGf_=odfZxYS+PcMfeJ2ddFm76+-KbOLNrjGBtoEdExdQmL3Q@mail.gmail.com>
-	<20237.39051.575883.450826@quad.stoffel.home>
-	<alpine.DEB.2.00.1201111305440.31239@router.home>
+Content-Disposition: inline
+In-Reply-To: <20120111143044.3c538d46@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: John Stoffel <john@stoffel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, minchan.kim@gmail.com
 
->>>>> "Christoph" == Christoph Lameter <cl@linux.com> writes:
+On Wed, Jan 11, 2012 at 02:30:44PM -0500, Rik van Riel wrote:
+> Ever since abandoning the virtual scan of processes, for scalability
+> reasons, swap space has been a little more fragmented than before.
+> This can lead to the situation where a large memory user is killed,
+> swap space ends up full of "holes" and swapin readahead is totally
+> ineffective.
+> 
+> On my home system, after killing a leaky firefox it took over an
+> hour to page just under 2GB of memory back in, slowing the virtual
+> machines down to a crawl.
+> 
+> This patch makes swapin readahead simply skip over holes, instead
+> of stopping at them.  This allows the system to swap things back in
+> at rates of several MB/second, instead of a few hundred kB/second.
+> 
+> The checks done in valid_swaphandles are already done in 
+> read_swap_cache_async as well, allowing us to remove a fair amount
+> of code.
 
-Christoph> On Wed, 11 Jan 2012, John Stoffel wrote:
-KOSAKI> so, we can eat free lunch up to 7MB ~= 60(MB/sec) * 1000 / 8.5(ms).
->> 
->> What if the disk is busy doing other writeout or readin during this
->> time?  You can't assume you have the full disk bandwidth available,
->> esp when you hit a swap storm like this.
-
-Christoph> The assumptions by Kosaki are quite conservative.
-
-Just checking
-
-Christoph> What if one did not get a disk from the garbage heap but
-Christoph> instead has a state of the art storage cluster or simply an
-Christoph> SSD (in particular relevant now since HDs are in short
-Christoph> supply given the situation in Asia)?
-
-I don't know, I was just trying to make sure he thinks about disks
-which are slower than he expects, since there are lots of them still
-out there.  
-
-John
+__swap_duplicate() also checks for whether the offset is within the
+swap device range.  Do you think we could remove get_swap_cluster()
+altogether and just try reading the aligned page_cluster range?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
