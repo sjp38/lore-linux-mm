@@ -1,97 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 2FA6A6B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 03:42:47 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 485483EE0BB
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:42:45 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EB1745DE55
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:42:45 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BD4B45DE4E
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:42:45 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F0DB51DB8041
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:42:44 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A9AFF1DB803E
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:42:44 +0900 (JST)
-Date: Wed, 11 Jan 2012 17:41:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-Message-Id: <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F0D46EF.4060705@openvz.org>
-References: <20120106173827.11700.74305.stgit@zurg>
-	<20120106173856.11700.98858.stgit@zurg>
-	<20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F0D46EF.4060705@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id AD6576B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 03:48:05 -0500 (EST)
+Date: Wed, 11 Jan 2012 09:48:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Fix NULL ptr dereference in __count_immobile_pages
+Message-ID: <20120111084802.GA16466@tiehlicka.suse.cz>
+References: <1326213022-11761-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.00.1201101326080.10821@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1201101326080.10821@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, 11 Jan 2012 12:23:11 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Fri, 06 Jan 2012 21:38:56 +0400
-> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
-> >
-> >> Memory migration fill pte with migration entry and it didn't update rss counters.
-> >> Then it replace migration entry with new page (or old one if migration was failed).
-> >> But between this two passes this pte can be unmaped, or task can fork child and
-> >> it will get copy of this migration entry. Nobody account this into rss counters.
-> >>
-> >> This patch properly adjust rss counters for migration entries in zap_pte_range()
-> >> and copy_one_pte(). Thus we avoid extra atomic operations on migration fast-path.
-> >>
-> >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> >
-> > It's better to show wheter this is a bug-fix or not in changelog.
-> >
-> > IIUC, the bug-fix is the 1st harf of this patch + patch [2/3].
-> > Your new bug-check code is in patch[1/3] and 2nd half of this patch.
-> >
+On Tue 10-01-12 13:31:08, David Rientjes wrote:
+> On Tue, 10 Jan 2012, Michal Hocko wrote:
+[...]
+> >  mm/page_alloc.c |   11 +++++++++++
+> >  1 files changed, 11 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 2b8ba3a..485be89 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -5608,6 +5608,17 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+> >  bool is_pageblock_removable_nolock(struct page *page)
+> >  {
+> >  	struct zone *zone = page_zone(page);
+> > +	unsigned long pfn = page_to_pfn(page);
+> > +
+> > +	/*
+> > +	 * We have to be careful here because we are iterating over memory
+> > +	 * sections which are not zone aware so we might end up outside of
+> > +	 * the zone but still within the section.
+> > +	 */
+> > +	if (!zone || zone->zone_start_pfn > pfn ||
+> > +			zone->zone_start_pfn + zone->spanned_pages <= pfn)
+> > +		return false;
+> > +
+> >  	return __count_immobile_pages(zone, page, 0);
+> >  }
+> >  
 > 
-> No, there only one new bug-check in 1st patch, this is non-fatal warning.
-> I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
-> rss counters covers whole page-table management, this is very good invariant.
-> Currently I can trigger this warning only on this rare race -- extremely loaded
-> memory compaction catches this every several seconds.
+> This seems partially bogus, why would
 > 
-> 1/3 bug-check
-> 2/3 fix preparation
-> 3/3 bugfix in two places:
->      do rss++ in copy_one_pte()
->      do rss-- in zap_pte_range()
+> 	page_zone(page)->zone_start_pfn > page_to_pfn(page) ||
+> 	page_zone(page)->zone_start_pfn + page_zone(page)->spanned_pages <= page_to_pfn(page)
 > 
+> ever be true?  That would certainly mean that the struct zone is corrupted 
+> and seems to be unnecessary to fix the problem you're addressing.
 
-Hmm, ok, I read wrong.
+Not really. Consider the case when the node 0 is present. Uninitialized
+page would lead to node=0, zone=0 and then we have to check for the zone
+boundaries.
 
-So, I think you should post the patch with [BUGFIX] and
-report 'what happens' and 'what is the bug' , 'what you fixed' explicitly.
+> I think this should be handled in is_mem_section_removable() on the pfn 
+> rather than using the struct page in is_pageblock_removable_nolock() and 
+> converting back and forth.  We should make sure that any page passed to 
+> is_pageblock_removable_nolock() is valid.
 
-As...
-==
-  This patch series fixes per-mm rss counter accounting bug. When pages are
-  heavily migrated, the rss counters will go wrong by fork() and unmap()
-  because they ignores migration_pte_entries.
-  This rarelly happens but will make rss counter incorrect.
+Yes, I do not like pfn->page->pfn dance as well and in fact I do not
+have a strong opinion which one is better. I just put it at the place
+where we care about zone to be more obvious. If others think that I
+should move the check one level higher I'll do that. I just think this
+is more obvious.
 
-  This seires of patches will fix the issue by adding proper accounting of
-  migration_pte_entries in unmap() and fork(). This series includes
-  bug check code, too.
-==
-
-If [BUGFIX], people will have more interests.
-
-Anyway, thank you for bugfix.
-
--Kame
+Thanks for your comments.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
