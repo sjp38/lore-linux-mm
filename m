@@ -1,178 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id C8E846B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 11:10:26 -0500 (EST)
-Received: by vcge1 with SMTP id e1so784018vcg.14
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 08:10:25 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1326265454_1664@mail4.comsite.net>
-References: <alpine.DEB.2.00.1201091034390.31395@router.home>
-	<1326040026-7285-8-git-send-email-gilad@benyossef.com>
-	<op.v7vcjum63l0zgt@mpn-glaptop>
-	<1326265454_1664@mail4.comsite.net>
-Date: Wed, 11 Jan 2012 18:10:25 +0200
-Message-ID: <CAOtvUMdXUjr8ZN+Mv8XuAmMtf0jZ-_r2f_1XJxhpwmJC6orSGw@mail.gmail.com>
-Subject: Re: [PATCH v6 7/8] mm: only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id D3BEF6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 11:51:14 -0500 (EST)
+Received: by eeke53 with SMTP id e53so456437eek.14
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 08:51:13 -0800 (PST)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [PATCH] mm: Don't warn if memdup_user fails
+Date: Wed, 11 Jan 2012 18:50:36 +0200
+Message-Id: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milton Miller <miltonm@bga.com>
-Cc: Christoph Lameter <cl@linux.com>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: lizf@cn.fujitsu.com, akpm@linux-foundation.org, penberg@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <levinsasha928@gmail.com>
 
-On Wed, Jan 11, 2012 at 9:04 AM, Milton Miller <miltonm@bga.com> wrote:
+memdup_user() is called when we need to copy data from userspace. This
+means that a user is able to trigger warnings if the kmalloc() inside
+memdup_user() fails.
 
->> > > @@ -1097,7 +1105,19 @@ void drain_local_pages(void *arg)
->> > > =A0 */
->> > > =A0void drain_all_pages(void)
->> > > =A0{
->> > > - on_each_cpu(drain_local_pages, NULL, 1);
->> > > + int cpu;
->> > > + struct per_cpu_pageset *pcp;
->> > > + struct zone *zone;
->> > > +
->> > > + for_each_online_cpu(cpu)
->> > > + =A0 =A0 =A0 =A0 for_each_populated_zone(zone) {
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pcp =3D per_cpu_ptr(zone->pageset,=
- cpu);
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pcp->pcp.count)
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_set_cpu(cp=
-u, cpus_with_pcps);
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_clear_cpu(=
-cpu, cpus_with_pcps);
->> > > + =A0 =A0 =A0 =A0 }
->> > > + on_each_cpu_mask(cpus_with_pcps, drain_local_pages, NULL, 1);
->> >
->
-> This will only select cpus that have pcp pages in the last zone,
-> not pages in any populated zone.
+For example, this is one caused by writing to much data to ecryptdev:
 
-Oy! you are very right.
+[  912.739685] ------------[ cut here ]------------
+[  912.745080] WARNING: at mm/page_alloc.c:2217 __alloc_pages_nodemask+0x22c/0x910()
+[  912.746525] Pid: 19977, comm: trinity Not tainted 3.2.0-next-20120110-sasha #120
+[  912.747915] Call Trace:
+[  912.748415]  [<ffffffff8115ec5c>] ? __alloc_pages_nodemask+0x22c/0x910
+[  912.749651]  [<ffffffff8109a2d5>] warn_slowpath_common+0x75/0xb0
+[  912.750756]  [<ffffffff8109a3d5>] warn_slowpath_null+0x15/0x20
+[  912.751831]  [<ffffffff8115ec5c>] __alloc_pages_nodemask+0x22c/0x910
+[  912.754230]  [<ffffffff81070fd5>] ? pvclock_clocksource_read+0x55/0xd0
+[  912.755484]  [<ffffffff8106ff56>] ? kvm_clock_read+0x46/0x80
+[  912.756565]  [<ffffffff810d1548>] ? sched_clock_cpu+0xc8/0x140
+[  912.757667]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+[  912.758731]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+[  912.759890]  [<ffffffff81341a4b>] ? ecryptfs_miscdev_write+0x6b/0x240
+[  912.761119]  [<ffffffff81196c80>] alloc_pages_current+0xa0/0x110
+[  912.762269]  [<ffffffff8115ba1f>] __get_free_pages+0xf/0x40
+[  912.763347]  [<ffffffff811a6082>] __kmalloc_track_caller+0x172/0x190
+[  912.764561]  [<ffffffff8116f0ab>] memdup_user+0x2b/0x90
+[  912.765526]  [<ffffffff81341a4b>] ecryptfs_miscdev_write+0x6b/0x240
+[  912.766669]  [<ffffffff813419e0>] ? ecryptfs_miscdev_open+0x190/0x190
+[  912.767832]  [<ffffffff811ba360>] do_loop_readv_writev+0x50/0x80
+[  912.770735]  [<ffffffff811ba69e>] do_readv_writev+0x1ce/0x1e0
+[  912.773059]  [<ffffffff8251bbbc>] ? __mutex_unlock_slowpath+0x10c/0x200
+[  912.774634]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+[  912.775699]  [<ffffffff810cc8dd>] ? sub_preempt_count+0x9d/0xd0
+[  912.776827]  [<ffffffff8251f09d>] ? retint_swapgs+0x13/0x1b
+[  912.777887]  [<ffffffff811ba758>] vfs_writev+0x48/0x60
+[  912.779162]  [<ffffffff811ba86f>] sys_writev+0x4f/0xb0
+[  912.780152]  [<ffffffff8251f979>] system_call_fastpath+0x16/0x1b
+[  912.793046] ---[ end trace 50c38c9cdee53379 ]---
+[  912.793906] ecryptfs_miscdev_write: memdup_user returned error [-12]
 
->
-> Call cpu_mask_clear before the for_each_online_cpu loop, and only
-> set cpus in the loop.
->
-> Hmm, that means we actually need a lock for using the static mask.
+Failing memdup_user() shouldn't be generating warnings, instead it should
+be notifying userspace about the error.
 
-We don't have to clear before the loop or lock. We can do something like th=
-is:
+Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+---
+ mm/util.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-        int cpu;
-        struct per_cpu_pageset *pcp;
-        struct zone *zone;
-
-        for_each_online_cpu(cpu) {
-                bool has_pcps =3D false;
-                for_each_populated_zone(zone) {
-                        pcp =3D per_cpu_ptr(zone->pageset, cpu);
-                        if (pcp->pcp.count) {
-                                has_pcps =3D true;
-                                break;
-                        }
-                }
-                if (has_pcps)
-                        cpumask_set_cpu(cpu, cpus_with_pcps);
-                else
-                        cpumask_clear_cpu(cpu, cpus_with_pcps);
-        }
-        on_each_cpu_mask(cpus_with_pcps, drain_local_pages, NULL, 1);
-
-
->
-> -- what would happen without any lock?
-> [The last to store would likely see all the cpus and send them IPIs
-> but the earlier, racing callers would miss some cpus (It will test
-> our smp_call_function_many locking!), and would retry before all the
-> pages were drained from pcp pools]. =A0The locking should be better
-> than racing -- one cpu will peek and pull all per-cpu data to itself,
-> then copy the mask to its smp_call_function_many element, then wait
-> for all the cpus it found cpus to process their list pulling their
-> pcp data back to the owners. =A0 Not much sense in the racing cpus
-> figighting to bring the per-cpu data to themselves to write to the
-> now contended static mask while pulling the zone pcp data from the
-> owning cpus that are trying to push to the buddy lists.
->
-
-That is a very good point and I guess you are right that the locking
-saves cache bounces and probably also some IPIs.
-
-I am not 100% it is a win though. The lockless approach is simpler,
-has zero risk of dead locks. I also fear that any non interruptable lock
-(be it spinlock or  interruptable lock non mutex) might delay an OOM
-in progress.
-
-Having the lock there is not a correctness issue - it is a performance
-enhancement. Because this is not a fast path, i would go for simple
-and less risk and not have the lock there at all.
-
-> The benefit numbers in the changelog need to be measured again
-> after this correction.
->
-
-Yes, of course. Preliminary numbers with the lockless version above
-still looks good.
-
-I am guessing though that Mel's patch will make all this moot anyway
-since if we're not doing a drain_all in the direct reclaim we're left with
-very rare code paths (memory error and memory migration) that call
-the drain_all and they wont tend to do that concurrently like the direct
-reclaim.
-
->
->
-> Disabling preemption around online loop and the call will prevent
-> races with cpus going offline, but we do not that we care as the
-> offline notification will cause the notified cpu to drain that pool.
-> on_each_cpu_mask disables preemption as part of its processing.
->
-> If we document the o-e-c-m behaviour then we should consider putting a
-> comment here, or at least put the previous paragraph in the change log.
-
-I noticed that Mel's patch already added get_online_cpus() in drain_all.
-
-
->
->> > > =A0}
->> > >
->> > > =A0#ifdef CONFIG_HIBERNATION
->> > > @@ -3601,6 +3621,10 @@ static void setup_zone_pageset(struct zone *z=
-one)
->> > > =A0void __init setup_per_cpu_pageset(void)
->> > > =A0{
->> > > =A0 struct zone *zone;
->> > > + int ret;
->> > > +
->> > > + ret =3D zalloc_cpumask_var(&cpus_with_pcps, GFP_KERNEL);
->> > > + BUG_ON(!ret);
->> > >
->
-> Switching to cpumask_t will eliminate this hunk. =A0 Even if we decide
-> to keep it a cpumask_var_t we don't need to pre-zero it as we set
-> the entire mask so alloc_cpumask_var would be sufficient.
->
-
-hmm... then we can make it a static local variable and it doesn't even
-make the kernel image really bigger since it's in the BSS. Cool.
-
-Thanks,
-
-Gilad
-
-
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+diff --git a/mm/util.c b/mm/util.c
+index 136ac4f..88bb4d4 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -91,7 +91,7 @@ void *memdup_user(const void __user *src, size_t len)
+ 	 * cause pagefault, which makes it pointless to use GFP_NOFS
+ 	 * or GFP_ATOMIC.
+ 	 */
+-	p = kmalloc_track_caller(len, GFP_KERNEL);
++	p = kmalloc_track_caller(len, GFP_KERNEL | __GFP_NOWARN);
+ 	if (!p)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-- 
+1.7.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
