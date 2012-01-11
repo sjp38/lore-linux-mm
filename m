@@ -1,63 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 6F24C6B0075
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 16:59:01 -0500 (EST)
-Message-ID: <4F0E05F6.30105@redhat.com>
-Date: Wed, 11 Jan 2012 16:58:14 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 -mm] make swapin readahead skip over holes
-References: <20120111143044.3c538d46@cuia.bos.redhat.com> <20120111205041.GE24386@cmpxchg.org> <4F0DFF64.4040704@redhat.com> <20120111214242.GF24386@cmpxchg.org>
-In-Reply-To: <20120111214242.GF24386@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 18A756B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 17:12:21 -0500 (EST)
+Date: Wed, 11 Jan 2012 14:12:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
+Message-Id: <20120111141219.271d3a97.akpm@linux-foundation.org>
+In-Reply-To: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
+References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, minchan.kim@gmail.com
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: lizf@cn.fujitsu.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
 
-On 01/11/2012 04:42 PM, Johannes Weiner wrote:
-> On Wed, Jan 11, 2012 at 04:30:12PM -0500, Rik van Riel wrote:
->> On 01/11/2012 04:10 PM, Johannes Weiner wrote:
->>> On Wed, Jan 11, 2012 at 02:30:44PM -0500, Rik van Riel wrote:
->>>> Ever since abandoning the virtual scan of processes, for scalability
->>>> reasons, swap space has been a little more fragmented than before.
->>>> This can lead to the situation where a large memory user is killed,
->>>> swap space ends up full of "holes" and swapin readahead is totally
->>>> ineffective.
->>>>
->>>> On my home system, after killing a leaky firefox it took over an
->>>> hour to page just under 2GB of memory back in, slowing the virtual
->>>> machines down to a crawl.
->>>>
->>>> This patch makes swapin readahead simply skip over holes, instead
->>>> of stopping at them.  This allows the system to swap things back in
->>>> at rates of several MB/second, instead of a few hundred kB/second.
->>>>
->>>> The checks done in valid_swaphandles are already done in
->>>> read_swap_cache_async as well, allowing us to remove a fair amount
->>>> of code.
->>>
->>> __swap_duplicate() also checks for whether the offset is within the
->>> swap device range.  Do you think we could remove get_swap_cluster()
->>> altogether and just try reading the aligned page_cluster range?
->>
->> That is how I implemented it originally, but we need
->> to take the swap_lock so it is cleaner to implement
->> a helper function in swapfile.c :)
->
-> AFAICS, it's only needed to validate the offset against si->max, but
-> this too is done in __swap_duplicate().
->
-> What's otherwise left is just rounding down swp_offset(entry) and
-> adding 1<<  page_cluster to it, that shouldn't need the swap_lock?
->
-> Am I missing something?
+On Wed, 11 Jan 2012 18:50:36 +0200
+Sasha Levin <levinsasha928@gmail.com> wrote:
 
-Good point.  I guess we could get rid of get_swap_cluster
-afterall and let __swap_duplicate deal with everything.
+> memdup_user() is called when we need to copy data from userspace. This
+> means that a user is able to trigger warnings if the kmalloc() inside
+> memdup_user() fails.
+> 
+> For example, this is one caused by writing to much data to ecryptdev:
+> 
+> [  912.739685] ------------[ cut here ]------------
+> [  912.745080] WARNING: at mm/page_alloc.c:2217 __alloc_pages_nodemask+0x22c/0x910()
+> [  912.746525] Pid: 19977, comm: trinity Not tainted 3.2.0-next-20120110-sasha #120
+> [  912.747915] Call Trace:
+> [  912.748415]  [<ffffffff8115ec5c>] ? __alloc_pages_nodemask+0x22c/0x910
+> [  912.749651]  [<ffffffff8109a2d5>] warn_slowpath_common+0x75/0xb0
+> [  912.750756]  [<ffffffff8109a3d5>] warn_slowpath_null+0x15/0x20
+> [  912.751831]  [<ffffffff8115ec5c>] __alloc_pages_nodemask+0x22c/0x910
+> [  912.754230]  [<ffffffff81070fd5>] ? pvclock_clocksource_read+0x55/0xd0
+> [  912.755484]  [<ffffffff8106ff56>] ? kvm_clock_read+0x46/0x80
+> [  912.756565]  [<ffffffff810d1548>] ? sched_clock_cpu+0xc8/0x140
+> [  912.757667]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+> [  912.758731]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+> [  912.759890]  [<ffffffff81341a4b>] ? ecryptfs_miscdev_write+0x6b/0x240
+> [  912.761119]  [<ffffffff81196c80>] alloc_pages_current+0xa0/0x110
+> [  912.762269]  [<ffffffff8115ba1f>] __get_free_pages+0xf/0x40
+> [  912.763347]  [<ffffffff811a6082>] __kmalloc_track_caller+0x172/0x190
+> [  912.764561]  [<ffffffff8116f0ab>] memdup_user+0x2b/0x90
+> [  912.765526]  [<ffffffff81341a4b>] ecryptfs_miscdev_write+0x6b/0x240
+> [  912.766669]  [<ffffffff813419e0>] ? ecryptfs_miscdev_open+0x190/0x190
+> [  912.767832]  [<ffffffff811ba360>] do_loop_readv_writev+0x50/0x80
+> [  912.770735]  [<ffffffff811ba69e>] do_readv_writev+0x1ce/0x1e0
+> [  912.773059]  [<ffffffff8251bbbc>] ? __mutex_unlock_slowpath+0x10c/0x200
+> [  912.774634]  [<ffffffff810cc731>] ? get_parent_ip+0x11/0x50
+> [  912.775699]  [<ffffffff810cc8dd>] ? sub_preempt_count+0x9d/0xd0
+> [  912.776827]  [<ffffffff8251f09d>] ? retint_swapgs+0x13/0x1b
+> [  912.777887]  [<ffffffff811ba758>] vfs_writev+0x48/0x60
+> [  912.779162]  [<ffffffff811ba86f>] sys_writev+0x4f/0xb0
+> [  912.780152]  [<ffffffff8251f979>] system_call_fastpath+0x16/0x1b
+> [  912.793046] ---[ end trace 50c38c9cdee53379 ]---
+> [  912.793906] ecryptfs_miscdev_write: memdup_user returned error [-12]
+> 
+> Failing memdup_user() shouldn't be generating warnings, instead it should
+> be notifying userspace about the error.
+> 
+> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> ---
+>  mm/util.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/util.c b/mm/util.c
+> index 136ac4f..88bb4d4 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -91,7 +91,7 @@ void *memdup_user(const void __user *src, size_t len)
+>  	 * cause pagefault, which makes it pointless to use GFP_NOFS
+>  	 * or GFP_ATOMIC.
+>  	 */
+> -	p = kmalloc_track_caller(len, GFP_KERNEL);
+> +	p = kmalloc_track_caller(len, GFP_KERNEL | __GFP_NOWARN);
+>  	if (!p)
+>  		return ERR_PTR(-ENOMEM);
 
-Andrew, Mel, is that ok with you?
+There's nothing particularly special about memdup_user(): there are
+many ways in which userspace can trigger GFP_KERNEL allocations.
+
+The problem here (one which your patch carefully covers up) is that
+ecryptfs_miscdev_write() is passing an unchecked userspace-provided
+`count' direct into kmalloc().  This is a bit problematic for other
+reasons: it gives userspace a way to trigger heavy reclaim activity and
+perhaps even to trigger the oom-killer.
+
+A better fix here would be to validate the incoming arg before using
+it.  Preferably by running ecryptfs_parse_packet_length() before taking
+a copy of the data.  That would require adding a small copy_from_user()
+to peek at the message header.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
