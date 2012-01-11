@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id EF3FF6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 12:45:35 -0500 (EST)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 11 Jan 2012 10:45:34 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0BHjUS7149100
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 10:45:31 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0BHjUMe027287
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 10:45:30 -0700
-Message-ID: <4F0DCAA7.4000601@linux.vnet.ibm.com>
-Date: Wed, 11 Jan 2012 11:45:11 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id B6D856B005A
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 13:07:31 -0500 (EST)
+Date: Wed, 11 Jan 2012 18:07:23 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] fs: sysfs: Do dcache-related updates to sysfs
+ dentries under sysfs_mutex
+Message-ID: <20120111180723.GF4118@suse.de>
+References: <1326276668-19932-1-git-send-email-mgorman@suse.de>
+ <1326276668-19932-2-git-send-email-mgorman@suse.de>
+ <m1k44y5fls.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
-References: <<1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>> <<1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com>> <b5b5a961-85e5-4ce1-8280-7ca382cb0e0f@default>
-In-Reply-To: <b5b5a961-85e5-4ce1-8280-7ca382cb0e0f@default>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <m1k44y5fls.fsf@fess.ebiederm.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>, Nitin Gupta <ngupta@vflare.org>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Gilad Ben-Yossef <gilad@benyossef.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Miklos Szeredi <mszeredi@novell.com>, Greg KH <gregkh@suse.de>, Gong Chen <gong.chen@intel.com>
 
-On 01/11/2012 11:19 AM, Dan Magenheimer wrote:
->> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->> Subject: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
->>
->> From: Nitin Gupta <ngupta@vflare.org>
->>
->> This patch creates a new memory allocation library named
->> zsmalloc.
->>
->> +/*
->> + * Allocate a zspage for the given size class
->> + */
->> +static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
->> +{
->> +	int i, error;
->> +	struct page *first_page = NULL;
->> +
->> +	/*
->> +	 * Allocate individual pages and link them together as:
->> +	 * 1. first page->private = first sub-page
->> +	 * 2. all sub-pages are linked together using page->lru
->> +	 * 3. each sub-page is linked to the first page using page->first_page
->> +	 *
->> +	 * For each size class, First/Head pages are linked together using
->> +	 * page->lru. Also, we set PG_private to identify the first page
->> +	 * (i.e. no other sub-page has this flag set) and PG_private_2 to
->> +	 * identify the last page.
->> +	 */
->> +	error = -ENOMEM;
->> +	for (i = 0; i < class->zspage_order; i++) {
->> +		struct page *page, *prev_page;
->> +
->> +		page = alloc_page(flags);
+On Wed, Jan 11, 2012 at 09:11:27AM -0800, Eric W. Biederman wrote:
+> > In Miklos's case, the problem is with the bonding driver but during
+> > CPU online or offline, a number of dentries are being created and
+> > deleted and this deadlock is also being hit. Looking at sysfs, there
+> > is a global sysfs_mutex that protects the sysfs directory tree from
+> > concurrent reclaims. Almost all operations involving directory inodes
+> > and dentries take place under the sysfs_mutex - linking, unlinking,
+> > patch searching lookup, renames and readdir. d_invalidate is slightly
+> > different. It is mostly under the mutex but if the dentry has to be
+> > removed from the dcache, the mutex is dropped.
 > 
-> Hmmm... I thought we agreed offlist that the new allocator API would
-> provide for either preloads or callbacks (which may differ per pool)
-> instead of directly allocating raw pages from the kernel.  The caller
-> (zcache or ramster or ???) needs to be able to somehow manage maximum
-> memory capacity to avoid OOMs.
+> The sysfs_mutex protects the sysfs data structures not the vfs.
 > 
-> Or am I missing the code that handles that?
 
-No, you aren't missing it; it's not there.  And I agree that we
-should add that.
+Ok.
 
-However, the existing allocator, xvmalloc, doesn't support callback
-functionality either.  Would it be simpler to add the that as 
-a separate patch, that way we can keep the changes to zcache/zram
-in this patchset isolated to just changing the xvmalloc calls to 
-zsmalloc calls?
+> > Where as Miklos' patch changes dcache, this patch changes sysfs to
+> > consistently hold the mutex for dentry-related operations. Once
+> > applied, this particular bug with CPU hotadd/hotremove no longer
+> > occurs.
+> 
+> After taking a quick skim over the code to reacquaint myself with
+> it appears that the usage in sysfs is idiomatic.  That is sysfs
+> uses shrink_dcache_parent without a lock and in a context where
+> the right race could trigger this deadlock.
+> 
 
---
-Seth
+Yes.
+
+> And in particular I expect you could trigger the same deadlock in
+> proc, nfs, and gfs2 with if you can get the timing right.
+> 
+
+Agreed. When the dcache-specific fix was being discussed on an external
+bugzilla, this came up. It's probably easiest to race in sysfs because
+it's possible to create/delete directories faster than is possible
+for proc, nfs or gfs2.
+
+> I don't think adding a work-around for the bug in shrink_dcache_parent
+> is going to do anything except hide the bug in the VFS, and
+> unnecessarily increase the sysfs_mutex hold times.
+> 
+
+Ok.
+
+> I may be blind but I don't see a reason at this point to rush out an
+> incomplete work-around for the bug in shrink_dcahce_parent instead of
+> actually fixing shrink_dcache_parent.
+> 
+
+Since I wrote this patch, the dcache specific fix was finished, merged
+and I expect it'll make it to stable. Assuming that happens, this patch
+will no longer be required.
+
+Thanks Eric.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
