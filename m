@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id EB1AC6B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 07:45:08 -0500 (EST)
-Received: by wgbds11 with SMTP id ds11so611818wgb.26
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 04:45:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id B35F76B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 07:47:16 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
+Date: Wed, 11 Jan 2012 12:46:33 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
+ <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com>
+ <20120104195521.GA19181@suse.de>
+ <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
+ <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com>
+ <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com>
+ <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Date: Wed, 11 Jan 2012 20:45:07 +0800
-Message-ID: <CAJd=RBAiAfyXBcn+9WO6AERthyx+C=cNP-romp9YJO3Hn7-U-g@mail.gmail.com>
-Subject: [PATCH] mm: vmscan: deactivate isolated pages with lru lock released
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: rientjes@google.com
+Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-Spinners on other CPUs, if any, could take the lru lock and do their jobs while
-isolated pages are deactivated on the current CPU if the lock is released
-actively. And no risk of race raised as pages are already queued on locally
-private list.
+> -----Original Message-----
+> From: ext David Rientjes [mailto:rientjes@google.com]
+> Sent: 09 January, 2012 21:55
+...
+>=20
+> Maybe there's some confusion: the proposed oom killer delay that I'm
+> referring to here is not upstream and has never been written for global o=
+om
+> conditions.  My reference to it earlier was as an internal patch that we =
+carry
+> on top of memory controller, but what I'm proposing here is for it to be
+> implemented globally.
 
+That is explains situation - I know how memcg can handle OOM in cgroup but =
+not about internal patch.
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
+> So if the page allocator can make no progress in freeing memory, we would
+> introduce a delay in out_of_memory() if it were configured via a sysctl f=
+rom
+> userspace.  When this delay is started, applications waiting on this even=
+t can
+> be notified with eventfd(2) that the delay has started and they have
+> however many milliseconds to address the situation.  When they rewrite th=
+e
+> sysctl, the delay is cleared.  If they don't rewrite the sysctl and the d=
+elay
+> expires, the oom killer proceeds with killing.
+>=20
+> What's missing for your use case with this proposal?
 
---- a/mm/vmscan.c	Thu Dec 29 20:20:16 2011
-+++ b/mm/vmscan.c	Wed Jan 11 20:40:40 2012
-@@ -1464,6 +1464,7 @@ update_isolated_counts(struct mem_cgroup
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
+Timed delays in multi-process handling in case OOM looks for me fragile con=
+struction due to delays are not predicable.
+Memcg supports [1] better approach to freeze whole group and kick pointed u=
+ser-space application to handle it. We planned
+to use it as:
+- enlarge cgroup
+- send SIGTERM to selected "bad" application e.g. based on oom_score
+- wait a bit
+- send SIGKILL to "bad" application
+- reduce group size
 
- 	nr_active = clear_active_flags(isolated_list, count);
-+	spin_lock_irq(&zone->lru_lock);
- 	__count_vm_events(PGDEACTIVATE, nr_active);
+But finally default OOM killer starts to work fine.
 
- 	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-@@ -1482,6 +1483,7 @@ update_isolated_counts(struct mem_cgroup
+[1] http://lwn.net/Articles/377708/
 
- 	reclaim_stat->recent_scanned[0] += *nr_anon;
- 	reclaim_stat->recent_scanned[1] += *nr_file;
-+	spin_unlock_irq(&zone->lru_lock);
- }
-
- /*
-@@ -1577,15 +1579,13 @@ shrink_inactive_list(unsigned long nr_to
- 			__count_zone_vm_events(PGSCAN_DIRECT, zone,
- 					       nr_scanned);
- 	}
-+	spin_unlock_irq(&zone->lru_lock);
-
--	if (nr_taken == 0) {
--		spin_unlock_irq(&zone->lru_lock);
-+	if (nr_taken == 0)
- 		return 0;
--	}
-
- 	update_isolated_counts(mz, sc, &nr_anon, &nr_file, &page_list);
-
--	spin_unlock_irq(&zone->lru_lock);
-
- 	nr_reclaimed = shrink_page_list(&page_list, mz, sc, priority,
- 						&nr_dirty, &nr_writeback);
+=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
