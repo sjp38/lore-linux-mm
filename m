@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 0D1E06B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 14:57:46 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so636061ghr.14
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 11:57:46 -0800 (PST)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 240106B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 16:04:23 -0500 (EST)
 MIME-Version: 1.0
-In-Reply-To: <4F0D8FCE.7080202@redhat.com>
-References: <20120109213156.0ff47ee5@annuminas.surriel.com>
- <20120109213357.148e7927@annuminas.surriel.com> <CAHGf_=rj=aDVGWXqdq7fh_LrCFnug_mPNuuE=YdXaWpvwyjfzg@mail.gmail.com>
- <4F0D8FCE.7080202@redhat.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 11 Jan 2012 14:57:25 -0500
-Message-ID: <CAHGf_=qJv99TbF2eNosbeHU5pzk2e3mDer0u2U+EsXdf2p5_Aw@mail.gmail.com>
-Subject: Re: [PATCH -mm 2/2] mm: kswapd carefully invoke compaction
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <20237.63802.982209.699996@quad.stoffel.home>
+Date: Wed, 11 Jan 2012 16:03:54 -0500
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [PATCH -mm] make swapin readahead skip over holes
+In-Reply-To: <alpine.DEB.2.00.1201111305440.31239@router.home>
+References: <20120109181023.7c81d0be@annuminas.surriel.com>
+	<4F0B7D1F.7040802@gmail.com>
+	<4F0BABE0.8080107@redhat.com>
+	<CAHGf_=qtpA5VTw5W0zaAhB2WCX1+-k59szTnDLnqDJeg+q9Jsw@mail.gmail.com>
+	<CAHGf_=odfZxYS+PcMfeJ2ddFm76+-KbOLNrjGBtoEdExdQmL3Q@mail.gmail.com>
+	<20237.39051.575883.450826@quad.stoffel.home>
+	<alpine.DEB.2.00.1201111305440.31239@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com
+To: Christoph Lameter <cl@linux.com>
+Cc: John Stoffel <john@stoffel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-> I believe we do need some background compaction, especially
-> to help allocations from network interrupts.
+>>>>> "Christoph" == Christoph Lameter <cl@linux.com> writes:
 
-I completely agree.
+Christoph> On Wed, 11 Jan 2012, John Stoffel wrote:
+KOSAKI> so, we can eat free lunch up to 7MB ~= 60(MB/sec) * 1000 / 8.5(ms).
+>> 
+>> What if the disk is busy doing other writeout or readin during this
+>> time?  You can't assume you have the full disk bandwidth available,
+>> esp when you hit a swap storm like this.
 
+Christoph> The assumptions by Kosaki are quite conservative.
 
-> If you believe the compaction is better done from some
-> other thread, I guess we could do that, but truthfully, if
-> kswapd spends a lot of time doing compaction, I made a
-> mistake somewhere :)
+Just checking
 
-I don't have much experience of compaction on real production systems.
-but I have a few bad experience of background lumpy reclaim. If much
-network allocation is happen when kswapd get stucked large order lumpy
-reclaim, kswapd can't work for making order-0 job.it was bad. I'm only
-worry about similar issue will occur.
+Christoph> What if one did not get a disk from the garbage heap but
+Christoph> instead has a state of the art storage cluster or simply an
+Christoph> SSD (in particular relevant now since HDs are in short
+Christoph> supply given the situation in Asia)?
 
-But, ok, we can fix it when we actually observed such thing. So,
-please go ahead.
+I don't know, I was just trying to make sure he thinks about disks
+which are slower than he expects, since there are lots of them still
+out there.  
+
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
