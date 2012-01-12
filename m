@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id E004F6B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 15:45:04 -0500 (EST)
-Date: Thu, 12 Jan 2012 21:44:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg: add mlock statistic in memory.stat
-Message-ID: <20120112204458.GA10389@tiehlicka.suse.cz>
-References: <1326321668-5422-1-git-send-email-yinghan@google.com>
- <20120112125411.GG1042@tiehlicka.suse.cz>
- <CALWz4izcSeY3TvrBUurg+X_fyHn3EPGRRS_jvSr0c2CWDnuhAQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 8C2126B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 15:54:55 -0500 (EST)
+Received: by yenm2 with SMTP id m2so1417835yen.14
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 12:54:54 -0800 (PST)
+Date: Thu, 12 Jan 2012 12:54:50 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
+In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904556CB7@008-AM1MPN1-003.mgdnok.nokia.com>
+Message-ID: <alpine.DEB.2.00.1201121247480.17287@chino.kir.corp.google.com>
+References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com> <20120104195521.GA19181@suse.de> <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
+ <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com> <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
+ <alpine.DEB.2.00.1201111338320.21755@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904556CB7@008-AM1MPN1-003.mgdnok.nokia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4izcSeY3TvrBUurg+X_fyHn3EPGRRS_jvSr0c2CWDnuhAQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: leonid.moiseichuk@nokia.com
+Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
 
-On Thu 12-01-12 11:09:58, Ying Han wrote:
-> On Thu, Jan 12, 2012 at 4:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Wed 11-01-12 14:41:08, Ying Han wrote:
-> >> We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
-> >> patch adds the mlock field into per-memcg memory stat. The stat itself enhances
-> >> the metrics exported by memcg, especially is used together with "uneivctable"
-> >> lru stat.
-> >
-> > Could you describe when the unevictable has such a different meaning than
-> > mlocked that it is unusable?
-> 
-> The unevictable lru includes more than mlock()'d pages ( SHM_LOCK'd
-> etc). Like the following:
+On Thu, 12 Jan 2012, leonid.moiseichuk@nokia.com wrote:
 
-Yes, I am aware of that. Maybe I wasn't clear enough in my question. I
-was rather interested _when_ it actually matters for your decisions about
-the setup. Those pages are not evictable anyway.
+> As I wrote the proposed change is not safety belt but looking ahead 
+> radar.
+> If it detects that we are close to wall it starts to alarm and alarm 
+> volume is proportional to distance.
+> 
 
-> $ memtoy>shmem shm_400m 400m
-> $ memtoy>map shm_400m 0 400m
-> $ memtoy>touch shm_400m
-> memtoy:  touched 102400 pages in  0.360 secs
-> $ memtoy>slock shm_400m
-> //meantime add some memory pressure.
-> 
-> $ memtoy>file /export/hda3/file_512m
-> $ memtoy>map file_512m 0 512m shared
-> $ memtoy>lock file_512m
-> 
-> $ cat /dev/cgroup/memory/B/memory.stat
-> mapped_file 956301312
-> mlock 536870912
-> unevictable 956203008
-> 
-> Here, mapped_file - mlock = 400M shm_lock'ed pages are included in
-> unevictable stat.
-> 
-> Besides, not all mlock'ed pages get to unevictable lru at the first
-> place, and the same for the other way around.
-> 
-> Thanks
-> 
-> --Ying
+Then it's fundamentally flawed since there's no guarantee that coming with 
+100MB of the min watermark, for example, means that an oom is imminent and 
+will just result in unnecessary notification to userspace that will cause 
+some action to be taken that may not be necessary.  If the setting of 
+these thresholds depends on some pattern that is guaranteed to be along 
+the path to oom for a certain workload, then that will also change 
+depending on VM implementation changes, kernel versions, other 
+applications, etc., and simply is unmaintainable.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> In close-to-OOM situations device becomes very slow, which is not good 
+> for user. The performance difference depends on code size and storage 
+> performance to trash code pages but even 20% is noticeable. Practically 
+> 2x-5x times slowdown was observed.
+> 
+
+It would be much better to address the slowdown when running out of memory 
+rather than requiring userspace to react and unnecessarily send signals to 
+threads that may or may not have the ability to respond because they may 
+already be oom themselves.  You can do crazy things to reduce latency in 
+lowmem memory allocations like changing gfp_allowed_mask to be GFP_ATOMIC 
+so that direct reclaim is never called, for example, and then use the 
+proposed oom killer delay to handle the situation at the time of oom.
+
+Regardless, you should be addressing the slowness in lowmem situations 
+rather than implementing notifiers to userspace to handle the events 
+itself, so nack on this proposal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
