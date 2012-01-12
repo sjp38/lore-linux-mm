@@ -1,144 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 67F046B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 07:05:34 -0500 (EST)
-Date: Thu, 12 Jan 2012 12:05:30 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is
- -1
-Message-ID: <20120112120530.GJ4118@suse.de>
-References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
- <4F0E76BE.1070806@freescale.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 8D1F76B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 07:35:58 -0500 (EST)
+Date: Thu, 12 Jan 2012 13:35:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: __count_immobile_pages make sure the node is online
+Message-ID: <20120112123555.GF1042@tiehlicka.suse.cz>
+References: <1326213022-11761-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.00.1201101326080.10821@chino.kir.corp.google.com>
+ <20120111084802.GA16466@tiehlicka.suse.cz>
+ <20120112111702.3b7f2fa2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120112082722.GB1042@tiehlicka.suse.cz>
+ <20120112173536.db529713.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120112092314.GC1042@tiehlicka.suse.cz>
+ <20120112183323.1bb62f4d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120112100521.GD1042@tiehlicka.suse.cz>
+ <20120112111415.GH4118@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F0E76BE.1070806@freescale.com>
+In-Reply-To: <20120112111415.GH4118@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <b32955@freescale.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shijie8@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Jan 12, 2012 at 01:59:26PM +0800, Huang Shijie wrote:
-> ?? 2012??01??06?? 10:50, Huang Shijie ????:
-> > We get cc->order is -1 when user echos to /proc/sys/vm/compact_memory.
-> > In this case, we should check that if we have enough pages for
-> > the compaction in the zone.
-> >
-> > If we do not check this, in our MX6Q board(arm), i ever observed
-> > COMPACT_CLUSTER_MAX pages were compaction failed in per migrate_pages().
-> > Thats mean we can not alloc any pages by the free scanner in the zone.
-> >
-> > This patch checks the watermark to avoid this problem.
-> > Tested this patch in the MX6Q board.
-> >
-> > Signed-off-by: Huang Shijie <b32955@freescale.com>
-> > ---
-> >  mm/compaction.c |   18 +++++++++---------
-> >  1 files changed, 9 insertions(+), 9 deletions(-)
-> >
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 899d956..bf8e8b2 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -479,21 +479,21 @@ unsigned long compaction_suitable(struct zone *zone, int order)
-> >  	unsigned long watermark;
-> >  
-> >  	/*
-> > +	 * Watermarks for order-0 must be met for compaction.
-> > +	 * During the migration, copies of pages need to be
-> > +	 * allocated and for a short time, so the footprint is higher.
-> >  	 * order == -1 is expected when compacting via
-> > -	 * /proc/sys/vm/compact_memory
-> > +	 * /proc/sys/vm/compact_memory.
-> >  	 */
-> > -	if (order == -1)
-> > -		return COMPACT_CONTINUE;
-> > +	watermark = low_wmark_pages(zone) +
-> > +		((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL << order));
-> >  
-> > -	/*
-> > -	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
-> > -	 * This is because during migration, copies of pages need to be
-> > -	 * allocated and for a short time, the footprint is higher
-> > -	 */
-> > -	watermark = low_wmark_pages(zone) + (2UL << order);
-> >  	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> >  		return COMPACT_SKIPPED;
-> >  
-> > +	if (order == -1)
-> > +		return COMPACT_CONTINUE;
-> > +
-> >  	/*
-> >  	 * fragmentation index determines if allocation failures are due to
-> >  	 * low memory or external fragmentation
-> Is this patch meaningless?
-> I really think this patch is useful when the zone is nearly full.
+On Thu 12-01-12 11:14:15, Mel Gorman wrote:
+> On Thu, Jan 12, 2012 at 11:05:21AM +0100, Michal Hocko wrote:
+> > From 39de8df13532150fc4518dad0cb3f6fd88745b8a Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 12 Jan 2012 10:19:04 +0100
+> > Subject: [PATCH] mm: __count_immobile_pages make sure the node is online
+> > 
+> > page_zone requires to have an online node otherwise we are accessing
+> > NULL NODE_DATA. This is not an issue at the moment because node_zones
+> > are located at the structure beginning but this might change in the
+> > future so better be careful about that.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-Code wise the patch is fine. One reason why it fell off my radar is
-because you mangled the comments for no apparent reason. Specifically,
-after your patch is applied the code looks like this
+Thanks
 
-        /*
-         * Watermarks for order-0 must be met for compaction.
-         * During the migration, copies of pages need to be
-         * allocated and for a short time, so the footprint is higher.
-         * order == -1 is expected when compacting via
-         * /proc/sys/vm/compact_memory.
-         */
-        watermark = low_wmark_pages(zone) +
-                ((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL << order));
+> Be aware that this is not the version picked up by Andrew. It would
+> not hurt to resend as V2 with a changelog and a note saying it replaces
+> mm-fix-null-ptr-dereference-in-__count_immobile_pages.patch in mmotm.
+> This is just in case the wrong one gets merged due to this thread
+> getting lost in the noise of Andrew's inbox.
 
-        if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-                return COMPACT_SKIPPED;
-
-        if (order == -1)
-                return COMPACT_CONTINUE;
-
-The comment about "order == -1" is no longer with the code it refers
-to. I did not get at the time why the patch was not
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 899d956..c96139a 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -479,13 +479,6 @@ unsigned long compaction_suitable(struct zone *zone, int order)
- 	unsigned long watermark;
- 
- 	/*
--	 * order == -1 is expected when compacting via
--	 * /proc/sys/vm/compact_memory
--	 */
--	if (order == -1)
--		return COMPACT_CONTINUE;
--
--	/*
- 	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
- 	 * This is because during migration, copies of pages need to be
- 	 * allocated and for a short time, the footprint is higher
-@@ -495,6 +488,13 @@ unsigned long compaction_suitable(struct zone *zone, int order)
- 		return COMPACT_SKIPPED;
- 
- 	/*
-+	 * order == -1 is expected when compacting via
-+	 * /proc/sys/vm/compact_memory
-+	 */
-+	if (order == -1)
-+		return COMPACT_CONTINUE;
-+
-+	/*
- 	 * fragmentation index determines if allocation failures are due to
- 	 * low memory or external fragmentation
- 	 *
-
-Later I for about this patch in the midst of other bug investigations.
-
-The changelog was also a bit rough but as the change should be fairly
-straight forward, it did not concern me as much.
-
+I guess that both of them should be merged. This one as a follow up fix.
+That's why I made it separate and didn't repost the whole patch.
+The original patch is much more obvious why it fixes the issue this one
+is to have everything clear.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
