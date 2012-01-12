@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 2160A6B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 22:24:28 -0500 (EST)
-Received: by yhoo21 with SMTP id o21so853224yho.14
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 19:24:27 -0800 (PST)
-Date: Wed, 11 Jan 2012 19:24:24 -0800 (PST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 856A86B0062
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2012 22:24:31 -0500 (EST)
+Received: by mail-gx0-f169.google.com with SMTP id p4so957693ggn.14
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2012 19:24:31 -0800 (PST)
+Date: Wed, 11 Jan 2012 19:24:28 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/3] mm, oom: fold oom_kill_task into oom_kill_process
+Subject: [patch 3/3] mm, oom: do not emit oom killer warning if chosen thread
+ is already exiting
 In-Reply-To: <alpine.DEB.2.00.1201111922500.3982@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1201111923490.3982@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1201111924050.3982@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1201111922500.3982@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,127 +18,45 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-oom_kill_task() has a single caller, so fold it into its parent function,
-oom_kill_process().  Slightly reduces the number of lines in the oom
-killer.
+If a thread is chosen for oom kill and is already PF_EXITING, then the
+oom killer simply sets TIF_MEMDIE and returns.  This allows the thread to
+have access to memory reserves so that it may quickly exit.  This logic
+is preceeded with a comment saying there's no need to alarm the sysadmin.
+This patch adds truth to that statement.
+
+There's no need to emit any warning about the oom condition if the thread
+is already exiting since it will not be killed.  In this condition, just
+silently return the oom killer since its only giving access to memory
+reserves and is otherwise a no-op.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   87 ++++++++++++++++++++++++++------------------------------
- 1 files changed, 40 insertions(+), 47 deletions(-)
+ mm/oom_kill.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -434,52 +434,6 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- }
- 
- #define K(x) ((x) << (PAGE_SHIFT-10))
--static void oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
--{
--	struct task_struct *q;
--	struct mm_struct *mm;
--
--	p = find_lock_task_mm(p);
--	if (!p)
--		return;
--
--	/* mm cannot be safely dereferenced after task_unlock(p) */
--	mm = p->mm;
--
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
--		task_pid_nr(p), p->comm, K(p->mm->total_vm),
--		K(get_mm_counter(p->mm, MM_ANONPAGES)),
--		K(get_mm_counter(p->mm, MM_FILEPAGES)));
--	task_unlock(p);
--
--	/*
--	 * Kill all user processes sharing p->mm in other thread groups, if any.
--	 * They don't get access to memory reserves or a higher scheduler
--	 * priority, though, to avoid depletion of all memory or task
--	 * starvation.  This prevents mm->mmap_sem livelock when an oom killed
--	 * task cannot exit because it requires the semaphore and its contended
--	 * by another thread trying to allocate memory itself.  That thread will
--	 * now get access to memory reserves since it has a pending fatal
--	 * signal.
--	 */
--	for_each_process(q)
--		if (q->mm == mm && !same_thread_group(q, p) &&
--		    !(q->flags & PF_KTHREAD)) {
--			if (q->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
--				continue;
--
--			task_lock(q);	/* Protect ->comm from prctl() */
--			pr_err("Kill process %d (%s) sharing same memory\n",
--				task_pid_nr(q), q->comm);
--			task_unlock(q);
--			force_sig(SIGKILL, q);
--		}
--
--	set_tsk_thread_flag(p, TIF_MEMDIE);
--	force_sig(SIGKILL, p);
--}
--#undef K
--
- static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			     unsigned int points, unsigned long totalpages,
- 			     struct mem_cgroup *mem, nodemask_t *nodemask,
-@@ -488,6 +442,7 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	struct task_struct *victim = p;
- 	struct task_struct *child;
- 	struct task_struct *t = p;
-+	struct mm_struct *mm;
+@@ -445,9 +445,6 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	struct mm_struct *mm;
  	unsigned int victim_points = 0;
  
- 	if (printk_ratelimit())
-@@ -531,8 +486,46 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		}
- 	} while_each_thread(p, t);
+-	if (printk_ratelimit())
+-		dump_header(p, gfp_mask, order, mem, nodemask);
+-
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+@@ -457,6 +454,9 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		return;
+ 	}
  
--	oom_kill_task(victim, mem);
-+	victim = find_lock_task_mm(victim);
-+	if (!victim)
-+		return;
++	if (printk_ratelimit())
++		dump_header(p, gfp_mask, order, mem, nodemask);
 +
-+	/* mm cannot be safely dereferenced after task_unlock(p) */
-+	mm = victim->mm;
-+
-+	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-+		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-+		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-+		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-+	task_unlock(victim);
-+
-+	/*
-+	 * Kill all user processes sharing victim->mm in other thread groups, if 
-+	 * any.  They don't get access to memory reserves or a higher scheduler
-+	 * priority, though, to avoid depletion of all memory or task
-+	 * starvation.  This prevents mm->mmap_sem livelock when an oom killed
-+	 * task cannot exit because it requires the semaphore and its contended
-+	 * by another thread trying to allocate memory itself.  That thread will
-+	 * now get access to memory reserves since it has a pending fatal
-+	 * signal.
-+	 */
-+	for_each_process(p)
-+		if (p->mm == mm && !same_thread_group(p, victim) &&
-+		    !(p->flags & PF_KTHREAD)) {
-+			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-+				continue;
-+
-+			task_lock(p);	/* Protect ->comm from prctl() */
-+			pr_err("Kill process %d (%s) sharing same memory\n",
-+				task_pid_nr(p), p->comm);
-+			task_unlock(p);
-+			force_sig(SIGKILL, p);
-+		}
-+
-+	set_tsk_thread_flag(victim, TIF_MEMDIE);
-+	force_sig(SIGKILL, victim);
- }
-+#undef K
- 
- /*
-  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+ 	task_lock(p);
+ 	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
+ 		message, task_pid_nr(p), p->comm, points);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
