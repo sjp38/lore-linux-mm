@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id D24306B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:15:51 -0500 (EST)
-Received: by obbuo9 with SMTP id uo9so480134obb.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 00:15:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 09F636B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:21:10 -0500 (EST)
+Date: Thu, 12 Jan 2012 09:21:05 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Fix NULL ptr dereference in __count_immobile_pages
+Message-ID: <20120112082105.GA1042@tiehlicka.suse.cz>
+References: <1326213022-11761-1-git-send-email-mhocko@suse.cz>
+ <20120111143439.538bf274.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1326355594.1999.7.camel@lappy>
-References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
-	<20120111141219.271d3a97.akpm@linux-foundation.org>
-	<1326355594.1999.7.camel@lappy>
-Date: Thu, 12 Jan 2012 10:15:50 +0200
-Message-ID: <CAOJsxLEYY=ZO8QrxiWL6qAxPzsPpZj3RsF9cXY0Q2L44+sn7JQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120111143439.538bf274.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Thu, Jan 12, 2012 at 10:06 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
-> Let's split it to two parts: the specific ecryptfs issue I've given as
-> an example here, and a general view about memdup_user().
->
-> I fully agree that in the case of ecryptfs there's a missing validity
-> check, and just calling memdup_user() with whatever the user has passed
-> to it is wrong and dangerous. This should be fixed in the ecryptfs code
-> and I'll send a patch to do that.
->
-> The other part, is memdup_user() itself. Kernel warnings are usually
-> reserved (AFAIK) to cases where it would be difficult to notify the user
-> since it happens in a flow which the user isn't directly responsible
-> for.
->
-> memdup_user() is always located in path which the user has triggered,
-> and is usually almost the first thing we try doing in response to the
-> trigger. In those code flows it doesn't make sense to print a kernel
-> warnings and taint the kernel, instead we can simply notify the user
-> about that error and let him deal with it any way he wants.
->
-> There are more reasons kalloc() can show warnings besides just trying to
-> allocate too much, and theres no reason to dump kernel warnings when
-> it's easier to notify the user.
+On Wed 11-01-12 14:34:39, Andrew Morton wrote:
+> On Tue, 10 Jan 2012 17:30:22 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > This patch fixes the following NULL ptr dereference caused by
+> > cat /sys/devices/system/memory/memory0/removable:
+> 
+> Which is world-readable, I assume?
 
-I think you missed Andrew's point. We absolutely want to issue a
-kernel warning here because ecryptfs is misusing the memdup_user()
-API. We must not let userspace processes allocate large amounts of
-memory arbitrarily.
+Right. But considering that we haven't seen any report like that it
+seems that the HW is rather rare
 
-                        Pekka
+> 
+> > ...
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -5608,6 +5608,17 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+> >  bool is_pageblock_removable_nolock(struct page *page)
+> >  {
+> >  	struct zone *zone = page_zone(page);
+> > +	unsigned long pfn = page_to_pfn(page);
+> > +
+> > +	/*
+> > +	 * We have to be careful here because we are iterating over memory
+> > +	 * sections which are not zone aware so we might end up outside of
+> > +	 * the zone but still within the section.
+> > +	 */
+> > +	if (!zone || zone->zone_start_pfn > pfn ||
+> > +			zone->zone_start_pfn + zone->spanned_pages <= pfn)
+> > +		return false;
+> > +
+> >  	return __count_immobile_pages(zone, page, 0);
+> >  }
+> 
+> So I propose that we backport it into -stable?
+
+Agreed.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
