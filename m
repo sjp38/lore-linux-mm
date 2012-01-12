@@ -1,37 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id CF8956B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 07:54:14 -0500 (EST)
-Date: Thu, 12 Jan 2012 13:54:11 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg: add mlock statistic in memory.stat
-Message-ID: <20120112125411.GG1042@tiehlicka.suse.cz>
-References: <1326321668-5422-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 2375C6B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 08:32:34 -0500 (EST)
+Received: by wicr5 with SMTP id r5so750677wic.14
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 05:32:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1326321668-5422-1-git-send-email-yinghan@google.com>
+In-Reply-To: <20120112112826.f4a8acea.kamezawa.hiroyu@jp.fujitsu.com>
+References: <CAJd=RBAiAfyXBcn+9WO6AERthyx+C=cNP-romp9YJO3Hn7-U-g@mail.gmail.com>
+	<20120112112826.f4a8acea.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 12 Jan 2012 21:32:32 +0800
+Message-ID: <CAJd=RBBMxr+9=hT5_v4yn7RwHOwVKUK42GzaHU3KyDqJ0SsW_w@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: deactivate isolated pages with lru lock released
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 11-01-12 14:41:08, Ying Han wrote:
-> We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
-> patch adds the mlock field into per-memcg memory stat. The stat itself enhances
-> the metrics exported by memcg, especially is used together with "uneivctable"
-> lru stat.
+On Thu, Jan 12, 2012 at 10:28 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 11 Jan 2012 20:45:07 +0800
+> Hillf Danton <dhillf@gmail.com> wrote:
+>
+>> Spinners on other CPUs, if any, could take the lru lock and do their jobs while
+>> isolated pages are deactivated on the current CPU if the lock is released
+>> actively. And no risk of race raised as pages are already queued on locally
+>> private list.
+>>
+>>
+>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>
+> Doesn't this increase the number of lock/unlock ?
+> Hmm, isn't it better to integrate clear_active_flags to isolate_pages() ?
+> Then we don't need list scan.
+>
+Look at it soon.
 
-Could you describe when the unevictable has such a different meaning than
-mlocked that it is unusable?
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
