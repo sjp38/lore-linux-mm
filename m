@@ -1,218 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 352136B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 06:48:41 -0500 (EST)
-Date: Thu, 12 Jan 2012 11:48:35 +0000
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 67F046B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 07:05:34 -0500 (EST)
+Date: Thu, 12 Jan 2012 12:05:30 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm/compaction : do optimazition when the migration
- scanner gets no page
-Message-ID: <20120112114835.GI4118@suse.de>
-References: <1326347222-9980-1-git-send-email-b32955@freescale.com>
- <20120112080311.GA30634@barrios-desktop.redhat.com>
+Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is
+ -1
+Message-ID: <20120112120530.GJ4118@suse.de>
+References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
+ <4F0E76BE.1070806@freescale.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120112080311.GA30634@barrios-desktop.redhat.com>
+In-Reply-To: <4F0E76BE.1070806@freescale.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Huang Shijie <b32955@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Huang Shijie <b32955@freescale.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shijie8@gmail.com
 
-On Thu, Jan 12, 2012 at 05:03:11PM +0900, Minchan Kim wrote:
-> On Thu, Jan 12, 2012 at 01:47:02PM +0800, Huang Shijie wrote:
-> > In the real tests, there are maybe many times the cc->nr_migratepages is zero,
-> > but isolate_migratepages() returns ISOLATE_SUCCESS.
-> > 
-> > Memory in our mx6q board:
-> > 	2G memory, 8192 pages per page block
-> > 
-> > We use the following command to test in two types system loads:
-> > 	#echo 1 > /proc/sys/vm/compact_memory
-> > 
-> > Test Result:
-> > 	[1] little load(login in the ubuntu):
-> > 		all the scanned pageblocks	: 79
-> > 		pageblocks which get no pages	: 46
-> > 
-> > 		The ratio of `get no pages` pageblock is 58.2%.
-> > 
-> > 	[2] heavy load(start thunderbird, firefox, ..etc):
-> > 		all the scanned pageblocks	: 89
-> > 		pageblocks which get no pages	: 36
-> > 
-> > 		The ratio of `get no pages` pageblock is 40.4%.
-> > 
-> > In order to get better performance, we should check the number of the
-> > really isolated pages. And do the optimazition for this case.
-> > 
-> > Also fix the confused comments(from Mel Gorman).
-> > 
-> > Tested this patch in MX6Q board.
-> > 
+On Thu, Jan 12, 2012 at 01:59:26PM +0800, Huang Shijie wrote:
+> ?? 2012??01??06?? 10:50, Huang Shijie ????:
+> > We get cc->order is -1 when user echos to /proc/sys/vm/compact_memory.
+> > In this case, we should check that if we have enough pages for
+> > the compaction in the zone.
+> >
+> > If we do not check this, in our MX6Q board(arm), i ever observed
+> > COMPACT_CLUSTER_MAX pages were compaction failed in per migrate_pages().
+> > Thats mean we can not alloc any pages by the free scanner in the zone.
+> >
+> > This patch checks the watermark to avoid this problem.
+> > Tested this patch in the MX6Q board.
+> >
 > > Signed-off-by: Huang Shijie <b32955@freescale.com>
-> > Acked-by: Mel Gorman <mgorman@suse.de>
 > > ---
-> >  mm/compaction.c |   28 ++++++++++++++++------------
-> >  1 files changed, 16 insertions(+), 12 deletions(-)
-> > 
+> >  mm/compaction.c |   18 +++++++++---------
+> >  1 files changed, 9 insertions(+), 9 deletions(-)
+> >
 > > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index f4f514d..41d1b72a 100644
+> > index 899d956..bf8e8b2 100644
 > > --- a/mm/compaction.c
 > > +++ b/mm/compaction.c
-> > @@ -246,8 +246,8 @@ static bool too_many_isolated(struct zone *zone)
-> >  /* possible outcome of isolate_migratepages */
-> >  typedef enum {
-> >  	ISOLATE_ABORT,		/* Abort compaction now */
-> > -	ISOLATE_NONE,		/* No pages isolated, continue scanning */
-> > -	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> > +	ISOLATE_NONE,		/* No pages scanned, consider next pageblock*/
-> > +	ISOLATE_SUCCESS,	/* Pages scanned and maybe isolated, migrate */
-> >  } isolate_migrate_t;
+> > @@ -479,21 +479,21 @@ unsigned long compaction_suitable(struct zone *zone, int order)
+> >  	unsigned long watermark;
 > >  
-> 
-> Hmm, I don't like this change.
-> ISOLATE_NONE mean "we don't isolate any page at all"
-> ISOLATE_SUCCESS mean "We isolaetssome pages"
-> It's very clear but you are changing semantic slighly.
-> 
-
-That is somewhat the point of his patch - isolate_migratepages()
-can return ISOLATE_SUCCESS even though no pages were isolated. Note that
-he does not change when ISOLATE_NONE or ISOLATE_SUCCESS gets returned,
-he updates the comment to match what the code is actually doing. This
-should be visible from the tracepoint. My machine has been up for days
-and loaded when I started a process that mapped a large anonymous
-region. THP would kick in and I see from the tracepoints excerpts like
-this
-
-          malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457024: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
-          malloc-13964 [007] 221636.457049: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
-          malloc-13964 [007] 221636.457102: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
-          malloc-13964 [007] 221636.457143: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=17
-          malloc-13964 [007] 221636.457189: mm_compaction_isolate_migratepages: nr_scanned=433 nr_taken=32
-          malloc-13964 [007] 221636.457253: mm_compaction_isolate_migratepages: nr_scanned=205 nr_taken=32
-          malloc-13964 [007] 221636.457319: mm_compaction_isolate_migratepages: nr_scanned=389 nr_taken=7
-
-These "nr_scanned=1 nr_taken=0" are during async compaction where the
-scanner is skipping over pageblocks that are not MIGRATE_MOVABLE. As the
-function only deals in pageblocks, it means the function returns after
-only scanning 1 page expecting that compact_zone() will move to the next
-block.
-
-> How about this?
-> 
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -376,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  
->         trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
->  
-> -       return ISOLATE_SUCCESS;
-> +       return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
->  }
->  
->  /*
-> @@ -542,6 +542,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->                 unsigned long nr_migrate, nr_remaining;
->                 int err;
->  
-> +               count_vm_event(COMPACTBLOCKS);
-> +
->                 switch (isolate_migratepages(zone, cc)) {
->                 case ISOLATE_ABORT:
->                         ret = COMPACT_PARTIAL;
-> @@ -559,7 +561,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->                 update_nr_listpages(cc);
->                 nr_remaining = cc->nr_migratepages;
->  
-> -               count_vm_event(COMPACTBLOCKS);
->                 count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
->                 if (nr_remaining)
->                         count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> 
-> This patch's side effect is that it accounts COMPACTBLOCK although isolation is cancel by signal
-> but I think it's very rare and doesn't give big effect for statistics of compaciton.
+> >  	/*
+> > +	 * Watermarks for order-0 must be met for compaction.
+> > +	 * During the migration, copies of pages need to be
+> > +	 * allocated and for a short time, so the footprint is higher.
+> >  	 * order == -1 is expected when compacting via
+> > -	 * /proc/sys/vm/compact_memory
+> > +	 * /proc/sys/vm/compact_memory.
+> >  	 */
+> > -	if (order == -1)
+> > -		return COMPACT_CONTINUE;
+> > +	watermark = low_wmark_pages(zone) +
+> > +		((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL << order));
+> >  
+> > -	/*
+> > -	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+> > -	 * This is because during migration, copies of pages need to be
+> > -	 * allocated and for a short time, the footprint is higher
+> > -	 */
+> > -	watermark = low_wmark_pages(zone) + (2UL << order);
+> >  	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> >  		return COMPACT_SKIPPED;
+> >  
+> > +	if (order == -1)
+> > +		return COMPACT_CONTINUE;
+> > +
+> >  	/*
+> >  	 * fragmentation index determines if allocation failures are due to
+> >  	 * low memory or external fragmentation
+> Is this patch meaningless?
+> I really think this patch is useful when the zone is nearly full.
 > 
 
-This came up during discussion the last time. My opinion was that
-COMPACTBLOCK not being updated was a problem. In the existing code
-ISOLATE_NONE returning also means the scan did not take place and
-this does not need to be accounted for. However, if we scan the block
-and isolate no pages, we still want to account for that. A rapidly
-increasing COMPACTBLOCKS while COMPACTPAGES changes very little could
-indicate that compaction is doing a lot of busy work without making
-any useful progress for example.
+Code wise the patch is fine. One reason why it fell off my radar is
+because you mangled the comments for no apparent reason. Specifically,
+after your patch is applied the code looks like this
 
-It could easily be argued that if we skip over !MIGRATE_MOVABLE
-pageblocks then we should not account for that in COMPACTBLOCKS either
-because the scanning was minimal. In that case we would change this
+        /*
+         * Watermarks for order-0 must be met for compaction.
+         * During the migration, copies of pages need to be
+         * allocated and for a short time, so the footprint is higher.
+         * order == -1 is expected when compacting via
+         * /proc/sys/vm/compact_memory.
+         */
+        watermark = low_wmark_pages(zone) +
+                ((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL << order));
 
-                /*
-                 * For async migration, also only scan in MOVABLE blocks. Async
-                 * migration is optimistic to see if the minimum amount of work
-                 * satisfies the allocation
-                 */
-                pageblock_nr = low_pfn >> pageblock_order;
-                if (!cc->sync && last_pageblock_nr != pageblock_nr &&
-                                get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
-                        low_pfn += pageblock_nr_pages;
-                        low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
-                        last_pageblock_nr = pageblock_nr;
-                        continue;
-                }
+        if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+                return COMPACT_SKIPPED;
 
-to return ISOLATE_NONE there instead of continue. I would be ok making
-that part of this patch to clarify the difference between ISOLATE_NONE
-and ISOLATE_SUCCESS and what it means for accounting.
+        if (order == -1)
+                return COMPACT_CONTINUE;
 
-> 
-> >  /*
-> > @@ -542,7 +542,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  
-> >  	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-> >  		unsigned long nr_migrate, nr_remaining;
-> > -		int err;
-> > +		int err = 0;
-> >  
-> >  		switch (isolate_migratepages(zone, cc)) {
-> >  		case ISOLATE_ABORT:
-> > @@ -554,17 +554,21 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  			;
-> >  		}
-> >  
-> > -		nr_migrate = cc->nr_migratepages;
-> > -		err = migrate_pages(&cc->migratepages, compaction_alloc,
-> > -				(unsigned long)cc, false,
-> > -				cc->sync);
-> > -		update_nr_listpages(cc);
-> > -		nr_remaining = cc->nr_migratepages;
-> > +		nr_migrate = nr_remaining = cc->nr_migratepages;
-> > +		if (nr_migrate) {
-> > +			err = migrate_pages(&cc->migratepages, compaction_alloc,
-> > +					(unsigned long)cc, false,
-> > +					cc->sync);
-> > +			update_nr_listpages(cc);
-> > +			nr_remaining = cc->nr_migratepages;
-> > +			count_vm_events(COMPACTPAGES,
-> > +					nr_migrate - nr_remaining);
-> > +			if (nr_remaining)
-> > +				count_vm_events(COMPACTPAGEFAILED,
-> > +						nr_remaining);
-> > +		}
-> >  
-> >  		count_vm_event(COMPACTBLOCKS);
-> > -		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
-> > -		if (nr_remaining)
-> > -			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> >  		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
-> >  						nr_remaining);
-> >  
+The comment about "order == -1" is no longer with the code it refers
+to. I did not get at the time why the patch was not
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 899d956..c96139a 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -479,13 +479,6 @@ unsigned long compaction_suitable(struct zone *zone, int order)
+ 	unsigned long watermark;
+ 
+ 	/*
+-	 * order == -1 is expected when compacting via
+-	 * /proc/sys/vm/compact_memory
+-	 */
+-	if (order == -1)
+-		return COMPACT_CONTINUE;
+-
+-	/*
+ 	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+ 	 * This is because during migration, copies of pages need to be
+ 	 * allocated and for a short time, the footprint is higher
+@@ -495,6 +488,13 @@ unsigned long compaction_suitable(struct zone *zone, int order)
+ 		return COMPACT_SKIPPED;
+ 
+ 	/*
++	 * order == -1 is expected when compacting via
++	 * /proc/sys/vm/compact_memory
++	 */
++	if (order == -1)
++		return COMPACT_CONTINUE;
++
++	/*
+ 	 * fragmentation index determines if allocation failures are due to
+ 	 * low memory or external fragmentation
+ 	 *
+
+Later I for about this patch in the midst of other bug investigations.
+
+The changelog was also a bit rough but as the change should be fairly
+straight forward, it did not concern me as much.
 
 -- 
 Mel Gorman
