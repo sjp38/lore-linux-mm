@@ -1,65 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id E5D806B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:06:47 -0500 (EST)
-Received: by wicr5 with SMTP id r5so484090wic.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 00:06:37 -0800 (PST)
-Message-ID: <1326355594.1999.7.camel@lappy>
-Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Thu, 12 Jan 2012 10:06:34 +0200
-In-Reply-To: <20120111141219.271d3a97.akpm@linux-foundation.org>
-References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
-	 <20120111141219.271d3a97.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id D8EDC6B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:15:14 -0500 (EST)
+Received: by vbnl22 with SMTP id l22so181753vbn.14
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 00:15:13 -0800 (PST)
+Date: Thu, 12 Jan 2012 17:15:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is
+ -1
+Message-ID: <20120112081506.GB30634@barrios-desktop.redhat.com>
+References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1325818201-1865-1-git-send-email-b32955@freescale.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lizf@cn.fujitsu.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
+To: Huang Shijie <b32955@freescale.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org, shijie8@gmail.com
 
-On Wed, 2012-01-11 at 14:12 -0800, Andrew Morton wrote:
-> There's nothing particularly special about memdup_user(): there are
-> many ways in which userspace can trigger GFP_KERNEL allocations.
+On Fri, Jan 06, 2012 at 10:50:01AM +0800, Huang Shijie wrote:
+> We get cc->order is -1 when user echos to /proc/sys/vm/compact_memory.
+> In this case, we should check that if we have enough pages for
+> the compaction in the zone.
 > 
-> The problem here (one which your patch carefully covers up) is that
-> ecryptfs_miscdev_write() is passing an unchecked userspace-provided
-> `count' direct into kmalloc().  This is a bit problematic for other
-> reasons: it gives userspace a way to trigger heavy reclaim activity and
-> perhaps even to trigger the oom-killer.
+> If we do not check this, in our MX6Q board(arm), i ever observed
+> COMPACT_CLUSTER_MAX pages were compaction failed in per migrate_pages().
+> Thats mean we can not alloc any pages by the free scanner in the zone.
 > 
-> A better fix here would be to validate the incoming arg before using
-> it.  Preferably by running ecryptfs_parse_packet_length() before taking
-> a copy of the data.  That would require adding a small copy_from_user()
-> to peek at the message header. 
 
-Let's split it to two parts: the specific ecryptfs issue I've given as
-an example here, and a general view about memdup_user().
+It seems this patch is useful but I can't parse your this sentense.
+Could you elaborate on it?
 
-I fully agree that in the case of ecryptfs there's a missing validity
-check, and just calling memdup_user() with whatever the user has passed
-to it is wrong and dangerous. This should be fixed in the ecryptfs code
-and I'll send a patch to do that.
+We should know about exactly why order == -1 is COMPACT_CLUSTER_MAX * 2 and other case
+2UL << order. If you write down description more clear, it will help.
 
-The other part, is memdup_user() itself. Kernel warnings are usually
-reserved (AFAIK) to cases where it would be difficult to notify the user
-since it happens in a flow which the user isn't directly responsible
-for.
+Thanks.
 
-memdup_user() is always located in path which the user has triggered,
-and is usually almost the first thing we try doing in response to the
-trigger. In those code flows it doesn't make sense to print a kernel
-warnings and taint the kernel, instead we can simply notify the user
-about that error and let him deal with it any way he wants.
-
-There are more reasons kalloc() can show warnings besides just trying to
-allocate too much, and theres no reason to dump kernel warnings when
-it's easier to notify the user.
-
--- 
-
-Sasha.
+> This patch checks the watermark to avoid this problem.
+> Tested this patch in the MX6Q board.
+> 
+> Signed-off-by: Huang Shijie <b32955@freescale.com>
+> ---
+>  mm/compaction.c |   18 +++++++++---------
+>  1 files changed, 9 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 899d956..bf8e8b2 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -479,21 +479,21 @@ unsigned long compaction_suitable(struct zone *zone, int order)
+>  	unsigned long watermark;
+>  
+>  	/*
+> +	 * Watermarks for order-0 must be met for compaction.
+> +	 * During the migration, copies of pages need to be
+> +	 * allocated and for a short time, so the footprint is higher.
+>  	 * order == -1 is expected when compacting via
+> -	 * /proc/sys/vm/compact_memory
+> +	 * /proc/sys/vm/compact_memory.
+>  	 */
+> -	if (order == -1)
+> -		return COMPACT_CONTINUE;
+> +	watermark = low_wmark_pages(zone) +
+> +		((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL << order));
+>  
+> -	/*
+> -	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+> -	 * This is because during migration, copies of pages need to be
+> -	 * allocated and for a short time, the footprint is higher
+> -	 */
+> -	watermark = low_wmark_pages(zone) + (2UL << order);
+>  	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+>  		return COMPACT_SKIPPED;
+>  
+> +	if (order == -1)
+> +		return COMPACT_CONTINUE;
+> +
+>  	/*
+>  	 * fragmentation index determines if allocation failures are due to
+>  	 * low memory or external fragmentation
+> -- 
+> 1.7.3.2
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
