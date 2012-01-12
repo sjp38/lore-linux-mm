@@ -1,70 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 56B5D6B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 14:09:59 -0500 (EST)
-Received: by qcsd17 with SMTP id d17so1498336qcs.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 11:09:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120112125411.GG1042@tiehlicka.suse.cz>
-References: <1326321668-5422-1-git-send-email-yinghan@google.com>
-	<20120112125411.GG1042@tiehlicka.suse.cz>
-Date: Thu, 12 Jan 2012 11:09:58 -0800
-Message-ID: <CALWz4izcSeY3TvrBUurg+X_fyHn3EPGRRS_jvSr0c2CWDnuhAQ@mail.gmail.com>
-Subject: Re: memcg: add mlock statistic in memory.stat
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 5CD8C6B005A
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 14:10:55 -0500 (EST)
+Date: Thu, 12 Jan 2012 20:10:53 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
+Message-ID: <20120112191053.GF11715@one.firstfloor.org>
+References: <1326380820.2442.186.camel@twins> <20120112182644.GE11715@one.firstfloor.org> <4F0F2E5A.3070602@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F0F2E5A.3070602@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Jan 12, 2012 at 4:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Wed 11-01-12 14:41:08, Ying Han wrote:
->> We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
->> patch adds the mlock field into per-memcg memory stat. The stat itself enhances
->> the metrics exported by memcg, especially is used together with "uneivctable"
->> lru stat.
->
-> Could you describe when the unevictable has such a different meaning than
-> mlocked that it is unusable?
+> This seems slightly strange reason to me. Almost useless/deprecated feature 
+> removement broke ltp testsuite. But endusers never complained. Because they 
 
-The unevictable lru includes more than mlock()'d pages ( SHM_LOCK'd
-etc). Like the following:
+Don't know about that, but it sounds like a regression that should
+have been reverted. Testing is important.
 
-$ memtoy>shmem shm_400m 400m
-$ memtoy>map shm_400m 0 400m
-$ memtoy>touch shm_400m
-memtoy:  touched 102400 pages in  0.360 secs
-$ memtoy>slock shm_400m
-//meantime add some memory pressure.
+> never use testcases for development. 
 
-$ memtoy>file /export/hda3/file_512m
-$ memtoy>map file_512m 0 512m shared
-$ memtoy>lock file_512m
+It's a feature for developers. I originally added it for debugging
+this code.
 
-$ cat /dev/cgroup/memory/B/memory.stat
-mapped_file 956301312
-mlock 536870912
-unevictable 956203008
+> So, May I clarify your intention? To 
+> use Documention/feature-removal-schedule.txt solve your worry?
 
-Here, mapped_file - mlock = 400M shm_lock'ed pages are included in
-unevictable stat.
+I just want it to stay so that the test suite keeps working.
 
-Besides, not all mlock'ed pages get to unevictable lru at the first
-place, and the same for the other way around.
-
-Thanks
-
---Ying
-
->
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
