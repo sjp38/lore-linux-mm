@@ -1,99 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 496516B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 13:16:29 -0500 (EST)
-Message-ID: <4F0F2375.3060602@fb.com>
-Date: Thu, 12 Jan 2012 10:16:21 -0800
-From: Arun Sharma <asharma@fb.com>
-MIME-Version: 1.0
-Subject: Re: MAP_UNINITIALIZED (Was Re: MAP_NOZERO revisited)
-References: <4F04F0B9.5040401@fb.com> <20120105162311.09dac4b7.kamezawa.hiroyu@jp.fujitsu.com> <20120111185009.GA26693@dev3310.snc6.facebook.com> <CAKTCnz=Fg8DiTYUzmTiVm_bd-P9Ww9N5+T+LRGjoG2=ONL_MGA@mail.gmail.com>
-In-Reply-To: <CAKTCnz=Fg8DiTYUzmTiVm_bd-P9Ww9N5+T+LRGjoG2=ONL_MGA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 4B9526B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 13:26:46 -0500 (EST)
+Date: Thu, 12 Jan 2012 19:26:44 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
+Message-ID: <20120112182644.GE11715@one.firstfloor.org>
+References: <1326380820.2442.186.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1326380820.2442.186.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Davide Libenzi <davidel@xmailserver.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Andi Kleen <andi@firstfloor.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 1/11/12 9:10 PM, Balbir Singh wrote:
+On Thu, Jan 12, 2012 at 04:07:00PM +0100, Peter Zijlstra wrote:
+> Since the NUMA_INTERLEAVE_HIT statistic is useless on its own; it wants
+> to be compared to either a total of interleave allocations or to a miss
+> count, remove it.
 
->
-> Define MAP_UNINITIALIZED - are you referring to not zeroing out pages
-> before handing them down? Is this safe even between threads.
->
+Nack!
 
-If it doesn't work for an app, it shouldn't be asking for this behavior 
-via an mmap flag?
+This would break the numactl testsuite.
 
-Only calloc() specifies that the returned memory will be zero'ed. There 
-is no such guarantee for malloc().
-
->> +#define VM_UNINITIALIZED VM_SAO                /* Steal a powerpc bit for now, since we're out
->> +                                          bits for 32 bit archs */
->
-> Without proper checks if it can be re-used?
-
-Yeah - this is a complete hack. I'm trying to convince people that this 
-is a viable idea, before asking for a vm_flags bit.
-
-Microbenchmark data:
-
-# time -p ./test2
-real 7.60
-user 0.78
-sys 6.81
-
-# time -p ./test2 xx
-real 4.40
-user 0.78
-sys 3.62
-
-# cat test2.c
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <stdint.h>
-
-#define MMAP_SIZE (20 * 1024 * 1024)
-#define PAGE_SIZE 4096
-#define MAP_UNINITIALIZED 0x4000000
-
-main(int argc, char *argv[])
-{
-         void *addr, *naddr;
-         char *p, *end, val;
-         int flag = 0;
-         int i;
-
-         if (argc > 1) {
-                 flag = MAP_UNINITIALIZED;
-         }
-
-         addr = mmap(NULL, MMAP_SIZE, PROT_READ|PROT_WRITE,
-                     flag | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-         if (addr == MAP_FAILED) {
-                 perror("mmap");
-                 exit(-1);
-         }
-         end = (char *) addr + MMAP_SIZE;
-
-         for (i = 0; i < 1000; i++) {
-                 int ret;
-
-                 ret = madvise(addr, MMAP_SIZE, MADV_DONTNEED);
-                 if (ret == -1)
-                         perror("madvise");
-
-                 for (p = (char *) addr; p < end; p += PAGE_SIZE) {
-                         *p = 0xAB;
-                 }
-         }
-}
-
-
-  -Arun
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
