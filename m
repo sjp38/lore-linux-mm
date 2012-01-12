@@ -1,103 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 806776B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 06:17:05 -0500 (EST)
-Date: Thu, 12 Jan 2012 12:16:54 +0100
-From: Tyler Hicks <tyhicks@canonical.com>
-Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
-Message-ID: <20120112111654.GA4717@boyd>
-References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
- <20120111141219.271d3a97.akpm@linux-foundation.org>
- <1326355594.1999.7.camel@lappy>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 352136B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 06:48:41 -0500 (EST)
+Date: Thu, 12 Jan 2012 11:48:35 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2] mm/compaction : do optimazition when the migration
+ scanner gets no page
+Message-ID: <20120112114835.GI4118@suse.de>
+References: <1326347222-9980-1-git-send-email-b32955@freescale.com>
+ <20120112080311.GA30634@barrios-desktop.redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="opJtzjQTFsWo+cga"
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1326355594.1999.7.camel@lappy>
+In-Reply-To: <20120112080311.GA30634@barrios-desktop.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lizf@cn.fujitsu.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Huang Shijie <b32955@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 
+On Thu, Jan 12, 2012 at 05:03:11PM +0900, Minchan Kim wrote:
+> On Thu, Jan 12, 2012 at 01:47:02PM +0800, Huang Shijie wrote:
+> > In the real tests, there are maybe many times the cc->nr_migratepages is zero,
+> > but isolate_migratepages() returns ISOLATE_SUCCESS.
+> > 
+> > Memory in our mx6q board:
+> > 	2G memory, 8192 pages per page block
+> > 
+> > We use the following command to test in two types system loads:
+> > 	#echo 1 > /proc/sys/vm/compact_memory
+> > 
+> > Test Result:
+> > 	[1] little load(login in the ubuntu):
+> > 		all the scanned pageblocks	: 79
+> > 		pageblocks which get no pages	: 46
+> > 
+> > 		The ratio of `get no pages` pageblock is 58.2%.
+> > 
+> > 	[2] heavy load(start thunderbird, firefox, ..etc):
+> > 		all the scanned pageblocks	: 89
+> > 		pageblocks which get no pages	: 36
+> > 
+> > 		The ratio of `get no pages` pageblock is 40.4%.
+> > 
+> > In order to get better performance, we should check the number of the
+> > really isolated pages. And do the optimazition for this case.
+> > 
+> > Also fix the confused comments(from Mel Gorman).
+> > 
+> > Tested this patch in MX6Q board.
+> > 
+> > Signed-off-by: Huang Shijie <b32955@freescale.com>
+> > Acked-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/compaction.c |   28 ++++++++++++++++------------
+> >  1 files changed, 16 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index f4f514d..41d1b72a 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -246,8 +246,8 @@ static bool too_many_isolated(struct zone *zone)
+> >  /* possible outcome of isolate_migratepages */
+> >  typedef enum {
+> >  	ISOLATE_ABORT,		/* Abort compaction now */
+> > -	ISOLATE_NONE,		/* No pages isolated, continue scanning */
+> > -	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+> > +	ISOLATE_NONE,		/* No pages scanned, consider next pageblock*/
+> > +	ISOLATE_SUCCESS,	/* Pages scanned and maybe isolated, migrate */
+> >  } isolate_migrate_t;
+> >  
+> 
+> Hmm, I don't like this change.
+> ISOLATE_NONE mean "we don't isolate any page at all"
+> ISOLATE_SUCCESS mean "We isolaetssome pages"
+> It's very clear but you are changing semantic slighly.
+> 
 
---opJtzjQTFsWo+cga
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+That is somewhat the point of his patch - isolate_migratepages()
+can return ISOLATE_SUCCESS even though no pages were isolated. Note that
+he does not change when ISOLATE_NONE or ISOLATE_SUCCESS gets returned,
+he updates the comment to match what the code is actually doing. This
+should be visible from the tracepoint. My machine has been up for days
+and loaded when I started a process that mapped a large anonymous
+region. THP would kick in and I see from the tracepoints excerpts like
+this
 
-On 2012-01-12 10:06:34, Sasha Levin wrote:
-> On Wed, 2012-01-11 at 14:12 -0800, Andrew Morton wrote:
-> > There's nothing particularly special about memdup_user(): there are
-> > many ways in which userspace can trigger GFP_KERNEL allocations.
-> >=20
-> > The problem here (one which your patch carefully covers up) is that
-> > ecryptfs_miscdev_write() is passing an unchecked userspace-provided
-> > `count' direct into kmalloc().  This is a bit problematic for other
-> > reasons: it gives userspace a way to trigger heavy reclaim activity and
-> > perhaps even to trigger the oom-killer.
-> >=20
-> > A better fix here would be to validate the incoming arg before using
-> > it.  Preferably by running ecryptfs_parse_packet_length() before taking
-> > a copy of the data.  That would require adding a small copy_from_user()
-> > to peek at the message header.=20
->=20
-> Let's split it to two parts: the specific ecryptfs issue I've given as
-> an example here, and a general view about memdup_user().
->=20
-> I fully agree that in the case of ecryptfs there's a missing validity
-> check, and just calling memdup_user() with whatever the user has passed
-> to it is wrong and dangerous. This should be fixed in the ecryptfs code
-> and I'll send a patch to do that.
+          malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457024: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
+          malloc-13964 [007] 221636.457049: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
+          malloc-13964 [007] 221636.457102: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
+          malloc-13964 [007] 221636.457143: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=17
+          malloc-13964 [007] 221636.457189: mm_compaction_isolate_migratepages: nr_scanned=433 nr_taken=32
+          malloc-13964 [007] 221636.457253: mm_compaction_isolate_migratepages: nr_scanned=205 nr_taken=32
+          malloc-13964 [007] 221636.457319: mm_compaction_isolate_migratepages: nr_scanned=389 nr_taken=7
 
-I just wrote up a patch for the eCryptfs portion. I'll send it out a
-little later after I get a chance to test it.
+These "nr_scanned=1 nr_taken=0" are during async compaction where the
+scanner is skipping over pageblocks that are not MIGRATE_MOVABLE. As the
+function only deals in pageblocks, it means the function returns after
+only scanning 1 page expecting that compact_zone() will move to the next
+block.
 
-Tyler
+> How about this?
+> 
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -376,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  
+>         trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+>  
+> -       return ISOLATE_SUCCESS;
+> +       return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+>  }
+>  
+>  /*
+> @@ -542,6 +542,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>                 unsigned long nr_migrate, nr_remaining;
+>                 int err;
+>  
+> +               count_vm_event(COMPACTBLOCKS);
+> +
+>                 switch (isolate_migratepages(zone, cc)) {
+>                 case ISOLATE_ABORT:
+>                         ret = COMPACT_PARTIAL;
+> @@ -559,7 +561,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>                 update_nr_listpages(cc);
+>                 nr_remaining = cc->nr_migratepages;
+>  
+> -               count_vm_event(COMPACTBLOCKS);
+>                 count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+>                 if (nr_remaining)
+>                         count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+> 
+> This patch's side effect is that it accounts COMPACTBLOCK although isolation is cancel by signal
+> but I think it's very rare and doesn't give big effect for statistics of compaciton.
+> 
 
->=20
-> The other part, is memdup_user() itself. Kernel warnings are usually
-> reserved (AFAIK) to cases where it would be difficult to notify the user
-> since it happens in a flow which the user isn't directly responsible
-> for.
->=20
-> memdup_user() is always located in path which the user has triggered,
-> and is usually almost the first thing we try doing in response to the
-> trigger. In those code flows it doesn't make sense to print a kernel
-> warnings and taint the kernel, instead we can simply notify the user
-> about that error and let him deal with it any way he wants.
->=20
-> There are more reasons kalloc() can show warnings besides just trying to
-> allocate too much, and theres no reason to dump kernel warnings when
-> it's easier to notify the user.
->=20
-> --=20
->=20
-> Sasha.
->=20
+This came up during discussion the last time. My opinion was that
+COMPACTBLOCK not being updated was a problem. In the existing code
+ISOLATE_NONE returning also means the scan did not take place and
+this does not need to be accounted for. However, if we scan the block
+and isolate no pages, we still want to account for that. A rapidly
+increasing COMPACTBLOCKS while COMPACTPAGES changes very little could
+indicate that compaction is doing a lot of busy work without making
+any useful progress for example.
 
---opJtzjQTFsWo+cga
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+It could easily be argued that if we skip over !MIGRATE_MOVABLE
+pageblocks then we should not account for that in COMPACTBLOCKS either
+because the scanning was minimal. In that case we would change this
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+                /*
+                 * For async migration, also only scan in MOVABLE blocks. Async
+                 * migration is optimistic to see if the minimum amount of work
+                 * satisfies the allocation
+                 */
+                pageblock_nr = low_pfn >> pageblock_order;
+                if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+                                get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
+                        low_pfn += pageblock_nr_pages;
+                        low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
+                        last_pageblock_nr = pageblock_nr;
+                        continue;
+                }
 
-iQIcBAEBCgAGBQJPDsEmAAoJENaSAD2qAscKhLMP/jO4a+QYsOv/C/GB6W0mEEmY
-tcZIBm04+a8MiEXo9FPaF5/3j3Kgh+vVaQhWol1I4xnUf4Oi7mJbli4yhP9VzCMO
-DKDluE/nkTWWxSif/w1KBfH28WHS/otkobEi6JA5YDgXAQTj6jrtwrt/tBd+CxHk
-u/O8LsspMdl8VHF+k7K6whPzkG57idDrb6754qw1Ne1906Wo6kyjpYJL65XSzrQF
-9JUIkmGPbWLjV+q3NEDjbpATmYOshQcXmA9HUoQLbKibUyKmOEnyRfGnH8jTpMw2
-37gwwC3l6N6mPmHL04Eij9W6HvrD15sikENtQnIBr4HGZf1HkjHZU+siepW0JsO2
-SylWXfCPdRkx6oYKuqeoojHAi80bAZrHAQsV/MtnKcZuZQPqcZRdKzsj+dYu9JF5
-+GbTZNFdccejw1GARuaH0RYTSxGmG7FQcTKUoNl0gRUHChjeLqwz5ImSGjne0By7
-U+a/2G9pGSdaXT3gcYFHFfoV3hDGCeYLGI7SxpLYP3nMRI5NLDMaXEueAq0Y4VA4
-xSmWliP2QG3X0xknE7w7YhFfrdmkig7/OQ/dP1lxPxv+9pohh0MUJu+bupCKAlvn
-nYCZcE/9hK95cyCSOOrQTnLEGCBHOA6OjGMF54JshHcl63jO4fQzNRBT4WDFEPTd
-gIQYq/eREOJ7z7NiouD/
-=l6Vk
------END PGP SIGNATURE-----
+to return ISOLATE_NONE there instead of continue. I would be ok making
+that part of this patch to clarify the difference between ISOLATE_NONE
+and ISOLATE_SUCCESS and what it means for accounting.
 
---opJtzjQTFsWo+cga--
+> 
+> >  /*
+> > @@ -542,7 +542,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+> >  
+> >  	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
+> >  		unsigned long nr_migrate, nr_remaining;
+> > -		int err;
+> > +		int err = 0;
+> >  
+> >  		switch (isolate_migratepages(zone, cc)) {
+> >  		case ISOLATE_ABORT:
+> > @@ -554,17 +554,21 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+> >  			;
+> >  		}
+> >  
+> > -		nr_migrate = cc->nr_migratepages;
+> > -		err = migrate_pages(&cc->migratepages, compaction_alloc,
+> > -				(unsigned long)cc, false,
+> > -				cc->sync);
+> > -		update_nr_listpages(cc);
+> > -		nr_remaining = cc->nr_migratepages;
+> > +		nr_migrate = nr_remaining = cc->nr_migratepages;
+> > +		if (nr_migrate) {
+> > +			err = migrate_pages(&cc->migratepages, compaction_alloc,
+> > +					(unsigned long)cc, false,
+> > +					cc->sync);
+> > +			update_nr_listpages(cc);
+> > +			nr_remaining = cc->nr_migratepages;
+> > +			count_vm_events(COMPACTPAGES,
+> > +					nr_migrate - nr_remaining);
+> > +			if (nr_remaining)
+> > +				count_vm_events(COMPACTPAGEFAILED,
+> > +						nr_remaining);
+> > +		}
+> >  
+> >  		count_vm_event(COMPACTBLOCKS);
+> > -		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+> > -		if (nr_remaining)
+> > -			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+> >  		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
+> >  						nr_remaining);
+> >  
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
