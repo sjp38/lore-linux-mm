@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2CB756B006E
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 14:30:01 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 3/6] pagemap: export KPF_THP
-Date: Thu, 12 Jan 2012 14:34:55 -0500
-Message-Id: <1326396898-5579-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 6F2BA6B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 14:52:00 -0500 (EST)
+Received: by iafj26 with SMTP id j26so4210482iaf.14
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 11:51:59 -0800 (PST)
+Date: Thu, 12 Jan 2012 11:51:39 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: vmscan: deactivate isolated pages with lru lock
+ released
+In-Reply-To: <CAJd=RBC6zXtN1uQMxJJxGGHrXH5xUAeDWGzoEazbVAdRXo9F0Q@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1201121127440.2945@eggly.anvils>
+References: <CAJd=RBAiAfyXBcn+9WO6AERthyx+C=cNP-romp9YJO3Hn7-U-g@mail.gmail.com> <alpine.LSU.2.00.1201111351080.1846@eggly.anvils> <CAJd=RBC6zXtN1uQMxJJxGGHrXH5xUAeDWGzoEazbVAdRXo9F0Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1299436237-1326397913=:2945"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-This flag shows that a given pages is a subpage of transparent hugepage.
-It helps us debug and test kernel by showing physical address of thp.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+--8323584-1299436237-1326397913=:2945
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Changes since v2:
-  - replace if with else-if not to set KPF_THP for hugetlbfs page
+On Thu, 12 Jan 2012, Hillf Danton wrote:
+> On Thu, Jan 12, 2012 at 6:33 AM, Hugh Dickins <hughd@google.com> wrote:
+> > On Wed, 11 Jan 2012, Hillf Danton wrote:
+>=20
+> > I suspect that your patch can be improved, to take away that worry.
+> > Why do we need to take the lock again? =C2=A0Only to update reclaim_sta=
+t:
+> > for the other stats, interrupts disabled is certainly good enough,
+> > and more research might show that preemption disabled would be enough.
+> >
+> > get_scan_count() is called at the (re)start of shrink_mem_cgroup_zone()=
+,
+> > before it goes down to do shrink_list()s: I think it would not be harme=
+d
+> > at all if we delayed updating reclaim_stat->recent_scanned until the
+> > next time we take the lock, lower down.
+> >
+>=20
+> Dunno how to handle the tons of __mod_zone_page_state() or similar withou=
+t lock
+> protection 8-/ try to deffer updating reclaim_stat soon.
 
-Changes since v1:
-  - remove unnecessary ifdefs
-  - fix confusing patch description
----
- fs/proc/page.c                    |    2 ++
- include/linux/kernel-page-flags.h |    1 +
- 2 files changed, 3 insertions(+), 0 deletions(-)
+Aren't the __mod_zone_page_state() counts per-cpu?  Although we very
+often update them while holding the zone spinlock, that's because we
+happen to be holding it already, and it prevents preemption to another
+cpu, without needing to invoke the more expensive mod_zone_page_state().
+Similarly __count_vm_events() is per-cpu (and no zone lock would help it).
 
-diff --git 3.2-rc5.orig/fs/proc/page.c 3.2-rc5/fs/proc/page.c
-index 6d8e6a9..7fcd0d6 100644
---- 3.2-rc5.orig/fs/proc/page.c
-+++ 3.2-rc5/fs/proc/page.c
-@@ -115,6 +115,8 @@ u64 stable_page_flags(struct page *page)
- 		u |= 1 << KPF_COMPOUND_TAIL;
- 	if (PageHuge(page))
- 		u |= 1 << KPF_HUGE;
-+	else if (PageTransCompound(page))
-+		u |= 1 << KPF_THP;
- 
- 	/*
- 	 * Caveats on high order pages: page->_count will only be set
-diff --git 3.2-rc5.orig/include/linux/kernel-page-flags.h 3.2-rc5/include/linux/kernel-page-flags.h
-index bd92a89..26a6571 100644
---- 3.2-rc5.orig/include/linux/kernel-page-flags.h
-+++ 3.2-rc5/include/linux/kernel-page-flags.h
-@@ -30,6 +30,7 @@
- #define KPF_NOPAGE		20
- 
- #define KPF_KSM			21
-+#define KPF_THP			22
- 
- /* kernel hacking assistances
-  * WARNING: subject to change, never rely on them!
--- 
-1.7.6.5
+>=20
+> > Other things that strike me, looking here again: isn't it the case that
+> > update_isolated_counts() is actually called either for file or for anon=
+,
+> > but never for both?
+>=20
+> No, see the above diff please 8-)
+
+I think you are obliquely reminding me that lumpy reclaim will take pages
+from wherever, so that way some anon pages will sneak into the file lru
+reclaim and some file pages into the anon lru reclaim.  Right?  Whereas
+move_active_pages_to_lru() doesn't have that problem, because
+shrink_active_list() uses a stricter setting of reclaim_mode.  Hmm,
+more simplification that can be done once lumpy reclaim is removed.
+
+(It's the 3.2 tree with its naming that I'm examining at this moment.)
+
+Hugh
+--8323584-1299436237-1326397913=:2945--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
