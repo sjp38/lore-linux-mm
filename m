@@ -1,69 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 082DD6B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:32:58 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
-Date: Thu, 12 Jan 2012 08:32:16 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB9826904556CB7@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com>
- <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com>
- <20120104195521.GA19181@suse.de>
- <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com>
- <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com>
- <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201111338320.21755@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1201111338320.21755@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id C431B6B005A
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:36:56 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E1EF83EE0C0
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 17:36:54 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CAB0F45DD74
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 17:36:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B3BA145DE69
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 17:36:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A6E4AE08004
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 17:36:54 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F3641DB803A
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 17:36:54 +0900 (JST)
+Date: Thu, 12 Jan 2012 17:35:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: Fix NULL ptr dereference in __count_immobile_pages
+Message-Id: <20120112173536.db529713.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120112082722.GB1042@tiehlicka.suse.cz>
+References: <1326213022-11761-1-git-send-email-mhocko@suse.cz>
+	<alpine.DEB.2.00.1201101326080.10821@chino.kir.corp.google.com>
+	<20120111084802.GA16466@tiehlicka.suse.cz>
+	<20120112111702.3b7f2fa2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120112082722.GB1042@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>
 
-> -----Original Message-----
-> From: ext David Rientjes [mailto:rientjes@google.com]
-> Sent: 11 January, 2012 22:45
-=20
-> I think you're misunderstanding the proposal; in the case of a global oom
-> (that means without memcg) then, by definition, all threads that are
-> allocating memory would be frozen and incur the delay at the point they
-> would currently call into the oom killer.  If your userspace is alive, i.=
-e. the
-> application responsible for managing oom killing, then it can wait on
-> eventfd(2), wake up, and then send SIGTERM and SIGKILL to the appropriate
-> threads based on priority.
->=20
-> So, again, why wouldn't this work for you?
+On Thu, 12 Jan 2012 09:27:22 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-As I wrote the proposed change is not safety belt but looking ahead radar.
-If it detects that we are close to wall it starts to alarm and alarm volume=
- is proportional to distance.
+> On Thu 12-01-12 11:17:02, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 11 Jan 2012 09:48:02 +0100
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > On Tue 10-01-12 13:31:08, David Rientjes wrote:
+> > > > On Tue, 10 Jan 2012, Michal Hocko wrote:
+> > > [...]
+> > > > >  mm/page_alloc.c |   11 +++++++++++
+> > > > >  1 files changed, 11 insertions(+), 0 deletions(-)
+> > > > > 
+> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > > index 2b8ba3a..485be89 100644
+> > > > > --- a/mm/page_alloc.c
+> > > > > +++ b/mm/page_alloc.c
+> > > > > @@ -5608,6 +5608,17 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+> > > > >  bool is_pageblock_removable_nolock(struct page *page)
+> > > > >  {
+> > > > >  	struct zone *zone = page_zone(page);
+> > > > > +	unsigned long pfn = page_to_pfn(page);
+> > > > > +
+> > 
+> > Hmm, I don't like to use page_zone() when we know the page may not be initialized.
+> > Shouldn't we add
+> > 
+> > 	if (!node_online(page_to_nid(page))
+> > 		return false;
+> > ?
+> 
+> How is this different? The node won't be initialized in page flags as
+> well.
+> 
 
-In close-to-OOM situations device becomes very slow, which is not good for =
-user. The performance difference depends on code size and storage performan=
-ce=20
-to trash code pages but even 20% is noticeable. Practically 2x-5x times slo=
-wdown was observed.
+page_zone(page) is
+==
+static inline struct zone *page_zone(const struct page *page)
+{
+        return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+}
+==
 
-We can do some actions ahead of time and try to prevent OOM at all like shr=
-ink caches in applications, close unused apps etc.  If OOM still happened d=
-ue to=20
-3rd party components or misbehaving software even default OOM killer works =
-good enough if oom_score_adj values are properly set.
+Then, if the page is unitialized, 
 
-Thus, controlling device on wider set of memory situations looks for me mor=
-e beneficial than trying to  recover when situation is bad. And increasing =
-complexity
-of recovery mechanism (OOM, Android OOM, OOM with delay), involving user-sp=
-ace into decision-making, makes recovery _potentially_ less predictable.
+   &(NODE_DATA(0)->node_zones[0])
 
-Best Wishes,
-Leonid
+If NODE_DATA(0) is NULL, node_zones[0] is NULL just because zone array is placed
+on the top of struct pglist_data.
+
+I never think someone may change the layout but...Hmm, just a nitpick.
+please do as you like.
+
+
+> > But...hmm. I think we should return 'true' here for removing a section with a hole
+> > finally....(Now, false will be safe.)
+> 
+> Those pages are reserved (for BIOS I guess) in this particular case so I
+> do not think it is safe to claim that the block is removable. Or am I
+> missing something?
+> 
+
+We can't know it's reserved by BIOS or it's just a memory hole by the fact
+the page wasn't initialized.
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
