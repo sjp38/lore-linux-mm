@@ -1,178 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id BC5676B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 10:07:20 -0500 (EST)
-Message-ID: <1326380820.2442.186.camel@twins>
-Subject: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 12 Jan 2012 16:07:00 +0100
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 8E3786B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 10:08:11 -0500 (EST)
+Received: by vbnl22 with SMTP id l22so503874vbn.14
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 07:08:10 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAOtvUMfmSrotCGn-51SC3eiQU=xK4C_Trh+8FEfTGOJcGUgVag@mail.gmail.com>
+References: <1326276668-19932-1-git-send-email-mgorman@suse.de>
+	<1326276668-19932-3-git-send-email-mgorman@suse.de>
+	<CAOtvUMfmSrotCGn-51SC3eiQU=xK4C_Trh+8FEfTGOJcGUgVag@mail.gmail.com>
+Date: Thu, 12 Jan 2012 17:08:10 +0200
+Message-ID: <CAOtvUMeL19942umZH22THGU-TQbnjRfxz-JLdY_wdWPN7ZNy5Q@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: page allocator: Do not drain per-cpu lists via
+ IPI from page allocator context
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Andi Kleen <andi@firstfloor.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Miklos Szeredi <mszeredi@novell.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg KH <gregkh@suse.de>, Gong Chen <gong.chen@intel.com>
 
-Since the NUMA_INTERLEAVE_HIT statistic is useless on its own; it wants
-to be compared to either a total of interleave allocations or to a miss
-count, remove it.
+On Thu, Jan 12, 2012 at 4:51 PM, Gilad Ben-Yossef <gilad@benyossef.com> wro=
+te:
+> On Wed, Jan 11, 2012 at 12:11 PM, Mel Gorman <mgorman@suse.de> wrote:
+> <SNIP>
+>> Rather than making it safe to call get_online_cpus() from the page
+>> allocator, this patch simply removes the page allocator call to
+>> drain_all_pages(). To avoid impacting high-order allocation success
+>> rates, it still drains the local per-cpu lists for high-order
+>> allocations that failed. As a side effect, this reduces the number
+>> of IPIs sent during low memory situations.
+>>
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> ---
+>> =A0mm/page_alloc.c | =A0 16 ++++++++++++----
+>> =A01 files changed, 12 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 2b8ba3a..b6df6fc 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -1119,7 +1119,9 @@ void drain_local_pages(void *arg)
+>> =A0*/
+>> =A0void drain_all_pages(void)
+>> =A0{
+>> + =A0 =A0 =A0 get_online_cpus();
+>> =A0 =A0 =A0 =A0on_each_cpu(drain_local_pages, NULL, 1);
+>> + =A0 =A0 =A0 put_online_cpus();
+>> =A0}
+>>
+>> =A0#ifdef CONFIG_HIBERNATION
+>> @@ -1982,11 +1984,17 @@ retry:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0migratetype);
+>>
+>> =A0 =A0 =A0 =A0/*
+>> - =A0 =A0 =A0 =A0* If an allocation failed after direct reclaim, it coul=
+d be because
+>> - =A0 =A0 =A0 =A0* pages are pinned on the per-cpu lists. Drain them and=
+ try again
+>> + =A0 =A0 =A0 =A0* If a high-order allocation failed after direct reclai=
+m, there is a
+>> + =A0 =A0 =A0 =A0* possibility that it is because the necessary buddies =
+have been
+>> + =A0 =A0 =A0 =A0* freed to the per-cpu list. Drain the local list and t=
+ry again.
+>> + =A0 =A0 =A0 =A0* drain_all_pages is not used because it is unsafe to c=
+all
+>> + =A0 =A0 =A0 =A0* get_online_cpus from this context as it is possible t=
+hat kthreadd
+>> + =A0 =A0 =A0 =A0* would block during thread creation and the cost of se=
+nding storms
+>> + =A0 =A0 =A0 =A0* of IPIs in low memory conditions is quite high.
+>> =A0 =A0 =A0 =A0 */
+>> - =A0 =A0 =A0 if (!page && !drained) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_pages();
+>> + =A0 =A0 =A0 if (!page && order && !drained) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_pages(get_cpu());
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 put_cpu();
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0drained =3D true;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto retry;
+>> =A0 =A0 =A0 =A0}
+>> --
+>> 1.7.3.4
+>>
+>
+> I very much like the judo like quality of relying on the fact that in
+> memory pressure conditions most
+> of the cpus will end up in the direct reclaim path to drain them all
+> without IPIs.
+>
+> What I can't figure out is why we don't need =A0get/put_online_cpus()
+> pair around each and every call
+> to on_each_cpu everywhere? and if we do, perhaps making it a part of
+> on_each_cpu is the way to go?
+>
+> Something like:
+>
+> diff --git a/kernel/smp.c b/kernel/smp.c
+> index f66a1b2..cfa3882 100644
+> --- a/kernel/smp.c
+> +++ b/kernel/smp.c
+> @@ -691,11 +691,15 @@ void on_each_cpu(void (*func) (void *info), void
+> *info, int wait)
+> =A0{
+> =A0 =A0 =A0 =A0unsigned long flags;
+>
+> + =A0 =A0 =A0 BUG_ON(in_atomic());
+> +
+> + =A0 =A0 =A0 get_online_cpus();
+> =A0 =A0 =A0 =A0preempt_disable();
+> =A0 =A0 =A0 =A0smp_call_function(func, info, wait);
+> =A0 =A0 =A0 =A0local_irq_save(flags);
+> =A0 =A0 =A0 =A0func(info);
+> =A0 =A0 =A0 =A0local_irq_restore(flags);
+> =A0 =A0 =A0 =A0preempt_enable();
+> + =A0 =A0 =A0 put_online_cpus();
+> =A0}
+> =A0EXPORT_SYMBOL(on_each_cpu);
+>
+> Does that makes?
 
-Fixing it would be possible, but since we've gone years without these
-statistics I figure we can continue that way.
+Well, it dies on boot (after adding the needed include file), so it's
+obviously wrong, but I'm still guessing
+other users of on_each_cpu will need an =A0get/put_online_cpus() wrapper to=
+o.
 
-This cleans up some of the weird MPOL_INTERLEAVE allocation exceptions.
+Maybe -
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- drivers/base/node.c    |    2 +-
- include/linux/mmzone.h |    1 -
- mm/mempolicy.c         |   66 +++++++++++++++-----------------------------=
----
- 3 files changed, 22 insertions(+), 47 deletions(-)
+on_each_cpu(...)
+{
+  get_online_cpus();
+  __on_each_cpu(...);
+  put_online_cpus();
+}
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 5693ece..942cdbc 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -172,7 +172,7 @@ static ssize_t node_read_numastat(struct sys_device * d=
-ev,
- 		       node_page_state(dev->id, NUMA_HIT),
- 		       node_page_state(dev->id, NUMA_MISS),
- 		       node_page_state(dev->id, NUMA_FOREIGN),
--		       node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
-+		       0,
- 		       node_page_state(dev->id, NUMA_LOCAL),
- 		       node_page_state(dev->id, NUMA_OTHER));
- }
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3ac040f..3a3be81 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -111,7 +111,6 @@ enum zone_stat_item {
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
- 	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
--	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index c3fdbcb..2c48c45 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1530,11 +1530,29 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struc=
-t mempolicy *policy)
- 	return NULL;
- }
-=20
-+/* Do dynamic interleaving for a process */
-+static unsigned interleave_nodes(struct mempolicy *policy)
-+{
-+	unsigned nid, next;
-+	struct task_struct *me =3D current;
-+
-+	nid =3D me->il_next;
-+	next =3D next_node(nid, policy->v.nodes);
-+	if (next >=3D MAX_NUMNODES)
-+		next =3D first_node(policy->v.nodes);
-+	if (next < MAX_NUMNODES)
-+		me->il_next =3D next;
-+	return nid;
-+}
-+
- /* Return a zonelist indicated by gfp for node representing a mempolicy */
- static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *polic=
-y,
- 	int nd)
- {
- 	switch (policy->mode) {
-+	case MPOL_INTERLEAVE:
-+		nd =3D interleave_nodes(policy);
-+		break;
- 	case MPOL_PREFERRED:
- 		if (!(policy->flags & MPOL_F_LOCAL))
- 			nd =3D policy->v.preferred_node;
-@@ -1556,21 +1574,6 @@ static struct zonelist *policy_zonelist(gfp_t gfp, s=
-truct mempolicy *policy,
- 	return node_zonelist(nd, gfp);
- }
-=20
--/* Do dynamic interleaving for a process */
--static unsigned interleave_nodes(struct mempolicy *policy)
--{
--	unsigned nid, next;
--	struct task_struct *me =3D current;
--
--	nid =3D me->il_next;
--	next =3D next_node(nid, policy->v.nodes);
--	if (next >=3D MAX_NUMNODES)
--		next =3D first_node(policy->v.nodes);
--	if (next < MAX_NUMNODES)
--		me->il_next =3D next;
--	return nid;
--}
--
- /*
-  * Depending on the memory policy provide a node from which to allocate th=
-e
-  * next slab entry.
-@@ -1801,21 +1804,6 @@ out:
- 	return ret;
- }
-=20
--/* Allocate a page in interleaved policy.
--   Own path because it needs to do special accounting. */
--static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
--					unsigned nid)
--{
--	struct zonelist *zl;
--	struct page *page;
--
--	zl =3D node_zonelist(nid, gfp);
--	page =3D __alloc_pages(gfp, order, zl);
--	if (page && page_zone(page) =3D=3D zonelist_zone(&zl->_zonerefs[0]))
--		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
--	return page;
--}
--
- /**
-  * 	alloc_pages_vma	- Allocate a page for a VMA.
-  *
-@@ -1848,15 +1836,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area=
-_struct *vma,
- 	struct page *page;
-=20
- 	get_mems_allowed();
--	if (unlikely(pol->mode =3D=3D MPOL_INTERLEAVE)) {
--		unsigned nid;
--
--		nid =3D interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
--		mpol_cond_put(pol);
--		page =3D alloc_page_interleave(gfp, order, nid);
--		put_mems_allowed();
--		return page;
--	}
- 	zl =3D policy_zonelist(gfp, pol, node);
- 	if (unlikely(mpol_needs_cond_ref(pol))) {
- 		/*
-@@ -1909,12 +1888,9 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned=
- order)
- 	 * No reference counting needed for current->mempolicy
- 	 * nor system default_policy
- 	 */
--	if (pol->mode =3D=3D MPOL_INTERLEAVE)
--		page =3D alloc_page_interleave(gfp, order, interleave_nodes(pol));
--	else
--		page =3D __alloc_pages_nodemask(gfp, order,
--				policy_zonelist(gfp, pol, numa_node_id()),
--				policy_nodemask(gfp, pol));
-+	page =3D __alloc_pages_nodemask(gfp, order,
-+			policy_zonelist(gfp, pol, numa_node_id()),
-+			policy_nodemask(gfp, pol));
- 	put_mems_allowed();
- 	return page;
- }
+We'll need to audit all callers.
+
+Gilad
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"Unfortunately, cache misses are an equal opportunity pain provider."
+-- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
