@@ -1,134 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 673AB6B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 09:51:58 -0500 (EST)
-Received: by vbnl22 with SMTP id l22so486454vbn.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 06:51:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 42FBF6B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 09:53:35 -0500 (EST)
+Date: Thu, 12 Jan 2012 14:53:30 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2 -mm] make swapin readahead skip over holes
+Message-ID: <20120112145330.GK4118@suse.de>
+References: <20120111143044.3c538d46@cuia.bos.redhat.com>
+ <20120111205041.GE24386@cmpxchg.org>
+ <4F0DFF64.4040704@redhat.com>
+ <20120111214242.GF24386@cmpxchg.org>
+ <4F0E05F6.30105@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1326276668-19932-3-git-send-email-mgorman@suse.de>
-References: <1326276668-19932-1-git-send-email-mgorman@suse.de>
-	<1326276668-19932-3-git-send-email-mgorman@suse.de>
-Date: Thu, 12 Jan 2012 16:51:56 +0200
-Message-ID: <CAOtvUMfmSrotCGn-51SC3eiQU=xK4C_Trh+8FEfTGOJcGUgVag@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: page allocator: Do not drain per-cpu lists via
- IPI from page allocator context
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F0E05F6.30105@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Miklos Szeredi <mszeredi@novell.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg KH <gregkh@suse.de>, Gong Chen <gong.chen@intel.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, minchan.kim@gmail.com
 
-On Wed, Jan 11, 2012 at 12:11 PM, Mel Gorman <mgorman@suse.de> wrote:
-<SNIP>
-> Rather than making it safe to call get_online_cpus() from the page
-> allocator, this patch simply removes the page allocator call to
-> drain_all_pages(). To avoid impacting high-order allocation success
-> rates, it still drains the local per-cpu lists for high-order
-> allocations that failed. As a side effect, this reduces the number
-> of IPIs sent during low memory situations.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
-> =A0mm/page_alloc.c | =A0 16 ++++++++++++----
-> =A01 files changed, 12 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2b8ba3a..b6df6fc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1119,7 +1119,9 @@ void drain_local_pages(void *arg)
-> =A0*/
-> =A0void drain_all_pages(void)
-> =A0{
-> + =A0 =A0 =A0 get_online_cpus();
-> =A0 =A0 =A0 =A0on_each_cpu(drain_local_pages, NULL, 1);
-> + =A0 =A0 =A0 put_online_cpus();
-> =A0}
->
-> =A0#ifdef CONFIG_HIBERNATION
-> @@ -1982,11 +1984,17 @@ retry:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0migratetype);
->
-> =A0 =A0 =A0 =A0/*
-> - =A0 =A0 =A0 =A0* If an allocation failed after direct reclaim, it could=
- be because
-> - =A0 =A0 =A0 =A0* pages are pinned on the per-cpu lists. Drain them and =
-try again
-> + =A0 =A0 =A0 =A0* If a high-order allocation failed after direct reclaim=
-, there is a
-> + =A0 =A0 =A0 =A0* possibility that it is because the necessary buddies h=
-ave been
-> + =A0 =A0 =A0 =A0* freed to the per-cpu list. Drain the local list and tr=
-y again.
-> + =A0 =A0 =A0 =A0* drain_all_pages is not used because it is unsafe to ca=
-ll
-> + =A0 =A0 =A0 =A0* get_online_cpus from this context as it is possible th=
-at kthreadd
-> + =A0 =A0 =A0 =A0* would block during thread creation and the cost of sen=
-ding storms
-> + =A0 =A0 =A0 =A0* of IPIs in low memory conditions is quite high.
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 if (!page && !drained) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_pages();
-> + =A0 =A0 =A0 if (!page && order && !drained) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_pages(get_cpu());
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 put_cpu();
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0drained =3D true;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto retry;
-> =A0 =A0 =A0 =A0}
-> --
-> 1.7.3.4
->
+On Wed, Jan 11, 2012 at 04:58:14PM -0500, Rik van Riel wrote:
+> On 01/11/2012 04:42 PM, Johannes Weiner wrote:
+> >On Wed, Jan 11, 2012 at 04:30:12PM -0500, Rik van Riel wrote:
+> >>On 01/11/2012 04:10 PM, Johannes Weiner wrote:
+> >>>On Wed, Jan 11, 2012 at 02:30:44PM -0500, Rik van Riel wrote:
+> >>>>Ever since abandoning the virtual scan of processes, for scalability
+> >>>>reasons, swap space has been a little more fragmented than before.
+> >>>>This can lead to the situation where a large memory user is killed,
+> >>>>swap space ends up full of "holes" and swapin readahead is totally
+> >>>>ineffective.
+> >>>>
+> >>>>On my home system, after killing a leaky firefox it took over an
+> >>>>hour to page just under 2GB of memory back in, slowing the virtual
+> >>>>machines down to a crawl.
+> >>>>
+> >>>>This patch makes swapin readahead simply skip over holes, instead
+> >>>>of stopping at them.  This allows the system to swap things back in
+> >>>>at rates of several MB/second, instead of a few hundred kB/second.
+> >>>>
+> >>>>The checks done in valid_swaphandles are already done in
+> >>>>read_swap_cache_async as well, allowing us to remove a fair amount
+> >>>>of code.
+> >>>
+> >>>__swap_duplicate() also checks for whether the offset is within the
+> >>>swap device range.  Do you think we could remove get_swap_cluster()
+> >>>altogether and just try reading the aligned page_cluster range?
+> >>
+> >>That is how I implemented it originally, but we need
+> >>to take the swap_lock so it is cleaner to implement
+> >>a helper function in swapfile.c :)
+> >
+> >AFAICS, it's only needed to validate the offset against si->max, but
+> >this too is done in __swap_duplicate().
+> >
+> >What's otherwise left is just rounding down swp_offset(entry) and
+> >adding 1<<  page_cluster to it, that shouldn't need the swap_lock?
+> >
+> >Am I missing something?
+> 
+> Good point.  I guess we could get rid of get_swap_cluster
+> afterall and let __swap_duplicate deal with everything.
+> 
+> Andrew, Mel, is that ok with you?
+> 
 
-I very much like the judo like quality of relying on the fact that in
-memory pressure conditions most
-of the cpus will end up in the direct reclaim path to drain them all
-without IPIs.
+I still think it is a bit unfortunate that we can end up allocating
+more pages than we need and the radix_preload() before __swap_duplicate
+identifies that the work was unnecessary. However, duplicate logic is
+also bad and as you say, in the context of the cost of swap IO, the cost
+is negligible and it's a corner case.
 
-What I can't figure out is why we don't need  get/put_online_cpus()
-pair around each and every call
-to on_each_cpu everywhere? and if we do, perhaps making it a part of
-on_each_cpu is the way to go?
+I'm ok with it.
 
-Something like:
-
-diff --git a/kernel/smp.c b/kernel/smp.c
-index f66a1b2..cfa3882 100644
---- a/kernel/smp.c
-+++ b/kernel/smp.c
-@@ -691,11 +691,15 @@ void on_each_cpu(void (*func) (void *info), void
-*info, int wait)
- {
- 	unsigned long flags;
-
-+	BUG_ON(in_atomic());
-+
-+	get_online_cpus();
- 	preempt_disable();
- 	smp_call_function(func, info, wait);
- 	local_irq_save(flags);
- 	func(info);
- 	local_irq_restore(flags);
- 	preempt_enable();
-+	put_online_cpus();
- }
- EXPORT_SYMBOL(on_each_cpu);
-
-Does that makes?
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
