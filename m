@@ -1,53 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id E0B3E6B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 15:28:10 -0500 (EST)
-Received: by iafj26 with SMTP id j26so4264528iaf.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 12:28:10 -0800 (PST)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id E004F6B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 15:45:04 -0500 (EST)
+Date: Thu, 12 Jan 2012 21:44:58 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: memcg: add mlock statistic in memory.stat
+Message-ID: <20120112204458.GA10389@tiehlicka.suse.cz>
+References: <1326321668-5422-1-git-send-email-yinghan@google.com>
+ <20120112125411.GG1042@tiehlicka.suse.cz>
+ <CALWz4izcSeY3TvrBUurg+X_fyHn3EPGRRS_jvSr0c2CWDnuhAQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHsXYDCWJSCOe3DkK2kkR4Yvie6WW2DYCi=h_CAwjotwNZWihg@mail.gmail.com>
-References: <CAHsXYDCWJSCOe3DkK2kkR4Yvie6WW2DYCi=h_CAwjotwNZWihg@mail.gmail.com>
-From: Maxim Kammerer <mk@dee.su>
-Date: Thu, 12 Jan 2012 22:27:48 +0200
-Message-ID: <CAHsXYDCSCLCBwwDyzfAtW9sHLOkHQAaBxaBWaZ-ws0u7kknWkQ@mail.gmail.com>
-Subject: Re: PROBLEM: memtest tests only LOWMEM
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALWz4izcSeY3TvrBUurg+X_fyHn3EPGRRS_jvSr0c2CWDnuhAQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-Hi,
+On Thu 12-01-12 11:09:58, Ying Han wrote:
+> On Thu, Jan 12, 2012 at 4:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Wed 11-01-12 14:41:08, Ying Han wrote:
+> >> We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
+> >> patch adds the mlock field into per-memcg memory stat. The stat itself enhances
+> >> the metrics exported by memcg, especially is used together with "uneivctable"
+> >> lru stat.
+> >
+> > Could you describe when the unevictable has such a different meaning than
+> > mlocked that it is unusable?
+> 
+> The unevictable lru includes more than mlock()'d pages ( SHM_LOCK'd
+> etc). Like the following:
 
-There have been no reply in two weeks. Does it mean that this is the
-wrong mailing list for this bug? Or that there is no interest in
-fixing it?
+Yes, I am aware of that. Maybe I wasn't clear enough in my question. I
+was rather interested _when_ it actually matters for your decisions about
+the setup. Those pages are not evictable anyway.
 
-Thanks,
-Maxim
+> $ memtoy>shmem shm_400m 400m
+> $ memtoy>map shm_400m 0 400m
+> $ memtoy>touch shm_400m
+> memtoy:  touched 102400 pages in  0.360 secs
+> $ memtoy>slock shm_400m
+> //meantime add some memory pressure.
+> 
+> $ memtoy>file /export/hda3/file_512m
+> $ memtoy>map file_512m 0 512m shared
+> $ memtoy>lock file_512m
+> 
+> $ cat /dev/cgroup/memory/B/memory.stat
+> mapped_file 956301312
+> mlock 536870912
+> unevictable 956203008
+> 
+> Here, mapped_file - mlock = 400M shm_lock'ed pages are included in
+> unevictable stat.
+> 
+> Besides, not all mlock'ed pages get to unevictable lru at the first
+> place, and the same for the other way around.
+> 
+> Thanks
+> 
+> --Ying
 
-On Mon, Dec 26, 2011 at 04:18, Maxim Kammerer <mk@dee.su> wrote:
-> 1. On 32-bit x86, memtest=3Dn tests only LOWMEM memory (~ 895 MiB),
-> HIGHMEM is ignored
->
-> 2. On 3.0.4-hardened-r5, HIGHMEM memory (HIGHMEM64G in my tests) is
-> apparently ignored during memtest. Looking at arch/x86/mm/memtest.c,
-> no special mapping is performed (kmap/kunmap?), so it seems that at
-> most ~895 MiB can be tested in 32-bit x86 kernels. This might not
-> appear like an important issue (as there are other memory testing
-> tools available), but memtest is extremely useful for anti-forensic
-> memory wiping on shutdown/reboot in security-oriented distributions
-> like Libert=E9 Linux and Tails, and there is no other good substitute.
-> See, for instance, some background in Debian bug
-> http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=3D646361.
->
-> 3. Keywords: memtest, highmem, mm, security
->
-> 4. Kernel version: 3.0.4-hardened-r5 (Gentoo) x86 32-bit with PAE
-
---=20
-Maxim Kammerer
-Libert=E9 Linux (discussion / support: http://dee.su/liberte-contribute)
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
