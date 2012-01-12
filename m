@@ -1,102 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id A95D96B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:24:58 -0500 (EST)
-Message-ID: <4F0E991C.7010009@freescale.com>
-Date: Thu, 12 Jan 2012 16:26:04 +0800
-From: Huang Shijie <b32955@freescale.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 814946B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 03:27:24 -0500 (EST)
+Date: Thu, 12 Jan 2012 09:27:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Fix NULL ptr dereference in __count_immobile_pages
+Message-ID: <20120112082722.GB1042@tiehlicka.suse.cz>
+References: <1326213022-11761-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.00.1201101326080.10821@chino.kir.corp.google.com>
+ <20120111084802.GA16466@tiehlicka.suse.cz>
+ <20120112111702.3b7f2fa2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/compaction : do optimazition when the migration
- scanner gets no page
-References: <1326347222-9980-1-git-send-email-b32955@freescale.com> <20120112080311.GA30634@barrios-desktop.redhat.com>
-In-Reply-To: <20120112080311.GA30634@barrios-desktop.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120112111702.3b7f2fa2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi,
-> On Thu, Jan 12, 2012 at 01:47:02PM +0800, Huang Shijie wrote:
->> In the real tests, there are maybe many times the cc->nr_migratepages is zero,
->> but isolate_migratepages() returns ISOLATE_SUCCESS.
->>
->> Memory in our mx6q board:
->> 	2G memory, 8192 pages per page block
->>
->> We use the following command to test in two types system loads:
->> 	#echo 1>  /proc/sys/vm/compact_memory
->>
->> Test Result:
->> 	[1] little load(login in the ubuntu):
->> 		all the scanned pageblocks	: 79
->> 		pageblocks which get no pages	: 46
->>
->> 		The ratio of `get no pages` pageblock is 58.2%.
->>
->> 	[2] heavy load(start thunderbird, firefox, ..etc):
->> 		all the scanned pageblocks	: 89
->> 		pageblocks which get no pages	: 36
->>
->> 		The ratio of `get no pages` pageblock is 40.4%.
->>
->> In order to get better performance, we should check the number of the
->> really isolated pages. And do the optimazition for this case.
->>
->> Also fix the confused comments(from Mel Gorman).
->>
->> Tested this patch in MX6Q board.
->>
->> Signed-off-by: Huang Shijie<b32955@freescale.com>
->> Acked-by: Mel Gorman<mgorman@suse.de>
->> ---
->>   mm/compaction.c |   28 ++++++++++++++++------------
->>   1 files changed, 16 insertions(+), 12 deletions(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index f4f514d..41d1b72a 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -246,8 +246,8 @@ static bool too_many_isolated(struct zone *zone)
->>   /* possible outcome of isolate_migratepages */
->>   typedef enum {
->>   	ISOLATE_ABORT,		/* Abort compaction now */
->> -	ISOLATE_NONE,		/* No pages isolated, continue scanning */
->> -	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
->> +	ISOLATE_NONE,		/* No pages scanned, consider next pageblock*/
->> +	ISOLATE_SUCCESS,	/* Pages scanned and maybe isolated, migrate */
->>   } isolate_migrate_t;
->>
-> Hmm, I don't like this change.
-> ISOLATE_NONE mean "we don't isolate any page at all"
-> ISOLATE_SUCCESS mean "We isolaetssome pages"
-> It's very clear but you are changing semantic slighly.
-I think Mel Gorman's new explain is more proper.
-> How about this?
->
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -376,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->
->          trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
->
-> -       return ISOLATE_SUCCESS;
-> +       return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
->   }
->
->   /*
-> @@ -542,6 +542,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->                  unsigned long nr_migrate, nr_remaining;
->                  int err;
->
-> +               count_vm_event(COMPACTBLOCKS);
-not right.
-the isolate_migratepage may returns ISOLATE_NONE. We should not account 
-this case.
+On Thu 12-01-12 11:17:02, KAMEZAWA Hiroyuki wrote:
+> On Wed, 11 Jan 2012 09:48:02 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Tue 10-01-12 13:31:08, David Rientjes wrote:
+> > > On Tue, 10 Jan 2012, Michal Hocko wrote:
+> > [...]
+> > > >  mm/page_alloc.c |   11 +++++++++++
+> > > >  1 files changed, 11 insertions(+), 0 deletions(-)
+> > > > 
+> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > index 2b8ba3a..485be89 100644
+> > > > --- a/mm/page_alloc.c
+> > > > +++ b/mm/page_alloc.c
+> > > > @@ -5608,6 +5608,17 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+> > > >  bool is_pageblock_removable_nolock(struct page *page)
+> > > >  {
+> > > >  	struct zone *zone = page_zone(page);
+> > > > +	unsigned long pfn = page_to_pfn(page);
+> > > > +
+> 
+> Hmm, I don't like to use page_zone() when we know the page may not be initialized.
+> Shouldn't we add
+> 
+> 	if (!node_online(page_to_nid(page))
+> 		return false;
+> ?
 
-Best Regards
-Huang Shijie
+How is this different? The node won't be initialized in page flags as
+well.
+
+> But...hmm. I think we should return 'true' here for removing a section with a hole
+> finally....(Now, false will be safe.)
+
+Those pages are reserved (for BIOS I guess) in this particular case so I
+do not think it is safe to claim that the block is removable. Or am I
+missing something?
+
+[...]
+> > > I think this should be handled in is_mem_section_removable() on the pfn 
+> > > rather than using the struct page in is_pageblock_removable_nolock() and 
+> > > converting back and forth.  We should make sure that any page passed to 
+> > > is_pageblock_removable_nolock() is valid.
+> > 
+> > Yes, I do not like pfn->page->pfn dance as well and in fact I do not
+> > have a strong opinion which one is better. I just put it at the place
+> > where we care about zone to be more obvious. If others think that I
+> > should move the check one level higher I'll do that. I just think this
+> > is more obvious.
+> > 
+> Hmm, mem_section and pageblock is a different chunk...
+> And, IIUC, in some IBM machines, section may includes several zones.
+> Please taking care of that if you move this to is_mem_section_removable()...
+
+Thanks for pointing this out. 
+
+> 
+> Thanks,
+> -Kame
+
+Thanks for comments.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
