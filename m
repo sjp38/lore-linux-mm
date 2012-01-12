@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 498516B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 16:40:47 -0500 (EST)
-Date: Thu, 12 Jan 2012 13:40:45 -0800
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 2A2F96B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 16:58:05 -0500 (EST)
+Date: Thu, 12 Jan 2012 13:58:03 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
-Message-Id: <20120112134045.552e2a61.akpm@linux-foundation.org>
-In-Reply-To: <20120112210743.GG11715@one.firstfloor.org>
-References: <1326380820.2442.186.camel@twins>
-	<20120112182644.GE11715@one.firstfloor.org>
-	<1326399227.2442.209.camel@twins>
-	<20120112210743.GG11715@one.firstfloor.org>
+Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
+Message-Id: <20120112135803.1fb98fd6.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1201121309340.17287@chino.kir.corp.google.com>
+References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
+	<20120111141219.271d3a97.akpm@linux-foundation.org>
+	<1326355594.1999.7.camel@lappy>
+	<CAOJsxLEYY=ZO8QrxiWL6qAxPzsPpZj3RsF9cXY0Q2L44+sn7JQ@mail.gmail.com>
+	<alpine.DEB.2.00.1201121309340.17287@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Sasha Levin <levinsasha928@gmail.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
 
-On Thu, 12 Jan 2012 22:07:43 +0100
-Andi Kleen <andi@firstfloor.org> wrote:
+On Thu, 12 Jan 2012 13:19:54 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> On Thu, Jan 12, 2012 at 09:13:47PM +0100, Peter Zijlstra wrote:
-> > On Thu, 2012-01-12 at 19:26 +0100, Andi Kleen wrote:
-> > > This would break the numactl testsuite.
-> > > 
-> > How so? The userspace output will still contain the field, we'll simply
-> > always print 0.
+> On Thu, 12 Jan 2012, Pekka Enberg wrote:
 > 
-> Then the interleave test in the test suite will fail
-> 
+> > I think you missed Andrew's point. We absolutely want to issue a
+> > kernel warning here because ecryptfs is misusing the memdup_user()
+> > API. We must not let userspace processes allocate large amounts of
+> > memory arbitrarily.
 > > 
-> > But if you want I can provide a patch for numactl.
 > 
-> Disable the test? That would be bad too.
+> I think it's good to fix ecryptfs like Tyler is doing and, at the same 
+> time, ensure that the len passed to memdup_user() makes sense prior to 
+> kmallocing memory with GFP_KERNEL.  Perhaps something like
 > 
+> 	if (WARN_ON(len > PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> 		return ERR_PTR(-ENOMEM);
+> 
+> in which case __GFP_NOWARN is irrelevant.
 
-My googling and codesearch attempts didn't reveal any users of
-NUMA_INTERLEAVE_HIT.  But then, it didn't find the usage in the numactl
-suite either.
+If someone is passing huge size_t's into kmalloc() and getting failures
+then that's probably a bug.  So perhaps we should add a warning to
+kmalloc itself if the size_t is out of bounds, and !__GFP_NOWARN.
 
-It would be good if we could find some way to remove this code (and any
-other code!).  If that causes a bit of pain for users of the test suite
-(presumably a small number of technically able people) then that seems
-acceptable to me - we end up with a better kernel.
+That might cause problems with those callers who like to call kmalloc()
+in a probing loop with decreasing size_t.
+
+
+But none of this will be very effective.  If someone is passing an
+unchecked size_t into kmalloc then normal testing will not reveal the
+problem because the testers won't pass stupid numbers into their
+syscalls.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
