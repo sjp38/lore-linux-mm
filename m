@@ -1,65 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 385886B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:59:25 -0500 (EST)
-Date: Fri, 13 Jan 2012 16:59:22 +0100
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id B3C4B6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 11:34:26 -0500 (EST)
+Date: Fri, 13 Jan 2012 17:34:23 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcg: update the correct soft limit tree during
- migration
-Message-ID: <20120113155922.GE17060@tiehlicka.suse.cz>
-References: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+Message-ID: <20120113163423.GG17060@tiehlicka.suse.cz>
+References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
+ <1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+ <20120113120406.GC17060@tiehlicka.suse.cz>
+ <20120113155001.GB1653@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20120113155001.GB1653@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 13-01-12 16:41:31, Johannes Weiner wrote:
-> end_migration() passes the old page instead of the new page to commit
-> the charge.  This page descriptor is not used for committing itself,
-> though, since we also pass the (correct) page_cgroup descriptor.  But
-> it's used to find the soft limit tree through the page's zone, so the
-> soft limit tree of the old page's zone is updated instead of that of
-> the new page's, which might get slightly out of date until the next
-> charge reaches the ratelimit point.
+On Fri 13-01-12 16:50:01, Johannes Weiner wrote:
+> On Fri, Jan 13, 2012 at 01:04:06PM +0100, Michal Hocko wrote:
+> > On Tue 10-01-12 16:02:52, Johannes Weiner wrote:
+[...]
+> > > +bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
+> > > +			       struct mem_cgroup *memcg)
+> > > +{
+> > > +	if (mem_cgroup_disabled())
+> > > +		return false;
+> > > +
+> > > +	if (!root)
+> > > +		root = root_mem_cgroup;
+> > > +
+> > > +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+> > > +		/* root_mem_cgroup does not have a soft limit */
+> > > +		if (memcg == root_mem_cgroup)
+> > > +			break;
+> > > +		if (res_counter_soft_limit_excess(&memcg->res))
+> > > +			return true;
+> > > +		if (memcg == root)
+> > > +			break;
+> > > +	}
+> > > +	return false;
+> > > +}
+> > 
+> > Well, this might be little bit tricky. We do not check whether memcg and
+> > root are in a hierarchy (in terms of use_hierarchy) relation. 
+> > 
+> > If we are under global reclaim then we iterate over all memcgs and so
+> > there is no guarantee that there is a hierarchical relation between the
+> > given memcg and its parent. While, on the other hand, if we are doing
+> > memcg reclaim then we have this guarantee.
+> > 
+> > Why should we punish a group (subtree) which is perfectly under its soft
+> > limit just because some other subtree contributes to the common parent's
+> > usage and makes it over its limit?
+> > Should we check memcg->use_hierarchy here?
 > 
-> This glitch has been present since '5564e88 memcg: condense
-> page_cgroup-to-page lookup points'.
-> 
-> Reported-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> We do, actually.  parent_mem_cgroup() checks the res_counter parent,
+> which is only set when ->use_hierarchy is also set.  
 
-Well spotted.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Of course I am blind.. We do not setup res_counter parent for
+!use_hierarchy case. Sorry for noise...
+Now it makes much better sense. I was wondering how !use_hierarchy could
+ever work, this should be a signal that I am overlooking something
+terribly.
 
-Thanks
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+[...]
+> > > @@ -2121,8 +2121,16 @@ static void shrink_zone(int priority, struct zone *zone,
+> > >  			.mem_cgroup = memcg,
+> > >  			.zone = zone,
+> > >  		};
+> > > +		int epriority = priority;
+> > > +		/*
+> > > +		 * Put more pressure on hierarchies that exceed their
+> > > +		 * soft limit, to push them back harder than their
+> > > +		 * well-behaving siblings.
+> > > +		 */
+> > > +		if (mem_cgroup_over_softlimit(root, memcg))
+> > > +			epriority = 0;
+> > 
+> > This sounds too aggressive to me. Shouldn't we just double the pressure
+> > or something like that?
 > 
-> This fixes a bug that I introduced in 2.6.38.  It's benign enough (to
-> my knowledge) that we probably don't want this for stable.
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 602207b..7a292a5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3247,7 +3247,7 @@ int mem_cgroup_prepare_migration(struct page *page,
->  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
->  	else
->  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> -	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
-> +	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype);
->  	return ret;
->  }
->  
-> -- 
-> 1.7.7.5
-> 
+> That's the historical value.  When I tried priority - 1, it was not
+> aggressive enough.
 
+Probably because we want to reclaim too much. Maybe we should do
+reduce nr_to_reclaim (ugly) or reclaim only overlimit groups until certain
+priority level as Ying suggested in her patchset.
 -- 
 Michal Hocko
 SUSE Labs
