@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 78EBC6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 14:28:05 -0500 (EST)
-Date: Fri, 13 Jan 2012 13:28:02 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
-In-Reply-To: <20120113183926.GL11715@one.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1201131326370.28535@router.home>
-References: <1326380820.2442.186.camel@twins> <20120112182644.GE11715@one.firstfloor.org> <1326399227.2442.209.camel@twins> <20120112210743.GG11715@one.firstfloor.org> <20120112134045.552e2a61.akpm@linux-foundation.org> <20120112222929.GI11715@one.firstfloor.org>
- <alpine.DEB.2.00.1201130922460.25704@router.home> <20120113183926.GL11715@one.firstfloor.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 645406B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 15:04:36 -0500 (EST)
+Received: by eaan1 with SMTP id n1so359908eaa.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 12:04:34 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 04/11] mm: page_alloc: introduce alloc_contig_range()
+References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
+ <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
+ <20120110141613.GB3910@csn.ul.ie>
+Date: Fri, 13 Jan 2012 21:04:31 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v71gpt1b3l0zgt@mpn-glaptop>
+In-Reply-To: <20120110141613.GB3910@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-On Fri, 13 Jan 2012, Andi Kleen wrote:
+> On Thu, Dec 29, 2011 at 01:39:05PM +0100, Marek Szyprowski wrote:
+>> From: Michal Nazarewicz <mina86@mina86.com>
+>> +	/* Make sure all pages are isolated. */
+>> +	if (!ret) {
+>> +		lru_add_drain_all();
+>> +		drain_all_pages();
+>> +		if (WARN_ON(test_pages_isolated(start, end)))
+>> +			ret =3D -EBUSY;
+>> +	}
 
-> On Fri, Jan 13, 2012 at 09:28:20AM -0600, Christoph Lameter wrote:
-> > On Thu, 12 Jan 2012, Andi Kleen wrote:
-> >
-> > > The problem is that then there will be nothing left that actually
-> > > tests interleaving. The numactl has caught kernel regressions in the past.
-> >
-> > How about adding a CONFIG_NUMA_DEBUG option and have it only available
-> > then? I think there is no general use case.
->
-> For a few lines of code? And making it harder to test?
+On Tue, 10 Jan 2012 15:16:13 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> Another global IPI seems overkill. Drain pages only from the local CPU=
 
-For now yes. We can then add more debugging stuff. Right now there is no
-framework for that.
+> (drain_pages(get_cpu()); put_cpu()) and test if the pages are isolated=
+.
 
-> > > I don't think disabling useful regression tests is a good idea.
-> > > In contrary the kernel needs far more of them, not less.
-> >
-> > True. Some more debugging code for the NUMA features would be appreciated
-> > but that does not need to be enabled by default. Lately I have become a
-> > bit concerned about the number of statistics we are adding. The
-> > per_cpu_pageset structure should not get too large.
->
-> I don't think the single counter is a problem.
+Is get_cpu() + put_cpu() required? Won't drain_local_pages() work?
 
-I never said that .... There are multiple counters that may not be
-too useful in that structure. Not just the one thats useless.
+-- =
 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
