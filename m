@@ -1,121 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 389326B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 22:50:48 -0500 (EST)
-Received: by vbnl22 with SMTP id l22so1156742vbn.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 19:50:47 -0800 (PST)
-Date: Fri, 13 Jan 2012 12:50:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm/compaction : do optimazition when the migration
- scanner gets no page
-Message-ID: <20120113035037.GA10924@barrios-desktop.redhat.com>
-References: <1326347222-9980-1-git-send-email-b32955@freescale.com>
- <20120112080311.GA30634@barrios-desktop.redhat.com>
- <20120112114835.GI4118@suse.de>
- <20120113005026.GA2614@barrios-desktop.redhat.com>
- <4F0F987E.1080001@freescale.com>
- <20120113031221.GA6473@barrios-desktop>
- <4F0FA593.6010903@freescale.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 672276B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 00:23:11 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 13 Jan 2012 00:23:10 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0D5N53l195574
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 00:23:06 -0500
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0D5N1qL002448
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 22:23:04 -0700
+Date: Fri, 13 Jan 2012 10:44:48 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v8 3.2.0-rc5 9/9] perf: perf interface for uprobes
+Message-ID: <20120113051447.GD10189@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20111216122756.2085.95791.sendpatchset@srdronam.in.ibm.com>
+ <20111216122951.2085.95511.sendpatchset@srdronam.in.ibm.com>
+ <4F06D22D.9060906@hitachi.com>
+ <20120109112236.GA10189@linux.vnet.ibm.com>
+ <4F0F8F41.3060806@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4F0FA593.6010903@freescale.com>
+In-Reply-To: <4F0F8F41.3060806@hitachi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <b32955@freescale.com>
-Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
-
-On Fri, Jan 13, 2012 at 11:31:31AM +0800, Huang Shijie wrote:
-> 
-> >On Fri, Jan 13, 2012 at 10:35:42AM +0800, Huang Shijie wrote:
-> >>Hi,
-> >>>I think simple patch is returning "return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;"
-> >>>It's very clear and readable, I think.
-> >>>In this patch, what's the problem you think?
-> >>>
-> >>sorry for the wrong thread, please read the following thread:
-> >>http://marc.info/?l=linux-mm&m=132532266130861&w=2
-> >Huang, Thanks for notice that thread.
-> >I read and if I understand correctly, the point is that Mel want to see tracepoint
-> >"trace_mm_compaction_migratepages" and account "count_vm_event(COMPACTBLOCKS);"
-> >My patch does accounting COMPACTBLOCKS so it's not a problem.
-> Your patch also accounts the COMPACTBLOCKS In the ISOLATE_NONE and
-> ISOLATE_ABOART when :
-> ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->     /* Do not cross the free scanner or scan within a memory hole */
->     if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
->         cc->migrate_pfn = end_pfn;
->         return ISOLATE_NONE;
->     }
-> 
->     /*
->      * Ensure that there are not too many pages isolated from the LRU
->      * list by either parallel reclaimers or compaction. If there are,
->      * delay for some time until fewer pages are isolated
->      */
->     while (unlikely(too_many_isolated(zone))) {
->         /* async migration should just abort */
->         if (!cc->sync)
->             return ISOLATE_ABORT;
-> 
->         congestion_wait(BLK_RW_ASYNC, HZ/10);
-> 
->         if (fatal_signal_pending(current))
->             return ISOLATE_ABORT;
->     }
-> ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> 
-> this not make sense.
-> >The problem is my patch doesn't emit trace of "trace_mm_compaction_migratepages".
-> >But doesn't it matter? When we doesn't isolate any page at all, both argument in
-> >trace_mm_compaction_migratepages are always zero. Is it meaningful tracepoint?
-> >Do we really want it?
-> >
-> IMHO, yes.
-> 
-> For it _DOES_  scan one PAGEBLOCK even we can not get any page from
-> this pageblock.
-> it should trace the scan even the parameters are both zero.
-
-Okay. If you want it really, How about this?
-Why I insist on is I don't want to change ISOLATE_NONE's semantic.
-It's very clear and readable.
-We should change code itself instead of semantic of ISOLATE_NONE.
-
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -376,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 
-        trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
--       return ISOLATE_SUCCESS;
-+       return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
- }
- 
- /*
-@@ -547,6 +547,12 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-                        ret = COMPACT_PARTIAL;
-                        goto out;
-                case ISOLATE_NONE:
-+                       /*
-+                        * If we can't isolate pages at all, we want to
-+                        * trace, still.
-+                        */
-+                       count_vm_event(COMPACTBLOCKS);
-+                       trace_mm_compaction_migratepages(0, 0);
-                        continue;
-                case ISOLATE_SUCCESS:
-                        ;
-
-
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
 
 > 
-> Huang Shijie
-> >>Best Regards
-> >>Huang Shijie
+> I mean that tp->module always !NULL if uprobe, then, we don't need
+> to change the code. (thus we can reduce the patch size :))
+> 
+
+Agree, the new patch that I sent does this.
+
+> 
+> >>> +
+> >>> +#define DEFAULT_FUNC_FILTER "!_*"
 > >>
+> >> This is a hidden rule for users ... please remove it.
+> >> (or, is there any reason why we need to have it?)
+> >>
+> >
+> > This is to be in sync with your commit
+> > 3c42258c9a4db70133fa6946a275b62a16792bb5
 > 
+> I see, but that commit also provides filter option for changing
+> the function filter. Here, user can not change the filter rule.
 > 
+> I think, currently, we don't need to filter any function by name
+> here, since the user obviously intends to probe given function :)
+
+Actually this was discussed in LKML here
+https://lkml.org/lkml/2010/7/20/5, please refer the sub-thread.
+
+Basically without this filter, the list of functions is too large
+including labels, weak, and local binding function which arent traced.
+
+We can make this filter settable at a later point of time.
+
+> >
+> > If the user provides a symbolic link, convert_name_to_addr would get the
+> > target executable for the given executable. This would handy if we were
+> > to compare existing probes registered on the same application using a
+> > different name (symbolic links). Since you seem to like that we register
+> > with the name the user has provided, I will just feed address here.
+> 
+> Hmm, why do we need to compare the probe points? Of course, event-name
+> conflict should be solved, but I think it is acceptable that user puts
+> several probes on the same exec:vaddr. Since different users may want
+> to use it concurrently bit different ways.
+> 
+
+The event-names themselves are generated from the probe points. There is
+no problem as such if two or more people use a different symlinks to
+create probes. I was just trying to see if we could solve the
+inconsitency where we warn a person if he is trying to place a probe on
+a existing probe but allow the same if he is trying to place a probe on
+a existing probe using a different symlink.
+
+This again I have changed as you suggested in the latest patches that I
+sent this week.
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
