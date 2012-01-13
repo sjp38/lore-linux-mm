@@ -1,242 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 014C66B004F
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 19:50:53 -0500 (EST)
-Received: by vcge1 with SMTP id e1so2341793vcg.14
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2012 16:50:53 -0800 (PST)
-Date: Fri, 13 Jan 2012 09:50:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm/compaction : do optimazition when the migration
- scanner gets no page
-Message-ID: <20120113005026.GA2614@barrios-desktop.redhat.com>
-References: <1326347222-9980-1-git-send-email-b32955@freescale.com>
- <20120112080311.GA30634@barrios-desktop.redhat.com>
- <20120112114835.GI4118@suse.de>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id BB0F36B004F
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2012 20:56:52 -0500 (EST)
+Message-ID: <4F0F8F41.3060806@hitachi.com>
+Date: Fri, 13 Jan 2012 10:56:17 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120112114835.GI4118@suse.de>
+Subject: Re: [PATCH v8 3.2.0-rc5 9/9] perf: perf interface for uprobes
+References: <20111216122756.2085.95791.sendpatchset@srdronam.in.ibm.com> <20111216122951.2085.95511.sendpatchset@srdronam.in.ibm.com> <4F06D22D.9060906@hitachi.com> <20120109112236.GA10189@linux.vnet.ibm.com>
+In-Reply-To: <20120109112236.GA10189@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Huang Shijie <b32955@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
 
-On Thu, Jan 12, 2012 at 11:48:35AM +0000, Mel Gorman wrote:
-> On Thu, Jan 12, 2012 at 05:03:11PM +0900, Minchan Kim wrote:
-> > On Thu, Jan 12, 2012 at 01:47:02PM +0800, Huang Shijie wrote:
-> > > In the real tests, there are maybe many times the cc->nr_migratepages is zero,
-> > > but isolate_migratepages() returns ISOLATE_SUCCESS.
-> > > 
-> > > Memory in our mx6q board:
-> > > 	2G memory, 8192 pages per page block
-> > > 
-> > > We use the following command to test in two types system loads:
-> > > 	#echo 1 > /proc/sys/vm/compact_memory
-> > > 
-> > > Test Result:
-> > > 	[1] little load(login in the ubuntu):
-> > > 		all the scanned pageblocks	: 79
-> > > 		pageblocks which get no pages	: 46
-> > > 
-> > > 		The ratio of `get no pages` pageblock is 58.2%.
-> > > 
-> > > 	[2] heavy load(start thunderbird, firefox, ..etc):
-> > > 		all the scanned pageblocks	: 89
-> > > 		pageblocks which get no pages	: 36
-> > > 
-> > > 		The ratio of `get no pages` pageblock is 40.4%.
-> > > 
-> > > In order to get better performance, we should check the number of the
-> > > really isolated pages. And do the optimazition for this case.
-> > > 
-> > > Also fix the confused comments(from Mel Gorman).
-> > > 
-> > > Tested this patch in MX6Q board.
-> > > 
-> > > Signed-off-by: Huang Shijie <b32955@freescale.com>
-> > > Acked-by: Mel Gorman <mgorman@suse.de>
-> > > ---
-> > >  mm/compaction.c |   28 ++++++++++++++++------------
-> > >  1 files changed, 16 insertions(+), 12 deletions(-)
-> > > 
-> > > diff --git a/mm/compaction.c b/mm/compaction.c
-> > > index f4f514d..41d1b72a 100644
-> > > --- a/mm/compaction.c
-> > > +++ b/mm/compaction.c
-> > > @@ -246,8 +246,8 @@ static bool too_many_isolated(struct zone *zone)
-> > >  /* possible outcome of isolate_migratepages */
-> > >  typedef enum {
-> > >  	ISOLATE_ABORT,		/* Abort compaction now */
-> > > -	ISOLATE_NONE,		/* No pages isolated, continue scanning */
-> > > -	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> > > +	ISOLATE_NONE,		/* No pages scanned, consider next pageblock*/
-> > > +	ISOLATE_SUCCESS,	/* Pages scanned and maybe isolated, migrate */
-> > >  } isolate_migrate_t;
-> > >  
-> > 
-> > Hmm, I don't like this change.
-> > ISOLATE_NONE mean "we don't isolate any page at all"
-> > ISOLATE_SUCCESS mean "We isolaetssome pages"
-> > It's very clear but you are changing semantic slighly.
-> > 
-> 
-> That is somewhat the point of his patch - isolate_migratepages()
-> can return ISOLATE_SUCCESS even though no pages were isolated. Note that
+(2012/01/09 20:22), Srikar Dronamraju wrote:
+>>>  		return true;
+>>>
+>>>  	for (i = 0; i < pev->nargs; i++)
+>>> @@ -1344,11 +1389,17 @@ char *synthesize_probe_trace_command(struct
+probe_trace_event *tev)
+>>>  	if (buf == NULL)
+>>>  		return NULL;
+>>>
+>>> -	len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s%s%s+%lu",
+>>> -			 tp->retprobe ? 'r' : 'p',
+>>> -			 tev->group, tev->event,
+>>> -			 tp->module ?: "", tp->module ? ":" : "",
+>>> -			 tp->symbol, tp->offset);
+>>> +	if (tev->uprobes)
+>>> +		len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s",
+>>> +				 tp->retprobe ? 'r' : 'p',
+>>> +				 tev->group, tev->event, tp->symbol);
+>>> +	else
+>>> +		len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s%s%s+%lu",
+>>> +				 tp->retprobe ? 'r' : 'p',
+>>> +				 tev->group, tev->event,
+>>> +				 tp->module ?: "", tp->module ? ":" : "",
+>>> +				 tp->symbol, tp->offset);
+>>
+>> I think tp->module should be the executable file even when
+>> tp is a user space probe, because when parsing the uprobes list
+>> in tracing/trace_uprobes, exec file will be stored in tp->module.
+>
+> can be done. What I used to do is overload the tp->symbol with the
+> real-name as well as the offset.  Now I will just keep the offset in the
+> symbol and use the target that the user has requested.
 
-That's what I don't like part.
-Why should we return ISOLATE_SUCESS although we didn't isolate any page?
-Of course, comment can say that but I want to clear code itself than comment.
+I mean that tp->module always !NULL if uprobe, then, we don't need
+to change the code. (thus we can reduce the patch size :))
 
-> he does not change when ISOLATE_NONE or ISOLATE_SUCCESS gets returned,
-> he updates the comment to match what the code is actually doing. This
 
-I think he code is doing needs fix.
+>>> +int show_available_funcs(const char *target, struct strfilter *_filter,
+>>> +					bool user)
+>>> +{
+>>> +	struct map *map;
+>>> +	int ret;
+>>> +
+>>> +	setup_pager();
+>>>  	available_func_filter = _filter;
+>>> +
+>>> +	if (!user)
+>>> +		return available_kernel_funcs(target);
+>>> +
+>>> +	symbol_conf.try_vmlinux_path = false;
+>>> +	symbol_conf.sort_by_name = true;
+>>> +	ret = symbol__init();
+>>> +	if (ret < 0) {
+>>> +		pr_err("Failed to init symbol map.\n");
+>>> +		return ret;
+>>> +	}
+>>> +	map = dso__new_map(target);
+>>> +	ret = __show_available_funcs(map);
+>>> +	dso__delete(map->dso);
+>>> +	map__delete(map);
+>>> +	return ret;
+>>> +}
+>>> +
+>>> +#define DEFAULT_FUNC_FILTER "!_*"
+>>
+>> This is a hidden rule for users ... please remove it.
+>> (or, is there any reason why we need to have it?)
+>>
+>
+> This is to be in sync with your commit
+> 3c42258c9a4db70133fa6946a275b62a16792bb5
 
-> should be visible from the tracepoint. My machine has been up for days
-> and loaded when I started a process that mapped a large anonymous
-> region. THP would kick in and I see from the tracepoints excerpts like
-> this
-> 
->           malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457022: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457023: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457024: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457025: mm_compaction_isolate_migratepages: nr_scanned=1 nr_taken=0
->           malloc-13964 [007] 221636.457049: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
->           malloc-13964 [007] 221636.457102: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=16
->           malloc-13964 [007] 221636.457143: mm_compaction_isolate_migratepages: nr_scanned=512 nr_taken=17
->           malloc-13964 [007] 221636.457189: mm_compaction_isolate_migratepages: nr_scanned=433 nr_taken=32
->           malloc-13964 [007] 221636.457253: mm_compaction_isolate_migratepages: nr_scanned=205 nr_taken=32
->           malloc-13964 [007] 221636.457319: mm_compaction_isolate_migratepages: nr_scanned=389 nr_taken=7
-> 
-> These "nr_scanned=1 nr_taken=0" are during async compaction where the
-> scanner is skipping over pageblocks that are not MIGRATE_MOVABLE. As the
-> function only deals in pageblocks, it means the function returns after
-> only scanning 1 page expecting that compact_zone() will move to the next
-> block.
-> 
-> > How about this?
-> > 
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -376,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
-> >  
-> >         trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
-> >  
-> > -       return ISOLATE_SUCCESS;
-> > +       return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
-> >  }
-> >  
-> >  /*
-> > @@ -542,6 +542,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >                 unsigned long nr_migrate, nr_remaining;
-> >                 int err;
-> >  
-> > +               count_vm_event(COMPACTBLOCKS);
-> > +
-> >                 switch (isolate_migratepages(zone, cc)) {
-> >                 case ISOLATE_ABORT:
-> >                         ret = COMPACT_PARTIAL;
-> > @@ -559,7 +561,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >                 update_nr_listpages(cc);
-> >                 nr_remaining = cc->nr_migratepages;
-> >  
-> > -               count_vm_event(COMPACTBLOCKS);
-> >                 count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
-> >                 if (nr_remaining)
-> >                         count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> > 
-> > This patch's side effect is that it accounts COMPACTBLOCK although isolation is cancel by signal
-> > but I think it's very rare and doesn't give big effect for statistics of compaciton.
-> > 
-> 
-> This came up during discussion the last time. My opinion was that
-> COMPACTBLOCK not being updated was a problem. In the existing code
-> ISOLATE_NONE returning also means the scan did not take place and
-> this does not need to be accounted for. However, if we scan the block
-> and isolate no pages, we still want to account for that. A rapidly
-> increasing COMPACTBLOCKS while COMPACTPAGES changes very little could
-> indicate that compaction is doing a lot of busy work without making
-> any useful progress for example.
+I see, but that commit also provides filter option for changing
+the function filter. Here, user can not change the filter rule.
 
-Agree.
+I think, currently, we don't need to filter any function by name
+here, since the user obviously intends to probe given function :)
 
-> 
-> It could easily be argued that if we skip over !MIGRATE_MOVABLE
-> pageblocks then we should not account for that in COMPACTBLOCKS either
-> because the scanning was minimal. In that case we would change this
-> 
->                 /*
->                  * For async migration, also only scan in MOVABLE blocks. Async
->                  * migration is optimistic to see if the minimum amount of work
->                  * satisfies the allocation
->                  */
->                 pageblock_nr = low_pfn >> pageblock_order;
->                 if (!cc->sync && last_pageblock_nr != pageblock_nr &&
->                                 get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
->                         low_pfn += pageblock_nr_pages;
->                         low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
->                         last_pageblock_nr = pageblock_nr;
->                         continue;
->                 }
-> 
-> to return ISOLATE_NONE there instead of continue. I would be ok making
-> that part of this patch to clarify the difference between ISOLATE_NONE
-> and ISOLATE_SUCCESS and what it means for accounting.
+>>> +
+>>> +/*
+>>> + * uprobe_events only accepts address:
+>>> + * Convert function and any offset to address
+>>> + */
+>>> +static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
+>>> +{
+>>
+>> I'm not sure why wouldn't you convert function to "vaddr",
+>> instead of "exec:vaddr"?
+>>
+>
+> If the user provides a symbolic link, convert_name_to_addr would get the
+> target executable for the given executable. This would handy if we were
+> to compare existing probes registered on the same application using a
+> different name (symbolic links). Since you seem to like that we register
+> with the name the user has provided, I will just feed address here.
 
-I think simple patch is returning "return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;"
-It's very clear and readable, I think.
-In this patch, what's the problem you think?
+Hmm, why do we need to compare the probe points? Of course, event-name
+conflict should be solved, but I think it is acceptable that user puts
+several probes on the same exec:vaddr. Since different users may want
+to use it concurrently bit different ways.
 
-> 
-> > 
-> > >  /*
-> > > @@ -542,7 +542,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> > >  
-> > >  	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-> > >  		unsigned long nr_migrate, nr_remaining;
-> > > -		int err;
-> > > +		int err = 0;
-> > >  
-> > >  		switch (isolate_migratepages(zone, cc)) {
-> > >  		case ISOLATE_ABORT:
-> > > @@ -554,17 +554,21 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> > >  			;
-> > >  		}
-> > >  
-> > > -		nr_migrate = cc->nr_migratepages;
-> > > -		err = migrate_pages(&cc->migratepages, compaction_alloc,
-> > > -				(unsigned long)cc, false,
-> > > -				cc->sync);
-> > > -		update_nr_listpages(cc);
-> > > -		nr_remaining = cc->nr_migratepages;
-> > > +		nr_migrate = nr_remaining = cc->nr_migratepages;
-> > > +		if (nr_migrate) {
-> > > +			err = migrate_pages(&cc->migratepages, compaction_alloc,
-> > > +					(unsigned long)cc, false,
-> > > +					cc->sync);
-> > > +			update_nr_listpages(cc);
-> > > +			nr_remaining = cc->nr_migratepages;
-> > > +			count_vm_events(COMPACTPAGES,
-> > > +					nr_migrate - nr_remaining);
-> > > +			if (nr_remaining)
-> > > +				count_vm_events(COMPACTPAGEFAILED,
-> > > +						nr_remaining);
-> > > +		}
-> > >  
-> > >  		count_vm_event(COMPACTBLOCKS);
-> > > -		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
-> > > -		if (nr_remaining)
-> > > -			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> > >  		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
-> > >  						nr_remaining);
-> > >  
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+Thank you,
+
+
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
