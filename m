@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 2B0DD6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:55:29 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; CHARSET=US-ASCII
-Received: from xanadu.home ([66.130.28.92]) by VL-VM-MR004.ip.videotron.ca
- (Oracle Communications Messaging Exchange Server 7u4-22.01 64bit (built Apr 21
- 2011)) with ESMTP id <0LXR009BVE5TD8B0@VL-VM-MR004.ip.videotron.ca> for
- linux-mm@kvack.org; Fri, 13 Jan 2012 17:51:29 -0500 (EST)
-Date: Fri, 13 Jan 2012 17:55:27 -0500 (EST)
-From: Nicolas Pitre <nico@fluxnic.net>
-Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
-In-reply-to: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
-Message-id: <alpine.LFD.2.02.1201131748380.2722@xanadu.home>
-References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 6F29A6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 18:39:52 -0500 (EST)
+Date: Fri, 13 Jan 2012 15:39:50 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: hugetlb: undo change to page mapcount in fault
+ handler
+Message-Id: <20120113153950.7426eee2.akpm@linux-foundation.org>
+In-Reply-To: <CAJd=RBDOn22=CAFcEx9try8onsaHsweny_B1ZvnGJO-0h7eZAQ@mail.gmail.com>
+References: <CAJd=RBBF=K5hHvEwb6uwZJwS4=jHKBCNYBTJq-pSbJ9j_ZaiaA@mail.gmail.com>
+	<20111222163604.GB14983@tiehlicka.suse.cz>
+	<CAJd=RBBY0sKdtdx9d8KXTchjaN6au0_hvMfE2+9JkdhvJe7eAw@mail.gmail.com>
+	<20120104151632.05e6b3b0.akpm@linux-foundation.org>
+	<CAJd=RBDOn22=CAFcEx9try8onsaHsweny_B1ZvnGJO-0h7eZAQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, moussaba@micron.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 13 Jan 2012, Will Deacon wrote:
+On Wed, 11 Jan 2012 20:06:30 +0800
+Hillf Danton <dhillf@gmail.com> wrote:
 
-> /proc/pid/clear_refs is used to clear the Referenced and YOUNG bits for
-> pages and corresponding page table entries of the task with PID pid,
-> which includes any special mappings inserted into the page tables in
-> order to provide things like vDSOs and user helper functions.
+> On Thu, Jan 5, 2012 at 7:16 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Fri, 23 Dec 2011 21:00:41 +0800
+> > Hillf Danton <dhillf@gmail.com> wrote:
+> >
+> >> Page mapcount should be updated only if we are sure that the page ends
+> >> up in the page table otherwise we would leak if we couldn't COW due to
+> >> reservations or if idx is out of bounds.
+> >
+> > It would be much nicer if we could run vma_needs_reservation() before
+> > even looking up or allocating the page.
+> >
+> > And afaict the interface is set up to do that: you run
+> > vma_needs_reservation() before allocating the page and then
+> > vma_commit_reservation() afterwards.
+> >
+> > But hugetlb_no_page() and hugetlb_fault() appear to have forgotten to
+> > run vma_commit_reservation() altogether. __Why isn't this as busted as
+> > it appears to be?
 > 
-> On ARM this causes a problem because the vectors page is mapped as a
-> global mapping and since ec706dab ("ARM: add a vma entry for the user
-> accessible vector page"), a VMA is also inserted into each task for this
-> page to aid unwinding through signals and syscall restarts. Since the
-> vectors page is required for handling faults, clearing the YOUNG bit
-> (and subsequently writing a faulting pte) means that we lose the vectors
-> page *globally* and cannot fault it back in. This results in a system
-> deadlock on the next exception.
+> Hi Andrew
 > 
-> This patch avoids clearing the aforementioned bits for reserved pages,
-> therefore leaving the vectors page intact on ARM. Since reserved pages
-> are not candidates for swap, this change should not have any impact on
-> the usefulness of clear_refs.
-> 
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Nicolas Pitre <nico@fluxnic.net>
-> Reported-by: Moussa Ba <moussaba@micron.com>
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> IIUC the two operations, vma_{needs, commit}_reservation, are folded in
+> alloc_huge_page(), need to break the pair?
 
-Given Andrew's answer, this should be fine wrt Russell's concern.
+Looking at it again, it appears that the vma_needs_reservation() calls
+are used to predict whether a subsequent COW attempt is going to fail.
 
-Acked-by: Nicolas Pitre <nico@linaro.org>
+If that's correct then things aren't as bad as I first thought. 
+However I suspect the code in hugetlb_no_page() is a bit racy: the
+vma_needs_reservation() call should happen after we've taken
+page_table_lock.  As things stand, another thread could sneak in there
+and steal the reservation which this thread thought was safe.
 
-> An aside: if you want to see this problem in action, just run:
-> 
-> $ echo 1 > /proc/self/clear_refs
-> 
-> on an ARM platform (as any user) and watch your system hang. I think this
-> has been the case since 2.6.37, so I'll CC stable once people are happy
-> with the fix.
-> 
->  fs/proc/task_mmu.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index e418c5a..7dcd2a2 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -518,6 +518,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
->  		if (!page)
->  			continue;
->  
-> +		if (PageReserved(page))
-> +			continue;
-> +
->  		/* Clear accessed and referenced bits. */
->  		ptep_test_and_clear_young(vma, addr, pte);
->  		ClearPageReferenced(page);
-> -- 
-> 1.7.4.1
-> 
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
