@@ -1,57 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 308C16B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 06:06:24 -0500 (EST)
-Received: by iafj26 with SMTP id j26so5557599iaf.14
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 03:06:23 -0800 (PST)
-Date: Fri, 13 Jan 2012 03:06:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
-In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904557417@008-AM1MPN1-003.mgdnok.nokia.com>
-Message-ID: <alpine.DEB.2.00.1201130253560.15417@chino.kir.corp.google.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com> <20120104195521.GA19181@suse.de> <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com> <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201111338320.21755@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904556CB7@008-AM1MPN1-003.mgdnok.nokia.com> <alpine.DEB.2.00.1201121247480.17287@chino.kir.corp.google.com>
- <84FF21A720B0874AA94B46D76DB9826904557417@008-AM1MPN1-003.mgdnok.nokia.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 0638E6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 06:28:36 -0500 (EST)
+Date: Fri, 13 Jan 2012 11:28:32 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is
+ -1
+Message-ID: <20120113112832.GR4118@suse.de>
+References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
+ <4F0E76BE.1070806@freescale.com>
+ <20120112120530.GJ4118@suse.de>
+ <4F0F9770.10004@freescale.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F0F9770.10004@freescale.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Huang Shijie <b32955@freescale.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shijie8@gmail.com
 
-On Fri, 13 Jan 2012, leonid.moiseichuk@nokia.com wrote:
-
-> > Then it's fundamentally flawed since there's no guarantee that coming with
-> > 100MB of the min watermark, for example, means that an oom is imminent
-> > and will just result in unnecessary notification to userspace that will cause
-> > some action to be taken that may not be necessary.  If the setting of these
-> > thresholds depends on some pattern that is guaranteed to be along the path
-> > to oom for a certain workload, then that will also change depending on VM
-> > implementation changes, kernel versions, other applications, etc., and simply
-> > is unmaintainable.
+On Fri, Jan 13, 2012 at 10:31:12AM +0800, Huang Shijie wrote:
+> >>>  	/*
+> >>>+	 * Watermarks for order-0 must be met for compaction.
+> >>>+	 * During the migration, copies of pages need to be
+> >>>+	 * allocated and for a short time, so the footprint is higher.
+> >>>  	 * order == -1 is expected when compacting via
+> >>>-	 * /proc/sys/vm/compact_memory
+> >>>+	 * /proc/sys/vm/compact_memory.
+> >>>  	 */
+> >>>-	if (order == -1)
+> >>>-		return COMPACT_CONTINUE;
+> >>>+	watermark = low_wmark_pages(zone) +
+> >>>+		((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL<<  order));
+> >>>
+> >>>-	/*
+> >>>-	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+> >>>-	 * This is because during migration, copies of pages need to be
+> >>>-	 * allocated and for a short time, the footprint is higher
+> >>>-	 */
+> >>>-	watermark = low_wmark_pages(zone) + (2UL<<  order);
+> >>>  	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> >>>  		return COMPACT_SKIPPED;
+> >>>
+> >>>+	if (order == -1)
+> >>>+		return COMPACT_CONTINUE;
+> >>>+
+> >>>  	/*
+> >>>  	 * fragmentation index determines if allocation failures are due to
+> >>>  	 * low memory or external fragmentation
+> >>Is this patch meaningless?
+> >>I really think this patch is useful when the zone is nearly full.
+> >>
+> >Code wise the patch is fine. One reason why it fell off my radar is
+> >because you mangled the comments for no apparent reason. Specifically,
+> >after your patch is applied the code looks like this
+> >
+> >         /*
+> >          * Watermarks for order-0 must be met for compaction.
+> >          * During the migration, copies of pages need to be
+> >          * allocated and for a short time, so the footprint is higher.
+> >          * order == -1 is expected when compacting via
+> >          * /proc/sys/vm/compact_memory.
+> >          */
+> >         watermark = low_wmark_pages(zone) +
+> >                 ((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL<<  order));
+> "order == -1" first appears here.
+> >         if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> >                 return COMPACT_SKIPPED;
+> >
+> >         if (order == -1)
+> >                 return COMPACT_CONTINUE;
+> >
+> >The comment about "order == -1" is no longer with the code it refers
+> If I keep the comment here, someone may wonder why the `order == -1`
+> firstly appears above.
 > 
-> Why? That is expected that product tested and tuned properly, 
-> applications fixed, and at least no apps installed which might consume 
-> 100 MB in second or two.
-
-I'm trying to make this easy for you, if you haven't noticed.  Your memory 
-threshold, as proposed, will have values that are tied directly to the 
-implementation of the VM in the kernel when its under memory pressure and 
-that implementation evolves at a constant rate.
-
-What I'm proposing is limiting the amount of latency that the VM incurs 
-when under memory pressure, notify userspace, and allow it to react to the 
-situation until the delay expires.  This doesn't require recalibration for 
-other products or upgraded kernels, it just works all the time.
-
-> Slowdown is natural thing if you have lack of space for code paging, I 
-> do not see any ways to fix it.
+> I just want to keep the comment where it firstly appears. Don't you
+> think it's right?
 > 
 
-mlock() the memory that your userspace monitoring needs to send signals to 
-applications, whether those signals are handled to free memory internally 
-or its SIGTERM or SIGKILL.
+Bah, I'm an idiot.
+
+When I glanced at this first, I missed that you altered the watermark
+check as well. When I said "Code wise the patch is fine", I was wrong.
+Compaction works in units of pageblocks and the watermark check
+is necessary. Reducing it to COMPACT_CLUSTER_MAX*2 leads to the
+possibility of compaction via /proc causing livelocks in low memory
+situations depending on the value of min_free_kbytes.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
