@@ -1,69 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id D83AB6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:13:21 -0500 (EST)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [RFC PATCH] proc: clear_refs: do not clear reserved pages
-Date: Fri, 13 Jan 2012 15:13:07 +0000
-Message-Id: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 60B0F6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:20:32 -0500 (EST)
+Message-ID: <4F104A51.2000701@ah.jp.nec.com>
+Date: Fri, 13 Jan 2012 10:14:25 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
+References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>	<1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com> <CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
+In-Reply-To: <CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: moussaba@micron.com, Will Deacon <will.deacon@arm.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nicolas Pitre <nico@fluxnic.net>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-/proc/pid/clear_refs is used to clear the Referenced and YOUNG bits for
-pages and corresponding page table entries of the task with PID pid,
-which includes any special mappings inserted into the page tables in
-order to provide things like vDSOs and user helper functions.
+Hi Hillf,
 
-On ARM this causes a problem because the vectors page is mapped as a
-global mapping and since ec706dab ("ARM: add a vma entry for the user
-accessible vector page"), a VMA is also inserted into each task for this
-page to aid unwinding through signals and syscall restarts. Since the
-vectors page is required for handling faults, clearing the YOUNG bit
-(and subsequently writing a faulting pte) means that we lose the vectors
-page *globally* and cannot fault it back in. This results in a system
-deadlock on the next exception.
+(1/13/2012 7:04), Hillf Danton wrote:
+[...]
+>> +/*
+>> + * Returns 1 if a given pmd is mapping a thp and stable (not under splitting.)
+>> + * Returns 0 otherwise. Note that if it returns 1, this routine returns without
+>> + * unlocking page table locks. So callers must unlock them.
+>> + */
+>> +int pmd_trans_huge_stable(pmd_t *pmd, struct vm_area_struct *vma)
+>> +{
+>> +       VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
+>> +
+>> +       if (!pmd_trans_huge(*pmd))
+>> +               return 0;
+>> +
+>> +       spin_lock(&vma->vm_mm->page_table_lock);
+>> +       if (likely(pmd_trans_huge(*pmd))) {
+>> +               if (pmd_trans_splitting(*pmd)) {
+>> +                       spin_unlock(&vma->vm_mm->page_table_lock);
+>> +                       wait_split_huge_page(vma->anon_vma, pmd);
+>> +                       return 0;
+>> +               } else {
+> 
+>                             spin_unlock(&vma->vm_mm->page_table_lock);     yes?
 
-This patch avoids clearing the aforementioned bits for reserved pages,
-therefore leaving the vectors page intact on ARM. Since reserved pages
-are not candidates for swap, this change should not have any impact on
-the usefulness of clear_refs.
+No. Unlocking is supposed to be done by the caller as commented.
 
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nicolas Pitre <nico@fluxnic.net>
-Reported-by: Moussa Ba <moussaba@micron.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
+Thanks,
+Naoya
 
-An aside: if you want to see this problem in action, just run:
-
-$ echo 1 > /proc/self/clear_refs
-
-on an ARM platform (as any user) and watch your system hang. I think this
-has been the case since 2.6.37, so I'll CC stable once people are happy
-with the fix.
-
- fs/proc/task_mmu.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index e418c5a..7dcd2a2 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -518,6 +518,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 		if (!page)
- 			continue;
- 
-+		if (PageReserved(page))
-+			continue;
-+
- 		/* Clear accessed and referenced bits. */
- 		ptep_test_and_clear_young(vma, addr, pte);
- 		ClearPageReferenced(page);
--- 
-1.7.4.1
+> 
+>> +                       /* Thp mapped by 'pmd' is stable, so we can
+>> +                        * handle it as it is. */
+>> +                       return 1;
+>> +               }
+>> +       }
+>> +       spin_unlock(&vma->vm_mm->page_table_lock);
+>> +       return 0;
+>> +}
+>> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
