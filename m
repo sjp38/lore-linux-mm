@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 1D7506B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 02:31:13 -0500 (EST)
-Date: Thu, 12 Jan 2012 23:36:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Don't warn if memdup_user fails
-Message-Id: <20120112233600.33805bfc.akpm@linux-foundation.org>
-In-Reply-To: <20120113071752.GA3802@mwanda>
-References: <1326300636-29233-1-git-send-email-levinsasha928@gmail.com>
-	<20120111141219.271d3a97.akpm@linux-foundation.org>
-	<1326355594.1999.7.camel@lappy>
-	<CAOJsxLEYY=ZO8QrxiWL6qAxPzsPpZj3RsF9cXY0Q2L44+sn7JQ@mail.gmail.com>
-	<alpine.DEB.2.00.1201121309340.17287@chino.kir.corp.google.com>
-	<20120112135803.1fb98fd6.akpm@linux-foundation.org>
-	<20120113071752.GA3802@mwanda>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id E58656B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 03:31:31 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EBEED3EE0BC
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:31:29 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF13545DE58
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:31:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B504845DD6E
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:31:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A69BEE08009
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:31:29 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 594AFE08005
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:31:29 +0900 (JST)
+Date: Fri, 13 Jan 2012 17:30:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 0/7 v2] memcg: page_cgroup diet
+Message-Id: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Sasha Levin <levinsasha928@gmail.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tyler Hicks <tyhicks@canonical.com>, Dustin Kirkland <kirkland@canonical.com>, ecryptfs@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Fri, 13 Jan 2012 10:17:52 +0300 Dan Carpenter <dan.carpenter@oracle.com> wrote:
+This is just an RFC for dumping my queue to share and get better idea.
+Patch order may not be clean. Advice is welcomed.
 
-> On Thu, Jan 12, 2012 at 01:58:03PM -0800, Andrew Morton wrote:
-> > On Thu, 12 Jan 2012 13:19:54 -0800 (PST)
-> > David Rientjes <rientjes@google.com> wrote:
-> > 
-> > > On Thu, 12 Jan 2012, Pekka Enberg wrote:
-> > > 
-> > > > I think you missed Andrew's point. We absolutely want to issue a
-> > > > kernel warning here because ecryptfs is misusing the memdup_user()
-> > > > API. We must not let userspace processes allocate large amounts of
-> > > > memory arbitrarily.
-> > > > 
-> > > 
-> > > I think it's good to fix ecryptfs like Tyler is doing and, at the same 
-> > > time, ensure that the len passed to memdup_user() makes sense prior to 
-> > > kmallocing memory with GFP_KERNEL.  Perhaps something like
-> > > 
-> > > 	if (WARN_ON(len > PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-> > > 		return ERR_PTR(-ENOMEM);
-> > > 
-> > > in which case __GFP_NOWARN is irrelevant.
-> > 
-> > If someone is passing huge size_t's into kmalloc() and getting failures
-> > then that's probably a bug.
-> 
-> It's pretty common to pass high values to kmalloc().  We've added
-> a bunch of integer overflow checks recently where we do:
-> 
-> 	if (n > ULONG_MAX / size)
-> 		return -EINVAL;
+Now, struct page_cgroup is defined as
+==
+struct page_cgroup {
+        unsigned long flags;
+        struct mem_cgroup *mem_cgroup;
+};
+==
 
-It would be cleaner to use kcalloc().  Except kcalloc() zeroes the memory
-and we still don't have a non-zeroing kcalloc().
+We want to remove ->flags to shrink the size (and integrate into 'struct page').
+To do that, we need to remove some flags.
 
-> The problem is that we didn't set a maximum bound before and we
-> can't know which maximum will break compatibility.
+Now, flag is defined as
+==
+        PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+        PCG_CACHE, /* charged as cache */
+        PCG_USED, /* this object is in use. */
+        PCG_MIGRATION, /* under page migration */
+        /* flags for mem_cgroup and file and I/O status */
+        PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
+        PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+==
+We have 6bits now.
 
-Except for special cases (what are they?), code shouldn't be checking
-for maximum kmalloc() size.  It should be checking the size against the
-upper value which makes sense in the context of whatever it is doing at
-the time.  This ecryptfs callsite is an example.
+This patch series removes PCG_CACHE, PCG_MOVE_LOCK, PCG_FILE_MAPPED.
+Then, if we use low 3bits of ->mem_cgroup for PCG_LOCK, PCG_USED, PCG_MIGRATION,
+we can remove pc->flags, I guess.
 
-wrt any compatibility issues: the maximum amount of memory which can be
-allocated by kmalloc() depends on the kernel config (see
-kmalloc_sizes.h) so any code which is relying on any particular upper
-bound is already busted.
+To remove flags, this patch modifes page-stat accounting. After this set, 
+per-memcg page stat accounting will be
+
+	mem_cgroup_begin_update_page_stat() --(A)
+	modify page status
+	mem_cgroup_update_page_stat()
+	mem_cgroup_end_update_page_stat()   --(B)
+
+Between (A) and (B), it's guaranteed the page's pc->mem_cgroup will not be moved.
+By this change, move_account() can make use of page's information rather than
+page_cgroup's flag and we don't have to duplicate flags in page_cgroup.
+I think this is saner and allow us to add more per-memcg vmstat without any
+new flags.
+
+I'm now testing but don't see additional overheads.
+
+Thanks,
+-Kame
+
+
 
 
 --
