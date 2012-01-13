@@ -1,64 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 63D1A6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 16:35:28 -0500 (EST)
-Received: by ggnp4 with SMTP id p4so2422302ggn.14
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 13:35:27 -0800 (PST)
-Date: Fri, 13 Jan 2012 13:35:23 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 3.2.0-rc1 3/3] Used Memory Meter pseudo-device module
-In-Reply-To: <84FF21A720B0874AA94B46D76DB982690455759C@008-AM1MPN1-003.mgdnok.nokia.com>
-Message-ID: <alpine.DEB.2.00.1201131328540.24089@chino.kir.corp.google.com>
-References: <cover.1325696593.git.leonid.moiseichuk@nokia.com> <ed78895aa673d2e5886e95c3e3eae38cc6661eda.1325696593.git.leonid.moiseichuk@nokia.com> <20120104195521.GA19181@suse.de> <84FF21A720B0874AA94B46D76DB9826904554AFD@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201090203470.8480@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904554B81@008-AM1MPN1-003.mgdnok.nokia.com> <alpine.DEB.2.00.1201091251300.10232@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB98269045568A1@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201111338320.21755@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904556CB7@008-AM1MPN1-003.mgdnok.nokia.com> <alpine.DEB.2.00.1201121247480.17287@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB9826904557417@008-AM1MPN1-003.mgdnok.nokia.com>
- <alpine.DEB.2.00.1201130253560.15417@chino.kir.corp.google.com> <84FF21A720B0874AA94B46D76DB982690455759C@008-AM1MPN1-003.mgdnok.nokia.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 88C636B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 16:45:31 -0500 (EST)
+Received: by qcsg13 with SMTP id g13so643386qcs.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 13:45:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120113163423.GG17060@tiehlicka.suse.cz>
+References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
+	<1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+	<20120113120406.GC17060@tiehlicka.suse.cz>
+	<20120113155001.GB1653@cmpxchg.org>
+	<20120113163423.GG17060@tiehlicka.suse.cz>
+Date: Fri, 13 Jan 2012 13:45:30 -0800
+Message-ID: <CALWz4iyj4SMMyYhbuZ3HUq-jvcZUCGarceYY7vxm4b7X=yvCMg@mail.gmail.com>
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: gregkh@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cesarb@cesarb.net, kamezawa.hiroyu@jp.fujitsu.com, emunson@mgebm.net, penberg@kernel.org, aarcange@redhat.com, riel@redhat.com, mel@csn.ul.ie, dima@android.com, rebecca@android.com, san@google.com, akpm@linux-foundation.org, vesa.jaaskelainen@nokia.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 13 Jan 2012, leonid.moiseichuk@nokia.com wrote:
+On Fri, Jan 13, 2012 at 8:34 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri 13-01-12 16:50:01, Johannes Weiner wrote:
+>> On Fri, Jan 13, 2012 at 01:04:06PM +0100, Michal Hocko wrote:
+>> > On Tue 10-01-12 16:02:52, Johannes Weiner wrote:
+> [...]
+>> > > +bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct mem_cgroup *=
+memcg)
+>> > > +{
+>> > > + if (mem_cgroup_disabled())
+>> > > + =A0 =A0 =A0 =A0 return false;
+>> > > +
+>> > > + if (!root)
+>> > > + =A0 =A0 =A0 =A0 root =3D root_mem_cgroup;
+>> > > +
+>> > > + for (; memcg; memcg =3D parent_mem_cgroup(memcg)) {
+>> > > + =A0 =A0 =A0 =A0 /* root_mem_cgroup does not have a soft limit */
+>> > > + =A0 =A0 =A0 =A0 if (memcg =3D=3D root_mem_cgroup)
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> > > + =A0 =A0 =A0 =A0 if (res_counter_soft_limit_excess(&memcg->res))
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
+>> > > + =A0 =A0 =A0 =A0 if (memcg =3D=3D root)
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> > > + }
+>> > > + return false;
+>> > > +}
+>> >
+>> > Well, this might be little bit tricky. We do not check whether memcg a=
+nd
+>> > root are in a hierarchy (in terms of use_hierarchy) relation.
+>> >
+>> > If we are under global reclaim then we iterate over all memcgs and so
+>> > there is no guarantee that there is a hierarchical relation between th=
+e
+>> > given memcg and its parent. While, on the other hand, if we are doing
+>> > memcg reclaim then we have this guarantee.
+>> >
+>> > Why should we punish a group (subtree) which is perfectly under its so=
+ft
+>> > limit just because some other subtree contributes to the common parent=
+'s
+>> > usage and makes it over its limit?
+>> > Should we check memcg->use_hierarchy here?
+>>
+>> We do, actually. =A0parent_mem_cgroup() checks the res_counter parent,
+>> which is only set when ->use_hierarchy is also set.
+>
+> Of course I am blind.. We do not setup res_counter parent for
+> !use_hierarchy case. Sorry for noise...
+> Now it makes much better sense. I was wondering how !use_hierarchy could
+> ever work, this should be a signal that I am overlooking something
+> terribly.
+>
+> [...]
+>> > > @@ -2121,8 +2121,16 @@ static void shrink_zone(int priority, struct =
+zone *zone,
+>> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .mem_cgroup =3D memcg,
+>> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .zone =3D zone,
+>> > > =A0 =A0 =A0 =A0 =A0 };
+>> > > + =A0 =A0 =A0 =A0 int epriority =3D priority;
+>> > > + =A0 =A0 =A0 =A0 /*
+>> > > + =A0 =A0 =A0 =A0 =A0* Put more pressure on hierarchies that exceed =
+their
+>> > > + =A0 =A0 =A0 =A0 =A0* soft limit, to push them back harder than the=
+ir
+>> > > + =A0 =A0 =A0 =A0 =A0* well-behaving siblings.
+>> > > + =A0 =A0 =A0 =A0 =A0*/
+>> > > + =A0 =A0 =A0 =A0 if (mem_cgroup_over_softlimit(root, memcg))
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority =3D 0;
+>> >
+>> > This sounds too aggressive to me. Shouldn't we just double the pressur=
+e
+>> > or something like that?
+>>
+>> That's the historical value. =A0When I tried priority - 1, it was not
+>> aggressive enough.
+>
+> Probably because we want to reclaim too much. Maybe we should do
+> reduce nr_to_reclaim (ugly) or reclaim only overlimit groups until certai=
+n
+> priority level as Ying suggested in her patchset.
 
-> > Your memory threshold, as proposed, will have values that are tied directly to the
-> > implementation of the VM in the kernel when its under memory pressure
-> > and that implementation evolves at a constant rate.
-> 
-> Not sure that I understand this statement. Free/Used/Active page sets 
-> are properties of any VM.
+I plan to post that change on top of this, and this patch set does the
+basic stuff to allow us doing further improvement.
 
-The point at which the latency is deemed to be unacceptable in your 
-trail-and-error is tied directly to the implementation of the VM and must 
-be recalibrated with each userspace change or kernel upgrade.  I assume 
-here that some reclaim is allowed in the VM for your usecase; if not, then 
-I already gave a solution for how to disable that entirely.
+I still like the design to skip over_soft_limit cgroups until certain
+priority. One way to set up the soft limit for each cgroup is to base
+on its actual working set size, and we prefer to punish A first with
+lots of page cache ( cold file pages above soft limit) than reclaiming
+anon pages from B ( below soft limit ). Unless we can not get enough
+pages reclaimed from A, we will start reclaiming from B.
 
->  The thresholds are set by user-space and individual for applications 
-> which likes to be informed.
-> 
+This might not be the ideal solution, but should be a good start. Thoughts?
 
-You haven't given a usecase for the thresholds for anything other than 
-when you're just about oom, and I think it's much simpler if you actually 
-get to the point of oom and your userspace notifier is guaranteed to be 
-able to respond over a preconfigured delay.  It works pretty well for us 
-internally, you should consider it.
+--Ying
 
-> > mlock() the memory that your userspace monitoring needs to send signals to
-> > applications, whether those signals are handled to free memory internally or
-> > its SIGTERM or SIGKILL.
-> 
-> Mlocked memory should be avoid as much as possible because efficiency 
-> rate is lowest possible and makes situation for non-mlocked pages even 
-> worse.
-
-It's used only to protect the thread that is notified right before the oom 
-killer is triggered so that it can send the appropriate signals.  If it 
-can't do that, the oom killer delay will expire on subsequent memory 
-allocation attempts and kill something itself.  This thread should have a 
-minimal memory footprint, be mlock()'d into memory, and have an 
-oom_score_adj of OOM_SCORE_ADJ_MIN.
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
