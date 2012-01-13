@@ -1,154 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 6E72A6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:44:41 -0500 (EST)
-Date: Fri, 13 Jan 2012 23:44:24 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
-Message-ID: <20120113224424.GC1653@cmpxchg.org>
-References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
- <1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
- <CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com>
- <20120112085904.GG24386@cmpxchg.org>
- <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 2B0DD6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 17:55:29 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN; CHARSET=US-ASCII
+Received: from xanadu.home ([66.130.28.92]) by VL-VM-MR004.ip.videotron.ca
+ (Oracle Communications Messaging Exchange Server 7u4-22.01 64bit (built Apr 21
+ 2011)) with ESMTP id <0LXR009BVE5TD8B0@VL-VM-MR004.ip.videotron.ca> for
+ linux-mm@kvack.org; Fri, 13 Jan 2012 17:51:29 -0500 (EST)
+Date: Fri, 13 Jan 2012 17:55:27 -0500 (EST)
+From: Nicolas Pitre <nico@fluxnic.net>
+Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
+In-reply-to: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
+Message-id: <alpine.LFD.2.02.1201131748380.2722@xanadu.home>
+References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, moussaba@micron.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Jan 13, 2012 at 01:31:16PM -0800, Ying Han wrote:
-> On Thu, Jan 12, 2012 at 12:59 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Wed, Jan 11, 2012 at 01:42:31PM -0800, Ying Han wrote:
-> >> On Tue, Jan 10, 2012 at 7:02 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> > @@ -1318,6 +1123,36 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
-> >> >        return margin >> PAGE_SHIFT;
-> >> >  }
-> >> >
-> >> > +/**
-> >> > + * mem_cgroup_over_softlimit
-> >> > + * @root: hierarchy root
-> >> > + * @memcg: child of @root to test
-> >> > + *
-> >> > + * Returns %true if @memcg exceeds its own soft limit or contributes
-> >> > + * to the soft limit excess of one of its parents up to and including
-> >> > + * @root.
-> >> > + */
-> >> > +bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
-> >> > +                              struct mem_cgroup *memcg)
-> >> > +{
-> >> > +       if (mem_cgroup_disabled())
-> >> > +               return false;
-> >> > +
-> >> > +       if (!root)
-> >> > +               root = root_mem_cgroup;
-> >> > +
-> >> > +       for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> >> > +               /* root_mem_cgroup does not have a soft limit */
-> >> > +               if (memcg == root_mem_cgroup)
-> >> > +                       break;
-> >> > +               if (res_counter_soft_limit_excess(&memcg->res))
-> >> > +                       return true;
-> >> > +               if (memcg == root)
-> >> > +                       break;
-> >> > +       }
-> >>
-> >> Here it adds pressure on a cgroup if one of its parents exceeds soft
-> >> limit, although the cgroup itself is under soft limit. It does change
-> >> my understanding of soft limit, and might introduce regression of our
-> >> existing use cases.
-> >>
-> >> Here is an example:
-> >>
-> >> Machine capacity 32G and we over-commit by 8G.
-> >>
-> >> root
-> >>   -> A (hard limit 20G, soft limit 15G, usage 16G)
-> >>        -> A1 (soft limit 5G, usage 4G)
-> >>        -> A2 (soft limit 10G, usage 12G)
-> >>   -> B (hard limit 20G, soft limit 10G, usage 16G)
-> >>
-> >> under global reclaim, we don't want to add pressure on A1 although its
-> >> parent A exceeds its soft limit. Assume that if we set the soft limit
-> >> corresponding to each cgroup's working set size (hot memory), and it
-> >> will introduce regression to A1 in that case.
-> >>
-> >> In my existing implementation, i am checking the cgroup's soft limit
-> >> standalone w/o looking its ancestors.
-> >
-> > Why do you set the soft limit of A in the first place if you don't
-> > want it to be enforced?
+On Fri, 13 Jan 2012, Will Deacon wrote:
+
+> /proc/pid/clear_refs is used to clear the Referenced and YOUNG bits for
+> pages and corresponding page table entries of the task with PID pid,
+> which includes any special mappings inserted into the page tables in
+> order to provide things like vDSOs and user helper functions.
 > 
-> The soft limit should be enforced under certain condition, not always.
-> The soft limit of A is set to be enforced when the parent of A and B
-> is under memory pressure. For example:
+> On ARM this causes a problem because the vectors page is mapped as a
+> global mapping and since ec706dab ("ARM: add a vma entry for the user
+> accessible vector page"), a VMA is also inserted into each task for this
+> page to aid unwinding through signals and syscall restarts. Since the
+> vectors page is required for handling faults, clearing the YOUNG bit
+> (and subsequently writing a faulting pte) means that we lose the vectors
+> page *globally* and cannot fault it back in. This results in a system
+> deadlock on the next exception.
 > 
-> Machine capacity 32G and we over-commit by 8G
+> This patch avoids clearing the aforementioned bits for reserved pages,
+> therefore leaving the vectors page intact on ARM. Since reserved pages
+> are not candidates for swap, this change should not have any impact on
+> the usefulness of clear_refs.
 > 
-> root
-> -> A (hard limit 20G, soft limit 12G, usage 20G)
->        -> A1 (soft limit 2G, usage 1G)
->        -> A2 (soft limit 10G, usage 19G)
-> -> B (hard limit 20G, soft limit 10G, usage 0G)
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Nicolas Pitre <nico@fluxnic.net>
+> Reported-by: Moussa Ba <moussaba@micron.com>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
+
+Given Andrew's answer, this should be fine wrt Russell's concern.
+
+Acked-by: Nicolas Pitre <nico@linaro.org>
+
+> An aside: if you want to see this problem in action, just run:
 > 
-> Now, A is under memory pressure since the total usage is hitting its
-> hard limit. Then we start hierarchical reclaim under A, and each
-> cgroup under A also takes consideration of soft limit. In this case,
-> we should only set priority = 0 to A2 since it contributes to A's
-> charge as well as exceeding its own soft limit. Why punishing A1 (set
-> priority = 0) also which has usage under its soft limit ? I can
-> imagine it will introduce regression to existing environment which the
-> soft limit is set based on the working set size of the cgroup.
->
-> To answer the question why we set soft limit to A, it is used to
-> over-commit the host while sharing the resource with its sibling (B in
-> this case). If the machine is under memory contention, we would like
-> to push down memory to A or B depends on their usage and soft limit.
-
-D'oh, I think the problem is just that we walk up the hierarchy one
-too many when checking whether a group exceeds a soft limit.  The soft
-limit is a signal to distribute pressure that comes from above, it's
-meaningless and should indeed be ignored on the level the pressure
-originates from.
-
-Say mem_cgroup_over_soft_limit(root, memcg) would check everyone up to
-but not including root, wouldn't that do exactly what we both want?
-
-Example:
-
-1. If global memory is short, we reclaim with root=root_mem_cgroup.
-   A1 and A2 get soft limit reclaimed because of A's soft limit
-   excess, just like the current kernel would do.
-
-2. If A hits its hard limit, we reclaim with root=A, so we only mind
-   the soft limits of A1 and A2.  A1 is below its soft limit, all
-   good.  A2 is above its soft limit, gets treated accordingly.  This
-   is new behaviour, the current kernel would just reclaim them
-   equally.
-
-Code:
-
-bool mem_cgroup_over_soft_limit(struct mem_cgroup *root,
-			        struct mem_cgroup *memcg)
-{
-	if (mem_cgroup_disabled())
-		return false;
-
-	if (!root)
-		root = root_mem_cgroup;
-
-	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-		if (memcg == root)
-			break;
-		if (res_counter_soft_limit_excess(&memcg->res))
-			return true;
-	}
-	return false;
-}
+> $ echo 1 > /proc/self/clear_refs
+> 
+> on an ARM platform (as any user) and watch your system hang. I think this
+> has been the case since 2.6.37, so I'll CC stable once people are happy
+> with the fix.
+> 
+>  fs/proc/task_mmu.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index e418c5a..7dcd2a2 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -518,6 +518,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+>  		if (!page)
+>  			continue;
+>  
+> +		if (PageReserved(page))
+> +			continue;
+> +
+>  		/* Clear accessed and referenced bits. */
+>  		ptep_test_and_clear_young(vma, addr, pte);
+>  		ClearPageReferenced(page);
+> -- 
+> 1.7.4.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
