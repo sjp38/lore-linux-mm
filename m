@@ -1,97 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 0638E6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 06:28:36 -0500 (EST)
-Date: Fri, 13 Jan 2012 11:28:32 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is
- -1
-Message-ID: <20120113112832.GR4118@suse.de>
-References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
- <4F0E76BE.1070806@freescale.com>
- <20120112120530.GJ4118@suse.de>
- <4F0F9770.10004@freescale.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 30EBE6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 06:46:43 -0500 (EST)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Fri, 13 Jan 2012 11:40:02 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0DBddbw3584140
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 22:39:41 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0DBi6eM022982
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 22:44:06 +1100
+Message-ID: <4F101904.8090405@linux.vnet.ibm.com>
+Date: Fri, 13 Jan 2012 19:44:04 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F0F9770.10004@freescale.com>
+Subject: [PATCH 1/5] hugetlbfs: fix hugetlb_get_unmapped_area
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <b32955@freescale.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shijie8@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 13, 2012 at 10:31:12AM +0800, Huang Shijie wrote:
-> >>>  	/*
-> >>>+	 * Watermarks for order-0 must be met for compaction.
-> >>>+	 * During the migration, copies of pages need to be
-> >>>+	 * allocated and for a short time, so the footprint is higher.
-> >>>  	 * order == -1 is expected when compacting via
-> >>>-	 * /proc/sys/vm/compact_memory
-> >>>+	 * /proc/sys/vm/compact_memory.
-> >>>  	 */
-> >>>-	if (order == -1)
-> >>>-		return COMPACT_CONTINUE;
-> >>>+	watermark = low_wmark_pages(zone) +
-> >>>+		((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL<<  order));
-> >>>
-> >>>-	/*
-> >>>-	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
-> >>>-	 * This is because during migration, copies of pages need to be
-> >>>-	 * allocated and for a short time, the footprint is higher
-> >>>-	 */
-> >>>-	watermark = low_wmark_pages(zone) + (2UL<<  order);
-> >>>  	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> >>>  		return COMPACT_SKIPPED;
-> >>>
-> >>>+	if (order == -1)
-> >>>+		return COMPACT_CONTINUE;
-> >>>+
-> >>>  	/*
-> >>>  	 * fragmentation index determines if allocation failures are due to
-> >>>  	 * low memory or external fragmentation
-> >>Is this patch meaningless?
-> >>I really think this patch is useful when the zone is nearly full.
-> >>
-> >Code wise the patch is fine. One reason why it fell off my radar is
-> >because you mangled the comments for no apparent reason. Specifically,
-> >after your patch is applied the code looks like this
-> >
-> >         /*
-> >          * Watermarks for order-0 must be met for compaction.
-> >          * During the migration, copies of pages need to be
-> >          * allocated and for a short time, so the footprint is higher.
-> >          * order == -1 is expected when compacting via
-> >          * /proc/sys/vm/compact_memory.
-> >          */
-> >         watermark = low_wmark_pages(zone) +
-> >                 ((order == -1) ? (COMPACT_CLUSTER_MAX * 2) : (2UL<<  order));
-> "order == -1" first appears here.
-> >         if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> >                 return COMPACT_SKIPPED;
-> >
-> >         if (order == -1)
-> >                 return COMPACT_CONTINUE;
-> >
-> >The comment about "order == -1" is no longer with the code it refers
-> If I keep the comment here, someone may wonder why the `order == -1`
-> firstly appears above.
-> 
-> I just want to keep the comment where it firstly appears. Don't you
-> think it's right?
-> 
+Using/updating cached_hole_size and free_area_cache properly to speedup
+find free region
 
-Bah, I'm an idiot.
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+---
+ fs/hugetlbfs/inode.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
-When I glanced at this first, I missed that you altered the watermark
-check as well. When I said "Code wise the patch is fine", I was wrong.
-Compaction works in units of pageblocks and the watermark check
-is necessary. Reducing it to COMPACT_CLUSTER_MAX*2 leads to the
-possibility of compaction via /proc causing livelocks in low memory
-situations depending on the value of min_free_kbytes.
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index e425ad9..9e0794a 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -154,10 +154,12 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 			return addr;
+ 	}
 
+-	start_addr = mm->free_area_cache;
+-
+-	if (len <= mm->cached_hole_size)
++	if (len > mm->cached_hole_size)
++		start_addr = mm->free_area_cache;
++	else {
+ 		start_addr = TASK_UNMAPPED_BASE;
++		mm->cached_hole_size = 0;
++	}
+
+ full_search:
+ 	addr = ALIGN(start_addr, huge_page_size(h));
+@@ -171,13 +173,18 @@ full_search:
+ 			 */
+ 			if (start_addr != TASK_UNMAPPED_BASE) {
+ 				start_addr = TASK_UNMAPPED_BASE;
++				mm->cached_hole_size = 0;
+ 				goto full_search;
+ 			}
+ 			return -ENOMEM;
+ 		}
+
+-		if (!vma || addr + len <= vma->vm_start)
++		if (!vma || addr + len <= vma->vm_start) {
++			mm->free_area_cache = addr + len;
+ 			return addr;
++		}
++		if (addr + mm->cached_hole_size < vma->vm_start)
++			mm->cached_hole_size = vma->vm_start - addr;
+ 		addr = ALIGN(vma->vm_end, huge_page_size(h));
+ 	}
+ }
 -- 
-Mel Gorman
-SUSE Labs
+1.7.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
