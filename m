@@ -1,62 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 60B0F6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:20:32 -0500 (EST)
-Message-ID: <4F104A51.2000701@ah.jp.nec.com>
-Date: Fri, 13 Jan 2012 10:14:25 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id AA81C6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:28:23 -0500 (EST)
+Date: Fri, 13 Jan 2012 09:28:20 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
+In-Reply-To: <20120112222929.GI11715@one.firstfloor.org>
+Message-ID: <alpine.DEB.2.00.1201130922460.25704@router.home>
+References: <1326380820.2442.186.camel@twins> <20120112182644.GE11715@one.firstfloor.org> <1326399227.2442.209.camel@twins> <20120112210743.GG11715@one.firstfloor.org> <20120112134045.552e2a61.akpm@linux-foundation.org>
+ <20120112222929.GI11715@one.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
-References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>	<1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com> <CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
-In-Reply-To: <CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Hillf,
+On Thu, 12 Jan 2012, Andi Kleen wrote:
 
-(1/13/2012 7:04), Hillf Danton wrote:
-[...]
->> +/*
->> + * Returns 1 if a given pmd is mapping a thp and stable (not under splitting.)
->> + * Returns 0 otherwise. Note that if it returns 1, this routine returns without
->> + * unlocking page table locks. So callers must unlock them.
->> + */
->> +int pmd_trans_huge_stable(pmd_t *pmd, struct vm_area_struct *vma)
->> +{
->> +       VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
->> +
->> +       if (!pmd_trans_huge(*pmd))
->> +               return 0;
->> +
->> +       spin_lock(&vma->vm_mm->page_table_lock);
->> +       if (likely(pmd_trans_huge(*pmd))) {
->> +               if (pmd_trans_splitting(*pmd)) {
->> +                       spin_unlock(&vma->vm_mm->page_table_lock);
->> +                       wait_split_huge_page(vma->anon_vma, pmd);
->> +                       return 0;
->> +               } else {
-> 
->                             spin_unlock(&vma->vm_mm->page_table_lock);     yes?
+> The problem is that then there will be nothing left that actually
+> tests interleaving. The numactl has caught kernel regressions in the past.
 
-No. Unlocking is supposed to be done by the caller as commented.
+How about adding a CONFIG_NUMA_DEBUG option and have it only available
+then? I think there is no general use case.
 
-Thanks,
-Naoya
+> I don't think disabling useful regression tests is a good idea.
+> In contrary the kernel needs far more of them, not less.
 
-> 
->> +                       /* Thp mapped by 'pmd' is stable, so we can
->> +                        * handle it as it is. */
->> +                       return 1;
->> +               }
->> +       }
->> +       spin_unlock(&vma->vm_mm->page_table_lock);
->> +       return 0;
->> +}
->> +
+True. Some more debugging code for the NUMA features would be appreciated
+but that does not need to be enabled by default. Lately I have become a
+bit concerned about the number of statistics we are adding. The
+per_cpu_pageset structure should not get too large.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
