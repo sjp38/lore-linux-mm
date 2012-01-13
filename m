@@ -1,191 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1338E6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 07:04:10 -0500 (EST)
-Date: Fri, 13 Jan 2012 13:04:06 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
-Message-ID: <20120113120406.GC17060@tiehlicka.suse.cz>
-References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
- <1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id CAEFF6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 07:04:57 -0500 (EST)
+Received: by wicr5 with SMTP id r5so403347wic.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 04:04:56 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Fri, 13 Jan 2012 20:04:56 +0800
+Message-ID: <CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
+Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 10-01-12 16:02:52, Johannes Weiner wrote:
-> Right now, memcg soft limits are implemented by having a sorted tree
-> of memcgs that are in excess of their limits.  Under global memory
-> pressure, kswapd first reclaims from the biggest excessor and then
-> proceeds to do regular global reclaim.  The result of this is that
-> pages are reclaimed from all memcgs, but more scanning happens against
-> those above their soft limit.
-> 
-> With global reclaim doing memcg-aware hierarchical reclaim by default,
-> this is a lot easier to implement: everytime a memcg is reclaimed
-> from, scan more aggressively (per tradition with a priority of 0) if
-> it's above its soft limit.  With the same end result of scanning
-> everybody, but soft limit excessors a bit more.
-> 
-> Advantages:
-> 
->   o smoother reclaim: soft limit reclaim is a separate stage before
->     global reclaim, whose result is not communicated down the line and
->     so overreclaim of the groups in excess is very likely.  After this
->     patch, soft limit reclaim is fully integrated into regular reclaim
->     and each memcg is considered exactly once per cycle.
-> 
->   o true hierarchy support: soft limits are only considered when
->     kswapd does global reclaim, but after this patch, targetted
->     reclaim of a memcg will mind the soft limit settings of its child
->     groups.
-
-Yes it makes sense. At first I was thinking that soft limit should be
-considered only under global mem. pressure (at least documentation says
-so) but now it makes sense.
-We can push on over-soft limit groups more because they told us they
-could sacrifice something...  Anyway documentation needs an update as
-well.
-
-But we have to be little bit careful here. I am still quite confuses how
-we should handle hierarchies vs. subtrees. See bellow.
-
-> 
->   o code size: soft limit reclaim requires a lot of code to maintain
->     the per-node per-zone rb-trees to quickly find the biggest
->     offender, dedicated paths for soft limit reclaim etc. while this
->     new implementation gets away without all that.
-
-on my i386 pae setup (including swap extension enabled):
-Before
-   text    data     bss     dec     hex filename
-    310086   29970   35372  375428   5ba84 mm/built-in.o
-After
-size mm/built-in.o 
-   text    data     bss     dec     hex filename
-    309048   30030   35372  374450   5b6b2 mm/built-in.o
-
-I would expect a bigger difference but still good.
-
-> Test:
-
-Will look into results later.
-[...]
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Fri, Jan 13, 2012 at 3:34 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> Currently when we check if we can handle thp as it is or we need to
+> split it into regular sized pages, we hold page table lock prior to
+> check whether a given pmd is mapping thp or not. Because of this,
+> when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
+> To remove it, this patch introduces a optimized check function and
+> replace several similar logics with it.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: David Rientjes <rientjes@google.com>
+>
+> Changes since v2:
+> =C2=A0- Fix missing "return 0" in "thp under splitting" path
+> =C2=A0- Remove unneeded comment
+> =C2=A0- Change the name of check function to describe what it does
+> =C2=A0- Add VM_BUG_ON(mmap_sem)
 > ---
->  include/linux/memcontrol.h |   18 +--
->  mm/memcontrol.c            |  412 ++++----------------------------------------
->  mm/vmscan.c                |   80 +--------
->  3 files changed, 48 insertions(+), 462 deletions(-)
-
-Really nice to see
-
+> =C2=A0fs/proc/task_mmu.c =C2=A0 =C2=A0 =C2=A0| =C2=A0 73 +++++++++-------=
+-----------
+> =C2=A0include/linux/huge_mm.h | =C2=A0 =C2=A07 +++
+> =C2=A0mm/huge_memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0127 +++++++++++=
+++++++++++++------------------------
+> =C2=A0mm/mremap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=
+=A03 +-
+> =C2=A04 files changed, 95 insertions(+), 115 deletions(-)
+>
 [...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 170dff4..d4f7ae5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-[...]
-> @@ -1318,6 +1123,36 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
->  	return margin >> PAGE_SHIFT;
->  }
->  
-> +/**
-> + * mem_cgroup_over_softlimit
-> + * @root: hierarchy root
-> + * @memcg: child of @root to test
-> + *
-> + * Returns %true if @memcg exceeds its own soft limit or contributes
-> + * to the soft limit excess of one of its parents up to and including
-> + * @root.
+> +/*
+> + * Returns 1 if a given pmd is mapping a thp and stable (not under split=
+ting.)
+> + * Returns 0 otherwise. Note that if it returns 1, this routine returns =
+without
+> + * unlocking page table locks. So callers must unlock them.
 > + */
-> +bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
-> +			       struct mem_cgroup *memcg)
+> +int pmd_trans_huge_stable(pmd_t *pmd, struct vm_area_struct *vma)
 > +{
-> +	if (mem_cgroup_disabled())
-> +		return false;
+> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem))=
+;
 > +
-> +	if (!root)
-> +		root = root_mem_cgroup;
+> + =C2=A0 =C2=A0 =C2=A0 if (!pmd_trans_huge(*pmd))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
 > +
-> +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> +		/* root_mem_cgroup does not have a soft limit */
-> +		if (memcg == root_mem_cgroup)
-> +			break;
-> +		if (res_counter_soft_limit_excess(&memcg->res))
-> +			return true;
-> +		if (memcg == root)
-> +			break;
-> +	}
-> +	return false;
+> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pmd_trans_splittin=
+g(*pmd)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 return 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
+
+    =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0   spin_unlock(&vma->vm_mm->page_table_lock);     yes?
+
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /* Thp mapped by 'pmd' is stable, so we can
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* handle it as it is. */
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 return 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 return 0;
 > +}
-
-Well, this might be little bit tricky. We do not check whether memcg and
-root are in a hierarchy (in terms of use_hierarchy) relation. 
-
-If we are under global reclaim then we iterate over all memcgs and so
-there is no guarantee that there is a hierarchical relation between the
-given memcg and its parent. While, on the other hand, if we are doing
-memcg reclaim then we have this guarantee.
-
-Why should we punish a group (subtree) which is perfectly under its soft
-limit just because some other subtree contributes to the common parent's
-usage and makes it over its limit?
-Should we check memcg->use_hierarchy here?
-
-Does it even makes sense to setup soft limit on a parent group without
-hierarchies?
-Well I have to admit that hierarchies makes me headache.
-
 > +
->  int mem_cgroup_swappiness(struct mem_cgroup *memcg)
->  {
->  	struct cgroup *cgrp = memcg->css.cgroup;
-[...]
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e3fd8a7..4279549 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2121,8 +2121,16 @@ static void shrink_zone(int priority, struct zone *zone,
->  			.mem_cgroup = memcg,
->  			.zone = zone,
->  		};
-> +		int epriority = priority;
-> +		/*
-> +		 * Put more pressure on hierarchies that exceed their
-> +		 * soft limit, to push them back harder than their
-> +		 * well-behaving siblings.
-> +		 */
-> +		if (mem_cgroup_over_softlimit(root, memcg))
-> +			epriority = 0;
-
-This sounds too aggressive to me. Shouldn't we just double the pressure
-or something like that?
-Previously we always had nr_to_reclaim == SWAP_CLUSTER_MAX when we did
-memcg reclaim but this is not the case now. For the kswapd we have
-nr_to_reclaim == ULONG_MAX so we will not break out of the reclaim early
-and we have to scan a lot.
-Direct reclaim (shrink or hard limit) shouldn't be affected here.
-
->  
-> -		shrink_mem_cgroup_zone(priority, &mz, sc);
-> +		shrink_mem_cgroup_zone(epriority, &mz, sc);
->  
->  		mem_cgroup_account_reclaim(root, memcg,
->  					   sc->nr_reclaimed - nr_reclaimed,
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
