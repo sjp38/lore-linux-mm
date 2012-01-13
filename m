@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id AA81C6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:28:23 -0500 (EST)
-Date: Fri, 13 Jan 2012 09:28:20 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] mm: Remove NUMA_INTERLEAVE_HIT
-In-Reply-To: <20120112222929.GI11715@one.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1201130922460.25704@router.home>
-References: <1326380820.2442.186.camel@twins> <20120112182644.GE11715@one.firstfloor.org> <1326399227.2442.209.camel@twins> <20120112210743.GG11715@one.firstfloor.org> <20120112134045.552e2a61.akpm@linux-foundation.org>
- <20120112222929.GI11715@one.firstfloor.org>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 001726B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 10:36:16 -0500 (EST)
+Date: Fri, 13 Jan 2012 15:35:56 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
+Message-ID: <20120113153556.GY1068@n2100.arm.linux.org.uk>
+References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Nicolas Pitre <nico@fluxnic.net>, moussaba@micron.com, David Rientjes <rientjes@google.com>
 
-On Thu, 12 Jan 2012, Andi Kleen wrote:
+On Fri, Jan 13, 2012 at 03:13:07PM +0000, Will Deacon wrote:
+> /proc/pid/clear_refs is used to clear the Referenced and YOUNG bits for
+> pages and corresponding page table entries of the task with PID pid,
+> which includes any special mappings inserted into the page tables in
+> order to provide things like vDSOs and user helper functions.
+> 
+> On ARM this causes a problem because the vectors page is mapped as a
+> global mapping and since ec706dab ("ARM: add a vma entry for the user
+> accessible vector page"), a VMA is also inserted into each task for this
+> page to aid unwinding through signals and syscall restarts. Since the
+> vectors page is required for handling faults, clearing the YOUNG bit
+> (and subsequently writing a faulting pte) means that we lose the vectors
+> page *globally* and cannot fault it back in. This results in a system
+> deadlock on the next exception.
+> 
+> This patch avoids clearing the aforementioned bits for reserved pages,
+> therefore leaving the vectors page intact on ARM. Since reserved pages
+> are not candidates for swap, this change should not have any impact on
+> the usefulness of clear_refs.
 
-> The problem is that then there will be nothing left that actually
-> tests interleaving. The numactl has caught kernel regressions in the past.
+Having just looked at mm/swapfile.c, what ensures that we don't try to swap
+the vectors page out?
 
-How about adding a CONFIG_NUMA_DEBUG option and have it only available
-then? I think there is no general use case.
+I thought that VM_IO or VM_RESERVED once guaranteed that the vma wouldn't
+be scanned, but I don't see anything in there which tests these flags.
+As a result, it seems to me that the original patch is wrong, and we need
+to keep the vectors page completely out of the vma list to prevent it
+ever being made old.
 
-> I don't think disabling useful regression tests is a good idea.
-> In contrary the kernel needs far more of them, not less.
-
-True. Some more debugging code for the NUMA features would be appreciated
-but that does not need to be enabled by default. Lately I have become a
-bit concerned about the number of statistics we are adding. The
-per_cpu_pageset structure should not get too large.
-
-
+Maybe the MM gurus can comment?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
