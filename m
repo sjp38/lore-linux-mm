@@ -1,64 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id E89426B005C
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 19:39:19 -0500 (EST)
-Received: by ghbg19 with SMTP id g19so1416006ghb.14
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 16:39:19 -0800 (PST)
-Date: Fri, 13 Jan 2012 16:39:16 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 3/3] mm, oom: do not emit oom killer warning if chosen
- thread is already exiting
-In-Reply-To: <alpine.DEB.2.00.1201131638020.9310@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1201131638500.9310@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1201111922500.3982@chino.kir.corp.google.com> <alpine.DEB.2.00.1201131638020.9310@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id C5F396B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 21:10:58 -0500 (EST)
+Received: by yenm10 with SMTP id m10so651968yen.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 18:10:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120113112832.GR4118@suse.de>
+References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
+	<4F0E76BE.1070806@freescale.com>
+	<20120112120530.GJ4118@suse.de>
+	<4F0F9770.10004@freescale.com>
+	<20120113112832.GR4118@suse.de>
+Date: Sat, 14 Jan 2012 10:10:57 +0800
+Message-ID: <CAMiH66F0Oow6jvXuwr0+6s+0wOV4nvu=_chfe8_NJhpacZE80A@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is -1
+From: Huang Shijie <shijie8@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Huang Shijie <b32955@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-If a thread is chosen for oom kill and is already PF_EXITING, then the
-oom killer simply sets TIF_MEMDIE and returns.  This allows the thread to
-have access to memory reserves so that it may quickly exit.  This logic
-is preceeded with a comment saying there's no need to alarm the sysadmin.
-This patch adds truth to that statement.
+hi,
+> When I glanced at this first, I missed that you altered the watermark
+> check as well. When I said "Code wise the patch is fine", I was wrong.
+> Compaction works in units of pageblocks and the watermark check
+> is necessary. Reducing it to COMPACT_CLUSTER_MAX*2 leads to the
+> possibility of compaction via /proc causing livelocks in low memory
+> situations depending on the value of min_free_kbytes.
 
-There's no need to emit any warning about the oom condition if the thread
-is already exiting since it will not be killed.  In this condition, just
-silently return the oom killer since its only giving access to memory
-reserves and is otherwise a no-op.
+ok, thanks a lot for the explanation.
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -445,9 +445,6 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	struct mm_struct *mm;
- 	unsigned int victim_points = 0;
- 
--	if (printk_ratelimit())
--		dump_header(p, gfp_mask, order, memcg, nodemask);
--
- 	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-@@ -457,6 +454,9 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		return;
- 	}
- 
-+	if (printk_ratelimit())
-+		dump_header(p, gfp_mask, order, memcg, nodemask);
-+
- 	task_lock(p);
- 	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
+Huang Shijie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
