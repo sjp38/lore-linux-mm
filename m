@@ -1,63 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 6F29A6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 18:39:52 -0500 (EST)
-Date: Fri, 13 Jan 2012 15:39:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: hugetlb: undo change to page mapcount in fault
- handler
-Message-Id: <20120113153950.7426eee2.akpm@linux-foundation.org>
-In-Reply-To: <CAJd=RBDOn22=CAFcEx9try8onsaHsweny_B1ZvnGJO-0h7eZAQ@mail.gmail.com>
-References: <CAJd=RBBF=K5hHvEwb6uwZJwS4=jHKBCNYBTJq-pSbJ9j_ZaiaA@mail.gmail.com>
-	<20111222163604.GB14983@tiehlicka.suse.cz>
-	<CAJd=RBBY0sKdtdx9d8KXTchjaN6au0_hvMfE2+9JkdhvJe7eAw@mail.gmail.com>
-	<20120104151632.05e6b3b0.akpm@linux-foundation.org>
-	<CAJd=RBDOn22=CAFcEx9try8onsaHsweny_B1ZvnGJO-0h7eZAQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 1B4C06B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 19:39:11 -0500 (EST)
+Received: by yenm10 with SMTP id m10so631211yen.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 16:39:10 -0800 (PST)
+Date: Fri, 13 Jan 2012 16:39:07 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm 1/3] mm, oom: avoid looping when chosen thread detaches
+ its mm
+In-Reply-To: <alpine.DEB.2.00.1201111922500.3982@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1201131638020.9310@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1201111922500.3982@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Wed, 11 Jan 2012 20:06:30 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
+oom_kill_task() returns non-zero iff the chosen process does not have any
+threads with an attached ->mm.
 
-> On Thu, Jan 5, 2012 at 7:16 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Fri, 23 Dec 2011 21:00:41 +0800
-> > Hillf Danton <dhillf@gmail.com> wrote:
-> >
-> >> Page mapcount should be updated only if we are sure that the page ends
-> >> up in the page table otherwise we would leak if we couldn't COW due to
-> >> reservations or if idx is out of bounds.
-> >
-> > It would be much nicer if we could run vma_needs_reservation() before
-> > even looking up or allocating the page.
-> >
-> > And afaict the interface is set up to do that: you run
-> > vma_needs_reservation() before allocating the page and then
-> > vma_commit_reservation() afterwards.
-> >
-> > But hugetlb_no_page() and hugetlb_fault() appear to have forgotten to
-> > run vma_commit_reservation() altogether. __Why isn't this as busted as
-> > it appears to be?
-> 
-> Hi Andrew
-> 
-> IIUC the two operations, vma_{needs, commit}_reservation, are folded in
-> alloc_huge_page(), need to break the pair?
+In such a case, it's better to just return to the page allocator and
+retry the allocation because memory could have been freed in the interim
+and the oom condition may no longer exist.  It's unnecessary to loop in
+the oom killer and find another thread to kill.
 
-Looking at it again, it appears that the vma_needs_reservation() calls
-are used to predict whether a subsequent COW attempt is going to fail.
+This allows both oom_kill_task() and oom_kill_process() to be converted
+to void functions.  If the oom condition persists, the oom killer will be
+recalled.
 
-If that's correct then things aren't as bad as I first thought. 
-However I suspect the code in hugetlb_no_page() is a bit racy: the
-vma_needs_reservation() call should happen after we've taken
-page_table_lock.  As things stand, another thread could sneak in there
-and steal the reservation which this thread thought was safe.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ rebased to next-20120113
 
-What do you think?
+ mm/oom_kill.c |   56 ++++++++++++++++++++------------------------------------
+ 1 files changed, 20 insertions(+), 36 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -434,14 +434,14 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ }
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+-static int oom_kill_task(struct task_struct *p)
++static void oom_kill_task(struct task_struct *p)
+ {
+ 	struct task_struct *q;
+ 	struct mm_struct *mm;
+ 
+ 	p = find_lock_task_mm(p);
+ 	if (!p)
+-		return 1;
++		return;
+ 
+ 	/* mm cannot be safely dereferenced after task_unlock(p) */
+ 	mm = p->mm;
+@@ -477,15 +477,13 @@ static int oom_kill_task(struct task_struct *p)
+ 
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+ 	force_sig(SIGKILL, p);
+-
+-	return 0;
+ }
+ #undef K
+ 
+-static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+-			    unsigned int points, unsigned long totalpages,
+-			    struct mem_cgroup *memcg, nodemask_t *nodemask,
+-			    const char *message)
++static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
++			     unsigned int points, unsigned long totalpages,
++			     struct mem_cgroup *memcg, nodemask_t *nodemask,
++			     const char *message)
+ {
+ 	struct task_struct *victim = p;
+ 	struct task_struct *child;
+@@ -501,7 +499,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 */
+ 	if (p->flags & PF_EXITING) {
+ 		set_tsk_thread_flag(p, TIF_MEMDIE);
+-		return 0;
++		return;
+ 	}
+ 
+ 	task_lock(p);
+@@ -533,7 +531,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		}
+ 	} while_each_thread(p, t);
+ 
+-	return oom_kill_task(victim);
++	oom_kill_task(victim);
+ }
+ 
+ /*
+@@ -580,15 +578,10 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
+ 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
+ 	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT;
+ 	read_lock(&tasklist_lock);
+-retry:
+ 	p = select_bad_process(&points, limit, memcg, NULL);
+-	if (!p || PTR_ERR(p) == -1UL)
+-		goto out;
+-
+-	if (oom_kill_process(p, gfp_mask, 0, points, limit, memcg, NULL,
+-				"Memory cgroup out of memory"))
+-		goto retry;
+-out:
++	if (p && PTR_ERR(p) != -1UL)
++		oom_kill_process(p, gfp_mask, 0, points, limit, memcg, NULL,
++				 "Memory cgroup out of memory");
+ 	read_unlock(&tasklist_lock);
+ }
+ #endif
+@@ -745,33 +738,24 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	if (sysctl_oom_kill_allocating_task &&
+ 	    !oom_unkillable_task(current, NULL, nodemask) &&
+ 	    current->mm) {
+-		/*
+-		 * oom_kill_process() needs tasklist_lock held.  If it returns
+-		 * non-zero, current could not be killed so we must fallback to
+-		 * the tasklist scan.
+-		 */
+-		if (!oom_kill_process(current, gfp_mask, order, 0, totalpages,
+-				NULL, nodemask,
+-				"Out of memory (oom_kill_allocating_task)"))
+-			goto out;
++		oom_kill_process(current, gfp_mask, order, 0, totalpages, NULL,
++				 nodemask,
++				 "Out of memory (oom_kill_allocating_task)");
++		goto out;
+ 	}
+ 
+-retry:
+ 	p = select_bad_process(&points, totalpages, NULL, mpol_mask);
+-	if (PTR_ERR(p) == -1UL)
+-		goto out;
+-
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+ 	if (!p) {
+ 		dump_header(NULL, gfp_mask, order, NULL, mpol_mask);
+ 		read_unlock(&tasklist_lock);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-
+-	if (oom_kill_process(p, gfp_mask, order, points, totalpages, NULL,
+-				nodemask, "Out of memory"))
+-		goto retry;
+-	killed = 1;
++	if (PTR_ERR(p) != -1UL) {
++		oom_kill_process(p, gfp_mask, order, points, totalpages, NULL,
++				 nodemask, "Out of memory");
++		killed = 1;
++	}
+ out:
+ 	read_unlock(&tasklist_lock);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
