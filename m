@@ -1,37 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id C5F396B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 21:10:58 -0500 (EST)
-Received: by yenm10 with SMTP id m10so651968yen.14
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 18:10:57 -0800 (PST)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id B02CA6B004F
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 22:24:08 -0500 (EST)
+Received: by wera13 with SMTP id a13so1117526wer.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 19:24:06 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120113112832.GR4118@suse.de>
-References: <1325818201-1865-1-git-send-email-b32955@freescale.com>
-	<4F0E76BE.1070806@freescale.com>
-	<20120112120530.GJ4118@suse.de>
-	<4F0F9770.10004@freescale.com>
-	<20120113112832.GR4118@suse.de>
-Date: Sat, 14 Jan 2012 10:10:57 +0800
-Message-ID: <CAMiH66F0Oow6jvXuwr0+6s+0wOV4nvu=_chfe8_NJhpacZE80A@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/compaction : check the watermark when cc->order is -1
-From: Huang Shijie <shijie8@gmail.com>
+In-Reply-To: <4F104A51.2000701@ah.jp.nec.com>
+References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
+	<4F104A51.2000701@ah.jp.nec.com>
+Date: Sat, 14 Jan 2012 11:24:06 +0800
+Message-ID: <CAJd=RBB2GMRQNUH+2z7R5Fy6OKKtid9wn2mTFORvtefo+wUaOQ@mail.gmail.com>
+Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
+From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Huang Shijie <b32955@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-hi,
-> When I glanced at this first, I missed that you altered the watermark
-> check as well. When I said "Code wise the patch is fine", I was wrong.
-> Compaction works in units of pageblocks and the watermark check
-> is necessary. Reducing it to COMPACT_CLUSTER_MAX*2 leads to the
-> possibility of compaction via /proc causing livelocks in low memory
-> situations depending on the value of min_free_kbytes.
-
-ok, thanks a lot for the explanation.
-
-Huang Shijie
+On Fri, Jan 13, 2012 at 11:14 PM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> Hi Hillf,
+>
+> (1/13/2012 7:04), Hillf Danton wrote:
+> [...]
+>>> +/*
+>>> + * Returns 1 if a given pmd is mapping a thp and stable (not under spl=
+itting.)
+>>> + * Returns 0 otherwise. Note that if it returns 1, this routine return=
+s without
+>>> + * unlocking page table locks. So callers must unlock them.
+>>> + */
+>>> +int pmd_trans_huge_stable(pmd_t *pmd, struct vm_area_struct *vma)
+>>> +{
+>>> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem=
+));
+>>> +
+>>> + =C2=A0 =C2=A0 =C2=A0 if (!pmd_trans_huge(*pmd))
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>>> +
+>>> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
+>>> + =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pmd_trans_splitt=
+ing(*pmd)) {
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 return 0;
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock); =C2=
+=A0 =C2=A0 yes?
+>
+> No. Unlocking is supposed to be done by the caller as commented.
+>
+Thanks for correcting /Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
