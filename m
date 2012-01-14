@@ -1,66 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id B02CA6B004F
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2012 22:24:08 -0500 (EST)
-Received: by wera13 with SMTP id a13so1117526wer.14
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 19:24:06 -0800 (PST)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id AF7876B004F
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2012 00:27:21 -0500 (EST)
+Received: by wera13 with SMTP id a13so1155885wer.14
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2012 21:27:19 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4F104A51.2000701@ah.jp.nec.com>
-References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1326396898-5579-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<CAJd=RBB6azf9nin5tjqTtHakxy896rCxr6ErK4p2KDrke_goEA@mail.gmail.com>
-	<4F104A51.2000701@ah.jp.nec.com>
-Date: Sat, 14 Jan 2012 11:24:06 +0800
-Message-ID: <CAJd=RBB2GMRQNUH+2z7R5Fy6OKKtid9wn2mTFORvtefo+wUaOQ@mail.gmail.com>
-Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
+In-Reply-To: <20120113153950.7426eee2.akpm@linux-foundation.org>
+References: <CAJd=RBBF=K5hHvEwb6uwZJwS4=jHKBCNYBTJq-pSbJ9j_ZaiaA@mail.gmail.com>
+	<20111222163604.GB14983@tiehlicka.suse.cz>
+	<CAJd=RBBY0sKdtdx9d8KXTchjaN6au0_hvMfE2+9JkdhvJe7eAw@mail.gmail.com>
+	<20120104151632.05e6b3b0.akpm@linux-foundation.org>
+	<CAJd=RBDOn22=CAFcEx9try8onsaHsweny_B1ZvnGJO-0h7eZAQ@mail.gmail.com>
+	<20120113153950.7426eee2.akpm@linux-foundation.org>
+Date: Sat, 14 Jan 2012 13:27:19 +0800
+Message-ID: <CAJd=RBCz_UHDXVpeoOQM5u9oPySPyAn0vnUYgkJAUqib8EUZtA@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: undo change to page mapcount in fault handler
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Jan 13, 2012 at 11:14 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> Hi Hillf,
+On Sat, Jan 14, 2012 at 7:39 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 11 Jan 2012 20:06:30 +0800
+> Hillf Danton <dhillf@gmail.com> wrote:
 >
-> (1/13/2012 7:04), Hillf Danton wrote:
-> [...]
->>> +/*
->>> + * Returns 1 if a given pmd is mapping a thp and stable (not under spl=
-itting.)
->>> + * Returns 0 otherwise. Note that if it returns 1, this routine return=
-s without
->>> + * unlocking page table locks. So callers must unlock them.
->>> + */
->>> +int pmd_trans_huge_stable(pmd_t *pmd, struct vm_area_struct *vma)
->>> +{
->>> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem=
-));
->>> +
->>> + =C2=A0 =C2=A0 =C2=A0 if (!pmd_trans_huge(*pmd))
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
->>> +
->>> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
->>> + =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pmd_trans_splitt=
-ing(*pmd)) {
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock);
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 return 0;
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
+>> On Thu, Jan 5, 2012 at 7:16 AM, Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>> > On Fri, 23 Dec 2011 21:00:41 +0800
+>> > Hillf Danton <dhillf@gmail.com> wrote:
+>> >
+>> >> Page mapcount should be updated only if we are sure that the page end=
+s
+>> >> up in the page table otherwise we would leak if we couldn't COW due t=
+o
+>> >> reservations or if idx is out of bounds.
+>> >
+>> > It would be much nicer if we could run vma_needs_reservation() before
+>> > even looking up or allocating the page.
+>> >
+>> > And afaict the interface is set up to do that: you run
+>> > vma_needs_reservation() before allocating the page and then
+>> > vma_commit_reservation() afterwards.
+>> >
+>> > But hugetlb_no_page() and hugetlb_fault() appear to have forgotten to
+>> > run vma_commit_reservation() altogether. __Why isn't this as busted as
+>> > it appears to be?
 >>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_mm->page_table_lock); =C2=
-=A0 =C2=A0 yes?
+>> Hi Andrew
+>>
+>> IIUC the two operations, vma_{needs, commit}_reservation, are folded in
+>> alloc_huge_page(), need to break the pair?
 >
-> No. Unlocking is supposed to be done by the caller as commented.
+> Looking at it again, it appears that the vma_needs_reservation() calls
+> are used to predict whether a subsequent COW attempt is going to fail.
 >
-Thanks for correcting /Hillf
+> If that's correct then things aren't as bad as I first thought.
+> However I suspect the code in hugetlb_no_page() is a bit racy: the
+> vma_needs_reservation() call should happen after we've taken
+> page_table_lock. =C2=A0As things stand, another thread could sneak in the=
+re
+> and steal the reservation which this thread thought was safe.
+>
+> What do you think?
+>
+
+Hi Andrew
+
+The case of no page, in the fault path, is handled after acquiring
+hugetlb_instantiation_mutex, and on ohter hand, kmalloc is called
+if new region required, so no race to check reservation needed but
+after spinning page_table_lock.
+
+Thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
