@@ -1,239 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 76D5C6B004F
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2012 07:05:13 -0500 (EST)
-Received: by wera13 with SMTP id a13so1307077wer.14
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2012 04:05:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAJd=RBANeF+TTTtn=F_Yx3N5KkVb5vFPY6FNYEjVntB1pPSLBA@mail.gmail.com>
-References: <CAJd=RBANeF+TTTtn=F_Yx3N5KkVb5vFPY6FNYEjVntB1pPSLBA@mail.gmail.com>
-Date: Sat, 14 Jan 2012 20:05:11 +0800
-Message-ID: <CAJd=RBAH4+nFQ35JcHju6eSPfDcQpbkJjMX6GBaZFECVaL2swA@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: handle isolated pages with lru lock released
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 747F36B004F
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2012 07:36:29 -0500 (EST)
+Received: by iafj26 with SMTP id j26so7581175iaf.14
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2012 04:36:28 -0800 (PST)
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Subject: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+Date: Sat, 14 Jan 2012 18:05:11 +0530
+Message-Id: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
 
-On Fri, Jan 13, 2012 at 11:00 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> When shrinking inactive lru list, isolated pages are queued on locally pr=
-ivate
-> list, which opens a window for pulling update_isolated_counts() out of th=
-e lock
-> protection to reduce the lock-hold time.
->
-> To achive that, firstly we have to delay updating reclaim stat, which is =
-pointed
-> out by Hugh, but not over the deadline where fresh data is used for setti=
-ng up
-> scan budget for shrinking zone in get_scan_count(). The delay is terminat=
-ed in
-> the putback stage after reacquiring lru lock.
->
-> Secondly operations related to vm and zone stats, namely __count_vm_event=
-s() and
-> __mod_zone_page_state(), are proteced with preemption disabled as they
-> are per-cpu
-> operations.
->
-> Thanks for comments and ideas recieved.
->
->
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
->
-> --- a/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Fri Jan 13 21:30:58 2012
-> +++ b/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Fri Jan 13 22:07:14 2012
-> @@ -1408,6 +1408,13 @@ putback_lru_pages(struct mem_cgroup_zone
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Put back any unfreeable pages.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock(&zone->lru_lock);
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Here we finish updating reclaim stat that =
-is delayed in
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* update_isolated_counts()
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[0] +=3D nr_anon;
-> + =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[1] +=3D nr_file;
-> +
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (!list_empty(page_list)) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0int lru;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D lru_to_pa=
-ge(page_list);
-> @@ -1461,9 +1468,19 @@ update_isolated_counts(struct mem_cgroup
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_active;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone =3D mz->zone;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned int count[NR_LRU_LISTS] =3D { 0, };
-> - =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat =3D get_rec=
-laim_stat(mz);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_active =3D clear_active_flags(isolated_list=
-, count);
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Without lru lock held,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* 1, we have to delay updating zone reclaim =
-stat, and the deadline is
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0when fresh data is used for s=
-etting up scan budget for another
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0round shrinking, see get_scan=
-_count(). It is actually updated in
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0the putback stage after reacq=
-uiring the lock.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* 2, __count_vm_events() and __mod_zone_page=
-_state() are protected
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0with preempt disabled as they=
- are per-cpu operations.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 preempt_disable();
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__count_vm_events(PGDEACTIVATE, nr_active);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-> @@ -1479,9 +1496,7 @@ update_isolated_counts(struct mem_cgroup
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0*nr_file =3D count[LRU_ACTIVE_FILE] + count[LR=
-U_INACTIVE_FILE];
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_state(zone, NR_ISOLATED_ANON, =
-*nr_anon);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_state(zone, NR_ISOLATED_FILE, =
-*nr_file);
-> -
-> - =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[0] +=3D *nr_anon;
-> - =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[1] +=3D *nr_file;
-> + =C2=A0 =C2=A0 =C2=A0 preempt_enable();
-> =C2=A0}
->
-> =C2=A0/*
-> @@ -1577,15 +1592,12 @@ shrink_inactive_list(unsigned long nr_to
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0__count_zone_vm_events(PGSCAN_DIRECT, zone,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 nr_scanned);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> + =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone->lru_lock);
->
-> - =C2=A0 =C2=A0 =C2=A0 if (nr_taken =3D=3D 0) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone-=
->lru_lock);
-> + =C2=A0 =C2=A0 =C2=A0 if (nr_taken =3D=3D 0)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> - =C2=A0 =C2=A0 =C2=A0 }
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0update_isolated_counts(mz, sc, &nr_anon, &nr_f=
-ile, &page_list);
-> -
-> - =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone->lru_lock);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_reclaimed =3D shrink_page_list(&page_list, =
-mz, sc, priority,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0&nr_dirty, &nr_writeback);
+Memory mmaped by glibc for a thread stack currently shows up as a simple
+anonymous map, which makes it difficult to differentiate between memory
+usage of the thread on stack and other dynamic allocation. Since glibc
+already uses MAP_STACK to request this mapping, the attached patch
+uses this flag to add additional VM_STACK_FLAGS to the resulting vma
+so that the mapping is treated as a stack and not any regular
+anonymous mapping. Also, one may use vm_flags to decide if a vma is a
+stack.
 
+There is an additional complication with posix threads where the stack
+guard for a thread stack may be larger than a page, unlike the case
+for process stack where the stack guard is a page long. glibc
+implements these guards by calling mprotect on the beginning page(s)
+to remove all permissions. I have used this to remove vmas that have
+the thread stack guard, from the /proc/maps output.
 
-Hi all
+If accepted, this should also reflect in the man page for mmap since
+MAP_STACK will no longer be a noop.
 
-It is re-prepared based on the mainline for easy review.
-
-Thanks
-Hillf
-
-
-=3D=3D=3Dcut here=3D=3D=3D
-From: Hillf Danton <dhillf@gmail.com>
-Subject: [PATCH] mm: vmscan: handle isolated pages with lru lock released
-
-When shrinking inactive lru list, isolated pages are queued on locally priv=
-ate
-list, so the lock-hold time could be reduced if pages are counted without l=
-ock
-protection. To achive that, firstly updating reclaim stat is delayed until =
-the
-putback stage, which is pointed out by Hugh, after reacquiring the lru lock=
-.
-
-Secondly operations related to vm and zone stats, are now proteced with
-preemption disabled as they are per-cpu operation.
-
-Thanks for comments and ideas received.
-
-
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Signed-off-by: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
 ---
+ fs/proc/task_mmu.c |    8 +++++---
+ include/linux/mm.h |   17 +++++++++++++++++
+ mm/mmap.c          |    3 +++
+ 3 files changed, 25 insertions(+), 3 deletions(-)
 
---- a/mm/vmscan.c	Sat Jan 14 14:02:20 2012
-+++ b/mm/vmscan.c	Sat Jan 14 20:00:46 2012
-@@ -1414,7 +1414,6 @@ update_isolated_counts(struct mem_cgroup
- 		       unsigned long *nr_anon,
- 		       unsigned long *nr_file)
- {
--	struct zone_reclaim_stat *reclaim_stat =3D get_reclaim_stat(mz);
- 	struct zone *zone =3D mz->zone;
- 	unsigned int count[NR_LRU_LISTS] =3D { 0, };
- 	unsigned long nr_active =3D 0;
-@@ -1435,6 +1434,7 @@ update_isolated_counts(struct mem_cgroup
- 		count[lru] +=3D numpages;
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index e418c5a..98b5275 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -227,7 +227,10 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
  	}
-
-+	preempt_disable();
- 	__count_vm_events(PGDEACTIVATE, nr_active);
-
- 	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-@@ -1449,8 +1449,9 @@ update_isolated_counts(struct mem_cgroup
- 	*nr_anon =3D count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
- 	*nr_file =3D count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-
--	reclaim_stat->recent_scanned[0] +=3D *nr_anon;
--	reclaim_stat->recent_scanned[1] +=3D *nr_file;
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
-+	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
-+	preempt_enable();
- }
-
- /*
-@@ -1512,6 +1513,7 @@ shrink_inactive_list(unsigned long nr_to
- 	unsigned long nr_writeback =3D 0;
- 	isolate_mode_t reclaim_mode =3D ISOLATE_INACTIVE;
- 	struct zone *zone =3D mz->zone;
-+	struct zone_reclaim_stat *reclaim_stat =3D get_reclaim_stat(mz);
-
- 	while (unlikely(too_many_isolated(zone, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -1546,19 +1548,13 @@ shrink_inactive_list(unsigned long nr_to
- 			__count_zone_vm_events(PGSCAN_DIRECT, zone,
- 					       nr_scanned);
- 	}
-+	spin_unlock_irq(&zone->lru_lock);
-
--	if (nr_taken =3D=3D 0) {
--		spin_unlock_irq(&zone->lru_lock);
-+	if (nr_taken =3D=3D 0)
- 		return 0;
--	}
-
- 	update_isolated_counts(mz, &page_list, &nr_anon, &nr_file);
-
--	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
--	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
--
--	spin_unlock_irq(&zone->lru_lock);
--
- 	nr_reclaimed =3D shrink_page_list(&page_list, mz, sc, priority,
- 						&nr_dirty, &nr_writeback);
-
-@@ -1570,6 +1566,9 @@ shrink_inactive_list(unsigned long nr_to
- 	}
-
- 	spin_lock_irq(&zone->lru_lock);
+ 
+-	/* We don't show the stack guard page in /proc/maps */
++	/* We don't show the stack guard pages in /proc/maps */
++	if (thread_stack_guard(vma))
++		return;
 +
-+	reclaim_stat->recent_scanned[0] +=3D nr_anon;
-+	reclaim_stat->recent_scanned[1] +=3D nr_file;
-
- 	if (current_is_kswapd())
- 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+ 	start = vma->vm_start;
+ 	if (stack_guard_page_start(vma, start))
+ 		start += PAGE_SIZE;
+@@ -259,8 +262,7 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ 				if (vma->vm_start <= mm->brk &&
+ 						vma->vm_end >= mm->start_brk) {
+ 					name = "[heap]";
+-				} else if (vma->vm_start <= mm->start_stack &&
+-					   vma->vm_end >= mm->start_stack) {
++				} else if (vma_is_stack(vma)) {
+ 					name = "[stack]";
+ 				}
+ 			} else {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 17b27cd..9871e10 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1018,6 +1018,23 @@ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+ 	return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
+ }
+ 
++static inline int vma_is_stack(struct vm_area_struct *vma)
++{
++	return vma && (vma->vm_flags & (VM_GROWSUP | VM_GROWSDOWN));
++}
++
++/*
++ * POSIX thread stack guards may be more than a page long and access to it
++ * should return an error (possibly a SIGSEGV). The glibc implementation does
++ * an mprotect(..., ..., PROT_NONE), so our guard vma has no permissions.
++ */
++static inline int thread_stack_guard(struct vm_area_struct *vma)
++{
++	return vma_is_stack(vma) &&
++		((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC | VM_MAYSHARE)) == 0) &&
++		vma_is_stack((vma->vm_flags & VM_GROWSDOWN)?vma->vm_next:vma->vm_prev);
++}
++
+ static inline int stack_guard_page_start(struct vm_area_struct *vma,
+ 					     unsigned long addr)
+ {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f758c7..2f9f540 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -992,6 +992,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+ 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+ 
++	if (flags & MAP_STACK)
++		vm_flags |= VM_STACK_FLAGS;
++
+ 	if (flags & MAP_LOCKED)
+ 		if (!can_do_mlock())
+ 			return -EPERM;
+-- 
+1.7.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
