@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 8E2106B005C
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2012 19:13:36 -0500 (EST)
-Received: by iafj26 with SMTP id j26so8436055iaf.14
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2012 16:13:36 -0800 (PST)
-Date: Sat, 14 Jan 2012 16:13:29 -0800 (PST)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 49B976B0062
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2012 19:14:48 -0500 (EST)
+Received: by iafj26 with SMTP id j26so8437317iaf.14
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2012 16:14:47 -0800 (PST)
+Date: Sat, 14 Jan 2012 16:14:40 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 4/5] memcg: enum lru_list lru
+Subject: [PATCH 5/5] memcg: remove redundant returns
 In-Reply-To: <alpine.LSU.2.00.1201141550170.1261@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1201141612300.1261@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1201141613370.1261@eggly.anvils>
 References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils> <20120109130259.GD3588@cmpxchg.org> <alpine.LSU.2.00.1201141550170.1261@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,7 +17,7 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org
 
-Mostly we use "enum lru_list lru": change those few "l"s to "lru"s.
+Remove redundant returns from ends of functions, and one blank line.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
@@ -25,64 +25,51 @@ Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 Acked-by: Michal Hocko <mhocko@suse.cz>
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ mm/memcontrol.c |    5 -----
+ 1 file changed, 5 deletions(-)
 
---- mmotm.orig/mm/memcontrol.c	2011-12-30 21:23:28.000000000 -0800
-+++ mmotm/mm/memcontrol.c	2011-12-30 21:29:03.695349263 -0800
-@@ -704,14 +704,14 @@ mem_cgroup_zone_nr_lru_pages(struct mem_
- 			unsigned int lru_mask)
- {
- 	struct mem_cgroup_per_zone *mz;
--	enum lru_list l;
-+	enum lru_list lru;
- 	unsigned long ret = 0;
+--- mmotm.orig/mm/memcontrol.c	2011-12-30 21:29:03.695349263 -0800
++++ mmotm/mm/memcontrol.c	2011-12-30 21:29:37.611350065 -0800
+@@ -1362,7 +1362,6 @@ void mem_cgroup_print_oom_info(struct me
+ 	if (!memcg || !p)
+ 		return;
  
- 	mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+-
+ 	rcu_read_lock();
  
--	for_each_lru(l) {
--		if (BIT(l) & lru_mask)
--			ret += mz->lru_size[l];
-+	for_each_lru(lru) {
-+		if (BIT(lru) & lru_mask)
-+			ret += mz->lru_size[lru];
- 	}
- 	return ret;
+ 	mem_cgrp = memcg->css.cgroup;
+@@ -1897,7 +1896,6 @@ out:
+ 	if (unlikely(need_unlock))
+ 		move_unlock_page_cgroup(pc, &flags);
+ 	rcu_read_unlock();
+-	return;
  }
-@@ -3687,10 +3687,10 @@ move_account:
- 		mem_cgroup_start_move(memcg);
- 		for_each_node_state(node, N_HIGH_MEMORY) {
- 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
--				enum lru_list l;
--				for_each_lru(l) {
-+				enum lru_list lru;
-+				for_each_lru(lru) {
- 					ret = mem_cgroup_force_empty_list(memcg,
--							node, zid, l);
-+							node, zid, lru);
- 					if (ret)
- 						break;
- 				}
-@@ -4784,7 +4784,7 @@ static int alloc_mem_cgroup_per_zone_inf
- {
- 	struct mem_cgroup_per_node *pn;
- 	struct mem_cgroup_per_zone *mz;
--	enum lru_list l;
-+	enum lru_list lru;
- 	int zone, tmp = node;
- 	/*
- 	 * This routine is called against possible nodes.
-@@ -4802,8 +4802,8 @@ static int alloc_mem_cgroup_per_zone_inf
+ EXPORT_SYMBOL(mem_cgroup_update_page_stat);
  
- 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
- 		mz = &pn->zoneinfo[zone];
--		for_each_lru(l)
--			INIT_LIST_HEAD(&mz->lruvec.lists[l]);
-+		for_each_lru(lru)
-+			INIT_LIST_HEAD(&mz->lruvec.lists[lru]);
- 		mz->usage_in_excess = 0;
- 		mz->on_tree = false;
- 		mz->memcg = memcg;
+@@ -2691,7 +2689,6 @@ __mem_cgroup_commit_charge_lrucare(struc
+ 		SetPageLRU(page);
+ 	}
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+-	return;
+ }
+ 
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+@@ -2881,7 +2878,6 @@ direct_uncharge:
+ 		res_counter_uncharge(&memcg->memsw, nr_pages * PAGE_SIZE);
+ 	if (unlikely(batch->memcg != memcg))
+ 		memcg_oom_recover(memcg);
+-	return;
+ }
+ 
+ /*
+@@ -3935,7 +3931,6 @@ static void memcg_get_hierarchical_limit
+ out:
+ 	*mem_limit = min_limit;
+ 	*memsw_limit = min_memsw_limit;
+-	return;
+ }
+ 
+ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
