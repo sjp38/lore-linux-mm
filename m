@@ -1,42 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 72B646B004F
-	for <linux-mm@kvack.org>; Sun, 15 Jan 2012 07:06:18 -0500 (EST)
-Date: Sun, 15 Jan 2012 13:06:05 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/6] pagemap: avoid splitting thp when reading
- /proc/pid/pagemap
-Message-ID: <20120115120605.GI3236@redhat.com>
-References: <1326396898-5579-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1326396898-5579-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20120114170026.GF3236@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120114170026.GF3236@redhat.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id DAFA56B004F
+	for <linux-mm@kvack.org>; Sun, 15 Jan 2012 07:59:52 -0500 (EST)
+Received: by eekc13 with SMTP id c13so141638eek.14
+        for <linux-mm@kvack.org>; Sun, 15 Jan 2012 04:59:51 -0800 (PST)
+Message-ID: <1326632384.11711.3.camel@lappy>
+Subject: Re: Hung task when calling clone() due to netfilter/slab
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Sun, 15 Jan 2012 14:59:44 +0200
+In-Reply-To: <1326561043.5287.24.camel@edumazet-laptop>
+References: <1326558605.19951.7.camel@lappy>
+	 <1326561043.5287.24.camel@edumazet-laptop>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
 
-On Sat, Jan 14, 2012 at 06:00:26PM +0100, Andrea Arcangeli wrote:
-> Why don't you pass the pmd and then do "if (pmd_present(pmd))
-> page_to_pfn(pmd_page(pmd)) ? What's the argument for the cast. I'm
+On Sat, 2012-01-14 at 18:10 +0100, Eric Dumazet wrote:
+> Apparently SLUB calls sysfs_slab_add() from kmem_cache_create() while
+> still holding slub_lock.
+> 
+> So if the task launched needs to "cat /proc/slabinfo" or anything
+> needing slub_lock, its a deadlock.
 
-Of course I meant pmd_pfn above... in short as a replacement of the
-pte_pfn in your patch.
+I've made the following patch to test it, It doesn't look like it's the correct solution, but it verifies that the problem is there (it works well with the patch).
 
-About the _stable function, I was now thinking maybe _lock suffix is
-more appropriate than _stable, because that function effectively has
-the objective of taking the page_table_lock in the most efficient way,
-and not much else other than taking the lock. Adding a comment that
-it's only safe to call with the mmap_sem held in the inline version in
-the .h file (the one that then would call the __ version in the .c
-file).
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---------------
