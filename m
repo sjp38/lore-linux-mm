@@ -1,103 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id AF5FA6B004F
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 06:28:04 -0500 (EST)
-Date: Mon, 16 Jan 2012 11:28:02 +0000
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
-Message-ID: <20120116112802.GB7180@jl-vm1.vm.bytemark.co.uk>
-References: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id D6E8A6B005C
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 06:33:10 -0500 (EST)
+Date: Mon, 16 Jan 2012 11:33:04 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/11] mm: compaction: Introduce sync-light migration for
+ use by compaction
+Message-ID: <20120116113304.GB3143@suse.de>
+References: <1323877293-15401-1-git-send-email-mgorman@suse.de>
+ <1323877293-15401-9-git-send-email-mgorman@suse.de>
+ <20120113132540.b2c1b170.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
+In-Reply-To: <20120113132540.b2c1b170.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Jones <davej@redhat.com>, Jan Kara <jack@suse.cz>, Andy Isaacson <adi@hexapodia.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Nai Xia <nai.xia@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Siddhesh Poyarekar wrote:
-> Memory mmaped by glibc for a thread stack currently shows up as a simple
-> anonymous map, which makes it difficult to differentiate between memory
-> usage of the thread on stack and other dynamic allocation. Since glibc
-> already uses MAP_STACK to request this mapping, the attached patch
-> uses this flag to add additional VM_STACK_FLAGS to the resulting vma
-> so that the mapping is treated as a stack and not any regular
-> anonymous mapping. Also, one may use vm_flags to decide if a vma is a
-> stack.
+On Fri, Jan 13, 2012 at 01:25:40PM -0800, Andrew Morton wrote:
+> On Wed, 14 Dec 2011 15:41:30 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > This patch adds a lightweight sync migrate operation MIGRATE_SYNC_LIGHT
+> > mode that avoids writing back pages to backing storage. Async
+> > compaction maps to MIGRATE_ASYNC while sync compaction maps to
+> > MIGRATE_SYNC_LIGHT. For other migrate_pages users such as memory
+> > hotplug, MIGRATE_SYNC is used.
+> > 
+> > This avoids sync compaction stalling for an excessive length of time,
+> > particularly when copying files to a USB stick where there might be
+> > a large number of dirty pages backed by a filesystem that does not
+> > support ->writepages.
+> >
+> > ...
+> > 
+> > --- a/include/linux/fs.h
+> > +++ b/include/linux/fs.h
+> > @@ -525,6 +525,7 @@ enum positive_aop_returns {
+> >  struct page;
+> >  struct address_space;
+> >  struct writeback_control;
+> > +enum migrate_mode;
+> >  
+> >  struct iov_iter {
+> >  	const struct iovec *iov;
+> > @@ -614,7 +615,7 @@ struct address_space_operations {
+> >  	 * is false, it must not block.
+> >  	 */
+> >  	int (*migratepage) (struct address_space *,
+> > -			struct page *, struct page *, bool);
+> > +			struct page *, struct page *, enum migrate_mode);
+> 
+> I'm getting a huge warning spew from this with my sparc64 gcc-3.4.5. 
+> I'm not sure why, really.
+> 
 
-I think this is fine.
+Tetsuo Handa complained about the same thing using gcc 3.3 (added
+to cc).
 
-> There is an additional complication with posix threads where the stack
-> guard for a thread stack may be larger than a page, unlike the case
-> for process stack where the stack guard is a page long. glibc
-> implements these guards by calling mprotect on the beginning page(s)
-> to remove all permissions. I have used this to remove vmas that have
-> the thread stack guard, from the /proc/maps output.
+> Forward-declaring an enum in this fashion is problematic because some
+> compilers (I'm unsure about gcc) use different sizeofs for enums,
+> depending on the enum's value range.  For example, an enum which only
+> has values 0...255 can fit into a byte.  (iirc, the compiler actually
+> put it in a 16-bit storage).
+> 
 
-> -	/* We don't show the stack guard page in /proc/maps */
-> +	/* We don't show the stack guard pages in /proc/maps */
-> +	if (thread_stack_guard(vma))
-> +		return;
-> +
->  	start = vma->vm_start;
->  	if (stack_guard_page_start(vma, start))
->  		start += PAGE_SIZE;
+Ok, I was not aware of this. Thanks for the heads-up.
 
-Hmm, I see why you did this.  The current code already hides one guard
-page, which is already dubious for programs that do things like read
-/proc/pid/maps to decide if MAP_FIXED would be not clobber an existing
-mapping.  At least those programs _could_ know about the stack guard
-page address
+> So I propose:
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm: fix warnings regarding enum migrate_mode
+> 
+> sparc64 allmodconfig:
+> 
+> In file included from include/linux/compat.h:15,
+>                  from /usr/src/25/arch/sparc/include/asm/siginfo.h:19,
+>                  from include/linux/signal.h:5,
+>                  from include/linux/sched.h:73,
+>                  from arch/sparc/kernel/asm-offsets.c:13:
+> include/linux/fs.h:618: warning: parameter has incomplete type
+> 
+> It seems that my sparc64 compiler (gcc-3.4.5) doesn't like the forward
+> declaration of enums.
+> 
+> Fix this by moving the "enum migrate_mode" definition into its own header
+> file.
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Dave Jones <davej@redhat.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andy Isaacson <adi@hexapodia.org>
+> Cc: Nai Xia <nai.xia@gmail.com>
+> Cc: Johannes Weiner <jweiner@redhat.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-I wonder if it's a potential security hole: You've just allowed
-programs to use two MAP_GROWSUP/DOWN|PROT_NONE to hide vmas from the
-user.  Sure, the memory isn't accessible, but it can still store data
-and be ephemerally made visible using mprotect() then hidden again.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-I would prefer a label like "[stack guard]" or just "[guard]",
-both for the thread stacks and the process stack.
-
-With a label like "[guard]" it needn't be limited to stacks; heap
-guard pages used by some programs would also be labelled.
-
-> +static inline int vma_is_stack(struct vm_area_struct *vma)
-> +{
-> +	return vma && (vma->vm_flags & (VM_GROWSUP | VM_GROWSDOWN));
-> +}
-> +
-> +/*
-> + * POSIX thread stack guards may be more than a page long and access to it
-> + * should return an error (possibly a SIGSEGV). The glibc implementation does
-> + * an mprotect(..., ..., PROT_NONE), so our guard vma has no permissions.
-> + */
-> +static inline int thread_stack_guard(struct vm_area_struct *vma)
-
-Is there a reason the names aren't consistent - i.e. not vma_is_stack_guard()?
-
-> +{
-> +	return vma_is_stack(vma) &&
-> +		((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC | VM_MAYSHARE)) == 0) &&
-> +		vma_is_stack((vma->vm_flags & VM_GROWSDOWN)?vma->vm_next:vma->vm_prev);
-> +}
-> +
-
-That doesn't check if ->vm_next/prev is adjacent in address space.
-
-You can't assume the program is using Glibc, or that MAP_STACK
-mappings are all from Glibc, or that they are in the pattern you expect.
-
-How about simply calling it vma_is_guard(), return 1 if it's PROT_NONE
-without checking vma_is_stack() or ->vm_next/prev, and annotate the
-maps output like this:
-
-   is_stack              => "[stack]"
-   is_guard & is_stack   => "[stack guard]"
-   is_guard & !is_stack  => "[guard]"
-
-What do you think?
-
--- Jamie
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
