@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 48D296B0085
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 07:55:07 -0500 (EST)
-Date: Mon, 16 Jan 2012 14:55:26 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
- pc->flags
-Message-ID: <20120116125526.GB25981@shutemov.name>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 86DB96B0087
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 08:08:34 -0500 (EST)
+Received: by yhoo21 with SMTP id o21so1357542yho.14
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2012 05:08:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120116112802.GB7180@jl-vm1.vm.bytemark.co.uk>
+References: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
+	<20120116112802.GB7180@jl-vm1.vm.bytemark.co.uk>
+Date: Mon, 16 Jan 2012 18:38:33 +0530
+Message-ID: <CAAHN_R1u_btMuF+WhHu0G895EJ=mbOPNRp7NcXEgTKv3Vs-B1A@mail.gmail.com>
+Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Jamie Lokier <jamie@shareable.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
 
-On Fri, Jan 13, 2012 at 05:40:19PM +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> From 1008e84d94245b1e7c4d237802ff68ff00757736 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 12 Jan 2012 15:53:24 +0900
-> Subject: [PATCH 3/7] memcg: remove PCG_MOVE_LOCK flag from pc->flags.
-> 
-> PCG_MOVE_LOCK bit is used for bit spinlock for avoiding race between
-> memcg's account moving and page state statistics updates.
-> 
-> Considering page-statistics update, very hot path, this lock is
-> taken only when someone is moving account (or PageTransHuge())
-> And, now, all moving-account between memcgroups (by task-move)
-> are serialized.
-> 
-> So, it seems too costly to have 1bit per page for this purpose.
-> 
-> This patch removes PCG_MOVE_LOCK and add hashed rwlock array
-> instead of it. This works well enough. Even when we need to
-> take the lock, we don't need to disable IRQ in hot path because
-> of using rwlock.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Mon, Jan 16, 2012 at 4:58 PM, Jamie Lokier <jamie@shareable.org> wrote:
+> Is there a reason the names aren't consistent - i.e. not vma_is_stack_gua=
+rd()?
 
-...
+Ah, that was an error on my part; I did not notice the naming convention.
 
-> +#define NR_MOVE_ACCOUNT_LOCKS	(NR_CPUS)
-> +#define move_account_hash(page) ((page_to_pfn(page) % NR_MOVE_ACCOUNT_LOCKS))
+> How about simply calling it vma_is_guard(), return 1 if it's PROT_NONE
+> without checking vma_is_stack() or ->vm_next/prev, and annotate the
+> maps output like this:
+>
+> =A0 is_stack =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D> "[stack]"
+> =A0 is_guard & is_stack =A0 =3D> "[stack guard]"
+> =A0 is_guard & !is_stack =A0=3D> "[guard]"
+>
+> What do you think?
 
-You still tend to add too many parentheses into macros ;)
+Thanks for the review. We're already marking permissions in the maps
+output to convey protection, so isn't marking those vmas as [guard]
+redundant?
 
--- 
- Kirill A. Shutemov
+Following that, we could just mark the thread stack guard as [stack]
+without any permissions. The process stack guard page probably
+deserves the [stack guard] label since it is marked differently from
+the thread stack guard and will otherwise have the permissions that
+the process stack has. Will that be good?
+
+--=20
+Siddhesh Poyarekar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
