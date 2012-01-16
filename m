@@ -1,89 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id CFC4E6B004F
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 05:06:11 -0500 (EST)
-Date: Mon, 16 Jan 2012 10:06:00 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
-Message-ID: <20120116100600.GA9068@mudshark.cambridge.arm.com>
-References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
- <alpine.LFD.2.02.1201131748380.2722@xanadu.home>
- <alpine.LSU.2.00.1201140901260.2381@eggly.anvils>
- <20120115150706.GA7474@mudshark.cambridge.arm.com>
- <alpine.LFD.2.02.1201152314420.2722@xanadu.home>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id AF5FA6B004F
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 06:28:04 -0500 (EST)
+Date: Mon, 16 Jan 2012 11:28:02 +0000
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+Message-ID: <20120116112802.GB7180@jl-vm1.vm.bytemark.co.uk>
+References: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.02.1201152314420.2722@xanadu.home>
+In-Reply-To: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nico@fluxnic.net>
-Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "moussaba@micron.com" <moussaba@micron.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
 
-On Mon, Jan 16, 2012 at 04:19:43AM +0000, Nicolas Pitre wrote:
-> On Sun, 15 Jan 2012, Will Deacon wrote:
-> > Something like what I've got below seems to do the trick, and clear_refs
-> > also seems to behave when it's presented with the gate_vma. If Russell is
-> > happy with the approach, we can move to the gate_vma in the future.
-> 
-> I like it much better, although I haven't tested it fully yet.
-> 
-> However your patch is missing the worst of the current ARM hack I would 
-> be glad to see go as follows:
-> 
-> diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
-> index 71605d9f8e..876e545297 100644
-> --- a/arch/arm/include/asm/mmu_context.h
-> +++ b/arch/arm/include/asm/mmu_context.h
-> @@ -18,6 +18,7 @@
->  #include <asm/cacheflush.h>
->  #include <asm/cachetype.h>
->  #include <asm/proc-fns.h>
-> +#include <asm-generic/mm_hooks.h>
->  
->  void __check_kvm_seq(struct mm_struct *mm);
->  
-> @@ -133,32 +135,4 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
->  #define deactivate_mm(tsk,mm)	do { } while (0)
->  #define activate_mm(prev,next)	switch_mm(prev, next, NULL)
->  
-> -/*
-> - * We are inserting a "fake" vma for the user-accessible vector page so
-> - * gdb and friends can get to it through ptrace and /proc/<pid>/mem.
-> - * But we also want to remove it before the generic code gets to see it
-> - * during process exit or the unmapping of it would  cause total havoc.
-> - * (the macro is used as remove_vma() is static to mm/mmap.c)
-> - */
-> -#define arch_exit_mmap(mm) \
-> -do { \
-> -	struct vm_area_struct *high_vma = find_vma(mm, 0xffff0000); \
-> -	if (high_vma) { \
-> -		BUG_ON(high_vma->vm_next);  /* it should be last */ \
-> -		if (high_vma->vm_prev) \
-> -			high_vma->vm_prev->vm_next = NULL; \
-> -		else \
-> -			mm->mmap = NULL; \
-> -		rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
-> -		mm->mmap_cache = NULL; \
-> -		mm->map_count--; \
-> -		remove_vma(high_vma); \
-> -	} \
-> -} while (0)
-> -
-> -static inline void arch_dup_mmap(struct mm_struct *oldmm,
-> -				 struct mm_struct *mm)
-> -{
-> -}
-> -
->  #endif
+Siddhesh Poyarekar wrote:
+> Memory mmaped by glibc for a thread stack currently shows up as a simple
+> anonymous map, which makes it difficult to differentiate between memory
+> usage of the thread on stack and other dynamic allocation. Since glibc
+> already uses MAP_STACK to request this mapping, the attached patch
+> uses this flag to add additional VM_STACK_FLAGS to the resulting vma
+> so that the mapping is treated as a stack and not any regular
+> anonymous mapping. Also, one may use vm_flags to decide if a vma is a
+> stack.
 
-Nice, I missed those hunks! I'm more than happy to include this for v2
-(which I'll just post to the ARM list). I'll also give this some testing on
-the boards that I have.
+I think this is fine.
 
-Thanks,
+> There is an additional complication with posix threads where the stack
+> guard for a thread stack may be larger than a page, unlike the case
+> for process stack where the stack guard is a page long. glibc
+> implements these guards by calling mprotect on the beginning page(s)
+> to remove all permissions. I have used this to remove vmas that have
+> the thread stack guard, from the /proc/maps output.
 
-Will
+> -	/* We don't show the stack guard page in /proc/maps */
+> +	/* We don't show the stack guard pages in /proc/maps */
+> +	if (thread_stack_guard(vma))
+> +		return;
+> +
+>  	start = vma->vm_start;
+>  	if (stack_guard_page_start(vma, start))
+>  		start += PAGE_SIZE;
+
+Hmm, I see why you did this.  The current code already hides one guard
+page, which is already dubious for programs that do things like read
+/proc/pid/maps to decide if MAP_FIXED would be not clobber an existing
+mapping.  At least those programs _could_ know about the stack guard
+page address
+
+I wonder if it's a potential security hole: You've just allowed
+programs to use two MAP_GROWSUP/DOWN|PROT_NONE to hide vmas from the
+user.  Sure, the memory isn't accessible, but it can still store data
+and be ephemerally made visible using mprotect() then hidden again.
+
+I would prefer a label like "[stack guard]" or just "[guard]",
+both for the thread stacks and the process stack.
+
+With a label like "[guard]" it needn't be limited to stacks; heap
+guard pages used by some programs would also be labelled.
+
+> +static inline int vma_is_stack(struct vm_area_struct *vma)
+> +{
+> +	return vma && (vma->vm_flags & (VM_GROWSUP | VM_GROWSDOWN));
+> +}
+> +
+> +/*
+> + * POSIX thread stack guards may be more than a page long and access to it
+> + * should return an error (possibly a SIGSEGV). The glibc implementation does
+> + * an mprotect(..., ..., PROT_NONE), so our guard vma has no permissions.
+> + */
+> +static inline int thread_stack_guard(struct vm_area_struct *vma)
+
+Is there a reason the names aren't consistent - i.e. not vma_is_stack_guard()?
+
+> +{
+> +	return vma_is_stack(vma) &&
+> +		((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC | VM_MAYSHARE)) == 0) &&
+> +		vma_is_stack((vma->vm_flags & VM_GROWSDOWN)?vma->vm_next:vma->vm_prev);
+> +}
+> +
+
+That doesn't check if ->vm_next/prev is adjacent in address space.
+
+You can't assume the program is using Glibc, or that MAP_STACK
+mappings are all from Glibc, or that they are in the pattern you expect.
+
+How about simply calling it vma_is_guard(), return 1 if it's PROT_NONE
+without checking vma_is_stack() or ->vm_next/prev, and annotate the
+maps output like this:
+
+   is_stack              => "[stack]"
+   is_guard & is_stack   => "[stack guard]"
+   is_guard & !is_stack  => "[guard]"
+
+What do you think?
+
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
