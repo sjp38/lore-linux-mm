@@ -1,41 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 5E4966B0071
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 06:59:38 -0500 (EST)
-Date: Mon, 16 Jan 2012 13:59:57 +0200
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 8A3956B0073
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 07:42:48 -0500 (EST)
+Date: Mon, 16 Jan 2012 14:43:08 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RESEND, PATCH 6/6] memcg: cleanup memcg_check_events()
-Message-ID: <20120116115957.GB25687@shutemov.name>
-References: <1325883472-5614-1-git-send-email-kirill@shutemov.name>
- <1325883472-5614-6-git-send-email-kirill@shutemov.name>
- <20120109134108.GF3588@cmpxchg.org>
+Subject: Re: [patch] mm: memcg: update the correct soft limit tree during
+ migration
+Message-ID: <20120116124308.GA25981@shutemov.name>
+References: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120109134108.GF3588@cmpxchg.org>
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 09, 2012 at 02:41:08PM +0100, Johannes Weiner wrote:
-> On Fri, Jan 06, 2012 at 10:57:52PM +0200, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+On Fri, Jan 13, 2012 at 04:41:31PM +0100, Johannes Weiner wrote:
+> end_migration() passes the old page instead of the new page to commit
+> the charge.  This page descriptor is not used for committing itself,
+> though, since we also pass the (correct) page_cgroup descriptor.  But
+> it's used to find the soft limit tree through the page's zone, so the
+> soft limit tree of the old page's zone is updated instead of that of
+> the new page's, which might get slightly out of date until the next
+> charge reaches the ratelimit point.
+>=20
+> This glitch has been present since '5564e88 memcg: condense
+> page_cgroup-to-page lookup points'.
+>=20
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-...
+Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-> I'm about to remove the soft limit part of this code, so we'll be able
-> to condense this back into a single #if block again, anyway.
-> 
-> I would much prefer having the extra #if in the code over this patch
-> just to silence the warning for now.
 
-The patch is informative only. I agree with Michal Hocko. It introduce too
-much noise to fix one warning. Just ignore it.
-
--- 
+--=20
  Kirill A. Shutemov
 
 --
