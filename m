@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 1BADB6B0075
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 07:48:15 -0500 (EST)
-Received: by werl4 with SMTP id l4so797774wer.14
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2012 04:48:13 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 04/11] mm: page_alloc: introduce alloc_contig_range()
-References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
- <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
- <20120110141613.GB3910@csn.ul.ie> <op.v71gpt1b3l0zgt@mpn-glaptop>
- <20120116090110.GA2929@csn.ul.ie>
-Date: Mon, 16 Jan 2012 13:48:11 +0100
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 48D296B0085
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 07:55:07 -0500 (EST)
+Date: Mon, 16 Jan 2012 14:55:26 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
+ pc->flags
+Message-ID: <20120116125526.GB25981@shutemov.name>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v76giluf3l0zgt@mpn-glaptop>
-In-Reply-To: <20120116090110.GA2929@csn.ul.ie>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Mon, 16 Jan 2012 10:01:10 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, Jan 13, 2012 at 05:40:19PM +0900, KAMEZAWA Hiroyuki wrote:
+> 
+> From 1008e84d94245b1e7c4d237802ff68ff00757736 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 12 Jan 2012 15:53:24 +0900
+> Subject: [PATCH 3/7] memcg: remove PCG_MOVE_LOCK flag from pc->flags.
+> 
+> PCG_MOVE_LOCK bit is used for bit spinlock for avoiding race between
+> memcg's account moving and page state statistics updates.
+> 
+> Considering page-statistics update, very hot path, this lock is
+> taken only when someone is moving account (or PageTransHuge())
+> And, now, all moving-account between memcgroups (by task-move)
+> are serialized.
+> 
+> So, it seems too costly to have 1bit per page for this purpose.
+> 
+> This patch removes PCG_MOVE_LOCK and add hashed rwlock array
+> instead of it. This works well enough. Even when we need to
+> take the lock, we don't need to disable IRQ in hot path because
+> of using rwlock.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Fri, Jan 13, 2012 at 09:04:31PM +0100, Michal Nazarewicz wrote:
->> >On Thu, Dec 29, 2011 at 01:39:05PM +0100, Marek Szyprowski wrote:
->> >>From: Michal Nazarewicz <mina86@mina86.com>
->> >>+	/* Make sure all pages are isolated. */
->> >>+	if (!ret) {
->> >>+		lru_add_drain_all();
->> >>+		drain_all_pages();
->> >>+		if (WARN_ON(test_pages_isolated(start, end)))
->> >>+			ret =3D -EBUSY;
->> >>+	}
->>
->> On Tue, 10 Jan 2012 15:16:13 +0100, Mel Gorman <mel@csn.ul.ie> wrote:=
+...
 
->> >Another global IPI seems overkill. Drain pages only from the local C=
-PU
->> >(drain_pages(get_cpu()); put_cpu()) and test if the pages are isolat=
-ed.
->>
->> Is get_cpu() + put_cpu() required? Won't drain_local_pages() work?
->>
->
-> drain_local_pages() calls smp_processor_id() without preemption
-> disabled.
+> +#define NR_MOVE_ACCOUNT_LOCKS	(NR_CPUS)
+> +#define move_account_hash(page) ((page_to_pfn(page) % NR_MOVE_ACCOUNT_LOCKS))
 
-Thanks, I wasn't sure if preemption is an issue.
+You still tend to add too many parentheses into macros ;)
 
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
