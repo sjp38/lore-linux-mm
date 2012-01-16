@@ -1,98 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id E36656B004F
-	for <linux-mm@kvack.org>; Sun, 15 Jan 2012 23:19:44 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; CHARSET=US-ASCII
-Received: from xanadu.home ([66.130.28.92]) by VL-VM-MR001.ip.videotron.ca
- (Oracle Communications Messaging Exchange Server 7u4-22.01 64bit (built Apr 21
- 2011)) with ESMTP id <0LXV00LTQIMJ3470@VL-VM-MR001.ip.videotron.ca> for
- linux-mm@kvack.org; Sun, 15 Jan 2012 23:18:20 -0500 (EST)
-Date: Sun, 15 Jan 2012 23:19:43 -0500 (EST)
-From: Nicolas Pitre <nico@fluxnic.net>
-Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
-In-reply-to: <20120115150706.GA7474@mudshark.cambridge.arm.com>
-Message-id: <alpine.LFD.2.02.1201152314420.2722@xanadu.home>
-References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
- <alpine.LFD.2.02.1201131748380.2722@xanadu.home>
- <alpine.LSU.2.00.1201140901260.2381@eggly.anvils>
- <20120115150706.GA7474@mudshark.cambridge.arm.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id C7BD36B004F
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 00:50:18 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D6ACC3EE0BB
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 14:50:16 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD64945DE50
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 14:50:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8FB345DE4F
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 14:50:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D0A91DB803B
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 14:50:16 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D738E78004
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 14:50:16 +0900 (JST)
+Date: Mon, 16 Jan 2012 14:48:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm: memcg: update the correct soft limit tree during
+ migration
+Message-Id: <20120116144837.eaedf4d3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
+References: <1326469291-5642-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "moussaba@micron.com" <moussaba@micron.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 15 Jan 2012, Will Deacon wrote:
+On Fri, 13 Jan 2012 16:41:31 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> Hi Hugh,
+> end_migration() passes the old page instead of the new page to commit
+> the charge.  This page descriptor is not used for committing itself,
+> though, since we also pass the (correct) page_cgroup descriptor.  But
+> it's used to find the soft limit tree through the page's zone, so the
+> soft limit tree of the old page's zone is updated instead of that of
+> the new page's, which might get slightly out of date until the next
+> charge reaches the ratelimit point.
 > 
-> Thanks for the explanation.
+> This glitch has been present since '5564e88 memcg: condense
+> page_cgroup-to-page lookup points'.
 > 
-> On Sat, Jan 14, 2012 at 05:36:37PM +0000, Hugh Dickins wrote:
-> > I'm not saying the horrible hack gate_vma mechanism is any safer
-> > than yours (the latest bug in it was fixed all of 13 days ago).
-> > But I am saying that one horrible hack is safer than two.
-
-Absolutely.
-
-> Something like what I've got below seems to do the trick, and clear_refs
-> also seems to behave when it's presented with the gate_vma. If Russell is
-> happy with the approach, we can move to the gate_vma in the future.
-
-I like it much better, although I haven't tested it fully yet.
-
-However your patch is missing the worst of the current ARM hack I would 
-be glad to see go as follows:
-
-diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
-index 71605d9f8e..876e545297 100644
---- a/arch/arm/include/asm/mmu_context.h
-+++ b/arch/arm/include/asm/mmu_context.h
-@@ -18,6 +18,7 @@
- #include <asm/cacheflush.h>
- #include <asm/cachetype.h>
- #include <asm/proc-fns.h>
-+#include <asm-generic/mm_hooks.h>
- 
- void __check_kvm_seq(struct mm_struct *mm);
- 
-@@ -133,32 +135,4 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #define deactivate_mm(tsk,mm)	do { } while (0)
- #define activate_mm(prev,next)	switch_mm(prev, next, NULL)
- 
--/*
-- * We are inserting a "fake" vma for the user-accessible vector page so
-- * gdb and friends can get to it through ptrace and /proc/<pid>/mem.
-- * But we also want to remove it before the generic code gets to see it
-- * during process exit or the unmapping of it would  cause total havoc.
-- * (the macro is used as remove_vma() is static to mm/mmap.c)
-- */
--#define arch_exit_mmap(mm) \
--do { \
--	struct vm_area_struct *high_vma = find_vma(mm, 0xffff0000); \
--	if (high_vma) { \
--		BUG_ON(high_vma->vm_next);  /* it should be last */ \
--		if (high_vma->vm_prev) \
--			high_vma->vm_prev->vm_next = NULL; \
--		else \
--			mm->mmap = NULL; \
--		rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
--		mm->mmap_cache = NULL; \
--		mm->map_count--; \
--		remove_vma(high_vma); \
--	} \
--} while (0)
--
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
--{
--}
--
- #endif
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> This fixes a bug that I introduced in 2.6.38.  It's benign enough (to
+> my knowledge) that we probably don't want this for stable.
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 602207b..7a292a5 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3247,7 +3247,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+>  	else
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> -	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype);
+>  	return ret;
+>  }
+>  
 
 
-Nicolas
+Nice Catch.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
