@@ -1,66 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id BA8C26B009E
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 12:01:41 -0500 (EST)
-Received: by ghbg19 with SMTP id g19so2285987ghb.14
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2012 09:01:40 -0800 (PST)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1ED706B009E
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 12:19:54 -0500 (EST)
+Message-ID: <4F145AC8.7040307@ah.jp.nec.com>
+Date: Mon, 16 Jan 2012 12:13:44 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
-References: <1326544511-6547-1-git-send-email-siddhesh.poyarekar@gmail.com>
-	<20120116112802.GB7180@jl-vm1.vm.bytemark.co.uk>
-	<CAAHN_R1u_btMuF+WhHu0G895EJ=mbOPNRp7NcXEgTKv3Vs-B1A@mail.gmail.com>
-	<20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
-Date: Mon, 16 Jan 2012 22:31:40 +0530
-Message-ID: <CAAHN_R2TYtFrOJaQB40Y3FyApzKmJ0GCcO8pA_CZ=mdH21AgWA@mail.gmail.com>
-Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
-From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/6 v3] pagemap handles transparent hugepage
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Mon, Jan 16, 2012 at 10:01 PM, Jamie Lokier <jamie@shareable.org> wrote:
-> Aesthetically I think if the main process stack has "[stack guard]",
-> it makes sense for the thread stack guards to be labelled the same.
+On Fri, Jan 13, 2012 at 01:54:05PM -0800, Andrew Morton wrote:
+> On Thu, 12 Jan 2012 14:34:52 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+> 
+> > Thank you for all your reviews and comments on the previous posts.
+> > 
+> > In this version, I newly added two patches. One is to separate arch
+> > dependency commented by KOSAKI-san, and the other is to introduce
+> > new type pme_t as commented by Andrew.
+> > And I changed "export KPF_THP" patch to fix an unnoticed bug where
+> > both of KPF_THP and with KPF_HUGE are set for hugetlbfs hugepage.
+> 
+> The patches get a lot of rejects.  I suspect because they were prepared
+> against 3.2, thus ignoring all the 3.3 MM changes.  Please redo them
+> against current mainline.
 
-Right, I'll mark both stack guards alike.
-
-> One more technical thing: Now that you're using VM_STACK to change the
-> text, why not set that flag for the process stack vma as well, when
-> the stack is set up by exec, and get rid of the special case for
-> process stack in printing?
-
-I think the flag is already set:
-
-static int __bprm_mm_init(struct linux_binprm *bprm)
-{
-...
-        /*
-         * Place the stack at the largest stack address the architecture
-         * supports. Later, we'll move this to an appropriate place. We don't
-         * use STACK_TOP because that can depend on attributes which aren't
-         * configured yet.
-         */
-        BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
-        vma->vm_end = STACK_TOP_MAX;
-        vma->vm_start = vma->vm_end - PAGE_SIZE;
-        vma->vm_flags = VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
-        vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-        INIT_LIST_HEAD(&vma->anon_vma_chain);
-...
-}
-
-The only special case in the printing code for the process stack is
-the skipping of the guard page. I'll modify that to mark and display
-the stack guard instead.
-
-I'll post an updated patch with these changes.
-
-Thanks!
-
--- 
-Siddhesh Poyarekar
+OK, I'll post the next version with rebased to 3.3-rc1 (maybe it will be
+released later this week.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
