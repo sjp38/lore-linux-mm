@@ -1,37 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 1ED706B009E
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 12:19:54 -0500 (EST)
-Message-ID: <4F145AC8.7040307@ah.jp.nec.com>
-Date: Mon, 16 Jan 2012 12:13:44 -0500
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id EAAF06B00A2
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 12:20:01 -0500 (EST)
+Message-ID: <4F145BE7.1060802@ah.jp.nec.com>
+Date: Mon, 16 Jan 2012 12:18:31 -0500
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/6 v3] pagemap handles transparent hugepage
+Subject: Re: [PATCH 1/6] pagemap: avoid splitting thp when reading /proc/pid/pagemap
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Fri, Jan 13, 2012 at 01:54:05PM -0800, Andrew Morton wrote:
-> On Thu, 12 Jan 2012 14:34:52 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Sat, Jan 14, 2012 at 06:00:26PM +0100, Andrea Arcangeli wrote:
+> On Thu, Jan 12, 2012 at 02:34:53PM -0500, Naoya Horiguchi wrote:
+> > +		if (pmd_trans_splitting(*pmd)) {
+> > +			spin_unlock(&walk->mm->page_table_lock);
+> > +			wait_split_huge_page(vma->anon_vma, pmd);
+> > +		} else {
+> > +			for (; addr != end; addr += PAGE_SIZE) {
+> > +				unsigned long offset = (addr & ~PAGEMAP_WALK_MASK)
+> > +					>> PAGE_SHIFT;
+> > +				pfn = thp_pte_to_pagemap_entry(*(pte_t *)pmd,
+> > +							       offset);
 > 
-> > Thank you for all your reviews and comments on the previous posts.
-> > 
-> > In this version, I newly added two patches. One is to separate arch
-> > dependency commented by KOSAKI-san, and the other is to introduce
-> > new type pme_t as commented by Andrew.
-> > And I changed "export KPF_THP" patch to fix an unnoticed bug where
-> > both of KPF_THP and with KPF_HUGE are set for hugetlbfs hugepage.
-> 
-> The patches get a lot of rejects.  I suspect because they were prepared
-> against 3.2, thus ignoring all the 3.3 MM changes.  Please redo them
-> against current mainline.
+> What is this that then morphs into a pme (which still has a cast
+> inside its creation)? thp_pte_to_pagemap_entry don't seem to be passed
+> ptes too. The only case where it is valid to do a cast like that is
+> when a function is used by both ptes sand pmds and the code tends to
+> work for both with minimal modification to differentiate the two
+> cases. Considering the function that gets the cast is called thp_ this
+> is hardly the case here.
 
-OK, I'll post the next version with rebased to 3.3-rc1 (maybe it will be
-released later this week.)
+Agreed.
+
+> Why don't you pass the pmd and then do "if (pmd_present(pmd))
+> page_to_pfn(pmd_page(pmd)) ? What's the argument for the cast. I'm
+> just reviewing this series and maybe it was covered in previous
+> versions.
+
+OK, I can do this by introducing pmd_pte as you commented in another email.
+
+> I don't get this pme thing for something as trivial as above that
+> shouldn't require any cast at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
