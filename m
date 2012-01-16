@@ -1,66 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 686DC6B004F
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 04:47:10 -0500 (EST)
-Date: Mon, 16 Jan 2012 10:47:07 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/5] memcg: trivial cleanups
-Message-ID: <20120116094707.GB1639@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1112312322200.18500@eggly.anvils>
- <20120109130259.GD3588@cmpxchg.org>
- <alpine.LSU.2.00.1201141550170.1261@eggly.anvils>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id CFC4E6B004F
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 05:06:11 -0500 (EST)
+Date: Mon, 16 Jan 2012 10:06:00 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC PATCH] proc: clear_refs: do not clear reserved pages
+Message-ID: <20120116100600.GA9068@mudshark.cambridge.arm.com>
+References: <1326467587-22218-1-git-send-email-will.deacon@arm.com>
+ <alpine.LFD.2.02.1201131748380.2722@xanadu.home>
+ <alpine.LSU.2.00.1201140901260.2381@eggly.anvils>
+ <20120115150706.GA7474@mudshark.cambridge.arm.com>
+ <alpine.LFD.2.02.1201152314420.2722@xanadu.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1201141550170.1261@eggly.anvils>
+In-Reply-To: <alpine.LFD.2.02.1201152314420.2722@xanadu.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org
+To: Nicolas Pitre <nico@fluxnic.net>
+Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "moussaba@micron.com" <moussaba@micron.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
 
-On Sat 14-01-12 16:07:42, Hugh Dickins wrote:
-> On Mon, 9 Jan 2012, Johannes Weiner wrote:
-> > On Sat, Dec 31, 2011 at 11:26:42PM -0800, Hugh Dickins wrote:
-> > > Obviously I've missed the boat for per-memcg per-zone LRU locking in 3.3,
-> > > but I've split out a shameless bunch of trivial cleanups from that work,
-> > > and hoping these might still sneak in unless they're controversial.
-> > > 
-> > > Following on from my earlier mmotm/next patches, here's five
-> > > to memcontrol.c and .h, followed by six to the rest of mm.
-> > > 
-> > > [PATCH 1/5] memcg: replace MEM_CONT by MEM_RES_CTLR
-> > > [PATCH 2/5] memcg: replace mem and mem_cont stragglers
-> > > [PATCH 3/5] memcg: lru_size instead of MEM_CGROUP_ZSTAT
-> > > [PATCH 4/5] memcg: enum lru_list lru
-> > > [PATCH 5/5] memcg: remove redundant returns
-> > 
-> > No objections from my side wrt putting them into 3.3.
-> > 
-> > Thanks!
+On Mon, Jan 16, 2012 at 04:19:43AM +0000, Nicolas Pitre wrote:
+> On Sun, 15 Jan 2012, Will Deacon wrote:
+> > Something like what I've got below seems to do the trick, and clear_refs
+> > also seems to behave when it's presented with the gate_vma. If Russell is
+> > happy with the approach, we can move to the gate_vma in the future.
 > 
-> I was hoping that these five memcg trivia (and my two SHM_UNLOCK fixes)
-> were on their way into 3.3, but they've not yet shown up in mm-commits.
+> I like it much better, although I haven't tested it fully yet.
 > 
-> I'll resend them all again now: I've not rediffed, since they apply
-> (if at different offsets) to Linus's current git tree; but I have added
-> in the (somewhat disproportionate for trivia!) Acked-bys and Reviewed-bys.
+> However your patch is missing the worst of the current ARM hack I would 
+> be glad to see go as follows:
 > 
-> Michal was not happy with 3/5: I've summarized below the --- on that one,
-> do with it as you wish - I think neither Michal nor I shall slam the door
-> and burst into tears if you decide against one of us.
+> diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
+> index 71605d9f8e..876e545297 100644
+> --- a/arch/arm/include/asm/mmu_context.h
+> +++ b/arch/arm/include/asm/mmu_context.h
+> @@ -18,6 +18,7 @@
+>  #include <asm/cacheflush.h>
+>  #include <asm/cachetype.h>
+>  #include <asm/proc-fns.h>
+> +#include <asm-generic/mm_hooks.h>
+>  
+>  void __check_kvm_seq(struct mm_struct *mm);
+>  
+> @@ -133,32 +135,4 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
+>  #define deactivate_mm(tsk,mm)	do { } while (0)
+>  #define activate_mm(prev,next)	switch_mm(prev, next, NULL)
+>  
+> -/*
+> - * We are inserting a "fake" vma for the user-accessible vector page so
+> - * gdb and friends can get to it through ptrace and /proc/<pid>/mem.
+> - * But we also want to remove it before the generic code gets to see it
+> - * during process exit or the unmapping of it would  cause total havoc.
+> - * (the macro is used as remove_vma() is static to mm/mmap.c)
+> - */
+> -#define arch_exit_mmap(mm) \
+> -do { \
+> -	struct vm_area_struct *high_vma = find_vma(mm, 0xffff0000); \
+> -	if (high_vma) { \
+> -		BUG_ON(high_vma->vm_next);  /* it should be last */ \
+> -		if (high_vma->vm_prev) \
+> -			high_vma->vm_prev->vm_next = NULL; \
+> -		else \
+> -			mm->mmap = NULL; \
+> -		rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
+> -		mm->mmap_cache = NULL; \
+> -		mm->map_count--; \
+> -		remove_vma(high_vma); \
+> -	} \
+> -} while (0)
+> -
+> -static inline void arch_dup_mmap(struct mm_struct *oldmm,
+> -				 struct mm_struct *mm)
+> -{
+> -}
+> -
+>  #endif
 
-Yes, please go on with the patch. I will not lose any sleep over
-MEM_CGROUP_ZSTAT ;)
-As both Kame and Johannes acked that, there is no need to discuss that
-more.
+Nice, I missed those hunks! I'm more than happy to include this for v2
+(which I'll just post to the ARM list). I'll also give this some testing on
+the boards that I have.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
