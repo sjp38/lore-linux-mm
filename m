@@ -1,61 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id D062F6B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 14:49:14 -0500 (EST)
-Received: by vcbfl11 with SMTP id fl11so642668vcb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 11:49:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 449696B004F
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 14:54:28 -0500 (EST)
+Received: by vbbfa15 with SMTP id fa15so2537297vbb.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 11:54:27 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4F15CC56.90309@redhat.com>
+In-Reply-To: <CAOJsxLFzuvYm2pHZP--=nx3qGatzgfT6Dii49gzJwzxOtzniTg@mail.gmail.com>
 References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
 	<1326788038-29141-2-git-send-email-minchan@kernel.org>
 	<CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
 	<4F15A34F.40808@redhat.com>
 	<alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
 	<4F15CC56.90309@redhat.com>
-Date: Tue, 17 Jan 2012 21:49:13 +0200
-Message-ID: <CAOJsxLFzuvYm2pHZP--=nx3qGatzgfT6Dii49gzJwzxOtzniTg@mail.gmail.com>
+	<CAOJsxLFzuvYm2pHZP--=nx3qGatzgfT6Dii49gzJwzxOtzniTg@mail.gmail.com>
+Date: Tue, 17 Jan 2012 21:54:27 +0200
+Message-ID: <CAOJsxLG-4uDCiB7XoF=hkATYCcu2+mJqbjCNekYNt0hywkhrEw@mail.gmail.com>
 Subject: Re: [RFC 1/3] /dev/low_mem_notify
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
 Cc: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, Jan 17, 2012 at 9:30 PM, Rik van Riel <riel@redhat.com> wrote:
-> Looks like a nice extensible interface to me.
->
-> The only thing is, I expect we will not want to wake
-> up processes most of the time, when there is no memory
-> pressure, because that would just waste battery power
-> and/or cpu time that could be used for something else.
->
-> The desire to avoid such wakeups makes it harder to
-> wake up processes at arbitrary points set by the API.
+On Tue, Jan 17, 2012 at 9:49 PM, Pekka Enberg <penberg@kernel.org> wrote:
+> That said, I'd really like to see the N9 and Android policies
+> supported with this ABI. It's much easier to make it generic once we
+> support real-world use cases.
 
-Sure. You could either bump up the threshold or use Minchan's hooks - or bo=
-th.
+If people are interested in hacking on the thing, I pushed the commit
+in 'vmnotify/core' branch of
 
-On Tue, Jan 17, 2012 at 9:30 PM, Rik van Riel <riel@redhat.com> wrote:
-> Another issue is that we might be running two programs
-> on the system, each with a different threshold for
-> "lets free some of my cache". =A0Say one program sets
-> the threshold at 20% free/cache memory, the other
-> program at 10%.
->
-> We could end up with the first process continually
-> throwing away its caches, while the second process
-> never gives its unused memory back to the kernel.
->
-> I am not sure what the right thing to do would be...
-
-One option is to use per-process thresholds on RSS, for example, and
-also support system-wide thresholds.
-
-That said, I'd really like to see the N9 and Android policies
-supported with this ABI. It's much easier to make it generic once we
-support real-world use cases.
+    git://github.com/penberg/linux.git
 
                         Pekka
 
