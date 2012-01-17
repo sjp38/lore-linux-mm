@@ -1,35 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 0D88C6B00D6
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 11:04:42 -0500 (EST)
-Date: Tue, 17 Jan 2012 10:04:38 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Hung task when calling clone() due to netfilter/slab
-In-Reply-To: <1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Message-ID: <alpine.DEB.2.00.1201170942240.4800@router.home>
-References: <1326558605.19951.7.camel@lappy>    <1326561043.5287.24.camel@edumazet-laptop>   <1326632384.11711.3.camel@lappy>  <1326648305.5287.78.camel@edumazet-laptop>   <alpine.DEB.2.00.1201170910130.4800@router.home>  <1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-  <alpine.DEB.2.00.1201170927020.4800@router.home> <1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 00C986B00D7
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 11:36:10 -0500 (EST)
+Message-ID: <4F15A34F.40808@redhat.com>
+Date: Tue, 17 Jan 2012 11:35:27 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
+In-Reply-To: <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, 17 Jan 2012, Eric Dumazet wrote:
-
-> Thanks !
+On 01/17/2012 04:27 AM, Pekka Enberg wrote:
+> On Tue, Jan 17, 2012 at 10:13 AM, Minchan Kim<minchan@kernel.org>  wrote:
+>> +static unsigned int low_mem_notify_poll(struct file *file, poll_table *wait)
+>> +{
+>> +        unsigned int ret = 0;
+>> +
+>> +        poll_wait(file,&low_mem_wait, wait);
+>> +
+>> +        if (atomic_read(&nr_low_mem) != 0) {
+>> +                ret = POLLIN;
+>> +                atomic_set(&nr_low_mem, 0);
+>> +        }
+>> +
+>> +        return ret;
+>> +}
 >
-> Acked-by: Eric Dumazet <eric.dumazet@gmail.com>
+> Doesn't this mean that only one application will receive the notification?
 
-That may not be the end of it. Slub also calls sysfs from sysfs_add_alias
-while holding slub_lock.
+One at a time, which could be a good thing since the last
+thing we want to do when the system is under memory
+pressure is create a thundering herd.
 
-If sysfs allows user space stuff to run then you cannot really hold any
-locks. How is one supposed to sync adding pointers to sysfs structures in
-subsystems? Drop all locks and then recheck the memory structures after
-the sysfs function returns? Awkward.
+OTOH, we do need to ensure that programs take turns getting
+the memory pressure notification.  I do not know whether
+poll_wait automatically takes care of that...
 
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
