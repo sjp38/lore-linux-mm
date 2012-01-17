@@ -1,58 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 0A01D6B00A8
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:28:03 -0500 (EST)
-Date: Tue, 17 Jan 2012 13:27:41 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH v9 3.2 7/9] tracing: uprobes trace_event interface
-Message-ID: <20120117122741.GA19219@elte.hu>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <20120110114943.17610.28293.sendpatchset@srdronam.in.ibm.com>
- <20120116131137.GB5265@m.brq.redhat.com>
- <20120117092838.GB10397@elte.hu>
- <20120117102231.GB15447@linux.vnet.ibm.com>
- <20120117112239.GA23859@elte.hu>
- <20120117115705.GD15447@linux.vnet.ibm.com>
- <20120117122350.GD4959@elte.hu>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 544A96B00AA
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:48:01 -0500 (EST)
+Received: by wgbdr13 with SMTP id dr13so1161269wgb.26
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 04:47:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120117122350.GD4959@elte.hu>
+Date: Tue, 17 Jan 2012 20:47:59 +0800
+Message-ID: <CAJd=RBBdDriMhfetM2AWGzgxiJ1DDs-W4Ff9_1Z8DUgbyQmSkA@mail.gmail.com>
+Subject: [PATCH] mm: memcg: remove checking reclaim order in soft limit reclaim
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: "Paul E. McKenney" <paulmck@us.ibm.com>, Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+
+If async order-O reclaim expected here, it is settled down when setting up scan
+control, with scan priority hacked to be zero. Other than that, deny of reclaim
+should be removed.
 
 
-a couple of other 'perf probe' suggestions:
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
-i think the 'perf probe' UI should be streamlined.
+--- a/mm/memcontrol.c	Tue Jan 17 20:41:36 2012
++++ b/mm/memcontrol.c	Tue Jan 17 20:47:48 2012
+@@ -3512,9 +3512,6 @@ unsigned long mem_cgroup_soft_limit_recl
+ 	unsigned long long excess;
+ 	unsigned long nr_scanned;
 
-Right now we have kprobes assumptions like this syntax:
-
-  perf probe <kernel_symbol>
-
-will add a probe.
-
-That is nonsensical once we merge uprobes, as i'd expect much 
-more developers to be interested in user-space symbols than 
-kernel-space symbols.
-
-So we could change this syntax and add the more intuitive:
-
-  perf probe add ...
-  perf probe del ...
-  perf probe list
-
-Variants. Also, the -x syntax isnt particularly intuitive either 
-- it should be a 'perf probe add ...' variant.
-
-If someone uses the old syntax it will produce a meaningful 
-error message.
-
-Thanks,
-
-	Ingo
+-	if (order > 0)
+-		return 0;
+-
+ 	mctz = soft_limit_tree_node_zone(zone_to_nid(zone), zone_idx(zone));
+ 	/*
+ 	 * This loop can run a while, specially if mem_cgroup's continuously
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
