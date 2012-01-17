@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 28A2A6B00A3
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:12:31 -0500 (EST)
-Date: Tue, 17 Jan 2012 13:11:59 +0100
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 5A3126B00A5
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:21:58 -0500 (EST)
+Date: Tue, 17 Jan 2012 13:21:33 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH v9 3.2 7/9] tracing: uprobes trace_event interface
-Message-ID: <20120117121159.GA4959@elte.hu>
+Message-ID: <20120117122133.GB4959@elte.hu>
 References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
  <20120110114943.17610.28293.sendpatchset@srdronam.in.ibm.com>
  <20120116131137.GB5265@m.brq.redhat.com>
@@ -21,44 +21,33 @@ To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
 
-A couple of 'perf probe' usability issues.
+Have you tried to use 'perf probe' to achieve any useful 
+instrumentation on a real app?
 
-When running it as unprivileged user right now it fails with:
+I just tried out the 'glibc:free' usecase and it's barely 
+usable.
 
- $ perf probe -x /lib64/libc.so.6 free
- Failed to open uprobe_events file: Permission denied
+Firstly, the recording very frequently produces overruns:
 
-That error message should reference the full file name in 
-question, i.e. /sys/kernel/debug/tracing/uprobe_events - that 
-way the user can make that file writable if it's secure to do 
-that on that system.
+ $ perf record -e probe_libc:free -aR sleep 1
+ [ perf record: Woken up 169 times to write data ]
+ [ perf record: Captured and wrote 89.674 MB perf.data (~3917919 samples) ]
+ Warning:Processed 1349133 events and lost 1 chunks!
 
-The other thing is the text that gets printed:
+Using -m 4096 made it work better.
 
- $ perf probe --del free
- Remove event: probe_libc:free
+Adding -g for call-graph profiling caused 'perf report' to lock 
+up:
 
-that's not how tools generally communicate - it should be 
-something like:
+  perf record -m 4096 -e probe_libc:free -agR sleep 1
+  perf report
+  [ loops forever ]
 
- $ perf probe --del free
- Removed event: probe_libc:free
+I've sent a testcase to Arnaldo separately. Note that perf 
+report --stdio appears to work.
 
-Note the past tense - this tells the user that the action has 
-been performed successfully.
-
-Likewise, 'perf probe --add' should talk in past tense as well, 
-to indicate success. So it should say something like:
-
- $ perf probe -x /lib64/libc.so.6 free
- Added new event:
-  probe_libc:free      (on 0x7f080)
-
- You can now use it in all perf tools, such as:
-
-	perf record -e probe_libc:free -aR sleep 1
-
-(Also note the s/on/in change in the other text.)
+Regular '-e cycles -g' works fine, so this is a uprobes specific 
+bug.
 
 Thanks,
 
