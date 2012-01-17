@@ -1,43 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 379246B0080
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 04:27:35 -0500 (EST)
-Received: by vcbfl11 with SMTP id fl11so32394vcb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 01:27:34 -0800 (PST)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id CB0256B0088
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 04:29:13 -0500 (EST)
+Date: Tue, 17 Jan 2012 10:28:38 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH v9 3.2 7/9] tracing: uprobes trace_event interface
+Message-ID: <20120117092838.GB10397@elte.hu>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+ <20120110114943.17610.28293.sendpatchset@srdronam.in.ibm.com>
+ <20120116131137.GB5265@m.brq.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1326788038-29141-2-git-send-email-minchan@kernel.org>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326788038-29141-2-git-send-email-minchan@kernel.org>
-Date: Tue, 17 Jan 2012 11:27:34 +0200
-Message-ID: <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120116131137.GB5265@m.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Tue, Jan 17, 2012 at 10:13 AM, Minchan Kim <minchan@kernel.org> wrote:
-> +static unsigned int low_mem_notify_poll(struct file *file, poll_table *w=
-ait)
-> +{
-> + =A0 =A0 =A0 =A0unsigned int ret =3D 0;
-> +
-> + =A0 =A0 =A0 =A0poll_wait(file, &low_mem_wait, wait);
-> +
-> + =A0 =A0 =A0 =A0if (atomic_read(&nr_low_mem) !=3D 0) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D POLLIN;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0atomic_set(&nr_low_mem, 0);
-> + =A0 =A0 =A0 =A0}
-> +
-> + =A0 =A0 =A0 =A0return ret;
-> +}
 
-Doesn't this mean that only one application will receive the notification?
+* Jiri Olsa <jolsa@redhat.com> wrote:
 
-                        Pekka
+> I've tested following event:
+>         echo "p:probe_libc/free /lib64/libc-2.13.so:0x7a4f0 %ax" > ./uprobe_events
+> 
+> and commands like:
+>         perf record -a -e probe_libc:free  --filter "common_pid == 1127"
+>         perf record -e probe_libc:free --filter "arg1 == 0xa" ls
+> 
+> got me proper results.
+
+Btw., Srikar, if that's the primary UI today then we'll need to 
+make it a *lot* more user-friendly than the above usage 
+workflow.
+
+In particular this line:
+
+>         echo "p:probe_libc/free /lib64/libc-2.13.so:0x7a4f0 %ax" > ./uprobe_events
+
+is not something a mere mortal will be able to figure out.
+
+There needs to be perf probe integration, that allows intuitive 
+usage, such as:
+
+   perf probe add libc:free
+
+Using the perf symbols code it should first search a libc*so DSO 
+in the system, finding say /lib64/libc-2.15.so. The 'free' 
+symbol is readily available there:
+
+  aldebaran:~> eu-readelf -s /lib64/libc-2.15.so  | grep ' free$'
+  7186: 00000039ff47f080    224 FUNC    GLOBAL DEFAULT       12 free
+
+then the tool can automatically turn that symbol information 
+into the specific probe.
+
+Will it all work with DSO randomization, prelinking and default 
+placement as well?
+
+Users should not be expected to enter magic hexa numbers to get 
+a trivial usecase going ...
+
+this bit:
+
+>         perf record -a -e probe_libc:free  --filter "common_pid == 1127"
+>         perf record -e probe_libc:free --filter "arg1 == 0xa" ls
+
+looks good and intuitive and 'perf list' should list all the 
+available uprobes.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
