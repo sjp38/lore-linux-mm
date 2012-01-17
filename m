@@ -1,103 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id AE0CD6B008A
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 04:39:50 -0500 (EST)
-Date: Tue, 17 Jan 2012 10:39:25 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH v9 3.2 0/9] Uprobes patchset with perf probe support
-Message-ID: <20120117093925.GC10397@elte.hu>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <20120116083442.GA23622@elte.hu>
- <20120116151755.GH10189@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 031F26B0093
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 04:45:08 -0500 (EST)
+Received: by vbbfa15 with SMTP id fa15so1921390vbb.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 01:45:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120116151755.GH10189@linux.vnet.ibm.com>
+In-Reply-To: <1326788038-29141-2-git-send-email-minchan@kernel.org>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+	<1326788038-29141-2-git-send-email-minchan@kernel.org>
+Date: Tue, 17 Jan 2012 11:45:06 +0200
+Message-ID: <CAOJsxLFdm_vLcuWzzcC==JTpVERuf4XNUOqvRyLt=Q0ixqmx7A@mail.gmail.com>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
+On Tue, Jan 17, 2012 at 10:13 AM, Minchan Kim <minchan@kernel.org> wrote:
+> This patch makes new device file "/dev/low_mem_notify".
+> If application polls it, it can receive event when system
+> memory pressure happens.
+>
+> This patch is based on KOSAKI and Marcelo's long time ago work.
+> http://lwn.net/Articles/268732/
 
-* Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
+I'm not loving the ABI. Alternative solutions:
 
-> > We already have some other vma tracking goodies in perf 
-> > itself (see perf_event_mmap() et al) - would it make sense 
-> > to merge the two vma instrumentation facilities and not 
-> > burden mm/ with two separate sets of callbacks?
-> 
-> Atleast for file backed vmas, perf_event_mmap seems to be 
-> interested in just the new vma creations. Uprobes would also 
-> be interested in the size changes like the vma 
-> growing/shrinking/remap. Is perf_event_mmap interested in such 
-> changes? From what i could see, perf_event_mmap seems to be 
-> interested in stack vma size changes but not file vma size 
-> changes.
+  - SIGDANGER + signalfd() for poll
 
-I don't think perf_event_mmap() would be hurt from getting more 
-callbacks, as long as there's enough metadata to differentiate 
-the various events from each other.
+  - sys_eventfd()
 
-( In the long run we really want all such callbacks to be
-  tracepoints so that we can make them even less intrusive via
-  jump label patching optimizations, etc. - but we are not there
-  yet. )
+  - sys_mem_notify_open() similar to sys_perf_event_open()
 
-> Also mmap_uprobe gets called in fork path. Currently we have a 
-> hook in copy_mm/dup_mm so that we get to know the context of 
-> each vma that gets added to the child and add its breakpoints. 
-> At dup_mm/dup_mmap we would have taken mmap_sem for both 
-> parent and child so there is no way we could have missed a 
-> register/unregister in the parent not reflected in the child.
-> 
-> I see the perf_event_fork but that would have to enhanced to 
-> do a lot more to help us do a mmap_uprobe.
-
-Andrew's call i guess.
-
-I did not suggest anything complex or intrusive: just basically 
-unify the namespace, have a single set of callbacks, and call 
-into the uprobes and perf code from those callbacks - out of the 
-sight of MM code.
-
-That unified namespace could be called:
-
-    event_mmap(...);
-    event_fork(...);
-
-etc. - and from event_mmap() you could do a simple:
-
-	perf_event_mmap(...)
-	uprobes_event_mmap(...)
-
-[ Once all this is updated to use tracepoints it would turn into 
-  a notification callback chain kind of thing. ]
-
-> > If all such issues are resolved then i guess we could queue 
-> > up uprobes in -tip, conditional on it remaining sufficiently 
-> > regression-, problem- and NAK-free.
-> 
-> Okay. Accepting uprobes into tip, would provide more 
-> testing/feedback.
-> 
-> > Also, it would be nice to hear Arnaldo's opinion about the 
-> > tools/perf/ bits.
-> 
-> Whatever comments Arnaldo/Masami have given till now have been 
-> resolved.
-
-Please see the probe installation syntax feedback i've sent in 
-the previous mail - that needs to be addressed too.
-
-You should think with the head of an ordinary user-space 
-developer who wants to say debug a library and wants to use 
-uprobes for that. What would he have to type to achieve that and 
-is what he types the minimum number of characters to reasonably 
-achieve that goal?
-
-Thanks,
-
-	Ingo
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
