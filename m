@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 57AEA6B00CF
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 10:26:38 -0500 (EST)
-Date: Tue, 17 Jan 2012 16:26:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
- account move.
-Message-ID: <20120117152635.GA22142@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 53AD76B00D1
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 10:27:36 -0500 (EST)
+Date: Tue, 17 Jan 2012 09:27:31 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Hung task when calling clone() due to netfilter/slab
+In-Reply-To: <1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Message-ID: <alpine.DEB.2.00.1201170927020.4800@router.home>
+References: <1326558605.19951.7.camel@lappy>   <1326561043.5287.24.camel@edumazet-laptop>  <1326632384.11711.3.camel@lappy> <1326648305.5287.78.camel@edumazet-laptop>  <alpine.DEB.2.00.1201170910130.4800@router.home>
+ <1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
 
-On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
-> I think this bugfix is needed before going ahead. thoughts?
-> ==
-> From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Fri, 13 Jan 2012 14:27:20 +0900
-> Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
-> 
-> At starting move_account(), source memcg's per-cpu variable
-> MEM_CGROUP_ON_MOVE is set. The page status update
-> routine check it under rcu_read_lock(). But there is no memory
-> barrier. This patch adds one.
+On Tue, 17 Jan 2012, Eric Dumazet wrote:
 
-OK this would help to enforce that the CPU would see the current value
-but what prevents us from the race with the value update without the
-lock? This is as racy as it was before AFAICS.
+> Buggy patch, since "goto err;" is going to up_write(&slub_lock) again.
+>
+> Also Christoph, you forgot to add the very much needed :
+>
+> Reported-by: Sasha Levin <levinsasha928@gmail.com>
 
-> 
-> Signed-off-by: KAMAZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 08b988d..9019069 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1256,8 +1256,10 @@ static void mem_cgroup_start_move(struct mem_cgroup *memcg)
->  
->  	get_online_cpus();
->  	spin_lock(&memcg->pcp_counter_lock);
-> -	for_each_online_cpu(cpu)
-> +	for_each_online_cpu(cpu) {
->  		per_cpu(memcg->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
-> +		smp_wmb();
-> +	}
->  	memcg->nocpu_base.count[MEM_CGROUP_ON_MOVE] += 1;
->  	spin_unlock(&memcg->pcp_counter_lock);
->  	put_online_cpus();
-> @@ -1294,6 +1296,7 @@ static void mem_cgroup_end_move(struct mem_cgroup *memcg)
->  static bool mem_cgroup_stealed(struct mem_cgroup *memcg)
->  {
->  	VM_BUG_ON(!rcu_read_lock_held());
-> +	smp_rmb();
->  	return this_cpu_read(memcg->stat->count[MEM_CGROUP_ON_MOVE]) > 0;
->  }
->  
-> -- 
-> 1.7.4.1
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Subject: slub: Do not hold slub_lock when calling sysfs_slab_add()
+
+sysfs_slab_add() calls various sysfs functions that actually may
+end up in userspace doing all sorts of things.
+
+Release the slub_lock after adding the kmem_cache structure to the list.
+At that point the address of the kmem_cache is not known so we are
+guaranteed exlusive access to the following modifications to the
+kmem_cache structure.
+
+If the sysfs_slab_add fails then reacquire the slub_lock to
+remove the kmem_cache structure from the list.
+
+Reported-by: Sasha Levin <levinsasha928@gmail.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ mm/slub.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-01-17 03:07:11.140010438 -0600
++++ linux-2.6/mm/slub.c	2012-01-17 03:26:06.799986908 -0600
+@@ -3929,13 +3929,14 @@ struct kmem_cache *kmem_cache_create(con
+ 		if (kmem_cache_open(s, n,
+ 				size, align, flags, ctor)) {
+ 			list_add(&s->list, &slab_caches);
++			up_write(&slub_lock);
+ 			if (sysfs_slab_add(s)) {
++				down_write(&slub_lock);
+ 				list_del(&s->list);
+ 				kfree(n);
+ 				kfree(s);
+ 				goto err;
+ 			}
+-			up_write(&slub_lock);
+ 			return s;
+ 		}
+ 		kfree(n);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
