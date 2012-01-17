@@ -1,169 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 854736B005C
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2012 23:54:32 -0500 (EST)
-Received: by iadj38 with SMTP id j38so2812424iad.14
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2012 20:54:32 -0800 (PST)
-From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Subject: [PATCH] Mark thread stack correctly in proc/<pid>/maps
-Date: Tue, 17 Jan 2012 10:24:55 +0530
-Message-Id: <1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com>
-In-Reply-To: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
-References: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id CADA96B0062
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 03:14:15 -0500 (EST)
+Received: by vcge1 with SMTP id e1so473969vcg.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 00:14:14 -0800 (PST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/3] low memory notify
+Date: Tue, 17 Jan 2012 17:13:55 +0900
+Message-Id: <1326788038-29141-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, Minchan Kim <minchan@kernel.org>
 
-[Take 2]
+As you can see, it's respin of mem_notify core of KOSAKI and Marcelo.
+(Of course, KOSAKI's original patchset includes more logics but I didn't
+include all things intentionally because I want to start from beginning
+again) Recently, there are some requirements of notification of system
+memory pressure. It would be very useful for various cases.
+For example, QEMU/JVM/Firefox like big memory hogger can release their memory
+when memory pressure happens. Another example in embedded side,
+they can close background application. For this, there are some trial but
+we need more general one and not-hacked alloc/free hot path.
 
-Memory mmaped by glibc for a thread stack currently shows up as a simple
-anonymous map, which makes it difficult to differentiate between memory
-usage of the thread on stack and other dynamic allocation. Since glibc
-already uses MAP_STACK to request this mapping, the attached patch
-uses this flag to add additional VM_STACK_FLAGS to the resulting vma
-so that the mapping is treated as a stack and not any regular
-anonymous mapping. Also, one may use vm_flags to decide if a vma is a
-stack.
+I think most big problem of system slowness is swap-in operation.
+Swap-in is a synchronous operation so application's latency would be 
+big. Solution for that is prevent swap-out itself. We couldn't prevent
+swapout totally but could reduce it with this patch.
 
-This patch also changes the maps output to annotate stack guards for
-both the process stack as well as the thread stacks. Thus is born the
-[stack guard] annotation, which should be exactly a page long for the
-process stack and can be longer than a page (configurable in
-userspace) for POSIX compliant thread stacks. A thread stack guard is
-simply page(s) with PROT_NONE.
+In case of swapless system, code page is very important for system response.
+So we have to keep code page, too. I used very naive heuristic in this patch
+but welcome to any idea.
 
-If accepted, this should also reflect in the man page for mmap since
-MAP_STACK will no longer be a noop.
+I want to make kernel logic simple if possible and just notify to user space.
+Of course, there are lots of thing we have to consider but for discussion
+this simple patch would be a good start point.
 
-Signed-off-by: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
----
- fs/proc/task_mmu.c |   41 ++++++++++++++++++++++++++++++++++++-----
- include/linux/mm.h |   19 +++++++++++++++++--
- mm/mmap.c          |    3 +++
- 3 files changed, 56 insertions(+), 7 deletions(-)
+This version is totally RFC so any comments are welcome.
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index e418c5a..650330c 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -227,13 +227,42 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
- 	}
- 
--	/* We don't show the stack guard page in /proc/maps */
-+	/*
-+	 * Mark the process stack guard, which is just one page at the
-+	 * beginning of the stack within the stack vma.
-+	 */
- 	start = vma->vm_start;
--	if (stack_guard_page_start(vma, start))
-+	if (stack_guard_page_start(vma, start)) {
-+		seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
-+				start,
-+				start + PAGE_SIZE,
-+				flags & VM_READ ? 'r' : '-',
-+				flags & VM_WRITE ? 'w' : '-',
-+				flags & VM_EXEC ? 'x' : '-',
-+				flags & VM_MAYSHARE ? 's' : 'p',
-+				pgoff,
-+				MAJOR(dev), MINOR(dev), ino, &len);
-+
-+		pad_len_spaces(m, len);
-+		seq_puts(m, "[stack guard]\n");
- 		start += PAGE_SIZE;
-+	}
- 	end = vma->vm_end;
--	if (stack_guard_page_end(vma, end))
-+	if (stack_guard_page_end(vma, end)) {
-+		seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
-+				end - PAGE_SIZE,
-+				end,
-+				flags & VM_READ ? 'r' : '-',
-+				flags & VM_WRITE ? 'w' : '-',
-+				flags & VM_EXEC ? 'x' : '-',
-+				flags & VM_MAYSHARE ? 's' : 'p',
-+				pgoff,
-+				MAJOR(dev), MINOR(dev), ino, &len);
-+
-+		pad_len_spaces(m, len);
-+		seq_puts(m, "[stack guard]\n");
- 		end -= PAGE_SIZE;
-+	}
- 
- 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
- 			start,
-@@ -259,8 +288,10 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- 				if (vma->vm_start <= mm->brk &&
- 						vma->vm_end >= mm->start_brk) {
- 					name = "[heap]";
--				} else if (vma->vm_start <= mm->start_stack &&
--					   vma->vm_end >= mm->start_stack) {
-+				} else if (vma_is_stack(vma) &&
-+					   vma_is_guard(vma)) {
-+					name = "[stack guard]";
-+				} else if (vma_is_stack(vma)) {
- 					name = "[stack]";
- 				}
- 			} else {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 17b27cd..4e57753 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1018,12 +1018,26 @@ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
- 	return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
- }
- 
-+static inline int vma_is_stack(struct vm_area_struct *vma)
-+{
-+	return vma && (vma->vm_flags & (VM_GROWSUP | VM_GROWSDOWN));
-+}
-+
-+/*
-+ * Check guard set by userspace (PROT_NONE)
-+ */
-+static inline int vma_is_guard(struct vm_area_struct *vma)
-+{
-+	return (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC | VM_SHARED)) == 0;
-+}
-+
- static inline int stack_guard_page_start(struct vm_area_struct *vma,
- 					     unsigned long addr)
- {
- 	return (vma->vm_flags & VM_GROWSDOWN) &&
- 		(vma->vm_start == addr) &&
--		!vma_growsdown(vma->vm_prev, addr);
-+		!vma_growsdown(vma->vm_prev, addr) &&
-+		!vma_is_guard(vma);
- }
- 
- /* Is the vma a continuation of the stack vma below it? */
-@@ -1037,7 +1051,8 @@ static inline int stack_guard_page_end(struct vm_area_struct *vma,
- {
- 	return (vma->vm_flags & VM_GROWSUP) &&
- 		(vma->vm_end == addr) &&
--		!vma_growsup(vma->vm_next, addr);
-+		!vma_growsup(vma->vm_next, addr) &&
-+		!vma_is_guard(vma);
- }
- 
- extern unsigned long move_page_tables(struct vm_area_struct *vma,
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3f758c7..2f9f540 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -992,6 +992,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
- 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
- 
-+	if (flags & MAP_STACK)
-+		vm_flags |= VM_STACK_FLAGS;
-+
- 	if (flags & MAP_LOCKED)
- 		if (!can_do_mlock())
- 			return -EPERM;
+Minchan Kim (3):
+  [RFC 1/3] /dev/low_mem_notify
+  [RFC 2/3] vmscan hook
+  [RFC 3/3] test program
+
+ drivers/char/mem.c             |    7 ++
+ include/linux/low_mem_notify.h |    6 ++
+ mm/Kconfig                     |    7 ++
+ mm/Makefile                    |    1 +
+ mm/low_mem_notify.c            |   61 ++++++++++++++++++++
+ mm/vmscan.c                    |   28 +++++++++
+ poll.c                         |  121 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 231 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/low_mem_notify.h
+ create mode 100644 mm/low_mem_notify.c
+ create mode 100644 poll.c
+
 -- 
-1.7.7.4
+1.7.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
