@@ -1,110 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 5871C6B004D
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 18:01:24 -0500 (EST)
-Date: Tue, 17 Jan 2012 16:22:09 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Hung task when calling clone() due to netfilter/slab
-In-Reply-To: <alpine.DEB.2.00.1201170942240.4800@router.home>
-Message-ID: <alpine.DEB.2.00.1201171620590.14697@router.home>
-References: <1326558605.19951.7.camel@lappy>    <1326561043.5287.24.camel@edumazet-laptop>   <1326632384.11711.3.camel@lappy>  <1326648305.5287.78.camel@edumazet-laptop>   <alpine.DEB.2.00.1201170910130.4800@router.home>  <1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-  <alpine.DEB.2.00.1201170927020.4800@router.home> <1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC> <alpine.DEB.2.00.1201170942240.4800@router.home>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 57A1C6B004D
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 18:08:15 -0500 (EST)
+Received: by vbbfa15 with SMTP id fa15so2728455vbb.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 15:08:14 -0800 (PST)
+Date: Wed, 18 Jan 2012 08:08:01 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 2/3] vmscan hook
+Message-ID: <20120117230801.GA903@barrios-desktop.redhat.com>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+ <1326788038-29141-3-git-send-email-minchan@kernel.org>
+ <20120117173932.1c058ba4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117091356.GA29736@barrios-desktop.redhat.com>
+ <20120117190512.047d3a03.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120117190512.047d3a03.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, penberg@kernel.org, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>
 
-Another version that drops the slub lock for both invocations of sysfs
-functions from kmem_cache_create. The invocation from slab_sysfs_init
-is not a problem since user space is not active at that point.
+On Tue, Jan 17, 2012 at 07:05:12PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 17 Jan 2012 18:13:56 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > On Tue, Jan 17, 2012 at 05:39:32PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Tue, 17 Jan 2012 17:13:57 +0900
+> > > Minchan Kim <minchan@kernel.org> wrote:
+> > > 
+> > > 
+> > > > +	/*
+> > > > +	 * We want to avoid dropping page cache excessively
+> > > > +	 * in no swap system
+> > > > +	 */
+> > > > +	if (nr_swap_pages <= 0) {
+> > > > +		free = zone_page_state(mz->zone, NR_FREE_PAGES);
+> > > > +		file = zone_page_state(mz->zone, NR_ACTIVE_FILE) +
+> > > > +			zone_page_state(mz->zone, NR_INACTIVE_FILE);
+> > > > +		/*
+> > > > +		 * If we have very few page cache pages,
+> > > > +		 * notify to user
+> > > > +		 */
+> > > > +		if (file < free)
+> > > > +			low_mem = true;
+> > > > +	}
+> > > 
+> > > I can't understand why you think you can check lowmem condition by "file < free".
+> > 
+> > The reason I thought so is I want to maintain some page cache to some degree.
+> > But I admit It's very naive heuristic and should be improved.
+> > 
+> > > And I don't think using per-zone data is good.
+> > > (I'm not sure how many zones embeded guys using..)
+> > 
+> > Agree. In case of swapless system, we need another heuristic.
+> > 
+> > > 
+> > > Another idea:
+> > > 1. can't we use some technique like cleancache to detect the condition ?
+> > 
+> > I totally forgot cleancache approach. Could you remind that?
+> > 
+> 
+> Similar to 'victim cache'. Then, cache some clean pages somewhere when
+> vmscan pageout it.
+> 
+>    page -> vmscan's pageout -> cleancache  -> may be discarded.
+> 
+> If a filesystem look up a page which is in a cleancache, cache-hit and
+> bring it back to radix-tree. If not, read from disk again.
+> And cleancache for swap(frontswap) was posted, too.
 
+I am not sure this can prevent swapout.
+I think it ends up evicting pages into swap devices.
 
-Subject: slub: Do not take the slub lock while calling into sysfs
+> 
+> 
+> > > 2. can't we measure page-in/page-out distance by recording something ?
+> > 
+> > I can't understand your point. What's relation does it with swapout prevent?
+> > 
+> 
+> If distance between pageout -> pagein is short, it means thrashing.
+> For example, recoding the timestamp when the page(mapping, index) was
+> paged-out, and check it at page-in.
 
-This patch avoids holding the slub_lock during kmem_cache_create()
-when calling sysfs. It is possible because kmem_cache_create()
-allocates the kmem_cache object and therefore is the only one context
-that can access the newly created object. It is therefore possible
-to drop the slub_lock early. We defer the adding of the new kmem_cache
-to the end of processing because the new kmem_cache structure would
-be reachable otherwise via scans over slabs. This allows sysfs_slab_add()
-to run without holding any locks.
+Our goal is prevent swapout. When we found thrashing, it's too late.
 
-The case is different if we are creating an alias instead of a new
-kmem_cache structure. In that case we can also drop the slub lock
-early because we have taken a refcount on the kmem_cache structure.
-It therefore cannot vanish from under us.
-But if the sysfs_slab_alias() call fails we can no longer simply
-decrement the refcount since the other references may have gone
-away in the meantime. Call kmem_cache_destroy() to cause the
-refcount to be decremented and the kmem_cache structure to be
-freed if all references are gone.
+> 
+> 
+> > > 3. NR_ANON + NR_FILE_MAPPED can't mean the amount of core memory if we can
+> > >    ignore the data file cache ?
+> > 
+> > It's good but how do we define some amount?
+> > It's very vague but I guess we can get a good idea from that.
+> > Perhaps, you already has it.
+> > 
+> 
+> Hm, a rough idea is...
+> 
+>   - we now have rss counter per mm.
+>     - mapped anon
+>     - mapped file
+>     - swapents
+>  
+> Ok, here, add one more counter.
+> 
+>     - paged-out file. (I think this can be recorded in pte.)
+>       +1 when try_to_unmap_file() unmaps it.
+>       -1 when a page is back or unmapped.
+> 
+> Then, scanning all tasks. Then,
+> 
+>                                  mapped_anon + mapped_file
+> active_map_ratio =   ----------------------------------------------------- * 100
+>                      mapped_anon + mapped_file + swapents + paged_out_file
+> 
+> Ok, how to use this value...
+> 
+> Like memcg's threshold notify interface, you can change the mem_notify interface
+> to use eventfd() as
+> 
+>    <event_fd, fd of /dev/mem_notify, threshold of active_map_ratio>
+> 
+> This will inform you an event when active_map_ratio crosses passed threshold.
+> 
+> complicated ? 
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Yes. :)
+I want to make simple if possible.
 
+> 
+> 
+> > > 4. how about checking kswapd's busy status ?
+> > 
+> > Could you elaborate on your idea?
+> > 
+> 
+> I just thought kswapd may not stop when the situation is very bad.
 
----
- mm/slub.c |   25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+As I said eariler, the goal is prevent swap.
+When we found kswapd is busy, it might many pages are already swapped-out so it's too late.
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-01-17 09:53:26.599505365 -0600
-+++ linux-2.6/mm/slub.c	2012-01-17 09:59:57.131497273 -0600
-@@ -3912,13 +3912,14 @@ struct kmem_cache *kmem_cache_create(con
- 		s->objsize = max(s->objsize, (int)size);
- 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
-
-+		up_write(&slub_lock);
- 		if (sysfs_slab_alias(s, name)) {
--			s->refcount--;
-+			kmem_cache_destroy(s);
- 			goto err;
- 		}
--		up_write(&slub_lock);
- 		return s;
- 	}
-+	up_write(&slub_lock);
-
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
-@@ -3928,27 +3929,23 @@ struct kmem_cache *kmem_cache_create(con
- 	if (s) {
- 		if (kmem_cache_open(s, n,
- 				size, align, flags, ctor)) {
--			list_add(&s->list, &slab_caches);
--			if (sysfs_slab_add(s)) {
--				list_del(&s->list);
--				kfree(n);
--				kfree(s);
--				goto err;
-+
-+			if (sysfs_slab_add(s) == 0) {
-+				down_write(&slub_lock);
-+				list_add(&s->list, &slab_caches);
-+				up_write(&slub_lock);
-+				return s;
- 			}
--			up_write(&slub_lock);
--			return s;
- 		}
- 		kfree(n);
- 		kfree(s);
- 	}
- err:
--	up_write(&slub_lock);
-
- 	if (flags & SLAB_PANIC)
- 		panic("Cannot create slabcache %s\n", name);
--	else
--		s = NULL;
--	return s;
-+
-+	return NULL;
- }
- EXPORT_SYMBOL(kmem_cache_create);
+> 
+> Thanks,
+> -Kame
+> 
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
