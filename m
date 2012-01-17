@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 5A3126B00A5
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:21:58 -0500 (EST)
-Date: Tue, 17 Jan 2012 13:21:33 +0100
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 597FA6B00A7
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:24:31 -0500 (EST)
+Date: Tue, 17 Jan 2012 13:23:50 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH v9 3.2 7/9] tracing: uprobes trace_event interface
-Message-ID: <20120117122133.GB4959@elte.hu>
+Message-ID: <20120117122350.GD4959@elte.hu>
 References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
  <20120110114943.17610.28293.sendpatchset@srdronam.in.ibm.com>
  <20120116131137.GB5265@m.brq.redhat.com>
  <20120117092838.GB10397@elte.hu>
  <20120117102231.GB15447@linux.vnet.ibm.com>
+ <20120117112239.GA23859@elte.hu>
+ <20120117115705.GD15447@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120117102231.GB15447@linux.vnet.ibm.com>
+In-Reply-To: <20120117115705.GD15447@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: "Paul E. McKenney" <paulmck@us.ibm.com>, Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
 
-Have you tried to use 'perf probe' to achieve any useful 
-instrumentation on a real app?
+* Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
 
-I just tried out the 'glibc:free' usecase and it's barely 
-usable.
+> > Srikar, rebased commits like this one:
+> > 
+> >   c5af743: rcu: Introduce raw SRCU read-side primitives
+> > 
+> > are absolutely inacceptable:
+> > 
+> 
+> Okay, I wasnt sure whats the best way for me to expose a tree 
+> such that people who just use my tree to try (without basing 
+> on any other trees except Linus) can build and use uprobes but 
+> people who already have this commit arent affected by me 
+> having this commit.
+> 
+> So couple of people did tell me that git was intelligent enuf 
+> that if the commit was already in, it would create a empty 
+> commit.
+> 
+> do you have suggestions on how to work around such situations 
+> in future?
 
-Firstly, the recording very frequently produces overruns:
-
- $ perf record -e probe_libc:free -aR sleep 1
- [ perf record: Woken up 169 times to write data ]
- [ perf record: Captured and wrote 89.674 MB perf.data (~3917919 samples) ]
- Warning:Processed 1349133 events and lost 1 chunks!
-
-Using -m 4096 made it work better.
-
-Adding -g for call-graph profiling caused 'perf report' to lock 
-up:
-
-  perf record -m 4096 -e probe_libc:free -agR sleep 1
-  perf report
-  [ loops forever ]
-
-I've sent a testcase to Arnaldo separately. Note that perf 
-report --stdio appears to work.
-
-Regular '-e cycles -g' works fine, so this is a uprobes specific 
-bug.
+You can just apply it out of email, as a regular commit.
 
 Thanks,
 
