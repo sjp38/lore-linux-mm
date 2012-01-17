@@ -1,162 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 070276B006C
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 03:14:28 -0500 (EST)
-Received: by mail-vw0-f41.google.com with SMTP id fa15so1866150vbb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 00:14:28 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 3/3] test program
-Date: Tue, 17 Jan 2012 17:13:58 +0900
-Message-Id: <1326788038-29141-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 2EE286B0073
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 03:40:56 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 381933EE0BD
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:40:54 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 16C2345DEF2
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:40:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DFA5345DEDC
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:40:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CD7531DB8047
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:40:53 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 75A0C1DB8042
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:40:53 +0900 (JST)
+Date: Tue, 17 Jan 2012 17:39:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 2/3] vmscan hook
+Message-Id: <20120117173932.1c058ba4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1326788038-29141-3-git-send-email-minchan@kernel.org>
 References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+	<1326788038-29141-3-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, Minchan Kim <minchan@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, penberg@kernel.org, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>
 
-This test program allocates 10M per second and when
-memory pressure notify happens, it releases 20M.
+On Tue, 17 Jan 2012 17:13:57 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-I tested this patch on 512M qemu machine with 3 test program.
-I saw some swapout but not too many and even didn't see OOM.
-It obviously reduces swap out.
+> This patch insert memory pressure notify point into vmscan.c
+> Most problem in system slowness is swap-in. swap-in is a synchronous
+> opeartion so that it affects heavily system response.
+> 
+> This patch alert it when reclaimer start to reclaim inactive anon list.
+> It seems rather earlier but not bad than too late.
+> 
+> Other alert point is when there is few cache pages
+> In this implementation, if it is (cache < free pages),
+> memory pressure notify happens. It has to need more testing and tuning
+> or other hueristic. Any suggesion are welcome.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- poll.c |  121 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 121 insertions(+), 0 deletions(-)
- create mode 100644 poll.c
+In my 1st impression, isn't this too simple ?
 
-diff --git a/poll.c b/poll.c
-new file mode 100644
-index 0000000..3215f8b
---- /dev/null
-+++ b/poll.c
-@@ -0,0 +1,121 @@
-+#include <poll.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <fcntl.h>
-+#include <stdio.h>
-+#include <pthread.h>
-+#include <stdbool.h>
-+#include <stdlib.h>
-+#include <string.h>
-+
-+#define ALLOC_UNIT	10 /* MB */
-+#define FREE_UNIT	20 /* MB */
-+
-+void alloc_memory();
-+void free_memory();
-+
-+unsigned int total_memory = 0; /* MB */
-+
-+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
-+
-+/*
-+ * If total memory is higher than 200M
-+ */
-+bool memory_full()
-+{
-+	return total_memory >= 400 ? true : false;
-+}
-+
-+struct alloc_chunk {
-+	void *ptr;
-+	struct alloc_chunk *next;
-+};
-+
-+struct alloc_chunk head_chunk;
-+
-+void init_alloc_chunk(void)
-+{
-+	head_chunk.ptr = NULL;
-+	head_chunk.next = NULL;
-+}
-+
-+void add_memory(void *ptr)
-+{
-+	struct alloc_chunk *new_chunk = malloc(sizeof(struct alloc_chunk));
-+	new_chunk->ptr = ptr;
-+
-+	pthread_mutex_lock(&mutex);
-+	new_chunk->next = head_chunk.next;
-+	head_chunk.next = new_chunk;
-+	total_memory += ALLOC_UNIT;
-+	pthread_mutex_unlock(&mutex);
-+
-+	printf("[%d] Add total memory %d(MB)\n", getpid(), total_memory);
-+}
-+
-+void alloc_memory(void)
-+{
-+	while(1) {
-+		if (memory_full()) {
-+			sleep(10);
-+			continue;
-+		}
-+
-+		void *new = malloc(ALLOC_UNIT*1024*1024);
-+		memset(new, 0, ALLOC_UNIT*1024*1024);
-+		add_memory(new);
-+		sleep(1);
-+	}
-+}
-+
-+void free_memory(void)
-+{
-+	int count = FREE_UNIT / ALLOC_UNIT;
-+	while(count--) {
-+		struct alloc_chunk *chunk = head_chunk.next;
-+		if (chunk == NULL)
-+			break;
-+
-+		pthread_mutex_lock(&mutex);
-+		head_chunk.next = chunk->next;
-+		total_memory -= ALLOC_UNIT;
-+		pthread_mutex_unlock(&mutex);
-+
-+		free(chunk->ptr);
-+		free(chunk);
-+
-+		printf("[%d] Free total memory %d(MB)\n", getpid(), total_memory);
-+	}
-+}
-+
-+void *poll_thread(void *dummy)
-+{
-+	struct pollfd pfd;	
-+	int fd = open("/dev/low_mem_notify", O_RDONLY); 
-+	if (fd == -1) {
-+		fprintf(stderr, "Fail to open\n");
-+		return;
-+	}
-+
-+	pfd.fd = fd;
-+	pfd.events = POLLIN;
-+
-+	while(1) {
-+		poll(&pfd, 1, -1);
-+		free_memory();
-+	}
-+}
-+
-+int main()
-+{
-+	pthread_t threadid;
-+	init_alloc_chunk();
-+
-+	if (pthread_create(&threadid, NULL, poll_thread, NULL)) {
-+		fprintf(stderr, "pthread create fail\n");
-+		return 1;
-+	}
-+
-+	alloc_memory();
-+	return 0;
-+}
--- 
-1.7.7.5
+
+> ---
+>  mm/vmscan.c |   28 ++++++++++++++++++++++++++++
+>  1 files changed, 28 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2880396..cfa2e2d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -43,6 +43,7 @@
+>  #include <linux/sysctl.h>
+>  #include <linux/oom.h>
+>  #include <linux/prefetch.h>
+> +#include <linux/low_mem_notify.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
+> @@ -2082,16 +2083,43 @@ static void shrink_mem_cgroup_zone(int priority, struct mem_cgroup_zone *mz,
+>  {
+>  	unsigned long nr[NR_LRU_LISTS];
+>  	unsigned long nr_to_scan;
+> +
+>  	enum lru_list lru;
+>  	unsigned long nr_reclaimed, nr_scanned;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+>  	struct blk_plug plug;
+> +#ifdef CONFIG_LOW_MEM_NOTIFY
+> +	bool low_mem = false;
+> +	unsigned long free, file;
+> +#endif
+>  
+>  restart:
+>  	nr_reclaimed = 0;
+>  	nr_scanned = sc->nr_scanned;
+>  	get_scan_count(mz, sc, nr, priority);
+> +#ifdef CONFIG_LOW_MEM_NOTIFY
+> +	/* We want to avoid swapout */
+> +	if (nr[LRU_INACTIVE_ANON])
+> +		low_mem = true;
+
+IIUC, nr[LRU_INACTIVE_ANON] can be easily > 0.
+And get_scan_count() now check per-memcg-lru. So, this only works when
+memcg is not used.
+
+
+> +	/*
+> +	 * We want to avoid dropping page cache excessively
+> +	 * in no swap system
+> +	 */
+> +	if (nr_swap_pages <= 0) {
+> +		free = zone_page_state(mz->zone, NR_FREE_PAGES);
+> +		file = zone_page_state(mz->zone, NR_ACTIVE_FILE) +
+> +			zone_page_state(mz->zone, NR_INACTIVE_FILE);
+> +		/*
+> +		 * If we have very few page cache pages,
+> +		 * notify to user
+> +		 */
+> +		if (file < free)
+> +			low_mem = true;
+> +	}
+
+I can't understand why you think you can check lowmem condition by "file < free".
+And I don't think using per-zone data is good.
+(I'm not sure how many zones embeded guys using..)
+
+Another idea:
+1. can't we use some technique like cleancache to detect the condition ?
+2. can't we measure page-in/page-out distance by recording something ?
+3. NR_ANON + NR_FILE_MAPPED can't mean the amount of core memory if we can
+   ignore the data file cache ?
+4. how about checking kswapd's busy status ?
+
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
