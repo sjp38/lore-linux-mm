@@ -1,37 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 161726B0098
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 10:04:30 -0500 (EST)
-Received: by vbbfa15 with SMTP id fa15so2189228vbb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 07:04:29 -0800 (PST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 3DB036B00C8
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 10:12:50 -0500 (EST)
+Date: Tue, 17 Jan 2012 09:12:33 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Hung task when calling clone() due to netfilter/slab
+In-Reply-To: <1326648305.5287.78.camel@edumazet-laptop>
+Message-ID: <alpine.DEB.2.00.1201170910130.4800@router.home>
+References: <1326558605.19951.7.camel@lappy>  <1326561043.5287.24.camel@edumazet-laptop> <1326632384.11711.3.camel@lappy> <1326648305.5287.78.camel@edumazet-laptop>
 MIME-Version: 1.0
-In-Reply-To: <1326811093.3467.41.camel@lenny>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326811093.3467.41.camel@lenny>
-Date: Tue, 17 Jan 2012 17:04:28 +0200
-Message-ID: <CAOJsxLG6Q=zr8kqcds7jWzpGqqy2GV10YERb9njMzM8y7kS55A@mail.gmail.com>
-Subject: Re: [RFC 0/3] low memory notify
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Walters <walters@verbum.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
 
-On Tue, Jan 17, 2012 at 4:38 PM, Colin Walters <walters@verbum.org> wrote:
-> So what you really want to be investigating here is integration between
-> a garbage collector and the system VM. =A0Your test program looks nothing
-> like a garbage collector. =A0I'd expect most of the performance tradeoffs
-> to be similar between these runtimes. =A0The Azul people have been doing
-> something like this: http://www.managedruntime.org/
+On Sun, 15 Jan 2012, Eric Dumazet wrote:
 
-The interraction isn't all that complex, really. I'd expect most VMs
-to simply wake up the GC thread when poll() returns. GCs that are able
-to compact the heap can madvise(MADV_DONTNEED) or even munmap() unused
-parts of the heap.
+> As soon as the slub_lock is released, another thread can come and find
+> the new kmem_cache.
 
-                                Pekka
+Slabs are not looked up by name. A pointer to kmem_cache is passed to slab
+functions and that pointer is returned from kmem_cache_create(). The risk
+is someone traversing the kmem_cach list which is only done from within slub.
+
+
+Subject: slub: Do not hold slub_lock when calling sysfs_slab_add()
+
+sysfs_slab_add() calls various sysfs functions that actually may
+end up in userspace doing all sorts of things.
+
+Release the slub_lock after adding the kmem_cache structure to the list.
+At that point the address of the kmem_cache is not known so we are
+guaranteed exlusive access to the following modifications to the
+kmem_cache structure.
+
+If the sysfs_slab_add fails then reacquire the slub_lock to
+remove the kmem_cache structure from the list.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ mm/slub.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-01-17 03:07:11.140010438 -0600
++++ linux-2.6/mm/slub.c	2012-01-17 03:07:19.532010264 -0600
+@@ -3929,13 +3929,15 @@ struct kmem_cache *kmem_cache_create(con
+ 		if (kmem_cache_open(s, n,
+ 				size, align, flags, ctor)) {
+ 			list_add(&s->list, &slab_caches);
++			up_write(&slub_lock);
+ 			if (sysfs_slab_add(s)) {
++				down_write(&slub_lock);
+ 				list_del(&s->list);
++				up_write(&slub_lock);
+ 				kfree(n);
+ 				kfree(s);
+ 				goto err;
+ 			}
+-			up_write(&slub_lock);
+ 			return s;
+ 		}
+ 		kfree(n);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
