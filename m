@@ -1,63 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 47E456B004D
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 19:19:44 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C25593EE0BC
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 09:19:42 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A027F45DEF1
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 09:19:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 82DE045DEEC
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 09:19:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 74A971DB803C
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 09:19:42 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2898A1DB803F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 09:19:42 +0900 (JST)
-Date: Wed, 18 Jan 2012 09:18:24 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 2/3] vmscan hook
-Message-Id: <20120118091824.0bde46f7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120117230801.GA903@barrios-desktop.redhat.com>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326788038-29141-3-git-send-email-minchan@kernel.org>
-	<20120117173932.1c058ba4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120117091356.GA29736@barrios-desktop.redhat.com>
-	<20120117190512.047d3a03.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120117230801.GA903@barrios-desktop.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 2A3A16B004D
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 19:47:20 -0500 (EST)
+Received: by bkbzx1 with SMTP id zx1so1543892bkb.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 16:47:18 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <op.v781mqwl3l0zgt@mpn-glaptop>
+References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
+ <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
+ <CA+K6fF6A1kPUW-2Mw5+W_QaTuLfU0_m0aMYRLOg98mFKwZOhtQ@mail.gmail.com> <op.v781mqwl3l0zgt@mpn-glaptop>
+From: sandeep patil <psandeep.s@gmail.com>
+Date: Tue, 17 Jan 2012 16:46:37 -0800
+Message-ID: <CA+K6fF64hjVBjx6NPspQSud2hkJQWzeXkceLAChPrO-k7eCF+g@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 04/11] mm: page_alloc: introduce alloc_contig_range()
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, penberg@kernel.org, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 18 Jan 2012 08:08:01 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+> Yeah, we are wondering ourselves about that. =A0Could you try cherry-pick=
+ing
+> commit ad10eb079c97e27b4d27bc755c605226ce1625de (update migrate type on p=
+cp
+> when isolating) from git://github.com/mina86/linux-2.6.git? =A0It probabl=
+y
+> won't
+> apply cleanly but resolving the conflicts should not be hard (alternative=
+ly
+> you can try branch cma from the same repo but it is a work in progress at
+> the
+> moment).
+>
 
-> > 
-> > 
-> > > > 2. can't we measure page-in/page-out distance by recording something ?
-> > > 
-> > > I can't understand your point. What's relation does it with swapout prevent?
-> > > 
-> > 
-> > If distance between pageout -> pagein is short, it means thrashing.
-> > For example, recoding the timestamp when the page(mapping, index) was
-> > paged-out, and check it at page-in.
-> 
-> Our goal is prevent swapout. When we found thrashing, it's too late.
-> 
+I'll try this patch and report back ,,
 
-If you want to prevent swap-out, don't swapon any. That's all.
-Then, you can check the number of FILE_CACHE and have threshold.
+
+>> is set to MIGRATE_CMA instead of MIGRATE_ISOLATED.
+>
+>
+> My understanding of that situation is that the page is on pcp list in whi=
+ch
+> cases it's page_private is not updated. =A0Draining and the first patch i=
+n
+> the series (and also the commit I've pointed to above) are designed to fi=
+x
+> that but I'm unsure why they don't work all the time.
+>
+>
+
+Will verify this if the page is found on the pcp list as well .
+
+>> I've also had a test case where it failed because (page_count() !=3D 0)
+
+With this, when it failed the page_count()
+returned a value of 2. I am not sure why, but I will try and see If I can
+reproduce this.
+
+>
+>
+>> Have you or anyone else seen this during the CMA testing?
+>>
+>> Also, could this be because we are finding a page within (start, end)
+>> that actually belongs to a higher order Buddy block ?
+>
+>
+> Higher order free buddy blocks are skipped in the =93if (PageBuddy(page))=
+=94
+> path of __test_page_isolated_in_pageblock(). =A0Then again, now that I th=
+ink
+> of it, something fishy may be happening on the edges. =A0Moving the check
+> outside of __alloc_contig_migrate_range() after outer_start is calculated
+> in alloc_contig_range() could help. =A0I'll take a look at it.
+
+I was going to suggest that, moving the check until after outer_start
+is calculated
+will definitely help IMO. I am sure I've seen a case where
+
+  page_count(page) =3D page->private =3D 0 and PageBuddy(page) was false.
+
+I will try and reproduce this as well.
 
 Thanks,
--Kame
+Sandeep
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
