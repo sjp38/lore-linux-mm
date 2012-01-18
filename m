@@ -1,82 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 945536B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 08:01:04 -0500 (EST)
-Date: Wed, 18 Jan 2012 14:01:02 +0100
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id AFA2C6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 08:40:56 -0500 (EST)
+Date: Wed, 18 Jan 2012 14:40:53 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 1/7 v2] memcg: remove unnecessary check in
- mem_cgroup_update_page_stat()
-Message-ID: <20120118130102.GC31112@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113173227.df2baae3.kamezawa.hiroyu@jp.fujitsu.com>
- <20120117151619.GA21348@tiehlicka.suse.cz>
- <20120118085558.6ed1a988.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: memcg: remove checking reclaim order in soft limit
+ reclaim
+Message-ID: <20120118134053.GD31112@tiehlicka.suse.cz>
+References: <CAJd=RBBdDriMhfetM2AWGzgxiJ1DDs-W4Ff9_1Z8DUgbyQmSkA@mail.gmail.com>
+ <20120117131601.GB14907@tiehlicka.suse.cz>
+ <CAJd=RBBcL5RuW1wC_Yh=gy2Ja8wqJ6jhf28zNi1n6MJ=+0=m2Q@mail.gmail.com>
+ <20120117140712.GC14907@tiehlicka.suse.cz>
+ <CAJd=RBAyqPwKERQL4JyCO38gjE=y8_qasHTbLtMGWqtZ1JFnUg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120118085558.6ed1a988.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CAJd=RBAyqPwKERQL4JyCO38gjE=y8_qasHTbLtMGWqtZ1JFnUg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed 18-01-12 08:55:58, KAMEZAWA Hiroyuki wrote:
-> On Tue, 17 Jan 2012 16:16:20 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > On Fri 13-01-12 17:32:27, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > From 788aebf15f3fa37940e0745cab72547e20683bf2 Mon Sep 17 00:00:00 2001
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Date: Thu, 12 Jan 2012 16:08:33 +0900
-> > > Subject: [PATCH 1/7] memcg: remove unnecessary check in mem_cgroup_update_page_stat()
-> > > 
-> > > commit 10ea69f1182b removes move_lock_page_cgroup() in thp-split path.
-> > > So, this PageTransHuge() check is unnecessary, too.
-> > 
-> > I do not see commit like that in the tree. I guess you meant
-> > memcg: make mem_cgroup_split_huge_fixup() more efficient which is not
-> > merged yet, right?
-> > 
-> 
-> This commit in the linux-next.
+On Wed 18-01-12 20:30:41, Hillf Danton wrote:
+> On Tue, Jan 17, 2012 at 10:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Tue 17-01-12 21:29:52, Hillf Danton wrote:
+> >> On Tue, Jan 17, 2012 at 9:16 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> > Hi,
+> >> >
+> >> > On Tue 17-01-12 20:47:59, Hillf Danton wrote:
+> >> >> If async order-O reclaim expected here, it is settled down when setting up scan
+> >> >> control, with scan priority hacked to be zero. Other than that, deny of reclaim
+> >> >> should be removed.
+> >> >
+> >> > Maybe I have misunderstood you but this is not right. The check is to
+> >> > protect from the _global_ reclaim with order > 0 when we prevent from
+> >> > memcg soft reclaim.
+> >> >
+> >> need to bear mm hog in this way?
+> >
+> > Could you be more specific? Are you trying to fix any particular
+> > problem?
+> >
+> My thought is simple, the outcome of softlimit reclaim depends little on the
+> value of reclaim order, zero or not, and only exceeding is reclaimed, so
+> selective response to swapd's request is incorrect.
 
-Referring to commits from linux-next is tricky as it changes all the
-time. I guess that the full commit subject should be sufficient.
+OK, got your point, finally. Let's add Balbir (the proposed patch can
+be found at https://lkml.org/lkml/2012/1/17/166) to the CC list because
+this seems to be a design decision.
 
-> > > Note:
-> > >  - considering when mem_cgroup_update_page_stat() is called,
-> > >    there will be no race between split_huge_page() and update_page_stat().
-> > >    All required locks are held in higher level.
-> > 
-> > We should never have THP page in this path in the first place. So why
-> > not changing this to VM_BUG_ON(PageTransHuge).
-> > 
-> 
-> Ying Han considers to support mlock stat.
+I always thought that this is because we want non-userspace (high order)
+mem pressure to be handled by the global reclaim only. And it makes some
+sense to me because it is little bit strange to reclaim for order-0
+while the request is for an higher order. I guess this might lead to an
+extensive and pointless reclaiming because we might end up with many
+free pages which cannot satisfy higher order allocation.
 
-OK, got it. What about the following updated changelog instead?
+On the other hand, it is true that the documentation says that the soft
+limit is considered when "the system detects memory contention or low
+memory" which doesn't say that the contention comes from memcg accounted
+memory.
 
-===
-We do not have to check PageTransHuge in mem_cgroup_update_page_stat
-and fallback into the locked accounting because both move charge and thp
-split up are done with compound_lock so they cannot race. update vs.
-move is protected by the mem_cgroup_stealed sufficiently.
+Anyway this changes the current behavior so it would better come with
+much better justification which shows that over reclaim doesn't happen
+and that we will not see higher latencies with higher order allocations.
 
-PageTransHuge pages shouldn't appear in this code path currently because
-we are tracking only file pages at the moment but later we are planning
-to track also other pages (e.g. mlocked ones).
-===
-
-> 
-> Thanks,
-> -Kame
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
+Thanks
 -- 
 Michal Hocko
 SUSE Labs
