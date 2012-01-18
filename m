@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 157A66B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 06:01:59 -0500 (EST)
-From: Mike Frysinger <vapier@gentoo.org>
-Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step exception.
-Date: Wed, 18 Jan 2012 06:01:58 -0500
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com> <201201180518.31407.vapier@gentoo.org> <20120118104749.GG15447@linux.vnet.ibm.com>
-In-Reply-To: <20120118104749.GG15447@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id AB94F6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 06:25:38 -0500 (EST)
+Received: by iadj38 with SMTP id j38so5678207iad.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:25:38 -0800 (PST)
+Message-ID: <4F16AC27.1080906@gmail.com>
+Date: Wed, 18 Jan 2012 19:25:27 +0800
+From: Sha <handai.szj@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart2658957.MnuXhHn6Sl";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org> <1326207772-16762-3-git-send-email-hannes@cmpxchg.org> <CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com> <20120112085904.GG24386@cmpxchg.org> <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com> <20120113224424.GC1653@cmpxchg.org> <4F158418.2090509@gmail.com> <20120117145348.GA3144@cmpxchg.org> <CAFj3OHWY2Biw54gaGeH5fkxzgOhxn7NAibeYT_Jmga-_ypNSRg@mail.gmail.com> <20120118092509.GI24386@cmpxchg.org>
+In-Reply-To: <20120118092509.GI24386@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201201180602.04269.vapier@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Anton Arapov <anton@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---nextPart2658957.MnuXhHn6Sl
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+On 01/18/2012 05:25 PM, Johannes Weiner wrote:
+> On Wed, Jan 18, 2012 at 03:17:25PM +0800, Sha wrote:
+>>>> I don't think it solve the root of the problem, example:
+>>>> root
+>>>> ->  A (hard limit 20G, soft limit 12G, usage 20G)
+>>>>    ->  A1 ( soft limit 2G,   usage 1G)
+>>>>    ->  A2 ( soft limit 10G, usage 19G)
+>>>>           ->B1 (soft limit 5G, usage 4G)
+>>>>           ->B2 (soft limit 5G, usage 15G)
+>>>>
+>>>> Now A is hitting its hard limit and start hierarchical reclaim under A.
+>>>> If we choose B1 to go through mem_cgroup_over_soft_limit, it will
+>>>> return true because its parent A2 has a large usage and will lead to
+>>>> priority=0 reclaiming. But in fact it should be B2 to be punished.
+>>> Because A2 is over its soft limit, the whole hierarchy below it should
+>>> be preferred over A1, so both B1 and B2 should be soft limit reclaimed
+>>> to be consistent with behaviour at the root level.
+>> Well it is just the behavior that I'm expecting actually. But with my
+>> humble comprehension, I can't catch the soft-limit-based hierarchical
+>> reclaiming under the target cgroup (A2) in the current implementation
+>> or after the patch. Both the current mem_cgroup_soft_reclaim or
+>> shrink_zone select victim sub-cgroup by mem_cgroup_iter, but it
+>> doesn't take soft limit into consideration, do I left anything ?
+> No, currently soft limits are ignored if pressure originates from
+> below root_mem_cgroup.
+>
+> But iff soft limits are applied right now, they are applied
+> hierarchically, see mem_cgroup_soft_limit_reclaim().
+Er... I'm even more confused: mem_cgroup_soft_limit_reclaim indeed
+choses the biggest soft-limit excessor first, but in the succeeding reclaim
+mem_cgroup_hierarchical_reclaim just selects a child cgroup  by css_id
+which has nothing to do with soft limit (see mem_cgroup_select_victim).
+IMHO, it's not a genuine hierarchical reclaim.
+I check this from the latest memcg-devel git tree (branch since-3.1)...
 
-On Wednesday 18 January 2012 05:47:49 Srikar Dronamraju wrote:
-> > On Wednesday 18 January 2012 04:02:32 Srikar Dronamraju wrote:
-> > > >   Can we use existing SET_IP() instead of set_instruction_pointer()=
- ?
-> > >=20
-> > > Oleg had already commented about this in one his uprobes reviews.
-> > >=20
-> > > The GET_IP/SET_IP available in include/asm-generic/ptrace.h doesnt wo=
-rk
-> > > on all archs. Atleast it doesnt work on powerpc when I tried it.
-> >=20
-> > so migrate the arches you need over to it.
->=20
-> One question that could be asked is why arent we using instruction_pointer
-> instead of GET_IP since instruction_pointer is being defined in 25
-> places and with references in 120 places.
-
-i think you misunderstand the point.  {G,S}ET_IP() is the glue between the=
-=20
-arch's pt_regs struct and the public facing API.  the only people who shoul=
-d=20
-be touching those macros are the ptrace core.  instruction_pointer() and=20
-instruction_pointer_set() are the API that asm/ptrace.h exports to the rest=
- of=20
-the tree.
-=2Dmike
-
---nextPart2658957.MnuXhHn6Sl
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.17 (GNU/Linux)
-
-iQIcBAABAgAGBQJPFqasAAoJEEFjO5/oN/WBT+kP/iZ/l/OJJmqsWS/OGOmAht42
-5qtjP2Yci1RXCcAmNYA+yqM2/t9Zdi330FwrsladU/DxIfM80WWhPgsasI4Lt5rR
-dfEi47mllDBri8d17WucrAGAtyh+CrqTgIcx4Sg6dhMdCsm80o3kX+J2y/CV/sX7
-6swY7TylS/s1IYG3mxNXOmlmOUwOxpHv9Of8MKw1IWUlIXT/kw6nWkCJXE9+MfZS
-ya4zDQjMUxU91QZZkP7TdFVZNitUsQgHKLxiwepjLKhFfe+/uVdRN54uDEjxjzox
-M8fXkvhhrlT8/YS4tAix4eNCkb34f9vlTsTa1CJR1XwoY7OwvQ0aS3GlxhxJ+a7q
-OkpzFwdFIAm3tMsb0BfxAX8I6leeUox3C3H2Yjc3FaFbQIdMJD3OH90XSTeyfwvD
-3EPvIUm41npI9Rlb63HAj1Tu5hijbxmSW6scxIgg400JytK76D+hRW32dn0Y8WwC
-GP+DRwXfzsUOL7KYi5aNbhfFzaptGGlIyr78K2rGXwxnFbNH/eoOLZLv2uC/XQEe
-G7rNLxt954EI/Qf4JgdQK3Fe1rE7EP9v7+7CUvv1sIU7RiqDQPu2Ksa7gE+0jXhv
-FUIE9SV8ew8IIF/0WP8a78bJ0Ey0JCroI3CI6Kk1xPLa6wjGbNCEtTiD9+cL5SWn
-qMvGM48OVx3LrFL48JZh
-=yvLq
------END PGP SIGNATURE-----
-
---nextPart2658957.MnuXhHn6Sl--
+> In my opinion, the fact that soft limits are ignored when pressure is
+> triggered sub-root_mem_cgroup is an artifact of the per-zone tree, so
+> I allowed soft limits to be taken into account below root_mem_cgroup.
+>
+> But IMO, this is something different from how soft limit reclaim is
+> applied once triggered: currently, soft limit reclaim applies to a
+> whole hierarchy, including all children.  And this I left unchanged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
