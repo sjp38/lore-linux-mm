@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 989F56B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 07:30:43 -0500 (EST)
-Received: by wgbdr13 with SMTP id dr13so2200257wgb.26
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:30:42 -0800 (PST)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 2D9746B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 07:38:02 -0500 (EST)
+Date: Wed, 18 Jan 2012 13:37:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
+ account move.
+Message-ID: <20120118123759.GB31112@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117152635.GA22142@tiehlicka.suse.cz>
+ <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20120117140712.GC14907@tiehlicka.suse.cz>
-References: <CAJd=RBBdDriMhfetM2AWGzgxiJ1DDs-W4Ff9_1Z8DUgbyQmSkA@mail.gmail.com>
-	<20120117131601.GB14907@tiehlicka.suse.cz>
-	<CAJd=RBBcL5RuW1wC_Yh=gy2Ja8wqJ6jhf28zNi1n6MJ=+0=m2Q@mail.gmail.com>
-	<20120117140712.GC14907@tiehlicka.suse.cz>
-Date: Wed, 18 Jan 2012 20:30:41 +0800
-Message-ID: <CAJd=RBAyqPwKERQL4JyCO38gjE=y8_qasHTbLtMGWqtZ1JFnUg@mail.gmail.com>
-Subject: Re: [PATCH] mm: memcg: remove checking reclaim order in soft limit reclaim
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Tue, Jan 17, 2012 at 10:07 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 17-01-12 21:29:52, Hillf Danton wrote:
->> On Tue, Jan 17, 2012 at 9:16 PM, Michal Hocko <mhocko@suse.cz> wrote:
->> > Hi,
->> >
->> > On Tue 17-01-12 20:47:59, Hillf Danton wrote:
->> >> If async order-O reclaim expected here, it is settled down when setting up scan
->> >> control, with scan priority hacked to be zero. Other than that, deny of reclaim
->> >> should be removed.
->> >
->> > Maybe I have misunderstood you but this is not right. The check is to
->> > protect from the _global_ reclaim with order > 0 when we prevent from
->> > memcg soft reclaim.
->> >
->> need to bear mm hog in this way?
->
-> Could you be more specific? Are you trying to fix any particular
-> problem?
->
-My thought is simple, the outcome of softlimit reclaim depends little on the
-value of reclaim order, zero or not, and only exceeding is reclaimed, so
-selective response to swapd's request is incorrect.
+On Wed 18-01-12 09:06:56, KAMEZAWA Hiroyuki wrote:
+> On Tue, 17 Jan 2012 16:26:35 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
+> > > I think this bugfix is needed before going ahead. thoughts?
+> > > ==
+> > > From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Date: Fri, 13 Jan 2012 14:27:20 +0900
+> > > Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
+> > > 
+> > > At starting move_account(), source memcg's per-cpu variable
+> > > MEM_CGROUP_ON_MOVE is set. The page status update
+> > > routine check it under rcu_read_lock(). But there is no memory
+> > > barrier. This patch adds one.
+> > 
+> > OK this would help to enforce that the CPU would see the current value
+> > but what prevents us from the race with the value update without the
+> > lock? This is as racy as it was before AFAICS.
+> > 
+> 
+> Hm, do I misunderstand ?
+> ==
+>    update                     reference
+> 
+>    CPU A                        CPU B
+>   set value                rcu_read_lock()
+>   smp_wmb()                smp_rmb()
+>                            read_value
+>                            rcu_read_unlock()
+>   synchronize_rcu().
+> ==
+> I expect
+> If synchronize_rcu() is called before rcu_read_lock() => move_lock_xxx will be held.
+> If synchronize_rcu() is called after rcu_read_lock() => update will be delayed.
 
-> Global reclaim should take are of the global memory pressure. Soft
-> reclaim is intended just to make its job easier. Btw. softlimit reclaim
-> is on its way out of the kernel but this will not happen in 3.3.
->
-I will check it in 3.3 if too late for 3.2.
+Ahh, OK I can see it now. Readers are not that important because it is
+actually the updater who is delayed until all preexisting rcu read
+sections are finished.
 
-Thanks
-Hillf
+In that case. Why do we need both barriers? spin_unlock is a full
+barrier so maybe we just need smp_rmb before we read value to make sure
+that we do not get stalled value when we start rcu_read section after
+synchronize_rcu?
+
+> Here, cpu B needs to read most recently updated value.
+
+If it reads the old value then it would think that we are not moving and
+so we would account to the old group and move it later on, right?
+
+> 
+> Thanks,
+> -Kame
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
