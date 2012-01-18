@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id AB94F6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 06:25:38 -0500 (EST)
-Received: by iadj38 with SMTP id j38so5678207iad.14
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:25:38 -0800 (PST)
-Message-ID: <4F16AC27.1080906@gmail.com>
-Date: Wed, 18 Jan 2012 19:25:27 +0800
-From: Sha <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id B982B6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 07:09:15 -0500 (EST)
+Received: by vbbfa15 with SMTP id fa15so3154738vbb.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:09:14 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
-References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org> <1326207772-16762-3-git-send-email-hannes@cmpxchg.org> <CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com> <20120112085904.GG24386@cmpxchg.org> <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com> <20120113224424.GC1653@cmpxchg.org> <4F158418.2090509@gmail.com> <20120117145348.GA3144@cmpxchg.org> <CAFj3OHWY2Biw54gaGeH5fkxzgOhxn7NAibeYT_Jmga-_ypNSRg@mail.gmail.com> <20120118092509.GI24386@cmpxchg.org>
-In-Reply-To: <20120118092509.GI24386@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1326265453_1662@mail4.comsite.net>
+References: <1326040026-7285-6-git-send-email-gilad@benyossef.com>
+	<1326265453_1662@mail4.comsite.net>
+Date: Wed, 18 Jan 2012 14:09:14 +0200
+Message-ID: <CAOtvUMceUE9t1EsTPGTZ9gERHvshnZOZ1_4YVumyNiBvrixMTQ@mail.gmail.com>
+Subject: Re: [PATCH v6 5/8] slub: only IPI CPUs that have per cpu obj to flush
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Milton Miller <miltonm@bga.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
 
-On 01/18/2012 05:25 PM, Johannes Weiner wrote:
-> On Wed, Jan 18, 2012 at 03:17:25PM +0800, Sha wrote:
->>>> I don't think it solve the root of the problem, example:
->>>> root
->>>> ->  A (hard limit 20G, soft limit 12G, usage 20G)
->>>>    ->  A1 ( soft limit 2G,   usage 1G)
->>>>    ->  A2 ( soft limit 10G, usage 19G)
->>>>           ->B1 (soft limit 5G, usage 4G)
->>>>           ->B2 (soft limit 5G, usage 15G)
->>>>
->>>> Now A is hitting its hard limit and start hierarchical reclaim under A.
->>>> If we choose B1 to go through mem_cgroup_over_soft_limit, it will
->>>> return true because its parent A2 has a large usage and will lead to
->>>> priority=0 reclaiming. But in fact it should be B2 to be punished.
->>> Because A2 is over its soft limit, the whole hierarchy below it should
->>> be preferred over A1, so both B1 and B2 should be soft limit reclaimed
->>> to be consistent with behaviour at the root level.
->> Well it is just the behavior that I'm expecting actually. But with my
->> humble comprehension, I can't catch the soft-limit-based hierarchical
->> reclaiming under the target cgroup (A2) in the current implementation
->> or after the patch. Both the current mem_cgroup_soft_reclaim or
->> shrink_zone select victim sub-cgroup by mem_cgroup_iter, but it
->> doesn't take soft limit into consideration, do I left anything ?
-> No, currently soft limits are ignored if pressure originates from
-> below root_mem_cgroup.
->
-> But iff soft limits are applied right now, they are applied
-> hierarchically, see mem_cgroup_soft_limit_reclaim().
-Er... I'm even more confused: mem_cgroup_soft_limit_reclaim indeed
-choses the biggest soft-limit excessor first, but in the succeeding reclaim
-mem_cgroup_hierarchical_reclaim just selects a child cgroup  by css_id
-which has nothing to do with soft limit (see mem_cgroup_select_victim).
-IMHO, it's not a genuine hierarchical reclaim.
-I check this from the latest memcg-devel git tree (branch since-3.1)...
+On Wed, Jan 11, 2012 at 9:04 AM, Milton Miller <miltonm@bga.com> wrote:
 
-> In my opinion, the fact that soft limits are ignored when pressure is
-> triggered sub-root_mem_cgroup is an artifact of the per-zone tree, so
-> I allowed soft limits to be taken into account below root_mem_cgroup.
 >
-> But IMO, this is something different from how soft limit reclaim is
-> applied once triggered: currently, soft limit reclaim applies to a
-> whole hierarchy, including all children.  And this I left unchanged.
+> > mm/slub.c | 10 +++++++++-
+> > 1 files changed, 9 insertions(+), 1 deletions(-)
+> >
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 09ccee8..31833d6 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2013,9 +2013,17 @@ static void flush_cpu_slab(void *d)
+> > __flush_cpu_slab(s, smp_processor_id());
+> > }
+> >
+> > +static int has_cpu_slab(int cpu, void *info)
+> > +{
+> > + struct kmem_cache *s =3D info;
+> > + struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu);
+> > +
+> > + return !!(c->page);
+>
+> __flush_cpu_slab is careful to test that the the per_cpu_ptr is not
+> NULL before referencing the page field. =A0free_percpu likewise ignores
+> NULL pointers. =A0We need to check !!(c && c->page) here.
+>
+This is indeed what I did in the first iterations but Christoph indicated t=
+hat
+c could never be NULL in his review of the patch. See :
+https://lkml.org/lkml/2011/11/15/207
+
+I integrated all the other review comment of this patch though. Thanks!
+Gilad
+
+--
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"Unfortunately, cache misses are an equal opportunity pain provider."
+-- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
