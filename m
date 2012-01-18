@@ -1,56 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 667736B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 10:27:11 -0500 (EST)
-Date: Wed, 18 Jan 2012 16:27:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
-Message-ID: <20120118152708.GG31112@tiehlicka.suse.cz>
-References: <1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
- <CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com>
- <20120112085904.GG24386@cmpxchg.org>
- <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com>
- <20120113224424.GC1653@cmpxchg.org>
- <4F158418.2090509@gmail.com>
- <20120117145348.GA3144@cmpxchg.org>
- <CAFj3OHWY2Biw54gaGeH5fkxzgOhxn7NAibeYT_Jmga-_ypNSRg@mail.gmail.com>
- <20120118092509.GI24386@cmpxchg.org>
- <4F16AC27.1080906@gmail.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 6397F6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 10:29:34 -0500 (EST)
+Received: by obbta7 with SMTP id ta7so5601392obb.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 07:29:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F16AC27.1080906@gmail.com>
+In-Reply-To: <4F16D79C.2020402@redhat.com>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+	<1326788038-29141-2-git-send-email-minchan@kernel.org>
+	<CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
+	<4F15A34F.40808@redhat.com>
+	<alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+	<84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
+	<4F16D79C.2020402@redhat.com>
+Date: Wed, 18 Jan 2012 17:29:33 +0200
+Message-ID: <CAOJsxLHB=1t=kq2zASjAauFDrZQ5vROpjXs=XaSbmeMnzsaTLg@mail.gmail.com>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha <handai.szj@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: leonid.moiseichuk@nokia.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-On Wed 18-01-12 19:25:27, Sha wrote:
-[...]
-> Er... I'm even more confused: mem_cgroup_soft_limit_reclaim indeed
-> choses the biggest soft-limit excessor first, but in the succeeding reclaim
-> mem_cgroup_hierarchical_reclaim just selects a child cgroup  by css_id
+On Wed, Jan 18, 2012 at 4:30 PM, Rik van Riel <riel@redhat.com> wrote:
+> That seems like a horrible idea, because there is no guarantee that
+> the kernel will continue to use NR_ACTIVE_ANON and NR_ACTIVE_FILE
+> internally in the future.
+>
+> What is exported to userspace must be somewhat independent of the
+> specifics of how the kernel implements things internally.
 
-mem_cgroup_soft_limit_reclaim picks up the hierarchy root (most
-excessing one) and mem_cgroup_hierarchical_reclaim reclaims from that
-subtree). It doesn't care who exceeds the soft limit under that
-hierarchy it just tries to push the root under its limit as much as it
-can. This is what Johannes tried to explain in the other email in the
-thred.
+Exactly, that's what I'm also interested in.
 
-> which has nothing to do with soft limit (see mem_cgroup_select_victim).
-> IMHO, it's not a genuine hierarchical reclaim.
-
-It is hierarchical because it iterates over hierarchy it is not and
-never was recursively soft-hierarchical...
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
