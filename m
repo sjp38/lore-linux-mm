@@ -1,122 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id AE7616B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:39:37 -0500 (EST)
-Date: Wed, 18 Jan 2012 09:39:06 +0100
-From: Anton Arapov <anton@redhat.com>
-Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step
- exception.
-Message-ID: <20120118083906.GA4697@bandura.brq.redhat.com>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <20120110114842.17610.27081.sendpatchset@srdronam.in.ibm.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 4014F6B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:09:12 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [RFC 1/3] /dev/low_mem_notify
+Date: Wed, 18 Jan 2012 09:06:06 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+ <1326788038-29141-2-git-send-email-minchan@kernel.org>
+ <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
+ <4F15A34F.40808@redhat.com>
+ <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+In-Reply-To: <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120110114842.17610.27081.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: penberg@kernel.org, riel@redhat.com
+Cc: minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-On Tue, Jan 10, 2012 at 05:18:42PM +0530, Srikar Dronamraju wrote:
-[snip]
-> diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-> index 8208234..475563b 100644
-> --- a/arch/x86/include/asm/uprobes.h
-> +++ b/arch/x86/include/asm/uprobes.h
-[snip]
-> @@ -37,6 +39,21 @@ struct uprobe_arch_info {
->  #endif
->  };
->  
-> +struct uprobe_task_arch_info {
-> +	unsigned long saved_trap_no;
-> +#ifdef CONFIG_X86_64
-> +	unsigned long saved_scratch_register;
-> +#endif
+Hi,
+
+Just couple of observations, which maybe wrong below
+
+> -----Original Message-----
+> From: Pekka Enberg [mailto:penberg@gmail.com] On Behalf Of ext Pekka
+> Enberg
+> Sent: 17 January, 2012 20:51
+....
+
+> +struct vmnotify_config {
+> +	/*
+> +	 * Size of the struct for ABI extensibility.
+> +	 */
+> +	__u32		   size;
+> +
+> +	/*
+> +	 * Notification type bitmask
+> +	 */
+> +	__u64			type;
+> +
+> +	/*
+> +	 * Free memory threshold in percentages [1..99]
+> +	 */
+> +	__u32			free_threshold;
+
+Would be possible to not use percents for thesholds? Accounting in pages ev=
+en not so difficult to user-space.
+Also, looking on vmnotify_match I understand that events propagated to user=
+-space only in case threshold trigger change state from 0 to 1 but not back=
+, 1-> 0 is very useful event as well.
+
+Would be possible to use for threshold pointed value(s) e.g. according to e=
+num zone_state_item, because kinds of memory to track could be different?
+E.g. to tracking paging activity NR_ACTIVE_ANON and NR_ACTIVE_FILE could be=
+ interesting, not only free.
+
+> +
+> +	/*
+> +	 * Sample period in nanoseconds
+> +	 */
+> +	__u64			sample_period_ns;
 > +};
 > +
->  struct uprobe;
+....
+> +struct vmnotify_event {
+> +	/* Size of the struct for ABI extensibility. */
+> +	__u32			size;
 > +
->  extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
-> +extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
-Srikar,
+> +	__u64			nr_avail_pages;
+> +
+> +	__u64			nr_swap_pages;
+> +
+> +	__u64			nr_free_pages;
+> +};
 
-  Can we use existing SET_IP() instead of set_instruction_pointer() ?
+Two fields here most likely session-constant, (nr_avail_pages and nr_swap_p=
+ages), seems not much sense to report them in every event.
+If we have memory/swap hotplug user-space can use sysinfo() call.
 
-[snip]  
->  static void __exit exit_uprobes(void)
-> 
+> +static void vmnotify_sample(struct vmnotify_watch *watch) {
+...
+> +	si_meminfo(&si);
+> +	event.nr_avail_pages	=3D si.totalram;
+> +
+> +#ifdef CONFIG_SWAP
+> +	si_swapinfo(&si);
+> +	event.nr_swap_pages	=3D si.totalswap;
+> +#endif
+> +
 
-===
-[PATCH] uprobes: cleanup, eliminate set_instruction_pointer(), use existing SET_IP() instead
+Why not to use global_page_state() directly? si_meminfo() and especial si_s=
+wapinfo are quite expensive call.
 
-Use SET_IP() available in include/asm-generic/ptrace.h
+> +static void vmnotify_start_timer(struct vmnotify_watch *watch) {
+> +	u64 sample_period =3D watch->config.sample_period_ns;
+> +
+> +	hrtimer_init(&watch->timer, CLOCK_MONOTONIC,
+> HRTIMER_MODE_REL);
+> +	watch->timer.function =3D vmnotify_timer_fn;
+> +
+> +	hrtimer_start(&watch->timer, ns_to_ktime(sample_period),
+> +HRTIMER_MODE_REL_PINNED); }
 
-Signed-off-by: Anton Arapov <anton@redhat.com>
----
- arch/x86/include/asm/uprobes.h |    1 -
- arch/x86/kernel/uprobes.c      |   12 +-----------
- kernel/uprobes.c               |    2 +-
- 3 files changed, 2 insertions(+), 13 deletions(-)
-
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index 475563b..88df7ec 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -49,7 +49,6 @@ struct uprobe_task_arch_info {
- struct uprobe;
- 
- extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
--extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
- extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
- extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
- extern bool xol_was_trapped(struct task_struct *tsk);
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index e4e0dfd..08b633f 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -409,16 +409,6 @@ int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
- 	return 0;
- }
- 
--/*
-- * @reg: reflects the saved state of the task
-- * @vaddr: the virtual address to jump to.
-- * Return 0 on success or a -ve number on error.
-- */
--void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr)
--{
--	regs->ip = vaddr;
--}
--
- #define	UPROBE_TRAP_NO		UINT_MAX
- 
- /*
-@@ -624,7 +614,7 @@ void abort_xol(struct pt_regs *regs, struct uprobe *uprobe)
- 
- 	current->thread.trap_no = utask->tskinfo.saved_trap_no;
- 	handle_riprel_post_xol(uprobe, regs, NULL);
--	set_instruction_pointer(regs, utask->vaddr);
-+	SET_IP(regs, utask->vaddr);
- }
- 
- /*
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 0918448..b0db46b 100644
---- a/kernel/uprobes.c
-+++ b/kernel/uprobes.c
-@@ -1479,7 +1479,7 @@ cleanup_ret:
- 	}
- 	if (u) {
- 		if (!(u->flags & UPROBES_SKIP_SSTEP))
--			set_instruction_pointer(regs, probept);
-+			SET_IP(regs, probept);
- 
- 		put_uprobe(u);
- 	} else
--- 
-1.7.7.5
+Do I understand correct you allocate timer for every user-space client and =
+propagate events every pointed interval?
+What will happened with system if we have a timer but need to turn CPU off?=
+ The timer must not be a reason to wakeup if user-space is sleeping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
