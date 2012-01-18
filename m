@@ -1,124 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id F075B6B004F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 17:37:20 -0500 (EST)
-Date: Wed, 18 Jan 2012 14:37:18 -0800
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 93C7A6B004F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 18:21:33 -0500 (EST)
+Date: Wed, 18 Jan 2012 15:21:31 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] SHM_UNLOCK: fix long unpreemptible section
-Message-Id: <20120118143718.663b8cf5.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.00.1201141615440.1338@eggly.anvils>
-References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils>
-	<alpine.LSU.2.00.1201141615440.1338@eggly.anvils>
+Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
+Message-Id: <20120118152131.45a47966.akpm@linux-foundation.org>
+In-Reply-To: <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20120106173827.11700.74305.stgit@zurg>
+	<20120106173856.11700.98858.stgit@zurg>
+	<20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F0D46EF.4060705@openvz.org>
+	<20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, 14 Jan 2012 16:18:43 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Wed, 11 Jan 2012 17:41:26 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> scan_mapping_unevictable_pages() is used to make SysV SHM_LOCKed pages
-> evictable again once the shared memory is unlocked.  It does this with
-> pagevec_lookup()s across the whole object (which might occupy most of
-> memory), and takes 300ms to unlock 7GB here.  A cond_resched() every
-> PAGEVEC_SIZE pages would be good.
+> On Wed, 11 Jan 2012 12:23:11 +0400
+> Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 > 
-> However, KOSAKI-san points out that this is called under shmem.c's
-> info->lock, and it's also under shm.c's shm_lock(), both spinlocks.
-> There is no strong reason for that: we need to take these pages off
-> the unevictable list soonish, but those locks are not required for it.
+> > KAMEZAWA Hiroyuki wrote:
+> > > On Fri, 06 Jan 2012 21:38:56 +0400
+> > > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+> > >
+> > >> Memory migration fill pte with migration entry and it didn't update rss counters.
+> > >> Then it replace migration entry with new page (or old one if migration was failed).
+> > >> But between this two passes this pte can be unmaped, or task can fork child and
+> > >> it will get copy of this migration entry. Nobody account this into rss counters.
+> > >>
+> > >> This patch properly adjust rss counters for migration entries in zap_pte_range()
+> > >> and copy_one_pte(). Thus we avoid extra atomic operations on migration fast-path.
+> > >>
+> > >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> > >
+> > > It's better to show wheter this is a bug-fix or not in changelog.
+> > >
+> > > IIUC, the bug-fix is the 1st harf of this patch + patch [2/3].
+> > > Your new bug-check code is in patch[1/3] and 2nd half of this patch.
+> > >
+> > 
+> > No, there only one new bug-check in 1st patch, this is non-fatal warning.
+> > I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
+> > rss counters covers whole page-table management, this is very good invariant.
+> > Currently I can trigger this warning only on this rare race -- extremely loaded
+> > memory compaction catches this every several seconds.
+> > 
+> > 1/3 bug-check
+> > 2/3 fix preparation
+> > 3/3 bugfix in two places:
+> >      do rss++ in copy_one_pte()
+> >      do rss-- in zap_pte_range()
+> > 
 > 
-> So move the call to scan_mapping_unevictable_pages() from shmem.c's
-> unlock handling up to shm.c's unlock handling.  Remove the recently
-> added barrier, not needed now we have spin_unlock() before the scan.
+> Hmm, ok, I read wrong.
 > 
-> Use get_file(), with subsequent fput(), to make sure we have a
-> reference to mapping throughout scan_mapping_unevictable_pages():
-> that's something that was previously guaranteed by the shm_lock().
+> So, I think you should post the patch with [BUGFIX] and
+> report 'what happens' and 'what is the bug' , 'what you fixed' explicitly.
 > 
-> Remove shmctl's lru_add_drain_all(): we don't fault in pages at
-> SHM_LOCK time, and we lazily discover them to be Unevictable later,
-> so it serves no purpose for SHM_LOCK; and serves no purpose for
-> SHM_UNLOCK, since pages still on pagevec are not marked Unevictable.
+> As...
+> ==
+>   This patch series fixes per-mm rss counter accounting bug. When pages are
+>   heavily migrated, the rss counters will go wrong by fork() and unmap()
+>   because they ignores migration_pte_entries.
+>   This rarelly happens but will make rss counter incorrect.
 > 
-> The original code avoided redundant rescans by checking VM_LOCKED
-> flag at its level: now avoid them by checking shp's SHM_LOCKED.
-> 
-> The original code called scan_mapping_unevictable_pages() on a
-> locked area at shm_destroy() time: perhaps we once had accounting
-> cross-checks which required that, but not now, so skip the overhead
-> and just let inode eviction deal with them.
-> 
-> Put check_move_unevictable_page() and scan_mapping_unevictable_pages()
-> under CONFIG_SHMEM (with stub for the TINY case when ramfs is used),
-> more as comment than to save space; comment them used for SHM_UNLOCK.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: stable@vger.kernel.org [back to 2.6.32 but will need respins]
+>   This seires of patches will fix the issue by adding proper accounting of
+>   migration_pte_entries in unmap() and fork(). This series includes
+>   bug check code, too.
 
-Is -stable backporting really warranted?  AFAICT the only thing we're
-fixing here is a long latency glitch during a rare operation on large
-machines.  Usually it will be on only one CPU, too.
+Putting "fix" in the patch title text is a good way of handling this.
 
-"[PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after swap"
-does loko like -stable material, so omitting 1/1 will probably screw
-things up :(
+I renamed [3/3] to "mm: fix rss count leakage during migration" and
+shall queue it for 3.3.  If people think we should also backport it
+into -stable then please let me know.
 
+I reordered the patches and worked the chagnelogs quite a bit.  I now
+have:
 
-> Resend in the hope that it can get into 3.3.
+: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Subject: mm: fix rss count leakage during migration
+: 
+: Memory migration fills a pte with a migration entry and it doesn't update
+: the rss counters.  Then it replaces the migration entry with the new page
+: (or the old one if migration failed).  But between these two passes this
+: pte can be unmaped, or a task can fork a child and it will get a copy of
+: this migration entry.  Nobody accounts for this in the rss counters.
+: 
+: This patch properly adjust rss counters for migration entries in
+: zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
+: on the migration fast-path.
+: 
+: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Cc: Hugh Dickins <hughd@google.com>
+: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-That we can do ;)
+and
 
->
-> ...
->
-> --- mmotm.orig/mm/vmscan.c	2012-01-06 10:04:54.000000000 -0800
-> +++ mmotm/mm/vmscan.c	2012-01-06 10:06:13.941943604 -0800
-> @@ -3499,6 +3499,7 @@ int page_evictable(struct page *page, st
->  	return 1;
->  }
->  
-> +#ifdef CONFIG_SHMEM
->  /**
->   * check_move_unevictable_page - check page for evictability and move to appropriate zone lru list
->   * @page: page to check evictability and move to appropriate lru list
-> @@ -3509,6 +3510,8 @@ int page_evictable(struct page *page, st
->   *
->   * Restrictions: zone->lru_lock must be held, page must be on LRU and must
->   * have PageUnevictable set.
-> + *
-> + * This function is only used for SysV IPC SHM_UNLOCK.
->   */
->  static void check_move_unevictable_page(struct page *page, struct zone *zone)
->  {
-> @@ -3545,6 +3548,8 @@ retry:
->   *
->   * Scan all pages in mapping.  Check unevictable pages for
->   * evictability and move them to the appropriate zone lru list.
-> + *
-> + * This function is only used for SysV IPC SHM_UNLOCK.
->   */
->  void scan_mapping_unevictable_pages(struct address_space *mapping)
->  {
-> @@ -3590,9 +3595,14 @@ void scan_mapping_unevictable_pages(stru
->  		pagevec_release(&pvec);
->  
->  		count_vm_events(UNEVICTABLE_PGSCANNED, pg_scanned);
-> +		cond_resched();
->  	}
-> -
->  }
-> +#else
-> +void scan_mapping_unevictable_pages(struct address_space *mapping)
-> +{
-> +}
-> +#endif /* CONFIG_SHMEM */
+: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Subject: mm: add rss counters consistency check
+: 
+: Warn about non-zero rss counters at final mmdrop.
+: 
+: This check will prevent reoccurences of bugs such as that fixed in "mm:
+: fix rss count leakage during migration".
+: 
+: I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
+: rss counters cover whole page-table management, so this is a good
+: invariant.
+: 
+: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Cc: Hugh Dickins <hughd@google.com>
+: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Inlining the CONFIG_SHMEM=n stub would have been mroe efficient.
+and
+
+: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Subject: mm: postpone migrated page mapping reset
+: 
+: Postpone resetting page->mapping until the final remove_migration_ptes(). 
+: Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
+: work.
+: 
+: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+: Cc: Hugh Dickins <hughd@google.com>
+: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
