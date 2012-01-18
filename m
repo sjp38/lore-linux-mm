@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id D89676B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 05:44:53 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [RFC 1/3] /dev/low_mem_notify
-Date: Wed, 18 Jan 2012 10:44:13 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326788038-29141-2-git-send-email-minchan@kernel.org>
-	<CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
-	<4F15A34F.40808@redhat.com>
-	<alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-	<84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
-	<CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
-	<84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com>
- <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
-In-Reply-To: <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 5B6C96B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 05:47:06 -0500 (EST)
+Date: Wed, 18 Jan 2012 11:47:03 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
+ pc->flags
+Message-ID: <20120118104703.GA31112@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117164605.GB22142@tiehlicka.suse.cz>
+ <20120118091226.b46e0f6e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120118091226.b46e0f6e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@kernel.org
-Cc: riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-> -----Original Message-----
-> From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of ext
-> Pekka Enberg
-> Sent: 18 January, 2012 12:40
-...
-> > Not worse than %%. For example you had 10% free memory threshold for
-> > 512 MB RAM meaning 51.2 MB in absolute number.  Then hotplug turned
-> > off 256 MB, you for sure must update threshold for %% because these
-> > 10% for 25.6 MB most likely will be not suitable for different operatin=
-g
-> mode.
-> > Using pages makes calculations must simpler.
->=20
-> Right. Does threshold in percentages make any sense then? Is it enough to
-> use number of free pages?
+On Wed 18-01-12 09:12:26, KAMEZAWA Hiroyuki wrote:
+> On Tue, 17 Jan 2012 17:46:05 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Fri 13-01-12 17:40:19, KAMEZAWA Hiroyuki wrote:
+[...]
+> > > This patch removes PCG_MOVE_LOCK and add hashed rwlock array
+> > > instead of it. This works well enough. Even when we need to
+> > > take the lock, 
+> > 
+> > Hmmm, rwlocks are not popular these days very much. 
+> > Anyway, can we rather make it (source) memcg (bit)spinlock instead. We
+> > would reduce false sharing this way and would penalize only pages from
+> > the moving group.
+> > 
+> per-memcg spinlock ? 
 
-Paul Mundt noticed that and we stopped use percentage in 2006 for n770 upda=
-te.=20
-He was right.
-Percents are useless and do not correlate with other kernel APIs like sysin=
-fo().
+Yes
+
+> The reason I used rwlock() is to avoid disabling IRQ.  This routine
+> will be called by IRQ context (for dirty ratio support).  So, IRQ
+> disable will be required if we use spinlock.
+
+OK, I have missed the comment about disabling IRQs. It's true that we do
+not have to be afraid about deadlocks if the lock is held only for
+reading from the irq context but does the spinlock makes a performance
+bottleneck? We are talking about the slowpath.
+I could see the reason for the read lock when doing hashed locks because
+they are global but if we make the lock per memcg then we shouldn't
+interfere with other updates which are not blocked by the move.
+
+> Thanks,
+> -Kame
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
