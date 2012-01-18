@@ -1,62 +1,391 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 345CC6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 02:17:04 -0500 (EST)
-Received: by lagw12 with SMTP id w12so1167327lag.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 23:17:02 -0800 (PST)
-Date: Wed, 18 Jan 2012 09:16:49 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-In-Reply-To: <20120117232025.GB903@barrios-desktop.redhat.com>
-Message-ID: <alpine.LFD.2.02.1201180905040.2488@tux.localdomain>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
- <20120117232025.GB903@barrios-desktop.redhat.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 69BEF6B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 02:17:26 -0500 (EST)
+Received: by dang27 with SMTP id g27so747261dan.14
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 23:17:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+In-Reply-To: <20120117145348.GA3144@cmpxchg.org>
+References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
+	<1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+	<CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com>
+	<20120112085904.GG24386@cmpxchg.org>
+	<CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com>
+	<20120113224424.GC1653@cmpxchg.org>
+	<4F158418.2090509@gmail.com>
+	<20120117145348.GA3144@cmpxchg.org>
+Date: Wed, 18 Jan 2012 15:17:25 +0800
+Message-ID: <CAFj3OHWY2Biw54gaGeH5fkxzgOhxn7NAibeYT_Jmga-_ypNSRg@mail.gmail.com>
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+From: Sha <handai.szj@gmail.com>
+Content-Type: multipart/alternative; boundary=f46d041b4aa45187ca04b6c83d25
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 Jan 2012, Minchan Kim wrote:
-> I didn't look into your code(will do) but as I read description,
-> still I don't convince we need really some process specific threshold like 99%
-> I think application can know it by polling /proc/meminfo without this mechanism
-> if they really want.
+--f46d041b4aa45187ca04b6c83d25
+Content-Type: text/plain; charset=ISO-8859-1
 
-I'm not sure if we need arbitrary threshold either. However, we need to 
-support the following cases:
+**
+On 01/17/2012 10:53 PM, Johannes Weiner wrote:
 
-   - We're about to swap
+On Tue, Jan 17, 2012 at 10:22:16PM +0800, Sha wrote:
 
-   - We're about to run out of memory
+ On 01/14/2012 06:44 AM, Johannes Weiner wrote:
 
-   - We're about to start OOM killing
+ On Fri, Jan 13, 2012 at 01:31:16PM -0800, Ying Han wrote:
 
-and I don't think your patch solves that. One possibility is to implement:
+ On Thu, Jan 12, 2012 at 12:59 AM, Johannes Weiner<hannes@cmpxchg.org>
+<hannes@cmpxchg.org>  wrote:
 
-   VMNOTIFY_TYPE_ABOUT_TO_SWAP
-   VMNOTIFY_TYPE_ABOUT_TO_OOM
-   VMNOTIFY_TYPE_ABOUT_TO_OOM_KILL
+ On Wed, Jan 11, 2012 at 01:42:31PM -0800, Ying Han wrote:
 
-and maybe rip out support for arbitrary thresholds. Does that more 
-reasonable?
+ On Tue, Jan 10, 2012 at 7:02 AM, Johannes Weiner<hannes@cmpxchg.org>
+<hannes@cmpxchg.org>  wrote:
 
-As for polling /proc/meminfo, I'd much rather deliver stats as part of 
-vmnotify_read() because it's easier to extend the ABI rather than adding 
-new fields to /proc/meminfo.
+ @@ -1318,6 +1123,36 @@ static unsigned long mem_cgroup_margin(struct
+mem_cgroup *memcg)
+       return margin>>  PAGE_SHIFT;
+ }
 
-On Wed, 18 Jan 2012, Minchan Kim wrote:
-> I would like to notify when system has a trobule with memory pressure without
-> some process specific threshold. Of course, applicatoin can't expect it.(ie,
-> application can know system memory pressure by /proc/meminfo but it can't know
-> when swapout really happens). Kernel low mem notify have to give such notification
-> to user space, I think.
++/**
++ * mem_cgroup_over_softlimit
++ * @root: hierarchy root
++ * @memcg: child of @root to test
++ *
++ * Returns %true if @memcg exceeds its own soft limit or contributes
++ * to the soft limit excess of one of its parents up to and including
++ * @root.
++ */
++bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
++                              struct mem_cgroup *memcg)
++{
++       if (mem_cgroup_disabled())
++               return false;
++
++       if (!root)
++               root = root_mem_cgroup;
++
++       for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++               /* root_mem_cgroup does not have a soft limit */
++               if (memcg == root_mem_cgroup)
++                       break;
++               if (res_counter_soft_limit_excess(&memcg->res))
++                       return true;
++               if (memcg == root)
++                       break;
++       }
 
-It should be simple to add support for VMNOTIFY_TYPE_MEM_PRESSURE that 
-uses your hooks.
+ Here it adds pressure on a cgroup if one of its parents exceeds soft
+limit, although the cgroup itself is under soft limit. It does change
+my understanding of soft limit, and might introduce regression of our
+existing use cases.
 
- 			Pekka
+Here is an example:
+
+Machine capacity 32G and we over-commit by 8G.
+
+root
+  ->  A (hard limit 20G, soft limit 15G, usage 16G)
+       ->  A1 (soft limit 5G, usage 4G)
+       ->  A2 (soft limit 10G, usage 12G)
+  ->  B (hard limit 20G, soft limit 10G, usage 16G)
+
+under global reclaim, we don't want to add pressure on A1 although its
+parent A exceeds its soft limit. Assume that if we set the soft limit
+corresponding to each cgroup's working set size (hot memory), and it
+will introduce regression to A1 in that case.
+
+In my existing implementation, i am checking the cgroup's soft limit
+standalone w/o looking its ancestors.
+
+ Why do you set the soft limit of A in the first place if you don't
+want it to be enforced?
+
+ The soft limit should be enforced under certain condition, not always.
+The soft limit of A is set to be enforced when the parent of A and B
+is under memory pressure. For example:
+
+Machine capacity 32G and we over-commit by 8G
+
+root
+->  A (hard limit 20G, soft limit 12G, usage 20G)
+       ->  A1 (soft limit 2G, usage 1G)
+       ->  A2 (soft limit 10G, usage 19G)
+->  B (hard limit 20G, soft limit 10G, usage 0G)
+
+Now, A is under memory pressure since the total usage is hitting its
+hard limit. Then we start hierarchical reclaim under A, and each
+cgroup under A also takes consideration of soft limit. In this case,
+we should only set priority = 0 to A2 since it contributes to A's
+charge as well as exceeding its own soft limit. Why punishing A1 (set
+priority = 0) also which has usage under its soft limit ? I can
+imagine it will introduce regression to existing environment which the
+soft limit is set based on the working set size of the cgroup.
+
+To answer the question why we set soft limit to A, it is used to
+over-commit the host while sharing the resource with its sibling (B in
+this case). If the machine is under memory contention, we would like
+to push down memory to A or B depends on their usage and soft limit.
+
+ D'oh, I think the problem is just that we walk up the hierarchy one
+too many when checking whether a group exceeds a soft limit.  The soft
+limit is a signal to distribute pressure that comes from above, it's
+meaningless and should indeed be ignored on the level the pressure
+originates from.
+
+Say mem_cgroup_over_soft_limit(root, memcg) would check everyone up to
+but not including root, wouldn't that do exactly what we both want?
+
+Example:
+
+1. If global memory is short, we reclaim with root=root_mem_cgroup.
+   A1 and A2 get soft limit reclaimed because of A's soft limit
+   excess, just like the current kernel would do.
+
+2. If A hits its hard limit, we reclaim with root=A, so we only mind
+   the soft limits of A1 and A2.  A1 is below its soft limit, all
+   good.  A2 is above its soft limit, gets treated accordingly.  This
+   is new behaviour, the current kernel would just reclaim them
+   equally.
+
+Code:
+
+bool mem_cgroup_over_soft_limit(struct mem_cgroup *root,
+			        struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled())
+		return false;
+
+	if (!root)
+		root = root_mem_cgroup;
+
+	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+		if (memcg == root)
+			break;
+		if (res_counter_soft_limit_excess(&memcg->res))
+			return true;
+	}
+	return false;
+}
+
+ Hi Johannes,
+
+I don't think it solve the root of the problem, example:
+root
+-> A (hard limit 20G, soft limit 12G, usage 20G)
+    -> A1 ( soft limit 2G,   usage 1G)
+    -> A2 ( soft limit 10G, usage 19G)
+           ->B1 (soft limit 5G, usage 4G)
+           ->B2 (soft limit 5G, usage 15G)
+
+Now A is hitting its hard limit and start hierarchical reclaim under A.
+If we choose B1 to go through mem_cgroup_over_soft_limit, it will
+return true because its parent A2 has a large usage and will lead to
+priority=0 reclaiming. But in fact it should be B2 to be punished.
+
+ Because A2 is over its soft limit, the whole hierarchy below it should
+be preferred over A1, so both B1 and B2 should be soft limit reclaimed
+to be consistent with behaviour at the root level.
+
+ Well it is just the behavior that I'm expecting actually. But with my
+humble comprehension, I can't catch the soft-limit-based hierarchical
+reclaiming under the target cgroup (A2) in the current implementation
+or after the patch. Both the current mem_cgroup_soft_reclaim or
+shrink_zone select victim sub-cgroup by mem_cgroup_iter, but it
+doesn't take soft limit into consideration, do I left anything ?
+
+Thanks,
+Sha
+
+--f46d041b4aa45187ca04b6c83d25
+Content-Type: text/html; charset=ISO-8859-1
+
+<u></u>
+
+  
+    
+  
+  <div text="#000000" bgcolor="#ffffff">
+    On 01/17/2012 10:53 PM, Johannes Weiner wrote:
+    <blockquote type="cite">
+      <pre>On Tue, Jan 17, 2012 at 10:22:16PM +0800, Sha wrote:
+</pre>
+      <blockquote type="cite">
+        <pre>On 01/14/2012 06:44 AM, Johannes Weiner wrote:
+</pre>
+        <blockquote type="cite">
+          <pre>On Fri, Jan 13, 2012 at 01:31:16PM -0800, Ying Han wrote:
+</pre>
+          <blockquote type="cite">
+            <pre>On Thu, Jan 12, 2012 at 12:59 AM, Johannes Weiner<a href="mailto:hannes@cmpxchg.org" target="_blank">&lt;hannes@cmpxchg.org&gt;</a>  wrote:
+</pre>
+            <blockquote type="cite">
+              <pre>On Wed, Jan 11, 2012 at 01:42:31PM -0800, Ying Han wrote:
+</pre>
+              <blockquote type="cite">
+                <pre>On Tue, Jan 10, 2012 at 7:02 AM, Johannes Weiner<a href="mailto:hannes@cmpxchg.org" target="_blank">&lt;hannes@cmpxchg.org&gt;</a>  wrote:
+</pre>
+                <blockquote type="cite">
+                  <pre>@@ -1318,6 +1123,36 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
+       return margin&gt;&gt;  PAGE_SHIFT;
+ }
+
++/**
++ * mem_cgroup_over_softlimit
++ * @root: hierarchy root
++ * @memcg: child of @root to test
++ *
++ * Returns %true if @memcg exceeds its own soft limit or contributes
++ * to the soft limit excess of one of its parents up to and including
++ * @root.
++ */
++bool mem_cgroup_over_softlimit(struct mem_cgroup *root,
++                              struct mem_cgroup *memcg)
++{
++       if (mem_cgroup_disabled())
++               return false;
++
++       if (!root)
++               root = root_mem_cgroup;
++
++       for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++               /* root_mem_cgroup does not have a soft limit */
++               if (memcg == root_mem_cgroup)
++                       break;
++               if (res_counter_soft_limit_excess(&amp;memcg-&gt;res))
++                       return true;
++               if (memcg == root)
++                       break;
++       }
+</pre>
+                </blockquote>
+                <pre>Here it adds pressure on a cgroup if one of its parents exceeds soft
+limit, although the cgroup itself is under soft limit. It does change
+my understanding of soft limit, and might introduce regression of our
+existing use cases.
+
+Here is an example:
+
+Machine capacity 32G and we over-commit by 8G.
+
+root
+  -&gt;  A (hard limit 20G, soft limit 15G, usage 16G)
+       -&gt;  A1 (soft limit 5G, usage 4G)
+       -&gt;  A2 (soft limit 10G, usage 12G)
+  -&gt;  B (hard limit 20G, soft limit 10G, usage 16G)
+
+under global reclaim, we don&#39;t want to add pressure on A1 although its
+parent A exceeds its soft limit. Assume that if we set the soft limit
+corresponding to each cgroup&#39;s working set size (hot memory), and it
+will introduce regression to A1 in that case.
+
+In my existing implementation, i am checking the cgroup&#39;s soft limit
+standalone w/o looking its ancestors.
+</pre>
+              </blockquote>
+              <pre>Why do you set the soft limit of A in the first place if you don&#39;t
+want it to be enforced?
+</pre>
+            </blockquote>
+            <pre>The soft limit should be enforced under certain condition, not always.
+The soft limit of A is set to be enforced when the parent of A and B
+is under memory pressure. For example:
+
+Machine capacity 32G and we over-commit by 8G
+
+root
+-&gt;  A (hard limit 20G, soft limit 12G, usage 20G)
+       -&gt;  A1 (soft limit 2G, usage 1G)
+       -&gt;  A2 (soft limit 10G, usage 19G)
+-&gt;  B (hard limit 20G, soft limit 10G, usage 0G)
+
+Now, A is under memory pressure since the total usage is hitting its
+hard limit. Then we start hierarchical reclaim under A, and each
+cgroup under A also takes consideration of soft limit. In this case,
+we should only set priority = 0 to A2 since it contributes to A&#39;s
+charge as well as exceeding its own soft limit. Why punishing A1 (set
+priority = 0) also which has usage under its soft limit ? I can
+imagine it will introduce regression to existing environment which the
+soft limit is set based on the working set size of the cgroup.
+
+To answer the question why we set soft limit to A, it is used to
+over-commit the host while sharing the resource with its sibling (B in
+this case). If the machine is under memory contention, we would like
+to push down memory to A or B depends on their usage and soft limit.
+</pre>
+          </blockquote>
+          <pre>D&#39;oh, I think the problem is just that we walk up the hierarchy one
+too many when checking whether a group exceeds a soft limit.  The soft
+limit is a signal to distribute pressure that comes from above, it&#39;s
+meaningless and should indeed be ignored on the level the pressure
+originates from.
+
+Say mem_cgroup_over_soft_limit(root, memcg) would check everyone up to
+but not including root, wouldn&#39;t that do exactly what we both want?
+
+Example:
+
+1. If global memory is short, we reclaim with root=root_mem_cgroup.
+   A1 and A2 get soft limit reclaimed because of A&#39;s soft limit
+   excess, just like the current kernel would do.
+
+2. If A hits its hard limit, we reclaim with root=A, so we only mind
+   the soft limits of A1 and A2.  A1 is below its soft limit, all
+   good.  A2 is above its soft limit, gets treated accordingly.  This
+   is new behaviour, the current kernel would just reclaim them
+   equally.
+
+Code:
+
+bool mem_cgroup_over_soft_limit(struct mem_cgroup *root,
+			        struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled())
+		return false;
+
+	if (!root)
+		root = root_mem_cgroup;
+
+	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+		if (memcg == root)
+			break;
+		if (res_counter_soft_limit_excess(&amp;memcg-&gt;res))
+			return true;
+	}
+	return false;
+}
+</pre>
+        </blockquote>
+        <pre>Hi Johannes,
+
+I don&#39;t think it solve the root of the problem, example:
+root
+-&gt; A (hard limit 20G, soft limit 12G, usage 20G)
+    -&gt; A1 ( soft limit 2G,   usage 1G)
+    -&gt; A2 ( soft limit 10G, usage 19G)
+           -&gt;B1 (soft limit 5G, usage 4G)
+           -&gt;B2 (soft limit 5G, usage 15G)
+
+Now A is hitting its hard limit and start hierarchical reclaim under A.
+If we choose B1 to go through mem_cgroup_over_soft_limit, it will
+return true because its parent A2 has a large usage and will lead to
+priority=0 reclaiming. But in fact it should be B2 to be punished.
+</pre>
+      </blockquote>
+      <pre>Because A2 is over its soft limit, the whole hierarchy below it should
+be preferred over A1, so both B1 and B2 should be soft limit reclaimed
+to be consistent with behaviour at the root level.
+</pre>
+    </blockquote>
+    Well it is just the behavior that I&#39;m expecting actually. But with my<br>humble comprehension, I can&#39;t catch the soft-limit-based hierarchical<br>reclaiming under the target cgroup (A2) in the current implementation<br>
+or after the patch. Both the current mem_cgroup_soft_reclaim or<br>shrink_zone select victim sub-cgroup by mem_cgroup_iter, but it<br>doesn&#39;t take soft limit into consideration, do I left anything ?<br><br>Thanks,<br>
+Sha<br>
+  </div>
+
+
+--f46d041b4aa45187ca04b6c83d25--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
