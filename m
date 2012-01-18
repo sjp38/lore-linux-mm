@@ -1,114 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 4014F6B005A
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:09:12 -0500 (EST)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [RFC 1/3] /dev/low_mem_notify
-Date: Wed, 18 Jan 2012 09:06:06 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
- <1326788038-29141-2-git-send-email-minchan@kernel.org>
- <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
- <4F15A34F.40808@redhat.com>
- <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-In-Reply-To: <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id C9B036B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:11:42 -0500 (EST)
+Received: from /spool/local
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 18 Jan 2012 02:11:41 -0700
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id C52E03E4004F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 02:11:37 -0700 (MST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0I9Bain2900182
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:11:37 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0I9BUV3014276
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 04:11:36 -0500
+Date: Wed, 18 Jan 2012 14:32:32 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step
+ exception.
+Message-ID: <20120118090232.GE15447@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+ <20120110114842.17610.27081.sendpatchset@srdronam.in.ibm.com>
+ <20120118083906.GA4697@bandura.brq.redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20120118083906.GA4697@bandura.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@kernel.org, riel@redhat.com
-Cc: minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
+To: Anton Arapov <anton@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Mike Frysinger <vapier@gentoo.org>
 
-Hi,
+> Srikar,
+> 
+>   Can we use existing SET_IP() instead of set_instruction_pointer() ?
+> 
 
-Just couple of observations, which maybe wrong below
+Oleg had already commented about this in one his uprobes reviews.
 
-> -----Original Message-----
-> From: Pekka Enberg [mailto:penberg@gmail.com] On Behalf Of ext Pekka
-> Enberg
-> Sent: 17 January, 2012 20:51
-....
+The GET_IP/SET_IP available in include/asm-generic/ptrace.h doesnt work
+on all archs. Atleast it doesnt work on powerpc when I tried it.
 
-> +struct vmnotify_config {
-> +	/*
-> +	 * Size of the struct for ABI extensibility.
-> +	 */
-> +	__u32		   size;
-> +
-> +	/*
-> +	 * Notification type bitmask
-> +	 */
-> +	__u64			type;
-> +
-> +	/*
-> +	 * Free memory threshold in percentages [1..99]
-> +	 */
-> +	__u32			free_threshold;
+Also most archs define instruction_pointer(). So I thought (rather Peter
+Zijlstra suggested the name set_instruction_pointer())
+set_instruction_pointer was a better bet than SET_IP. I 
 
-Would be possible to not use percents for thesholds? Accounting in pages ev=
-en not so difficult to user-space.
-Also, looking on vmnotify_match I understand that events propagated to user=
--space only in case threshold trigger change state from 0 to 1 but not back=
-, 1-> 0 is very useful event as well.
+Also I dont see any usage for SET_IP/GET_IP.
 
-Would be possible to use for threshold pointed value(s) e.g. according to e=
-num zone_state_item, because kinds of memory to track could be different?
-E.g. to tracking paging activity NR_ACTIVE_ANON and NR_ACTIVE_FILE could be=
- interesting, not only free.
+May be we should have something like this in
+include/asm-generic/ptrace.h
 
-> +
-> +	/*
-> +	 * Sample period in nanoseconds
-> +	 */
-> +	__u64			sample_period_ns;
-> +};
-> +
-....
-> +struct vmnotify_event {
-> +	/* Size of the struct for ABI extensibility. */
-> +	__u32			size;
-> +
-> +	__u64			nr_avail_pages;
-> +
-> +	__u64			nr_swap_pages;
-> +
-> +	__u64			nr_free_pages;
-> +};
+#ifdef instruction_pointer
+#define GET_IP(regs)		(instruction_pointer(regs))
 
-Two fields here most likely session-constant, (nr_avail_pages and nr_swap_p=
-ages), seems not much sense to report them in every event.
-If we have memory/swap hotplug user-space can use sysinfo() call.
+#define set_instruction_pointer(regs, val) (instruction_pointer(regs) = (val))
 
-> +static void vmnotify_sample(struct vmnotify_watch *watch) {
-...
-> +	si_meminfo(&si);
-> +	event.nr_avail_pages	=3D si.totalram;
-> +
-> +#ifdef CONFIG_SWAP
-> +	si_swapinfo(&si);
-> +	event.nr_swap_pages	=3D si.totalswap;
-> +#endif
-> +
+#define SET_IP(regs, val)	(set_instruction_pointer(regs,val))
 
-Why not to use global_page_state() directly? si_meminfo() and especial si_s=
-wapinfo are quite expensive call.
+#endif
 
-> +static void vmnotify_start_timer(struct vmnotify_watch *watch) {
-> +	u64 sample_period =3D watch->config.sample_period_ns;
-> +
-> +	hrtimer_init(&watch->timer, CLOCK_MONOTONIC,
-> HRTIMER_MODE_REL);
-> +	watch->timer.function =3D vmnotify_timer_fn;
-> +
-> +	hrtimer_start(&watch->timer, ns_to_ktime(sample_period),
-> +HRTIMER_MODE_REL_PINNED); }
+or should we do away with GET_IP/SET_IP esp since there are no many
+users?
 
-Do I understand correct you allocate timer for every user-space client and =
-propagate events every pointed interval?
-What will happened with system if we have a timer but need to turn CPU off?=
- The timer must not be a reason to wakeup if user-space is sleeping.
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
