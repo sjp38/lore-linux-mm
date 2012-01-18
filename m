@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id EB5B46B004F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 18:27:06 -0500 (EST)
-Received: by iadj38 with SMTP id j38so6759811iad.14
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 15:27:06 -0800 (PST)
-Date: Wed, 18 Jan 2012 15:26:51 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/2] SHM_UNLOCK: fix long unpreemptible section
-In-Reply-To: <20120118143718.663b8cf5.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1201181457450.1256@eggly.anvils>
-References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils> <alpine.LSU.2.00.1201141615440.1338@eggly.anvils> <20120118143718.663b8cf5.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 65D046B004F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 18:35:11 -0500 (EST)
+Message-ID: <4F175706.8000808@redhat.com>
+Date: Thu, 19 Jan 2012 01:34:30 +0200
+From: Ronen Hod <rhod@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain> <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com> <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+In-Reply-To: <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: leonid.moiseichuk@nokia.com
+Cc: penberg@kernel.org, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Wed, 18 Jan 2012, Andrew Morton wrote:
-> On Sat, 14 Jan 2012 16:18:43 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> > scan_mapping_unevictable_pages() is used to make SysV SHM_LOCKed pages
-> > evictable again once the shared memory is unlocked.  It does this with
-> > pagevec_lookup()s across the whole object (which might occupy most of
-> > memory), and takes 300ms to unlock 7GB here.  A cond_resched() every
-> > PAGEVEC_SIZE pages would be good.
->... 
-> Is -stable backporting really warranted?  AFAICT the only thing we're
-> fixing here is a long latency glitch during a rare operation on large
-> machines.  Usually it will be on only one CPU, too.
+On 01/18/2012 12:44 PM, leonid.moiseichuk@nokia.com wrote:
+>> -----Original Message-----
+>> From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of ext
+>> Pekka Enberg
+>> Sent: 18 January, 2012 12:40
+> ...
+>>> Not worse than %%. For example you had 10% free memory threshold for
+>>> 512 MB RAM meaning 51.2 MB in absolute number.  Then hotplug turned
+>>> off 256 MB, you for sure must update threshold for %% because these
+>>> 10% for 25.6 MB most likely will be not suitable for different operating
+>> mode.
+>>> Using pages makes calculations must simpler.
+>> Right. Does threshold in percentages make any sense then? Is it enough to
+>> use number of free pages?
+> Paul Mundt noticed that and we stopped use percentage in 2006 for n770 update.
+> He was right.
+> Percents are useless and do not correlate with other kernel APIs like sysinfo().
 
-True: I'm not sure if it amounts to -stable material or not.
-I see you've taken out its Cc: stable line: that's fine by me, but...
+I believe that it will be best if the kernel publishes an ideal number_of_free_pages (in /proc/meminfo or whatever). Such number is easy to work with since this is what applications do, they free pages. Applications will be able to refer to this number from their garbage collector, or before allocating memory also if they did not get a notification, and it is also useful if several applications free memory at the same time.
 
-> "[PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after swap"
-> does loko like -stable material, so omitting 1/1 will probably screw
-> things up :(
+Ronen.
 
-Sort of, but they both(?) needed respinning for -stable anyway.
-Even against 3.2, there's some little change in vmscan.c that generates
-a reject.  Greg has now closed down 3.1.N (which would have been tiresome
-to port to, because it was still supporting a second caller of check_move),
-and by your argument above it's not worth porting 1/2 back to 2.6.32.  So
-I think 2/2 can just go into 3.2.N, dragging 1/2 along in its slipstream
-(if you can have a slipstream in front of you).
-
-I ordered them that way because 1/2 fixes an old, and 2/2 a recent, bug.
-
-> > Resend in the hope that it can get into 3.3.
-> 
-> That we can do ;)
-
-Thank you!
-
-> > +#else
-> > +void scan_mapping_unevictable_pages(struct address_space *mapping)
-> > +{
-> > +}
-> > +#endif /* CONFIG_SHMEM */
-> 
-> Inlining the CONFIG_SHMEM=n stub would have been mroe efficient.
-
-True, though in 2/2 it morphs into shmem_unlock_mapping() over
-in shmem.c, and we seem to have the convention that TINY's !SHMEM
-stubs live as non-inline functions there - probably no good reason
-for that, just reflects their historical origins in tiny-shmem.c.
-A grand saving to make some other time ;)
-
-Hugh
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
