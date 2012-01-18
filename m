@@ -1,107 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id E6DEB6B004D
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2012 20:45:01 -0500 (EST)
-Received: by werl4 with SMTP id l4so2647629wer.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 17:45:00 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [Linaro-mm-sig] [PATCH 04/11] mm: page_alloc: introduce
- alloc_contig_range()
-References: <1325162352-24709-1-git-send-email-m.szyprowski@samsung.com>
- <1325162352-24709-5-git-send-email-m.szyprowski@samsung.com>
- <CA+K6fF6A1kPUW-2Mw5+W_QaTuLfU0_m0aMYRLOg98mFKwZOhtQ@mail.gmail.com>
- <op.v781mqwl3l0zgt@mpn-glaptop>
- <CA+K6fF64hjVBjx6NPspQSud2hkJQWzeXkceLAChPrO-k7eCF+g@mail.gmail.com>
-Date: Wed, 18 Jan 2012 02:44:57 +0100
-MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v79a47ve3l0zgt@mpn-glaptop>
-In-Reply-To: <CA+K6fF64hjVBjx6NPspQSud2hkJQWzeXkceLAChPrO-k7eCF+g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id EA0046B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 00:27:58 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D3BEE3EE0BB
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 14:27:56 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC27A45DE50
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 14:27:56 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FE3E45DE4D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 14:27:56 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 937321DB802F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 14:27:56 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 435171DB8037
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 14:27:56 +0900 (JST)
+Date: Wed, 18 Jan 2012 14:26:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+Message-Id: <20120118142638.11667d2c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120113121645.GA1653@cmpxchg.org>
+References: <1326207772-16762-1-git-send-email-hannes@cmpxchg.org>
+	<1326207772-16762-3-git-send-email-hannes@cmpxchg.org>
+	<20120112105427.4b80437b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120113121645.GA1653@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sandeep patil <psandeep.s@gmail.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Dave
- Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->> My understanding of that situation is that the page is on pcp list in=
- which
->> cases it's page_private is not updated.  Draining and the first patch=
- in
->> the series (and also the commit I've pointed to above) are designed t=
-o fix
->> that but I'm unsure why they don't work all the time.
+On Fri, 13 Jan 2012 13:16:56 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-On Wed, 18 Jan 2012 01:46:37 +0100, sandeep patil <psandeep.s@gmail.com>=
- wrote:
-> Will verify this if the page is found on the pcp list as well .
+> On Thu, Jan 12, 2012 at 10:54:27AM +0900, KAMEZAWA Hiroyuki wrote:
 
-I was wondering in general if =E2=80=9C!PageBuddy(page) && !page_count(p=
-age)=E2=80=9D means
-page is on PCP.  From what I've seen in page_isolate.c it seems to be th=
-e case.
+> > Thank you for your work and the result seems atractive and code is much
+> > simpler. My small concerns are..
+> > 
+> > 1. This approach may increase latency of direct-reclaim because of priority=0.
+> 
+> I think strictly speaking yes, but note that with kswapd being less
+> likely to get stuck in hammering on one group, the need for allocators
+> to enter direct reclaim itself is reduced.
+> 
+> However, if this really becomes a problem in real world loads, the fix
+> is pretty easy: just ignore the soft limit for direct reclaim.  We can
+> still consider it from hard limit reclaim and kswapd.
+> 
+> > 2. In a case numa-spread/interleave application run in its own container, 
+> >    pages on a node may paged-out again and again becasue of priority=0
+> >    if some other application runs in the node.
+> >    It seems difficult to use soft-limit with numa-aware applications.
+> >    Do you have suggestions ?
+> 
+> This is a question about soft limits in general rather than about this
+> particular patch, right?
+> 
 
->>> I've also had a test case where it failed because (page_count() !=3D=
- 0)
+Partially, yes. My concern is related to "1".
 
-> With this, when it failed the page_count() returned a value of 2.  I a=
-m not
-> sure why, but I will try and see If I can reproduce this.
+Assume an application is binded to some cpu/node and try to allocate memory.
+If its memcg's usage is over softlimit, this application will play bad because
+newly allocated memory will be reclaim target soon, again....
 
-If I'm not mistaken, page_count() !=3D 0 means the page is allocated.  I=
- can see
-the following scenarios which can lead to page being allocated in when
-test_pages_isolated() is called:
 
-1. The page failed to migrate.  In this case however, the code would abo=
-rt earlier.
+> And if I understand correctly, the problem you are referring to is
+> this: an application and parts of a soft-limited container share a
+> node, the soft limit setting means that the container's pages on that
+> node are reclaimed harder.  At that point, the container's share on
+> that node becomes tiny, but since the soft limit is oblivious to
+> nodes, the expansion of the other application pushes the soft-limited
+> container off that node completely as long as the container stays
+> above its soft limit with the usage on other nodes.
+> 
+> What would you think about having node-local soft limits that take the
+> node size into account?
+> 
+> 	local_soft_limit = soft_limit * node_size / memcg_size
+> 
+> The soft limit can be exceeded globally, but the container is no
+> longer pushed off a node on which it's only occupying a small share of
+> memory.
+> 
+Yes, I think this kind of care is required.
+What is the 'node_size' here ? size of pgdat ?
+size of per-node usage in the memcg ?
 
-2. The page was migrated but then allocated.  This is not possible since=
 
-    migrated pages are freed which puts the page on MIGRATE_ISOLATE free=
-list which
-    guarantees that the page will not be migrated.
+> Putting it into proportion of the memcg size, not overall memory size
+> has the following advantages:
+> 
+>   1. if the container is sitting on only one of several available
+>   nodes without exceeding the limit globally, the memcg will not be
+>   reclaimed harder just because it has a relatively large share of the
+>   node.
+> 
+>   2. if the soft limit excess is ridiculously high, the local soft
+>   limits will be pushed down, so the tolerance for smaller shares on
+>   nodes goes down in proportion to the global soft limit excess.
+> 
+> Example:
+> 
+> 	4G soft limit * 2G node / 4G container = 2G node-local limit
+> 
+> The container is globally within its soft limit, so the local limit is
+> at least the size of the node.  It's never reclaimed harder compared
+> to other applications on the node.
+> 
+> 	4G soft limit * 2G node / 5G container = ~1.6G node-local limit
+> 
 
-3. The page was removed from PCP list but with migratetype =3D=3D MIGRAT=
-E_CMA.  This
-    is something the first patch in the series as well as the commit I'v=
-e mentioned tries
-    to address so hopefully it won't be an issue any more.
 
-4. The page was allocated from PCP list.  This may happen because draini=
-ng of PCP
-    list happens after IRQs are enabled in set_migratetype_isolate().  I=
- don't have
-    a solution for that just yet.  One is to alter update_pcp_isolate_bl=
-ock() to
-    remove page from the PCP list.  I haven't looked at specifics of how=
- to implement
-    this just yet.
 
->> Moving the check outside of __alloc_contig_migrate_range() after oute=
-r_start
->> is calculated in alloc_contig_range() could help.
->
-> I was going to suggest that, moving the check until after outer_start
-> is calculated will definitely help IMO. I am sure I've seen a case whe=
-re
->
->   page_count(page) =3D page->private =3D 0 and PageBuddy(page) was fal=
-se.
+> Here, it will experience more pressure initially, but it will level
+> off when the shrinking usage and the thereby increasing node-local
+> soft limit meet.  From that point on, the container and the competing
+> application will be treated equally during reclaim.
+> 
+> Finally, if the container is 16G in size, i.e. 300% in excess, the
+> per-node tolerance is at 512M node-local soft limit, which IMO strikes
+> a good balance between zero tolerance and still applying some stress
+> to the hugely oversized container when other applications (with
+> virtually unlimited soft limits) want to run on the same node.
+> 
+> What do you think?
 
-Yep, I've pushed new content to my branch (git://github.com/mina86/linux=
--2.6.git cma)
-and will try to get Marek to test it some time soon (I'm currently swamp=
-ed with
-non-Linux related work myself).
+I like the idea. Another idea is changing 'priority' based on per-node stats
+if not too complicated...
 
--- =
+Thanks,
+-Kame
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
