@@ -1,136 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 93C7A6B004F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 18:21:33 -0500 (EST)
-Date: Wed, 18 Jan 2012 15:21:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-Message-Id: <20120118152131.45a47966.akpm@linux-foundation.org>
-In-Reply-To: <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20120106173827.11700.74305.stgit@zurg>
-	<20120106173856.11700.98858.stgit@zurg>
-	<20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F0D46EF.4060705@openvz.org>
-	<20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id EB5B46B004F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 18:27:06 -0500 (EST)
+Received: by iadj38 with SMTP id j38so6759811iad.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 15:27:06 -0800 (PST)
+Date: Wed, 18 Jan 2012 15:26:51 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] SHM_UNLOCK: fix long unpreemptible section
+In-Reply-To: <20120118143718.663b8cf5.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1201181457450.1256@eggly.anvils>
+References: <alpine.LSU.2.00.1201061303320.12082@eggly.anvils> <alpine.LSU.2.00.1201141615440.1338@eggly.anvils> <20120118143718.663b8cf5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, 11 Jan 2012 17:41:26 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Wed, 11 Jan 2012 12:23:11 +0400
-> Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+On Wed, 18 Jan 2012, Andrew Morton wrote:
+> On Sat, 14 Jan 2012 16:18:43 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
 > 
-> > KAMEZAWA Hiroyuki wrote:
-> > > On Fri, 06 Jan 2012 21:38:56 +0400
-> > > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
-> > >
-> > >> Memory migration fill pte with migration entry and it didn't update rss counters.
-> > >> Then it replace migration entry with new page (or old one if migration was failed).
-> > >> But between this two passes this pte can be unmaped, or task can fork child and
-> > >> it will get copy of this migration entry. Nobody account this into rss counters.
-> > >>
-> > >> This patch properly adjust rss counters for migration entries in zap_pte_range()
-> > >> and copy_one_pte(). Thus we avoid extra atomic operations on migration fast-path.
-> > >>
-> > >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > >
-> > > It's better to show wheter this is a bug-fix or not in changelog.
-> > >
-> > > IIUC, the bug-fix is the 1st harf of this patch + patch [2/3].
-> > > Your new bug-check code is in patch[1/3] and 2nd half of this patch.
-> > >
-> > 
-> > No, there only one new bug-check in 1st patch, this is non-fatal warning.
-> > I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
-> > rss counters covers whole page-table management, this is very good invariant.
-> > Currently I can trigger this warning only on this rare race -- extremely loaded
-> > memory compaction catches this every several seconds.
-> > 
-> > 1/3 bug-check
-> > 2/3 fix preparation
-> > 3/3 bugfix in two places:
-> >      do rss++ in copy_one_pte()
-> >      do rss-- in zap_pte_range()
-> > 
+> > scan_mapping_unevictable_pages() is used to make SysV SHM_LOCKed pages
+> > evictable again once the shared memory is unlocked.  It does this with
+> > pagevec_lookup()s across the whole object (which might occupy most of
+> > memory), and takes 300ms to unlock 7GB here.  A cond_resched() every
+> > PAGEVEC_SIZE pages would be good.
+>... 
+> Is -stable backporting really warranted?  AFAICT the only thing we're
+> fixing here is a long latency glitch during a rare operation on large
+> machines.  Usually it will be on only one CPU, too.
+
+True: I'm not sure if it amounts to -stable material or not.
+I see you've taken out its Cc: stable line: that's fine by me, but...
+
+> "[PATCH 2/2] SHM_UNLOCK: fix Unevictable pages stranded after swap"
+> does loko like -stable material, so omitting 1/1 will probably screw
+> things up :(
+
+Sort of, but they both(?) needed respinning for -stable anyway.
+Even against 3.2, there's some little change in vmscan.c that generates
+a reject.  Greg has now closed down 3.1.N (which would have been tiresome
+to port to, because it was still supporting a second caller of check_move),
+and by your argument above it's not worth porting 1/2 back to 2.6.32.  So
+I think 2/2 can just go into 3.2.N, dragging 1/2 along in its slipstream
+(if you can have a slipstream in front of you).
+
+I ordered them that way because 1/2 fixes an old, and 2/2 a recent, bug.
+
+> > Resend in the hope that it can get into 3.3.
 > 
-> Hmm, ok, I read wrong.
+> That we can do ;)
+
+Thank you!
+
+> > +#else
+> > +void scan_mapping_unevictable_pages(struct address_space *mapping)
+> > +{
+> > +}
+> > +#endif /* CONFIG_SHMEM */
 > 
-> So, I think you should post the patch with [BUGFIX] and
-> report 'what happens' and 'what is the bug' , 'what you fixed' explicitly.
-> 
-> As...
-> ==
->   This patch series fixes per-mm rss counter accounting bug. When pages are
->   heavily migrated, the rss counters will go wrong by fork() and unmap()
->   because they ignores migration_pte_entries.
->   This rarelly happens but will make rss counter incorrect.
-> 
->   This seires of patches will fix the issue by adding proper accounting of
->   migration_pte_entries in unmap() and fork(). This series includes
->   bug check code, too.
+> Inlining the CONFIG_SHMEM=n stub would have been mroe efficient.
 
-Putting "fix" in the patch title text is a good way of handling this.
+True, though in 2/2 it morphs into shmem_unlock_mapping() over
+in shmem.c, and we seem to have the convention that TINY's !SHMEM
+stubs live as non-inline functions there - probably no good reason
+for that, just reflects their historical origins in tiny-shmem.c.
+A grand saving to make some other time ;)
 
-I renamed [3/3] to "mm: fix rss count leakage during migration" and
-shall queue it for 3.3.  If people think we should also backport it
-into -stable then please let me know.
-
-I reordered the patches and worked the chagnelogs quite a bit.  I now
-have:
-
-: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Subject: mm: fix rss count leakage during migration
-: 
-: Memory migration fills a pte with a migration entry and it doesn't update
-: the rss counters.  Then it replaces the migration entry with the new page
-: (or the old one if migration failed).  But between these two passes this
-: pte can be unmaped, or a task can fork a child and it will get a copy of
-: this migration entry.  Nobody accounts for this in the rss counters.
-: 
-: This patch properly adjust rss counters for migration entries in
-: zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
-: on the migration fast-path.
-: 
-: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Cc: Hugh Dickins <hughd@google.com>
-: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-and
-
-: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Subject: mm: add rss counters consistency check
-: 
-: Warn about non-zero rss counters at final mmdrop.
-: 
-: This check will prevent reoccurences of bugs such as that fixed in "mm:
-: fix rss count leakage during migration".
-: 
-: I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
-: rss counters cover whole page-table management, so this is a good
-: invariant.
-: 
-: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Cc: Hugh Dickins <hughd@google.com>
-: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-and
-
-: From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Subject: mm: postpone migrated page mapping reset
-: 
-: Postpone resetting page->mapping until the final remove_migration_ptes(). 
-: Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
-: work.
-: 
-: Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-: Cc: Hugh Dickins <hughd@google.com>
-: Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
