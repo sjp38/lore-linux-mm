@@ -1,103 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 891096B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 05:17:43 -0500 (EST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 18 Jan 2012 03:17:42 -0700
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 553DE19D8026
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:16:57 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0IAGw0c129458
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:16:58 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0IAGqRX015658
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:16:54 -0700
-Date: Wed, 18 Jan 2012 15:37:52 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v9 3.2 7/9] tracing: uprobes trace_event interface
-Message-ID: <20120118100752.GF15447@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <20120110114943.17610.28293.sendpatchset@srdronam.in.ibm.com>
- <20120116131137.GB5265@m.brq.redhat.com>
- <20120117092838.GB10397@elte.hu>
- <20120117102231.GB15447@linux.vnet.ibm.com>
- <20120117122133.GB4959@elte.hu>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 6998B6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 05:18:27 -0500 (EST)
+From: Mike Frysinger <vapier@gentoo.org>
+Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step exception.
+Date: Wed, 18 Jan 2012 05:18:25 -0500
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com> <20120118083906.GA4697@bandura.brq.redhat.com> <20120118090232.GE15447@linux.vnet.ibm.com>
+In-Reply-To: <20120118090232.GE15447@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20120117122133.GB4959@elte.hu>
+Content-Type: multipart/signed;
+  boundary="nextPart1380865.reNDvs1GFv";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <201201180518.31407.vapier@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Jiri Olsa <jolsa@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Anton Arapov <anton@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-> 
-> Have you tried to use 'perf probe' to achieve any useful 
-> instrumentation on a real app?
-> 
-> I just tried out the 'glibc:free' usecase and it's barely 
-> usable.
-> 
+--nextPart1380865.reNDvs1GFv
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks for trying.
+On Wednesday 18 January 2012 04:02:32 Srikar Dronamraju wrote:
+> >   Can we use existing SET_IP() instead of set_instruction_pointer() ?
+>=20
+> Oleg had already commented about this in one his uprobes reviews.
+>=20
+> The GET_IP/SET_IP available in include/asm-generic/ptrace.h doesnt work
+> on all archs. Atleast it doesnt work on powerpc when I tried it.
 
-Yes, I have actually place probes on free and malloc while building a
-kernel and it has worked for me.
+so migrate the arches you need over to it.
 
-> Firstly, the recording very frequently produces overruns:
-> 
->  $ perf record -e probe_libc:free -aR sleep 1
->  [ perf record: Woken up 169 times to write data ]
->  [ perf record: Captured and wrote 89.674 MB perf.data (~3917919 samples) ]
->  Warning:Processed 1349133 events and lost 1 chunks!
-> 
+> Also most archs define instruction_pointer(). So I thought (rather Peter
+> Zijlstra suggested the name set_instruction_pointer())
+> set_instruction_pointer was a better bet than SET_IP. I
 
-I have seen the "lost chunks" but thats not always and mostly when I
-have run perf record for a very long time. But I have seen this even
-with just kernel probes too. So I didnt debug that.
+asm-generic/ptrace.h already has instruction_pointer_set()
 
-> Using -m 4096 made it work better.
-> 
-> Adding -g for call-graph profiling caused 'perf report' to lock 
-> up:
-> 
->   perf record -m 4096 -e probe_libc:free -agR sleep 1
->   perf report
->   [ loops forever ]
-> 
+> Also I dont see any usage for SET_IP/GET_IP.
 
-This actually works for me.
-I had CONFIG_PREEMPT not set. So I set it and tried with and without
-Jiri's fix. It still worked for me. Can you pass me your config that
-shows this hang so that I can try and fix it.
+i think you mean "users" here ?  the usage should be fairly obvious.  both=
+=20
+macros are used by asm-generic/ptrace.h internally, but (currently) rarely=
+=20
+defined by arches themselves (by design).  the funcs that are based on thes=
+e=20
+GET/SET helpers though do get used in many places.
 
-> I've sent a testcase to Arnaldo separately. Note that perf 
-> report --stdio appears to work.
+simply grep arch/*/include/asm/ptrace.h
 
-There are no changes in perf report because of uprobes. So the data
-collected from uprobes could trigger the hang. I was speculating that
-not disabling preemption that Jiri pointed out could be causing this. So
-I tried with and without but couldnt reproduce. Can I request you to see
-if Jiri's patch helps?
+> May be we should have something like this in
+> include/asm-generic/ptrace.h
+>=20
+> #ifdef instruction_pointer
+> #define GET_IP(regs)		(instruction_pointer(regs))
+> #define set_instruction_pointer(regs, val) (instruction_pointer(regs) =3D
+> (val))
+> #define SET_IP(regs, val)	(set_instruction_pointer(regs,val))
+> #endif
+>=20
 
-Today with -g option, on one machine I do see a 
-$ sudo perf report
-perf: Floating point exception
+what you propose here won't work on all arches which is the whole point of=
+=20
+{G,S}ET_IP in the first place.  i proposed a similar idea before and was sh=
+ot=20
+down for exactly that reason.  look at ia64 for an obvious example.
 
-I will take a look at this too. Other machines dont seem to show this
-error.
+> or should we do away with GET_IP/SET_IP esp since there are no many
+> users?
 
-> Regular '-e cycles -g' works fine, so this is a uprobes specific 
-> bug.
-> 
+no, the point is to migrate to asm-generic/ptrace.h, not away from it.
+=2Dmike
 
--- 
-Thanks and Regards
-Srikar
+--nextPart1380865.reNDvs1GFv
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (GNU/Linux)
+
+iQIcBAABAgAGBQJPFpx3AAoJEEFjO5/oN/WBWo8P/2jBRVEnPlphyjM6i9rUoUfg
+uYWYpF3S5Br97uESPYzxi3VRQnmPCwggjlaXiL54nx31HCTw2T9mj3rJMga7Dk8V
+WOsK7SB0Luvb15SBRQtwkODP4Xn5IYSY5vUcPPc2PQ9KEZFCmygXwutF4DwVUVje
+xOIREWU7RP1iYgQ712DZhh5M6Pzm3XbCdOZwhNqzZkEaEYWVjQdYarPbJMzDn6FB
+WwGHh8ojnHwlivleLeeJpXAyJV07sHjezOcG/j+n+ldHfyVVhBrv33OPsHftekW5
+OstMyX1Dj9JeycwiPzBzaMXiIClr5EJh8sgbSA4A+sV+7+iLKbMr4Hl/1Wt1aFIz
+eLrlZfWJ2M1HQ8/TXR30IZhUdwVkV3JzU6g2h8DLzEqIyEq3p1j1xWwcSWACGrmY
+rFwC9NcwRHOE+gIQdRhS8Ai9e7jzb39PcpDFtSUKFtU8bf4AfwvyD25TkiDBWBk0
+d7ogySDFhScrrAZYnC68Er8rxbLkHH6OXNxWavp8n/iMIDviDaRBpVKMwOiegHKd
+NNj2ZI/u7whWX9mzLFgCysLReFMS4GDCOgU3pfl44rbKVEzKe7fFIVE0xXLWdlaD
+lpneAKct+V6C2UkazZxwY75TKCEUaRMb4xC9mBgEIQrs/QYfbMxxmtI9MMSTJ30Q
+QTi6hK4KTXLL1kTv104W
+=O2O6
+-----END PGP SIGNATURE-----
+
+--nextPart1380865.reNDvs1GFv--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
