@@ -1,93 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 50E956B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 02:49:44 -0500 (EST)
-Received: by vbbfa15 with SMTP id fa15so2997285vbb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2012 23:49:43 -0800 (PST)
-Date: Wed, 18 Jan 2012 16:49:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-Message-ID: <20120118074930.GA18621@barrios-desktop.redhat.com>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
- <1326788038-29141-2-git-send-email-minchan@kernel.org>
- <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
- <4F15A34F.40808@redhat.com>
- <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
- <20120117232025.GB903@barrios-desktop.redhat.com>
- <alpine.LFD.2.02.1201180905040.2488@tux.localdomain>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id AE7616B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 03:39:37 -0500 (EST)
+Date: Wed, 18 Jan 2012 09:39:06 +0100
+From: Anton Arapov <anton@redhat.com>
+Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step
+ exception.
+Message-ID: <20120118083906.GA4697@bandura.brq.redhat.com>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+ <20120110114842.17610.27081.sendpatchset@srdronam.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.02.1201180905040.2488@tux.localdomain>
+In-Reply-To: <20120110114842.17610.27081.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Wed, Jan 18, 2012 at 09:16:49AM +0200, Pekka Enberg wrote:
-> On Wed, 18 Jan 2012, Minchan Kim wrote:
-> >I didn't look into your code(will do) but as I read description,
-> >still I don't convince we need really some process specific threshold like 99%
-> >I think application can know it by polling /proc/meminfo without this mechanism
-> >if they really want.
+On Tue, Jan 10, 2012 at 05:18:42PM +0530, Srikar Dronamraju wrote:
+[snip]
+> diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+> index 8208234..475563b 100644
+> --- a/arch/x86/include/asm/uprobes.h
+> +++ b/arch/x86/include/asm/uprobes.h
+[snip]
+> @@ -37,6 +39,21 @@ struct uprobe_arch_info {
+>  #endif
+>  };
+>  
+> +struct uprobe_task_arch_info {
+> +	unsigned long saved_trap_no;
+> +#ifdef CONFIG_X86_64
+> +	unsigned long saved_scratch_register;
+> +#endif
+> +};
+> +
+>  struct uprobe;
+> +
+>  extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+> +extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
+Srikar,
+
+  Can we use existing SET_IP() instead of set_instruction_pointer() ?
+
+[snip]  
+>  static void __exit exit_uprobes(void)
 > 
-> I'm not sure if we need arbitrary threshold either. However, we need
-> to support the following cases:
-> 
->   - We're about to swap
-> 
->   - We're about to run out of memory
-> 
->   - We're about to start OOM killing
-> 
-> and I don't think your patch solves that. One possibility is to implement:
 
-I think my patch can extend it but your ABI looks good to me than my approach.
+===
+[PATCH] uprobes: cleanup, eliminate set_instruction_pointer(), use existing SET_IP() instead
 
-> 
->   VMNOTIFY_TYPE_ABOUT_TO_SWAP
->   VMNOTIFY_TYPE_ABOUT_TO_OOM
->   VMNOTIFY_TYPE_ABOUT_TO_OOM_KILL
+Use SET_IP() available in include/asm-generic/ptrace.h
 
-Yes. We can define some levels.
+Signed-off-by: Anton Arapov <anton@redhat.com>
+---
+ arch/x86/include/asm/uprobes.h |    1 -
+ arch/x86/kernel/uprobes.c      |   12 +-----------
+ kernel/uprobes.c               |    2 +-
+ 3 files changed, 2 insertions(+), 13 deletions(-)
 
-1. page cache reclaim
-2. code page reclaim
-3. anonymous page swap out
-4. OOM kill.
-
-
-Application might handle it differenlty by the memory pressure level.
-
-> 
-> and maybe rip out support for arbitrary thresholds. Does that more
-> reasonable?
-
-Currently, Nokia people seem to want process specific thresholds so 
-we might need it.
-
-> 
-> As for polling /proc/meminfo, I'd much rather deliver stats as part
-> of vmnotify_read() because it's easier to extend the ABI rather than
-> adding new fields to /proc/meminfo.
-
-Agree.
-
-> 
-> On Wed, 18 Jan 2012, Minchan Kim wrote:
-> >I would like to notify when system has a trobule with memory pressure without
-> >some process specific threshold. Of course, applicatoin can't expect it.(ie,
-> >application can know system memory pressure by /proc/meminfo but it can't know
-> >when swapout really happens). Kernel low mem notify have to give such notification
-> >to user space, I think.
-> 
-> It should be simple to add support for VMNOTIFY_TYPE_MEM_PRESSURE
-> that uses your hooks.
-
-Indeed.
-
-> 
-> 			Pekka
+diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+index 475563b..88df7ec 100644
+--- a/arch/x86/include/asm/uprobes.h
++++ b/arch/x86/include/asm/uprobes.h
+@@ -49,7 +49,6 @@ struct uprobe_task_arch_info {
+ struct uprobe;
+ 
+ extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+-extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
+ extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
+ extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
+ extern bool xol_was_trapped(struct task_struct *tsk);
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+index e4e0dfd..08b633f 100644
+--- a/arch/x86/kernel/uprobes.c
++++ b/arch/x86/kernel/uprobes.c
+@@ -409,16 +409,6 @@ int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
+ 	return 0;
+ }
+ 
+-/*
+- * @reg: reflects the saved state of the task
+- * @vaddr: the virtual address to jump to.
+- * Return 0 on success or a -ve number on error.
+- */
+-void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr)
+-{
+-	regs->ip = vaddr;
+-}
+-
+ #define	UPROBE_TRAP_NO		UINT_MAX
+ 
+ /*
+@@ -624,7 +614,7 @@ void abort_xol(struct pt_regs *regs, struct uprobe *uprobe)
+ 
+ 	current->thread.trap_no = utask->tskinfo.saved_trap_no;
+ 	handle_riprel_post_xol(uprobe, regs, NULL);
+-	set_instruction_pointer(regs, utask->vaddr);
++	SET_IP(regs, utask->vaddr);
+ }
+ 
+ /*
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 0918448..b0db46b 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -1479,7 +1479,7 @@ cleanup_ret:
+ 	}
+ 	if (u) {
+ 		if (!(u->flags & UPROBES_SKIP_SSTEP))
+-			set_instruction_pointer(regs, probept);
++			SET_IP(regs, probept);
+ 
+ 		put_uprobe(u);
+ 	} else
+-- 
+1.7.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
