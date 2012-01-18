@@ -1,280 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id C802C6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 11:46:01 -0500 (EST)
-Date: Wed, 18 Jan 2012 17:45:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 4/7 v2] memcg: new scheme to update per-memcg page
- stat accounting.
-Message-ID: <20120118164558.GI31112@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113174138.ec7b64d9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120113174138.ec7b64d9.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A10C66B004D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 13:53:42 -0500 (EST)
+From: Arun Sharma <asharma@fb.com>
+Subject: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+Date: Wed, 18 Jan 2012 10:51:02 -0800
+Message-Id: <1326912662-18805-1-git-send-email-asharma@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Arun Sharma <asharma@fb.com>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
 
-On Fri 13-01-12 17:41:38, KAMEZAWA Hiroyuki wrote:
-[...]
-> (And Dirty flag has another problem which cannot be handled by flag on
-> page_cgroup.)
+This enables malloc optimizations where we might
+madvise(..,MADV_DONTNEED) a page only to fault it
+back at a different virtual address.
 
-Is this imporatant for the patch?
+To ensure that we don't leak sensitive data to
+unprivileged processes, we enable this optimization
+only for pages that are reused within a memory
+cgroup.
 
-> 
-> I'd like to remove this flag because
->  - In recent discussions, removing pc->flags is our direction.
->  - This kind of duplication of flag/status is very bad and
->    it's better to use status in 'struct page'.
-> 
-> This patch is for removing page_cgroup's special flag for
-> page-state accounting and for using 'struct page's status itself.
+The idea is to make this opt-in both at the mmap()
+level and cgroup level so the default behavior is
+unchanged after the patch.
 
-The patch doesn't seem to do so. It just enhances the semantics of the
-locking for accounting.
+TODO: Ask for a VM_UNINITIALIZED bit
+TODO: Implement a cgroup level opt-in flag
 
-> 
-> This patch adds an atomic update support of page statistics accounting
-> in memcg. In short, it prevents a page from being moved from a memcg
-> to another while updating page status by...
-> 
-> 	locked = mem_cgroup_begin_update_page_stat(page)
->         modify page
->         mem_cgroup_update_page_stat(page)
->         mem_cgroup_end_update_page_stat(page, locked)
-> 
-> While begin_update_page_stat() ... end_update_page_stat(),
-> the page_cgroup will never be moved to other memcg.
-> 
-> In usual case, overhead is rcu_read_lock() and rcu_read_unlock(),
-> lookup_page_cgroup().
-> 
-> Note:
->  - I still now considering how to reduce overhead of this scheme.
->    Good idea is welcomed.
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org
+Signed-off-by: Arun Sharma <asharma@fb.com>
+---
+ include/asm-generic/mman-common.h |    6 +-----
+ include/linux/highmem.h           |    6 ++++++
+ include/linux/mm.h                |    2 ++
+ include/linux/mman.h              |    1 +
+ include/linux/page_cgroup.h       |   29 +++++++++++++++++++++++++++++
+ init/Kconfig                      |    2 +-
+ mm/mempolicy.c                    |   29 +++++++++++++++++++++++------
+ 7 files changed, 63 insertions(+), 12 deletions(-)
 
-So the overhead is increased by one lookup_page_cgroup call, right?
-
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-I think we do not have many other choices than adding some kind of
-locking around both normal and memcg pages updates so this looks like a
-good approach.
-
-> ---
->  include/linux/memcontrol.h |   36 ++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c            |   46 ++++++++++++++++++++++++++-----------------
->  mm/rmap.c                  |   14 +++++++++++-
->  3 files changed, 76 insertions(+), 20 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 4d34356..976b58c 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -141,9 +141,35 @@ static inline bool mem_cgroup_disabled(void)
->  	return false;
->  }
->  
-> +/*
-> + * When we update page->flags,' we'll update some memcg's counter.
-> + * Unlike vmstat, memcg has per-memcg stats and page-memcg relationship
-> + * can be changed while 'struct page' information is updated.
-> + * We need to prevent the race by
-> + * 	locked = mem_cgroup_begin_update_page_stat(page)
-> + * 	modify 'page'
-> + * 	mem_cgroup_update_page_stat(page, idx, val)
-> + * 	mem_cgroup_end_update_page_stat(page, locked);
-> + */
-> +bool __mem_cgroup_begin_update_page_stat(struct page *page);
-> +static inline bool mem_cgroup_begin_update_page_stat(struct page *page)
-
-The interface seems to be strange a bit. I would expect bool *locked
-parameter because this is some kind of cookie. Return value might be
-confusing.
-
-> +{
-> +	if (mem_cgroup_disabled())
-> +		return false;
-> +	return __mem_cgroup_begin_update_page_stat(page);
-> +}
->  void mem_cgroup_update_page_stat(struct page *page,
->  				 enum mem_cgroup_page_stat_item idx,
->  				 int val);
-> +void __mem_cgroup_end_update_page_stat(struct page *page, bool locked);
-> +static inline void
-> +mem_cgroup_end_update_page_stat(struct page *page, bool locked)
-> +{
-> +	if (mem_cgroup_disabled())
-> +		return;
-> +	__mem_cgroup_end_update_page_stat(page, locked);
-> +}
-> +
->  
->  static inline void mem_cgroup_inc_page_stat(struct page *page,
->  					    enum mem_cgroup_page_stat_item idx)
-> @@ -356,6 +382,16 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  {
->  }
->  
-> +static inline bool mem_cgroup_begin_update_page_stat(struct page *page)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline void
-> +mem_cgroup_end_update_page_stat(struct page *page, bool locked)
-> +{
-> +}
-> +
->  static inline void mem_cgroup_inc_page_stat(struct page *page,
->  					    enum mem_cgroup_page_stat_item idx)
->  {
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 61e276f..30ef810 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1912,29 +1912,43 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
->   * possibility of race condition. If there is, we take a lock.
->   */
->  
-> +bool __mem_cgroup_begin_update_page_stat(struct page *page)
-> +{
-> +	struct page_cgroup *pc = lookup_page_cgroup(page);
-> +	bool locked = false;
-> +	struct mem_cgroup *memcg;
-> +
-> +	rcu_read_lock();
-> +	memcg = pc->mem_cgroup;
-> +
-> +	if (!memcg || !PageCgroupUsed(pc))
-> +		goto out;
-> +	if (mem_cgroup_stealed(memcg)) {
-> +		mem_cgroup_account_move_rlock(page);
-> +		locked = true;
-> +	}
-> +out:
-> +	return locked;
-> +}
-> +
-> +void __mem_cgroup_end_update_page_stat(struct page *page, bool locked)
-> +{
-> +	if (locked)
-> +		mem_cgroup_account_move_runlock(page);
-> +	rcu_read_unlock();
-> +}
-> +
->  void mem_cgroup_update_page_stat(struct page *page,
->  				 enum mem_cgroup_page_stat_item idx, int val)
->  {
-> -	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc = lookup_page_cgroup(page);
-> -	bool need_unlock = false;
-> +	struct mem_cgroup *memcg = pc->mem_cgroup;
->  
->  	if (mem_cgroup_disabled())
->  		return;
->  
-> -	rcu_read_lock();
-> -	memcg = pc->mem_cgroup;
->  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
-> -		goto out;
-> -	/* pc->mem_cgroup is unstable ? */
-> -	if (unlikely(mem_cgroup_stealed(memcg))) {
-> -		/* take a lock against to access pc->mem_cgroup */
-> -		mem_cgroup_account_move_rlock(page);
-> -		need_unlock = true;
-> -		memcg = pc->mem_cgroup;
-> -		if (!memcg || !PageCgroupUsed(pc))
-> -			goto out;
-> -	}
-> +		return;
->  
->  	switch (idx) {
->  	case MEMCG_NR_FILE_MAPPED:
-> @@ -1950,10 +1964,6 @@ void mem_cgroup_update_page_stat(struct page *page,
->  
->  	this_cpu_add(memcg->stat->count[idx], val);
->  
-> -out:
-> -	if (unlikely(need_unlock))
-> -		mem_cgroup_account_move_runlock(page);
-> -	rcu_read_unlock();
->  	return;
->  }
->  EXPORT_SYMBOL(mem_cgroup_update_page_stat);
-
-We need to export mem_cgroup_{begin,end}_update_page_stat as well.
-Btw. Why is this exported anyway?
-
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index aa547d4..def60d1 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1150,10 +1150,13 @@ void page_add_new_anon_rmap(struct page *page,
->   */
->  void page_add_file_rmap(struct page *page)
->  {
-> +	bool locked = mem_cgroup_begin_update_page_stat(page);
-> +
->  	if (atomic_inc_and_test(&page->_mapcount)) {
->  		__inc_zone_page_state(page, NR_FILE_MAPPED);
->  		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
->  	}
-> +	mem_cgroup_end_update_page_stat(page, locked);
->  }
->  
->  /**
-> @@ -1164,10 +1167,14 @@ void page_add_file_rmap(struct page *page)
->   */
->  void page_remove_rmap(struct page *page)
->  {
-> +	bool locked = false;
-> +
-> +	if (!PageAnon(page))
-> +		locked = mem_cgroup_begin_update_page_stat(page);
-
-Doesn't look nice. We shouldn't care about which pages update stats at
-this level...
-
-> +
->  	/* page still mapped by someone else? */
->  	if (!atomic_add_negative(-1, &page->_mapcount))
-> -		return;
-> -
-> +		goto out;
->  	/*
->  	 * Now that the last pte has gone, s390 must transfer dirty
->  	 * flag from storage key to struct page.  We can usually skip
-> @@ -1204,6 +1211,9 @@ void page_remove_rmap(struct page *page)
->  	 * Leaving it set also helps swapoff to reinstate ptes
->  	 * faster for those pages still in swapcache.
->  	 */
-> +out:
-> +	if (!PageAnon(page))
-> +		mem_cgroup_end_update_page_stat(page, locked);
->  }
->  
->  /*
-> -- 
-> 1.7.4.1
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+index 787abbb..71e079f 100644
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -19,11 +19,7 @@
+ #define MAP_TYPE	0x0f		/* Mask for type of mapping */
+ #define MAP_FIXED	0x10		/* Interpret addr exactly */
+ #define MAP_ANONYMOUS	0x20		/* don't use a file */
+-#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+-# define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be uninitialized */
+-#else
+-# define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
+-#endif
++#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be uninitialized */
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_INVALIDATE	2		/* invalidate the caches */
+diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+index 3a93f73..caae922 100644
+--- a/include/linux/highmem.h
++++ b/include/linux/highmem.h
+@@ -4,6 +4,7 @@
+ #include <linux/fs.h>
+ #include <linux/kernel.h>
+ #include <linux/mm.h>
++#include <linux/page_cgroup.h>
+ #include <linux/uaccess.h>
+ #include <linux/hardirq.h>
+ 
+@@ -156,6 +157,11 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
+ 	struct page *page = alloc_page_vma(GFP_HIGHUSER | movableflags,
+ 			vma, vaddr);
+ 
++#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
++	if (!page_needs_clearing(page, vma))
++		return page;
++#endif
++
+ 	if (page)
+ 		clear_user_highpage(page, vaddr);
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4baadd1..c6bab01 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -118,6 +118,8 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
+ #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
++#define VM_UNINITIALIZED VM_SAO		/* Steal a powerpc bit for now, since we're out
++					   of bits for 32 bit archs */
+ 
+ /* Bits set in the VMA until the stack is in its final location */
+ #define VM_STACK_INCOMPLETE_SETUP	(VM_RAND_READ | VM_SEQ_READ)
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 8b74e9b..9bef6c9 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -87,6 +87,7 @@ calc_vm_flag_bits(unsigned long flags)
+ 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
+ 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
+ 	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
++	       _calc_vm_trans(flags, MAP_UNINITIALIZED, VM_UNINITIALIZED) |
+ 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
+ }
+ #endif /* __KERNEL__ */
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index 961ecc7..e959869 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -155,6 +155,17 @@ static inline unsigned long page_cgroup_array_id(struct page_cgroup *pc)
+ 	return (pc->flags >> PCG_ARRAYID_SHIFT) & PCG_ARRAYID_MASK;
+ }
+ 
++static int mm_match_cgroup(const struct mm_struct *mm,
++			   const struct mem_cgroup *cgroup);
++static inline bool page_seen_by_cgroup(struct page *page,
++				       const struct mm_struct *mm)
++{
++	struct page_cgroup *pcg = lookup_page_cgroup(page);
++	if (pcg == NULL)
++		return false;
++	return mm_match_cgroup(mm, pcg->mem_cgroup);
++}
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct page_cgroup;
+ 
+@@ -175,8 +186,26 @@ static inline void __init page_cgroup_init_flatmem(void)
+ {
+ }
+ 
++static inline bool page_seen_by_cgroup(struct page *page,
++				       const struct mm_struct *mm)
++{
++	return false;
++}
++
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR */
+ 
++static inline bool vma_requests_uninitialized(struct vm_area_struct *vma)
++{
++	return vma && !vma->vm_file && vma->vm_flags & VM_UNINITIALIZED;
++}
++
++static inline bool page_needs_clearing(struct page *page,
++				       struct vm_area_struct *vma)
++{
++	return !(vma_requests_uninitialized(vma)
++		&& page_seen_by_cgroup(page, vma->vm_mm));
++}
++
+ #include <linux/swap.h>
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+diff --git a/init/Kconfig b/init/Kconfig
+index 43298f9..428e047 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1259,7 +1259,7 @@ endchoice
+ 
+ config MMAP_ALLOW_UNINITIALIZED
+ 	bool "Allow mmapped anonymous memory to be uninitialized"
+-	depends on EXPERT && !MMU
++	depends on EXPERT
+ 	default n
+ 	help
+ 	  Normally, and according to the Linux spec, anonymous memory obtained
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index c3fdbcb..7c9ab68 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -90,6 +90,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/ctype.h>
+ #include <linux/mm_inline.h>
++#include <linux/page_cgroup.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -1847,6 +1848,11 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	struct zonelist *zl;
+ 	struct page *page;
+ 
++#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
++	if (vma_requests_uninitialized(vma))
++		gfp &= ~__GFP_ZERO;
++#endif
++
+ 	get_mems_allowed();
+ 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
+ 		unsigned nid;
+@@ -1854,25 +1860,36 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+ 		mpol_cond_put(pol);
+ 		page = alloc_page_interleave(gfp, order, nid);
+-		put_mems_allowed();
+-		return page;
++		goto out;
+ 	}
+ 	zl = policy_zonelist(gfp, pol, node);
+ 	if (unlikely(mpol_needs_cond_ref(pol))) {
+ 		/*
+ 		 * slow path: ref counted shared policy
+ 		 */
+-		struct page *page =  __alloc_pages_nodemask(gfp, order,
+-						zl, policy_nodemask(gfp, pol));
++		page =  __alloc_pages_nodemask(gfp, order,
++					       zl, policy_nodemask(gfp, pol));
+ 		__mpol_put(pol);
+-		put_mems_allowed();
+-		return page;
++		goto out;
+ 	}
++
+ 	/*
+ 	 * fast path:  default or task policy
+ 	 */
+ 	page = __alloc_pages_nodemask(gfp, order, zl,
+ 				      policy_nodemask(gfp, pol));
++
++out:
++#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
++	if (page_needs_clearing(page, vma)) {
++		int i;
++		for (i = 0; i < (1 << order); i++) {
++			void *kaddr = kmap_atomic(page + i, KM_USER0);
++			clear_page(kaddr);
++			kunmap_atomic(kaddr, KM_USER0);
++		}
++	}
++#endif
+ 	put_mems_allowed();
+ 	return page;
+ }
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
