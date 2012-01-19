@@ -1,66 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 6309D6B005A
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 08:44:32 -0500 (EST)
-Date: Thu, 19 Jan 2012 14:44:25 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND, PATCH 4/6] memcg: fix broken boolean expression
-Message-ID: <20120119134425.GQ24386@cmpxchg.org>
-References: <1325883472-5614-1-git-send-email-kirill@shutemov.name>
- <1325883472-5614-4-git-send-email-kirill@shutemov.name>
- <20120109140404.GG3588@cmpxchg.org>
- <20120116115416.GA25687@shutemov.name>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 2B5266B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 09:07:40 -0500 (EST)
+Date: Thu, 19 Jan 2012 15:07:37 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 5/7 v2] memcg: remove PCG_FILE_MAPPED
+Message-ID: <20120119140737.GD13932@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113174223.aaf5a80c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120116115416.GA25687@shutemov.name>
+In-Reply-To: <20120113174223.aaf5a80c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, stable@kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Mon, Jan 16, 2012 at 01:54:16PM +0200, Kirill A. Shutemov wrote:
-> On Mon, Jan 09, 2012 at 03:04:04PM +0100, Johannes Weiner wrote:
-> > On Fri, Jan 06, 2012 at 10:57:50PM +0200, Kirill A. Shutemov wrote:
-> > > From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> > > 
-> > > action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> > > Cc: <stable@kernel.org>
-> > 
-> > I think you don't need to actually CC stable via email.  If you
-> > include that tag, they will pick it up once the patch hits mainline.
+On Fri 13-01-12 17:42:23, KAMEZAWA Hiroyuki wrote:
+> From a9b51d6204d7f8714173c46a306caf413ad25d4e Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 12 Jan 2012 18:40:26 +0900
+> Subject: [PATCH 5/7] memcg: remove PCG_FILE_MAPPED
 > 
-> I don't think it's a problem for stable@.
-> 
-> > 
-> > The changelog is too terse, doubly so for a patch that should go into
-> > stable.  How is the code supposed to work?  What are the consequences
-> > of the bug?
-> 
-> Is it enough?
+> Because we can update page's status and memcg's statistics without
+> race with move_account, this flag is unnecessary.
 
-I think so, thank you.
+I would really appreciate a little bit more description ;)
 
-> >From fe1c2f2dc1abf63cce12017e2d9031cf67f0a161 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> Date: Sat, 24 Dec 2011 04:12:53 +0200
-> Subject: [PATCH 4/6] memcg: fix broken boolean expression
-> 
-> action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
-> 
-> We should return at the point if CPU doesn't go away. Otherwise drain
-> all counters and stocks from the CPU.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: <stable@kernel.org>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+8725d541 [memcg: fix race in file_mapped accounting] has added the
+flag to resolve a race when a move_account happened between page's
+mapcount has been updated and this has been accounted to memcg.
+This, however, cannot happen anymore because mem_cgroup_update_page_stat
+is always enclosed by mem_cgroup_begin_update_page_stat and
+mem_cgroup_end_update_page_stat along with the mapcount update.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-But without the stable Cc, I guess :)
+Other than that looks good and nice to see another one go away.
+I will add my ack along with the patches which this depend on once they
+settle down if you don't mind
+
+Thanks
+
+> ---
+>  include/linux/page_cgroup.h |    6 ------
+>  mm/memcontrol.c             |    6 +-----
+>  2 files changed, 1 insertions(+), 11 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 5dba799..0b9a48a 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -7,8 +7,6 @@ enum {
+>  	PCG_CACHE, /* charged as cache */
+>  	PCG_USED, /* this object is in use. */
+>  	PCG_MIGRATION, /* under page migration */
+> -	/* flags for mem_cgroup and file and I/O status */
+> -	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+>  	__NR_PCG_FLAGS,
+>  };
+>  
+> @@ -72,10 +70,6 @@ TESTPCGFLAG(Used, USED)
+>  CLEARPCGFLAG(Used, USED)
+>  SETPCGFLAG(Used, USED)
+>  
+> -SETPCGFLAG(FileMapped, FILE_MAPPED)
+> -CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+> -TESTPCGFLAG(FileMapped, FILE_MAPPED)
+> -
+>  SETPCGFLAG(Migration, MIGRATION)
+>  CLEARPCGFLAG(Migration, MIGRATION)
+>  TESTPCGFLAG(Migration, MIGRATION)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 30ef810..a96800d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1952,10 +1952,6 @@ void mem_cgroup_update_page_stat(struct page *page,
+>  
+>  	switch (idx) {
+>  	case MEMCG_NR_FILE_MAPPED:
+> -		if (val > 0)
+> -			SetPageCgroupFileMapped(pc);
+> -		else if (!page_mapped(page))
+> -			ClearPageCgroupFileMapped(pc);
+>  		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+>  		break;
+>  	default:
+> @@ -2606,7 +2602,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  
+>  	mem_cgroup_account_move_wlock(page, &flags);
+>  
+> -	if (PageCgroupFileMapped(pc)) {
+> +	if (page_mapcount(page)) {
+>  		/* Update mapped_file data for mem_cgroup */
+>  		preempt_disable();
+>  		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> -- 
+> 1.7.4.1
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
