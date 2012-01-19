@@ -1,35 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 152DE6B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:16:05 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A96D63EE0B6
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:16:03 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DE5645DE54
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:16:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 726E945DE4D
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:16:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A4261DB8041
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:16:03 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F27C1DB8037
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:16:03 +0900 (JST)
-Date: Thu, 19 Jan 2012 16:14:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: remove unnecessary thp check at page stat accounting
-Message-Id: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id E03906B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:25:18 -0500 (EST)
+Received: by lagw12 with SMTP id w12so2159294lag.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 23:25:16 -0800 (PST)
+Date: Thu, 19 Jan 2012 09:25:03 +0200 (EET)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+In-Reply-To: <4F175706.8000808@redhat.com>
+Message-ID: <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+ <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com> <4F175706.8000808@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Ronen Hod <rhod@redhat.com>
+Cc: leonid.moiseichuk@nokia.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-Thank you very much for reviewing previous RFC series.
-This is a patch against memcg-devel and linux-next (can by applied without HUNKs).
+On Thu, 19 Jan 2012, Ronen Hod wrote:
+> I believe that it will be best if the kernel publishes an ideal 
+> number_of_free_pages (in /proc/meminfo or whatever). Such number is easy to 
+> work with since this is what applications do, they free pages. Applications 
+> will be able to refer to this number from their garbage collector, or before 
+> allocating memory also if they did not get a notification, and it is also 
+> useful if several applications free memory at the same time.
 
-==
+Isn't
+
+/proc/sys/vm/min_free_kbytes
+
+pretty much just that?
+
+ 			Pekka
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
