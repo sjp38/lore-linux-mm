@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 7DEF36B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 07:06:15 -0500 (EST)
-Received: by obbta7 with SMTP id ta7so7177694obb.14
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:06:14 -0800 (PST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 22FDD6B005C
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 07:28:37 -0500 (EST)
+Received: by wicr5 with SMTP id r5so6073124wic.14
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:28:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904559D9B@008-AM1MPN1-003.mgdnok.nokia.com>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326788038-29141-2-git-send-email-minchan@kernel.org>
-	<CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
-	<4F15A34F.40808@redhat.com>
-	<alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-	<84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
-	<CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
-	<84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com>
-	<CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
-	<84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
-	<4F175706.8000808@redhat.com>
-	<alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
-	<4F17DCED.4020908@redhat.com>
-	<CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
-	<4F17E058.8020008@redhat.com>
-	<84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
-	<CAOJsxLHd5dCvBwV5gsraFZXh86wq7tg7uLLnevN8Pp_jGiOBbw@mail.gmail.com>
-	<84FF21A720B0874AA94B46D76DB9826904559D9B@008-AM1MPN1-003.mgdnok.nokia.com>
-Date: Thu, 19 Jan 2012 14:06:14 +0200
-Message-ID: <CAOJsxLHhJf0VOzmGWTfLBKkjXvP5DwSbaFtpLnbt2wipfer4Gw@mail.gmail.com>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-From: Pekka Enberg <penberg@kernel.org>
+In-Reply-To: <1326958401.1113.22.camel@edumazet-laptop>
+References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+	<1326958401.1113.22.camel@edumazet-laptop>
+Date: Thu, 19 Jan 2012 04:28:35 -0800
+Message-ID: <CAOS58YO585NYMLtmJv3f9vVdadFqoWF+Y5vZ6Va=2qHELuePJA@mail.gmail.com>
+Subject: Re: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for next
+From: Tejun Heo <tj@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: rhod@redhat.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 19, 2012 at 1:54 PM,  <leonid.moiseichuk@nokia.com> wrote:
->> On Thu, Jan 19, 2012 at 12:53 PM, =A0<leonid.moiseichuk@nokia.com> wrote=
-:
->> > 6. I do not understand how work with attributes performed ( ) but it
->> > has sense to use mask and fill requested attributes using mask and
->> > callback table i.e. if free pages requested - they are reported, other=
-wise
->> not.
->>
->> That's how it works now in the git tree.
+Hello,
+
+On Wed, Jan 18, 2012 at 11:33 PM, Eric Dumazet <eric.dumazet@gmail.com> wro=
+te:
+> Interesting, but should be a patch on its own.
+
+Yeap, agreed.
+
+> Maybe other idr users can benefit from your idea as well, if patch is
+> labeled =A0"idr: allow idr_get_next() from rcu_read_lock" or something...
 >
-> Vmnotify.c has vmnotify_watch_event which collects fixed set of parameter=
-s.
+> I suggest introducing idr_get_next_rcu() helper to make the check about
+> rcu cleaner.
+>
+> idr_get_next_rcu(...)
+> {
+> =A0 =A0 =A0 =A0WARN_ON_ONCE(!rcu_read_lock_held());
+> =A0 =A0 =A0 =A0return idr_get_next(...);
+> }
 
-That's would be a bug. We should check event_attrs like we do for NR_SWAP_P=
-AGES.
+Hmmm... I don't know. Does having a separate set of interface help
+much?  It's easy to avoid/miss the test by using the other one.  If we
+really worry about it, maybe indicating which locking is to be used
+during init is better? We can remember the lockdep map and trigger
+WARN_ON_ONCE() if neither the lock or RCU read lock is held.
+
+Thanks.
+
+--=20
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
