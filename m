@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id C5DB06B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 06:59:59 -0500 (EST)
-Received: by obbta7 with SMTP id ta7so7168067obb.14
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 03:59:59 -0800 (PST)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 7DEF36B005C
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 07:06:15 -0500 (EST)
+Received: by obbta7 with SMTP id ta7so7177694obb.14
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:06:14 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <84FF21A720B0874AA94B46D76DB9826904559D9B@008-AM1MPN1-003.mgdnok.nokia.com>
 References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
@@ -24,31 +24,33 @@ References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
 	<84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
 	<CAOJsxLHd5dCvBwV5gsraFZXh86wq7tg7uLLnevN8Pp_jGiOBbw@mail.gmail.com>
 	<84FF21A720B0874AA94B46D76DB9826904559D9B@008-AM1MPN1-003.mgdnok.nokia.com>
-Date: Thu, 19 Jan 2012 13:59:58 +0200
-Message-ID: <CAOJsxLFL85uqMTrbSnte4mDtEVLgupd2kRM1XEwaUD4tUCN4Xw@mail.gmail.com>
+Date: Thu, 19 Jan 2012 14:06:14 +0200
+Message-ID: <CAOJsxLHhJf0VOzmGWTfLBKkjXvP5DwSbaFtpLnbt2wipfer4Gw@mail.gmail.com>
 Subject: Re: [RFC 1/3] /dev/low_mem_notify
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: leonid.moiseichuk@nokia.com
 Cc: rhod@redhat.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
 On Thu, Jan 19, 2012 at 1:54 PM,  <leonid.moiseichuk@nokia.com> wrote:
->> The current ABI already supports that. You can specify which attributes
->> you're interested in and they will be delivered as part of th event.
+>> On Thu, Jan 19, 2012 at 12:53 PM, =A0<leonid.moiseichuk@nokia.com> wrote=
+:
+>> > 6. I do not understand how work with attributes performed ( ) but it
+>> > has sense to use mask and fill requested attributes using mask and
+>> > callback table i.e. if free pages requested - they are reported, other=
+wise
+>> not.
+>>
+>> That's how it works now in the git tree.
 >
-> But you have in vmnotify.h suspicious free_pages_threshold field.
+> Vmnotify.c has vmnotify_watch_event which collects fixed set of parameter=
+s.
 
-Aah, I was actually talking about the events userspace _reads_.
-
-The free_pages_threshold field is only used if
-VMEVENT_TYPE_FREE_THRESHOLD bit is set. It should be cleaned up a bit
-but it in theory it supports watching other attributes as well. I've
-postponed the cleanup until I've figured out whether we can use perf
-which would make the whole syscall go away.
-
-                        Pekka
+That's would be a bug. We should check event_attrs like we do for NR_SWAP_P=
+AGES.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
