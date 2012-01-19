@@ -1,131 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 64ECA6B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:41:25 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: Hung task when calling clone() due to netfilter/slab
-References: <1326558605.19951.7.camel@lappy>
-	<1326561043.5287.24.camel@edumazet-laptop>
-	<1326632384.11711.3.camel@lappy>
-	<1326648305.5287.78.camel@edumazet-laptop>
-	<alpine.DEB.2.00.1201170910130.4800@router.home>
-	<1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<alpine.DEB.2.00.1201170927020.4800@router.home>
-	<1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<alpine.DEB.2.00.1201170942240.4800@router.home>
-	<alpine.DEB.2.00.1201171620590.14697@router.home>
-Date: Thu, 19 Jan 2012 13:43:40 -0800
-In-Reply-To: <alpine.DEB.2.00.1201171620590.14697@router.home> (Christoph
-	Lameter's message of "Tue, 17 Jan 2012 16:22:09 -0600 (CST)")
-Message-ID: <m1bopz2ws3.fsf@fess.ebiederm.org>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 4497B6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 16:47:15 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Fri, 20 Jan 2012 03:17:11 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0JLl5QL3727410
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:17:05 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0JLl3l9027785
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 08:47:04 +1100
+Message-ID: <4F188F52.1060303@linux.vnet.ibm.com>
+Date: Fri, 20 Jan 2012 03:16:58 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 2/2] mm: page allocator: Do not drain per-cpu lists via
+ IPI from page allocator context
+References: <1326276668-19932-1-git-send-email-mgorman@suse.de> <1326276668-19932-3-git-send-email-mgorman@suse.de> <1326381492.2442.188.camel@twins> <20120112153712.GL4118@suse.de> <1326383551.2442.203.camel@twins> <20120112171847.GN4118@suse.de> <no-drain-reply@mdm.bga.com> <20120119162057.GD3143@suse.de>
+In-Reply-To: <20120119162057.GD3143@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Milton Miller <miltonm@bga.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, mszeredi@novell.com, ebiederm@xmission.com, Greg Kroah-Hartman <gregkh@suse.de>, gong.chen@intel.com, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@amd64.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, linux-edac@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
 
-Christoph Lameter <cl@linux.com> writes:
+[Reinstating the original Cc list]
 
-> Another version that drops the slub lock for both invocations of sysfs
-> functions from kmem_cache_create. The invocation from slab_sysfs_init
-> is not a problem since user space is not active at that point.
->
->
-> Subject: slub: Do not take the slub lock while calling into sysfs
->
-> This patch avoids holding the slub_lock during kmem_cache_create()
-> when calling sysfs. It is possible because kmem_cache_create()
-> allocates the kmem_cache object and therefore is the only one context
-> that can access the newly created object. It is therefore possible
-> to drop the slub_lock early. We defer the adding of the new kmem_cache
-> to the end of processing because the new kmem_cache structure would
-> be reachable otherwise via scans over slabs. This allows sysfs_slab_add()
-> to run without holding any locks.
->
-> The case is different if we are creating an alias instead of a new
-> kmem_cache structure. In that case we can also drop the slub lock
-> early because we have taken a refcount on the kmem_cache structure.
-> It therefore cannot vanish from under us.
-> But if the sysfs_slab_alias() call fails we can no longer simply
-> decrement the refcount since the other references may have gone
-> away in the meantime. Call kmem_cache_destroy() to cause the
-> refcount to be decremented and the kmem_cache structure to be
-> freed if all references are gone.
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+On 01/19/2012 09:50 PM, Mel Gorman wrote:> 
 
-I am dense.  Is the deadlock here that you are fixing slub calling sysfs
-with the slub_lock held but sysfs then calling kmem_cache_zalloc?
+> On a different x86-64 machines with an intel-specific MCE, I have
+> also noted that the value of num_online_cpus() can change while
+> stop_machine() is running.
 
-I don't see what sysfs is doing in the creation path that would cause
-a deadlock except for using slab.
 
-> ---
->  mm/slub.c |   25 +++++++++++--------------
->  1 file changed, 11 insertions(+), 14 deletions(-)
->
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2012-01-17 09:53:26.599505365 -0600
-> +++ linux-2.6/mm/slub.c	2012-01-17 09:59:57.131497273 -0600
-> @@ -3912,13 +3912,14 @@ struct kmem_cache *kmem_cache_create(con
->  		s->objsize = max(s->objsize, (int)size);
->  		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
->
-> +		up_write(&slub_lock);
->  		if (sysfs_slab_alias(s, name)) {
-> -			s->refcount--;
-> +			kmem_cache_destroy(s);
->  			goto err;
->  		}
-> -		up_write(&slub_lock);
->  		return s;
->  	}
-> +	up_write(&slub_lock);
->
->  	n = kstrdup(name, GFP_KERNEL);
->  	if (!n)
-> @@ -3928,27 +3929,23 @@ struct kmem_cache *kmem_cache_create(con
->  	if (s) {
->  		if (kmem_cache_open(s, n,
->  				size, align, flags, ctor)) {
-> -			list_add(&s->list, &slab_caches);
-> -			if (sysfs_slab_add(s)) {
-> -				list_del(&s->list);
-> -				kfree(n);
-> -				kfree(s);
-> -				goto err;
-> +
-> +			if (sysfs_slab_add(s) == 0) {
-> +				down_write(&slub_lock);
-> +				list_add(&s->list, &slab_caches);
-> +				up_write(&slub_lock);
-> +				return s;
->  			}
-> -			up_write(&slub_lock);
-> -			return s;
->  		}
->  		kfree(n);
->  		kfree(s);
->  	}
->  err:
-> -	up_write(&slub_lock);
->
->  	if (flags & SLAB_PANIC)
->  		panic("Cannot create slabcache %s\n", name);
-> -	else
-> -		s = NULL;
-> -	return s;
-> +
-> +	return NULL;
->  }
->  EXPORT_SYMBOL(kmem_cache_create);
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe netdev" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+That is expected and intentional right? Meaning, it is during the
+stop_machine() thing itself that a CPU is actually taken offline.
+And at the same time, it is removed from the cpu_online_mask.
+
+On Intel boxes, essentially, the following gets executed on the dying
+CPU, as set up by the stop_machine stuff.
+
+__cpu_disable()
+    native_cpu_disable()
+        cpu_disable_common()
+            remove_cpu_from_maps()
+                set_cpu_online(cpu, false)
+			^^^^^^
+So, set_cpu_online will remove this CPU from the cpu_online_mask.
+And all this runs while still under the stop machine context.
+And this is exactly what we want right?
+
+> This is sensitive to timing and part of
+> the problem seems to be due to cmci_rediscover() running without the
+> CPU hotplug mutex held. This is not related to the IPI mess and is
+> unrelated to memory pressure but is just to note that CPU hotplug in
+> general can be fragile in parts.
+> 
+
+
+For the cmci_rediscover() part, I feel a simple get/put_online_cpus()
+around it should work.
+
+Something like the following patch? (It is untested at the moment, but
+I will run it later and see if it works well).
+
+I would like the opinion of MCE/Intel maintainers as to whether this is
+a proper fix or something else would have been better..
+
+----
+From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+Subject: [PATCH] x86/intel mce: Fix race with CPU hotplug in cmci_rediscover()
+
+cmci_rediscover() is invoked upon the CPU_POST_DEAD notification, when
+the cpu_hotplug lock is no longer held. And cmci_rediscover() iterates
+over all the online cpus. So this can race with an ongoing CPU hotplug
+operation. Fix this by wrapping the iteration code within the pair
+get_online_cpus() / put_online_cpus().
+
+Reported-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+---
+
+ arch/x86/kernel/cpu/mcheck/mce_intel.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/arch/x86/kernel/cpu/mcheck/mce_intel.c b/arch/x86/kernel/cpu/mcheck/mce_intel.c
+index 38e49bc..1c30397 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce_intel.c
++++ b/arch/x86/kernel/cpu/mcheck/mce_intel.c
+@@ -10,6 +10,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/percpu.h>
+ #include <linux/sched.h>
++#include <linux/cpu.h>
+ #include <asm/apic.h>
+ #include <asm/processor.h>
+ #include <asm/msr.h>
+@@ -179,6 +180,7 @@ void cmci_rediscover(int dying)
+ 		return;
+ 	cpumask_copy(old, &current->cpus_allowed);
+ 
++	get_online_cpus();
+ 	for_each_online_cpu(cpu) {
+ 		if (cpu == dying)
+ 			continue;
+@@ -188,6 +190,7 @@ void cmci_rediscover(int dying)
+ 		if (cmci_supported(&banks))
+ 			cmci_discover(banks, 0);
+ 	}
++	put_online_cpus();
+ 
+ 	set_cpus_allowed_ptr(current, old);
+ 	free_cpumask_var(old);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
