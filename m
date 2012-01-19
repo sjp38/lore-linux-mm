@@ -1,123 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id B86646B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 01:45:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id E20046B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:00:00 -0500 (EST)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CF15E3EE0C0
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:45:53 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1FE1A3EE0C3
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:59:59 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AF1645DE57
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:45:53 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0578A45DE58
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:59:59 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C6A445DE50
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:45:53 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC56C45DE52
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:59:58 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 511211DB803B
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:45:53 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ECB7D1DB8037
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:45:52 +0900 (JST)
-Date: Thu, 19 Jan 2012 15:44:36 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF8221DB803B
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:59:58 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E18B1DB8040
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 15:59:58 +0900 (JST)
+Date: Thu, 19 Jan 2012 15:58:39 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUG] kernel BUG at mm/memcontrol.c:1074!
-Message-Id: <20120119154436.aed0d6bb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120119145250.acf3ccc8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1326949826.5016.5.camel@lappy>
-	<20120119145250.acf3ccc8.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for
+ next
+Message-Id: <20120119155839.ad57620c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, hannes <hannes@cmpxchg.org>, mhocko@suse.cz, bsingharora@gmail.com, Dave Jones <davej@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 19 Jan 2012 14:52:50 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, 18 Jan 2012 22:05:12 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-> On Thu, 19 Jan 2012 07:10:26 +0200
-> Sasha Levin <levinsasha928@gmail.com> wrote:
+> Commit c1e2ee2dc436 "memcg: replace ss->id_lock with a rwlock" has
+> now been seen to cause the unfair behavior we should have expected
+> from converting a spinlock to an rwlock: softlockup in cgroup_mkdir(),
+> whose get_new_cssid() is waiting for the wlock, while there are 19
+> tasks using the rlock in css_get_next() to get on with their memcg
+> workload (in an artificial test, admittedly).  Yet lib/idr.c was
+> made suitable for RCU way back.
 > 
-> > The problem is, that it looks like this has triggered a BUG() in the memory cgroup code:
-> > 
-> > [  526.737227] ------------[ cut here ]------------
-> > [  526.738032] 
-> > [  526.738032] invalid opcode: 0000 [#1] PREEMPT SMP 
-> > [  526.738032] CPU 0 
-> > [  526.738032] Pid: 1091, comm: kswapd0 Not tainted 3.2.0-next-20120119-sasha #128  
-> > [  526.738032] RIP: 0010:[<ffffffff811c4b4a>]  [<ffffffff811c4b4a>] mem_cgroup_lru_del_list+0xca/0xd0
-> > [  526.738032] RSP: 0018:ffff8800127139a0  EFLAGS: 00010046
-> > [  526.738032] RAX: 0000000000000001 RBX: ffffea0000358300 RCX: 0000000000000000
-> > [  526.738032] RDX: ffff880012c0b800 RSI: 0000000000000000 RDI: 0000000000000000
-> > [  526.738032] RBP: ffff8800127139b0 R08: ffff880012713ad0 R09: 0000000000000001
-> > [  526.738032] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000002
-> > [  526.738032] R13: ffffea0000358300 R14: ffffea0000358320 R15: 0000000000000001
-> > [  526.738032] FS:  0000000000000000(0000) GS:ffff880013a00000(0000) knlGS:0000000000000000
-> > [  526.738032] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > [  526.738032] CR2: 00007fea7fa42e66 CR3: 000000000c42a000 CR4: 00000000000406f0
-> > [  526.738032] DR0: ffffffff810aaee0 DR1: 0000000000000000 DR2: 0000000000000000
-> > [  526.738032] DR3: 0000000000000000 DR6: 00000000ffff4ff0 DR7: 0000000000000600
-> > [  526.738032] Process kswapd0 (pid: 1091, threadinfo ffff880012712000, task ffff880012f7d840)
-> > [  526.738032] Stack:
-> > [  526.738032]  ffff880012c0b968 ffff880012c0b968 ffff8800127139c0 ffffffff811c4f0a
-> > [  526.738032]  ffff880012713a70 ffffffff81178c63 ffff8800127139e0 ffffea00000cbba0
-> > [  526.738032]  ffff880012713a40 ffff880012713b08 0000000000000001 ffffffffffffffff
-> > [  526.738032] Call Trace:
-> > [  526.738032]  [<ffffffff811c4f0a>] mem_cgroup_lru_del+0x3a/0x40
-> > [  526.738032]  [<ffffffff81178c63>] isolate_lru_pages+0xe3/0x330
-> > [  526.738032]  [<ffffffff8117a11e>] ? shrink_inactive_list+0xce/0x480
-> > [  526.738032]  [<ffffffff8117a153>] shrink_inactive_list+0x103/0x480
-> > [  526.738032]  [<ffffffff811c2a46>] ? mem_cgroup_iter+0x176/0x310
-> > [  526.738032]  [<ffffffff810e2c55>] ? sched_clock_local+0x25/0x90
-> > [  526.738032]  [<ffffffff8117ac04>] shrink_mem_cgroup_zone+0x3f4/0x580
-> > [  526.738032]  [<ffffffff81107cfe>] ? put_lock_stats.clone.18+0xe/0x40
-> > [  526.738032]  [<ffffffff8117adfe>] shrink_zone+0x6e/0xa0
-> > [  526.738032]  [<ffffffff8117be65>] balance_pgdat+0x545/0x750
-> > [  526.738032]  [<ffffffff810de1ed>] ? sub_preempt_count+0x9d/0xd0
-> > [  526.738032]  [<ffffffff8117c233>] kswapd+0x1c3/0x320
-> > [  526.738032]  [<ffffffff810cee30>] ? abort_exclusive_wait+0xb0/0xb0
-> > [  526.738032]  [<ffffffff8117c070>] ? balance_pgdat+0x750/0x750
-> > [  526.738032]  [<ffffffff810ce06e>] kthread+0xbe/0xd0
-> > [  526.738032]  [<ffffffff82585df4>] kernel_thread_helper+0x4/0x10
-> > [  526.738032]  [<ffffffff810d8c88>] ? finish_task_switch+0x78/0x100
-> > [  526.738032]  [<ffffffff825840f8>] ? retint_restore_args+0x13/0x13
-> > [  526.738032]  [<ffffffff810cdfb0>] ? kthread_flush_work_fn+0x10/0x10
-> > [  526.738032]  [<ffffffff82585df0>] ? gs_change+0x13/0x13
-> > [  526.738032] Code: 8b 1c 24 4c 8b 64 24 08 c9 c3 0f 1f 80 00 00 00 00 8b 4b 68 eb ba 0f 1f 00 0f b6 4b 68 bb 01 00 00 00 d3 e3 48 63 cb eb c2 0f 0b <0f> 0b 0f 1f 40 00 55 48 89 e5 48 83 ec 60 48 89 5d d8 4c 89 65 
-> > [  526.738032] RIP  [<ffffffff811c4b4a>] mem_cgroup_lru_del_list+0xca/0xd0
-> > [  526.738032]  RSP <ffff8800127139a0>
-> > [  526.738032] ---[ end trace 866f4f6c624b8d58 ]---
+> 1. Revert that commit, restoring ss->id_lock to a spinlock.
 > 
-> my memo here.
+> 2. Make one small adjustment to idr_get_next(): take the height from
+> the top layer (stable under RCU) instead of from the root (unprotected
+> by RCU), as idr_find() does.
 > 
-> 1. This is caused by pc->mem_cgroup was NULL at mem_cgroup_lru_del().
+> 3. Remove lock and unlock around css_get_next()'s call to idr_get_next():
+> memcg iterators (only users of css_get_next) already did rcu_read_lock(),
+> and comment demands that, but add a WARN_ON_ONCE to make sure of it.
 > 
-> 2. IIUC, PageLRU(page) should be true to cause this BUG. Then,
->    there is a page whose pc->mem_cgroup == NULL but PageLRU(page)==true.
->    But, memcg's lru_add() routine accesses pc->mem_cgroup...so it should
->    cause NULL pointer access if the page was added to LRU with pc->mem_cgroup is NULL.
-> 
->    One possibility is that the page was PageLRU set but not added to memcg's LRU
->    ... added to zone's LRU directly..
->    Or PageLRU(page) was true but not added to any lru list without pc->mem_cgroup updates.
-> 
-> 3. IIUC, There is no routine to set pc->mem_cgroup as NULL once page is used.
->    But I need to check it....
-> 
-I'm very sorry ...I misunderstood from the beginning..
-The BUG_ON() was
- VM_BUG_ON(MEM_CGROUP_ZSTAT(mz, lru) < (1 << compound_order(page)));
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-I didn't notice this one. sorry.
+Thank you ! This seems much better.
 
-Then, as Hugh pointed out, that patch seems doubtful.
-As Hugh said, the patch 6699ba077ebcdeb7bde7e2644a39b9e5bf6a7e8a will be
-dropped and the issue will disappear (I hope.)
-
-Thanks,
--Kame
-
-
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 --
