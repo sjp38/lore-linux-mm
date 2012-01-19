@@ -1,118 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 927A26B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 07:40:09 -0500 (EST)
-Received: by bkbzx1 with SMTP id zx1so3332736bkb.14
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:40:07 -0800 (PST)
-Subject: [PATCH trivial] mm: make get_mm_counter static-inline
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 19 Jan 2012 16:40:05 +0400
-Message-ID: <20120119124005.21946.18651.stgit@zurg>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id E57046B005A
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 08:30:22 -0500 (EST)
+Received: by wicr5 with SMTP id r5so6133928wic.14
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2012 05:30:21 -0800 (PST)
+Message-ID: <1326979818.2249.12.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Subject: Re: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for
+ next
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 19 Jan 2012 14:30:18 +0100
+In-Reply-To: <CAOS58YO585NYMLtmJv3f9vVdadFqoWF+Y5vZ6Va=2qHELuePJA@mail.gmail.com>
+References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+	 <1326958401.1113.22.camel@edumazet-laptop>
+	 <CAOS58YO585NYMLtmJv3f9vVdadFqoWF+Y5vZ6Va=2qHELuePJA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch makes get_mm_counter() always static inline,
-it is simple enough for that. And remove unused set_mm_counter()
+Le jeudi 19 janvier 2012 A  04:28 -0800, Tejun Heo a A(C)crit :
+> Hello,
+> 
+> On Wed, Jan 18, 2012 at 11:33 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+> > Interesting, but should be a patch on its own.
+> 
+> Yeap, agreed.
+> 
+> > Maybe other idr users can benefit from your idea as well, if patch is
+> > labeled  "idr: allow idr_get_next() from rcu_read_lock" or something...
+> >
+> > I suggest introducing idr_get_next_rcu() helper to make the check about
+> > rcu cleaner.
+> >
+> > idr_get_next_rcu(...)
+> > {
+> >        WARN_ON_ONCE(!rcu_read_lock_held());
+> >        return idr_get_next(...);
+> > }
+> 
+> Hmmm... I don't know. Does having a separate set of interface help
+> much?  It's easy to avoid/miss the test by using the other one.  If we
+> really worry about it, maybe indicating which locking is to be used
+> during init is better? We can remember the lockdep map and trigger
+> WARN_ON_ONCE() if neither the lock or RCU read lock is held.
 
-bloat-o-meter:
 
-add/remove: 0/1 grow/shrink: 4/12 up/down: 99/-341 (-242)
-function                                     old     new   delta
-try_to_unmap_one                             886     952     +66
-sys_remap_file_pages                        1214    1230     +16
-dup_mm                                      1684    1700     +16
-do_exit                                     2277    2278      +1
-zap_page_range                               208     205      -3
-unmap_region                                 304     296      -8
-static.oom_kill_process                      554     546      -8
-try_to_unmap_file                           1716    1700     -16
-getrusage                                    925     909     -16
-flush_old_exec                              1704    1688     -16
-static.dump_header                           416     390     -26
-acct_update_integrals                        218     187     -31
-do_task_stat                                2986    2954     -32
-get_mm_counter                                34       -     -34
-xacct_add_tsk                                371     334     -37
-task_statm                                   172     118     -54
-task_mem                                     383     323     -60
+There is a rcu_dereference_raw(ptr) in idr_get_next()
 
-try_to_unmap_one() grows because update_hiwater_rss() now completely inline.
+This could be changed to rcu_dereference_check(ptr, condition) to get
+lockdep support for free :)
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- include/linux/mm.h |   21 +++++++++++----------
- mm/memory.c        |   18 ------------------
- 2 files changed, 11 insertions(+), 28 deletions(-)
+[ condition would be the appropriate
+lockdep_is_held(&the_lock_protecting_my_idr) or 'I use the rcu variant'
+and I hold rcu_read_lock ]
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 17b27cd..378bcce 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1058,19 +1058,20 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- /*
-  * per-process(per-mm_struct) statistics.
-  */
--static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
--{
--	atomic_long_set(&mm->rss_stat.count[member], value);
--}
--
--#if defined(SPLIT_RSS_COUNTING)
--unsigned long get_mm_counter(struct mm_struct *mm, int member);
--#else
- static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
- {
--	return atomic_long_read(&mm->rss_stat.count[member]);
--}
-+	long val = atomic_long_read(&mm->rss_stat.count[member]);
-+
-+#ifdef SPLIT_RSS_COUNTING
-+	/*
-+	 * counter is updated in asynchronous manner and may go to minus.
-+	 * But it's never be expected number for users.
-+	 */
-+	if (val < 0)
-+		val = 0;
- #endif
-+	return (unsigned long)val;
-+}
- 
- static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
- {
-diff --git a/mm/memory.c b/mm/memory.c
-index fa2f04e..f31fb6e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -160,24 +160,6 @@ static void check_sync_rss_stat(struct task_struct *task)
- 		__sync_task_rss_stat(task, task->mm);
- }
- 
--unsigned long get_mm_counter(struct mm_struct *mm, int member)
--{
--	long val = 0;
--
--	/*
--	 * Don't use task->mm here...for avoiding to use task_get_mm()..
--	 * The caller must guarantee task->mm is not invalid.
--	 */
--	val = atomic_long_read(&mm->rss_stat.count[member]);
--	/*
--	 * counter is updated in asynchronous manner and may go to minus.
--	 * But it's never be expected number for users.
--	 */
--	if (val < 0)
--		return 0;
--	return (unsigned long)val;
--}
--
- void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
- {
- 	__sync_task_rss_stat(task, mm);
+This would need to add a 'condition' parameter to idr_gen_next(), but we
+have very few users in kernel at this moment.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
