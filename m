@@ -1,90 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 13F0E6B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:34:13 -0500 (EST)
-Date: Thu, 19 Jan 2012 10:34:10 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: remove unnecessary thp check at page stat
- accounting
-Message-ID: <20120119093410.GB13932@tiehlicka.suse.cz>
-References: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 1F75B6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 05:54:12 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [RFC 1/3] /dev/low_mem_notify
+Date: Thu, 19 Jan 2012 10:53:29 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+ <1326788038-29141-2-git-send-email-minchan@kernel.org>
+ <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
+ <4F15A34F.40808@redhat.com>
+ <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+ <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com>
+ <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com>
+ <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+ <4F175706.8000808@redhat.com>
+ <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
+ <4F17DCED.4020908@redhat.com>
+ <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
+ <4F17E058.8020008@redhat.com>
+In-Reply-To: <4F17E058.8020008@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: rhod@redhat.com, penberg@kernel.org
+Cc: riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Thu 19-01-12 16:14:45, KAMEZAWA Hiroyuki wrote:
-> Thank you very much for reviewing previous RFC series.
-> This is a patch against memcg-devel and linux-next (can by applied without HUNKs).
-> 
-> ==
-> 
-> From 64641b360839b029bb353fbd95f7554cc806ed05 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 12 Jan 2012 16:08:33 +0900
-> Subject: [PATCH] memcg: remove unnecessary thp check in mem_cgroup_update_page_stat()
-> 
-> commit 58b318ecf(memcg-devel)
->     memcg: make mem_cgroup_split_huge_fixup() more efficient
-> removes move_lock_page_cgroup() in thp-split path.
+> -----Original Message-----
+> From: ext Ronen Hod [mailto:rhod@redhat.com]
+> Sent: 19 January, 2012 11:20
+> To: Pekka Enberg
+...
+> >>> Isn't
+> >>>
+> >>> /proc/sys/vm/min_free_kbytes
+> >>>
+> >>> pretty much just that?
+> >> Would you suggest to use min_free_kbytes as the threshold for sending
+> >> low_memory_notifications to applications, and separately as a target
+> >> value for the applications' memory giveaway?
+> > I'm not saying that the kernel should use it directly but it seems
+> > like the kind of "ideal number of free pages" threshold you're
+> > suggesting. So userspace can read that value and use it as the "number
+> > of free pages" threshold for VM events, no?
+>=20
+> Yes, I like it. The rules of the game are simple and consistent all over,=
+ be it the
+> alert threshold, voluntary poling by the apps, and for concurrent work by
+> several applications.
+> Well, as long as it provides a good indication for low_mem_pressure.
 
-I wouldn't refer to something which will change its commit id by its
-SHA. I guess the subject is sufficient. Btw. do we really need to
-mention this? Is it just to make sure that this doesn't get merged
-withtout the mentioned patch?
+For me it doesn't look that have much sense. min_free_kbytes could be set f=
+rom user-space (or auto-tuned by kernel) to keep some amount=20
+of memory available for GFP_ATOMIC allocations.  In case situation comes un=
+der pointed level kernel will reclaim memory from e.g. caches.
 
-> So, We do not have to check PageTransHuge in mem_cgroup_update_page_stat
-> and fallback into the locked accounting because both move charge and thp
-> split up are done with compound_lock so they cannot race. update vs.
-> move is protected by the mem_cgroup_stealed sufficiently.
-> 
-> PageTransHuge pages shouldn't appear in this code path currently because
-> we are tracking only file pages at the moment but later we are planning
-> to track also other pages (e.g. mlocked ones).
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>From potential user point of view the proposed API has number of lacks whic=
+h would be nice to have implemented:
+1. rename this API from low_mem_pressure to something more related to notif=
+ication and memory situation in system: memory_pressure, memnotify, memory_=
+level etc. The word "low" is misleading here
+2. API must use deferred timers to prevent use-time impact. Deferred timer =
+will be triggered only in case HW event or non-deferrable timer, so if devi=
+ce sleeps timer might be skipped and that is what expected for user-space
+3. API should be tunable for propagate changes when level is Up or Down, ma=
+ybe both ways.=20
+4. to avoid triggering too much events probably has sense to filter accordi=
+ng to amount of change but that is optional. If subscriber set timer to 1s =
+the amount of events should not be very big.
+5. API must provide interface to request parameters e.g. available swap or =
+free memory just to have some base.
+6. I do not understand how work with attributes performed ( ) but it has se=
+nse to use mask and fill requested attributes using mask and callback table=
+ i.e. if free pages requested - they are reported, otherwise not.
+7. would have sense to backport couple of attributes from memnotify.c
 
-Other than that
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 5073474..fb2dfc3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1801,7 +1801,7 @@ void mem_cgroup_update_page_stat(struct page *page,
->  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
->  		goto out;
->  	/* pc->mem_cgroup is unstable ? */
-> -	if (unlikely(mem_cgroup_stealed(memcg)) || PageTransHuge(page)) {
-> +	if (unlikely(mem_cgroup_stealed(memcg))) {
->  		/* take a lock against to access pc->mem_cgroup */
->  		move_lock_page_cgroup(pc, &flags);
->  		need_unlock = true;
-> -- 
-> 1.7.4.1
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+I can submit couple of patches if some of proposals looks sane for everyone=
+.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
