@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 182E46B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 17:40:58 -0500 (EST)
-Date: Thu, 19 Jan 2012 14:40:39 -0800
-Message-Id: <201201192240.q0JMedHh003527@tazenda.hos.anvin.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 5BFFC6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 17:42:59 -0500 (EST)
+Date: Thu, 19 Jan 2012 14:42:38 -0800
+Message-Id: <201201192242.q0JMgcL7003653@tazenda.hos.anvin.org>
 From: "H. Peter Anvin" <hpa@zytor.com>
-Subject: [GIT PULL] x86 fixes for v3.3-rc1
+Subject: [GIT PULL CORRECTED] x86 fixes for v3.3-rc1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
@@ -18,7 +18,9 @@ The following changes since commit 90a4c0f51e8e44111a926be6f4c87af3938a79c3:
   uml: fix compile for x86-64 (2012-01-18 19:26:11 -0800)
 
 are available in the git repository at:
-  /home/hpa/kernel/mirror/tip x86-urgent-for-linus
+  git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86-urgent-for-linus
+
+The head of this tree is 4f2f81a5621de47d42476d0b929be2e0d565df84.
 
 Anton Vorontsov (1):
       x86: Get rid of dubious one-bit signed bitfield
