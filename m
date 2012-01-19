@@ -1,63 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id E625A6B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:33:25 -0500 (EST)
-Received: by wicr5 with SMTP id r5so5827560wic.14
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 23:33:24 -0800 (PST)
-Message-ID: <1326958401.1113.22.camel@edumazet-laptop>
-Subject: Re: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for
- next
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 19 Jan 2012 08:33:21 +0100
-In-Reply-To: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
-References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 058CD6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:34:40 -0500 (EST)
+Received: by lagw12 with SMTP id w12so2163631lag.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 23:34:39 -0800 (PST)
+Date: Thu, 19 Jan 2012 09:34:34 +0200 (EET)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: RE: [RFC 1/3] /dev/low_mem_notify
+In-Reply-To: <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+Message-ID: <alpine.LFD.2.02.1201190933480.3033@tux.localdomain>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
+ <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: leonid.moiseichuk@nokia.com
+Cc: riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-Le mercredi 18 janvier 2012 A  22:05 -0800, Hugh Dickins a A(C)crit :
+On Wed, 18 Jan 2012, leonid.moiseichuk@nokia.com wrote:
+> Paul Mundt noticed that and we stopped use percentage in 2006 for n770 update.
+> He was right.
+> Percents are useless and do not correlate with other kernel APIs like sysinfo().
 
-> 2. Make one small adjustment to idr_get_next(): take the height from
-> the top layer (stable under RCU) instead of from the root (unprotected
-> by RCU), as idr_find() does.
-> 
+I changed the code to use number of pages. Thanks!
 
-> --- 3.2.0+/lib/idr.c	2012-01-04 15:55:44.000000000 -0800
-> +++ linux/lib/idr.c	2012-01-18 21:25:36.947963342 -0800
-> @@ -605,11 +605,11 @@ void *idr_get_next(struct idr *idp, int
->  	int n, max;
->  
->  	/* find first ent */
-> -	n = idp->layers * IDR_BITS;
-> -	max = 1 << n;
->  	p = rcu_dereference_raw(idp->top);
->  	if (!p)
->  		return NULL;
-> +	n = (p->layer + 1) * IDR_BITS;
-> +	max = 1 << n;
->  
->  	while (id < max) {
->  		while (n > 0 && p) {
-
-Interesting, but should be a patch on its own.
-
-Maybe other idr users can benefit from your idea as well, if patch is
-labeled  "idr: allow idr_get_next() from rcu_read_lock" or something...
-
-I suggest introducing idr_get_next_rcu() helper to make the check about
-rcu cleaner.
-
-idr_get_next_rcu(...)
-{
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	return idr_get_next(...);
-}
-
-
+ 			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
