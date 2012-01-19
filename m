@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id E03906B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:25:18 -0500 (EST)
-Received: by lagw12 with SMTP id w12so2159294lag.14
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 23:25:16 -0800 (PST)
-Date: Thu, 19 Jan 2012 09:25:03 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-In-Reply-To: <4F175706.8000808@redhat.com>
-Message-ID: <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
- <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
- <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com> <4F175706.8000808@redhat.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 28B7B6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 02:28:32 -0500 (EST)
+Message-ID: <4F17C6B7.5020606@cn.fujitsu.com>
+Date: Thu, 19 Jan 2012 15:31:03 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for
+ next
+References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ronen Hod <rhod@redhat.com>
-Cc: leonid.moiseichuk@nokia.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 19 Jan 2012, Ronen Hod wrote:
-> I believe that it will be best if the kernel publishes an ideal 
-> number_of_free_pages (in /proc/meminfo or whatever). Such number is easy to 
-> work with since this is what applications do, they free pages. Applications 
-> will be able to refer to this number from their garbage collector, or before 
-> allocating memory also if they did not get a notification, and it is also 
-> useful if several applications free memory at the same time.
+Hugh Dickins wrote:
+> Commit c1e2ee2dc436 "memcg: replace ss->id_lock with a rwlock" has
+> now been seen to cause the unfair behavior we should have expected
+> from converting a spinlock to an rwlock: softlockup in cgroup_mkdir(),
+> whose get_new_cssid() is waiting for the wlock, while there are 19
+> tasks using the rlock in css_get_next() to get on with their memcg
+> workload (in an artificial test, admittedly).  Yet lib/idr.c was
+> made suitable for RCU way back.
+> 
+> 1. Revert that commit, restoring ss->id_lock to a spinlock.
+> 
+> 2. Make one small adjustment to idr_get_next(): take the height from
+> the top layer (stable under RCU) instead of from the root (unprotected
+> by RCU), as idr_find() does.
+> 
+> 3. Remove lock and unlock around css_get_next()'s call to idr_get_next():
+> memcg iterators (only users of css_get_next) already did rcu_read_lock(),
+> and comment demands that, but add a WARN_ON_ONCE to make sure of it.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Isn't
+Acked-by: Li Zefan <lizf@cn.fujitsu.com>
 
-/proc/sys/vm/min_free_kbytes
-
-pretty much just that?
-
- 			Pekka
+> ---
+> 
+>  include/linux/cgroup.h |    2 +-
+>  kernel/cgroup.c        |   19 +++++++++----------
+>  lib/idr.c              |    4 ++--
+>  3 files changed, 12 insertions(+), 13 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
