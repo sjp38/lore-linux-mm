@@ -1,49 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id EA7096B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:21:08 -0500 (EST)
-Message-ID: <4F17E058.8020008@redhat.com>
-Date: Thu, 19 Jan 2012 11:20:24 +0200
-From: Ronen Hod <rhod@redhat.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id EE2556B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 04:28:36 -0500 (EST)
+Date: Thu, 19 Jan 2012 10:28:34 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
+ account move.
+Message-ID: <20120119092833.GA13932@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117152635.GA22142@tiehlicka.suse.cz>
+ <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120118123759.GB31112@tiehlicka.suse.cz>
+ <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <1326788038-29141-2-git-send-email-minchan@kernel.org> <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com> <4F15A34F.40808@redhat.com> <alpine.LFD.2.02.1201172044310.15303@tux.localdomain> <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com> <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com> <4F175706.8000808@redhat.com> <alpine.LFD.2.02.1201190922390.3033@tux.localdomain> <4F17DCED.4020908@redhat.com> <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
-In-Reply-To: <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: leonid.moiseichuk@nokia.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On 01/19/2012 11:10 AM, Pekka Enberg wrote:
-> On Thu, Jan 19, 2012 at 11:05 AM, Ronen Hod<rhod@redhat.com>  wrote:
->>>> I believe that it will be best if the kernel publishes an ideal
->>>> number_of_free_pages (in /proc/meminfo or whatever). Such number is easy to
->>>> work with since this is what applications do, they free pages. Applications
->>>> will be able to refer to this number from their garbage collector, or before
->>>> allocating memory also if they did not get a notification, and it is also
->>>> useful if several applications free memory at the same time.
->>> Isn't
->>>
->>> /proc/sys/vm/min_free_kbytes
->>>
->>> pretty much just that?
->> Would you suggest to use min_free_kbytes as the threshold for sending
->> low_memory_notifications to applications, and separately as a target value
->> for the applications' memory giveaway?
-> I'm not saying that the kernel should use it directly but it seems
-> like the kind of "ideal number of free pages" threshold you're
-> suggesting. So userspace can read that value and use it as the "number
-> of free pages" threshold for VM events, no?
+On Thu 19-01-12 11:17:27, KAMEZAWA Hiroyuki wrote:
+> On Wed, 18 Jan 2012 13:37:59 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Wed 18-01-12 09:06:56, KAMEZAWA Hiroyuki wrote:
+> > > On Tue, 17 Jan 2012 16:26:35 +0100
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > 
+> > > > On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
+> > > > > I think this bugfix is needed before going ahead. thoughts?
+> > > > > ==
+> > > > > From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
+> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > > Date: Fri, 13 Jan 2012 14:27:20 +0900
+> > > > > Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
+> > > > > 
+> > > > > At starting move_account(), source memcg's per-cpu variable
+> > > > > MEM_CGROUP_ON_MOVE is set. The page status update
+> > > > > routine check it under rcu_read_lock(). But there is no memory
+> > > > > barrier. This patch adds one.
+> > > > 
+> > > > OK this would help to enforce that the CPU would see the current value
+> > > > but what prevents us from the race with the value update without the
+> > > > lock? This is as racy as it was before AFAICS.
+> > > > 
+> > > 
+> > > Hm, do I misunderstand ?
+> > > ==
+> > >    update                     reference
+> > > 
+> > >    CPU A                        CPU B
+> > >   set value                rcu_read_lock()
+> > >   smp_wmb()                smp_rmb()
+> > >                            read_value
+> > >                            rcu_read_unlock()
+> > >   synchronize_rcu().
+> > > ==
+> > > I expect
+> > > If synchronize_rcu() is called before rcu_read_lock() => move_lock_xxx will be held.
+> > > If synchronize_rcu() is called after rcu_read_lock() => update will be delayed.
+> > 
+> > Ahh, OK I can see it now. Readers are not that important because it is
+> > actually the updater who is delayed until all preexisting rcu read
+> > sections are finished.
+> > 
+> > In that case. Why do we need both barriers? spin_unlock is a full
+> > barrier so maybe we just need smp_rmb before we read value to make sure
+> > that we do not get stalled value when we start rcu_read section after
+> > synchronize_rcu?
+> > 
+> 
+> I doubt .... If no barrier, this case happens
+> 
+> ==
+> 	update			reference
+> 	CPU A			CPU B
+> 	set value
+> 	synchronize_rcu()	rcu_read_lock()
+> 				read_value <= find old value
+> 				rcu_read_unlock()
+> 				do no lock
+> ==
 
-Yes, I like it. The rules of the game are simple and consistent all over, be it the alert threshold, voluntary poling by the apps, and for concurrent work by several applications.
-Well, as long as it provides a good indication for low_mem_pressure.
-
-Thanks, Ronen.
-
->
->                          Pekka
+OK, I have looked at Documentation/memory-barriers.txt again and
+spin_unlock is not a full barrier so we cannot rely on it.
+Anyway you still could do the barrier once after we set all values?
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
