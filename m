@@ -1,95 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id BD8226B004F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 21:19:39 -0500 (EST)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 612616B004F
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2012 21:26:47 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E6AD73EE0BC
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:19:37 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DD52E3EE081
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:26:45 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CBF2C45DEBB
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:19:37 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C1E3345DEAD
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:26:45 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A6CAE45DEB2
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:19:37 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A52D345DEA6
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:26:45 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FC651DB8042
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:19:37 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 411431DB803F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:19:37 +0900 (JST)
-Date: Thu, 19 Jan 2012 11:18:23 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 973511DB803F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:26:45 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B3601DB8040
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 11:26:45 +0900 (JST)
+Date: Thu, 19 Jan 2012 11:25:28 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] [PATCH 1/7 v2] memcg: remove unnecessary check in
- mem_cgroup_update_page_stat()
-Message-Id: <20120119111823.2f18f6c6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120118130102.GC31112@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120113173227.df2baae3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120117151619.GA21348@tiehlicka.suse.cz>
-	<20120118085558.6ed1a988.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120118130102.GC31112@tiehlicka.suse.cz>
+Subject: Re: [RFC 2/3] vmscan hook
+Message-Id: <20120119112528.eda78467.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F16D46D.5080000@redhat.com>
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
+	<1326788038-29141-3-git-send-email-minchan@kernel.org>
+	<20120117173932.1c058ba4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120117091356.GA29736@barrios-desktop.redhat.com>
+	<20120117190512.047d3a03.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120117230801.GA903@barrios-desktop.redhat.com>
+	<20120118091824.0bde46f7.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F16D46D.5080000@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, penberg@kernel.org, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>
 
-On Wed, 18 Jan 2012 14:01:02 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+On Wed, 18 Jan 2012 09:17:17 -0500
+Rik van Riel <riel@redhat.com> wrote:
 
-> On Wed 18-01-12 08:55:58, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 17 Jan 2012 16:16:20 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > On Fri 13-01-12 17:32:27, KAMEZAWA Hiroyuki wrote:
-> > > > 
-> > > > From 788aebf15f3fa37940e0745cab72547e20683bf2 Mon Sep 17 00:00:00 2001
-> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Date: Thu, 12 Jan 2012 16:08:33 +0900
-> > > > Subject: [PATCH 1/7] memcg: remove unnecessary check in mem_cgroup_update_page_stat()
-> > > > 
-> > > > commit 10ea69f1182b removes move_lock_page_cgroup() in thp-split path.
-> > > > So, this PageTransHuge() check is unnecessary, too.
-> > > 
-> > > I do not see commit like that in the tree. I guess you meant
-> > > memcg: make mem_cgroup_split_huge_fixup() more efficient which is not
-> > > merged yet, right?
-> > > 
-> > 
-> > This commit in the linux-next.
+> On 01/17/2012 07:18 PM, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 18 Jan 2012 08:08:01 +0900
+> > Minchan Kim<minchan@kernel.org>  wrote:
+> >
+> >>>>> 2. can't we measure page-in/page-out distance by recording something ?
+> >>>>
+> >>>> I can't understand your point. What's relation does it with swapout prevent?
+> >>>>
+> >>>
+> >>> If distance between pageout ->  pagein is short, it means thrashing.
+> >>> For example, recoding the timestamp when the page(mapping, index) was
+> >>> paged-out, and check it at page-in.
+> >>
+> >> Our goal is prevent swapout. When we found thrashing, it's too late.
+> >
+> > If you want to prevent swap-out, don't swapon any. That's all.
+> > Then, you can check the number of FILE_CACHE and have threshold.
 > 
-> Referring to commits from linux-next is tricky as it changes all the
-> time. I guess that the full commit subject should be sufficient.
+> I think you are getting hung up on a word here.
 > 
-> > > > Note:
-> > > >  - considering when mem_cgroup_update_page_stat() is called,
-> > > >    there will be no race between split_huge_page() and update_page_stat().
-> > > >    All required locks are held in higher level.
-> > > 
-> > > We should never have THP page in this path in the first place. So why
-> > > not changing this to VM_BUG_ON(PageTransHuge).
-> > > 
-> > 
-> > Ying Han considers to support mlock stat.
+> As I understand it, the goal is to push out the point where
+> we start doing heavier swap IO, allowing us to overcommit
+> memory more heavily before things start really slowing down.
 > 
-> OK, got it. What about the following updated changelog instead?
-> 
-> ===
-> We do not have to check PageTransHuge in mem_cgroup_update_page_stat
-> and fallback into the locked accounting because both move charge and thp
-> split up are done with compound_lock so they cannot race. update vs.
-> move is protected by the mem_cgroup_stealed sufficiently.
-> 
-> PageTransHuge pages shouldn't appear in this code path currently because
-> we are tracking only file pages at the moment but later we are planning
-> to track also other pages (e.g. mlocked ones).
-> ===
 
-ok, will use this :) Thank you.
+Yes.
 
+Hmm, considering that the issue is slow down,
+
+time values as
+
+- 'cpu time used for memory reclaim'
+- 'latency of page allocation'
+- 'application execution speed' ?
+
+may be a better score to see rather than just seeing lru's stat.
+
+Thanks,
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
