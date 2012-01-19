@@ -1,141 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 669C66B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 01:05:35 -0500 (EST)
-Received: by iadj38 with SMTP id j38so7312371iad.14
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 22:05:34 -0800 (PST)
-Date: Wed, 18 Jan 2012 22:05:12 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] memcg: restore ss->id_lock to spinlock, using RCU for next
-Message-ID: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 9E2E56B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 01:38:18 -0500 (EST)
+Received: by iadj38 with SMTP id j38so7360507iad.14
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2012 22:38:17 -0800 (PST)
+Message-ID: <4F17BA58.2090403@gmail.com>
+Date: Thu, 19 Jan 2012 14:38:16 +0800
+From: Sha <handai.szj@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2/2] mm: memcg: hierarchical soft limit reclaim
+References: <1326207772-16762-3-git-send-email-hannes@cmpxchg.org> <CALWz4izwNBN_qcSsqg-qYw-Esc9vBL3=4cv3Wsg1jf6001_fWQ@mail.gmail.com> <20120112085904.GG24386@cmpxchg.org> <CALWz4iz3sQX+pCr19rE3_SwV+pRFhDJ7Lq-uJuYBq6u3mRU3AQ@mail.gmail.com> <20120113224424.GC1653@cmpxchg.org> <4F158418.2090509@gmail.com> <20120117145348.GA3144@cmpxchg.org> <CAFj3OHWY2Biw54gaGeH5fkxzgOhxn7NAibeYT_Jmga-_ypNSRg@mail.gmail.com> <20120118092509.GI24386@cmpxchg.org> <4F16AC27.1080906@gmail.com> <20120118152708.GG31112@tiehlicka.suse.cz>
+In-Reply-To: <20120118152708.GG31112@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Commit c1e2ee2dc436 "memcg: replace ss->id_lock with a rwlock" has
-now been seen to cause the unfair behavior we should have expected
-from converting a spinlock to an rwlock: softlockup in cgroup_mkdir(),
-whose get_new_cssid() is waiting for the wlock, while there are 19
-tasks using the rlock in css_get_next() to get on with their memcg
-workload (in an artificial test, admittedly).  Yet lib/idr.c was
-made suitable for RCU way back.
+On 01/18/2012 11:27 PM, Michal Hocko wrote:
+> On Wed 18-01-12 19:25:27, Sha wrote:
+> [...]
+>> Er... I'm even more confused: mem_cgroup_soft_limit_reclaim indeed
+>> choses the biggest soft-limit excessor first, but in the succeeding reclaim
+>> mem_cgroup_hierarchical_reclaim just selects a child cgroup  by css_id
+> mem_cgroup_soft_limit_reclaim picks up the hierarchy root (most
+> excessing one) and mem_cgroup_hierarchical_reclaim reclaims from that
+> subtree). It doesn't care who exceeds the soft limit under that
+> hierarchy it just tries to push the root under its limit as much as it
+> can. This is what Johannes tried to explain in the other email in the
+> thred.
+yeah, I finally twig what  he meant... I'm not quite familiar with this 
+part.
+Thanks a lot for the explanation. :-)
 
-1. Revert that commit, restoring ss->id_lock to a spinlock.
-
-2. Make one small adjustment to idr_get_next(): take the height from
-the top layer (stable under RCU) instead of from the root (unprotected
-by RCU), as idr_find() does.
-
-3. Remove lock and unlock around css_get_next()'s call to idr_get_next():
-memcg iterators (only users of css_get_next) already did rcu_read_lock(),
-and comment demands that, but add a WARN_ON_ONCE to make sure of it.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- include/linux/cgroup.h |    2 +-
- kernel/cgroup.c        |   19 +++++++++----------
- lib/idr.c              |    4 ++--
- 3 files changed, 12 insertions(+), 13 deletions(-)
-
---- 3.2.0+/include/linux/cgroup.h	2012-01-14 13:01:57.532007832 -0800
-+++ linux/include/linux/cgroup.h	2012-01-18 21:21:45.695966602 -0800
-@@ -535,7 +535,7 @@ struct cgroup_subsys {
- 	struct list_head sibling;
- 	/* used when use_id == true */
- 	struct idr idr;
--	rwlock_t id_lock;
-+	spinlock_t id_lock;
- 
- 	/* should be defined only by modular subsystems */
- 	struct module *module;
---- 3.2.0+/kernel/cgroup.c	2012-01-14 13:01:57.824007839 -0800
-+++ linux/kernel/cgroup.c	2012-01-18 21:29:05.199958492 -0800
-@@ -4939,9 +4939,9 @@ void free_css_id(struct cgroup_subsys *s
- 
- 	rcu_assign_pointer(id->css, NULL);
- 	rcu_assign_pointer(css->id, NULL);
--	write_lock(&ss->id_lock);
-+	spin_lock(&ss->id_lock);
- 	idr_remove(&ss->idr, id->id);
--	write_unlock(&ss->id_lock);
-+	spin_unlock(&ss->id_lock);
- 	kfree_rcu(id, rcu_head);
- }
- EXPORT_SYMBOL_GPL(free_css_id);
-@@ -4967,10 +4967,10 @@ static struct css_id *get_new_cssid(stru
- 		error = -ENOMEM;
- 		goto err_out;
- 	}
--	write_lock(&ss->id_lock);
-+	spin_lock(&ss->id_lock);
- 	/* Don't use 0. allocates an ID of 1-65535 */
- 	error = idr_get_new_above(&ss->idr, newid, 1, &myid);
--	write_unlock(&ss->id_lock);
-+	spin_unlock(&ss->id_lock);
- 
- 	/* Returns error when there are no free spaces for new ID.*/
- 	if (error) {
-@@ -4985,9 +4985,9 @@ static struct css_id *get_new_cssid(stru
- 	return newid;
- remove_idr:
- 	error = -ENOSPC;
--	write_lock(&ss->id_lock);
-+	spin_lock(&ss->id_lock);
- 	idr_remove(&ss->idr, myid);
--	write_unlock(&ss->id_lock);
-+	spin_unlock(&ss->id_lock);
- err_out:
- 	kfree(newid);
- 	return ERR_PTR(error);
-@@ -4999,7 +4999,7 @@ static int __init_or_module cgroup_init_
- {
- 	struct css_id *newid;
- 
--	rwlock_init(&ss->id_lock);
-+	spin_lock_init(&ss->id_lock);
- 	idr_init(&ss->idr);
- 
- 	newid = get_new_cssid(ss, 0);
-@@ -5087,6 +5087,8 @@ css_get_next(struct cgroup_subsys *ss, i
- 		return NULL;
- 
- 	BUG_ON(!ss->use_id);
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+
- 	/* fill start point for scan */
- 	tmpid = id;
- 	while (1) {
-@@ -5094,10 +5096,7 @@ css_get_next(struct cgroup_subsys *ss, i
- 		 * scan next entry from bitmap(tree), tmpid is updated after
- 		 * idr_get_next().
- 		 */
--		read_lock(&ss->id_lock);
- 		tmp = idr_get_next(&ss->idr, &tmpid);
--		read_unlock(&ss->id_lock);
--
- 		if (!tmp)
- 			break;
- 		if (tmp->depth >= depth && tmp->stack[depth] == rootid) {
---- 3.2.0+/lib/idr.c	2012-01-04 15:55:44.000000000 -0800
-+++ linux/lib/idr.c	2012-01-18 21:25:36.947963342 -0800
-@@ -605,11 +605,11 @@ void *idr_get_next(struct idr *idp, int
- 	int n, max;
- 
- 	/* find first ent */
--	n = idp->layers * IDR_BITS;
--	max = 1 << n;
- 	p = rcu_dereference_raw(idp->top);
- 	if (!p)
- 		return NULL;
-+	n = (p->layer + 1) * IDR_BITS;
-+	max = 1 << n;
- 
- 	while (id < max) {
- 		while (n > 0 && p) {
+Sha
+>> which has nothing to do with soft limit (see mem_cgroup_select_victim).
+>> IMHO, it's not a genuine hierarchical reclaim.
+> It is hierarchical because it iterates over hierarchy it is not and
+> never was recursively soft-hierarchical...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
