@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id E52A76B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 15:38:08 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: Hung task when calling clone() due to netfilter/slab
-References: <1326558605.19951.7.camel@lappy>
-	<1326561043.5287.24.camel@edumazet-laptop>
-	<1326632384.11711.3.camel@lappy>
-	<1326648305.5287.78.camel@edumazet-laptop>
-	<alpine.DEB.2.00.1201170910130.4800@router.home>
-	<1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<alpine.DEB.2.00.1201170927020.4800@router.home>
-	<1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<alpine.DEB.2.00.1201170942240.4800@router.home>
-	<alpine.DEB.2.00.1201171620590.14697@router.home>
-	<m1bopz2ws3.fsf@fess.ebiederm.org> <m14nvr2vbu.fsf@fess.ebiederm.org>
-	<alpine.DEB.2.00.1201191959540.14480@router.home>
-	<m1y5t3yuil.fsf@fess.ebiederm.org>
-	<alpine.DEB.2.00.1201200848040.25882@router.home>
-Date: Fri, 20 Jan 2012 12:40:32 -0800
-In-Reply-To: <alpine.DEB.2.00.1201200848040.25882@router.home> (Christoph
-	Lameter's message of "Fri, 20 Jan 2012 08:49:57 -0600 (CST)")
-Message-ID: <m1k44mt8e7.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id E92016B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 17:03:45 -0500 (EST)
+Date: Fri, 20 Jan 2012 14:03:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] staging: zsmalloc: memory allocator for compressed
+ pages
+Message-Id: <20120120140344.2fb399e4.akpm@linux-foundation.org>
+In-Reply-To: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@suse.de>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Christoph Lameter <cl@linux.com> writes:
+On Mon,  9 Jan 2012 16:51:55 -0600
+Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
 
-> On Thu, 19 Jan 2012, Eric W. Biederman wrote:
->
->> On the flip side removing from sysfs with locks held must be done
->> carefully, and as a default I would recommend not to hold locks over
->> removing things from sysfs.  As removal blocks waiting for all of the
->> callers into sysfs those sysfs attributes to complete.
->>
->> It looks like you are ok on the removal because none of the sysfs
->> attributes appear to take the slub_lock, just /proc/slabinfo.  But
->> it does look like playing with fire.
->
-> Ok then I guess my last patch is needed to make sysfs operations safe.
->
-> It may be good to audit the kernel for locks being held while calling
-> sysfs functions. Isnt there a lockdep check that ensures that no locks are
-> held?
+> This patchset introduces a new memory allocation library named
+> zsmalloc.  zsmalloc was designed to fulfill the needs
+> of users where:
+>  1) Memory is constrained, preventing contiguous page allocations
+>     larger than order 0 and
+>  2) Allocations are all/commonly greater than half a page.
+> 
+> In a generic allocator, an allocation set like this would
+> cause high fragmentation.  The allocations can't span non-
+> contiguous page boundaries; therefore, the part of the page
+> unused by each allocation is wasted.
+> 
+> zsmalloc is a slab-based allocator that uses a non-standard
+> malloc interface, requiring the user to map the allocation
+> before accessing it. This allows allocations to span two
+> non-contiguous pages using virtual memory mapping, greatly
+> reducing fragmentation in the memory pool.
 
-I don't see a no locks are held check but call_usermodehelper in the
-blocking case could certainly use one.
+The changelog doesn't really describe why the code was written and
+provides no reason for anyone to merge it.
 
-For the sysfs remove case lockdep should work.
+Perhaps the reason was to clean up and generalise the zram xvmalloc
+code.  Perhaps the reason was also to then use zsmalloc somewhere else
+in the kernel.  But I really don't know.  This is the most important
+part of the patch description and you completely omitted it!
 
-Eric
+
+Where will this code live after it escapes from drivers/staging/? mm/?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
