@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 537AB6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 05:34:07 -0500 (EST)
-Date: Fri, 20 Jan 2012 11:33:57 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3] memcg: remove PCG_CACHE page_cgroup flag
-Message-ID: <20120120103356.GT24386@cmpxchg.org>
-References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
- <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 79C556B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 06:10:09 -0500 (EST)
+Message-ID: <4F194B5D.6080701@parallels.com>
+Date: Fri, 20 Jan 2012 15:09:17 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: linux-next: Tree for Jan 19 (mm/memcontrol.c)
+References: <20120119125932.a4c67005cf6a0938558e8b36@canb.auug.org.au> <4F189A97.5080007@xenotime.net> <20120120090037.e32a119f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120120090037.e32a119f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jan 20, 2012 at 12:26:58PM +0900, KAMEZAWA Hiroyuki wrote:
-> I think this version is much simplified.
-> 
-> ==
-> >From 5700a4fe9c581e1ebaa021ba6119dc8d921b024f Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 19 Jan 2012 17:09:41 +0900
-> Subject: [PATCH v3] memcg: remove PCG_CACHE
-> 
-> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
-> Here, "CACHE" means anonymous user pages (and SwapCache). This
-> doesn't include shmem.
-> 
-> Consdering callers, at charge/uncharge, the caller should know
-> what  the page is and we don't need to record it by using 1bit
-> per page.
-> 
-> This patch removes PCG_CACHE bit and make callers of
-> mem_cgroup_charge_statistics() to specify what the page is.
-> 
-> Changelog since v2
->  - removed 'not_rss', added 'anon'
->  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
->  - removed a patch to mem_cgroup_uncharge_cache
->  - simplified comment.
-> 
-> Changelog since RFC.
->  - rebased onto memcg-devel
->  - rename 'file' to 'not_rss'
->  - some cleanup and added comment.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On 01/20/2012 04:00 AM, KAMEZAWA Hiroyuki wrote:
+> On Thu, 19 Jan 2012 14:35:03 -0800
+> Randy Dunlap<rdunlap@xenotime.net>  wrote:
+>
+>> On 01/18/2012 05:59 PM, Stephen Rothwell wrote:
+>>> Hi all,
+>>>
+>>> Changes since 20120118:
+>>
+>>
+>> on i386:
+>>
+>> mm/built-in.o:(__jump_table+0x8): undefined reference to `memcg_socket_limit_enabled'
+>> mm/built-in.o:(__jump_table+0x14): undefined reference to `memcg_socket_limit_enabled'
+>>
+>>
+>> Full randconfig file is attached.
+>>
+>
+> Thank you. Forwarding this to Costa.
+>
+> Thanks,
+> -Kame
+>
+Oh dear lord... So what happened here, is that I moved this code out of 
+CONFIG_INET to fix another problem, and forgot that it needed to be 
+wrapped under CONFIG_NET instead.
 
-Apart from Michal's rss -> anon renaming suggestion, which I agree
-with:
+It is not an excuse, but I did compiled it over at least 6 random 
+configs, and thought it was okay. I guess so many things select 
+CONFIG_NET that it ends up being hard to generate a config without it.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+I think the fix for this needs to go through dave's tree, since it is 
+where the original fix went through.
+
+I will send a fix shortly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
