@@ -1,82 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id DD99C6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:48:48 -0500 (EST)
-Date: Fri, 20 Jan 2012 08:48:40 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm: page allocator: Do not drain per-cpu lists via
- IPI from page allocator context
-Message-ID: <20120120084840.GG3143@suse.de>
-References: <1326276668-19932-1-git-send-email-mgorman@suse.de>
- <1326276668-19932-3-git-send-email-mgorman@suse.de>
- <1326381492.2442.188.camel@twins>
- <20120112153712.GL4118@suse.de>
- <1326383551.2442.203.camel@twins>
- <20120112171847.GN4118@suse.de>
- <no-drain-reply@mdm.bga.com>
- <20120119162057.GD3143@suse.de>
- <4F188F52.1060303@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 202A96B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 04:42:12 -0500 (EST)
+Date: Fri, 20 Jan 2012 11:42:38 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH trivial] mm: make get_mm_counter static-inline
+Message-ID: <20120120094238.GA16009@shutemov.name>
+References: <20120119124005.21946.18651.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F188F52.1060303@linux.vnet.ibm.com>
+In-Reply-To: <20120119124005.21946.18651.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Milton Miller <miltonm@bga.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, mszeredi@novell.com, ebiederm@xmission.com, Greg Kroah-Hartman <gregkh@suse.de>, gong.chen@intel.com, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@amd64.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, linux-edac@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Jan 20, 2012 at 03:16:58AM +0530, Srivatsa S. Bhat wrote:
-> [Reinstating the original Cc list]
+On Thu, Jan 19, 2012 at 04:40:05PM +0400, Konstantin Khlebnikov wrote:
+> This patch makes get_mm_counter() always static inline,
+> it is simple enough for that. And remove unused set_mm_counter()
 > 
-> On 01/19/2012 09:50 PM, Mel Gorman wrote:> 
+> bloat-o-meter:
 > 
-> > On a different x86-64 machines with an intel-specific MCE, I have
-> > also noted that the value of num_online_cpus() can change while
-> > stop_machine() is running.
+> add/remove: 0/1 grow/shrink: 4/12 up/down: 99/-341 (-242)
+> function                                     old     new   delta
+> try_to_unmap_one                             886     952     +66
+> sys_remap_file_pages                        1214    1230     +16
+> dup_mm                                      1684    1700     +16
+> do_exit                                     2277    2278      +1
+> zap_page_range                               208     205      -3
+> unmap_region                                 304     296      -8
+> static.oom_kill_process                      554     546      -8
+> try_to_unmap_file                           1716    1700     -16
+> getrusage                                    925     909     -16
+> flush_old_exec                              1704    1688     -16
+> static.dump_header                           416     390     -26
+> acct_update_integrals                        218     187     -31
+> do_task_stat                                2986    2954     -32
+> get_mm_counter                                34       -     -34
+> xacct_add_tsk                                371     334     -37
+> task_statm                                   172     118     -54
+> task_mem                                     383     323     -60
 > 
+> try_to_unmap_one() grows because update_hiwater_rss() now completely inline.
 > 
-> That is expected and intentional right? Meaning, it is during the
-> stop_machine() thing itself that a CPU is actually taken offline.
-> And at the same time, it is removed from the cpu_online_mask.
-> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-It's intentional sometimes and no others. The machine does halt
-sometimes and stays there.
-
-> On Intel boxes, essentially, the following gets executed on the dying
-> CPU, as set up by the stop_machine stuff.
-> 
-> __cpu_disable()
->     native_cpu_disable()
->         cpu_disable_common()
->             remove_cpu_from_maps()
->                 set_cpu_online(cpu, false)
-> 			^^^^^^
-> So, set_cpu_online will remove this CPU from the cpu_online_mask.
-> And all this runs while still under the stop machine context.
-> And this is exactly what we want right?
-> 
-
-We don't want it to halt in stop_machine forever waiting on acknowledges
-that are never received until the NMI handler fires.
-
-> > This is sensitive to timing and part of
-> > the problem seems to be due to cmci_rediscover() running without the
-> > CPU hotplug mutex held. This is not related to the IPI mess and is
-> > unrelated to memory pressure but is just to note that CPU hotplug in
-> > general can be fragile in parts.
-> > 
-> 
-> 
-> For the cmci_rediscover() part, I feel a simple get/put_online_cpus()
-> around it should work.
-> 
-
-Yeah, that's the first thing I tried first too. Doesn't work though.
+Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 
 -- 
-Mel Gorman
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
