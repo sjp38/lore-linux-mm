@@ -1,96 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 02DAA6B004F
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 21:21:09 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2705B3EE0BD
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 11:21:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6255F2E68C4
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 11:21:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 21DF5266D18
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 11:21:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 02EDDE08001
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 11:21:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EFDD81DB803E
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 11:21:05 +0900 (JST)
-Date: Fri, 20 Jan 2012 11:19:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] [PATCH 7/7 v2] memcg: make mem_cgroup_begin_update_stat
- to use global pcpu.
-Message-Id: <20120120111947.400b2b15.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120119144712.GG13932@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120113174510.5e0f6131.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120119144712.GG13932@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 07F9F6B004F
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2012 21:29:03 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: Hung task when calling clone() due to netfilter/slab
+References: <1326558605.19951.7.camel@lappy>
+	<1326561043.5287.24.camel@edumazet-laptop>
+	<1326632384.11711.3.camel@lappy>
+	<1326648305.5287.78.camel@edumazet-laptop>
+	<alpine.DEB.2.00.1201170910130.4800@router.home>
+	<1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<alpine.DEB.2.00.1201170927020.4800@router.home>
+	<1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<alpine.DEB.2.00.1201170942240.4800@router.home>
+	<alpine.DEB.2.00.1201171620590.14697@router.home>
+	<m1bopz2ws3.fsf@fess.ebiederm.org> <m14nvr2vbu.fsf@fess.ebiederm.org>
+	<alpine.DEB.2.00.1201191959540.14480@router.home>
+Date: Thu, 19 Jan 2012 18:31:30 -0800
+In-Reply-To: <alpine.DEB.2.00.1201191959540.14480@router.home> (Christoph
+	Lameter's message of "Thu, 19 Jan 2012 20:03:51 -0600 (CST)")
+Message-ID: <m1y5t3yuil.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
 
-On Thu, 19 Jan 2012 15:47:12 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+Christoph Lameter <cl@linux.com> writes:
 
-> On Fri 13-01-12 17:45:10, KAMEZAWA Hiroyuki wrote:
-> > From 3df71cef5757ee6547916c4952f04a263c1b8ddb Mon Sep 17 00:00:00 2001
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Date: Fri, 13 Jan 2012 17:07:35 +0900
-> > Subject: [PATCH 7/7] memcg: make mem_cgroup_begin_update_stat to use global pcpu.
-> > 
-> > Now, a per-cpu flag to show the memcg is under account moving is
-> > now implemented as per-memcg-per-cpu.
-> > 
-> > So, when accessing this, we need to access memcg 1st. But this
-> > function is called even when status update doesn't occur. Then,
-> > accessing struct memcg is an overhead in such case.
-> > 
-> > This patch removes per-cpu-per-memcg MEM_CGROUP_ON_MOVE and add
-> > per-cpu vairable to do the same work. For per-memcg, atomic
-> > counter is added. By this, mem_cgroup_begin_update_stat() will
-> > just access percpu variable in usual case and don't need to find & access
-> > memcg. This reduces overhead.
-> 
-> I agree that move_account is not a hotpath and that we don't have
-> to optimize for it but I guess we can do better. If we use a cookie
-> parameter for
-> mem_cgroup_{begin,end}_update_stat(struct page *page, unsigned long *cookie)
-> then we can stab page_cgroup inside and use the last bit for
-> locked.  Then we do not have to call lookup_page_cgroup again in
-> mem_cgroup_update_page_stat and just replace page by the cookie.
-> What do you think?
-> 
+> On Thu, 19 Jan 2012, Eric W. Biederman wrote:
+>
+>> Oh.  I see.  The problem is calling kobject_uevent (which happens to
+>> live in slabs sysfs_slab_add) with a lock held.  And kobject_uevent
+>> makes a blocking call to userspace.
+>>
+>> No locks held seems to be a good policy on that one.
+>
+> Well we can just remove that call to kobject_uevent instead then. Does it
+> do anything useful? Cannot remember why we put that in there.
 
-Because these routine is called as
+Empirically it sounds like something is listening for it and doing cat
+/proc/slabinfo.  Something like that would have to occur for their to be
+a deadlock that was observed.
 
-	mem_cgroup_begin_update_stat()
-	if (condition)
-		set_page_flag
-		mem_cgroup_update_stat()
-	mem_cgroup_end_update_stat()
+On the flip side removing from sysfs with locks held must be done
+carefully, and as a default I would recommend not to hold locks over
+removing things from sysfs.  As removal blocks waiting for all of the
+callers into sysfs those sysfs attributes to complete.
 
-In earlier version(not posted), I did so. Now, I don't because of 2 reasons.
+It looks like you are ok on the removal because none of the sysfs
+attributes appear to take the slub_lock, just /proc/slabinfo.  But
+it does look like playing with fire.
 
-1. I wonder it's better not to have extra arguments in begin_xxx it
-   will be overhead itself.
-2. my work's final purpose is integrate page_cgroup to struct page.
-   If I can do, lookup_page_cgroup() cost will be almost 0 and we'll revert
-   the cookie, finally.
-
-So, can't we keep this update routine simple for a while ?
-If we saw it's finally impossible to integrate page_cgroup to page,
-I'd like to consider 'cookie' again.
-
-BTW, If we use spinlock and need to do irq_disable() in begin_update_stat()
-we'll need to pass *flags...
-
-Thanks,
--Kame
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
