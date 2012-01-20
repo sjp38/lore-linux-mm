@@ -1,99 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 28EDD6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:45:48 -0500 (EST)
-Date: Fri, 20 Jan 2012 09:45:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3] memcg: remove PCG_CACHE page_cgroup flag
-Message-ID: <20120120084545.GC9655@tiehlicka.suse.cz>
-References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
- <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id DD99C6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:48:48 -0500 (EST)
+Date: Fri, 20 Jan 2012 08:48:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/2] mm: page allocator: Do not drain per-cpu lists via
+ IPI from page allocator context
+Message-ID: <20120120084840.GG3143@suse.de>
+References: <1326276668-19932-1-git-send-email-mgorman@suse.de>
+ <1326276668-19932-3-git-send-email-mgorman@suse.de>
+ <1326381492.2442.188.camel@twins>
+ <20120112153712.GL4118@suse.de>
+ <1326383551.2442.203.camel@twins>
+ <20120112171847.GN4118@suse.de>
+ <no-drain-reply@mdm.bga.com>
+ <20120119162057.GD3143@suse.de>
+ <4F188F52.1060303@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F188F52.1060303@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Milton Miller <miltonm@bga.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, mszeredi@novell.com, ebiederm@xmission.com, Greg Kroah-Hartman <gregkh@suse.de>, gong.chen@intel.com, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@amd64.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, linux-edac@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
 
-On Fri 20-01-12 12:26:58, KAMEZAWA Hiroyuki wrote:
-> I think this version is much simplified.
+On Fri, Jan 20, 2012 at 03:16:58AM +0530, Srivatsa S. Bhat wrote:
+> [Reinstating the original Cc list]
 > 
-> ==
-> From 5700a4fe9c581e1ebaa021ba6119dc8d921b024f Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 19 Jan 2012 17:09:41 +0900
-> Subject: [PATCH v3] memcg: remove PCG_CACHE
+> On 01/19/2012 09:50 PM, Mel Gorman wrote:> 
 > 
-> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
-> Here, "CACHE" means anonymous user pages (and SwapCache). This
-> doesn't include shmem.
+> > On a different x86-64 machines with an intel-specific MCE, I have
+> > also noted that the value of num_online_cpus() can change while
+> > stop_machine() is running.
 > 
-> Consdering callers, at charge/uncharge, the caller should know
-> what  the page is and we don't need to record it by using 1bit
-> per page.
 > 
-> This patch removes PCG_CACHE bit and make callers of
-> mem_cgroup_charge_statistics() to specify what the page is.
+> That is expected and intentional right? Meaning, it is during the
+> stop_machine() thing itself that a CPU is actually taken offline.
+> And at the same time, it is removed from the cpu_online_mask.
 > 
-> Changelog since v2
->  - removed 'not_rss', added 'anon'
->  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
->  - removed a patch to mem_cgroup_uncharge_cache
->  - simplified comment.
-> 
-> Changelog since RFC.
->  - rebased onto memcg-devel
->  - rename 'file' to 'not_rss'
->  - some cleanup and added comment.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/page_cgroup.h |    8 +------
->  mm/memcontrol.c             |   48 +++++++++++++++++++++++-------------------
->  2 files changed, 27 insertions(+), 29 deletions(-)
-> 
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ff24520..f000c82 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -672,15 +672,19 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
->  }
->  
->  static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
-> -					 bool file, int nr_pages)
-> +					 bool rss, int nr_pages)
 
-Can we make this anon as well?
->  {
->  	preempt_disable();
->  
-> -	if (file)
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
-> +	/*
-> +	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
-> +	 * counted as CACHE even if it's on ANON LRU.
-> +	 */
-> +	if (rss)
-> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
->  				nr_pages);
->  	else
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
-> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
->  				nr_pages);
->  
->  	/* pagein of a big page is an event. So, ignore page size */
-[...]
+It's intentional sometimes and no others. The machine does halt
+sometimes and stays there.
+
+> On Intel boxes, essentially, the following gets executed on the dying
+> CPU, as set up by the stop_machine stuff.
+> 
+> __cpu_disable()
+>     native_cpu_disable()
+>         cpu_disable_common()
+>             remove_cpu_from_maps()
+>                 set_cpu_online(cpu, false)
+> 			^^^^^^
+> So, set_cpu_online will remove this CPU from the cpu_online_mask.
+> And all this runs while still under the stop machine context.
+> And this is exactly what we want right?
+> 
+
+We don't want it to halt in stop_machine forever waiting on acknowledges
+that are never received until the NMI handler fires.
+
+> > This is sensitive to timing and part of
+> > the problem seems to be due to cmci_rediscover() running without the
+> > CPU hotplug mutex held. This is not related to the IPI mess and is
+> > unrelated to memory pressure but is just to note that CPU hotplug in
+> > general can be fragile in parts.
+> > 
+> 
+> 
+> For the cmci_rediscover() part, I feel a simple get/put_online_cpus()
+> around it should work.
+> 
+
+Yeah, that's the first thing I tried first too. Doesn't work though.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
