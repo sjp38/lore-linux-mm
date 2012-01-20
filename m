@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id CDA386B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 17:58:16 -0500 (EST)
-Received: by bkbzx1 with SMTP id zx1so1141293bkb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2012 14:58:15 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <201201180602.04269.vapier@gentoo.org>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <201201180518.31407.vapier@gentoo.org> <20120118104749.GG15447@linux.vnet.ibm.com>
- <201201180602.04269.vapier@gentoo.org>
-From: Mike Frysinger <vapier@gentoo.org>
-Date: Fri, 20 Jan 2012 17:57:54 -0500
-Message-ID: <CAMjpGUc+V-mrQcBcpyTvhCihYUtd=4Q4Wr6DTsaUwC0JJpBROA@mail.gmail.com>
-Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step exception.
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 4FD706B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 18:48:09 -0500 (EST)
+Date: Fri, 20 Jan 2012 15:48:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] idr: make idr_get_next() good for rcu_read_lock()
+Message-Id: <20120120154807.c55c9ac7.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1201191247210.29542@eggly.anvils>
+References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils>
+	<1326958401.1113.22.camel@edumazet-laptop>
+	<CAOS58YO585NYMLtmJv3f9vVdadFqoWF+Y5vZ6Va=2qHELuePJA@mail.gmail.com>
+	<1326979818.2249.12.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<alpine.LSU.2.00.1201191235330.29542@eggly.anvils>
+	<alpine.LSU.2.00.1201191247210.29542@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Anton Arapov <anton@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Hugh Dickins <hughd@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 18, 2012 at 06:01, Mike Frysinger wrote:
-> On Wednesday 18 January 2012 05:47:49 Srikar Dronamraju wrote:
->> > On Wednesday 18 January 2012 04:02:32 Srikar Dronamraju wrote:
->> > > > =C2=A0 Can we use existing SET_IP() instead of set_instruction_poi=
-nter() ?
->> > >
->> > > Oleg had already commented about this in one his uprobes reviews.
->> > >
->> > > The GET_IP/SET_IP available in include/asm-generic/ptrace.h doesnt w=
-ork
->> > > on all archs. Atleast it doesnt work on powerpc when I tried it.
->> >
->> > so migrate the arches you need over to it.
->>
->> One question that could be asked is why arent we using instruction_point=
-er
->> instead of GET_IP since instruction_pointer is being defined in 25
->> places and with references in 120 places.
->
-> i think you misunderstand the point. =C2=A0{G,S}ET_IP() is the glue betwe=
-en the
-> arch's pt_regs struct and the public facing API. =C2=A0the only people wh=
-o should
-> be touching those macros are the ptrace core. =C2=A0instruction_pointer()=
- and
-> instruction_pointer_set() are the API that asm/ptrace.h exports to the re=
-st of
-> the tree.
+On Thu, 19 Jan 2012 12:48:48 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Srikar: does that make sense ?  i'm happy to help with improving
-asm-generic/ptrace.h.
--mike
+> Make one small adjustment to idr_get_next(): take the height from the
+> top layer (stable under RCU) instead of from the root (unprotected by
+> RCU), as idr_find() does: so that it can be used with RCU locking.
+> Copied comment on RCU locking from idr_find().
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Li Zefan <lizf@cn.fujitsu.com>
+> ---
+>  lib/idr.c |    8 +++++---
+>  1 file changed, 5 insertions(+), 3 deletions(-)
+> 
+> --- 3.2.0+.orig/lib/idr.c	2012-01-04 15:55:44.000000000 -0800
+> +++ 3.2.0+/lib/idr.c	2012-01-19 11:55:28.780206713 -0800
+> @@ -595,8 +595,10 @@ EXPORT_SYMBOL(idr_for_each);
+>   * Returns pointer to registered object with id, which is next number to
+>   * given id. After being looked up, *@nextidp will be updated for the next
+>   * iteration.
+> + *
+> + * This function can be called under rcu_read_lock(), given that the leaf
+> + * pointers lifetimes are correctly managed.
+
+Awkward comment.  It translates to "..., because the leaf pointers
+lifetimes are correctly managed".
+
+Is that what we really meant?  Or did we mean "..., provided the leaf
+pointers lifetimes are correctly managed"?
+
+Also, "pointers" should have been "pointer" or "pointer's"!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
