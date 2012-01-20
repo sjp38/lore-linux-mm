@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 202A96B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 04:42:12 -0500 (EST)
-Date: Fri, 20 Jan 2012 11:42:38 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH trivial] mm: make get_mm_counter static-inline
-Message-ID: <20120120094238.GA16009@shutemov.name>
-References: <20120119124005.21946.18651.stgit@zurg>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 537AB6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 05:34:07 -0500 (EST)
+Date: Fri, 20 Jan 2012 11:33:57 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] memcg: remove PCG_CACHE page_cgroup flag
+Message-ID: <20120120103356.GT24386@cmpxchg.org>
+References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120119124005.21946.18651.stgit@zurg>
+In-Reply-To: <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Thu, Jan 19, 2012 at 04:40:05PM +0400, Konstantin Khlebnikov wrote:
-> This patch makes get_mm_counter() always static inline,
-> it is simple enough for that. And remove unused set_mm_counter()
+On Fri, Jan 20, 2012 at 12:26:58PM +0900, KAMEZAWA Hiroyuki wrote:
+> I think this version is much simplified.
 > 
-> bloat-o-meter:
+> ==
+> >From 5700a4fe9c581e1ebaa021ba6119dc8d921b024f Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 19 Jan 2012 17:09:41 +0900
+> Subject: [PATCH v3] memcg: remove PCG_CACHE
 > 
-> add/remove: 0/1 grow/shrink: 4/12 up/down: 99/-341 (-242)
-> function                                     old     new   delta
-> try_to_unmap_one                             886     952     +66
-> sys_remap_file_pages                        1214    1230     +16
-> dup_mm                                      1684    1700     +16
-> do_exit                                     2277    2278      +1
-> zap_page_range                               208     205      -3
-> unmap_region                                 304     296      -8
-> static.oom_kill_process                      554     546      -8
-> try_to_unmap_file                           1716    1700     -16
-> getrusage                                    925     909     -16
-> flush_old_exec                              1704    1688     -16
-> static.dump_header                           416     390     -26
-> acct_update_integrals                        218     187     -31
-> do_task_stat                                2986    2954     -32
-> get_mm_counter                                34       -     -34
-> xacct_add_tsk                                371     334     -37
-> task_statm                                   172     118     -54
-> task_mem                                     383     323     -60
+> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+> Here, "CACHE" means anonymous user pages (and SwapCache). This
+> doesn't include shmem.
 > 
-> try_to_unmap_one() grows because update_hiwater_rss() now completely inline.
+> Consdering callers, at charge/uncharge, the caller should know
+> what  the page is and we don't need to record it by using 1bit
+> per page.
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> This patch removes PCG_CACHE bit and make callers of
+> mem_cgroup_charge_statistics() to specify what the page is.
+> 
+> Changelog since v2
+>  - removed 'not_rss', added 'anon'
+>  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+>  - removed a patch to mem_cgroup_uncharge_cache
+>  - simplified comment.
+> 
+> Changelog since RFC.
+>  - rebased onto memcg-devel
+>  - rename 'file' to 'not_rss'
+>  - some cleanup and added comment.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
+Apart from Michal's rss -> anon renaming suggestion, which I agree
+with:
 
--- 
- Kirill A. Shutemov
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
