@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id E92016B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 17:03:45 -0500 (EST)
-Date: Fri, 20 Jan 2012 14:03:44 -0800
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 2CF4F6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 17:12:34 -0500 (EST)
+Date: Fri, 20 Jan 2012 14:12:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] staging: zsmalloc: memory allocator for compressed
- pages
-Message-Id: <20120120140344.2fb399e4.akpm@linux-foundation.org>
-In-Reply-To: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation
+ library
+Message-Id: <20120120141232.a7572919.akpm@linux-foundation.org>
+In-Reply-To: <1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@suse.de>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Mon,  9 Jan 2012 16:51:55 -0600
+On Mon,  9 Jan 2012 16:51:56 -0600
 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
 
-> This patchset introduces a new memory allocation library named
-> zsmalloc.  zsmalloc was designed to fulfill the needs
-> of users where:
->  1) Memory is constrained, preventing contiguous page allocations
->     larger than order 0 and
->  2) Allocations are all/commonly greater than half a page.
-> 
-> In a generic allocator, an allocation set like this would
-> cause high fragmentation.  The allocations can't span non-
-> contiguous page boundaries; therefore, the part of the page
-> unused by each allocation is wasted.
-> 
-> zsmalloc is a slab-based allocator that uses a non-standard
-> malloc interface, requiring the user to map the allocation
-> before accessing it. This allows allocations to span two
-> non-contiguous pages using virtual memory mapping, greatly
-> reducing fragmentation in the memory pool.
+> This patch creates a new memory allocation library named
+> zsmalloc.
 
-The changelog doesn't really describe why the code was written and
-provides no reason for anyone to merge it.
+I haven't really begun to look at this yet.  The code is using many
+fields of struct page in new ways.  This is key information for anyone
+to effectively review the code.  So please carefully document (within
+the code itself) the ways in which the various page fields are used:
+semantic meaning of the overload, relationships between them, any
+locking rules or assumptions.  Ditto any other data structures.  This
+code should be reviewed very carefully by others so please implement it
+with that intention.
 
-Perhaps the reason was to clean up and generalise the zram xvmalloc
-code.  Perhaps the reason was also to then use zsmalloc somewhere else
-in the kernel.  But I really don't know.  This is the most important
-part of the patch description and you completely omitted it!
+It appears that a pile of dead code will be generated if CPU hotplug is
+disabled.  (That's if it compiles at all!).  Please take a look at users
+of hotcpu_notifier() - this facility cunningly causes all the hotplug code
+to vanish from vmlinux if it is unneeded.
 
 
-Where will this code live after it escapes from drivers/staging/? mm/?
+afacit this code should be added to core mm/.  Addition of code like
+this to core mm/ will be fiercely resisted on principle!  Hence the
+(currently missing) justifications for adding it had best be good ones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
