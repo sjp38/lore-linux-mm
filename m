@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id F1AD86B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:43:12 -0500 (EST)
-Date: Fri, 20 Jan 2012 09:43:10 +0100
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 28EDD6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 03:45:48 -0500 (EST)
+Date: Fri, 20 Jan 2012 09:45:45 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3] memcg: remove unnecessary thp check at page stat
- accounting
-Message-ID: <20120120084310.GB9655@tiehlicka.suse.cz>
-References: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
- <20120120122512.decd06c0.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3] memcg: remove PCG_CACHE page_cgroup flag
+Message-ID: <20120120084545.GC9655@tiehlicka.suse.cz>
+References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120120122512.decd06c0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Fri 20-01-12 12:25:12, KAMEZAWA Hiroyuki wrote:
-> Updated description.
+On Fri 20-01-12 12:26:58, KAMEZAWA Hiroyuki wrote:
+> I think this version is much simplified.
+> 
 > ==
-> From a6395205d9f517af7963ff61d66efbcf1c64b2a5 Mon Sep 17 00:00:00 2001
+> From 5700a4fe9c581e1ebaa021ba6119dc8d921b024f Mon Sep 17 00:00:00 2001
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 12 Jan 2012 16:08:33 +0900
-> Subject: [PATCH v3] memcg: remove unnecessary check in mem_cgroup_update_page_stat()
+> Date: Thu, 19 Jan 2012 17:09:41 +0900
+> Subject: [PATCH v3] memcg: remove PCG_CACHE
 > 
-> This patch is a fix for
-
-I would rather call it a follow up for this patch. It doesn't fixes it.
-
->     memcg: make mem_cgroup_split_huge_fixup() more efficient
+> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+> Here, "CACHE" means anonymous user pages (and SwapCache). This
+> doesn't include shmem.
 > 
-> Above patch removes move_lock_page_cgroup(). So, we do not have
-> to check PageTransHuge in mem_cgroup_update_page_stat and fallback into
-> the locked accounting because both move_account and thp split are done
-> with compound_lock so they cannot race.
-> The race between update vs. move is protected by mem_cgroup_stealed,
+> Consdering callers, at charge/uncharge, the caller should know
+> what  the page is and we don't need to record it by using 1bit
+> per page.
 > 
-> PageTransHuge pages shouldn't appear in this code path currently because
-> we are tracking only file pages at the moment but later we are planning
-> to track also other pages (e.g. mlocked ones).
+> This patch removes PCG_CACHE bit and make callers of
+> mem_cgroup_charge_statistics() to specify what the page is.
 > 
-> Changelog:
->  - updated description.
+> Changelog since v2
+>  - removed 'not_rss', added 'anon'
+>  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+>  - removed a patch to mem_cgroup_uncharge_cache
+>  - simplified comment.
+> 
+> Changelog since RFC.
+>  - rebased onto memcg-devel
+>  - rename 'file' to 'not_rss'
+>  - some cleanup and added comment.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Anyway
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks
 > ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+>  include/linux/page_cgroup.h |    8 +------
+>  mm/memcontrol.c             |   48 +++++++++++++++++++++++-------------------
+>  2 files changed, 27 insertions(+), 29 deletions(-)
 > 
+[...]
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3dbff4d..ff24520 100644
+> index ff24520..f000c82 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -1867,7 +1867,7 @@ void mem_cgroup_update_page_stat(struct page *page,
->  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
->  		goto out;
->  	/* pc->mem_cgroup is unstable ? */
-> -	if (unlikely(mem_cgroup_stealed(memcg)) || PageTransHuge(page)) {
-> +	if (unlikely(mem_cgroup_stealed(memcg))) {
->  		/* take a lock against to access pc->mem_cgroup */
->  		move_lock_page_cgroup(pc, &flags);
->  		need_unlock = true;
-> -- 
-> 1.7.4.1
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> @@ -672,15 +672,19 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+>  }
+>  
+>  static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+> -					 bool file, int nr_pages)
+> +					 bool rss, int nr_pages)
+
+Can we make this anon as well?
+>  {
+>  	preempt_disable();
+>  
+> -	if (file)
+> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+> +	/*
+> +	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
+> +	 * counted as CACHE even if it's on ANON LRU.
+> +	 */
+> +	if (rss)
+> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
+>  				nr_pages);
+>  	else
+> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
+> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+>  				nr_pages);
+>  
+>  	/* pagein of a big page is an event. So, ignore page size */
+[...]
 
 -- 
 Michal Hocko
