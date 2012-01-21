@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 098C66B005C
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2012 22:45:37 -0500 (EST)
-Received: by iadj38 with SMTP id j38so2346919iad.14
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2012 19:45:37 -0800 (PST)
-Date: Fri, 20 Jan 2012 19:45:23 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/3] idr: make idr_get_next() good for rcu_read_lock()
-In-Reply-To: <20120120154807.c55c9ac7.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1201201922110.1396@eggly.anvils>
-References: <alpine.LSU.2.00.1201182155480.7862@eggly.anvils> <1326958401.1113.22.camel@edumazet-laptop> <CAOS58YO585NYMLtmJv3f9vVdadFqoWF+Y5vZ6Va=2qHELuePJA@mail.gmail.com> <1326979818.2249.12.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <alpine.LSU.2.00.1201191235330.29542@eggly.anvils> <alpine.LSU.2.00.1201191247210.29542@eggly.anvils> <20120120154807.c55c9ac7.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id AB8D06B004D
+	for <linux-mm@kvack.org>; Sat, 21 Jan 2012 09:42:01 -0500 (EST)
+Received: by wicr5 with SMTP id r5so1459231wic.14
+        for <linux-mm@kvack.org>; Sat, 21 Jan 2012 06:41:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 21 Jan 2012 22:41:59 +0800
+Message-ID: <CAJd=RBDVxT5Pc2HZjz15LUb7xhFbztpFmXqLXVB3nCoQLKHiHg@mail.gmail.com>
+Subject: [PATCH] mm: vmscan: fix malused nr_reclaimed in shrinking zone
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Manfred Spraul <manfred@colorfullife.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
 
-On Fri, 20 Jan 2012, Andrew Morton wrote:
-> On Thu, 19 Jan 2012 12:48:48 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> > Copied comment on RCU locking from idr_find().
-> > 
-> > + *
-> > + * This function can be called under rcu_read_lock(), given that the leaf
-> > + * pointers lifetimes are correctly managed.
-> 
-> Awkward comment.  It translates to "..., because the leaf pointers
-> lifetimes are correctly managed".
-> 
-> Is that what we really meant?  Or did we mean "..., provided the leaf
-> pointers lifetimes are correctly managed"?
+The value of nr_reclaimed is the amount of pages reclaimed in the current round,
+whereas nr_to_reclaim shoud be compared with the amount of pages
+reclaimed in all
+rounds, so we have to buffer the pages reclaimed in the past rounds for correct
+comparison.
 
-You are right, and part of me realized that even as I copied in the
-comment.  I wanted to express the same optimism for idr_get_next() 
-as was already expressed for idr_find() - whatever it meant ;)
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
-I thought it was meaning a bit of both: idr.c is managing its end well
-enough that rcu_read_lock() can now be used, but the caller has to
-manage their locking and lifetimes appropriately too.
+--- a/mm/vmscan.c	Sat Jan 14 14:02:20 2012
++++ b/mm/vmscan.c	Sat Jan 21 22:23:48 2012
+@@ -2081,13 +2081,15 @@ static void shrink_mem_cgroup_zone(int p
+ 				   struct scan_control *sc)
+ {
+ 	unsigned long nr[NR_LRU_LISTS];
++	unsigned long reclaimed = 0;
+ 	unsigned long nr_to_scan;
+ 	enum lru_list lru;
+-	unsigned long nr_reclaimed, nr_scanned;
++	unsigned long nr_reclaimed = 0, nr_scanned;
+ 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+ 	struct blk_plug plug;
 
-> 
-> Also, "pointers" should have been "pointer" or "pointer's"!
-
-You're afraid of Linus turning his "its/it's" wrath from Al to yourself.
-
-Since "lifetimes" is in the plural, I think it would have to be
-"pointers'" - I _think_ that's correct, rather than "pointers's".
-
-But then, it's not the lifetimes of the pointers, but the lifetimes
-of the objects that they point to, that's in question.  So what it
-ought to say is...
-
-... falls asleep.
-
-Hugh
+ restart:
++	reclaimed += nr_reclaimed;
+ 	nr_reclaimed = 0;
+ 	nr_scanned = sc->nr_scanned;
+ 	get_scan_count(mz, sc, nr, priority);
+@@ -2113,7 +2115,8 @@ restart:
+ 		 * with multiple processes reclaiming pages, the total
+ 		 * freeing target can get unreasonably large.
+ 		 */
+-		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
++		if ((nr_reclaimed + reclaimed) >= nr_to_reclaim &&
++					priority < DEF_PRIORITY)
+ 			break;
+ 	}
+ 	blk_finish_plug(&plug);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
