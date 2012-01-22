@@ -1,133 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 68ADB6B004D
-	for <linux-mm@kvack.org>; Sun, 22 Jan 2012 04:59:45 -0500 (EST)
-Received: by vbbfa15 with SMTP id fa15so1599944vbb.14
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2012 01:59:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1326265454_1663@mail4.comsite.net>
-References: <1326040026-7285-7-git-send-email-gilad@benyossef.com>
-	<1326265454_1663@mail4.comsite.net>
-Date: Sun, 22 Jan 2012 11:59:44 +0200
-Message-ID: <CAOtvUMd4iXTEcmcdW5hpZ+mWbWExvbgzVbz0Zv0TgSiaT9X6QA@mail.gmail.com>
-Subject: Re: [PATCH v6 6/8] fs: only send IPI to invalidate LRU BH when needed
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 0B7F26B004D
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2012 10:27:17 -0500 (EST)
+Message-ID: <1327246034.2834.7.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [LSF/MM TOPIC] [ATTEND] Future writeback topics
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Sun, 22 Jan 2012 09:27:14 -0600
+In-Reply-To: <4F1C141C.2050704@panasas.com>
+References: <4F1C141C.2050704@panasas.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milton Miller <miltonm@bga.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>
+To: Boaz Harrosh <bharrosh@panasas.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, "Martin K.
+ Petersen" <martin.petersen@oracle.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org
 
-On Wed, Jan 11, 2012 at 9:04 AM, Milton Miller <miltonm@bga.com> wrote:
-> On Sun Jan 08 2012 about 11:28:17 EST, Gilad Ben-Yossef wrote:
+Since a lot of these are mm related; added linux-mm to cc list
 
->
->> +
->> +static int local_bh_lru_avail(int cpu, void *dummy)
->> +{
->
-> This is not about the availibilty of the lru, but rather the
-> decision if it is empty. =A0How about has_bh_in_lru() ?
+On Sun, 2012-01-22 at 15:50 +0200, Boaz Harrosh wrote:
+> Hi
+> 
+> Now that we have the "IO-less dirty throttling" in and kicking (ass I might say)
+> Are there plans for second stage? I can see few areas that need some love.
+> 
+> [IO Fairness, time sorted writeback, properly delayed writeback]
+> 
+>   As we started to talk about in another thread: "[LSF/MM TOPIC] a few storage topics"
+>   I would like to propose the following topics:
+> 
+> * Do we have enough information for the time of dirty of pages, such as the
+>   IO-elevators information, readily available to be used at the VFS layer.
+> * BDI writeout should be smarter then a round robin cycle of SBs per BDI /
+>   inodes. It should be time based, writing the oldest data first.
+>   (Take the lowest indexed page of an inode as the dirty time of the inode.
+>    maybe also keep an oldest modified inode per-SB of a BDI)
+> 
+>   This can solve the IO fairness and latency bound (interactivness) of small
+>   IOs.
+>   There might be other solutions to this problem, any Ideas?
+> 
+> * Introduce an "aging time" factor of an inode which will postpone the writeout
+>   of an inode to the next writeback timer if the inode has "just changed".
+> 
+>   This can solve the problem of an application doing heavy modification of some
+>   area of a file and the writeback timer sampling that change too soon and forcing
+>   pages to change during IO, as well as having split IO where waiting for the next
+>   cycle could have the complete modification in a singe submit.
+> 
+> 
+> [Targeted writeback (IO-less page-reclaim)]
+>   Sometimes we would need to write a certain page or group of pages. It could be
+>   nice to prioritize/start the writeback on these pages, through the regular writeback
+>   mechanism instead of doing direct IO like today.
+> 
+>   This is actually related to above where we can have a "write_now" time constant that
+>   makes the priority of that inode to be written first. Then we also need the page-info
+>   that we want to write as part of that inode's IO. Usually today we start at the lowest
+>   indexed page of the inode, right? In targeted writeback we should make sure the writeout
+>   is the longest contiguous (aligned) dirty region containing the targeted page.
+> 
+>   With this in place we can also move to an IO-less page-reclaim. that is done entirely by
+>   the BDI thread writeback. (Need I say more)
 
-Right. Good point.
+All of the above are complex.  The only reason for adding complexity in
+our writeback path should be because we can demonstrate that it's
+actually needed.  In order to demonstrate this, you'd need performance
+measurements ... is there a plan to get these before the summit?
 
->
->> + struct bh_lru *b =3D per_cpu_ptr(&bh_lrus, cpu);
->> + int i;
->>
->> + for (i =3D 0; i < BH_LRU_SIZE; i++) {
->> + if (b->bhs[i])
->> + return 1;
->> + }
->
->
-> If we change the loop in invalidate_bh to be end to beginning, then we
-> could get by only checking b->bhs[0] instead of all BH_LRU_SIZE words.
-> (The other loops all start by having entry 0 as a valid entry and pushing
-> towards higher slots as they age.) =A0We might say we don't care, but I
-> think we need to know if another cpu is still invalidating in case it
-> gets stuck in brelse, we need to wait for all the invalidates to occur
-> before we can continue to kill the device.
+> [Aligned IO]
+> 
+>   Each BDI should have a way to specify it's Alignment preferences and optimum IO sizes
+>   and the VFS writeout can take that into consideration when submitting IO.
+> 
+>   This can both reduce lots of work done at individual filesystems, as well as benefit
+>   lots of other filesystems that did not take care of this. It can also make the life of
+>   some of the FSs that do care, a lot easier. Producing IO patterns that are much better
+>   then what can be achieved today with the FS trying to second guess the VFS.
 
-hmm... less cycles for the check and less cache lines to pull from all
-the CPUs is certainly better, but I'm guessing walking backwards on
-the bh_lru array is less cache friendly then doing it in the straight up
-way because of data cache  prediction logic.  Which one has a bigger
-impact? I'm not really sure.
+Since a bdi is coupled to a gendisk and a queue, why isn't
+optimal_io_size what you want?
 
-I do think it's a little bit more complicated then the current dead simple
-approach.
+> [IO less sync]
+> 
+>   This topic is actually related to the above Aligned IO. 
+> 
+>   In today's code, in a regular write pattern, when an application is writing a long
+>   enough file, we have two sources of threads for the .write_pages vector. One is the
+>   BDI write_back thread, the other is the sync operation. This produces nightmarish IO
+>   patterns when the write_cache_pages() is re-entrant and each instance is fighting the
+>   other in garbing random pages, this is bad because of two reasons:
+>    1. makes each instance grab a none contiguous set of pages which causes the IO
+>       to split and be none-aligned.
+>    2. Causes Seeky IO where otherwise the application just wrote linear IO of
+>       a large file and then sync.
+> 
+>   The IO pattern is so bad that in some cases it is better to serialize the call to
+>   write_cache_pages() to avoid it. Even with the cost of a Mutex at every call
+> 
+>   Would it be hard to have "sync" set some info, raise a flag, fire up the writeback
+>   and wait for it to finish? writeback in it's turn should switch to a sync mode on that
+>   inode. (The sync operation need not change the writeback priority in my opinion like
+>   today)
 
-I don't really mind making the change but those invalidates are rare. The r=
-est
-of logic in the bh lru management is "dopey-but-simple" (so says the commen=
-t
- so my gut feeling is that its better to have simple code even if possibly =
-less
-optimized in this code path.
+This is essentially what we've been discussing in "Fixing Writeback" for
+the last two years, isn't it (the fact that we have multiple sources of
+writeback and they don't co-ordinate properly).  I thought our solution
+was to prefer linear over seeky ... adding a mutex makes that more
+absolute than a preference, but are you sure it helps (especially as it
+adds a lock to the writeout path).
 
-> The other question is locking, what covers the window from getting
-> the bh until it is installed if the lru was empty? =A0It looks like
-> it could be a large hole, but I'm not sure it wasn't there before.
-> By when do we need them freed? =A0The locking seems to be irq-disable
-> for smp and preempt-disable for up, can we use an RCU grace period?
-
-Good question. As you realized already the only case where we race
-is when going from empty list to having a single item. We'll send an IPI
-in all other cases.
-
-The way I see it, with the current code if you were about
-to install a new bh lru and you got hit with the invalidating IPI
-before you disabled
-preemption/interrupts, you have the same race, and you also have the same
-race if you got the invalidate IPI, cleaned everything up and then someone =
-calls
-to install a bh in the LRU, since there is nothing stopping you from
-installing an LRU bh after the invalidate.
-
-So, if the callers to the invalidate path care about this, they must someho=
-w
-make sure whatever type of BHs (belong to a specific device or fs) they are
-interested in getting  off the LRU are never being added (on any CPU) after=
- the
-point they call the invalidate or they are broken already. Again, this
-is all true
-for the current code to the best of my understanding.
-
-My code doesn't change that. It does make the race window slightly bigger b=
-y
-a couple of instructions, though so it might expose subtle bugs we had
-all along.
-I can't really tell if it's a good or bad thing :-)
-
-> There seem to be more on_each_cpu calls in the bdev invalidate
-> so we need more patches, although each round trip though ipi
-> takes time; we could also consider if they take time.
-
-
-Sure, I plan to get to all of them in the end (and also all the work
-queue variants)
-and at least look at them, but I prefer to tackle the low hanging fruits fi=
-rst.
-
-I maintain a rough TODO list of those I intend to visit and status here:
- https://github.com/gby/linux/wiki
-
-Thanks!
-Gilad
+James
 
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+--
+To unsubscribe from this list: send the line "unsubscribe linux-scsi" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
