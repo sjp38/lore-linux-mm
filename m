@@ -1,146 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 23F1A6B004D
-	for <linux-mm@kvack.org>; Sat, 21 Jan 2012 15:53:45 -0500 (EST)
-Received: by iadj38 with SMTP id j38so3561621iad.14
-        for <linux-mm@kvack.org>; Sat, 21 Jan 2012 12:53:44 -0800 (PST)
-Date: Sat, 21 Jan 2012 12:53:25 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/1] mm: msync: fix issues of sys_msync on tmpfs
-In-Reply-To: <1327036719-1965-1-git-send-email-zumeng.chen@windriver.com>
-Message-ID: <alpine.LSU.2.00.1201211206380.1290@eggly.anvils>
-References: <1327036719-1965-1-git-send-email-zumeng.chen@windriver.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id DEA956B004D
+	for <linux-mm@kvack.org>; Sat, 21 Jan 2012 22:08:22 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so1545206wgb.26
+        for <linux-mm@kvack.org>; Sat, 21 Jan 2012 19:08:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 22 Jan 2012 11:08:20 +0800
+Message-ID: <CAJd=RBC8dCGgqXqP+yjW2+pVoSeFXwXfjx8DLHhMuY8goOadZw@mail.gmail.com>
+Subject: [PATCH] mm: vmscan: ensure reclaiming pages on the lru lists of zone
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zumeng Chen <zumeng.chen@windriver.com>
-Cc: linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, mingo@elte.hu, ralf@linux-mips.org, bruce.ashfield@windriver.com, linux-mm@kvack.org, linux-mips@linux-mips.org
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
 
-On Fri, 20 Jan 2012, Zumeng Chen wrote:
+It is possible that the memcg input into shrink_mem_cgroup_zone() in
+each round is not NULL, and the loop terminates at NULL case. And there
+is chance that pages on the lru lists of zone are not reclaimed.
 
-> This patch fixes two issues as follows:
+Mem cgroup iteration is refactored a bit to ensure the NULL case is also
+input into the function.
 
-Two issues?  You write of a cache aliasing issue, I don't see a second.
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
-> 
-> For some filesystem with fsync == noop_fsync, there is not so much thing
-> to do, so sys_msync just passes by for all arches but some CPUs.
-> 
-> For some CPUs with cache aliases(dmesg|grep alias), it maybe has an issue,
-> which reported by msync test suites in ltp-full when the memory of memset
-> used by msync01 runs into cache alias randomly.
-> 
-> Consider the following scenario used by msync01 in ltp-full:
->   fildes = open(TEMPFILE, O_RDWR | O_CREAT, 0666)) < 0);
->   .../* initialization fildes by write(fildes); */
->   addr = mmap(0, page_sz, PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED,
-> 	 fildes, 0);
->   /* set buf with memset */
->   memset(addr + OFFSET_1, 1, BUF_SIZE);
-> 
->   /* msync the addr before using, or MS_SYNC*/
->   msync(addr, page_sz, MS_ASYNC)
+--- a/mm/vmscan.c	Sat Jan 14 14:02:20 2012
++++ b/mm/vmscan.c	Sun Jan 22 10:09:32 2012
+@@ -2142,14 +2142,14 @@ static void shrink_zone(int priority, st
+ 		.zone = zone,
+ 		.priority = priority,
+ 	};
+-	struct mem_cgroup *memcg;
++	struct mem_cgroup_zone mz = {
++		.zone = zone,
++	};
++	struct mem_cgroup *memcg = NULL;
 
-Actually, that MS_ASYNC msync() does nothing at all but validate its
-arguments these days, even on filesystems with an effective fsync(). 
-We write out dirty pages to disk in good time, msync() or not.
+-	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 	do {
+-		struct mem_cgroup_zone mz = {
+-			.mem_cgroup = memcg,
+-			.zone = zone,
+-		};
++		memcg = mem_cgroup_iter(root, memcg, &reclaim);
++		mz.mem_cgroup = memcg,
 
-> 
->   /* Tries to read fildes */
->   lseek(fildes, (off_t) OFFSET_1, SEEK_SET) != (off_t) OFFSET_1) {
->   nread = read(fildes, read_buf, sizeof(read_buf));
-
-My grasp of cache aliasing issues is very poor, please excuse me if I'm
-wrong; but I don't think a patch to msync() should be necessary at all
-(and ltp's msync01 test is testing nothing more than args to msync()).
-
-In the case of tmpfs, that read() system call above should route through
-to mm/shmem.c do_shmem_file_read(), which contains these same lines as
-the more common mm/filemap.c do_generic_file_read():
-
-	/* If users can be writing to this page using arbitrary
-	 * virtual addresses, take care about potential aliasing
-	 * before reading the page on the kernel side.
-	 */
-	if (mapping_writably_mapped(mapping))
-		flush_dcache_page(page);
-
-The mapping_writably_mapped() test ought to be succeeding in this case
-(please check with printk's, perhaps some change has messed that up),
-so flush_dcache_page(page) should be called, and any aliasing issues
-resolved before the data is copied back to userspace.
-
-I assume your problem is on MIPS, since you copied Ralf and linux-mips:
-if the MIPS flush_dcache_page() is not working right, then you'll need
-to follow up with them.
-
-Hugh
-
-> 
->   /* Then test the result */
->   if (read_buf[count] != 1) {
-> 
-> The test result is random too for CPUs with cache alias. So in this
-> situation, we have to flush the related vma to make sure the read is
-> correct.
-> 
-> Signed-off-by: Zumeng Chen <zumeng.chen@windriver.com>
-
-> ---
->  mm/msync.c |   30 ++++++++++++++++++++++++++++++
->  1 files changed, 30 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/msync.c b/mm/msync.c
-> index 632df45..0021a7e 100644
-> --- a/mm/msync.c
-> +++ b/mm/msync.c
-> @@ -13,6 +13,14 @@
->  #include <linux/file.h>
->  #include <linux/syscalls.h>
->  #include <linux/sched.h>
-> +#include <asm/cacheflush.h>
-> +
-> +/* Cache aliases should be taken into accounts when msync. */
-> +#ifdef cpu_has_dc_aliases
-> +#define CPU_HAS_CACHE_ALIAS cpu_has_dc_aliases
-> +#else
-> +#define CPU_HAS_CACHE_ALIAS 0
-> +#endif
->  
->  /*
->   * MS_SYNC syncs the entire file - including mappings.
-> @@ -78,6 +86,28 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
->  		}
->  		file = vma->vm_file;
->  		start = vma->vm_end;
-> +
-> +		/*
-> +		 * For some filesystems with fsync == noop_fsync, msync just
-> +		 * passes by but some CPUs.
-> +		 * For CPUs with cache alias, msync has to flush the related
-> +		 * vma explicitly to make sure data coherency between memory
-> +		 * and cache, which includes MS_SYNC or MS_ASYNC. That is to
-> +		 * say, cache aliases should not be an async factor, so does
-> +		 * msync on other arches without cache aliases.
-> +		 */
-> +		if (file && file->f_op && file->f_op->fsync == noop_fsync) {
-> +			if (CPU_HAS_CACHE_ALIAS)
-> +				flush_cache_range(vma, vma->vm_start,
-> +							vma->vm_end);
-> +			if (start >= end) {
-> +				error = 0;
-> +				goto out_unlock;
-> +			}
-> +			vma = find_vma(mm, start);
-> +			continue;
-> +		}
-> +
->  		if ((flags & MS_SYNC) && file &&
->  				(vma->vm_flags & VM_SHARED)) {
->  			get_file(file);
-> -- 
-> 1.7.0.4
+ 		shrink_mem_cgroup_zone(priority, &mz, sc);
+ 		/*
+@@ -2166,7 +2166,6 @@ static void shrink_zone(int priority, st
+ 			mem_cgroup_iter_break(root, memcg);
+ 			break;
+ 		}
+-		memcg = mem_cgroup_iter(root, memcg, &reclaim);
+ 	} while (memcg);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
