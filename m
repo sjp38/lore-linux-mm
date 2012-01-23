@@ -1,110 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 983DD6B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 04:04:41 -0500 (EST)
-Date: Mon, 23 Jan 2012 10:04:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
- account move.
-Message-ID: <20120123090436.GA12375@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
- <20120117152635.GA22142@tiehlicka.suse.cz>
- <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
- <20120118123759.GB31112@tiehlicka.suse.cz>
- <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
- <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id A96416B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 04:19:21 -0500 (EST)
+Message-ID: <1327310360.96918.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+Date: Mon, 23 Jan 2012 01:19:20 -0800 (PST)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: [Help] : RSS/PSS showing 0 during smaps for Xorg
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
+Content-Type: multipart/alternative; boundary="1705842018-575703137-1327310360=:96918"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri 20-01-12 10:08:44, Ying Han wrote:
-> On Wed, Jan 18, 2012 at 6:17 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 18 Jan 2012 13:37:59 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> >> On Wed 18-01-12 09:06:56, KAMEZAWA Hiroyuki wrote:
-> >> > On Tue, 17 Jan 2012 16:26:35 +0100
-> >> > Michal Hocko <mhocko@suse.cz> wrote:
-> >> >
-> >> > > On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
-> >> > > > I think this bugfix is needed before going ahead. thoughts?
-> >> > > > ==
-> >> > > > From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
-> >> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> > > > Date: Fri, 13 Jan 2012 14:27:20 +0900
-> >> > > > Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
-> >> > > >
-> >> > > > At starting move_account(), source memcg's per-cpu variable
-> >> > > > MEM_CGROUP_ON_MOVE is set. The page status update
-> >> > > > routine check it under rcu_read_lock(). But there is no memory
-> >> > > > barrier. This patch adds one.
-> >> > >
-> >> > > OK this would help to enforce that the CPU would see the current value
-> >> > > but what prevents us from the race with the value update without the
-> >> > > lock? This is as racy as it was before AFAICS.
-> >> > >
-> >> >
-> >> > Hm, do I misunderstand ?
-> >> > ==
-> >> >    update                     reference
-> >> >
-> >> >    CPU A                        CPU B
-> >> >   set value                rcu_read_lock()
-> >> >   smp_wmb()                smp_rmb()
-> >> >                            read_value
-> >> >                            rcu_read_unlock()
-> >> >   synchronize_rcu().
-> >> > ==
-> >> > I expect
-> >> > If synchronize_rcu() is called before rcu_read_lock() => move_lock_xxx will be held.
-> >> > If synchronize_rcu() is called after rcu_read_lock() => update will be delayed.
-> >>
-> >> Ahh, OK I can see it now. Readers are not that important because it is
-> >> actually the updater who is delayed until all preexisting rcu read
-> >> sections are finished.
-> >>
-> >> In that case. Why do we need both barriers? spin_unlock is a full
-> >> barrier so maybe we just need smp_rmb before we read value to make sure
-> >> that we do not get stalled value when we start rcu_read section after
-> >> synchronize_rcu?
-> >>
-> >
-> > I doubt .... If no barrier, this case happens
-> >
-> > ==
-> >        update                  reference
-> >        CPU A                   CPU B
-> >        set value
-> >        synchronize_rcu()       rcu_read_lock()
-> >                                read_value <= find old value
-> >                                rcu_read_unlock()
-> >                                do no lock
-> > ==
-> 
-> Hi Kame,
-> 
-> Can you help to clarify a bit more on the example above? Why
-> read_value got the old value after synchronize_rcu().
+--1705842018-575703137-1327310360=:96918
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-AFAIU it is because rcu_read_unlock doesn't force any memory barrier
-and we synchronize only the updater (with synchronize_rcu), so nothing
-guarantees that the value set on CPUA is visible to CPUB.
+Dear All,=0A=A0=0AI am facing one problem for one of my kernel module for o=
+ur linux mobile with kernel2.6.36.=0A=A0=0AWhen I do cat /proc/<Xorg pid>/s=
+maps | grep -A 11 /dev/ump , to track information for my=A0ump module,=0Awe=
+ always get Rss/Pss as 0 kB as shown below:=0Acat /proc/1731/smaps | grep -=
+A 11 /dev/ump=0A414db000-415ff000 rw-s 00015000 00:12 6803=A0=A0=A0=A0=A0=
+=A0 /dev/ump=0ASize:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 1168 kB=0ARs=
+s:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0APss:=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0Atrack_rss_value =3D=
+ 0, iswalkcalled =3D 1, smap_pte_range_called =3D 1,=A0swap_pte =3D 0,=A0no=
+t_pte_present =3D 0,=A0not_normal_page =3D 1=0Aisspecial =3D 0, not_special=
+ =3D 1, isMixedMap =3D 0, pfnpages_null =3D 0, pfnoff_flag =3D 0, not_cow_m=
+apping =3D 1,=A0normal_page_end =3D 0=0A=A0=0AAfter tracing down the proble=
+m, I found out that during "show_smaps" in fs/proc/task_mmu.c and during ca=
+ll to smaps_pte_range the vm_normal_page() is always returning NULL for our=
+ /dev/ump driver.=0A(smaps_pte_range() is the place where Rss/Pss informati=
+on is populated)=0AThus mss->resident (Rss value) is never getting incremen=
+ted.=A0 =0A=A0=0ATo trace the problem I added few flags during show_smaps &=
+ vm_normal_page() as shown above. The value of 1 indicates that the conditi=
+on is executed.=0AThus "normal_page_end" indicates that the "vm_normal_page=
+" has never ended successfully and always returns from =0A"!is_cow_mapping(=
+)".=0A=A0=0ASo, I wanted to know the main cause for vm_normal_page() always=
+ returning NULL page for our ump driver. =0AWhat is that I am missing in my=
+ driver ?=0A=A0=0ACan anyone please let me know what could be the problem i=
+n our driver.=0A=A0=0AThanks.=0A=A0=0AWith Regards,=0APintu
+--1705842018-575703137-1327310360=:96918
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+<html><body><div style=3D"color:#000; background-color:#fff; font-family:Co=
+urier New, courier, monaco, monospace, sans-serif;font-size:12pt"><div styl=
+e=3D"RIGHT: auto">Dear All,</div>
+<div style=3D"RIGHT: auto">&nbsp;</div>
+<div style=3D"RIGHT: auto">I am facing one problem for one of my kernel mod=
+ule for our linux mobile with kernel2.6.36.</div>
+<div style=3D"RIGHT: auto">&nbsp;</div>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">When I do cat /proc/=
+&lt;Xorg pid&gt;/smaps | grep -A 11 /dev/ump , to track information for my&=
+nbsp;ump module,</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">we always get Rss/Ps=
+s as 0 kB as shown below:</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">cat /proc/1731/smaps=
+ | grep -A 11 /dev/ump</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">414db000-415ff000 rw=
+-s 00015000 00:12 6803&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /dev/ump<BR>Size=
+:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
+bsp;&nbsp; 1168 kB<BR>Rss:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0 kB</SPAN></DI=
+V>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">Pss:&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp; 0 kB</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">track_rss_value =3D 0, iswalkcalled =3D 1, smap_pte_range_called =
+=3D 1,&nbsp;swap_pte =3D 0,&nbsp;not_pte_present =3D 0,&nbsp;not_normal_pag=
+e =3D 1<BR>isspecial =3D 0, not_special =3D 1, isMixedMap =3D 0, pfnpages_n=
+ull =3D 0, pfnoff_flag =3D 0, not_cow_mapping =3D 1,&nbsp;normal_page_end =
+=3D 0</SPAN></SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto"></SPAN></SPAN>&nbsp;</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">After tracing down t=
+he problem, I found out that during "show_smaps" in fs/proc/task_mmu.c and =
+during call to smaps_pte_range the vm_normal_page() is always returning NUL=
+L for our /dev/ump driver.</SPAN></DIV>
+<DIV><SPAN>(smaps_pte_range() is the place where Rss/Pss information is pop=
+ulated)</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">Thus mss-&gt;residen=
+t (Rss value) is never getting incremented.&nbsp; </SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"></SPAN>&nbsp;</DIV><=
+/SPAN></SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">To trace the problem I added few flags during show_smaps &amp; vm_n=
+ormal_page() as shown above. The value of 1 indicates that the condition is=
+ executed.</SPAN></SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">Thus "normal_page_end" indicates that the "vm_normal_page" has neve=
+r ended successfully and always returns from </SPAN></SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">"!is_cow_mapping()".</SPAN></SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto"></SPAN></SPAN>&nbsp;</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><SPAN style=3D"RIGHT=
+: auto">So, I wanted to know the main cause for vm_normal_page() always ret=
+urning NULL page for our ump driver.
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">What is that I am mi=
+ssing in my driver ?</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"></SPAN>&nbsp;</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">Can anyone please le=
+t me know what could be the problem in our driver.</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"></SPAN>&nbsp;</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">Thanks.</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"></SPAN>&nbsp;</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">With Regards,</SPAN>=
+</DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto">Pintu</SPAN></DIV>
+<DIV style=3D"RIGHT: auto"><SPAN style=3D"RIGHT: auto"><VAR id=3Dyui-ie-cur=
+sor></VAR></SPAN>&nbsp;</DIV></SPAN></SPAN></DIV></div></body></html>
+--1705842018-575703137-1327310360=:96918--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
