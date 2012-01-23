@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 347B56B004D
-	for <linux-mm@kvack.org>; Sun, 22 Jan 2012 17:12:15 -0500 (EST)
-Message-ID: <4F1C897A.3070401@panasas.com>
-Date: Mon, 23 Jan 2012 00:11:06 +0200
-From: Boaz Harrosh <bharrosh@panasas.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 504816B004D
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2012 20:55:09 -0500 (EST)
+Received: by wicr5 with SMTP id r5so2256076wic.14
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2012 17:55:07 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] Future writeback topics
-References: <4F1C141C.2050704@panasas.com>  <1327243783.2834.6.camel@dabdike.int.hansenpartnership.com>  <4F1C2D45.4090208@panasas.com> <1327247393.2834.15.camel@dabdike.int.hansenpartnership.com>
-In-Reply-To: <1327247393.2834.15.camel@dabdike.int.hansenpartnership.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Date: Mon, 23 Jan 2012 09:55:07 +0800
+Message-ID: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+Subject: [PATCH] mm: vmscan: check mem cgroup over reclaimed
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, "Martin K. Petersen" <martin.petersen@oracle.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
 
-On 01/22/2012 05:49 PM, James Bottomley wrote:
-> 
-> But this topic then becomes adding alignment for non block backed
-> filesystems?  I take it you're thinking NFS rather than MTD or MMC?
-> 
+To avoid reduction in performance of reclaimee, checking overreclaim is added
+after shrinking lru list, when pages are reclaimed from mem cgroup.
 
-Sorry to differ. But no this is for most making the IO aligned in the first
-place. Block-dev or not. Today VFS has no notion of alignment and IO is
-submitted as is with out any alignment considerations.
+If over reclaim occurs, shrinking remaining lru lists is skipped, and no more
+reclaim for reclaim/compaction.
 
-> For multiple devices, you do a simple cascade ... a bit like dm does
-> today ... but unless all the devices are aligned to optimal I/O it never
-> really works (and it's not necessarily worth solving ... the idea that
-> if you want performance from an array of devices, you match
-> characteristics isn't a hugely hard one to get the industry to swallow).
-> 
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
-No I'm talking about raid configurations like object raid in exofs/NFS or
-raid0/5 in BTRFS and ZFS and such, where there are other larger alignment
-structures to consider. Also for large-blocks filesystems/devices who
-would like IO aligned on bigger than a page sizes.
+--- a/mm/vmscan.c	Mon Jan 23 00:23:10 2012
++++ b/mm/vmscan.c	Mon Jan 23 09:57:20 2012
+@@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+ 	struct blk_plug plug;
++	bool memcg_over_reclaimed = false;
 
-Thanks
-Boaz
+ restart:
+ 	nr_reclaimed = 0;
+@@ -2103,6 +2104,11 @@ restart:
+
+ 				nr_reclaimed += shrink_list(lru, nr_to_scan,
+ 							    mz, sc, priority);
++
++				memcg_over_reclaimed = !scanning_global_lru(mz)
++					&& (nr_reclaimed >= nr_to_reclaim);
++				if (memcg_over_reclaimed)
++					goto out;
+ 			}
+ 		}
+ 		/*
+@@ -2116,6 +2122,7 @@ restart:
+ 		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
+ 			break;
+ 	}
++out:
+ 	blk_finish_plug(&plug);
+ 	sc->nr_reclaimed += nr_reclaimed;
+
+@@ -2127,7 +2134,8 @@ restart:
+ 		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
+
+ 	/* reclaim/compaction might need reclaim to continue */
+-	if (should_continue_reclaim(mz, nr_reclaimed,
++	if (!memcg_over_reclaimed &&
++	    should_continue_reclaim(mz, nr_reclaimed,
+ 					sc->nr_scanned - nr_scanned, sc))
+ 		goto restart;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
