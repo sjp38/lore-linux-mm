@@ -1,94 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 6B6A86B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 14:04:07 -0500 (EST)
-Received: by qcsg1 with SMTP id g1so744447qcs.14
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 11:04:06 -0800 (PST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id D90376B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 14:14:24 -0500 (EST)
+Received: by qadc11 with SMTP id c11so2117262qad.14
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 11:14:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
-References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
-Date: Mon, 23 Jan 2012 11:04:06 -0800
-Message-ID: <CALWz4iyB0oSMBsfLJYD+xrB7ua9bRg5FD=cw4Sc-EdG1iLynow@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
+In-Reply-To: <20120123130221.GA15113@tiehlicka.suse.cz>
+References: <CAJd=RBAbFd=MFZZyCKN-Si-Zt=C6dKVUaG-C7s5VKoTWfY00nA@mail.gmail.com>
+	<20120123130221.GA15113@tiehlicka.suse.cz>
+Date: Mon, 23 Jan 2012 11:14:23 -0800
+Message-ID: <CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
+Subject: Re: [PATCH] mm: memcg: fix over reclaiming mem cgroup
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sun, Jan 22, 2012 at 5:55 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> To avoid reduction in performance of reclaimee, checking overreclaim is a=
-dded
-> after shrinking lru list, when pages are reclaimed from mem cgroup.
+On Mon, Jan 23, 2012 at 5:02 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sat 21-01-12 22:49:23, Hillf Danton wrote:
+>> In soft limit reclaim, overreclaim occurs when pages are reclaimed from =
+mem
+>> group that is under its soft limit, or when more pages are reclaimd than=
+ the
+>> exceeding amount, then performance of reclaimee goes down accordingly.
 >
-> If over reclaim occurs, shrinking remaining lru lists is skipped, and no =
-more
-> reclaim for reclaim/compaction.
+> First of all soft reclaim is more a help for the global memory pressure
+> balancing rather than any guarantee about how much we reclaim for the
+> group.
+> We need to do more changes in order to make it a guarantee.
+> For example you implementation will cause severe problems when all
+> cgroups are soft unlimited (default conf.) or when nobody is above the
+> limit but the total consumption triggers the global reclaim. Therefore
+> nobody is in excess and you would skip all groups and only bang on the
+> root memcg.
 >
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
+> Ying Han has a patch which basically skips all cgroups which are under
+> its limit until we reach a certain reclaim priority but even for this we
+> need some additional changes - e.g. reverse the current default setting
+> of the soft limit.
 >
-> --- a/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 00:23:10 2012
-> +++ b/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 09:57:20 2012
-> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
-> =A0 =A0 =A0 =A0unsigned long nr_reclaimed, nr_scanned;
-> =A0 =A0 =A0 =A0unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
-> =A0 =A0 =A0 =A0struct blk_plug plug;
-> + =A0 =A0 =A0 bool memcg_over_reclaimed =3D false;
->
-> =A0restart:
-> =A0 =A0 =A0 =A0nr_reclaimed =3D 0;
-> @@ -2103,6 +2104,11 @@ restart:
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_reclaim=
-ed +=3D shrink_list(lru, nr_to_scan,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mz, sc, priority);
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_over_=
-reclaimed =3D !scanning_global_lru(mz)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 && (nr_reclaimed >=3D nr_to_reclaim);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memcg_o=
-ver_reclaimed)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 goto out;
+> Anyway, I like the nr_to_reclaim reduction idea because we have to do
+> this in some way because the global reclaim starts with ULONG
+> nr_to_scan.
 
-Why we need the change here? Do we have number to demonstrate?
+Agree with Michal where there are quite a lot changes we need to get
+in for soft limit before any further optimization.
 
+Hillf, please refer to the patch from Johannes
+https://lkml.org/lkml/2012/1/13/99 which got quite a lot recent
+discussions. I am expecting to get that in before further soft limit
+changes.
 
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> @@ -2116,6 +2122,7 @@ restart:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (nr_reclaimed >=3D nr_to_reclaim && pri=
-ority < DEF_PRIORITY)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
-> =A0 =A0 =A0 =A0}
-> +out:
-> =A0 =A0 =A0 =A0blk_finish_plug(&plug);
-> =A0 =A0 =A0 =A0sc->nr_reclaimed +=3D nr_reclaimed;
->
-> @@ -2127,7 +2134,8 @@ restart:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, mz, s=
-c, priority, 0);
->
-> =A0 =A0 =A0 =A0/* reclaim/compaction might need reclaim to continue */
-> - =A0 =A0 =A0 if (should_continue_reclaim(mz, nr_reclaimed,
-> + =A0 =A0 =A0 if (!memcg_over_reclaimed &&
-> + =A0 =A0 =A0 =A0 =A0 should_continue_reclaim(mz, nr_reclaimed,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0sc->nr_scanned - nr_scanned, sc))
-
-This changes the existing logic. What if the nr_reclaimed is greater
-than nr_to_reclaim, but smaller than pages_for_compaction? The
-existing logic is to continue reclaiming.
+Thanks
 
 --Ying
 
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto restart;
+
+
+>
+>> A helper function is added to compute the number of pages that exceed th=
+e soft
+>> limit of given mem cgroup, then the excess pages are used when every rec=
+laimee
+>> is reclaimed to avoid overreclaim.
+>>
+>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>> ---
+>>
+>> --- a/mm/memcontrol.c Tue Jan 17 20:41:36 2012
+>> +++ b/mm/memcontrol.c Sat Jan 21 21:18:46 2012
+>> @@ -1662,6 +1662,21 @@ static int mem_cgroup_soft_reclaim(struc
+>> =A0 =A0 =A0 return total;
+>> =A0}
+>>
+>> +unsigned long mem_cgroup_excess_pages(struct mem_cgroup *memcg)
+>> +{
+>> + =A0 =A0 unsigned long pages;
+>> +
+>> + =A0 =A0 if (mem_cgroup_disabled())
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> + =A0 =A0 if (!memcg)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> + =A0 =A0 if (mem_cgroup_is_root(memcg))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> +
+>> + =A0 =A0 pages =3D res_counter_soft_limit_excess(&memcg->res) >> PAGE_S=
+HIFT;
+>> + =A0 =A0 return pages;
+>> +}
+>> +
+>> =A0/*
+>> =A0 * Check OOM-Killer is already running under our hierarchy.
+>> =A0 * If someone is running, return false.
+>> --- a/mm/vmscan.c =A0 =A0 Sat Jan 14 14:02:20 2012
+>> +++ b/mm/vmscan.c =A0 =A0 Sat Jan 21 21:30:06 2012
+>> @@ -2150,8 +2150,34 @@ static void shrink_zone(int priority, st
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .mem_cgroup =3D memcg,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .zone =3D zone,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
+>> + =A0 =A0 =A0 =A0 =A0 =A0 unsigned long old;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 bool clobbered =3D false;
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (memcg !=3D NULL) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long excess;
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 excess =3D mem_cgroup_excess_p=
+ages(memcg);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* No bother reclaiming page=
+s from mem cgroup that
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* is under soft limit
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!excess)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto next;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* And reclaim no more pages=
+ than excess
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (excess < sc->nr_to_reclaim=
+) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 old =3D sc->nr=
+_to_reclaim;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_to_recl=
+aim =3D excess;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 clobbered =3D =
+true;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 =A0 =A0 =A0 =A0 }
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_mem_cgroup_zone(priority, &mz, sc);
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (clobbered)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_to_reclaim =3D old;
+>> +next:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Limit reclaim has historically picked o=
+ne memcg and
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* scanned it with decreasing priority lev=
+els until
+>> --- a/include/linux/memcontrol.h =A0 =A0 =A0Thu Jan 19 22:03:14 2012
+>> +++ b/include/linux/memcontrol.h =A0 =A0 =A0Sat Jan 21 21:35:50 2012
+>> @@ -161,6 +161,7 @@ unsigned long mem_cgroup_soft_limit_recl
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 gfp_t gfp_mask,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 unsigned long *total_scanned);
+>> =A0u64 mem_cgroup_get_limit(struct mem_cgroup *memcg);
+>> +unsigned long mem_cgroup_excess_pages(struct mem_cgroup *memcg);
+>>
+>> =A0void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_it=
+em idx);
+>> =A0#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> @@ -376,6 +377,11 @@ unsigned long mem_cgroup_soft_limit_recl
+>>
+>> =A0static inline
+>> =A0u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+>> +{
+>> + =A0 =A0 return 0;
+>> +}
+>> +
+>> +static inline unsigned long mem_cgroup_excess_pages(struct mem_cgroup *=
+memcg)
+>> =A0{
+>> =A0 =A0 =A0 return 0;
+>> =A0}
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" =
+in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
