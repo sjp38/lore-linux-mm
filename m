@@ -1,96 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 23C376B0070
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:11 -0500 (EST)
-Message-Id: <20120123201709.433927049@linux.com>
-Date: Mon, 23 Jan 2012 14:16:53 -0600
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 535016B0072
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:12 -0500 (EST)
+Message-Id: <20120123201710.576227239@linux.com>
+Date: Mon, 23 Jan 2012 14:16:55 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup 7/9] slub: Separate out kmem_cache_cpu processing from deactivate_slab
+Subject: [Slub cleanup 9/9] slub: pass page to node_match() instead of kmem_cache_cpu structure
 References: <20120123201646.924319545@linux.com>
-Content-Disposition: inline; filename=separate_deactivate_slab
+Content-Disposition: inline; filename=page_parameter_to_node_match
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Processing on fields of kmem_cache_cpu is cleaner if code working on fields
-of this struct is taken out of deactivate_slab().
+Avoid passing the kmem_cache_cpu pointer to node_match. This makes the
+node_match function more generic and easier to understand.
 
 Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |   24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ mm/slub.c |   10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:28.506748438 -0600
-+++ linux-2.6/mm/slub.c	2012-01-13 08:47:31.930748367 -0600
-@@ -1712,14 +1712,12 @@ void init_kmem_cache_cpus(struct kmem_ca
- /*
-  * Remove the cpu slab
+--- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:35.018748303 -0600
++++ linux-2.6/mm/slub.c	2012-01-13 08:47:37.898748244 -0600
+@@ -2025,10 +2025,10 @@ static void flush_all(struct kmem_cache
+  * Check if the objects in a per cpu structure fit numa
+  * locality expectations.
   */
--static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
-+static void deactivate_slab(struct kmem_cache *s, struct page *page, void *freelist)
+-static inline int node_match(struct kmem_cache_cpu *c, int node)
++static inline int node_match(struct page *page, int node)
  {
- 	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
--	struct page *page = c->page;
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
- 	int lock = 0;
- 	enum slab_modes l = M_NONE, m = M_NONE;
--	void *freelist;
- 	void *nextfree;
- 	int tail = DEACTIVATE_TO_HEAD;
- 	struct page new;
-@@ -1730,11 +1728,6 @@ static void deactivate_slab(struct kmem_
- 		tail = DEACTIVATE_TO_TAIL;
- 	}
- 
--	c->tid = next_tid(c->tid);
--	c->page = NULL;
--	freelist = c->freelist;
--	c->freelist = NULL;
--
- 	/*
- 	 * Stage one: Free all available per cpu objects back
- 	 * to the page freelist while it is still frozen. Leave the
-@@ -1992,7 +1985,11 @@ int put_cpu_partial(struct kmem_cache *s
- static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
- {
- 	stat(s, CPUSLAB_FLUSH);
--	deactivate_slab(s, c);
-+	deactivate_slab(s, c->page, c->freelist);
-+
-+	c->tid = next_tid(c->tid);
-+	c->page = NULL;
-+	c->freelist = NULL;
- }
- 
- /*
-@@ -2204,7 +2201,9 @@ redo:
- 
- 	if (unlikely(!node_match(c, node))) {
- 		stat(s, ALLOC_NODE_MISMATCH);
--		deactivate_slab(s, c);
-+		deactivate_slab(s, c->page, c->freelist);
-+		c->page = NULL;
-+		c->freelist = NULL;
+ #ifdef CONFIG_NUMA
+-	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
++	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
+ 		return 0;
+ #endif
+ 	return 1;
+@@ -2201,7 +2201,7 @@ static void *__slab_alloc(struct kmem_ca
  		goto new_slab;
- 	}
+ redo:
  
-@@ -2264,8 +2263,9 @@ new_slab:
- 	if (!alloc_debug_processing(s, c->page, freelist, addr))
- 		goto new_slab;	/* Slab failed checks. Next slab needed */
+-	if (unlikely(!node_match(c, node))) {
++	if (unlikely(!node_match(page, node))) {
+ 		stat(s, ALLOC_NODE_MISMATCH);
+ 		deactivate_slab(s, page, c->freelist);
+ 		c->page = NULL;
+@@ -2288,6 +2288,7 @@ static __always_inline void *slab_alloc(
+ {
+ 	void **object;
+ 	struct kmem_cache_cpu *c;
++	struct page *page;
+ 	unsigned long tid;
  
--	c->freelist = get_freepointer(s, freelist);
--	deactivate_slab(s, c);
-+	deactivate_slab(s, c->page, get_freepointer(s, freelist));
-+	c->page = NULL;
-+	c->freelist = NULL;
- 	local_irq_restore(flags);
- 	return freelist;
- }
+ 	if (slab_pre_alloc_hook(s, gfpflags))
+@@ -2313,7 +2314,8 @@ redo:
+ 	barrier();
+ 
+ 	object = c->freelist;
+-	if (unlikely(!object || !node_match(c, node)))
++	page = c->page;
++	if (unlikely(!object || !node_match(page, node)))
+ 
+ 		object = __slab_alloc(s, gfpflags, node, addr, c);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
