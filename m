@@ -1,68 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 504816B004D
-	for <linux-mm@kvack.org>; Sun, 22 Jan 2012 20:55:09 -0500 (EST)
-Received: by wicr5 with SMTP id r5so2256076wic.14
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2012 17:55:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 983DD6B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 04:04:41 -0500 (EST)
+Date: Mon, 23 Jan 2012 10:04:36 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
+ account move.
+Message-ID: <20120123090436.GA12375@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117152635.GA22142@tiehlicka.suse.cz>
+ <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120118123759.GB31112@tiehlicka.suse.cz>
+ <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
+ <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
 MIME-Version: 1.0
-Date: Mon, 23 Jan 2012 09:55:07 +0800
-Message-ID: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
-Subject: [PATCH] mm: vmscan: check mem cgroup over reclaimed
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-To avoid reduction in performance of reclaimee, checking overreclaim is added
-after shrinking lru list, when pages are reclaimed from mem cgroup.
+On Fri 20-01-12 10:08:44, Ying Han wrote:
+> On Wed, Jan 18, 2012 at 6:17 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 18 Jan 2012 13:37:59 +0100
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> >
+> >> On Wed 18-01-12 09:06:56, KAMEZAWA Hiroyuki wrote:
+> >> > On Tue, 17 Jan 2012 16:26:35 +0100
+> >> > Michal Hocko <mhocko@suse.cz> wrote:
+> >> >
+> >> > > On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
+> >> > > > I think this bugfix is needed before going ahead. thoughts?
+> >> > > > ==
+> >> > > > From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
+> >> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >> > > > Date: Fri, 13 Jan 2012 14:27:20 +0900
+> >> > > > Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
+> >> > > >
+> >> > > > At starting move_account(), source memcg's per-cpu variable
+> >> > > > MEM_CGROUP_ON_MOVE is set. The page status update
+> >> > > > routine check it under rcu_read_lock(). But there is no memory
+> >> > > > barrier. This patch adds one.
+> >> > >
+> >> > > OK this would help to enforce that the CPU would see the current value
+> >> > > but what prevents us from the race with the value update without the
+> >> > > lock? This is as racy as it was before AFAICS.
+> >> > >
+> >> >
+> >> > Hm, do I misunderstand ?
+> >> > ==
+> >> >    update                     reference
+> >> >
+> >> >    CPU A                        CPU B
+> >> >   set value                rcu_read_lock()
+> >> >   smp_wmb()                smp_rmb()
+> >> >                            read_value
+> >> >                            rcu_read_unlock()
+> >> >   synchronize_rcu().
+> >> > ==
+> >> > I expect
+> >> > If synchronize_rcu() is called before rcu_read_lock() => move_lock_xxx will be held.
+> >> > If synchronize_rcu() is called after rcu_read_lock() => update will be delayed.
+> >>
+> >> Ahh, OK I can see it now. Readers are not that important because it is
+> >> actually the updater who is delayed until all preexisting rcu read
+> >> sections are finished.
+> >>
+> >> In that case. Why do we need both barriers? spin_unlock is a full
+> >> barrier so maybe we just need smp_rmb before we read value to make sure
+> >> that we do not get stalled value when we start rcu_read section after
+> >> synchronize_rcu?
+> >>
+> >
+> > I doubt .... If no barrier, this case happens
+> >
+> > ==
+> >        update                  reference
+> >        CPU A                   CPU B
+> >        set value
+> >        synchronize_rcu()       rcu_read_lock()
+> >                                read_value <= find old value
+> >                                rcu_read_unlock()
+> >                                do no lock
+> > ==
+> 
+> Hi Kame,
+> 
+> Can you help to clarify a bit more on the example above? Why
+> read_value got the old value after synchronize_rcu().
 
-If over reclaim occurs, shrinking remaining lru lists is skipped, and no more
-reclaim for reclaim/compaction.
+AFAIU it is because rcu_read_unlock doesn't force any memory barrier
+and we synchronize only the updater (with synchronize_rcu), so nothing
+guarantees that the value set on CPUA is visible to CPUB.
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
-
---- a/mm/vmscan.c	Mon Jan 23 00:23:10 2012
-+++ b/mm/vmscan.c	Mon Jan 23 09:57:20 2012
-@@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
- 	unsigned long nr_reclaimed, nr_scanned;
- 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
- 	struct blk_plug plug;
-+	bool memcg_over_reclaimed = false;
-
- restart:
- 	nr_reclaimed = 0;
-@@ -2103,6 +2104,11 @@ restart:
-
- 				nr_reclaimed += shrink_list(lru, nr_to_scan,
- 							    mz, sc, priority);
-+
-+				memcg_over_reclaimed = !scanning_global_lru(mz)
-+					&& (nr_reclaimed >= nr_to_reclaim);
-+				if (memcg_over_reclaimed)
-+					goto out;
- 			}
- 		}
- 		/*
-@@ -2116,6 +2122,7 @@ restart:
- 		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
- 			break;
- 	}
-+out:
- 	blk_finish_plug(&plug);
- 	sc->nr_reclaimed += nr_reclaimed;
-
-@@ -2127,7 +2134,8 @@ restart:
- 		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
-
- 	/* reclaim/compaction might need reclaim to continue */
--	if (should_continue_reclaim(mz, nr_reclaimed,
-+	if (!memcg_over_reclaimed &&
-+	    should_continue_reclaim(mz, nr_reclaimed,
- 					sc->nr_scanned - nr_scanned, sc))
- 		goto restart;
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
