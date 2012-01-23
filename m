@@ -1,79 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 74A576B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:11:12 -0500 (EST)
-Received: by qcsg1 with SMTP id g1so787912qcs.14
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 12:11:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 23 Jan 2012 12:11:11 -0800
-Message-ID: <CALWz4ixufzgi2kDRgTMAzty-S2AKMmPfqdGc1sBRNFJxf-WTAQ@mail.gmail.com>
-Subject: Re: [PATCH] memcg: remove unnecessary thp check at page stat accounting
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 4E3D56B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:07 -0500 (EST)
+Message-Id: <20120123201646.924319545@linux.com>
+Date: Mon, 23 Jan 2012 14:16:46 -0600
+From: Christoph Lameter <cl@linux.com>
+Subject: [Slub cleanup 0/9] Slub: cleanups V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Wed, Jan 18, 2012 at 11:14 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Thank you very much for reviewing previous RFC series.
-> This is a patch against memcg-devel and linux-next (can by applied withou=
-t HUNKs).
->
-> =3D=3D
->
-> From 64641b360839b029bb353fbd95f7554cc806ed05 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 12 Jan 2012 16:08:33 +0900
-> Subject: [PATCH] memcg: remove unnecessary thp check in mem_cgroup_update=
-_page_stat()
->
-> commit 58b318ecf(memcg-devel)
-> =A0 =A0memcg: make mem_cgroup_split_huge_fixup() more efficient
-> removes move_lock_page_cgroup() in thp-split path.
->
-> So, We do not have to check PageTransHuge in mem_cgroup_update_page_stat
-> and fallback into the locked accounting because both move charge and thp
-> split up are done with compound_lock so they cannot race. update vs.
-> move is protected by the mem_cgroup_stealed sufficiently.
+A series of cleanup patches that resulted from the rework
+of the allocation paths to not disable interrupts.
 
-Sorry, i don't see we changed the "move charge" to "move account" ?
+The patches remove the node field from kmem_cache_cpu and generally
+clean up code in the critical paths.
 
---Ying
->
-> PageTransHuge pages shouldn't appear in this code path currently because
-> we are tracking only file pages at the moment but later we are planning
-> to track also other pages (e.g. mlocked ones).
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hackbench performance before and after using 3.3-rc1
 
-> ---
-> =A0mm/memcontrol.c | =A0 =A02 +-
-> =A01 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 5073474..fb2dfc3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1801,7 +1801,7 @@ void mem_cgroup_update_page_stat(struct page *page,
-> =A0 =A0 =A0 =A0if (unlikely(!memcg || !PageCgroupUsed(pc)))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
-> =A0 =A0 =A0 =A0/* pc->mem_cgroup is unstable ? */
-> - =A0 =A0 =A0 if (unlikely(mem_cgroup_stealed(memcg)) || PageTransHuge(pa=
-ge)) {
-> + =A0 =A0 =A0 if (unlikely(mem_cgroup_stealed(memcg))) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* take a lock against to access pc->mem_c=
-group */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0move_lock_page_cgroup(pc, &flags);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0need_unlock =3D true;
-> --
-> 1.7.4.1
->
->
+			Before		After
+100 process 20000	152.3		151.2
+100 process 20000	160.6		154.8
+100 process 20000	161.2		155.5
+10 process 20000	15.9		15.5
+10 process 20000	15.7		15.5
+10 process 20000	15.8		15.5
+1 process 20000		1.8		1.6
+1 process 20000		1.6		1.6
+1 process 20000		1.7		1.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
