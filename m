@@ -1,44 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id A50216B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:08 -0500 (EST)
-Message-Id: <20120123201706.547465637@linux.com>
-Date: Mon, 23 Jan 2012 14:16:48 -0600
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 633A56B0068
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:09 -0500 (EST)
+Message-Id: <20120123201707.746733370@linux.com>
+Date: Mon, 23 Jan 2012 14:16:50 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup 2/9] slub: Add frozen check in __slab_alloc
+Subject: [Slub cleanup 4/9] slub: Simplify control flow in __slab_alloc()
 References: <20120123201646.924319545@linux.com>
-Content-Disposition: inline; filename=frozen_check_in_slab_free
+Content-Disposition: inline; filename=control_flow_simplify
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Verify that objects returned from __slab_alloc come from slab pages
-in the correct state.
+Simplify control flow a bit avoiding nesting.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
+
 ---
- mm/slub.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ mm/slub.c |   14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:07.498748874 -0600
-+++ linux-2.6/mm/slub.c	2012-01-13 08:47:10.938748802 -0600
-@@ -2220,6 +2220,12 @@ redo:
- 	stat(s, ALLOC_REFILL);
+--- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:17.158748674 -0600
++++ linux-2.6/mm/slub.c	2012-01-13 08:47:20.490748604 -0600
+@@ -2247,17 +2247,15 @@ new_slab:
+ 	/* Then do expensive stuff like retrieving pages from the partial lists */
+ 	freelist = get_partial(s, gfpflags, node, c);
  
- load_freelist:
-+	/*
-+	 * freelist is pointing to the list of objects to be used.
-+	 * page is pointing to the page from which the objects are obtained.
-+	 * That page must be frozen for per cpu allocations to work.
-+	 */
-+	VM_BUG_ON(!c->page->frozen);
- 	c->freelist = get_freepointer(s, freelist);
- 	c->tid = next_tid(c->tid);
- 	local_irq_restore(flags);
+-	if (unlikely(!freelist)) {
+-
++	if (!freelist)
+ 		freelist = new_slab_objects(s, gfpflags, node, &c);
+ 
+-		if (unlikely(!freelist)) {
+-			if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+-				slab_out_of_memory(s, gfpflags, node);
++	if (unlikely(!freelist)) {
++		if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
++			slab_out_of_memory(s, gfpflags, node);
+ 
+-			local_irq_restore(flags);
+-			return NULL;
+-		}
++		local_irq_restore(flags);
++		return NULL;
+ 	}
+ 
+ 	if (likely(!kmem_cache_debug(s)))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
