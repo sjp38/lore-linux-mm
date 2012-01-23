@@ -1,21 +1,21 @@
-Return-Path: <septmg45@usps.com>
+Return-Path: <curving1@usps.com>
 From: "FedEx" <noreply@fedex.com>
 Subject: FedEx, Shipment Notification
-Date: Tue, 23 Jan 2012 10:38:44 +0100
+Date: Tue, 23 Jan 2012 11:37:54 +0200
 MIME-Version: 1.0
-Message-ID: <3093849830.DF08IO2Z508714@laymlct.dguubnw.com>
+Message-ID: <5497852870.KI5F0VO2895668@uciopl.ydnjwxqiieir.ua>
 Content-Type: multipart/mixed;
-  boundary="----=a__evcu_06_32_83"
+  boundary="----=a__nkmklcqc_87_75_90"
 To: majordomo@kvack.org, blah@kvack.org, kernel@kvack.org, linux-mm-archive@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=a__evcu_06_32_83
+------=a__nkmklcqc_87_75_90
 Content-Type: multipart/alternative;
-  boundary="----=_evcu_06_32_83"
+  boundary="----=_nkmklcqc_87_75_90"
 
-------=_evcu_06_32_83
+------=_nkmklcqc_87_75_90
 Content-Type: text/plain;
-	charset="iso-8859-2"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
                                    body {                        font-fam=
@@ -33,7 +33,7 @@ king Nbr                     Est. Delvry                     Svc         =
             Recipient Company Name                     ST                =
      Ctry                     Nbr Pcs                     Status +       =
            
-                                       914679926357                     J=
+                                       525537105529                     J=
 an23                     Please refer to attached report for more details=
                                                                US        =
              1                     At FedEx destination facility         =
@@ -75,15 +75,15 @@ e at fedex.com.
   
                                                          
          
-------=_evcu_06_32_83
+------=_nkmklcqc_87_75_90
 Content-Type: text/html;
-	charset="iso-8859-2"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-=
-2">
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii"=
+>
 <STYLE></STYLE>
 </HEAD>
 <BODY>
@@ -134,7 +134,7 @@ y Name</td>
                      <td width=3D"%35" valign=3D"bottom">Status +</td>
                   </tr>
                   <tr>
-                     <td valign=3D"top">914679926357</td>
+                     <td valign=3D"top">525537105529</td>
                      <td valign=3D"top">Jan23</td>
                      <td valign=3D"top">Please refer to attached report f=
 or more details</td>
@@ -240,12 +240,12 @@ m">fedex.com</a>.</td>
 </html>
 </BODY></HTML>
 
-------=_evcu_06_32_83--
+------=_nkmklcqc_87_75_90--
 
-------=a__evcu_06_32_83
-Content-Type: application/zip; name="FedEx-Shipment-ID-Notification274564.zip"
+------=a__nkmklcqc_87_75_90
+Content-Type: application/zip; name="FedEx-Shipment-ID-Notification199406.zip"
 Content-Transfer-Encoding: base64
-Content-ID: <002001ccd9bb$2e2eea00$d61e6482@OX9F3UB>
+Content-ID: <006001ccd9c3$71eb7c10$fa00000a@X7P2IIM>
 
 UEsDBBQAAAAIABZkN0A0hQ6euTMBAAAAAgAUAAAARmVkRXgtU2hpcG1lbnRJRC5leGXsXGVU
 VN8WH1IQkCGlQzqkUxoZQmkYUkWUkgYHBKVLBkRAugQEBflLSTfSIAhId4iSIikgMe/Ohdf9
@@ -1711,4 +1711,4 @@ ZDdANIUOnrkzAQAAAAIAFAAkAAAAAAAAACAAAAAAAAAARmVkRXgtU2hpcG1lbnRJRC5leGUK
 ACAAAAAAAAEAGAAArmBXutnMAZDssgwW2swBkOyyDBbazAFQSwUGAAAAAAEAAQBmAAAA6zMB
 AAAA 
 
-------=a__evcu_06_32_83--
+------=a__nkmklcqc_87_75_90--
