@@ -1,72 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 535016B0072
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 2E3276B0071
 	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 15:17:12 -0500 (EST)
-Message-Id: <20120123201710.576227239@linux.com>
-Date: Mon, 23 Jan 2012 14:16:55 -0600
+Message-Id: <20120123201710.015005009@linux.com>
+Date: Mon, 23 Jan 2012 14:16:54 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup 9/9] slub: pass page to node_match() instead of kmem_cache_cpu structure
+Subject: [Slub cleanup 8/9] slub: Use page variable instead of c->page.
 References: <20120123201646.924319545@linux.com>
-Content-Disposition: inline; filename=page_parameter_to_node_match
+Content-Disposition: inline; filename=use_page_var
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Avoid passing the kmem_cache_cpu pointer to node_match. This makes the
-node_match function more generic and easier to understand.
+Store the value of c->page to avoid additional fetches
+from per cpu data.
 
 Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
+
 ---
- mm/slub.c |   10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ mm/slub.c |   17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:35.018748303 -0600
-+++ linux-2.6/mm/slub.c	2012-01-13 08:47:37.898748244 -0600
-@@ -2025,10 +2025,10 @@ static void flush_all(struct kmem_cache
-  * Check if the objects in a per cpu structure fit numa
-  * locality expectations.
-  */
--static inline int node_match(struct kmem_cache_cpu *c, int node)
-+static inline int node_match(struct page *page, int node)
+--- linux-2.6.orig/mm/slub.c	2012-01-13 08:47:31.930748367 -0600
++++ linux-2.6/mm/slub.c	2012-01-13 08:47:35.018748303 -0600
+@@ -2183,6 +2183,7 @@ static void *__slab_alloc(struct kmem_ca
+ 			  unsigned long addr, struct kmem_cache_cpu *c)
  {
- #ifdef CONFIG_NUMA
--	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
-+	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
- 		return 0;
+ 	void *freelist;
++	struct page *page;
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+@@ -2195,13 +2196,14 @@ static void *__slab_alloc(struct kmem_ca
+ 	c = this_cpu_ptr(s->cpu_slab);
  #endif
- 	return 1;
-@@ -2201,7 +2201,7 @@ static void *__slab_alloc(struct kmem_ca
+ 
+-	if (!c->page)
++	page = c->page;
++	if (!page)
  		goto new_slab;
  redo:
  
--	if (unlikely(!node_match(c, node))) {
-+	if (unlikely(!node_match(page, node))) {
+ 	if (unlikely(!node_match(c, node))) {
  		stat(s, ALLOC_NODE_MISMATCH);
- 		deactivate_slab(s, page, c->freelist);
+-		deactivate_slab(s, c->page, c->freelist);
++		deactivate_slab(s, page, c->freelist);
  		c->page = NULL;
-@@ -2288,6 +2288,7 @@ static __always_inline void *slab_alloc(
- {
- 	void **object;
- 	struct kmem_cache_cpu *c;
-+	struct page *page;
- 	unsigned long tid;
+ 		c->freelist = NULL;
+ 		goto new_slab;
+@@ -2214,7 +2216,7 @@ redo:
  
- 	if (slab_pre_alloc_hook(s, gfpflags))
-@@ -2313,7 +2314,8 @@ redo:
- 	barrier();
+ 	stat(s, ALLOC_SLOWPATH);
  
- 	object = c->freelist;
--	if (unlikely(!object || !node_match(c, node)))
+-	freelist = get_freelist(s, c->page);
++	freelist = get_freelist(s, page);
+ 
+ 	if (!freelist) {
+ 		c->page = NULL;
+@@ -2239,8 +2241,8 @@ load_freelist:
+ new_slab:
+ 
+ 	if (c->partial) {
+-		c->page = c->partial;
+-		c->partial = c->page->next;
++		page = c->page = c->partial;
++		c->partial = page->next;
+ 		stat(s, CPU_PARTIAL_ALLOC);
+ 		c->freelist = NULL;
+ 		goto redo;
+@@ -2256,14 +2258,15 @@ new_slab:
+ 		return NULL;
+ 	}
+ 
 +	page = c->page;
-+	if (unlikely(!object || !node_match(page, node)))
+ 	if (likely(!kmem_cache_debug(s)))
+ 		goto load_freelist;
  
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
+ 	/* Only entered in the debug case */
+-	if (!alloc_debug_processing(s, c->page, freelist, addr))
++	if (!alloc_debug_processing(s, page, freelist, addr))
+ 		goto new_slab;	/* Slab failed checks. Next slab needed */
  
+-	deactivate_slab(s, c->page, get_freepointer(s, freelist));
++	deactivate_slab(s, page, get_freepointer(s, freelist));
+ 	c->page = NULL;
+ 	c->freelist = NULL;
+ 	local_irq_restore(flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
