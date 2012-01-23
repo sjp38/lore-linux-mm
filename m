@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 6A5546B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 05:47:48 -0500 (EST)
-Date: Mon, 23 Jan 2012 11:47:40 +0100
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id C2D096B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 06:20:28 -0500 (EST)
+Date: Mon, 23 Jan 2012 12:20:22 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
-Message-ID: <20120123104731.GA1707@cmpxchg.org>
-References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: ensure reclaiming pages on the lru lists of
+ zone
+Message-ID: <20120123112022.GB1707@cmpxchg.org>
+References: <CAJd=RBC8dCGgqXqP+yjW2+pVoSeFXwXfjx8DLHhMuY8goOadZw@mail.gmail.com>
+ <CAJd=RBBqp3bMGwFc14BJ7+=KsfO0gLnrnXwbRdLDYOJDdvbptA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+In-Reply-To: <CAJd=RBBqp3bMGwFc14BJ7+=KsfO0gLnrnXwbRdLDYOJDdvbptA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
 Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 23, 2012 at 09:55:07AM +0800, Hillf Danton wrote:
-> To avoid reduction in performance of reclaimee, checking overreclaim is added
-> after shrinking lru list, when pages are reclaimed from mem cgroup.
+On Mon, Jan 23, 2012 at 12:47:34AM +0800, Hillf Danton wrote:
+> Hi all
 > 
-> If over reclaim occurs, shrinking remaining lru lists is skipped, and no more
-> reclaim for reclaim/compaction.
+> For easy review, it is re-prepared based on 3.3-rc1.
 > 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
+> Thanks
+> Hillf
 > 
-> --- a/mm/vmscan.c	Mon Jan 23 00:23:10 2012
-> +++ b/mm/vmscan.c	Mon Jan 23 09:57:20 2012
-> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
->  	unsigned long nr_reclaimed, nr_scanned;
->  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
->  	struct blk_plug plug;
-> +	bool memcg_over_reclaimed = false;
+> ===cut please===
+> From: Hillf Danton <dhillf@gmail.com>
+> Subject: [PATCH] mm: vmscan: ensure reclaiming pages on the lru lists of zone
 > 
->  restart:
->  	nr_reclaimed = 0;
-> @@ -2103,6 +2104,11 @@ restart:
+> While iterating over memory cgroup hierarchy, pages are reclaimed from each
+> mem cgroup, and reclaim terminates after a full round-trip. It is possible
+> that no pages on the lru lists of given zone are reclaimed, as termination
+> is checked after the reclaiming function.
 > 
->  				nr_reclaimed += shrink_list(lru, nr_to_scan,
->  							    mz, sc, priority);
-> +
-> +				memcg_over_reclaimed = !scanning_global_lru(mz)
-> +					&& (nr_reclaimed >= nr_to_reclaim);
-> +				if (memcg_over_reclaimed)
-> +					goto out;
+> Mem cgroup iteration is rearranged a bit to make sure that pages are reclaimed
+> from both mem cgroups and zone.
 
-Since this merge window, scanning_global_lru() is always false when
-the memory controller is enabled, i.e. most common configurations and
-distribution kernels.
+It's not only possible, it's guaranteed: with the memory controller
+enabled, the global per-zone lru lists are empty.
 
-This will with quite likely have bad effects on zone balancing,
-pressure balancing between anon/file lru etc, while you haven't shown
-that any workloads actually benefit from this.
+Pages used to be linked on the global per-zone AND the memcg per-zone
+lru lists.  Nowadays, they only sit on the memcg per-zone lists, which
+is why global reclaim does a hierarchy walk.
 
-Submitting patches like this without mentioning a problematic scenario
-and numbers that demonstrate that the patch improve it is not helpful.
+The global per-zone lists are just an artifact for when the memory
+controller is not available.  The plan is to make root_mem_cgroup
+available at all times, even without the memory controller.
+
+So I'm afraid your patch only adds a round of scanning a known-to-be
+empty lruvec.  NAK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
