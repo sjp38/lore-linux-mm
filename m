@@ -1,104 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 214776B005A
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:01:44 -0500 (EST)
-Date: Tue, 24 Jan 2012 17:01:40 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4] memcg: remove PCG_CACHE page_cgroup flag
-Message-ID: <20120124160140.GH26289@tiehlicka.suse.cz>
-References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
- <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
- <20120120084545.GC9655@tiehlicka.suse.cz>
- <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
- <20120124111644.GE1660@cmpxchg.org>
- <20120124145411.GF1660@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id A77546B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:09:08 -0500 (EST)
+Message-ID: <4F1ED77F.4090900@redhat.com>
+Date: Tue, 24 Jan 2012 18:08:31 +0200
+From: Ronen Hod <rhod@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120124145411.GF1660@cmpxchg.org>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+References: <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com> <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com> <4F175706.8000808@redhat.com> <alpine.LFD.2.02.1201190922390.3033@tux.localdomain> <4F17DCED.4020908@redhat.com> <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com> <4F17E058.8020008@redhat.com> <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com> <20120124153835.GA10990@amt.cnet>
+In-Reply-To: <20120124153835.GA10990@amt.cnet>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: leonid.moiseichuk@nokia.com, penberg@kernel.org, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Tue 24-01-12 15:54:11, Johannes Weiner wrote:
-> On Tue, Jan 24, 2012 at 12:16:44PM +0100, Johannes Weiner wrote:
-> > On Tue, Jan 24, 2012 at 12:16:36PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > > Can we make this anon as well?
-> > > 
-> > > I'm sorry for long RTT. version 4 here.
-> > > ==
-> > > >From c40256561d6cdaee62be7ec34147e6079dc426f4 Mon Sep 17 00:00:00 2001
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Date: Thu, 19 Jan 2012 17:09:41 +0900
-> > > Subject: [PATCH] memcg: remove PCG_CACHE
-> > > 
-> > > We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
-> > > Here, "CACHE" means anonymous user pages (and SwapCache). This
-> > > doesn't include shmem.
-> > 
-> > !CACHE means anonymous/swapcache
-> > 
-> > > Consdering callers, at charge/uncharge, the caller should know
-> > > what  the page is and we don't need to record it by using 1bit
-> > > per page.
-> > > 
-> > > This patch removes PCG_CACHE bit and make callers of
-> > > mem_cgroup_charge_statistics() to specify what the page is.
-> > > 
-> > > Changelog since v3
-> > >  - renamed a variable 'rss' to 'anon'
-> > > 
-> > > Changelog since v2
-> > >  - removed 'not_rss', added 'anon'
-> > >  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
-> > >  - removed a patch to mem_cgroup_uncharge_cache
-> > >  - simplified comment.
-> > > 
-> > > Changelog since RFC.
-> > >  - rebased onto memcg-devel
-> > >  - rename 'file' to 'not_rss'
-> > >  - some cleanup and added comment.
-> > > 
-> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Hold on, I think this patch is still not complete: end_migration()
-> directly uses __mem_cgroup_uncharge_common() with the FORCE charge
-> type.  This will uncharge all migrated anon pages as cache, when it
-> should decide based on PageAnon(used), which is the page where
-> ->mapping is intact after migration.
+On 01/24/2012 05:38 PM, Marcelo Tosatti wrote:
+> On Thu, Jan 19, 2012 at 10:53:29AM +0000, leonid.moiseichuk@nokia.com wrote:
+>>> -----Original Message-----
+>>> From: ext Ronen Hod [mailto:rhod@redhat.com]
+>>> Sent: 19 January, 2012 11:20
+>>> To: Pekka Enberg
+>> ...
+>>>>>> Isn't
+>>>>>>
+>>>>>> /proc/sys/vm/min_free_kbytes
+>>>>>>
+>>>>>> pretty much just that?
+>>>>> Would you suggest to use min_free_kbytes as the threshold for sending
+>>>>> low_memory_notifications to applications, and separately as a target
+>>>>> value for the applications' memory giveaway?
+>>>> I'm not saying that the kernel should use it directly but it seems
+>>>> like the kind of "ideal number of free pages" threshold you're
+>>>> suggesting. So userspace can read that value and use it as the "number
+>>>> of free pages" threshold for VM events, no?
+>>> Yes, I like it. The rules of the game are simple and consistent all over, be it the
+>>> alert threshold, voluntary poling by the apps, and for concurrent work by
+>>> several applications.
+>>> Well, as long as it provides a good indication for low_mem_pressure.
+>> For me it doesn't look that have much sense. min_free_kbytes could be set from user-space (or auto-tuned by kernel) to keep some amount
+>> of memory available for GFP_ATOMIC allocations.  In case situation comes under pointed level kernel will reclaim memory from e.g. caches.
+>>
+>> > From potential user point of view the proposed API has number of lacks which would be nice to have implemented:
+>> 1. rename this API from low_mem_pressure to something more related to notification and memory situation in system: memory_pressure, memnotify, memory_level etc. The word "low" is misleading here
+>> 2. API must use deferred timers to prevent use-time impact. Deferred timer will be triggered only in case HW event or non-deferrable timer, so if device sleeps timer might be skipped and that is what expected for user-space
+> Having userspace specify the "sample period" for low memory notification
+> makes no sense. The frequency of notifications is a function of the
+> memory pressure.
+>
+>> 3. API should be tunable for propagate changes when level is Up or Down, maybe both ways.
+>
+>> 4. to avoid triggering too much events probably has sense to filter according to amount of change but that is optional. If subscriber set timer to 1s the amount of events should not be very big.
+>> 5. API must provide interface to request parameters e.g. available swap or free memory just to have some base.
+> It would make the interface easier to use if it provided the number of
+> pages to free, in the notification (kernel can calculate that as the
+> delta between current_free_pages ->  comfortable_free_pages relative to
+> process RSS).
 
-You are right, I've missed that one as well. Anyway
-MEM_CGROUP_CHARGE_TYPE_FORCE is used only in mem_cgroup_end_migration
-these days and it got out of sync with its documentation (used by
-force_empty) quite some time ago (f817ed48). What about something like
-the following on top of the previous patch?
---- 
-Should be foldet into the previous patch with the updated changelog:
+If you rely on the notification's argument you lose several features:
+  - Handling of notifications by several applications in parallel
+  - Voluntary application's decisions, such as cleanup or avoiding allocations, at the application's convenience.
+  - Iterative release loops, until there are enough free pages.
+I believe that the notification should only serve as a trigger to run the cleanup.
 
-Mapping of the unused page is not touched during migration (see
-page_remove_rmap) so we can rely on it and push the correct charge type
-down to __mem_cgroup_uncharge_common from end_migration. The force flag
-was misleading anyway.
+Ronen.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4d655ee..c541551 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3217,7 +3217,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
- 	ClearPageCgroupMigration(pc);
- 	unlock_page_cgroup(pc);
- 
--	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
-+	__mem_cgroup_uncharge_common(unused,
-+			PageAnon(unused) ? MEM_CGROUP_CHARGE_TYPE_MAPPED
-+			: MEM_CGROUP_CHARGE_TYPE_CACHE);
- 
- 	/*
- 	 * If a page is a file cache, radix-tree replacement is very atomic
+>
+>> 6. I do not understand how work with attributes performed ( ) but it has sense to use mask and fill requested attributes using mask and callback table i.e. if free pages requested - they are reported, otherwise not.
+>> 7. would have sense to backport couple of attributes from memnotify.c
+>>
+>> I can submit couple of patches if some of proposals looks sane for everyone.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-And then we can get rid of the FORCE as well.
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
