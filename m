@@ -1,83 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 47A066B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:43:38 -0500 (EST)
-Date: Tue, 24 Jan 2012 09:43:35 +0100
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id CADA36B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:49:49 -0500 (EST)
+Date: Tue, 24 Jan 2012 09:49:47 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
- pc->flags
-Message-ID: <20120124084335.GE26289@tiehlicka.suse.cz>
+Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
+ account move.
+Message-ID: <20120124084947.GF26289@tiehlicka.suse.cz>
 References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
- <20120117164605.GB22142@tiehlicka.suse.cz>
- <20120118091226.b46e0f6e.kamezawa.hiroyu@jp.fujitsu.com>
- <20120118104703.GA31112@tiehlicka.suse.cz>
- <20120119085309.616cadb4.kamezawa.hiroyu@jp.fujitsu.com>
- <CALWz4ixAT411PZMwngh17V8VZEDGbMNNzbWFwbpC5M-JO+TVOQ@mail.gmail.com>
+ <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117152635.GA22142@tiehlicka.suse.cz>
+ <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120118123759.GB31112@tiehlicka.suse.cz>
+ <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
+ <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
+ <20120123090436.GA12375@tiehlicka.suse.cz>
+ <20120124122120.53f01da5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4ixAT411PZMwngh17V8VZEDGbMNNzbWFwbpC5M-JO+TVOQ@mail.gmail.com>
+In-Reply-To: <20120124122120.53f01da5.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Mon 23-01-12 14:05:33, Ying Han wrote:
-> On Wed, Jan 18, 2012 at 3:53 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 18 Jan 2012 11:47:03 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> >> On Wed 18-01-12 09:12:26, KAMEZAWA Hiroyuki wrote:
-> >> > On Tue, 17 Jan 2012 17:46:05 +0100
-> >> > Michal Hocko <mhocko@suse.cz> wrote:
-> >> >
-> >> > > On Fri 13-01-12 17:40:19, KAMEZAWA Hiroyuki wrote:
-> >> [...]
-> >> > > > This patch removes PCG_MOVE_LOCK and add hashed rwlock array
-> >> > > > instead of it. This works well enough. Even when we need to
-> >> > > > take the lock,
-> >> > >
-> >> > > Hmmm, rwlocks are not popular these days very much.
-> >> > > Anyway, can we rather make it (source) memcg (bit)spinlock instead. We
-> >> > > would reduce false sharing this way and would penalize only pages from
-> >> > > the moving group.
-> >> > >
-> >> > per-memcg spinlock ?
-> >>
-> >> Yes
-> >>
-> >> > The reason I used rwlock() is to avoid disabling IRQ.  This routine
-> >> > will be called by IRQ context (for dirty ratio support).  So, IRQ
-> >> > disable will be required if we use spinlock.
-> >>
-> >> OK, I have missed the comment about disabling IRQs. It's true that we do
-> >> not have to be afraid about deadlocks if the lock is held only for
-> >> reading from the irq context but does the spinlock makes a performance
-> >> bottleneck? We are talking about the slowpath.
-> >> I could see the reason for the read lock when doing hashed locks because
-> >> they are global but if we make the lock per memcg then we shouldn't
-> >> interfere with other updates which are not blocked by the move.
-> >>
-> >
-> > Hm, ok. In the next version, I'll use per-memcg spinlock (with hash if necessary)
+On Tue 24-01-12 12:21:20, KAMEZAWA Hiroyuki wrote:
+> On Mon, 23 Jan 2012 10:04:36 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> Just want to make sure I understand it, even we make the lock
-> per-memcg, there is still a false sharing of pc within one memcg. 
-
-Yes that is true. I have missed that we might fault in several pages at
-once but this would happen only during task move, right? And that is not
-a hot path anyway. Or?
-
-> Do we need to demonstrate the effect ?
+> > On Fri 20-01-12 10:08:44, Ying Han wrote:
+> > > On Wed, Jan 18, 2012 at 6:17 PM, KAMEZAWA Hiroyuki
+> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > On Wed, 18 Jan 2012 13:37:59 +0100
+> > > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > >
+> > > >> On Wed 18-01-12 09:06:56, KAMEZAWA Hiroyuki wrote:
+> > > >> > On Tue, 17 Jan 2012 16:26:35 +0100
+> > > >> > Michal Hocko <mhocko@suse.cz> wrote:
+> > > >> >
+> > > >> > > On Fri 13-01-12 17:33:47, KAMEZAWA Hiroyuki wrote:
+> > > >> > > > I think this bugfix is needed before going ahead. thoughts?
+> > > >> > > > ==
+> > > >> > > > From 2cb491a41782b39aae9f6fe7255b9159ac6c1563 Mon Sep 17 00:00:00 2001
+> > > >> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > >> > > > Date: Fri, 13 Jan 2012 14:27:20 +0900
+> > > >> > > > Subject: [PATCH 2/7] memcg: add memory barrier for checking account move.
+> > > >> > > >
+> > > >> > > > At starting move_account(), source memcg's per-cpu variable
+> > > >> > > > MEM_CGROUP_ON_MOVE is set. The page status update
+> > > >> > > > routine check it under rcu_read_lock(). But there is no memory
+> > > >> > > > barrier. This patch adds one.
+> > > >> > >
+> > > >> > > OK this would help to enforce that the CPU would see the current value
+> > > >> > > but what prevents us from the race with the value update without the
+> > > >> > > lock? This is as racy as it was before AFAICS.
+> > > >> > >
+> > > >> >
+> > > >> > Hm, do I misunderstand ?
+> > > >> > ==
+> > > >> >    update                     reference
+> > > >> >
+> > > >> >    CPU A                        CPU B
+> > > >> >   set value                rcu_read_lock()
+> > > >> >   smp_wmb()                smp_rmb()
+> > > >> >                            read_value
+> > > >> >                            rcu_read_unlock()
+> > > >> >   synchronize_rcu().
+> > > >> > ==
+> > > >> > I expect
+> > > >> > If synchronize_rcu() is called before rcu_read_lock() => move_lock_xxx will be held.
+> > > >> > If synchronize_rcu() is called after rcu_read_lock() => update will be delayed.
+> > > >>
+> > > >> Ahh, OK I can see it now. Readers are not that important because it is
+> > > >> actually the updater who is delayed until all preexisting rcu read
+> > > >> sections are finished.
+> > > >>
+> > > >> In that case. Why do we need both barriers? spin_unlock is a full
+> > > >> barrier so maybe we just need smp_rmb before we read value to make sure
+> > > >> that we do not get stalled value when we start rcu_read section after
+> > > >> synchronize_rcu?
+> > > >>
+> > > >
+> > > > I doubt .... If no barrier, this case happens
+> > > >
+> > > > ==
+> > > >        update                  reference
+> > > >        CPU A                   CPU B
+> > > >        set value
+> > > >        synchronize_rcu()       rcu_read_lock()
+> > > >                                read_value <= find old value
+> > > >                                rcu_read_unlock()
+> > > >                                do no lock
+> > > > ==
+> > > 
+> > > Hi Kame,
+> > > 
+> > > Can you help to clarify a bit more on the example above? Why
+> > > read_value got the old value after synchronize_rcu().
+> > 
+> > AFAIU it is because rcu_read_unlock doesn't force any memory barrier
+> > and we synchronize only the updater (with synchronize_rcu), so nothing
+> > guarantees that the value set on CPUA is visible to CPUB.
+> > 
 > 
-> Also, I don't get the point of why spinlock instead of rwlock in this case?
+> Thank you. 
+> 
+> ...Finally, I'd like to make this check to atomic_t rather than complicated
+> percpu counter. Hmm, do it now ?
 
-spinlock provides a fairness while with rwlocks might lead to
-starvation.
+I thought you wanted to prevent from atomics but you would need a read
+barrier in the reader side because only atomics which change the state
+imply a memory barrier IIRC. So it is a question why atomic is
+simpler...
 
+> 
+> Thanks,
+> -Kame
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
 Michal Hocko
