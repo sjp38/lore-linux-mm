@@ -1,38 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 6D84C6B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:01:24 -0500 (EST)
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-From: Pekka Enberg <penberg@kernel.org>
-In-Reply-To: <20120124154001.GB10990@amt.cnet>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	 <1326788038-29141-2-git-send-email-minchan@kernel.org>
-	 <CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
-	 <4F15A34F.40808@redhat.com>
-	 <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-	 <20120124154001.GB10990@amt.cnet>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 24 Jan 2012 18:01:20 +0200
-Message-ID: <1327420880.13624.24.camel@jaguar>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 214776B005A
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:01:44 -0500 (EST)
+Date: Tue, 24 Jan 2012 17:01:40 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4] memcg: remove PCG_CACHE page_cgroup flag
+Message-ID: <20120124160140.GH26289@tiehlicka.suse.cz>
+References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120084545.GC9655@tiehlicka.suse.cz>
+ <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120124111644.GE1660@cmpxchg.org>
+ <20120124145411.GF1660@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120124145411.GF1660@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Tue, 2012-01-24 at 13:40 -0200, Marcelo Tosatti wrote:
-> What is the practical advantage of a syscall, again?
+On Tue 24-01-12 15:54:11, Johannes Weiner wrote:
+> On Tue, Jan 24, 2012 at 12:16:44PM +0100, Johannes Weiner wrote:
+> > On Tue, Jan 24, 2012 at 12:16:36PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > 
+> > > > Can we make this anon as well?
+> > > 
+> > > I'm sorry for long RTT. version 4 here.
+> > > ==
+> > > >From c40256561d6cdaee62be7ec34147e6079dc426f4 Mon Sep 17 00:00:00 2001
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Date: Thu, 19 Jan 2012 17:09:41 +0900
+> > > Subject: [PATCH] memcg: remove PCG_CACHE
+> > > 
+> > > We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+> > > Here, "CACHE" means anonymous user pages (and SwapCache). This
+> > > doesn't include shmem.
+> > 
+> > !CACHE means anonymous/swapcache
+> > 
+> > > Consdering callers, at charge/uncharge, the caller should know
+> > > what  the page is and we don't need to record it by using 1bit
+> > > per page.
+> > > 
+> > > This patch removes PCG_CACHE bit and make callers of
+> > > mem_cgroup_charge_statistics() to specify what the page is.
+> > > 
+> > > Changelog since v3
+> > >  - renamed a variable 'rss' to 'anon'
+> > > 
+> > > Changelog since v2
+> > >  - removed 'not_rss', added 'anon'
+> > >  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+> > >  - removed a patch to mem_cgroup_uncharge_cache
+> > >  - simplified comment.
+> > > 
+> > > Changelog since RFC.
+> > >  - rebased onto memcg-devel
+> > >  - rename 'file' to 'not_rss'
+> > >  - some cleanup and added comment.
+> > > 
+> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Hold on, I think this patch is still not complete: end_migration()
+> directly uses __mem_cgroup_uncharge_common() with the FORCE charge
+> type.  This will uncharge all migrated anon pages as cache, when it
+> should decide based on PageAnon(used), which is the page where
+> ->mapping is intact after migration.
 
-Why do you ask? The advantage for this particular case is not needing to
-add ioctls() for configuration and keeping the file read/write ABI
-simple.
+You are right, I've missed that one as well. Anyway
+MEM_CGROUP_CHARGE_TYPE_FORCE is used only in mem_cgroup_end_migration
+these days and it got out of sync with its documentation (used by
+force_empty) quite some time ago (f817ed48). What about something like
+the following on top of the previous patch?
+--- 
+Should be foldet into the previous patch with the updated changelog:
 
-			Pekka
+Mapping of the unused page is not touched during migration (see
+page_remove_rmap) so we can rely on it and push the correct charge type
+down to __mem_cgroup_uncharge_common from end_migration. The force flag
+was misleading anyway.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4d655ee..c541551 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3217,7 +3217,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+ 	ClearPageCgroupMigration(pc);
+ 	unlock_page_cgroup(pc);
+ 
+-	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
++	__mem_cgroup_uncharge_common(unused,
++			PageAnon(unused) ? MEM_CGROUP_CHARGE_TYPE_MAPPED
++			: MEM_CGROUP_CHARGE_TYPE_CACHE);
+ 
+ 	/*
+ 	 * If a page is a file cache, radix-tree replacement is very atomic
+
+And then we can get rid of the FORCE as well.
+---
