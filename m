@@ -1,121 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 4D8556B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 00:01:04 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A13E63EE0C2
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 14:01:02 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8250145DEBA
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 14:01:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DEE045DE9E
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 14:01:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5093F1DB8043
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 14:01:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E74531DB8041
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 14:01:01 +0900 (JST)
-Date: Tue, 24 Jan 2012 13:59:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
- pc->flags
-Message-Id: <20120124135938.dc9bae10.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CALWz4ixAT411PZMwngh17V8VZEDGbMNNzbWFwbpC5M-JO+TVOQ@mail.gmail.com>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120117164605.GB22142@tiehlicka.suse.cz>
-	<20120118091226.b46e0f6e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120118104703.GA31112@tiehlicka.suse.cz>
-	<20120119085309.616cadb4.kamezawa.hiroyu@jp.fujitsu.com>
-	<CALWz4ixAT411PZMwngh17V8VZEDGbMNNzbWFwbpC5M-JO+TVOQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 325576B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 02:08:19 -0500 (EST)
+Received: by bkbzx1 with SMTP id zx1so3833248bkb.14
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 23:08:17 -0800 (PST)
+Message-ID: <4F1E58DD.6030607@openvz.org>
+Date: Tue, 24 Jan 2012 11:08:13 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
+References: <20120106173827.11700.74305.stgit@zurg> <20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com> <4F0D46EF.4060705@openvz.org> <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com> <20120118152131.45a47966.akpm@linux-foundation.org> <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, 23 Jan 2012 14:05:33 -0800
-Ying Han <yinghan@google.com> wrote:
+Hugh Dickins wrote:
+> On Wed, 18 Jan 2012, Andrew Morton wrote:
+>> On Wed, 11 Jan 2012 17:41:26 +0900
+>> KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  wrote:
+>>> On Wed, 11 Jan 2012 12:23:11 +0400
+>>> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+> I only just got around to looking at these, sorry.
+>
+>>
+>> Putting "fix" in the patch title text is a good way of handling this.
+>>
+>> I renamed [3/3] to "mm: fix rss count leakage during migration" and
+>> shall queue it for 3.3.  If people think we should also backport it
+>> into -stable then please let me know.
+>
+> I don't think it needs backporting to stable: unless I'm forgetting
+> something, the only thing that actually uses these rss counters is the
+> OOM killer, and I don't think that will be greatly affected by the bug.
+>
 
-> On Wed, Jan 18, 2012 at 3:53 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 18 Jan 2012 11:47:03 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> >> On Wed 18-01-12 09:12:26, KAMEZAWA Hiroyuki wrote:
-> >> > On Tue, 17 Jan 2012 17:46:05 +0100
-> >> > Michal Hocko <mhocko@suse.cz> wrote:
-> >> >
-> >> > > On Fri 13-01-12 17:40:19, KAMEZAWA Hiroyuki wrote:
-> >> [...]
-> >> > > > This patch removes PCG_MOVE_LOCK and add hashed rwlock array
-> >> > > > instead of it. This works well enough. Even when we need to
-> >> > > > take the lock,
-> >> > >
-> >> > > Hmmm, rwlocks are not popular these days very much.
-> >> > > Anyway, can we rather make it (source) memcg (bit)spinlock instead. We
-> >> > > would reduce false sharing this way and would penalize only pages from
-> >> > > the moving group.
-> >> > >
-> >> > per-memcg spinlock ?
-> >>
-> >> Yes
-> >>
-> >> > The reason I used rwlock() is to avoid disabling IRQ. A This routine
-> >> > will be called by IRQ context (for dirty ratio support). A So, IRQ
-> >> > disable will be required if we use spinlock.
-> >>
-> >> OK, I have missed the comment about disabling IRQs. It's true that we do
-> >> not have to be afraid about deadlocks if the lock is held only for
-> >> reading from the irq context but does the spinlock makes a performance
-> >> bottleneck? We are talking about the slowpath.
-> >> I could see the reason for the read lock when doing hashed locks because
-> >> they are global but if we make the lock per memcg then we shouldn't
-> >> interfere with other updates which are not blocked by the move.
-> >>
-> >
-> > Hm, ok. In the next version, I'll use per-memcg spinlock (with hash if necessary)
-> 
-> Just want to make sure I understand it, even we make the lock
-> per-memcg, there is still a false sharing of pc within one memcg. Do
-> we need to demonstrate the effect ?
-> 
+Yes, there are only counters. But, I can imagine local DoS attack via this race.
 
-Hmm, I'll try some. Account_move occurs when
+>>
+>> I reordered the patches and worked the chagnelogs quite a bit.  I now
+>> have:
+>>
+>> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Subject: mm: fix rss count leakage during migration
+>> :
+>> : Memory migration fills a pte with a migration entry and it doesn't update
+>> : the rss counters.  Then it replaces the migration entry with the new page
+>> : (or the old one if migration failed).  But between these two passes this
+>> : pte can be unmaped, or a task can fork a child and it will get a copy of
+>> : this migration entry.  Nobody accounts for this in the rss counters.
+>> :
+>> : This patch properly adjust rss counters for migration entries in
+>> : zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
+>> : on the migration fast-path.
+>> :
+>> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Cc: Hugh Dickins<hughd@google.com>
+>> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> That was a good find, Konstantin: thank you.
+>
+>>
+>> and
+>>
+>> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Subject: mm: add rss counters consistency check
+>> :
+>> : Warn about non-zero rss counters at final mmdrop.
+>> :
+>> : This check will prevent reoccurences of bugs such as that fixed in "mm:
+>> : fix rss count leakage during migration".
+>> :
+>> : I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
+>> : rss counters cover whole page-table management, so this is a good
+>> : invariant.
+>> :
+>> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Cc: Hugh Dickins<hughd@google.com>
+>> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> I'd be happier with this one if you do hide the check under
+> CONFIG_VM_DEBUG - or even under CONFIG_DEBUG_VM if you want it to
+> be compiled in sometimes ;)  I suppose NR_MM_COUNTERS is only 3,
+> so it isn't a huge overhead; but I think you're overestimating the
+> importance of these counters, and it would look better under DEBUG_VM.
 
- a) a task is moved to other cgroup
- b) a cgroup is removed.
+Theoretically, some drivers can touch page tables,
+for example if they do that outside of vma we can get some kind of strange memory leaks.
 
-I think checking case a) will be enough because there is no task in a memcg
-while it is being removed. Then, I'll measure performace of file mapping
-while moving task repeatedly. There will be spinlock conflict.
+>
+>>
+>> and
+>>
+>> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Subject: mm: postpone migrated page mapping reset
+>> :
+>> : Postpone resetting page->mapping until the final remove_migration_ptes().
+>> : Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
+>> : work.
+>> :
+>> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> : Cc: Hugh Dickins<hughd@google.com>
+>> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Isn't this one actually an essential part of the fix?  It should have
+> been part of the same patch, but you split them apart, now Andrew has
+> reordered them and pushed one part to 3.3, but this needs to go in too?
+>
 
-- I'll consider to make the range of spinlock small.
-- I'll consider have a hash of spinlock or spinlock based of page-zone and types.
-  (It's easy to make spinlock as to be per-memcg-per-zone.)
+Oops. I missed that. Yes. race-fix does not work for anon-memory without that patch.
+But this is non-fatal, there are no new bugs.
 
-> Also, I don't get the point of why spinlock instead of rwlock in this case?
-> 
->From Documentation/spinlocks.txt
-
->    NOTE! reader-writer locks require more atomic memory operations than
->    simple spinlocks.  Unless the reader critical section is long, you
->    are better off just using spinlocks.
-
->    NOTE! We are working hard to remove reader-writer spinlocks in most
->    cases, so please don't add a new one without consensus.  (Instead, see
->    Documentation/RCU/rcu.txt for complete information.)
-> 
-
-I don't have enough strong motivation to use rwlock.
-But if rwlock works enough well rather than spinlocks, it will be a choice.
-
-Thanks,
--Kame
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
