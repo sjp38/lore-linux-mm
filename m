@@ -1,121 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 325576B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 02:08:19 -0500 (EST)
-Received: by bkbzx1 with SMTP id zx1so3833248bkb.14
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 23:08:17 -0800 (PST)
-Message-ID: <4F1E58DD.6030607@openvz.org>
-Date: Tue, 24 Jan 2012 11:08:13 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 5D6A66B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:23:58 -0500 (EST)
+Date: Tue, 24 Jan 2012 09:23:53 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: memcg: fix over reclaiming mem cgroup
+Message-ID: <20120124082352.GA26289@tiehlicka.suse.cz>
+References: <CAJd=RBAbFd=MFZZyCKN-Si-Zt=C6dKVUaG-C7s5VKoTWfY00nA@mail.gmail.com>
+ <20120123130221.GA15113@tiehlicka.suse.cz>
+ <CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
+ <CAJd=RBAuDABE7u1wyc+45ZGoVos5PnxMe6P=ET-CHf-LChTpgw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-References: <20120106173827.11700.74305.stgit@zurg> <20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com> <4F0D46EF.4060705@openvz.org> <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com> <20120118152131.45a47966.akpm@linux-foundation.org> <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBAuDABE7u1wyc+45ZGoVos5PnxMe6P=ET-CHf-LChTpgw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hugh Dickins wrote:
-> On Wed, 18 Jan 2012, Andrew Morton wrote:
->> On Wed, 11 Jan 2012 17:41:26 +0900
->> KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  wrote:
->>> On Wed, 11 Jan 2012 12:23:11 +0400
->>> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
-> I only just got around to looking at these, sorry.
->
->>
->> Putting "fix" in the patch title text is a good way of handling this.
->>
->> I renamed [3/3] to "mm: fix rss count leakage during migration" and
->> shall queue it for 3.3.  If people think we should also backport it
->> into -stable then please let me know.
->
-> I don't think it needs backporting to stable: unless I'm forgetting
-> something, the only thing that actually uses these rss counters is the
-> OOM killer, and I don't think that will be greatly affected by the bug.
->
+On Tue 24-01-12 11:26:05, Hillf Danton wrote:
+> Hi all
+> 
+> On Tue, Jan 24, 2012 at 3:14 AM, Ying Han <yinghan@google.com> wrote:
+> > On Mon, Jan 23, 2012 at 5:02 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> On Sat 21-01-12 22:49:23, Hillf Danton wrote:
+> >>> In soft limit reclaim, overreclaim occurs when pages are reclaimed from mem
+> >>> group that is under its soft limit, or when more pages are reclaimd than the
+> >>> exceeding amount, then performance of reclaimee goes down accordingly.
+> >>
+> >> First of all soft reclaim is more a help for the global memory pressure
+> >> balancing rather than any guarantee about how much we reclaim for the
+> >> group.
+> >> We need to do more changes in order to make it a guarantee.
+> >> For example you implementation will cause severe problems when all
+> >> cgroups are soft unlimited (default conf.) or when nobody is above the
+> >> limit but the total consumption triggers the global reclaim. Therefore
+> >> nobody is in excess and you would skip all groups and only bang on the
+> >> root memcg.
+> 
+> If soft limits are set to be limited and there are no excessors, who
+> are consuming physical pages? The consumers maybe those with soft
+> unlimited.
 
-Yes, there are only counters. But, I can imagine local DoS attack via this race.
+You might have many small groups which are all under their soft limit
+but their total usage triggers global reclaim for example.
 
->>
->> I reordered the patches and worked the chagnelogs quite a bit.  I now
->> have:
->>
->> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Subject: mm: fix rss count leakage during migration
->> :
->> : Memory migration fills a pte with a migration entry and it doesn't update
->> : the rss counters.  Then it replaces the migration entry with the new page
->> : (or the old one if migration failed).  But between these two passes this
->> : pte can be unmaped, or a task can fork a child and it will get a copy of
->> : this migration entry.  Nobody accounts for this in the rss counters.
->> :
->> : This patch properly adjust rss counters for migration entries in
->> : zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
->> : on the migration fast-path.
->> :
->> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Cc: Hugh Dickins<hughd@google.com>
->> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->
-> That was a good find, Konstantin: thank you.
->
->>
->> and
->>
->> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Subject: mm: add rss counters consistency check
->> :
->> : Warn about non-zero rss counters at final mmdrop.
->> :
->> : This check will prevent reoccurences of bugs such as that fixed in "mm:
->> : fix rss count leakage during migration".
->> :
->> : I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
->> : rss counters cover whole page-table management, so this is a good
->> : invariant.
->> :
->> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Cc: Hugh Dickins<hughd@google.com>
->> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->
-> I'd be happier with this one if you do hide the check under
-> CONFIG_VM_DEBUG - or even under CONFIG_DEBUG_VM if you want it to
-> be compiled in sometimes ;)  I suppose NR_MM_COUNTERS is only 3,
-> so it isn't a huge overhead; but I think you're overestimating the
-> importance of these counters, and it would look better under DEBUG_VM.
+> If so, they should be punished first, based on the assumption that the
+> unlimited is treated with no guarantee.
+> Then soft limit guarantee could be assured without changes in the
+> current default setting of soft limit, no?
 
-Theoretically, some drivers can touch page tables,
-for example if they do that outside of vma we can get some kind of strange memory leaks.
+How would you prioritize between over soft limit groups (which should
+give at least some protection from over reclaim AFAIU from your
+suggestion) from those that are unlimited?
 
->
->>
->> and
->>
->> : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Subject: mm: postpone migrated page mapping reset
->> :
->> : Postpone resetting page->mapping until the final remove_migration_ptes().
->> : Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
->> : work.
->> :
->> : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> : Cc: Hugh Dickins<hughd@google.com>
->> : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->
-> Isn't this one actually an essential part of the fix?  It should have
-> been part of the same patch, but you split them apart, now Andrew has
-> reordered them and pushed one part to 3.3, but this needs to go in too?
->
+Also, when we start talking about guarantees, why would somebody who
+is soft unlimited be punished at all? Soft unlimited basically means
+soft_limit >= hard_limit which says please do not reclaim from me unless
+really really really necessary.
 
-Oops. I missed that. Yes. race-fix does not work for anon-memory without that patch.
-But this is non-fatal, there are no new bugs.
+> With soft limit available, victims are only selected from excessors, I think.
+> 
+> >>
+> >> Ying Han has a patch which basically skips all cgroups which are under
+> >> its limit until we reach a certain reclaim priority but even for this we
+> >> need some additional changes - e.g. reverse the current default setting
+> >> of the soft limit.
+> >>
+> >> Anyway, I like the nr_to_reclaim reduction idea because we have to do
+> >> this in some way because the global reclaim starts with ULONG
+> >> nr_to_scan.
+> >
+> > Agree with Michal where there are quite a lot changes we need to get
+> > in for soft limit before any further optimization.
+> >
+> > Hillf, please refer to the patch from Johannes
+> > https://lkml.org/lkml/2012/1/13/99 which got quite a lot recent
+> > discussions. I am expecting to get that in before further soft limit
+> > changes.
+> >
+> 
+> Johannes did great cleanup, why barriered?
 
-> Hugh
+Barriered?
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
