@@ -1,91 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 2FFD86B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:30:29 -0500 (EST)
-Date: Tue, 24 Jan 2012 09:30:26 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: memcg: fix over reclaiming mem cgroup
-Message-ID: <20120124083026.GB26289@tiehlicka.suse.cz>
-References: <CAJd=RBAbFd=MFZZyCKN-Si-Zt=C6dKVUaG-C7s5VKoTWfY00nA@mail.gmail.com>
- <20120123130221.GA15113@tiehlicka.suse.cz>
- <CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
- <CAKTCnzk1srmgyDzmSDzMsnbjmmt1ke91=kr0C4bECyxb1J6Rog@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id ECD176B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:33:54 -0500 (EST)
+Date: Tue, 24 Jan 2012 09:33:47 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
+Message-ID: <20120124083347.GC1660@cmpxchg.org>
+References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+ <20120123104731.GA1707@cmpxchg.org>
+ <CAJd=RBDUK=LQVhQm_P3DO-bgWka=gK9cKUkm8esOaZs261EexA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAKTCnzk1srmgyDzmSDzMsnbjmmt1ke91=kr0C4bECyxb1J6Rog@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAJd=RBDUK=LQVhQm_P3DO-bgWka=gK9cKUkm8esOaZs261EexA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Ying Han <yinghan@google.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 24-01-12 09:18:21, Balbir Singh wrote:
-> On Tue, Jan 24, 2012 at 12:44 AM, Ying Han <yinghan@google.com> wrote:
-> > On Mon, Jan 23, 2012 at 5:02 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> >> On Sat 21-01-12 22:49:23, Hillf Danton wrote:
-> >>> In soft limit reclaim, overreclaim occurs when pages are reclaimed from mem
-> >>> group that is under its soft limit, or when more pages are reclaimd than the
-> >>> exceeding amount, then performance of reclaimee goes down accordingly.
+On Mon, Jan 23, 2012 at 08:30:42PM +0800, Hillf Danton wrote:
+> On Mon, Jan 23, 2012 at 6:47 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Mon, Jan 23, 2012 at 09:55:07AM +0800, Hillf Danton wrote:
+> >> To avoid reduction in performance of reclaimee, checking overreclaim is added
+> >> after shrinking lru list, when pages are reclaimed from mem cgroup.
 > >>
-> >> First of all soft reclaim is more a help for the global memory pressure
-> >> balancing rather than any guarantee about how much we reclaim for the
-> >> group.
-> >> We need to do more changes in order to make it a guarantee.
-> >> For example you implementation will cause severe problems when all
-> >> cgroups are soft unlimited (default conf.) or when nobody is above the
-> >> limit but the total consumption triggers the global reclaim. Therefore
-> >> nobody is in excess and you would skip all groups and only bang on the
-> >> root memcg.
+> >> If over reclaim occurs, shrinking remaining lru lists is skipped, and no more
+> >> reclaim for reclaim/compaction.
 > >>
-> 
-> True, ideally soft reclaim should not turn on and allow global reclaim
-> to occur in the scenario mentioned.
-> 
-> >> Ying Han has a patch which basically skips all cgroups which are under
-> >> its limit until we reach a certain reclaim priority but even for this we
-> >> need some additional changes - e.g. reverse the current default setting
-> >> of the soft limit.
+> >> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> >> ---
 > >>
-> 
-> I'd be wary of that approach, because it might be harder to explain
-> the working of soft limits,
-
-This is an attempt to turn the soft reclaim into a "guarantee". Changing
-the default value from unlimited to 0 basically says that everybody will
-be considered under memory pressure unless the soft limit setting says
-otherwise.
-This btw. has been the case with the double (global and per-cgroup) LRUs
-as well. It was just hidden.
-
-> I'll look at the discussion thread mentioned earlier for the benefits
-> of that approach.
-> 
-> >> Anyway, I like the nr_to_reclaim reduction idea because we have to do
-> >> this in some way because the global reclaim starts with ULONG
-> >> nr_to_scan.
+> >> --- a/mm/vmscan.c     Mon Jan 23 00:23:10 2012
+> >> +++ b/mm/vmscan.c     Mon Jan 23 09:57:20 2012
+> >> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
+> >>       unsigned long nr_reclaimed, nr_scanned;
+> >>       unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> >>       struct blk_plug plug;
+> >> +     bool memcg_over_reclaimed = false;
+> >>
+> >>  restart:
+> >>       nr_reclaimed = 0;
+> >> @@ -2103,6 +2104,11 @@ restart:
+> >>
+> >>                               nr_reclaimed += shrink_list(lru, nr_to_scan,
+> >>                                                           mz, sc, priority);
+> >> +
+> >> +                             memcg_over_reclaimed = !scanning_global_lru(mz)
+> >> +                                     && (nr_reclaimed >= nr_to_reclaim);
+> >> +                             if (memcg_over_reclaimed)
+> >> +                                     goto out;
 > >
-> > Agree with Michal where there are quite a lot changes we need to get
-> > in for soft limit before any further optimization.
+> > Since this merge window, scanning_global_lru() is always false when
+> > the memory controller is enabled, i.e. most common configurations and
+> > distribution kernels.
 > >
-> > Hillf, please refer to the patch from Johannes
-> > https://lkml.org/lkml/2012/1/13/99 which got quite a lot recent
-> > discussions. I am expecting to get that in before further soft limit
-> > changes.
+> > This will with quite likely have bad effects on zone balancing,
+> > pressure balancing between anon/file lru etc, while you haven't shown
+> > that any workloads actually benefit from this.
+> >
+> Hi Johannes
 > 
-> Balbir
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Thanks for your comment, first.
+> 
+> Impact on zone balance and lru-list balance is introduced actually, but I
+> dont think the patch is totally responsible for the balance mentioned,
+> because soft limit, embedded in mem cgroup, is setup by users according to
+> whatever tastes they have.
+> 
+> Though there is room for the patch to be fine tuned in this direction or that,
+> over reclaim should not be neglected entirely, but be avoided as much as we
+> could, or users are enforced to set up soft limit with much care not to mess
+> up zone balance.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Overreclaim is absolutely horrible with soft limits, but I think there
+are more direct reasons than checking nr_to_reclaim only after a full
+zone scan, for example, soft limit reclaim is invoked on zones that
+are totally fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
