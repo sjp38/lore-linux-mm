@@ -1,109 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 681A66B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 20:42:54 -0500 (EST)
-Received: by iadk27 with SMTP id k27so239325iad.14
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 17:42:53 -0800 (PST)
-Date: Mon, 23 Jan 2012 17:42:37 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-In-Reply-To: <20120118152131.45a47966.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
-References: <20120106173827.11700.74305.stgit@zurg> <20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com> <4F0D46EF.4060705@openvz.org> <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
- <20120118152131.45a47966.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 4C9B26B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 22:08:27 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3B5FE3EE0BB
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 12:08:25 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E237045DE4F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 12:08:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C915E45DE4D
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 12:08:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B42BF1DB8037
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 12:08:24 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B0EF1DB802F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 12:08:24 +0900 (JST)
+Date: Tue, 24 Jan 2012 12:07:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+Message-Id: <20120124120704.3f09b206.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F1E013E.9060009@fb.com>
+References: <1326912662-18805-1-git-send-email-asharma@fb.com>
+	<20120119114206.653b88bd.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F1E013E.9060009@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Arun Sharma <asharma@fb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org
 
-On Wed, 18 Jan 2012, Andrew Morton wrote:
-> On Wed, 11 Jan 2012 17:41:26 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 11 Jan 2012 12:23:11 +0400
-> > Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+On Mon, 23 Jan 2012 16:54:22 -0800
+Arun Sharma <asharma@fb.com> wrote:
 
-I only just got around to looking at these, sorry.
-
+> On 1/18/12 6:42 PM, KAMEZAWA Hiroyuki wrote:
+> >
+> > Hmm, then,
+> > 1. a new task jumped into this cgroup can see any uncleared data...
+> > 2. if a memcg pointer is reused, the information will be leaked.
 > 
-> Putting "fix" in the patch title text is a good way of handling this.
+> You're suggesting mm_match_cgroup() is good enough for accounting 
+> purposes, but not usable for cases where its important to get the 
+> equality right?
 > 
-> I renamed [3/3] to "mm: fix rss count leakage during migration" and
-> shall queue it for 3.3.  If people think we should also backport it
-> into -stable then please let me know.
 
-I don't think it needs backporting to stable: unless I'm forgetting
-something, the only thing that actually uses these rss counters is the
-OOM killer, and I don't think that will be greatly affected by the bug.
+I think there is no 100% solution to check reuse of object.
 
+
+
+> > 3. If VM_UNINITALIZED is set, the process can see any data which
+> >     was freed by other process which doesn't know VM_UNINITALIZED at all.
+> >
+> > 4. The process will be able to see file cache data which the it has no
+> >     access right if it's accessed by memcg once.
+> >
+> > 3&  4 seems too danger.
 > 
-> I reordered the patches and worked the chagnelogs quite a bit.  I now
-> have:
+> Yes - these are the risks that I'm hoping we can document, so the 
+> cgroups admin can avoid opting-in if not everything running in the 
+> cgroup is trusted.
 > 
-> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Subject: mm: fix rss count leakage during migration
-> : 
-> : Memory migration fills a pte with a migration entry and it doesn't update
-> : the rss counters.  Then it replaces the migration entry with the new page
-> : (or the old one if migration failed).  But between these two passes this
-> : pte can be unmaped, or a task can fork a child and it will get a copy of
-> : this migration entry.  Nobody accounts for this in the rss counters.
-> : 
-> : This patch properly adjust rss counters for migration entries in
-> : zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
-> : on the migration fast-path.
-> : 
-> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Cc: Hugh Dickins <hughd@google.com>
-> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-That was a good find, Konstantin: thank you.
+I guess admins/users can't handle that.
 
+> >
+> > Isn't it better to have this as per-task rather than per-memcg ?
+> > And just allow to reuse pages the page has freed ?
+> >
 > 
-> and
+> I'm worrying that the additional complexity of maintaining a per-task 
+> page list would be a problem. It might slow down workloads that 
+> alloc/free a lot because of the added code. It'll probably touch the 
+> kswapd as well (for reclaiming pages from the per-task free lists under 
+> low mem conditions).
 > 
-> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Subject: mm: add rss counters consistency check
-> : 
-> : Warn about non-zero rss counters at final mmdrop.
-> : 
-> : This check will prevent reoccurences of bugs such as that fixed in "mm:
-> : fix rss count leakage during migration".
-> : 
-> : I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
-> : rss counters cover whole page-table management, so this is a good
-> : invariant.
-> : 
-> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Cc: Hugh Dickins <hughd@google.com>
-> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-I'd be happier with this one if you do hide the check under
-CONFIG_VM_DEBUG - or even under CONFIG_DEBUG_VM if you want it to
-be compiled in sometimes ;)  I suppose NR_MM_COUNTERS is only 3,
-so it isn't a huge overhead; but I think you're overestimating the
-importance of these counters, and it would look better under DEBUG_VM.
-
+> Did you have some implementation ideas which would not have the problems 
+> above?
 > 
-> and
-> 
-> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Subject: mm: postpone migrated page mapping reset
-> : 
-> : Postpone resetting page->mapping until the final remove_migration_ptes(). 
-> : Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
-> : work.
-> : 
-> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> : Cc: Hugh Dickins <hughd@google.com>
-> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Isn't this one actually an essential part of the fix?  It should have
-been part of the same patch, but you split them apart, now Andrew has
-reordered them and pushed one part to 3.3, but this needs to go in too?
+If you just want to reduce latency of GFP_ZERO, you may be able to
+clear pages by (rate limited) kernel daemon for minimize latency.
 
-Hugh
+But, what I'm not sure is the effect of cpu cache. Now, user process
+can expect the page is on cpu cache when it faulted. page-fault
+does all prefetching by clearing pages. This helps performance much
+in general. So, I think it's limited situation that no-clear-page-at-fault
+is good for total applications performance.
+You can see reduction of clear_page() cost by removing GFP_ZERO but
+what's your application's total performance ? Is it good enough considering
+many risks ?
+
+
+Thanks,
+-Kame
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
