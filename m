@@ -1,122 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 7AEE56B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 18:22:10 -0500 (EST)
-Received: by qcsg1 with SMTP id g1so1652585qcs.14
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2012 15:22:09 -0800 (PST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 18E546B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 18:33:13 -0500 (EST)
+Received: by qadb15 with SMTP id b15so2075321qad.14
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2012 15:33:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBC+y3pVAsbCNP+mBm6Lfcx5XpTcg6D-us5J1E+W+_JcAQ@mail.gmail.com>
+In-Reply-To: <20120124180821.b499f75a.kamezawa.hiroyu@jp.fujitsu.com>
 References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
-	<CALWz4iyB0oSMBsfLJYD+xrB7ua9bRg5FD=cw4Sc-EdG1iLynow@mail.gmail.com>
-	<CAJd=RBC+y3pVAsbCNP+mBm6Lfcx5XpTcg6D-us5J1E+W+_JcAQ@mail.gmail.com>
-Date: Tue, 24 Jan 2012 15:22:09 -0800
-Message-ID: <CALWz4iznfeLX1u00bWWf_ziThCrJNAJUQVBRu8Rv9yDsdMmKsQ@mail.gmail.com>
+	<20120123104731.GA1707@cmpxchg.org>
+	<CAJd=RBDUK=LQVhQm_P3DO-bgWka=gK9cKUkm8esOaZs261EexA@mail.gmail.com>
+	<20120124083347.GC1660@cmpxchg.org>
+	<20120124180821.b499f75a.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 24 Jan 2012 15:33:11 -0800
+Message-ID: <CALWz4iy-oxPwtSHUQ-gKie+_6Of=QOnYdiQwcqYtXmfxSy=MQA@mail.gmail.com>
 Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 23, 2012 at 7:45 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> Hi all
+On Tue, Jan 24, 2012 at 1:08 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 24 Jan 2012 09:33:47 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 >
-> On Tue, Jan 24, 2012 at 3:04 AM, Ying Han <yinghan@google.com> wrote:
->> On Sun, Jan 22, 2012 at 5:55 PM, Hillf Danton <dhillf@gmail.com> wrote:
->>> To avoid reduction in performance of reclaimee, checking overreclaim is=
- added
->>> after shrinking lru list, when pages are reclaimed from mem cgroup.
->>>
->>> If over reclaim occurs, shrinking remaining lru lists is skipped, and n=
-o more
->>> reclaim for reclaim/compaction.
->>>
->>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
->>> ---
->>>
->>> --- a/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 00:23:10 2012
->>> +++ b/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 09:57:20 2012
->>> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
->>> =A0 =A0 =A0 =A0unsigned long nr_reclaimed, nr_scanned;
->>> =A0 =A0 =A0 =A0unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
->>> =A0 =A0 =A0 =A0struct blk_plug plug;
->>> + =A0 =A0 =A0 bool memcg_over_reclaimed =3D false;
->>>
->>> =A0restart:
->>> =A0 =A0 =A0 =A0nr_reclaimed =3D 0;
->>> @@ -2103,6 +2104,11 @@ restart:
->>>
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_recla=
-imed +=3D shrink_list(lru, nr_to_scan,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mz, sc, priority);
->>> +
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_ove=
+>> On Mon, Jan 23, 2012 at 08:30:42PM +0800, Hillf Danton wrote:
+>> > On Mon, Jan 23, 2012 at 6:47 PM, Johannes Weiner <hannes@cmpxchg.org> =
+wrote:
+>> > > On Mon, Jan 23, 2012 at 09:55:07AM +0800, Hillf Danton wrote:
+>> > >> To avoid reduction in performance of reclaimee, checking overreclai=
+m is added
+>> > >> after shrinking lru list, when pages are reclaimed from mem cgroup.
+>> > >>
+>> > >> If over reclaim occurs, shrinking remaining lru lists is skipped, a=
+nd no more
+>> > >> reclaim for reclaim/compaction.
+>> > >>
+>> > >> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>> > >> ---
+>> > >>
+>> > >> --- a/mm/vmscan.c =A0 =A0 Mon Jan 23 00:23:10 2012
+>> > >> +++ b/mm/vmscan.c =A0 =A0 Mon Jan 23 09:57:20 2012
+>> > >> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
+>> > >> =A0 =A0 =A0 unsigned long nr_reclaimed, nr_scanned;
+>> > >> =A0 =A0 =A0 unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
+>> > >> =A0 =A0 =A0 struct blk_plug plug;
+>> > >> + =A0 =A0 bool memcg_over_reclaimed =3D false;
+>> > >>
+>> > >> =A0restart:
+>> > >> =A0 =A0 =A0 nr_reclaimed =3D 0;
+>> > >> @@ -2103,6 +2104,11 @@ restart:
+>> > >>
+>> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_recl=
+aimed +=3D shrink_list(lru, nr_to_scan,
+>> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mz, sc, priority);
+>> > >> +
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_ove=
 r_reclaimed =3D !scanning_global_lru(mz)
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
 =A0 =A0 && (nr_reclaimed >=3D nr_to_reclaim);
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memcg=
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memcg=
 _over_reclaimed)
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
 =A0 =A0 goto out;
+>> > >
+>> > > Since this merge window, scanning_global_lru() is always false when
+>> > > the memory controller is enabled, i.e. most common configurations an=
+d
+>> > > distribution kernels.
+>> > >
+>> > > This will with quite likely have bad effects on zone balancing,
+>> > > pressure balancing between anon/file lru etc, while you haven't show=
+n
+>> > > that any workloads actually benefit from this.
+>> > >
+>> > Hi Johannes
+>> >
+>> > Thanks for your comment, first.
+>> >
+>> > Impact on zone balance and lru-list balance is introduced actually, bu=
+t I
+>> > dont think the patch is totally responsible for the balance mentioned,
+>> > because soft limit, embedded in mem cgroup, is setup by users accordin=
+g to
+>> > whatever tastes they have.
+>> >
+>> > Though there is room for the patch to be fine tuned in this direction =
+or that,
+>> > over reclaim should not be neglected entirely, but be avoided as much =
+as we
+>> > could, or users are enforced to set up soft limit with much care not t=
+o mess
+>> > up zone balance.
 >>
->> Why we need the change here? Do we have number to demonstrate?
+>> Overreclaim is absolutely horrible with soft limits, but I think there
+>> are more direct reasons than checking nr_to_reclaim only after a full
+>> zone scan, for example, soft limit reclaim is invoked on zones that
+>> are totally fine.
+>>
 >
-> See below please 8-)
 >
->>
->>
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
->>> @@ -2116,6 +2122,7 @@ restart:
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (nr_reclaimed >=3D nr_to_reclaim && p=
-riority < DEF_PRIORITY)
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
->>> =A0 =A0 =A0 =A0}
->>> +out:
->>> =A0 =A0 =A0 =A0blk_finish_plug(&plug);
->>> =A0 =A0 =A0 =A0sc->nr_reclaimed +=3D nr_reclaimed;
->>>
->>> @@ -2127,7 +2134,8 @@ restart:
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, mz,=
- sc, priority, 0);
->>>
->>> =A0 =A0 =A0 =A0/* reclaim/compaction might need reclaim to continue */
->>> - =A0 =A0 =A0 if (should_continue_reclaim(mz, nr_reclaimed,
->>> + =A0 =A0 =A0 if (!memcg_over_reclaimed &&
->>> + =A0 =A0 =A0 =A0 =A0 should_continue_reclaim(mz, nr_reclaimed,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0sc->nr_scanned - nr_scanned, sc))
->>
->> This changes the existing logic. What if the nr_reclaimed is greater
->> than nr_to_reclaim, but smaller than pages_for_compaction? The
->> existing logic is to continue reclaiming.
->>
-> With soft limit available, what if nr_to_reclaim set to be the number of
-> pages exceeding soft limit? With over reclaim abused, what are the target=
-s
-> of soft limit?
+> IIUC..
+> =A0- Because zonelist is all visited by alloc_pages(), _all_ zones in zon=
+elist
+> =A0 are in memory shortage.
+> =A0- taking care of zone/node balancing.
+>
+> I know this 'full zone scan' affects latency of alloc_pages() if the numb=
+er
+> of node is big.
 
-The nr_to_reclaim is set to SWAP_CLUSTER_MAX (32) for direct reclaim
-and ULONG_MAX for background reclaim. Not sure we can set it, but it
-is possible the res_counter_soft_limit_excess equal to that target
-value. The current soft limit mechanism provides a clue of WHERE to
-reclaim pages when there is memory pressure, it doesn't change the
-reclaim target as it was before.
+>
+> IMHO, in case of direct-reclaim caused by memcg's limit, we should avoid
+> full zone scan because the reclaim is not caused by any memory shortage i=
+n zonelist.
+>
+> In case of global memory reclaim, kswapd doesn't use zonelist.
+>
+> So, only global-direct-reclaim is a problem here.
+> I think do-full-zone-scan will reduce the calls of try_to_free_pages()
+> in future and may reduce lock contention but adds a thread too much
+> penalty.
 
-Overreclaim a cgroup under its softlimit is bad, but we should be
-careful not introducing side effect before providing the guarantee.
-Here, the should_continue_reclaim() has logic of freeing a bit more
-order-0 pages for compaction. The logic got changed after this.
+> In typical case, considering 4-node x86/64 NUMA, GFP_HIGHUSER_MOVABLE
+> allocation failure will reclaim 4*ZONE_NORMAL+ZONE_DMA32 =3D 160pages per=
+ scan.
+>
+> If 16-node, it will be 16*ZONE_NORMAL+ZONE_DMA32 =3D 544? pages per scan.
+>
+> 32pages may be too small but don't we need to have some threshold to quit
+> full-zone-scan ?
+
+Sorry I am confused. Are we talking about doing full zonelist scanning
+within a memcg or doing anon/file lru balance within a zone? AFAIU, it
+is the later one.
+
+In this patch, we do early breakout (memcg_over_reclaimed) without
+finish scanning other lrus per-memcg-per-zone. I think the concern is
+what is the side effect of that ?
+
+> Here, the topic is about softlimit reclaim. I think...
+>
+> 1. follow up for following comment(*) is required.
+> =3D=3D
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_soft_scanned =3D 0;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_soft_reclaimed =3D mem_=
+cgroup_soft_limit_reclaim(zone,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0sc->order, sc->gfp_mask,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0&nr_soft_scanned);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc->nr_reclaimed +=3D nr_s=
+oft_reclaimed;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc->nr_scanned +=3D nr_sof=
+t_scanned;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* need some check for avo=
+id more shrink_zone() */ <----(*)
+> =3D=3D
+>
+> 2. some threshold for avoinding full zone scan may be good.
+> =A0 (But this may need deep discussion...)
+>
+> 3. About the patch, I think it will not break zone-balancing if (*) is
+> =A0 handled in a good way.
+>
+> =A0 This check is not good.
+>
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_over_=
+reclaimed =3D !scanning_global_lru(mz)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 && (nr_reclaimed >=3D nr_to_reclaim);
+>
+>
+> =A0I like following
+>
+> =A0If (we-are-doing-softlimit-reclaim-for-global-direct-reclaim &&
+> =A0 =A0 =A0res_counter_soft_limit_excess(memcg->res))
+> =A0 =A0 =A0 memcg_over_reclaimed =3D true;
+
+This condition looks quite similar to what we've discussed on another
+thread, except that we do allow over-reclaim under softlimit after
+certain priority loop. (assume we have hard-to-reclaim memory on other
+cgroups above their softlimit)
+
+There are some works needed to be done ( like reverting the rb-tree )
+on current soft limit implementation before we can even further to
+optimize it. It would be nice to settle the first part before
+everything else.
 
 --Ying
 
-
-> Thanks
-> Hillf
+> Then another memcg will be picked up and soft-limit-reclaim() will contin=
+ue.
+>
+> Thanks,
+> -Kame
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
