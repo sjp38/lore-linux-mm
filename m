@@ -1,91 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 79DEB6B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 20:03:56 -0500 (EST)
-Date: Mon, 23 Jan 2012 17:03:54 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: vmscan: fix malused nr_reclaimed in shrinking zone
-Message-Id: <20120123170354.82b9f127.akpm@linux-foundation.org>
-In-Reply-To: <CAJd=RBDVxT5Pc2HZjz15LUb7xhFbztpFmXqLXVB3nCoQLKHiHg@mail.gmail.com>
-References: <CAJd=RBDVxT5Pc2HZjz15LUb7xhFbztpFmXqLXVB3nCoQLKHiHg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 681A66B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 20:42:54 -0500 (EST)
+Received: by iadk27 with SMTP id k27so239325iad.14
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 17:42:53 -0800 (PST)
+Date: Mon, 23 Jan 2012 17:42:37 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
+In-Reply-To: <20120118152131.45a47966.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1201231719580.14979@eggly.anvils>
+References: <20120106173827.11700.74305.stgit@zurg> <20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com> <4F0D46EF.4060705@openvz.org> <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120118152131.45a47966.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, 21 Jan 2012 22:41:59 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
+On Wed, 18 Jan 2012, Andrew Morton wrote:
+> On Wed, 11 Jan 2012 17:41:26 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 11 Jan 2012 12:23:11 +0400
+> > Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> The value of nr_reclaimed is the amount of pages reclaimed in the current round,
-> whereas nr_to_reclaim shoud be compared with the amount of pages
-> reclaimed in all
-> rounds, so we have to buffer the pages reclaimed in the past rounds for correct
-> comparison.
+I only just got around to looking at these, sorry.
+
 > 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
+> Putting "fix" in the patch title text is a good way of handling this.
 > 
-> --- a/mm/vmscan.c	Sat Jan 14 14:02:20 2012
-> +++ b/mm/vmscan.c	Sat Jan 21 22:23:48 2012
-> @@ -2081,13 +2081,15 @@ static void shrink_mem_cgroup_zone(int p
->  				   struct scan_control *sc)
->  {
->  	unsigned long nr[NR_LRU_LISTS];
-> +	unsigned long reclaimed = 0;
->  	unsigned long nr_to_scan;
->  	enum lru_list lru;
-> -	unsigned long nr_reclaimed, nr_scanned;
-> +	unsigned long nr_reclaimed = 0, nr_scanned;
->  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
->  	struct blk_plug plug;
+> I renamed [3/3] to "mm: fix rss count leakage during migration" and
+> shall queue it for 3.3.  If people think we should also backport it
+> into -stable then please let me know.
+
+I don't think it needs backporting to stable: unless I'm forgetting
+something, the only thing that actually uses these rss counters is the
+OOM killer, and I don't think that will be greatly affected by the bug.
+
 > 
->  restart:
-> +	reclaimed += nr_reclaimed;
->  	nr_reclaimed = 0;
->  	nr_scanned = sc->nr_scanned;
->  	get_scan_count(mz, sc, nr, priority);
-> @@ -2113,7 +2115,8 @@ restart:
->  		 * with multiple processes reclaiming pages, the total
->  		 * freeing target can get unreasonably large.
->  		 */
-> -		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
-> +		if ((nr_reclaimed + reclaimed) >= nr_to_reclaim &&
-> +					priority < DEF_PRIORITY)
->  			break;
->  	}
->  	blk_finish_plug(&plug);
+> I reordered the patches and worked the chagnelogs quite a bit.  I now
+> have:
+> 
+> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Subject: mm: fix rss count leakage during migration
+> : 
+> : Memory migration fills a pte with a migration entry and it doesn't update
+> : the rss counters.  Then it replaces the migration entry with the new page
+> : (or the old one if migration failed).  But between these two passes this
+> : pte can be unmaped, or a task can fork a child and it will get a copy of
+> : this migration entry.  Nobody accounts for this in the rss counters.
+> : 
+> : This patch properly adjust rss counters for migration entries in
+> : zap_pte_range() and copy_one_pte().  Thus we avoid extra atomic operations
+> : on the migration fast-path.
+> : 
+> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Cc: Hugh Dickins <hughd@google.com>
+> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Well, let's step back and look at it.
+That was a good find, Konstantin: thank you.
 
-- The multiple-definitions-of-a-local-per-line thing is generally a
-  bad idea, partly because it prevents people from adding comments to
-  the definition.  It would be better like this:
+> 
+> and
+> 
+> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Subject: mm: add rss counters consistency check
+> : 
+> : Warn about non-zero rss counters at final mmdrop.
+> : 
+> : This check will prevent reoccurences of bugs such as that fixed in "mm:
+> : fix rss count leakage during migration".
+> : 
+> : I didn't hide this check under CONFIG_VM_DEBUG because it rather small and
+> : rss counters cover whole page-table management, so this is a good
+> : invariant.
+> : 
+> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Cc: Hugh Dickins <hughd@google.com>
+> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-	unsigned long reclaimed = 0;	/* total for this function */
-	unsigned long nr_reclaimed = 0;	/* on each pass through the loop */
+I'd be happier with this one if you do hide the check under
+CONFIG_VM_DEBUG - or even under CONFIG_DEBUG_VM if you want it to
+be compiled in sometimes ;)  I suppose NR_MM_COUNTERS is only 3,
+so it isn't a huge overhead; but I think you're overestimating the
+importance of these counters, and it would look better under DEBUG_VM.
 
-- The names of these things are terrible!  Why not
-  reclaimed_this_pass and reclaimed_total or similar?
+> 
+> and
+> 
+> : From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Subject: mm: postpone migrated page mapping reset
+> : 
+> : Postpone resetting page->mapping until the final remove_migration_ptes(). 
+> : Otherwise the expression PageAnon(migration_entry_to_page(entry)) does not
+> : work.
+> : 
+> : Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> : Cc: Hugh Dickins <hughd@google.com>
+> : Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-- It would be cleaner to do the "reclaimed += nr_reclaimed" at the
-  end of the loop, if we've decided to goto restart.  (But better
-  to do it within the loop!)
+Isn't this one actually an essential part of the fix?  It should have
+been part of the same patch, but you split them apart, now Andrew has
+reordered them and pushed one part to 3.3, but this needs to go in too?
 
-- Only need to update sc->nr_reclaimed at the end of the function
-  (assumes that callees of this function aren't interested in
-  sc->nr_reclaimed, which seems a future-safe assumption to me).
-
-- Should be able to avoid the temporary addition of nr_reclaimed to
-  reclaimed inside the loop by updating `reclaimed' at an appropriate
-  place.
-
-
-Or whatever.  That code's handling of `reclaimed' and `nr_reclaimed' is
-a twisty mess.  Please clean it up!  If it is done correctly,
-`nr_reclaimed' can (and should) be local to the internal loop.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
