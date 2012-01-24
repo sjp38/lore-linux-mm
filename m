@@ -1,130 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 985366B005D
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:24:14 -0500 (EST)
-Date: Tue, 24 Jan 2012 13:21:36 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH v2 -mm 1/3] mm: reclaim at order 0 when compaction is
- enabled
-Message-ID: <20120124132136.3b765f0c@annuminas.surriel.com>
-In-Reply-To: <20120124131822.4dc03524@annuminas.surriel.com>
-References: <20120124131822.4dc03524@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 0A4D26B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:30:51 -0500 (EST)
+Date: Tue, 24 Jan 2012 16:29:09 -0200
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+Message-ID: <20120124182909.GB19186@amt.cnet>
+References: <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+ <4F175706.8000808@redhat.com>
+ <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
+ <4F17DCED.4020908@redhat.com>
+ <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
+ <4F17E058.8020008@redhat.com>
+ <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
+ <20120124153835.GA10990@amt.cnet>
+ <1327421440.13624.30.camel@jaguar>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1327421440.13624.30.camel@jaguar>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: leonid.moiseichuk@nokia.com, rhod@redhat.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-When built with CONFIG_COMPACTION, kswapd does not try to free
-contiguous pages.  Because it is not trying, it should also not
-test whether it succeeded, because that can result in continuous
-page reclaim, until a large fraction of memory is free and large
-fractions of the working set have been evicted.
+On Tue, Jan 24, 2012 at 06:10:40PM +0200, Pekka Enberg wrote:
+> On Tue, 2012-01-24 at 13:38 -0200, Marcelo Tosatti wrote:
+> > Having userspace specify the "sample period" for low memory notification
+> > makes no sense. The frequency of notifications is a function of the
+> > memory pressure.
+> 
+> Sure, it makes sense to autotune sample period. I don't see the problem
+> with letting userspace decide it for themselves if they want to.
+> 
+> 			Pekka
 
-In shrink_inactive_list, we should not try to do higher order
-(out of LRU order) page isolation, unless we really are in 
-lumpy reclaim mode. This gives all pages a good amount of time
-on the inactive list, giving the actively used pages the chance
-to get referenced and avoid eviction.
+Application polls on a file descriptor waiting for asynchronous events,
+particular conditions of memory reclaim upon which an action is
+necessary.
 
-Also remove a line of code that increments balanced right before
-exiting the function.
+These signalled conditions are not simply percentages of free memory,
+but depend on the amount of freeable cache available, etc. Otherwise
+applications could monitor /proc/mem_info and act on that.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c |   29 ++++++++++++++++++++++-------
- 1 files changed, 22 insertions(+), 7 deletions(-)
+What is the point of sampling in the interface as you have it?
+Application can read() from the file descriptor to retrieve the current
+status, if it wishes.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2880396..0398fab 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1512,6 +1512,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 	unsigned long nr_writeback = 0;
- 	isolate_mode_t reclaim_mode = ISOLATE_INACTIVE;
- 	struct zone *zone = mz->zone;
-+	int order = 0;
- 
- 	while (unlikely(too_many_isolated(zone, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -1522,8 +1523,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 	}
- 
- 	set_reclaim_mode(priority, sc, false);
--	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
-+	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM) {
- 		reclaim_mode |= ISOLATE_ACTIVE;
-+		order = sc->order;
-+	}
- 
- 	lru_add_drain();
- 
-@@ -1535,7 +1538,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	nr_taken = isolate_lru_pages(nr_to_scan, mz, &page_list,
--				     &nr_scanned, sc->order,
-+				     &nr_scanned, order,
- 				     reclaim_mode, 0, file);
- 	if (global_reclaim(sc)) {
- 		zone->pages_scanned += nr_scanned;
-@@ -2754,7 +2757,7 @@ loop_again:
- 		 */
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			int nr_slab;
-+			int nr_slab, testorder;
- 			unsigned long balance_gap;
- 
- 			if (!populated_zone(zone))
-@@ -2783,11 +2786,25 @@ loop_again:
- 			 * gap is either the low watermark or 1%
- 			 * of the zone, whichever is smaller.
- 			 */
-+			testorder = order;
- 			balance_gap = min(low_wmark_pages(zone),
- 				(zone->present_pages +
- 					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
- 				KSWAPD_ZONE_BALANCE_GAP_RATIO);
--			if (!zone_watermark_ok_safe(zone, order,
-+			/*
-+			 * Kswapd reclaims only single pages when
-+			 * COMPACTION_BUILD. Trying too hard to get
-+			 * contiguous free pages can result in excessive
-+			 * amounts of free memory, and useful things
-+			 * getting kicked out of memory.
-+			 * Limit the amount of reclaim to something sane,
-+			 * plus space for compaction to do its thing.
-+			 */
-+			if (COMPACTION_BUILD) {
-+				testorder = 0;
-+				balance_gap += 2<<order;
-+			}
-+			if (!zone_watermark_ok_safe(zone, testorder,
- 					high_wmark_pages(zone) + balance_gap,
- 					end_zone, 0)) {
- 				shrink_zone(priority, zone, &sc);
-@@ -2816,7 +2833,7 @@ loop_again:
- 				continue;
- 			}
- 
--			if (!zone_watermark_ok_safe(zone, order,
-+			if (!zone_watermark_ok_safe(zone, testorder,
- 					high_wmark_pages(zone), end_zone, 0)) {
- 				all_zones_ok = 0;
- 				/*
-@@ -2922,8 +2939,6 @@ out:
- 
- 			/* If balanced, clear the congested flag */
- 			zone_clear_flag(zone, ZONE_CONGESTED);
--			if (i <= *classzone_idx)
--				balanced += zone->present_pages;
- 		}
- 	}
- 
-.
+The objective in this argument is to make the API as simple and easy to
+use as possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
