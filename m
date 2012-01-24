@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id C92A26B004F
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 22:48:22 -0500 (EST)
-Received: by vcbfl11 with SMTP id fl11so3035166vcb.14
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2012 19:48:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
-References: <CAJd=RBAbFd=MFZZyCKN-Si-Zt=C6dKVUaG-C7s5VKoTWfY00nA@mail.gmail.com>
-	<20120123130221.GA15113@tiehlicka.suse.cz>
-	<CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
-Date: Tue, 24 Jan 2012 09:18:21 +0530
-Message-ID: <CAKTCnzk1srmgyDzmSDzMsnbjmmt1ke91=kr0C4bECyxb1J6Rog@mail.gmail.com>
-Subject: Re: [PATCH] mm: memcg: fix over reclaiming mem cgroup
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 228826B004F
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2012 23:49:16 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 437A43EE081
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:49:14 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2822845DEAD
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:49:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FCC645DEA6
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:49:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 039371DB803B
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:49:14 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B1DA61DB803E
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 13:49:13 +0900 (JST)
+Date: Tue, 24 Jan 2012 13:47:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from
+ pc->flags
+Message-Id: <20120124134750.de5f31ee.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CALWz4izasaECifCYoRXL45x1YXYzACC=kUHQivnGZKRH+ySjuw@mail.gmail.com>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+	<CALWz4izasaECifCYoRXL45x1YXYzACC=kUHQivnGZKRH+ySjuw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Tue, Jan 24, 2012 at 12:44 AM, Ying Han <yinghan@google.com> wrote:
-> On Mon, Jan 23, 2012 at 5:02 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> On Sat 21-01-12 22:49:23, Hillf Danton wrote:
->>> In soft limit reclaim, overreclaim occurs when pages are reclaimed from mem
->>> group that is under its soft limit, or when more pages are reclaimd than the
->>> exceeding amount, then performance of reclaimee goes down accordingly.
->>
->> First of all soft reclaim is more a help for the global memory pressure
->> balancing rather than any guarantee about how much we reclaim for the
->> group.
->> We need to do more changes in order to make it a guarantee.
->> For example you implementation will cause severe problems when all
->> cgroups are soft unlimited (default conf.) or when nobody is above the
->> limit but the total consumption triggers the global reclaim. Therefore
->> nobody is in excess and you would skip all groups and only bang on the
->> root memcg.
->>
+On Mon, 23 Jan 2012 14:02:48 -0800
+Ying Han <yinghan@google.com> wrote:
 
-True, ideally soft reclaim should not turn on and allow global reclaim
-to occur in the scenario mentioned.
+> On Fri, Jan 13, 2012 at 12:40 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >
+> > From 1008e84d94245b1e7c4d237802ff68ff00757736 Mon Sep 17 00:00:00 2001
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Date: Thu, 12 Jan 2012 15:53:24 +0900
+> > Subject: [PATCH 3/7] memcg: remove PCG_MOVE_LOCK flag from pc->flags.
+> >
+> > PCG_MOVE_LOCK bit is used for bit spinlock for avoiding race between
+> > memcg's account moving and page state statistics updates.
+> >
+> > Considering page-statistics update, very hot path, this lock is
+> > taken only when someone is moving account (or PageTransHuge())
+> > And, now, all moving-account between memcgroups (by task-move)
+> > are serialized.
+> 
+> This might be a side question, can you clarify the serialization here?
+> Does it mean that we only allow one task-move at a time system-wide?
+> 
 
->> Ying Han has a patch which basically skips all cgroups which are under
->> its limit until we reach a certain reclaim priority but even for this we
->> need some additional changes - e.g. reverse the current default setting
->> of the soft limit.
->>
+current implementation has that limit by mutex.
 
-I'd be wary of that approach, because it might be harder to explain
-the working of soft limits,I'll look at the discussion thread
-mentioned earlier for the benefits of that approach.
-
->> Anyway, I like the nr_to_reclaim reduction idea because we have to do
->> this in some way because the global reclaim starts with ULONG
->> nr_to_scan.
->
-> Agree with Michal where there are quite a lot changes we need to get
-> in for soft limit before any further optimization.
->
-> Hillf, please refer to the patch from Johannes
-> https://lkml.org/lkml/2012/1/13/99 which got quite a lot recent
-> discussions. I am expecting to get that in before further soft limit
-> changes.
-
-Balbir
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
