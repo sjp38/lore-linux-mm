@@ -1,99 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id A0AC26B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 06:00:21 -0500 (EST)
-Received: by wicr5 with SMTP id r5so3750465wic.14
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2012 03:00:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 840826B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 06:16:53 -0500 (EST)
+Date: Tue, 24 Jan 2012 12:16:44 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v4] memcg: remove PCG_CACHE page_cgroup flag
+Message-ID: <20120124111644.GE1660@cmpxchg.org>
+References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120120084545.GC9655@tiehlicka.suse.cz>
+ <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20120123170354.82b9f127.akpm@linux-foundation.org>
-References: <CAJd=RBDVxT5Pc2HZjz15LUb7xhFbztpFmXqLXVB3nCoQLKHiHg@mail.gmail.com>
-	<20120123170354.82b9f127.akpm@linux-foundation.org>
-Date: Tue, 24 Jan 2012 19:00:19 +0800
-Message-ID: <CAJd=RBByNhLSiBtyaYOHeMRQpXmAO=hEKTOanPTzrb2gRZTOSg@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: fix malused nr_reclaimed in shrinking zone
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Tue, Jan 24, 2012 at 9:03 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> Well, let's step back and look at it.
->
-> - The multiple-definitions-of-a-local-per-line thing is generally a
-> =C2=A0bad idea, partly because it prevents people from adding comments to
-> =C2=A0the definition. =C2=A0It would be better like this:
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long reclaimed =3D 0; =C2=A0 =C2=A0/*=
- total for this function */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_reclaimed =3D 0; /* on each p=
-ass through the loop */
->
-> - The names of these things are terrible! =C2=A0Why not
-> =C2=A0reclaimed_this_pass and reclaimed_total or similar?
->
-> - It would be cleaner to do the "reclaimed +=3D nr_reclaimed" at the
-> =C2=A0end of the loop, if we've decided to goto restart. =C2=A0(But bette=
-r
-> =C2=A0to do it within the loop!)
->
-> - Only need to update sc->nr_reclaimed at the end of the function
-> =C2=A0(assumes that callees of this function aren't interested in
-> =C2=A0sc->nr_reclaimed, which seems a future-safe assumption to me).
->
-> - Should be able to avoid the temporary addition of nr_reclaimed to
-> =C2=A0reclaimed inside the loop by updating `reclaimed' at an appropriate
-> =C2=A0place.
->
->
-> Or whatever. =C2=A0That code's handling of `reclaimed' and `nr_reclaimed'=
- is
-> a twisty mess. =C2=A0Please clean it up! =C2=A0If it is done correctly,
-> `nr_reclaimed' can (and should) be local to the internal loop.
+On Tue, Jan 24, 2012 at 12:16:36PM +0900, KAMEZAWA Hiroyuki wrote:
+> 
+> > Can we make this anon as well?
+> 
+> I'm sorry for long RTT. version 4 here.
+> ==
+> >From c40256561d6cdaee62be7ec34147e6079dc426f4 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 19 Jan 2012 17:09:41 +0900
+> Subject: [PATCH] memcg: remove PCG_CACHE
+> 
+> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+> Here, "CACHE" means anonymous user pages (and SwapCache). This
+> doesn't include shmem.
 
-Hi Andrew
+!CACHE means anonymous/swapcache
 
-The mess is cleaned up, please review again.
+> Consdering callers, at charge/uncharge, the caller should know
+> what  the page is and we don't need to record it by using 1bit
+> per page.
+> 
+> This patch removes PCG_CACHE bit and make callers of
+> mem_cgroup_charge_statistics() to specify what the page is.
+> 
+> Changelog since v3
+>  - renamed a variable 'rss' to 'anon'
+> 
+> Changelog since v2
+>  - removed 'not_rss', added 'anon'
+>  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+>  - removed a patch to mem_cgroup_uncharge_cache
+>  - simplified comment.
+> 
+> Changelog since RFC.
+>  - rebased onto memcg-devel
+>  - rename 'file' to 'not_rss'
+>  - some cleanup and added comment.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks
-Hillf
-
-
-=3D=3D=3Dcut here=3D=3D=3D
-From: Hillf Danton <dhillf@gmail.com>
-Subject: [PATCH] mm: vmscan: fix malused nr_reclaimed in shrinking zone
-
-The value of nr_reclaimed is the amount of pages reclaimed in the current
-round of loop, whereas nr_to_reclaim should be compared with pages reclaime=
-d
-in all rounds.
-
-In each round of loop, reclaimed pages are cut off from the reclaim goal,
-and loop stops once goal achieved.
-
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
-
---- a/mm/vmscan.c	Mon Jan 23 00:23:10 2012
-+++ b/mm/vmscan.c	Tue Jan 24 17:10:34 2012
-@@ -2113,7 +2113,12 @@ restart:
- 		 * with multiple processes reclaiming pages, the total
- 		 * freeing target can get unreasonably large.
- 		 */
--		if (nr_reclaimed >=3D nr_to_reclaim && priority < DEF_PRIORITY)
-+		if (nr_reclaimed >=3D nr_to_reclaim)
-+			nr_to_reclaim =3D 0;
-+		else
-+			nr_to_reclaim -=3D nr_reclaimed;
-+
-+		if (!nr_to_reclaim && priority < DEF_PRIORITY)
- 			break;
- 	}
- 	blk_finish_plug(&plug);
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
