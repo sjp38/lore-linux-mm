@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id C7AF86B004F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:10:42 -0500 (EST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 6DA686B004F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 11:23:19 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
 Subject: Re: [RFC 1/3] /dev/low_mem_notify
-From: Pekka Enberg <penberg@kernel.org>
-In-Reply-To: <20120124153835.GA10990@amt.cnet>
-References: 
-	 <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
-	 <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com>
-	 <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
-	 <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
-	 <4F175706.8000808@redhat.com>
-	 <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
-	 <4F17DCED.4020908@redhat.com>
-	 <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
-	 <4F17E058.8020008@redhat.com>
-	 <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
-	 <20120124153835.GA10990@amt.cnet>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 24 Jan 2012 18:10:40 +0200
-Message-ID: <1327421440.13624.30.camel@jaguar>
-Mime-Version: 1.0
+Date: Tue, 24 Jan 2012 16:22:36 +0000
+References: <1326788038-29141-1-git-send-email-minchan@kernel.org> <84FF21A720B0874AA94B46D76DB98269045596AE@008-AM1MPN1-003.mgdnok.nokia.com> <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
+In-Reply-To: <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201201241622.36222.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: leonid.moiseichuk@nokia.com, rhod@redhat.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: leonid.moiseichuk@nokia.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, mtosatti@redhat.com, akpm@linux-foundation.org, rhod@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-On Tue, 2012-01-24 at 13:38 -0200, Marcelo Tosatti wrote:
-> Having userspace specify the "sample period" for low memory notification
-> makes no sense. The frequency of notifications is a function of the
-> memory pressure.
+On Wednesday 18 January 2012, Pekka Enberg wrote:
+> >> +struct vmnotify_event {
+> >> +     /* Size of the struct for ABI extensibility. */
+> >> +     __u32                   size;
+> >> +
+> >> +     __u64                   nr_avail_pages;
+> >> +
+> >> +     __u64                   nr_swap_pages;
+> >> +
+> >> +     __u64                   nr_free_pages;
+> >> +};
+> >
+> > Two fields here most likely session-constant, (nr_avail_pages and
+> > nr_swap_pages), seems not much sense to report them in every event.  If we
+> > have memory/swap hotplug user-space can use sysinfo() call.
+> 
+> I actually changed the ABI to look like this:
+> 
+> struct vmnotify_event {
+>         /*
+>          * Size of the struct for ABI extensibility.
+>          */
+>         __u32                   size;
+> 
+>         __u64                   attrs;
+> 
+>         __u64                   attr_values[];
+> };
+> 
+> So userspace can decide which fields to include in notifications.
 
-Sure, it makes sense to autotune sample period. I don't see the problem
-with letting userspace decide it for themselves if they want to.
+Please make the first member a __u64 instead of a __u32. This will
+avoid incompatibility between 32 and 64 bit processes, which have
+different alignment rules on x86: x86-32 would implicitly pack the
+struct while x86-64 would add padding with your layout.
 
-			Pekka
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
