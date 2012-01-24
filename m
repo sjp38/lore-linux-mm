@@ -1,127 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 95D046B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 16:57:16 -0500 (EST)
-Date: Tue, 24 Jan 2012 14:57:13 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [RFC 1/3] /dev/low_mem_notify
-Message-ID: <20120124145713.20fad866@dt>
-In-Reply-To: <alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-References: <1326788038-29141-1-git-send-email-minchan@kernel.org>
-	<1326788038-29141-2-git-send-email-minchan@kernel.org>
-	<CAOJsxLHGYmVNk7D9NyhRuqQDwquDuA7LtUtp-1huSn5F-GvtAg@mail.gmail.com>
-	<4F15A34F.40808@redhat.com>
-	<alpine.LFD.2.02.1201172044310.15303@tux.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 7AEE56B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2012 18:22:10 -0500 (EST)
+Received: by qcsg1 with SMTP id g1so1652585qcs.14
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2012 15:22:09 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAJd=RBC+y3pVAsbCNP+mBm6Lfcx5XpTcg6D-us5J1E+W+_JcAQ@mail.gmail.com>
+References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+	<CALWz4iyB0oSMBsfLJYD+xrB7ua9bRg5FD=cw4Sc-EdG1iLynow@mail.gmail.com>
+	<CAJd=RBC+y3pVAsbCNP+mBm6Lfcx5XpTcg6D-us5J1E+W+_JcAQ@mail.gmail.com>
+Date: Tue, 24 Jan 2012 15:22:09 -0800
+Message-ID: <CALWz4iznfeLX1u00bWWf_ziThCrJNAJUQVBRu8Rv9yDsdMmKsQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, leonid.moiseichuk@nokia.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ronen Hod <rhod@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 17 Jan 2012 20:51:13 +0200 (EET)
-Pekka Enberg <penberg@kernel.org> wrote:
+On Mon, Jan 23, 2012 at 7:45 PM, Hillf Danton <dhillf@gmail.com> wrote:
+> Hi all
+>
+> On Tue, Jan 24, 2012 at 3:04 AM, Ying Han <yinghan@google.com> wrote:
+>> On Sun, Jan 22, 2012 at 5:55 PM, Hillf Danton <dhillf@gmail.com> wrote:
+>>> To avoid reduction in performance of reclaimee, checking overreclaim is=
+ added
+>>> after shrinking lru list, when pages are reclaimed from mem cgroup.
+>>>
+>>> If over reclaim occurs, shrinking remaining lru lists is skipped, and n=
+o more
+>>> reclaim for reclaim/compaction.
+>>>
+>>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>>> ---
+>>>
+>>> --- a/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 00:23:10 2012
+>>> +++ b/mm/vmscan.c =A0 =A0 =A0 Mon Jan 23 09:57:20 2012
+>>> @@ -2086,6 +2086,7 @@ static void shrink_mem_cgroup_zone(int p
+>>> =A0 =A0 =A0 =A0unsigned long nr_reclaimed, nr_scanned;
+>>> =A0 =A0 =A0 =A0unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
+>>> =A0 =A0 =A0 =A0struct blk_plug plug;
+>>> + =A0 =A0 =A0 bool memcg_over_reclaimed =3D false;
+>>>
+>>> =A0restart:
+>>> =A0 =A0 =A0 =A0nr_reclaimed =3D 0;
+>>> @@ -2103,6 +2104,11 @@ restart:
+>>>
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_recla=
+imed +=3D shrink_list(lru, nr_to_scan,
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mz, sc, priority);
+>>> +
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_ove=
+r_reclaimed =3D !scanning_global_lru(mz)
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 && (nr_reclaimed >=3D nr_to_reclaim);
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memcg=
+_over_reclaimed)
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 goto out;
+>>
+>> Why we need the change here? Do we have number to demonstrate?
+>
+> See below please 8-)
+>
+>>
+>>
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
+>>> @@ -2116,6 +2122,7 @@ restart:
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (nr_reclaimed >=3D nr_to_reclaim && p=
+riority < DEF_PRIORITY)
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
+>>> =A0 =A0 =A0 =A0}
+>>> +out:
+>>> =A0 =A0 =A0 =A0blk_finish_plug(&plug);
+>>> =A0 =A0 =A0 =A0sc->nr_reclaimed +=3D nr_reclaimed;
+>>>
+>>> @@ -2127,7 +2134,8 @@ restart:
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, mz,=
+ sc, priority, 0);
+>>>
+>>> =A0 =A0 =A0 =A0/* reclaim/compaction might need reclaim to continue */
+>>> - =A0 =A0 =A0 if (should_continue_reclaim(mz, nr_reclaimed,
+>>> + =A0 =A0 =A0 if (!memcg_over_reclaimed &&
+>>> + =A0 =A0 =A0 =A0 =A0 should_continue_reclaim(mz, nr_reclaimed,
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0sc->nr_scanned - nr_scanned, sc))
+>>
+>> This changes the existing logic. What if the nr_reclaimed is greater
+>> than nr_to_reclaim, but smaller than pages_for_compaction? The
+>> existing logic is to continue reclaiming.
+>>
+> With soft limit available, what if nr_to_reclaim set to be the number of
+> pages exceeding soft limit? With over reclaim abused, what are the target=
+s
+> of soft limit?
 
-> Ok, so here's a proof of concept patch that implements sample-base 
-> per-process free threshold VM event watching using perf-like syscall ABI. 
-> I'd really like to see something like this that's much more extensible and 
-> clean than the /dev based ABIs that people have proposed so far.
+The nr_to_reclaim is set to SWAP_CLUSTER_MAX (32) for direct reclaim
+and ULONG_MAX for background reclaim. Not sure we can set it, but it
+is possible the res_counter_soft_limit_excess equal to that target
+value. The current soft limit mechanism provides a clue of WHERE to
+reclaim pages when there is memory pressure, it doesn't change the
+reclaim target as it was before.
 
-OK, so I'm slow, but better late than never.  I plead travel.
+Overreclaim a cgroup under its softlimit is bad, but we should be
+careful not introducing side effect before providing the guarantee.
+Here, the should_continue_reclaim() has logic of freeing a bit more
+order-0 pages for compaction. The logic got changed after this.
 
-I guess the thing that surprises me is that nobody has said this yet: this
-looks a lot like an event-reporting mechanism like perf.  Is there a reason
-these can't be perf-style events integrated with all the rest?
+--Ying
 
-> +struct vmnotify_config {
-> +	/*
-> +	 * Size of the struct for ABI extensibility.
-> +	 */
-> +	__u32		   size;
-> +
-> +	/*
-> +	 * Notification type bitmask
-> +	 */
-> +	__u64			type;
-> +
-> +	/*
-> +	 * Free memory threshold in percentages [1..99]
-> +	 */
-> +	__u32			free_threshold;
 
-Is this an upper-bound threshold or a lower-bound threshold?  From your
-example, it looks like "free_threshold" is "the amount of memory that is
-not free", which seems confusing.
-
-[...]
-
-> new file mode 100644
-> index 0000000..6800450
-> --- /dev/null
-> +++ b/mm/vmnotify.c
-> @@ -0,0 +1,235 @@
-> +#include <linux/anon_inodes.h>
-> +#include <linux/vmnotify.h>
-> +#include <linux/syscalls.h>
-> +#include <linux/file.h>
-> +#include <linux/list.h>
-> +#include <linux/poll.h>
-> +#include <linux/slab.h>
-> +#include <linux/swap.h>
-> +
-> +#define VMNOTIFY_MAX_FREE_THRESHOD	100
-
-Did we run out of L's here? :)
-
-> +static ssize_t vmnotify_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-> +{
-> +	struct vmnotify_watch *watch = file->private_data;
-> +	int ret = 0;
-> +
-> +	mutex_lock(&watch->mutex);
-> +
-> +	if (!watch->pending)
-> +		goto out_unlock;
-> +
-> +	if (copy_to_user(buf, &watch->event, sizeof(struct vmnotify_event))) {
-> +		ret = -EFAULT;
-> +		goto out_unlock;
-> +	}
-> +
-> +	ret = watch->event.size;
-> +
-> +	watch->pending = false;
-> +
-> +out_unlock:
-> +	mutex_unlock(&watch->mutex);
-> +
-> +	return ret;
-> +}
-
-So this is a nonblocking-only interface?  That may surprise some
-developers.  You already have a wait queue, why not wait on it if need be?
-
-> +static int vmnotify_copy_config(struct vmnotify_config __user *uconfig,
-> +				struct vmnotify_config *config)
-> +{
-> +	int ret;
-> +
-> +	ret = copy_from_user(config, uconfig, sizeof(struct vmnotify_config));
-> +	if (ret)
-> +		return -EFAULT;
-> +
-> +	if (!config->type)
-> +		return -EINVAL;
-> +
-> +	if (config->type & VMNOTIFY_TYPE_SAMPLE) {
-> +		if (config->sample_period_ns < NSEC_PER_MSEC)
-> +			return -EINVAL;
-> +	}
-
-What happens if the sample period is zero?
-
-jon
+> Thanks
+> Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
