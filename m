@@ -1,74 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 6C9D66B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 08:36:57 -0500 (EST)
-Date: Wed, 25 Jan 2012 14:36:45 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v5] memcg: remove PCG_CACHE page_cgroup flag
-Message-ID: <20120125133645.GC7694@cmpxchg.org>
-References: <20120120084545.GC9655@tiehlicka.suse.cz>
- <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
- <20120124111644.GE1660@cmpxchg.org>
- <20120124145411.GF1660@cmpxchg.org>
- <20120124160140.GH26289@tiehlicka.suse.cz>
- <20120124164449.GH1660@cmpxchg.org>
- <20120124172308.GI26289@tiehlicka.suse.cz>
- <20120124180842.GA18372@tiehlicka.suse.cz>
- <20120125090025.6d24cd0f.kamezawa.hiroyu@jp.fujitsu.com>
- <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id CA0A96B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 08:57:16 -0500 (EST)
+Received: by mail-tul01m020-f175.google.com with SMTP id uo9so6059613obb.6
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 05:57:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <201201201423.46858.laurent.pinchart@ideasonboard.com>
+References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
+ <1324891397-10877-2-git-send-email-sumit.semwal@ti.com> <201201201423.46858.laurent.pinchart@ideasonboard.com>
+From: "Semwal, Sumit" <sumit.semwal@ti.com>
+Date: Wed, 25 Jan 2012 19:26:52 +0530
+Message-ID: <CAB2ybb98BT8L569G_728x1ZXdFNaQCDZzW2+kB0ZNeFak5_g+Q@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 1/3] dma-buf: Introduce dma buffer sharing mechanism
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Cc: linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com, linux@arm.linux.org.uk, patches@linaro.org, jesse.barker@linaro.org, daniel@ffwll.ch
 
-On Wed, Jan 25, 2012 at 02:41:00PM +0900, KAMEZAWA Hiroyuki wrote:
-> Subject: [PATCH v5] memcg: remove PCG_CACHE
-> 
-> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
-> Here, "CACHE" means anonymous user pages (and SwapCache). This
-> doesn't include shmem.
-> 
-> Consdering callers, at charge/uncharge, the caller should know
-> what  the page is and we don't need to record it by using 1bit
-> per page.
-> 
-> This patch removes PCG_CACHE bit and make callers of
-> mem_cgroup_charge_statistics() to specify what the page is.
-> 
-> About page migration:
-> Mapping of the used page is not touched during migration (see
-> page_remove_rmap) so we can rely on it and push the correct charge type
-> down to __mem_cgroup_uncharge_common from end_migration for unused page.
-> The force flag was misleading was abused for skipping the needless
-> page_mapped() / PageCgroupMigration() check, as we know the unused page
-> is no longer mapped and cleared the migration flag just a few lines
-> up.  But doing the checks is no biggie and it's not worth adding another
-> flag just to skip them.
-> 
-> Changelog since v4
->  - fixed a bug at page migration by Michal Hokko.
-> 
-> Changelog since v3
->  - renamed a variable 'rss' to 'anon'
-> 
-> Changelog since v2
->  - removed 'not_rss', added 'anon'
->  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
->  - removed a patch to mem_cgroup_uncharge_cache
->  - simplified comment.
-> 
-> Changelog since RFC.
->  - rebased onto memcg-devel
->  - rename 'file' to 'not_rss'
->  - some cleanup and added comment.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, Jan 20, 2012 at 6:53 PM, Laurent Pinchart
+<laurent.pinchart@ideasonboard.com> wrote:
+> Hi Summit,
+>
+> Sorry for the late review. I know that this code is now in mainline, but =
+I
+> still have a couple of comments. I'll send patches if you agree with them=
+.
+Hi Laurent,
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Thanks for your review; apologies for being late in replying - I was
+OoO for last couple of days.
+>
+> On Monday 26 December 2011 10:23:15 Sumit Semwal wrote:
+<snip>
+>>
+>
+> [snip]
+>
+>> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+>> new file mode 100644
+>> index 0000000..e38ad24
+>> --- /dev/null
+>> +++ b/drivers/base/dma-buf.c
+>> @@ -0,0 +1,291 @@
+>
+> [snip]
+>
+>> +/**
+>> + * dma_buf_export - Creates a new dma_buf, and associates an anon file
+>> + * with this buffer, so it can be exported.
+>> + * Also connect the allocator specific data and ops to the buffer.
+>> + *
+>> + * @priv: =A0 =A0[in] =A0 =A0Attach private data of allocator to this b=
+uffer
+>> + * @ops: =A0 =A0 [in] =A0 =A0Attach allocator-defined dma buf ops to th=
+e new buffer.
+>> + * @size: =A0 =A0[in] =A0 =A0Size of the buffer
+>> + * @flags: =A0 [in] =A0 =A0mode flags for the file.
+>> + *
+>> + * Returns, on success, a newly created dma_buf object, which wraps the
+>> + * supplied private data and operations for dma_buf_ops. On either miss=
+ing
+>> + * ops, or error in allocating struct dma_buf, will return negative err=
+or.
+>> + *
+>> + */
+>> +struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size_t size, i=
+nt flags)
+>> +{
+>> + =A0 =A0 struct dma_buf *dmabuf;
+>> + =A0 =A0 struct file *file;
+>> +
+>> + =A0 =A0 if (WARN_ON(!priv || !ops
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->map_dma_buf
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->unmap_dma_buf
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->release)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-EINVAL);
+>> + =A0 =A0 }
+>> +
+>> + =A0 =A0 dmabuf =3D kzalloc(sizeof(struct dma_buf), GFP_KERNEL);
+>> + =A0 =A0 if (dmabuf =3D=3D NULL)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-ENOMEM);
+>> +
+>> + =A0 =A0 dmabuf->priv =3D priv;
+>> + =A0 =A0 dmabuf->ops =3D ops;
+>
+> dmabuf->ops will never but NULL, but (see below)
+>
+<snip>
+>> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 struct device *dev)
+>> +{
+>> + =A0 =A0 struct dma_buf_attachment *attach;
+>> + =A0 =A0 int ret;
+>> +
+>> + =A0 =A0 if (WARN_ON(!dmabuf || !dev || !dmabuf->ops))
+>
+> you still check dmabuf->ops here, as well as in several places below.
+> Shouldn't these checks be removed ?
+You're right - these can be removed.
+>
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-EINVAL);
+>> +
+>> + =A0 =A0 attach =3D kzalloc(sizeof(struct dma_buf_attachment), GFP_KERN=
+EL);
+>> + =A0 =A0 if (attach =3D=3D NULL)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto err_alloc;
+>
+> What about returning ERR_PTR(-ENOMEM) directly here ?
+>
+Right; we can do that.
+>> +
+>> + =A0 =A0 mutex_lock(&dmabuf->lock);
+>> +
+>> + =A0 =A0 attach->dev =3D dev;
+>> + =A0 =A0 attach->dmabuf =3D dmabuf;
+>
+> These two lines can be moved before mutex_lock().
+>
+:) Yes - thanks for catching this.
+<snip>
+> --
+> Regards,
+>
+> Laurent Pinchart
+
+Let me know if you'd send patches for these, or should I just go ahead
+and correct.
+
+Best regards,
+~Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
