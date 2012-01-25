@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1326B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 13:54:08 -0500 (EST)
-Received: by qcsg1 with SMTP id g1so2269066qcs.14
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 10:54:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 27F056B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:20:55 -0500 (EST)
+Received: by qcsg1 with SMTP id g1so2287859qcs.14
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 11:20:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120124084133.GD1660@cmpxchg.org>
-References: <20120119161445.b3a8a9d2.kamezawa.hiroyu@jp.fujitsu.com>
-	<CALWz4ixufzgi2kDRgTMAzty-S2AKMmPfqdGc1sBRNFJxf-WTAQ@mail.gmail.com>
-	<20120124084133.GD1660@cmpxchg.org>
-Date: Wed, 25 Jan 2012 10:54:06 -0800
-Message-ID: <CALWz4iyoRCFG9=aiySFzQb3HsM33yW7tZB4N6xee6qUvO6L2-g@mail.gmail.com>
-Subject: Re: [PATCH] memcg: remove unnecessary thp check at page stat accounting
+In-Reply-To: <CAJd=RBCYsOSrJFjbBqqnU4=580Pd2sHQUhpxWfqx0rXJAxihuA@mail.gmail.com>
+References: <CAJd=RBBG5X8=vkdRTCZ1bvTaVxPAVun9O+yiX0SM6yDzrxDGDQ@mail.gmail.com>
+	<CALWz4iyB0oSMBsfLJYD+xrB7ua9bRg5FD=cw4Sc-EdG1iLynow@mail.gmail.com>
+	<CAJd=RBC+y3pVAsbCNP+mBm6Lfcx5XpTcg6D-us5J1E+W+_JcAQ@mail.gmail.com>
+	<CALWz4iznfeLX1u00bWWf_ziThCrJNAJUQVBRu8Rv9yDsdMmKsQ@mail.gmail.com>
+	<CAJd=RBCYsOSrJFjbBqqnU4=580Pd2sHQUhpxWfqx0rXJAxihuA@mail.gmail.com>
+Date: Wed, 25 Jan 2012 11:20:53 -0800
+Message-ID: <CALWz4iw5UkOn4x=mVrL28+Ztb1kKeqZHprUmbdku9r=KZhY+6g@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: check mem cgroup over reclaimed
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jan 24, 2012 at 12:41 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
-> On Mon, Jan 23, 2012 at 12:11:11PM -0800, Ying Han wrote:
->> On Wed, Jan 18, 2012 at 11:14 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > Thank you very much for reviewing previous RFC series.
->> > This is a patch against memcg-devel and linux-next (can by applied wit=
-hout HUNKs).
->> >
->> > =3D=3D
->> >
->> > From 64641b360839b029bb353fbd95f7554cc806ed05 Mon Sep 17 00:00:00 2001
->> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> > Date: Thu, 12 Jan 2012 16:08:33 +0900
->> > Subject: [PATCH] memcg: remove unnecessary thp check in mem_cgroup_upd=
-ate_page_stat()
->> >
->> > commit 58b318ecf(memcg-devel)
->> > =A0 =A0memcg: make mem_cgroup_split_huge_fixup() more efficient
->> > removes move_lock_page_cgroup() in thp-split path.
->> >
->> > So, We do not have to check PageTransHuge in mem_cgroup_update_page_st=
-at
->> > and fallback into the locked accounting because both move charge and t=
-hp
->> > split up are done with compound_lock so they cannot race. update vs.
->> > move is protected by the mem_cgroup_stealed sufficiently.
+On Tue, Jan 24, 2012 at 5:47 PM, Hillf Danton <dhillf@gmail.com> wrote:
+> On Wed, Jan 25, 2012 at 7:22 AM, Ying Han <yinghan@google.com> wrote:
+>> On Mon, Jan 23, 2012 at 7:45 PM, Hillf Danton <dhillf@gmail.com> wrote:
+>>> With soft limit available, what if nr_to_reclaim set to be the number of
+>>> pages exceeding soft limit? With over reclaim abused, what are the targets
+>>> of soft limit?
 >>
->> Sorry, i don't see we changed the "move charge" to "move account" ?
+>> The nr_to_reclaim is set to SWAP_CLUSTER_MAX (32) for direct reclaim
+>> and ULONG_MAX for background reclaim. Not sure we can set it, but it
+>> is possible the res_counter_soft_limit_excess equal to that target
+>> value. The current soft limit mechanism provides a clue of WHERE to
+>> reclaim pages when there is memory pressure, it doesn't change the
+>> reclaim target as it was before.
+>>
 >
-> move_account() moves charges. =A0IMO, it's the function that is a
-> misnomer and "moving charges" is less ambiguous since we account
-> several different things in the memory controller.
+> Decrement in sc->nr_to_reclaim was tried in another patch, you already saw it.
+>
+>> Overreclaim a cgroup under its softlimit is bad, but we should be
+>> careful not introducing side effect before providing the guarantee.
+>
+> Yes 8-)
+>
+>> Here, the should_continue_reclaim() has logic of freeing a bit more
+>> order-0 pages for compaction. The logic got changed after this.
+>>
+>
+> Compaction is to increase the successful rate of THP allocation, and in turn
+> to back up higher performance. In soft limit, performance guarantee is not
+> extra request but treated with less care.
+>
+> Which one you prefer, compaction or guarantee?
 
-Hmm, that works then.
-
-Acked-by: Ying Han<yinghan@google.com>
+The compaction is something we already supporting, while the softlimit
+implementation is a new design. I would say that we need to guarantee
+no regression introduced by any new code.
 
 --Ying
+
+> Thanks
+> Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
