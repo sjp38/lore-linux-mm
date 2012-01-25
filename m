@@ -1,155 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 736B86B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 11:40:50 -0500 (EST)
-Date: Wed, 25 Jan 2012 17:40:45 +0100
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: KSM: numa awareness sysfs knob
-Message-ID: <20120125164037.GA21071@dhcp-27-244.brq.redhat.com>
-References: <1327314568-13942-1-git-send-email-pholasek@redhat.com>
- <20120124160350.17b6e92b.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120124160350.17b6e92b.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 1D9A36B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 12:02:47 -0500 (EST)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LYD00KX560K2S@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 25 Jan 2012 17:02:44 +0000 (GMT)
+Received: from [106.116.48.223] by spt1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTPA id <0LYD00H7760J3G@spt1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 25 Jan 2012 17:02:44 +0000 (GMT)
+Date: Wed, 25 Jan 2012 18:02:41 +0100
+From: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Subject: Re: [PATCH 1/3] dma-buf: Introduce dma buffer sharing mechanism
+In-reply-to: <1324891397-10877-2-git-send-email-sumit.semwal@ti.com>
+Message-id: <4F2035B1.4020204@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=ISO-8859-1; format=flowed
+Content-transfer-encoding: 7BIT
+References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
+ <1324891397-10877-2-git-send-email-sumit.semwal@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Sumit Semwal <sumit.semwal@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, patches@linaro.org, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Tue, 24 Jan 2012, Andrew Morton wrote:
-> On Mon, 23 Jan 2012 11:29:28 +0100
-> Petr Holasek <pholasek@redhat.com> wrote:
-> 
-> > This patch is based on RFC
-> > 
-> > https://lkml.org/lkml/2011/11/30/91
-> > 
-> > Introduces new sysfs binary knob /sys/kernel/mm/ksm/merge_nodes
-> 
-> It's not binary - it's ascii text!  "boolean" is a better term here ;)
-> 
+Hi Sumit,
 
-Of course, I'll fix it :)
+On 12/26/2011 10:23 AM, Sumit Semwal wrote:
+> This is the first step in defining a dma buffer sharing mechanism.
+>
+> A new buffer object dma_buf is added, with operations and API to allow easy
+> sharing of this buffer object across devices.
+>
+> The framework allows:
+> - creation of a buffer object, its association with a file pointer, and
+>     associated allocator-defined operations on that buffer. This operation is
+>     called the 'export' operation.
+> - different devices to 'attach' themselves to this exported buffer object, to
+>    facilitate backing storage negotiation, using dma_buf_attach() API.
+> - the exported buffer object to be shared with the other entity by asking for
+>     its 'file-descriptor (fd)', and sharing the fd across.
+> - a received fd to get the buffer object back, where it can be accessed using
+>     the associated exporter-defined operations.
+> - the exporter and user to share the scatterlist associated with this buffer
+>     object using map_dma_buf and unmap_dma_buf operations.
+>
 
-> > which control merging pages across different numa nodes.
-> > When it is set to zero only pages from the same node are merged,
-> > otherwise pages from all nodes can be merged together (default behavior).
-> > 
-> > Typical use-case could be a lot of KVM guests on NUMA machine
-> > where cpus from more distant nodes would have significant increase
-> > of access latency to the merged ksm page. Switching merge_nodes
-> > to 1 will result into these steps:
-> > 
-> > 	1) unmerging all ksm pages
-> > 	2) re-merging all pages from VM_MERGEABLE vmas only within
-> > 		their NUMA nodes.
-> > 	3) lower average access latency to merged pages at the
-> > 	   expense of higher memory usage.
-> > 
-> > Every numa node has its own stable & unstable trees because
-> > of faster searching and inserting. Changing of merge_nodes
-> > value breaks COW on all current ksm pages.
-> > 
-> 
-> How useful is this code?  Do you have any performance testing results
-> to help make the case for merging it?
+[snip]
 
-I didn't any no performance testing, but number of nodes is still the same, 
-the only difference is that they are distributed among more trees, 
-so searching is faster within specified numa node. Every node includes pointer
-to the tree's root, but I assume it is quite small payload for faster searching.
-Or not?
+> +/**
+> + * struct dma_buf_attachment - holds device-buffer attachment data
+> + * @dmabuf: buffer for this attachment.
+> + * @dev: device attached to the buffer.
+> + * @node: list of dma_buf_attachment.
+> + * @priv: exporter specific attachment data.
+> + *
+> + * This structure holds the attachment information between the dma_buf buffer
+> + * and its user device(s). The list contains one attachment struct per device
+> + * attached to the buffer.
+> + */
+> +struct dma_buf_attachment {
+> +	struct dma_buf *dmabuf;
+> +	struct device *dev;
+> +	struct list_head node;
+> +	void *priv;
+> +};
+> +
+> +#ifdef CONFIG_DMA_SHARED_BUFFER
+> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> +							struct device *dev);
+> +void dma_buf_detach(struct dma_buf *dmabuf,
+> +				struct dma_buf_attachment *dmabuf_attach);
+> +struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+> +			size_t size, int flags);
+> +int dma_buf_fd(struct dma_buf *dmabuf);
+> +struct dma_buf *dma_buf_get(int fd);
+> +void dma_buf_put(struct dma_buf *dmabuf);
+> +
+> +struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
+> +					enum dma_data_direction);
+> +void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *);
 
-> 
-> Should the unmerged case be made permanent and not configurable?  IOW,
-> what is the argument for continuing to permit the user to merge across
-> nodes?
-> 
-> Should the code bother doing this unmerge when
-> /sys/kernel/mm/ksm/merge_nodes is written to?  It would be simpler to
-> expect the user to configure /sys/kernel/mm/ksm/merge_nodes prior to
-> using KSM at all?
+I think that you should add enum dma_data_direction as an argument
+unmap function. It was mentioned that the dma_buf_attachment should keep
+cached and mapped sg_table for performance reasons. The field
+dma_buf_attachment::priv seams to be a natural place to keep this sg_table.
+To map a buffer the exporter calls dma_map_sg. It needs dma direction
+as an argument. The problem is that dma_unmap_sg also needs this
+argument but dma direction is not available neither in
+dma_buf_unmap_attachment nor in unmap callback. Therefore the exporter
+is forced to embed returned sg_table into a bigger structure where dma 
+direction is remembered. Refer to function vb2_dc_dmabuf_ops_map at
+link below as an example:
 
-The only reason for this feature is being more user-friendly. But if 
-we find some issue in doing merging/unmerging interactively, forcing user
-to set merge_nodes value before first ksm run will be more safe.
+http://thread.gmane.org/gmane.linux.drivers.video-input-infrastructure/43793/focus=43797
 
-> 
-> > @@ -58,6 +58,9 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
-> >                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
-> >                     Default: 20 (chosen for demonstration purposes)
-> >  
-> > +merge_nodes      - specifies if pages from different numa nodes can be merged
-> > +                   Default: 1
-> 
-> This documentation would be better if it informed the user about how to
-> use merge_nodes.  What are the effects of altering it and why might
-> they wish to do this?
-> 
-> >
-> > ...
-> >
-> > +static ssize_t merge_nodes_store(struct kobject *kobj,
-> > +				   struct kobj_attribute *attr,
-> > +				   const char *buf, size_t count)
-> > +{
-> > +	int err;
-> > +	long unsigned int knob;
-> 
-> Plain old "unsigned long" is more usual.
-> 
-> Better would be to make this "unsigned", to match ksm_merge_nodes.  Use
-> kstrtouint() below.
-> 
-> >
-> > ...
-> >
-> > @@ -1987,6 +2070,9 @@ static struct attribute *ksm_attrs[] = {
-> >  	&pages_unshared_attr.attr,
-> >  	&pages_volatile_attr.attr,
-> >  	&full_scans_attr.attr,
-> > +#ifdef CONFIG_NUMA
-> > +	&merge_nodes_attr.attr,
-> > +#endif
-> 
-> One might think that with CONFIG_NUMA=n, we just added a pile of
-> useless codebloat to vmlinux.  But gcc is sneaky and removes the
-> unreferenced functions.
-> 
-> However while doing so, gcc shows that it reads
-> Documentation/SubmitChecklist, section 2:
-> 
-> mm/ksm.c:2017: warning: 'merge_nodes_attr' defined but not used
-> 
-> So...
-> 
-> diff -puN mm/ksm.c~ksm-numa-awareness-sysfs-knob-fix mm/ksm.c
-> --- a/mm/ksm.c~ksm-numa-awareness-sysfs-knob-fix
-> +++ a/mm/ksm.c
-> @@ -1973,6 +1973,7 @@ static ssize_t run_store(struct kobject 
->  }
->  KSM_ATTR(run);
->  
-> +#ifdef CONFIG_NUMA
->  static ssize_t merge_nodes_show(struct kobject *kobj,
->  				struct kobj_attribute *attr, char *buf)
->  {
-> @@ -2015,6 +2016,7 @@ static ssize_t merge_nodes_store(struct 
->  	return count;
->  }
->  KSM_ATTR(merge_nodes);
-> +#endif
->  
->  static ssize_t pages_shared_show(struct kobject *kobj,
->  				 struct kobj_attribute *attr, char *buf)
-> _
-> 
-
-Apologize, I overlooked that. I'll fix it and other issues you pointed out
-above in next version. 
-
-Many thanks for reviewing!
+Regards,
+Tomasz Stanislawski
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
