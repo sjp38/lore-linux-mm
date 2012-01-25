@@ -1,66 +1,331 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 3BB9F6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 00:22:07 -0500 (EST)
-References: <1327310360.96918.YahooMailNeo@web162003.mail.bf1.yahoo.com> <1327313719.76517.YahooMailNeo@web162002.mail.bf1.yahoo.com> <alpine.LSU.2.00.1201231125200.1677@eggly.anvils>
-Message-ID: <1327468926.52380.YahooMailNeo@web162002.mail.bf1.yahoo.com>
-Date: Tue, 24 Jan 2012 21:22:06 -0800 (PST)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: Re: [Help] : RSS/PSS showing 0 during smaps for Xorg
-In-Reply-To: <alpine.LSU.2.00.1201231125200.1677@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 19B1A6B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 00:42:32 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 150DE3EE0C2
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:42:30 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E69C845DE54
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:42:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C7CD245DE51
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:42:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B4DDD1DB8040
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:42:29 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 610E51DB8037
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:42:29 +0900 (JST)
+Date: Wed, 25 Jan 2012 14:41:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH v5] memcg: remove PCG_CACHE page_cgroup flag
+Message-Id: <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120125090025.6d24cd0f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20120119181711.8d697a6b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120120122658.1b14b512.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120120084545.GC9655@tiehlicka.suse.cz>
+	<20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120124111644.GE1660@cmpxchg.org>
+	<20120124145411.GF1660@cmpxchg.org>
+	<20120124160140.GH26289@tiehlicka.suse.cz>
+	<20120124164449.GH1660@cmpxchg.org>
+	<20120124172308.GI26289@tiehlicka.suse.cz>
+	<20120124180842.GA18372@tiehlicka.suse.cz>
+	<20120125090025.6d24cd0f.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-________________________________=0A>From: Hugh Dickins <hughd@google.com>=
-=0A>To: PINTU KUMAR <pintu_agarwal@yahoo.com> =0A>Cc: "linux-kernel@vger.ke=
-rnel.org" <linux-kernel@vger.kernel.org>; "linux-mm@kvack.org" <linux-mm@kv=
-ack.org> =0A>Sent: Tuesday, 24 January 2012 1:01 AM=0A>Subject: Re: [Help] =
-: RSS/PSS showing 0 during smaps for Xorg=0A>=0A>On Mon, 23 Jan 2012, PINTU=
- KUMAR wrote:=0A>> Dear All,=0A>> =0A>> I am facing one problem for one of =
-my kernel module for our linux mobile with kernel2.6.36.=0A>> =0A>> When I =
-do cat /proc/<Xorg pid>/smaps | grep -A 11 /dev/ump , to track information =
-for my=A0ump module,=0A>> we always get Rss/Pss as 0 kB as shown below:=0A>=
-> cat /proc/1731/smaps | grep -A 11 /dev/ump=0A>> 414db000-415ff000 rw-s 00=
-015000 00:12 6803=A0=A0=A0=A0=A0=A0 /dev/ump=0A>> Size:=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0 1168 kB=0A>> Rss:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0 0 kB=0A>> Pss:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0 0 kB=0A>> track_rss_value =3D 0, iswalkcalled =3D 1, smap_p=
-te_range_called =3D 1,=A0swap_pte =3D 0,=A0not_pte_present =3D 0,=A0not_nor=
-mal_page =3D 1=0A>> isspecial =3D 0, not_special =3D 1, isMixedMap =3D 0, p=
-fnpages_null =3D 0, pfnoff_flag =3D 0, not_cow_mapping =3D 1,=A0normal_page=
-_end =3D 0=0A>> =A0=0A>> After tracing down the problem, I found out that d=
-uring "show_smaps" in fs/proc/task_mmu.c and during call to smaps_pte_range=
- the vm_normal_page() is always returning NULL for our /dev/ump driver.=0A>=
-> (smaps_pte_range() is the place where Rss/Pss information is populated)=
-=0A>> Thus mss->resident (Rss value) is never getting incremented.=A0 =0A>>=
- =A0=0A>> To trace the problem I added few flags during show_smaps & vm_nor=
-mal_page() as shown above. The value of 1 indicates that the condition is e=
-xecuted.=0A>> Thus "normal_page_end" indicates that the "vm_normal_page" ha=
-s never ended successfully and always returns from =0A>> "!is_cow_mapping()=
-".=0A>> =A0=0A>> So, I wanted to know the main cause for vm_normal_page() a=
-lways returning NULL page for our ump driver. =0A>> What is that I am missi=
-ng in my driver ?=0A>> =A0=0A>> Can anyone please let me know what could be=
- the problem in our driver.=0A>=0A>This not evidence of any problem in your=
- driver.=0A>=0A>vm_normal_page() returns NULL because the pages mapped by y=
-our driver=0A>are not normal faultable and reclaimable pages, but an area o=
-f physical=0A>memory mapped in by remap_pfn_range(), which sets the VM_PFNM=
-AP flag.=0A>=0A>The mm subsystem does not count such pages towards rss (or =
-pss),=0A>hence your 0s.=0A>=0A>Hugh=0A>=0A=0ADear Mr. Hugh,=0A=A0=0AThank y=
-ou very much for your reply.=0AIs there a way to convert our mapped pages t=
-o a normal pages. I tried pfn_to_page() but no effect.=0AI mean the page is=
- considered normal only if it is associated with "struct page" right???=0AI=
-s is possible to convert these pages to a normal struct pages so that we ca=
-n get the Rss/Pss value??=0A=A0=0AAlso, the VM_PFNMAP is being set for all =
-dirvers during remap_pfn_range and stills shows Rss/Pss for other drivers.=
-=0AThen why it is not shown for our driver?=0AHow to avoid remap_pfn_range =
-to not to set VM_PFNMAP for our driver?=0A=A0=0APlease let me know.=0A=A0=
-=0A=A0=0A=A0=0AThanks, Regards,=0APintu
+On Wed, 25 Jan 2012 09:00:25 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Tue, 24 Jan 2012 19:09:47 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Tue 24-01-12 18:23:08, Michal Hocko wrote:
+> > > On Tue 24-01-12 17:44:49, Johannes Weiner wrote:
+> > > > On Tue, Jan 24, 2012 at 05:01:40PM +0100, Michal Hocko wrote:
+> > > > > On Tue 24-01-12 15:54:11, Johannes Weiner wrote:
+> > > > > > Hold on, I think this patch is still not complete: end_migration()
+> > > > > > directly uses __mem_cgroup_uncharge_common() with the FORCE charge
+> > > > > > type.  This will uncharge all migrated anon pages as cache, when it
+> > > > > > should decide based on PageAnon(used), which is the page where
+> > > > > > ->mapping is intact after migration.
+> > > > > 
+> > > > > You are right, I've missed that one as well. Anyway
+> > > > > MEM_CGROUP_CHARGE_TYPE_FORCE is used only in mem_cgroup_end_migration
+> > > > > these days and it got out of sync with its documentation (used by
+> > > > > force_empty) quite some time ago (f817ed48). What about something like
+> > > > > the following on top of the previous patch?
+> > > > > --- 
+> > > > > Should be foldet into the previous patch with the updated changelog:
+> > > > > 
+> > > > > Mapping of the unused page is not touched during migration (see
+> > > > 
+> > > > used one, not unused.  unused->mapping is globbered during migration.
+> > > 
+> > > Yes, you are right:
+> > 
+> > Sorry I haven't sent the most recent update. Here we go:
+> > ---
+> > Should be folded into the previous patch with the updated changelog:
+> > 
+> Thanks, I'll fold this into v5.
+> -Kame
+> 
+
+v5 here
+==
+Subject: [PATCH v5] memcg: remove PCG_CACHE
+
+We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+Here, "CACHE" means anonymous user pages (and SwapCache). This
+doesn't include shmem.
+
+Consdering callers, at charge/uncharge, the caller should know
+what  the page is and we don't need to record it by using 1bit
+per page.
+
+This patch removes PCG_CACHE bit and make callers of
+mem_cgroup_charge_statistics() to specify what the page is.
+
+About page migration:
+Mapping of the used page is not touched during migration (see
+page_remove_rmap) so we can rely on it and push the correct charge type
+down to __mem_cgroup_uncharge_common from end_migration for unused page.
+The force flag was misleading was abused for skipping the needless
+page_mapped() / PageCgroupMigration() check, as we know the unused page
+is no longer mapped and cleared the migration flag just a few lines
+up.  But doing the checks is no biggie and it's not worth adding another
+flag just to skip them.
+
+Changelog since v4
+ - fixed a bug at page migration by Michal Hokko.
+
+Changelog since v3
+ - renamed a variable 'rss' to 'anon'
+
+Changelog since v2
+ - removed 'not_rss', added 'anon'
+ - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+ - removed a patch to mem_cgroup_uncharge_cache
+ - simplified comment.
+
+Changelog since RFC.
+ - rebased onto memcg-devel
+ - rename 'file' to 'not_rss'
+ - some cleanup and added comment.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/page_cgroup.h |    8 +-----
+ mm/memcontrol.c             |   57 ++++++++++++++++++++++++-------------------
+ 2 files changed, 33 insertions(+), 32 deletions(-)
+
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index a2d1177..1060292 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -4,7 +4,6 @@
+ enum {
+ 	/* flags for mem_cgroup */
+ 	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+-	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
+ 	PCG_MIGRATION, /* under page migration */
+ 	/* flags for mem_cgroup and file and I/O status */
+@@ -64,11 +63,6 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+ static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+ 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
+ 
+-/* Cache flag is set only once (at allocation) */
+-TESTPCGFLAG(Cache, CACHE)
+-CLEARPCGFLAG(Cache, CACHE)
+-SETPCGFLAG(Cache, CACHE)
+-
+ TESTPCGFLAG(Used, USED)
+ CLEARPCGFLAG(Used, USED)
+ SETPCGFLAG(Used, USED)
+@@ -85,7 +79,7 @@ static inline void lock_page_cgroup(struct page_cgroup *pc)
+ {
+ 	/*
+ 	 * Don't take this lock in IRQ context.
+-	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
++	 * This lock is for pc->mem_cgroup, USED, MIGRATION
+ 	 */
+ 	bit_spin_lock(PCG_LOCK, &pc->flags);
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1c56c5f..45dab06 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -670,15 +670,19 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ }
+ 
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+-					 bool file, int nr_pages)
++					 bool anon, int nr_pages)
+ {
+ 	preempt_disable();
+ 
+-	if (file)
+-		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
++	/*
++	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
++	 * counted as CACHE even if it's on ANON LRU.
++	 */
++	if (anon)
++		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
+ 				nr_pages);
+ 	else
+-		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
++		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+ 				nr_pages);
+ 
+ 	/* pagein of a big page is an event. So, ignore page size */
+@@ -2405,6 +2409,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 				       struct page_cgroup *pc,
+ 				       enum charge_type ctype)
+ {
++	bool anon;
++
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+@@ -2424,21 +2430,14 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 	 * See mem_cgroup_add_lru_list(), etc.
+  	 */
+ 	smp_wmb();
+-	switch (ctype) {
+-	case MEM_CGROUP_CHARGE_TYPE_CACHE:
+-	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
+-		SetPageCgroupCache(pc);
+-		SetPageCgroupUsed(pc);
+-		break;
+-	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+-		ClearPageCgroupCache(pc);
+-		SetPageCgroupUsed(pc);
+-		break;
+-	default:
+-		break;
+-	}
+ 
+-	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
++	SetPageCgroupUsed(pc);
++	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
++		anon = true;
++	else
++		anon = false;
++
++	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
+ 	unlock_page_cgroup(pc);
+ 	WARN_ON_ONCE(PageLRU(page));
+ 	/*
+@@ -2503,6 +2502,7 @@ static int mem_cgroup_move_account(struct page *page,
+ {
+ 	unsigned long flags;
+ 	int ret;
++	bool anon = PageAnon(page);
+ 
+ 	VM_BUG_ON(from == to);
+ 	VM_BUG_ON(PageLRU(page));
+@@ -2531,14 +2531,14 @@ static int mem_cgroup_move_account(struct page *page,
+ 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 		preempt_enable();
+ 	}
+-	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
++	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+ 		__mem_cgroup_cancel_charge(from, nr_pages);
+ 
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+-	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), nr_pages);
++	mem_cgroup_charge_statistics(to, anon, nr_pages);
+ 	/*
+ 	 * We charges against "to" which may not have any tasks. Then, "to"
+ 	 * can be under rmdir(). But in current implementation, caller of
+@@ -2884,6 +2884,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ 	struct mem_cgroup *memcg = NULL;
+ 	unsigned int nr_pages = 1;
+ 	struct page_cgroup *pc;
++	bool anon;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+@@ -2915,6 +2916,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ 		/* See mem_cgroup_prepare_migration() */
+ 		if (page_mapped(page) || PageCgroupMigration(pc))
+ 			goto unlock_out;
++		anon = true;
+ 		break;
+ 	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
+ 		if (!PageAnon(page)) {	/* Shared memory */
+@@ -2922,12 +2924,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ 				goto unlock_out;
+ 		} else if (page_mapped(page)) /* Anon */
+ 				goto unlock_out;
++		anon = true;
+ 		break;
+ 	default:
++		anon = false;
+ 		break;
+ 	}
+ 
+-	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -nr_pages);
++	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
+ 
+ 	ClearPageCgroupUsed(pc);
+ 	/*
+@@ -3251,6 +3255,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+ {
+ 	struct page *used, *unused;
+ 	struct page_cgroup *pc;
++	bool anon;
+ 
+ 	if (!memcg)
+ 		return;
+@@ -3272,8 +3277,10 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+ 	lock_page_cgroup(pc);
+ 	ClearPageCgroupMigration(pc);
+ 	unlock_page_cgroup(pc);
+-
+-	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
++	anon = PageAnon(used);
++	__mem_cgroup_uncharge_common(unused,
++		anon ? MEM_CGROUP_CHARGE_TYPE_MAPPED
++                     : MEM_CGROUP_CHARGE_TYPE_CACHE);
+ 
+ 	/*
+ 	 * If a page is a file cache, radix-tree replacement is very atomic
+@@ -3283,7 +3290,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+ 	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
+ 	 * check. (see prepare_charge() also)
+ 	 */
+-	if (PageAnon(used))
++	if (anon)
+ 		mem_cgroup_uncharge_page(used);
+ 	/*
+ 	 * At migration, we may charge account against cgroup which has no
+@@ -3313,7 +3320,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 	/* fix accounting on old pages */
+ 	lock_page_cgroup(pc);
+ 	memcg = pc->mem_cgroup;
+-	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -1);
++	mem_cgroup_charge_statistics(memcg, false, -1);
+ 	ClearPageCgroupUsed(pc);
+ 	unlock_page_cgroup(pc);
+ 
+-- 
+1.7.4.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
