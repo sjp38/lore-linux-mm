@@ -1,138 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id CA0A96B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 08:57:16 -0500 (EST)
-Received: by mail-tul01m020-f175.google.com with SMTP id uo9so6059613obb.6
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 05:57:14 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <201201201423.46858.laurent.pinchart@ideasonboard.com>
-References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
- <1324891397-10877-2-git-send-email-sumit.semwal@ti.com> <201201201423.46858.laurent.pinchart@ideasonboard.com>
-From: "Semwal, Sumit" <sumit.semwal@ti.com>
-Date: Wed, 25 Jan 2012 19:26:52 +0530
-Message-ID: <CAB2ybb98BT8L569G_728x1ZXdFNaQCDZzW2+kB0ZNeFak5_g+Q@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 1/3] dma-buf: Introduce dma buffer sharing mechanism
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 1BA986B005A
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 09:11:36 -0500 (EST)
+Received: from 178-85-86-190.dynamic.upc.nl ([178.85.86.190] helo=dyad.programming.kicks-ass.net)
+	by casper.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1Rq3ZW-0003Qy-0S
+	for linux-mm@kvack.org; Wed, 25 Jan 2012 14:11:34 +0000
+Subject: Re: [PATCH v9 3.2 0/9] Uprobes patchset with perf probe support
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20120117093925.GC10397@elte.hu>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+	 <20120116083442.GA23622@elte.hu>
+	 <20120116151755.GH10189@linux.vnet.ibm.com>
+	 <20120117093925.GC10397@elte.hu>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 25 Jan 2012 15:11:27 +0100
+Message-ID: <1327500687.2614.70.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Cc: linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com, linux@arm.linux.org.uk, patches@linaro.org, jesse.barker@linaro.org, daniel@ffwll.ch
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Fri, Jan 20, 2012 at 6:53 PM, Laurent Pinchart
-<laurent.pinchart@ideasonboard.com> wrote:
-> Hi Summit,
->
-> Sorry for the late review. I know that this code is now in mainline, but =
-I
-> still have a couple of comments. I'll send patches if you agree with them=
-.
-Hi Laurent,
+On Tue, 2012-01-17 at 10:39 +0100, Ingo Molnar wrote:
 
-Thanks for your review; apologies for being late in replying - I was
-OoO for last couple of days.
->
-> On Monday 26 December 2011 10:23:15 Sumit Semwal wrote:
-<snip>
->>
->
-> [snip]
->
->> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
->> new file mode 100644
->> index 0000000..e38ad24
->> --- /dev/null
->> +++ b/drivers/base/dma-buf.c
->> @@ -0,0 +1,291 @@
->
-> [snip]
->
->> +/**
->> + * dma_buf_export - Creates a new dma_buf, and associates an anon file
->> + * with this buffer, so it can be exported.
->> + * Also connect the allocator specific data and ops to the buffer.
->> + *
->> + * @priv: =A0 =A0[in] =A0 =A0Attach private data of allocator to this b=
-uffer
->> + * @ops: =A0 =A0 [in] =A0 =A0Attach allocator-defined dma buf ops to th=
-e new buffer.
->> + * @size: =A0 =A0[in] =A0 =A0Size of the buffer
->> + * @flags: =A0 [in] =A0 =A0mode flags for the file.
->> + *
->> + * Returns, on success, a newly created dma_buf object, which wraps the
->> + * supplied private data and operations for dma_buf_ops. On either miss=
-ing
->> + * ops, or error in allocating struct dma_buf, will return negative err=
-or.
->> + *
->> + */
->> +struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size_t size, i=
-nt flags)
->> +{
->> + =A0 =A0 struct dma_buf *dmabuf;
->> + =A0 =A0 struct file *file;
->> +
->> + =A0 =A0 if (WARN_ON(!priv || !ops
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->map_dma_buf
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->unmap_dma_buf
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 || !ops->release)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-EINVAL);
->> + =A0 =A0 }
->> +
->> + =A0 =A0 dmabuf =3D kzalloc(sizeof(struct dma_buf), GFP_KERNEL);
->> + =A0 =A0 if (dmabuf =3D=3D NULL)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-ENOMEM);
->> +
->> + =A0 =A0 dmabuf->priv =3D priv;
->> + =A0 =A0 dmabuf->ops =3D ops;
->
-> dmabuf->ops will never but NULL, but (see below)
->
-<snip>
->> +struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 struct device *dev)
->> +{
->> + =A0 =A0 struct dma_buf_attachment *attach;
->> + =A0 =A0 int ret;
->> +
->> + =A0 =A0 if (WARN_ON(!dmabuf || !dev || !dmabuf->ops))
->
-> you still check dmabuf->ops here, as well as in several places below.
-> Shouldn't these checks be removed ?
-You're right - these can be removed.
->
->> + =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-EINVAL);
->> +
->> + =A0 =A0 attach =3D kzalloc(sizeof(struct dma_buf_attachment), GFP_KERN=
-EL);
->> + =A0 =A0 if (attach =3D=3D NULL)
->> + =A0 =A0 =A0 =A0 =A0 =A0 goto err_alloc;
->
-> What about returning ERR_PTR(-ENOMEM) directly here ?
->
-Right; we can do that.
->> +
->> + =A0 =A0 mutex_lock(&dmabuf->lock);
->> +
->> + =A0 =A0 attach->dev =3D dev;
->> + =A0 =A0 attach->dmabuf =3D dmabuf;
->
-> These two lines can be moved before mutex_lock().
->
-:) Yes - thanks for catching this.
-<snip>
-> --
-> Regards,
->
-> Laurent Pinchart
+> I did not suggest anything complex or intrusive: just basically 
+> unify the namespace, have a single set of callbacks, and call 
+> into the uprobes and perf code from those callbacks - out of the 
+> sight of MM code.
+> 
+> That unified namespace could be called:
+> 
+>     event_mmap(...);
+>     event_fork(...);
+> 
+> etc. - and from event_mmap() you could do a simple:
+> 
+> 	perf_event_mmap(...)
+> 	uprobes_event_mmap(...)
+> 
+> [ Once all this is updated to use tracepoints it would turn into 
+>   a notification callback chain kind of thing. ]
 
-Let me know if you'd send patches for these, or should I just go ahead
-and correct.
+We keep disagreeing on this. I utterly loathe hiding stuff in notifier
+lists. It makes it completely non-obvious who all does what.
 
-Best regards,
-~Sumit.
+Another very good reason to not do what you suggest is that
+perf_event_mmap() is a pure consumer, it doesn't have a return value,
+whereas uprobes_mmap() can actually fail the mmap.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
