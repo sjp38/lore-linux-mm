@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 2472E6B005C
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 02:17:27 -0500 (EST)
-Date: Wed, 25 Jan 2012 08:17:16 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcg: fix over reclaiming mem cgroup
-Message-ID: <20120125071715.GA7694@cmpxchg.org>
-References: <CAJd=RBAbFd=MFZZyCKN-Si-Zt=C6dKVUaG-C7s5VKoTWfY00nA@mail.gmail.com>
- <20120123130221.GA15113@tiehlicka.suse.cz>
- <CALWz4izWYb=_svn=UJ1C--pWXv59H2ahn6EJEnTpJv-dT6WGsw@mail.gmail.com>
- <CAJd=RBAuDABE7u1wyc+45ZGoVos5PnxMe6P=ET-CHf-LChTpgw@mail.gmail.com>
- <20120124082352.GA26289@tiehlicka.suse.cz>
- <CAJd=RBDj5mtWJG0Byi=97Kuu6LnkwdndDO-AUpeYSCTBEy0P5A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id C62C06B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 03:20:05 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [RFC 1/3] /dev/low_mem_notify
+Date: Wed, 25 Jan 2012 08:19:11 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB9826904562B60@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <CAOJsxLGiG_Bsp8eMtqCjFToxYAPCE4HC9XCebpZ+-G8E3gg5bw@mail.gmail.com>
+	 <84FF21A720B0874AA94B46D76DB98269045596EA@008-AM1MPN1-003.mgdnok.nokia.com>
+	 <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com>
+	 <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com>
+	 <4F175706.8000808@redhat.com>
+	 <alpine.LFD.2.02.1201190922390.3033@tux.localdomain>
+	 <4F17DCED.4020908@redhat.com>
+	 <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com>
+	 <4F17E058.8020008@redhat.com>
+	 <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com>
+	 <20120124153835.GA10990@amt.cnet> <1327421440.13624.30.camel@jaguar>
+In-Reply-To: <1327421440.13624.30.camel@jaguar>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBDj5mtWJG0Byi=97Kuu6LnkwdndDO-AUpeYSCTBEy0P5A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: penberg@kernel.org, mtosatti@redhat.com
+Cc: rhod@redhat.com, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Wed, Jan 25, 2012 at 09:55:01AM +0800, Hillf Danton wrote:
-> On Tue, Jan 24, 2012 at 4:23 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > Barriered?
-> >
-> pushed out for 3.3-rc2 last night?
+> -----Original Message-----
+> From: ext Pekka Enberg [mailto:penberg@kernel.org]
+> Sent: 24 January, 2012 18:11
+> To: Marcelo Tosatti
+....
+> On Tue, 2012-01-24 at 13:38 -0200, Marcelo Tosatti wrote:
+> > Having userspace specify the "sample period" for low memory
+> > notification makes no sense. The frequency of notifications is a
+> > function of the memory pressure.
+>=20
+> Sure, it makes sense to autotune sample period. I don't see the problem
+> with letting userspace decide it for themselves if they want to.
+>=20
+> 			Pekka
+Good point, but you must take into account that reaction time in user-space=
+ depends how SW stack is organized.
+So for some components 1s is good enough update time,  for another cases 10=
+ms.
+If changes on VM happened too often they had no sense for user-space.
 
-New features are only merged during the merge window (between 3.2 and
-3.3-rc1), from then on it's only bugfixes to stabilize for release.
-
-My soft limit patch missed this merge window, so the earliest target
-is 3.4.  And that's fine, there are still things that need to be
-evaluated, like kswapd now reclaiming with priority 0 and
-nr_to_reclaim at ULONG_MAX, which Michal pointed out.  Or KAME's
-concerns regarding direct soft reclaim and numa setups.
+Thus from practical point of view having sampling period is not a bad idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
