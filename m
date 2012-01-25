@@ -1,75 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 23AF86B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 15:06:32 -0500 (EST)
-Date: Wed, 25 Jan 2012 15:06:13 -0500
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [Lsf-pc] [dm-devel]  [LSF/MM TOPIC] a few storage topics
-Message-ID: <20120125200613.GH15866@shiny>
-References: <x49pqe8kgej.fsf@segfault.boston.devel.redhat.com>
- <20120124203936.GC20650@quack.suse.cz>
- <20120125032932.GA7150@localhost>
- <F6F2DEB8-F096-4A3B-89E3-3A132033BC76@dilger.ca>
- <1327502034.2720.23.camel@menhir>
- <D3F292ADF945FB49B35E96C94C2061B915A638A6@nsmail.netscout.com>
- <1327509623.2720.52.camel@menhir>
- <1327512727.2776.52.camel@dabdike.int.hansenpartnership.com>
- <D3F292ADF945FB49B35E96C94C2061B915A63A30@nsmail.netscout.com>
- <1327516668.7168.7.camel@dabdike.int.hansenpartnership.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 7A2B46B005A
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 15:07:03 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so4980112wgb.26
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 12:07:01 -0800 (PST)
+Date: Wed, 25 Jan 2012 21:07:01 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH 1/3] dma-buf: Introduce dma buffer sharing mechanism
+Message-ID: <20120125200701.GH3896@phenom.ffwll.local>
+References: <1324891397-10877-1-git-send-email-sumit.semwal@ti.com>
+ <1324891397-10877-2-git-send-email-sumit.semwal@ti.com>
+ <4F2035B1.4020204@samsung.com>
 MIME-Version: 1.0
+In-Reply-To: <4F2035B1.4020204@samsung.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1327516668.7168.7.camel@dabdike.int.hansenpartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: "Loke, Chetan" <Chetan.Loke@netscout.com>, Steven Whitehouse <swhiteho@redhat.com>, Andreas Dilger <adilger@dilger.ca>, Andrea Arcangeli <aarcange@redhat.com>, Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>, linux-scsi@vger.kernel.org, neilb@suse.de, dm-devel@redhat.com, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Wu Fengguang <fengguang.wu@gmail.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, "Darrick J.Wong" <djwong@us.ibm.com>
+To: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Cc: Sumit Semwal <sumit.semwal@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, arnd@arndb.de, airlied@redhat.com, linux@arm.linux.org.uk, jesse.barker@linaro.org, m.szyprowski@samsung.com, rob@ti.com, daniel@ffwll.ch, patches@linaro.org, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Wed, Jan 25, 2012 at 12:37:48PM -0600, James Bottomley wrote:
-> On Wed, 2012-01-25 at 13:28 -0500, Loke, Chetan wrote:
-> > > So there are two separate problems mentioned here.  The first is to
-> > > ensure that readahead (RA) pages are treated as more disposable than
-> > > accessed pages under memory pressure and then to derive a statistic for
-> > > futile RA (those pages that were read in but never accessed).
-> > > 
-> > > The first sounds really like its an LRU thing rather than adding yet
-> > > another page flag.  We need a position in the LRU list for never
-> > > accessed ... that way they're first to be evicted as memory pressure
-> > > rises.
-> > > 
-> > > The second is you can derive this futile readahead statistic from the
-> > > LRU position of unaccessed pages ... you could keep this globally.
-> > > 
-> > > Now the problem: if you trash all unaccessed RA pages first, you end up
-> > > with the situation of say playing a movie under moderate memory
-> > > pressure that we do RA, then trash the RA page then have to re-read to display
-> > > to the user resulting in an undesirable uptick in read I/O.
-> > > 
-> > > Based on the above, it sounds like a better heuristic would be to evict
-> > > accessed clean pages at the top of the LRU list before unaccessed clean
-> > > pages because the expectation is that the unaccessed clean pages will
-> > > be accessed (that's after all, why we did the readahead).  As RA pages age
-> > 
-> > Well, the movie example is one case where evicting unaccessed page may not be the right thing to do. But what about a workload that perform a random one-shot search?
-> > The search was done and the RA'd blocks are of no use anymore. So it seems one solution would hurt another.
+On Wed, Jan 25, 2012 at 06:02:41PM +0100, Tomasz Stanislawski wrote:
+> Hi Sumit,
 > 
-> Well not really: RA is always wrong for random reads.  The whole purpose
-> of RA is assumption of sequential access patterns.
+> On 12/26/2011 10:23 AM, Sumit Semwal wrote:
+> >This is the first step in defining a dma buffer sharing mechanism.
+> >
+> >A new buffer object dma_buf is added, with operations and API to allow easy
+> >sharing of this buffer object across devices.
+> >
+> >The framework allows:
+> >- creation of a buffer object, its association with a file pointer, and
+> >    associated allocator-defined operations on that buffer. This operation is
+> >    called the 'export' operation.
+> >- different devices to 'attach' themselves to this exported buffer object, to
+> >   facilitate backing storage negotiation, using dma_buf_attach() API.
+> >- the exported buffer object to be shared with the other entity by asking for
+> >    its 'file-descriptor (fd)', and sharing the fd across.
+> >- a received fd to get the buffer object back, where it can be accessed using
+> >    the associated exporter-defined operations.
+> >- the exporter and user to share the scatterlist associated with this buffer
+> >    object using map_dma_buf and unmap_dma_buf operations.
+> >
+> 
+> [snip]
+> 
+> >+/**
+> >+ * struct dma_buf_attachment - holds device-buffer attachment data
+> >+ * @dmabuf: buffer for this attachment.
+> >+ * @dev: device attached to the buffer.
+> >+ * @node: list of dma_buf_attachment.
+> >+ * @priv: exporter specific attachment data.
+> >+ *
+> >+ * This structure holds the attachment information between the dma_buf buffer
+> >+ * and its user device(s). The list contains one attachment struct per device
+> >+ * attached to the buffer.
+> >+ */
+> >+struct dma_buf_attachment {
+> >+	struct dma_buf *dmabuf;
+> >+	struct device *dev;
+> >+	struct list_head node;
+> >+	void *priv;
+> >+};
+> >+
+> >+#ifdef CONFIG_DMA_SHARED_BUFFER
+> >+struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+> >+							struct device *dev);
+> >+void dma_buf_detach(struct dma_buf *dmabuf,
+> >+				struct dma_buf_attachment *dmabuf_attach);
+> >+struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+> >+			size_t size, int flags);
+> >+int dma_buf_fd(struct dma_buf *dmabuf);
+> >+struct dma_buf *dma_buf_get(int fd);
+> >+void dma_buf_put(struct dma_buf *dmabuf);
+> >+
+> >+struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
+> >+					enum dma_data_direction);
+> >+void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *);
+> 
+> I think that you should add enum dma_data_direction as an argument
+> unmap function. It was mentioned that the dma_buf_attachment should keep
+> cached and mapped sg_table for performance reasons. The field
+> dma_buf_attachment::priv seams to be a natural place to keep this sg_table.
+> To map a buffer the exporter calls dma_map_sg. It needs dma direction
+> as an argument. The problem is that dma_unmap_sg also needs this
+> argument but dma direction is not available neither in
+> dma_buf_unmap_attachment nor in unmap callback. Therefore the exporter
+> is forced to embed returned sg_table into a bigger structure where
+> dma direction is remembered. Refer to function vb2_dc_dmabuf_ops_map
+> at
 
-Just to jump back, Jeff's benchmark that started this (on xfs and ext4):
-
-	- buffered 1MB reads get down to the scheduler in 128KB chunks
-
-The really hard part about readahead is that you don't know what
-userland wants.  In Jeff's test, he's telling the kernel he wants 1MB
-ios and our RA engine is doing 128KB ios.
-
-We can talk about scaling up how big the RA windows get on their own,
-but if userland asks for 1MB, we don't have to worry about futile RA, we
-just have to make sure we don't oom the box trying to honor 1MB reads
-from 5000 different procs.
-
--chris
+Oops, makes sense. I've totally overlooked that we need to pass in the dma
+direction also for the unmap call to the dma subsystem. Sumit, can you
+stitch together that small patch?
+-Daniel
+-- 
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
