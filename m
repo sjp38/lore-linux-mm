@@ -1,74 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id BD23A6B004F
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 17:46:31 -0500 (EST)
-Date: Wed, 25 Jan 2012 23:46:14 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Lsf-pc] [dm-devel]  [LSF/MM TOPIC] a few storage topics
-Message-ID: <20120125224614.GM30782@redhat.com>
-References: <20120124203936.GC20650@quack.suse.cz>
- <20120125032932.GA7150@localhost>
- <F6F2DEB8-F096-4A3B-89E3-3A132033BC76@dilger.ca>
- <1327502034.2720.23.camel@menhir>
- <D3F292ADF945FB49B35E96C94C2061B915A638A6@nsmail.netscout.com>
- <1327509623.2720.52.camel@menhir>
- <1327512727.2776.52.camel@dabdike.int.hansenpartnership.com>
- <D3F292ADF945FB49B35E96C94C2061B915A63A30@nsmail.netscout.com>
- <1327516668.7168.7.camel@dabdike.int.hansenpartnership.com>
- <20120125200613.GH15866@shiny>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 490516B004F
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 17:48:39 -0500 (EST)
+Received: by qadc11 with SMTP id c11so1337227qad.14
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 14:48:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120125200613.GH15866@shiny>
+In-Reply-To: <20120124134750.de5f31ee.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+	<CALWz4izasaECifCYoRXL45x1YXYzACC=kUHQivnGZKRH+ySjuw@mail.gmail.com>
+	<20120124134750.de5f31ee.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 25 Jan 2012 14:48:38 -0800
+Message-ID: <CALWz4ixtMxHKJP3ZbOHK26B7Q9V=7M6h-giadbNWp+QQ6hjo-A@mail.gmail.com>
+Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from pc->flags
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <chris.mason@oracle.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Loke, Chetan" <Chetan.Loke@netscout.com>, Steven Whitehouse <swhiteho@redhat.com>, Andreas Dilger <adilger@dilger.ca>, Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>, linux-scsi@vger.kernel.org, neilb@suse.de, dm-devel@redhat.com, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Wu Fengguang <fengguang.wu@gmail.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, "Darrick J.Wong" <djwong@us.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Wed, Jan 25, 2012 at 03:06:13PM -0500, Chris Mason wrote:
-> We can talk about scaling up how big the RA windows get on their own,
-> but if userland asks for 1MB, we don't have to worry about futile RA, we
-> just have to make sure we don't oom the box trying to honor 1MB reads
-> from 5000 different procs.
+On Mon, Jan 23, 2012 at 8:47 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 23 Jan 2012 14:02:48 -0800
+> Ying Han <yinghan@google.com> wrote:
+>
+>> On Fri, Jan 13, 2012 at 12:40 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> >
+>> > From 1008e84d94245b1e7c4d237802ff68ff00757736 Mon Sep 17 00:00:00 2001
+>> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > Date: Thu, 12 Jan 2012 15:53:24 +0900
+>> > Subject: [PATCH 3/7] memcg: remove PCG_MOVE_LOCK flag from pc->flags.
+>> >
+>> > PCG_MOVE_LOCK bit is used for bit spinlock for avoiding race between
+>> > memcg's account moving and page state statistics updates.
+>> >
+>> > Considering page-statistics update, very hot path, this lock is
+>> > taken only when someone is moving account (or PageTransHuge())
+>> > And, now, all moving-account between memcgroups (by task-move)
+>> > are serialized.
+>>
+>> This might be a side question, can you clarify the serialization here?
+>> Does it mean that we only allow one task-move at a time system-wide?
+>>
+>
+> current implementation has that limit by mutex.
 
-:) that's for sure if read has a 1M buffer as destination. However
-even cp /dev/sda reads/writes through a 32kb buffer, so it's not so
-common to read in 1m buffers.
+ah, thanks. that is the cgroup_mutex lock which serializes
+mem_cgroup_move_charge() from move task.
 
-But I also would prefer to stay on the simple side (on a side note we
-run out of page flags already on 32bit I think as I had to nuke
-PG_buddy already).
+--Ying
 
-Overall I think the risk of the pages being evicted before they can be
-copied to userland is quite a minor risk. A 16G system with 100
-readers all hitting on disk at the same time using 100M readahead
-would still only create a 100m memory pressure... So it'd sure be ok,
-100m is less than what kswapd keeps always free for example. Think a
-4TB system. Especially if 128k fixed has been ok so far on a 1G system.
-
-If we really want to be more dynamic than a setting at boot depending
-on ram size, we could limit it to a fraction of freeable memory (using
-similar math to determine_dirtyable_memory, maybe calling it over time
-but not too frequently to reduce the overhead). Like if there's 0
-memory freeable keep it low. If there's 1G freeable out of that math
-(and we assume the readahead hit rate is near 100%), raise the maximum
-readahead to 1M even if the total ram is only 1G. So we allow up to
-1000 readers before we even recycle the readahead.
-
-I doubt the complexity of tracking exactly how many pages are getting
-recycled before they're copied to userland would be worth it, besides
-it'd be 0% for 99% of systems and workloads.
-
-Way more important is to have feedback on the readahead hits and be
-sure when readahead is raised to the maximum the hit rate is near 100%
-and fallback to lower readaheads if we don't get that hit rate. But
-that's not a VM problem and it's a readahead issue only.
-
-The actual VM pressure side of it, sounds minor issue if the hit rate
-of the readahead cache is close to 100%.
-
-The config option is also ok with me, but I think it'd be nicer to set
-it at boot depending on ram size (one less option to configure
-manually and zero overhead).
+>
+> Thanks,
+> -Kame
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
