@@ -1,299 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 8BAA36B005C
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 07:24:51 -0500 (EST)
-Date: Wed, 25 Jan 2012 13:24:48 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5] memcg: remove PCG_CACHE page_cgroup flag
-Message-ID: <20120125122448.GE25368@tiehlicka.suse.cz>
-References: <20120120084545.GC9655@tiehlicka.suse.cz>
- <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
- <20120124111644.GE1660@cmpxchg.org>
- <20120124145411.GF1660@cmpxchg.org>
- <20120124160140.GH26289@tiehlicka.suse.cz>
- <20120124164449.GH1660@cmpxchg.org>
- <20120124172308.GI26289@tiehlicka.suse.cz>
- <20120124180842.GA18372@tiehlicka.suse.cz>
- <20120125090025.6d24cd0f.kamezawa.hiroyu@jp.fujitsu.com>
- <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id DFDE36B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 07:47:33 -0500 (EST)
+Date: Wed, 25 Jan 2012 14:47:27 +0200
+From: Hiroshi Doyu <hdoyu@nvidia.com>
+Subject: Re: [PATCH 8/8] ARM: dma-mapping: add support for IOMMU mapper
+Message-ID: <20120125144727.2722b4a1fb8017dd3633d7ad@nvidia.com>
+In-Reply-To: <1323448798-18184-9-git-send-email-m.szyprowski@samsung.com>
+References: <1323448798-18184-1-git-send-email-m.szyprowski@samsung.com>
+	<1323448798-18184-9-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Krishna Reddy <vdumpa@nvidia.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej
+ Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, KyongHo Cho <pullip.cho@samsung.com>, Chunsang
+ Jeong <chunsang.jeong@linaro.org>
 
-On Wed 25-01-12 14:41:00, KAMEZAWA Hiroyuki wrote:
-[...]
-> Subject: [PATCH v5] memcg: remove PCG_CACHE
-> 
-> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
-> Here, "CACHE" means anonymous user pages (and SwapCache). This
-> doesn't include shmem.
-> 
-> Consdering callers, at charge/uncharge, the caller should know
-> what  the page is and we don't need to record it by using 1bit
-> per page.
-> 
-> This patch removes PCG_CACHE bit and make callers of
-> mem_cgroup_charge_statistics() to specify what the page is.
-> 
-> About page migration:
-> Mapping of the used page is not touched during migration (see
-> page_remove_rmap) so we can rely on it and push the correct charge type
-> down to __mem_cgroup_uncharge_common from end_migration for unused page.
-> The force flag was misleading was abused for skipping the needless
-> page_mapped() / PageCgroupMigration() check, as we know the unused page
-> is no longer mapped and cleared the migration flag just a few lines
-> up.  But doing the checks is no biggie and it's not worth adding another
-> flag just to skip them.
-> 
-> Changelog since v4
->  - fixed a bug at page migration by Michal Hokko.
+Hi Marek,
 
-Would be more fair:
-   - fixed a bug at page migration by Johannes Weiner
+On Fri, 9 Dec 2011 17:39:58 +0100
+Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-> Changelog since v3
->  - renamed a variable 'rss' to 'anon'
-> 
-> Changelog since v2
->  - removed 'not_rss', added 'anon'
->  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
->  - removed a patch to mem_cgroup_uncharge_cache
->  - simplified comment.
-> 
-> Changelog since RFC.
->  - rebased onto memcg-devel
->  - rename 'file' to 'not_rss'
->  - some cleanup and added comment.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Anyway it looks good now (unless I missed something ;)).
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
+> This patch add a complete implementation of DMA-mapping API for
+> devices that have IOMMU support. All DMA-mapping calls are supported.
+>
+> This patch contains some of the code kindly provided by Krishna Reddy
+> <vdumpa@nvidia.com> and Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>
+> Add initial proof of concept implementation of DMA-mapping API for
+> devices that have IOMMU support. Right now only dma_alloc_coherent,
+> dma_free_coherent and dma_mmap_coherent functions are supported.
+>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 > ---
->  include/linux/page_cgroup.h |    8 +-----
->  mm/memcontrol.c             |   57 ++++++++++++++++++++++++-------------------
->  2 files changed, 33 insertions(+), 32 deletions(-)
-> 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index a2d1177..1060292 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -4,7 +4,6 @@
->  enum {
->  	/* flags for mem_cgroup */
->  	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
-> -	PCG_CACHE, /* charged as cache */
->  	PCG_USED, /* this object is in use. */
->  	PCG_MIGRATION, /* under page migration */
->  	/* flags for mem_cgroup and file and I/O status */
-> @@ -64,11 +63,6 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
->  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
->  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
->  
-> -/* Cache flag is set only once (at allocation) */
-> -TESTPCGFLAG(Cache, CACHE)
-> -CLEARPCGFLAG(Cache, CACHE)
-> -SETPCGFLAG(Cache, CACHE)
-> -
->  TESTPCGFLAG(Used, USED)
->  CLEARPCGFLAG(Used, USED)
->  SETPCGFLAG(Used, USED)
-> @@ -85,7 +79,7 @@ static inline void lock_page_cgroup(struct page_cgroup *pc)
->  {
->  	/*
->  	 * Don't take this lock in IRQ context.
-> -	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
-> +	 * This lock is for pc->mem_cgroup, USED, MIGRATION
->  	 */
->  	bit_spin_lock(PCG_LOCK, &pc->flags);
->  }
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1c56c5f..45dab06 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -670,15 +670,19 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
->  }
->  
->  static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
-> -					 bool file, int nr_pages)
-> +					 bool anon, int nr_pages)
->  {
->  	preempt_disable();
->  
-> -	if (file)
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
-> +	/*
-> +	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
-> +	 * counted as CACHE even if it's on ANON LRU.
-> +	 */
-> +	if (anon)
-> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
->  				nr_pages);
->  	else
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
-> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
->  				nr_pages);
->  
->  	/* pagein of a big page is an event. So, ignore page size */
-> @@ -2405,6 +2409,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  				       struct page_cgroup *pc,
->  				       enum charge_type ctype)
->  {
-> +	bool anon;
+>  arch/arm/Kconfig                 |    8 +
+>  arch/arm/include/asm/device.h    |    3 +
+>  arch/arm/include/asm/dma-iommu.h |   36 +++
+>  arch/arm/mm/dma-mapping.c        |  637 +++++++++++++++++++++++++++++++++++++-
+>  arch/arm/mm/vmregion.h           |    2 +-
+>  5 files changed, 671 insertions(+), 15 deletions(-)
+>  create mode 100644 arch/arm/include/asm/dma-iommu.h
+>
+> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> index 8827c9b..87416fc 100644
+> --- a/arch/arm/Kconfig
+> +++ b/arch/arm/Kconfig
+> @@ -42,6 +42,14 @@ config ARM
+>  config ARM_HAS_SG_CHAIN
+>         bool
+>
+> +config NEED_SG_DMA_LENGTH
+> +       bool
 > +
->  	lock_page_cgroup(pc);
->  	if (unlikely(PageCgroupUsed(pc))) {
->  		unlock_page_cgroup(pc);
-> @@ -2424,21 +2430,14 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  	 * See mem_cgroup_add_lru_list(), etc.
->   	 */
->  	smp_wmb();
-> -	switch (ctype) {
-> -	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-> -	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-> -		SetPageCgroupCache(pc);
-> -		SetPageCgroupUsed(pc);
-> -		break;
-> -	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> -		ClearPageCgroupCache(pc);
-> -		SetPageCgroupUsed(pc);
-> -		break;
-> -	default:
-> -		break;
-> -	}
->  
-> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
-> +	SetPageCgroupUsed(pc);
-> +	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-> +		anon = true;
-> +	else
-> +		anon = false;
+> +config ARM_DMA_USE_IOMMU
+> +       select NEED_SG_DMA_LENGTH
+> +       select ARM_HAS_SG_CHAIN
+> +       bool
 > +
-> +	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
->  	unlock_page_cgroup(pc);
->  	WARN_ON_ONCE(PageLRU(page));
->  	/*
-> @@ -2503,6 +2502,7 @@ static int mem_cgroup_move_account(struct page *page,
->  {
->  	unsigned long flags;
->  	int ret;
-> +	bool anon = PageAnon(page);
->  
->  	VM_BUG_ON(from == to);
->  	VM_BUG_ON(PageLRU(page));
-> @@ -2531,14 +2531,14 @@ static int mem_cgroup_move_account(struct page *page,
->  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
->  		preempt_enable();
->  	}
-> -	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
-> +	mem_cgroup_charge_statistics(from, anon, -nr_pages);
->  	if (uncharge)
->  		/* This is not "cancel", but cancel_charge does all we need. */
->  		__mem_cgroup_cancel_charge(from, nr_pages);
->  
->  	/* caller should have done css_get */
->  	pc->mem_cgroup = to;
-> -	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), nr_pages);
-> +	mem_cgroup_charge_statistics(to, anon, nr_pages);
->  	/*
->  	 * We charges against "to" which may not have any tasks. Then, "to"
->  	 * can be under rmdir(). But in current implementation, caller of
-> @@ -2884,6 +2884,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  	struct mem_cgroup *memcg = NULL;
->  	unsigned int nr_pages = 1;
->  	struct page_cgroup *pc;
-> +	bool anon;
->  
->  	if (mem_cgroup_disabled())
->  		return NULL;
-> @@ -2915,6 +2916,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  		/* See mem_cgroup_prepare_migration() */
->  		if (page_mapped(page) || PageCgroupMigration(pc))
->  			goto unlock_out;
-> +		anon = true;
->  		break;
->  	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
->  		if (!PageAnon(page)) {	/* Shared memory */
-> @@ -2922,12 +2924,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  				goto unlock_out;
->  		} else if (page_mapped(page)) /* Anon */
->  				goto unlock_out;
-> +		anon = true;
->  		break;
->  	default:
-> +		anon = false;
->  		break;
->  	}
->  
-> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -nr_pages);
-> +	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
->  
->  	ClearPageCgroupUsed(pc);
->  	/*
-> @@ -3251,6 +3255,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
->  {
->  	struct page *used, *unused;
->  	struct page_cgroup *pc;
-> +	bool anon;
->  
->  	if (!memcg)
->  		return;
-> @@ -3272,8 +3277,10 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
->  	lock_page_cgroup(pc);
->  	ClearPageCgroupMigration(pc);
->  	unlock_page_cgroup(pc);
-> -
-> -	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
-> +	anon = PageAnon(used);
-> +	__mem_cgroup_uncharge_common(unused,
-> +		anon ? MEM_CGROUP_CHARGE_TYPE_MAPPED
-> +                     : MEM_CGROUP_CHARGE_TYPE_CACHE);
->  
->  	/*
->  	 * If a page is a file cache, radix-tree replacement is very atomic
-> @@ -3283,7 +3290,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
->  	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
->  	 * check. (see prepare_charge() also)
->  	 */
-> -	if (PageAnon(used))
-> +	if (anon)
->  		mem_cgroup_uncharge_page(used);
->  	/*
->  	 * At migration, we may charge account against cgroup which has no
-> @@ -3313,7 +3320,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
->  	/* fix accounting on old pages */
->  	lock_page_cgroup(pc);
->  	memcg = pc->mem_cgroup;
-> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -1);
-> +	mem_cgroup_charge_statistics(memcg, false, -1);
->  	ClearPageCgroupUsed(pc);
->  	unlock_page_cgroup(pc);
->  
-> -- 
-> 1.7.4.1
-> 
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>  config HAVE_PWM
+>         bool
+>
+> diff --git a/arch/arm/include/asm/device.h b/arch/arm/include/asm/device.h
+> index 6e2cb0e..b69c0d3 100644
+> --- a/arch/arm/include/asm/device.h
+> +++ b/arch/arm/include/asm/device.h
+> @@ -14,6 +14,9 @@ struct dev_archdata {
+>  #ifdef CONFIG_IOMMU_API
+>         void *iommu; /* private IOMMU data */
+>  #endif
+> +#ifdef CONFIG_ARM_DMA_USE_IOMMU
+> +       struct dma_iommu_mapping        *mapping;
+> +#endif
+>  };
+>
+>  struct omap_device;
+> diff --git a/arch/arm/include/asm/dma-iommu.h b/arch/arm/include/asm/dma-iommu.h
+> new file mode 100644
+> index 0000000..6668b41
+> --- /dev/null
+> +++ b/arch/arm/include/asm/dma-iommu.h
+> @@ -0,0 +1,36 @@
+> +#ifndef ASMARM_DMA_IOMMU_H
+> +#define ASMARM_DMA_IOMMU_H
+> +
+> +#ifdef __KERNEL__
+> +
+> +#include <linux/mm_types.h>
+> +#include <linux/scatterlist.h>
+> +#include <linux/dma-debug.h>
+> +#include <linux/kmemcheck.h>
+> +
+> +#include <asm/memory.h>
+> +
+> +struct dma_iommu_mapping {
+> +       /* iommu specific data */
+> +       struct iommu_domain     *domain;
+> +
+> +       void                    *bitmap;
+> +       size_t                  bits;
+> +       unsigned int            order;
+> +       dma_addr_t              base;
+> +
+> +       spinlock_t              lock;
+> +       struct kref             kref;
+> +};
+> +
+> +struct dma_iommu_mapping *
+> +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
+> +                        int order);
+> +
+> +void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping);
+> +
+> +int arm_iommu_attach_device(struct device *dev,
+> +                                       struct dma_iommu_mapping *mapping);
+> +
+> +#endif /* __KERNEL__ */
+> +#endif
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 4845c09..7ac5a95 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -27,6 +27,9 @@
+>  #include <asm/sizes.h>
+>  #include <asm/mach/arch.h>
+>
+> +#include <linux/iommu.h>
+> +#include <asm/dma-iommu.h>
+> +
+>  #include "mm.h"
+>
+>  /*
+.....
+> +
+> +static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
+> +               size_t size, enum dma_data_direction dir,
+> +               struct dma_attrs *attrs)
+> +{
+> +       struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+> +       dma_addr_t iova = handle & PAGE_MASK;
+> +       struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
+> +       int offset = handle & ~PAGE_MASK;
+> +
+> +       if (!iova)
+> +               return;
+> +
+> +       if (!arch_is_coherent())
+> +               __dma_page_dev_to_cpu(page, offset, size, dir);
+> +
+> +       iommu_unmap(mapping->domain, iova, size);
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Is __free_iova() needed here as below?
+
+	Modified arch/arm/mm/dma-mapping.c
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 9aa1675..66830b2 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1212,6 +1212,7 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
+		__dma_page_dev_to_cpu(page, offset, size, dir);
+
+	iommu_unmap(mapping->domain, iova, size);
++       __free_iova(mapping, iova, size);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
