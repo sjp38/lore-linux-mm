@@ -1,63 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 77AB86B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 03:22:26 -0500 (EST)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 25 Jan 2012 01:22:25 -0700
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id BFA101FF004C
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 01:22:22 -0700 (MST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0P8MMYT290870
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 03:22:22 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0P8MKhd020209
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 06:22:22 -0200
-Date: Wed, 25 Jan 2012 13:42:23 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v9 3.2 2/9] uprobes: handle breakpoint and signal step
- exception.
-Message-ID: <20120125081223.GC24766@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <201201180518.31407.vapier@gentoo.org>
- <20120118104749.GG15447@linux.vnet.ibm.com>
- <201201180602.04269.vapier@gentoo.org>
- <CAMjpGUc+V-mrQcBcpyTvhCihYUtd=4Q4Wr6DTsaUwC0JJpBROA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA156B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 03:53:03 -0500 (EST)
+Message-ID: <4F1FC2C8.10103@redhat.com>
+Date: Wed, 25 Jan 2012 10:52:24 +0200
+From: Ronen Hod <rhod@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAMjpGUc+V-mrQcBcpyTvhCihYUtd=4Q4Wr6DTsaUwC0JJpBROA@mail.gmail.com>
+Subject: Re: [RFC 1/3] /dev/low_mem_notify
+References: <CAOJsxLG4hMrAdsyOg6QUe71SPqEBq3eZXvRvaKFZQo8HS1vphQ@mail.gmail.com> <84FF21A720B0874AA94B46D76DB982690455978C@008-AM1MPN1-003.mgdnok.nokia.com> <4F175706.8000808@redhat.com> <alpine.LFD.2.02.1201190922390.3033@tux.localdomain> <4F17DCED.4020908@redhat.com> <CAOJsxLG3x_R5xq85hh5RvPoD+nhgYbHJfbLW=YMxCZockAXJqw@mail.gmail.com> <4F17E058.8020008@redhat.com> <84FF21A720B0874AA94B46D76DB9826904559D46@008-AM1MPN1-003.mgdnok.nokia.com> <20120124153835.GA10990@amt.cnet> <4F1ED77F.4090900@redhat.com> <20120124181034.GA19186@amt.cnet>
+In-Reply-To: <20120124181034.GA19186@amt.cnet>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Frysinger <vapier@gentoo.org>
-Cc: Anton Arapov <anton@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: leonid.moiseichuk@nokia.com, penberg@kernel.org, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, rientjes@google.com, kosaki.motohiro@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-> >>
-> >> One question that could be asked is why arent we using instruction_pointer
-> >> instead of GET_IP since instruction_pointer is being defined in 25
-> >> places and with references in 120 places.
-> >
-> > i think you misunderstand the point.  {G,S}ET_IP() is the glue between the
-> > arch's pt_regs struct and the public facing API.  the only people who should
-> > be touching those macros are the ptrace core.  instruction_pointer() and
-> > instruction_pointer_set() are the API that asm/ptrace.h exports to the rest of
-> > the tree.
-> 
-> Srikar: does that make sense ?  i'm happy to help with improving
-> asm-generic/ptrace.h.
-> -mike
-> 
+On 01/24/2012 08:10 PM, Marcelo Tosatti wrote:
+> On Tue, Jan 24, 2012 at 06:08:31PM +0200, Ronen Hod wrote:
+>> On 01/24/2012 05:38 PM, Marcelo Tosatti wrote:
+>>> On Thu, Jan 19, 2012 at 10:53:29AM +0000, leonid.moiseichuk@nokia.com wrote:
+>>>>> -----Original Message-----
+>>>>> From: ext Ronen Hod [mailto:rhod@redhat.com]
+>>>>> Sent: 19 January, 2012 11:20
+>>>>> To: Pekka Enberg
+>>>> ...
+>>>>>>>> Isn't
+>>>>>>>>
+>>>>>>>> /proc/sys/vm/min_free_kbytes
+>>>>>>>>
+>>>>>>>> pretty much just that?
+>>>>>>> Would you suggest to use min_free_kbytes as the threshold for sending
+>>>>>>> low_memory_notifications to applications, and separately as a target
+>>>>>>> value for the applications' memory giveaway?
+>>>>>> I'm not saying that the kernel should use it directly but it seems
+>>>>>> like the kind of "ideal number of free pages" threshold you're
+>>>>>> suggesting. So userspace can read that value and use it as the "number
+>>>>>> of free pages" threshold for VM events, no?
+>>>>> Yes, I like it. The rules of the game are simple and consistent all over, be it the
+>>>>> alert threshold, voluntary poling by the apps, and for concurrent work by
+>>>>> several applications.
+>>>>> Well, as long as it provides a good indication for low_mem_pressure.
+>>>> For me it doesn't look that have much sense. min_free_kbytes could be set from user-space (or auto-tuned by kernel) to keep some amount
+>>>> of memory available for GFP_ATOMIC allocations.  In case situation comes under pointed level kernel will reclaim memory from e.g. caches.
+>>>>
+>>>>>  From potential user point of view the proposed API has number of lacks which would be nice to have implemented:
+>>>> 1. rename this API from low_mem_pressure to something more related to notification and memory situation in system: memory_pressure, memnotify, memory_level etc. The word "low" is misleading here
+>>>> 2. API must use deferred timers to prevent use-time impact. Deferred timer will be triggered only in case HW event or non-deferrable timer, so if device sleeps timer might be skipped and that is what expected for user-space
+>>> Having userspace specify the "sample period" for low memory notification
+>>> makes no sense. The frequency of notifications is a function of the
+>>> memory pressure.
+>>>
+>>>> 3. API should be tunable for propagate changes when level is Up or Down, maybe both ways.
+>>>> 4. to avoid triggering too much events probably has sense to filter according to amount of change but that is optional. If subscriber set timer to 1s the amount of events should not be very big.
+>>>> 5. API must provide interface to request parameters e.g. available swap or free memory just to have some base.
+>>> It would make the interface easier to use if it provided the number of
+>>> pages to free, in the notification (kernel can calculate that as the
+>>> delta between current_free_pages ->   comfortable_free_pages relative to
+>>> process RSS).
+>> If you rely on the notification's argument you lose several features:
+>>   - Handling of notifications by several applications in parallel
+> Each application has its argument built in a custom fashion
+> (pages_to_free = delta between current_free_pages ->
+> comfortable_free_pages relative to process RSS), or something to that
+> effect. It is compatible with parallel notifications.
 
-Yes, I think it makes sense. I have modified the code to use
-instruction_pointer_set instead of set_instruction_pointer.
+Not sure that I got it. Do you suggest to ask all the applications to free say 3% of their memory?. Some may be able to free more, and some cannot free any. Isn't it more practical to just notify them, and let each app contribute its part to the global moving target?
 
--- 
-Thanks and Regards
-Srikar
+>>   - Voluntary application's decisions, such as cleanup or avoiding allocations, at the application's convenience.
+> I am suggesting an additional field in the notification data so that the
+> freeing routine has a goal. But it is not mandatory.
+
+If you do want to support voluntary (notification less) app decisions, based on the current status, then why not satisfy with this API and only use the notifications to trigger this procedure?
+
+>
+>> - Iterative release loops, until there are enough free pages.
+> What is the advantage versus releasing the necessary amount of
+> memory in a given moment?
+
+The cleanup logic may be unaware of the page-level effects of its alloc and free, more so when freeing complex internal data structures (such as cached web pages), and this way you let it free until things settle down.
+
+Ronen.
+
+>
+>> I believe that the notification should only serve as a trigger to run the cleanup.
+> Agree.
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
