@@ -1,48 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id C0F906B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 05:51:48 -0500 (EST)
-Date: Wed, 25 Jan 2012 10:51:38 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v4 -mm] make swapin readahead skip over holes
-Message-ID: <20120125105138.GA3901@csn.ul.ie>
-References: <20120124131351.05309a2a@annuminas.surriel.com>
- <20120124141400.6d33b7c4@annuminas.surriel.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id D432B6B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 06:07:28 -0500 (EST)
+Date: Wed, 25 Jan 2012 12:07:26 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
+ account move.
+Message-ID: <20120125110725.GD25368@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120117152635.GA22142@tiehlicka.suse.cz>
+ <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120118123759.GB31112@tiehlicka.suse.cz>
+ <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
+ <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
+ <20120123090436.GA12375@tiehlicka.suse.cz>
+ <CALWz4iyaWtes=aU79DAbEfBsNUTaHKLK5HZbNfShaxgC8UX_TQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20120124141400.6d33b7c4@annuminas.surriel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALWz4iyaWtes=aU79DAbEfBsNUTaHKLK5HZbNfShaxgC8UX_TQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Adrian Drzewieki <z@drze.net>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Tue, Jan 24, 2012 at 02:14:00PM -0500, Rik van Riel wrote:
-> Ever since abandoning the virtual scan of processes, for scalability
-> reasons, swap space has been a little more fragmented than before.
-> This can lead to the situation where a large memory user is killed,
-> swap space ends up full of "holes" and swapin readahead is totally
-> ineffective.
+On Tue 24-01-12 11:04:16, Ying Han wrote:
+> On Mon, Jan 23, 2012 at 1:04 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Fri 20-01-12 10:08:44, Ying Han wrote:
+> >> On Wed, Jan 18, 2012 at 6:17 PM, KAMEZAWA Hiroyuki
+> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+[...]
+> >> > I doubt .... If no barrier, this case happens
+> >> >
+> >> > ==
+> >> >        update                  reference
+> >> >        CPU A                   CPU B
+> >> >        set value
+> >> >        synchronize_rcu()       rcu_read_lock()
+> >> >                                read_value <= find old value
+> >> >                                rcu_read_unlock()
+> >> >                                do no lock
+> >> > ==
+> >>
+> >> Hi Kame,
+> >>
+> >> Can you help to clarify a bit more on the example above? Why
+> >> read_value got the old value after synchronize_rcu().
+> >
+> > AFAIU it is because rcu_read_unlock doesn't force any memory barrier
+> > and we synchronize only the updater (with synchronize_rcu), so nothing
+> > guarantees that the value set on CPUA is visible to CPUB.
 > 
-> On my home system, after killing a leaky firefox it took over an
-> hour to page just under 2GB of memory back in, slowing the virtual
-> machines down to a crawl.
+> Thanks, and i might have found similar comment on the
+> documentation/rcu/checklist.txt:
+> "
+> The various RCU read-side primitives do -not- necessarily contain
+> memory barriers.
+> "
 > 
-> This patch makes swapin readahead simply skip over holes, instead
-> of stopping at them.  This allows the system to swap things back in
-> at rates of several MB/second, instead of a few hundred kB/second.
+> So, the read barrier here is to make sure no reordering between the
+> reader and the rcu_read_lock. The same for the write barrier which
+> makes sure no reordering between the updater and synchronize_rcu. The
+> the rcu here is to synchronize between the updater and reader. If so,
+> why not the change like :
 > 
-> The checks done in valid_swaphandles are already done in 
-> read_swap_cache_async as well, allowing us to remove a fair amount
-> of code.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+>        for_each_online_cpu(cpu)
+>                per_cpu(memcg->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
+> +      smp_wmb();
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Threre is a data dependency between per_cpu update (the above for look)
+and local read of the per-cpu on the read-side and IIUC we need to pair
+write barrier with read one before we read the value.
+
+But I might be wrong here (see the SMP BARRIER PAIRING section in
+Documentation/memory-barriers.txt).
+
+> Sorry, the use of per-cpu variable MEM_CGROUP_ON_MOVE does confuse me.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
