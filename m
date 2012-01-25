@@ -1,83 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id D432B6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 06:07:28 -0500 (EST)
-Date: Wed, 25 Jan 2012 12:07:26 +0100
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 8BAA36B005C
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 07:24:51 -0500 (EST)
+Date: Wed, 25 Jan 2012 13:24:48 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] [PATCH 2/7 v2] memcg: add memory barrier for checking
- account move.
-Message-ID: <20120125110725.GD25368@tiehlicka.suse.cz>
-References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
- <20120113173347.6231f510.kamezawa.hiroyu@jp.fujitsu.com>
- <20120117152635.GA22142@tiehlicka.suse.cz>
- <20120118090656.83268b3e.kamezawa.hiroyu@jp.fujitsu.com>
- <20120118123759.GB31112@tiehlicka.suse.cz>
- <20120119111727.6337bde4.kamezawa.hiroyu@jp.fujitsu.com>
- <CALWz4iz59=-J+cif+XickXBG3zUSy58yHhkX6j3zbJyBXGzpYw@mail.gmail.com>
- <20120123090436.GA12375@tiehlicka.suse.cz>
- <CALWz4iyaWtes=aU79DAbEfBsNUTaHKLK5HZbNfShaxgC8UX_TQ@mail.gmail.com>
+Subject: Re: [PATCH v5] memcg: remove PCG_CACHE page_cgroup flag
+Message-ID: <20120125122448.GE25368@tiehlicka.suse.cz>
+References: <20120120084545.GC9655@tiehlicka.suse.cz>
+ <20120124121636.115f1cf0.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120124111644.GE1660@cmpxchg.org>
+ <20120124145411.GF1660@cmpxchg.org>
+ <20120124160140.GH26289@tiehlicka.suse.cz>
+ <20120124164449.GH1660@cmpxchg.org>
+ <20120124172308.GI26289@tiehlicka.suse.cz>
+ <20120124180842.GA18372@tiehlicka.suse.cz>
+ <20120125090025.6d24cd0f.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4iyaWtes=aU79DAbEfBsNUTaHKLK5HZbNfShaxgC8UX_TQ@mail.gmail.com>
+In-Reply-To: <20120125144100.4fcfcb82.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
 
-On Tue 24-01-12 11:04:16, Ying Han wrote:
-> On Mon, Jan 23, 2012 at 1:04 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Fri 20-01-12 10:08:44, Ying Han wrote:
-> >> On Wed, Jan 18, 2012 at 6:17 PM, KAMEZAWA Hiroyuki
-> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed 25-01-12 14:41:00, KAMEZAWA Hiroyuki wrote:
 [...]
-> >> > I doubt .... If no barrier, this case happens
-> >> >
-> >> > ==
-> >> >        update                  reference
-> >> >        CPU A                   CPU B
-> >> >        set value
-> >> >        synchronize_rcu()       rcu_read_lock()
-> >> >                                read_value <= find old value
-> >> >                                rcu_read_unlock()
-> >> >                                do no lock
-> >> > ==
-> >>
-> >> Hi Kame,
-> >>
-> >> Can you help to clarify a bit more on the example above? Why
-> >> read_value got the old value after synchronize_rcu().
-> >
-> > AFAIU it is because rcu_read_unlock doesn't force any memory barrier
-> > and we synchronize only the updater (with synchronize_rcu), so nothing
-> > guarantees that the value set on CPUA is visible to CPUB.
+> Subject: [PATCH v5] memcg: remove PCG_CACHE
 > 
-> Thanks, and i might have found similar comment on the
-> documentation/rcu/checklist.txt:
-> "
-> The various RCU read-side primitives do -not- necessarily contain
-> memory barriers.
-> "
+> We record 'the page is cache' by PCG_CACHE bit to page_cgroup.
+> Here, "CACHE" means anonymous user pages (and SwapCache). This
+> doesn't include shmem.
 > 
-> So, the read barrier here is to make sure no reordering between the
-> reader and the rcu_read_lock. The same for the write barrier which
-> makes sure no reordering between the updater and synchronize_rcu. The
-> the rcu here is to synchronize between the updater and reader. If so,
-> why not the change like :
+> Consdering callers, at charge/uncharge, the caller should know
+> what  the page is and we don't need to record it by using 1bit
+> per page.
 > 
->        for_each_online_cpu(cpu)
->                per_cpu(memcg->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
-> +      smp_wmb();
+> This patch removes PCG_CACHE bit and make callers of
+> mem_cgroup_charge_statistics() to specify what the page is.
+> 
+> About page migration:
+> Mapping of the used page is not touched during migration (see
+> page_remove_rmap) so we can rely on it and push the correct charge type
+> down to __mem_cgroup_uncharge_common from end_migration for unused page.
+> The force flag was misleading was abused for skipping the needless
+> page_mapped() / PageCgroupMigration() check, as we know the unused page
+> is no longer mapped and cleared the migration flag just a few lines
+> up.  But doing the checks is no biggie and it's not worth adding another
+> flag just to skip them.
+> 
+> Changelog since v4
+>  - fixed a bug at page migration by Michal Hokko.
 
-Threre is a data dependency between per_cpu update (the above for look)
-and local read of the per-cpu on the read-side and IIUC we need to pair
-write barrier with read one before we read the value.
+Would be more fair:
+   - fixed a bug at page migration by Johannes Weiner
 
-But I might be wrong here (see the SMP BARRIER PAIRING section in
-Documentation/memory-barriers.txt).
+> Changelog since v3
+>  - renamed a variable 'rss' to 'anon'
+> 
+> Changelog since v2
+>  - removed 'not_rss', added 'anon'
+>  - changed a meaning of arguments to mem_cgroup_charge_statisitcs()
+>  - removed a patch to mem_cgroup_uncharge_cache
+>  - simplified comment.
+> 
+> Changelog since RFC.
+>  - rebased onto memcg-devel
+>  - rename 'file' to 'not_rss'
+>  - some cleanup and added comment.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> Sorry, the use of per-cpu variable MEM_CGROUP_ON_MOVE does confuse me.
+Anyway it looks good now (unless I missed something ;)).
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/page_cgroup.h |    8 +-----
+>  mm/memcontrol.c             |   57 ++++++++++++++++++++++++-------------------
+>  2 files changed, 33 insertions(+), 32 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index a2d1177..1060292 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -4,7 +4,6 @@
+>  enum {
+>  	/* flags for mem_cgroup */
+>  	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+> -	PCG_CACHE, /* charged as cache */
+>  	PCG_USED, /* this object is in use. */
+>  	PCG_MIGRATION, /* under page migration */
+>  	/* flags for mem_cgroup and file and I/O status */
+> @@ -64,11 +63,6 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
+>  
+> -/* Cache flag is set only once (at allocation) */
+> -TESTPCGFLAG(Cache, CACHE)
+> -CLEARPCGFLAG(Cache, CACHE)
+> -SETPCGFLAG(Cache, CACHE)
+> -
+>  TESTPCGFLAG(Used, USED)
+>  CLEARPCGFLAG(Used, USED)
+>  SETPCGFLAG(Used, USED)
+> @@ -85,7 +79,7 @@ static inline void lock_page_cgroup(struct page_cgroup *pc)
+>  {
+>  	/*
+>  	 * Don't take this lock in IRQ context.
+> -	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
+> +	 * This lock is for pc->mem_cgroup, USED, MIGRATION
+>  	 */
+>  	bit_spin_lock(PCG_LOCK, &pc->flags);
+>  }
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1c56c5f..45dab06 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -670,15 +670,19 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+>  }
+>  
+>  static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+> -					 bool file, int nr_pages)
+> +					 bool anon, int nr_pages)
+>  {
+>  	preempt_disable();
+>  
+> -	if (file)
+> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+> +	/*
+> +	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
+> +	 * counted as CACHE even if it's on ANON LRU.
+> +	 */
+> +	if (anon)
+> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
+>  				nr_pages);
+>  	else
+> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
+> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+>  				nr_pages);
+>  
+>  	/* pagein of a big page is an event. So, ignore page size */
+> @@ -2405,6 +2409,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  				       struct page_cgroup *pc,
+>  				       enum charge_type ctype)
+>  {
+> +	bool anon;
+> +
+>  	lock_page_cgroup(pc);
+>  	if (unlikely(PageCgroupUsed(pc))) {
+>  		unlock_page_cgroup(pc);
+> @@ -2424,21 +2430,14 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  	 * See mem_cgroup_add_lru_list(), etc.
+>   	 */
+>  	smp_wmb();
+> -	switch (ctype) {
+> -	case MEM_CGROUP_CHARGE_TYPE_CACHE:
+> -	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
+> -		SetPageCgroupCache(pc);
+> -		SetPageCgroupUsed(pc);
+> -		break;
+> -	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+> -		ClearPageCgroupCache(pc);
+> -		SetPageCgroupUsed(pc);
+> -		break;
+> -	default:
+> -		break;
+> -	}
+>  
+> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
+> +	SetPageCgroupUsed(pc);
+> +	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+> +		anon = true;
+> +	else
+> +		anon = false;
+> +
+> +	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
+>  	unlock_page_cgroup(pc);
+>  	WARN_ON_ONCE(PageLRU(page));
+>  	/*
+> @@ -2503,6 +2502,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  {
+>  	unsigned long flags;
+>  	int ret;
+> +	bool anon = PageAnon(page);
+>  
+>  	VM_BUG_ON(from == to);
+>  	VM_BUG_ON(PageLRU(page));
+> @@ -2531,14 +2531,14 @@ static int mem_cgroup_move_account(struct page *page,
+>  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+>  		preempt_enable();
+>  	}
+> -	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
+> +	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+>  	if (uncharge)
+>  		/* This is not "cancel", but cancel_charge does all we need. */
+>  		__mem_cgroup_cancel_charge(from, nr_pages);
+>  
+>  	/* caller should have done css_get */
+>  	pc->mem_cgroup = to;
+> -	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), nr_pages);
+> +	mem_cgroup_charge_statistics(to, anon, nr_pages);
+>  	/*
+>  	 * We charges against "to" which may not have any tasks. Then, "to"
+>  	 * can be under rmdir(). But in current implementation, caller of
+> @@ -2884,6 +2884,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	struct mem_cgroup *memcg = NULL;
+>  	unsigned int nr_pages = 1;
+>  	struct page_cgroup *pc;
+> +	bool anon;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+> @@ -2915,6 +2916,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  		/* See mem_cgroup_prepare_migration() */
+>  		if (page_mapped(page) || PageCgroupMigration(pc))
+>  			goto unlock_out;
+> +		anon = true;
+>  		break;
+>  	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
+>  		if (!PageAnon(page)) {	/* Shared memory */
+> @@ -2922,12 +2924,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  				goto unlock_out;
+>  		} else if (page_mapped(page)) /* Anon */
+>  				goto unlock_out;
+> +		anon = true;
+>  		break;
+>  	default:
+> +		anon = false;
+>  		break;
+>  	}
+>  
+> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -nr_pages);
+> +	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
+>  
+>  	ClearPageCgroupUsed(pc);
+>  	/*
+> @@ -3251,6 +3255,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  {
+>  	struct page *used, *unused;
+>  	struct page_cgroup *pc;
+> +	bool anon;
+>  
+>  	if (!memcg)
+>  		return;
+> @@ -3272,8 +3277,10 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  	lock_page_cgroup(pc);
+>  	ClearPageCgroupMigration(pc);
+>  	unlock_page_cgroup(pc);
+> -
+> -	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+> +	anon = PageAnon(used);
+> +	__mem_cgroup_uncharge_common(unused,
+> +		anon ? MEM_CGROUP_CHARGE_TYPE_MAPPED
+> +                     : MEM_CGROUP_CHARGE_TYPE_CACHE);
+>  
+>  	/*
+>  	 * If a page is a file cache, radix-tree replacement is very atomic
+> @@ -3283,7 +3290,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
+>  	 * check. (see prepare_charge() also)
+>  	 */
+> -	if (PageAnon(used))
+> +	if (anon)
+>  		mem_cgroup_uncharge_page(used);
+>  	/*
+>  	 * At migration, we may charge account against cgroup which has no
+> @@ -3313,7 +3320,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  	/* fix accounting on old pages */
+>  	lock_page_cgroup(pc);
+>  	memcg = pc->mem_cgroup;
+> -	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -1);
+> +	mem_cgroup_charge_statistics(memcg, false, -1);
+>  	ClearPageCgroupUsed(pc);
+>  	unlock_page_cgroup(pc);
+>  
+> -- 
+> 1.7.4.1
+> 
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Michal Hocko
