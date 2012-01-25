@@ -1,97 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 611BD6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 11:21:16 -0500 (EST)
-Date: Wed, 25 Jan 2012 16:21:13 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v2 -mm 3/3] mm: only defer compaction for failed order
- and higher
-Message-ID: <20120125162112.GF3901@csn.ul.ie>
-References: <20120124131822.4dc03524@annuminas.surriel.com>
- <20120124132332.0c18d346@annuminas.surriel.com>
- <20120125154108.GD3901@csn.ul.ie>
- <4F2025D9.9050409@redhat.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id ACDB26B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 11:38:41 -0500 (EST)
+Date: Wed, 25 Jan 2012 17:31:51 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v9 3.2 1/9] uprobes: Install and remove breakpoints.
+Message-ID: <20120125163151.GA9242@redhat.com>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com> <20120110114831.17610.88468.sendpatchset@srdronam.in.ibm.com> <CAK1hOcMVQN4sQjMnV3YBtd6hi8ZtbxPuguVHGxGgSPGn2scsNQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F2025D9.9050409@redhat.com>
+In-Reply-To: <CAK1hOcMVQN4sQjMnV3YBtd6hi8ZtbxPuguVHGxGgSPGn2scsNQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Wed, Jan 25, 2012 at 10:55:05AM -0500, Rik van Riel wrote:
-> On 01/25/2012 10:41 AM, Mel Gorman wrote:
-> 
-> >>--- a/mm/compaction.c
-> >>+++ b/mm/compaction.c
-> >>@@ -673,9 +673,18 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
-> >>  		INIT_LIST_HEAD(&cc->freepages);
-> >>  		INIT_LIST_HEAD(&cc->migratepages);
-> >>
-> >>-		if (cc->order<  0 || !compaction_deferred(zone))
-> >>+		if (cc->order<  0 || !compaction_deferred(zone, cc->order))
-> >>  			compact_zone(zone, cc);
-> >>
-> >>+		if (cc->order>  0) {
-> >>+			int ok = zone_watermark_ok(zone, cc->order,
-> >>+						low_wmark_pages(zone), 0, 0);
-> >>+			if (ok&&  cc->order>  zone->compact_order_failed)
-> >>+				zone->compact_order_failed = cc->order + 1;
-> >>+			else if (!ok&&  cc->sync)
-> >>+				defer_compaction(zone, cc->order);
-> >>+		}
-> >>+
-> >
-> >That needs a comment. I think what you're trying to do is reset
-> >compat_order_failed once compaction is successful.
-> >
-> >The "!ok&&  cc->sync" check may be broken. __compact_pgdat() is
-> >called from kswapd, not direct compaction so cc->sync will not be true.
-> 
-> The problem with doing that is that we would be deferring
-> synchronous compaction (by allocators), just because
-> asynchronous compaction from kswapd failed...
-> 
+On 01/25, Denys Vlasenko wrote:
+>
+> On Tue, Jan 10, 2012 at 12:48 PM, Srikar Dronamraju
+> <srikar@linux.vnet.ibm.com> wrote:
+> > +/*
+> > + * opcodes we'll probably never support:
+> > + * 6c-6d, e4-e5, ec-ed - in
+> > + * 6e-6f, e6-e7, ee-ef - out
+> > + * cc, cd - int3, int
+>
+> I imagine desire to set a breakpoint on int 0x80 will be rather typical.
+> (Same for sysenter).
 
-I should have been clear. I was not suggesting that we defer compaction
-here for !cc->sync. I was pointing out that the code as-is is dead.
+May be uprobes will support this later. But imho we should not
+try to do this now.
 
-> That is the reason the code is like it is above.  And
-> indeed, it will not defer compaction from this code path
-> right now.
-> 
+With the current code, afaics we do not want to allow the
+UTASK_SSTEP/TIF_SINGLESTEP task to enter the kernel mode,
+this state is "too special". Just for example, suppose it
+clones another task and the child gets the invalid uprobe
+state.
 
-Ok, that was my understanding, I just wanted to be sure I understood
-your intentions.
-
-> Then again, neither does async compaction from page
-> allocators defer compaction - only sync compaction does.
-> 
-
-Yep, this is on purpose.
-
-> If it turns out we need a separate compaction deferral
-> for async compaction, we can always introduce that later,
-> and this code will be ready for it.
-> 
-
-Ok, I can accept that.
-
-> If you prefer, I can replace the whole "else if" bit with
-> a big fat comment explaining why we cannot currently
-> defer compaction from this point.
-> 
-
-Explaining that it is dead code for kswapd would also do.
-
-If you do replace the code, add a WARN_ON(cc->sync) in case the
-assumption changes in the future so defer_compaction() gets thought
-about properly.
-
--- 
-Mel Gorman
-SUSE Labs
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
