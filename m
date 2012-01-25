@@ -1,89 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 4C7446B004F
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 18:02:04 -0500 (EST)
-Received: by pbaa12 with SMTP id a12so236771pba.14
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 15:02:03 -0800 (PST)
-Date: Wed, 25 Jan 2012 15:01:38 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/3] mm: adjust rss counters for migration entiries
-In-Reply-To: <4F1E58DD.6030607@openvz.org>
-Message-ID: <alpine.LSU.2.00.1201251453550.2141@eggly.anvils>
-References: <20120106173827.11700.74305.stgit@zurg> <20120106173856.11700.98858.stgit@zurg> <20120111144125.0c61f35f.kamezawa.hiroyu@jp.fujitsu.com> <4F0D46EF.4060705@openvz.org> <20120111174126.f35e708a.kamezawa.hiroyu@jp.fujitsu.com>
- <20120118152131.45a47966.akpm@linux-foundation.org> <alpine.LSU.2.00.1201231719580.14979@eggly.anvils> <4F1E58DD.6030607@openvz.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 2847B6B004F
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 18:07:48 -0500 (EST)
+Received: by qadc11 with SMTP id c11so1346744qad.14
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 15:07:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120124084335.GE26289@tiehlicka.suse.cz>
+References: <20120113173001.ee5260ca.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120113174019.8dff3fc1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120117164605.GB22142@tiehlicka.suse.cz>
+	<20120118091226.b46e0f6e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120118104703.GA31112@tiehlicka.suse.cz>
+	<20120119085309.616cadb4.kamezawa.hiroyu@jp.fujitsu.com>
+	<CALWz4ixAT411PZMwngh17V8VZEDGbMNNzbWFwbpC5M-JO+TVOQ@mail.gmail.com>
+	<20120124084335.GE26289@tiehlicka.suse.cz>
+Date: Wed, 25 Jan 2012 15:07:47 -0800
+Message-ID: <CALWz4iy0ajriTk7V0xL1+W7rDFS+-M5w4OdPjasMGUTH=ZLgrw@mail.gmail.com>
+Subject: Re: [RFC] [PATCH 3/7 v2] memcg: remove PCG_MOVE_LOCK flag from pc->flags
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Tue, 24 Jan 2012, Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
-> > On Wed, 18 Jan 2012, Andrew Morton wrote:
-> > > : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > > : Subject: mm: add rss counters consistency check
-> > > :
-> > > : Warn about non-zero rss counters at final mmdrop.
-> > > :
-> > > : This check will prevent reoccurences of bugs such as that fixed in "mm:
-> > > : fix rss count leakage during migration".
-> > > :
-> > > : I didn't hide this check under CONFIG_VM_DEBUG because it rather small
-> > > and
-> > > : rss counters cover whole page-table management, so this is a good
-> > > : invariant.
-> > > :
-> > > : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > > : Cc: Hugh Dickins<hughd@google.com>
-> > > : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > I'd be happier with this one if you do hide the check under
-> > CONFIG_VM_DEBUG - or even under CONFIG_DEBUG_VM if you want it to
-> > be compiled in sometimes ;)  I suppose NR_MM_COUNTERS is only 3,
-> > so it isn't a huge overhead; but I think you're overestimating the
-> > importance of these counters, and it would look better under DEBUG_VM.
-> 
-> Theoretically, some drivers can touch page tables,
-> for example if they do that outside of vma we can get some kind of strange
-> memory leaks.
+On Tue, Jan 24, 2012 at 12:43 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Mon 23-01-12 14:05:33, Ying Han wrote:
+>> On Wed, Jan 18, 2012 at 3:53 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > On Wed, 18 Jan 2012 11:47:03 +0100
+>> > Michal Hocko <mhocko@suse.cz> wrote:
+>> >
+>> >> On Wed 18-01-12 09:12:26, KAMEZAWA Hiroyuki wrote:
+>> >> > On Tue, 17 Jan 2012 17:46:05 +0100
+>> >> > Michal Hocko <mhocko@suse.cz> wrote:
+>> >> >
+>> >> > > On Fri 13-01-12 17:40:19, KAMEZAWA Hiroyuki wrote:
+>> >> [...]
+>> >> > > > This patch removes PCG_MOVE_LOCK and add hashed rwlock array
+>> >> > > > instead of it. This works well enough. Even when we need to
+>> >> > > > take the lock,
+>> >> > >
+>> >> > > Hmmm, rwlocks are not popular these days very much.
+>> >> > > Anyway, can we rather make it (source) memcg (bit)spinlock instea=
+d. We
+>> >> > > would reduce false sharing this way and would penalize only pages=
+ from
+>> >> > > the moving group.
+>> >> > >
+>> >> > per-memcg spinlock ?
+>> >>
+>> >> Yes
+>> >>
+>> >> > The reason I used rwlock() is to avoid disabling IRQ. =A0This routi=
+ne
+>> >> > will be called by IRQ context (for dirty ratio support). =A0So, IRQ
+>> >> > disable will be required if we use spinlock.
+>> >>
+>> >> OK, I have missed the comment about disabling IRQs. It's true that we=
+ do
+>> >> not have to be afraid about deadlocks if the lock is held only for
+>> >> reading from the irq context but does the spinlock makes a performanc=
+e
+>> >> bottleneck? We are talking about the slowpath.
+>> >> I could see the reason for the read lock when doing hashed locks beca=
+use
+>> >> they are global but if we make the lock per memcg then we shouldn't
+>> >> interfere with other updates which are not blocked by the move.
+>> >>
+>> >
+>> > Hm, ok. In the next version, I'll use per-memcg spinlock (with hash if=
+ necessary)
+>>
+>> Just want to make sure I understand it, even we make the lock
+>> per-memcg, there is still a false sharing of pc within one memcg.
+>
+> Yes that is true. I have missed that we might fault in several pages at
+> once but this would happen only during task move, right? And that is not
+> a hot path anyway. Or?
 
-I don't understand you on that.  Sure, drivers could do all kinds of
-damage, but if they're touching pagetables outside of the vmas, then
-this check on rss at exit isn't going to catch them.
+I was thinking of page-statistics update which is hot path. If the
+moving task and non-moving task share the same per-memcg lock, any
+page-statistic update from the non-moving task will be blocked? Sorry
+If i missed something here :)
 
-But the message I get is that you want to leave the check (which would
-have been better at the end of exit_mmap, I think, but never mind)
-outside of CONFIG_DEBUG_VM: okay, I don't feel strongly enough.
+>
+>> Do we need to demonstrate the effect ?
+>>
+>> Also, I don't get the point of why spinlock instead of rwlock in this ca=
+se?
+>
+> spinlock provides a fairness while with rwlocks might lead to
+> starvation.
 
-> > > : From: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > > : Subject: mm: postpone migrated page mapping reset
-> > > :
-> > > : Postpone resetting page->mapping until the final
-> > > remove_migration_ptes().
-> > > : Otherwise the expression PageAnon(migration_entry_to_page(entry)) does
-> > > not
-> > > : work.
-> > > :
-> > > : Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > > : Cc: Hugh Dickins<hughd@google.com>
-> > > : Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > Isn't this one actually an essential part of the fix?  It should have
-> > been part of the same patch, but you split them apart, now Andrew has
-> > reordered them and pushed one part to 3.3, but this needs to go in too?
-> > 
-> 
-> Oops. I missed that. Yes. race-fix does not work for anon-memory without that
-> patch.
-> But this is non-fatal, there are no new bugs.
+that is true.
 
-Non-fatal and no new bug, yes, but it makes the fix which has already
-gone in rather less of a fix than was intended (it'll get the total right,
-but misreport anon as file).  Andrew, please add this one to your next
-push to Linus - thanks.
+--Ying
 
-Hugh
+>
+>
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
