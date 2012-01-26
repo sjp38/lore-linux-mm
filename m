@@ -1,174 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id F2ED86B005D
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 15:03:10 -0500 (EST)
-Date: Thu, 26 Jan 2012 14:59:14 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH v3 -mm 1/3] mm: reclaim at order 0 when compaction is
- enabled
-Message-ID: <20120126145914.58619765@cuia.bos.redhat.com>
-In-Reply-To: <20120126145450.2d3d2f4c@cuia.bos.redhat.com>
-References: <20120126145450.2d3d2f4c@cuia.bos.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id C56A26B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 16:28:04 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <9fcd06f5-360e-4542-9fbb-f8c7efb28cb6@default>
+Date: Thu, 26 Jan 2012 13:28:02 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] mm: implement WasActive page flag (for improving
+ cleancache)
+References: <ea3b0850-dfe0-46db-9201-2bfef110848d@default>
+ <4F218D36.2060308@linux.vnet.ibm.com>
+In-Reply-To: <4F218D36.2060308@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Nebojsa Trpkovic <trx.lists@gmail.com>, minchan@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, riel@redhat.com, Chris Mason <chris.mason@oracle.com>
 
-When built with CONFIG_COMPACTION, kswapd should not try to free
-contiguous pages, because it is not trying hard enough to have
-a real chance at being successful, but still disrupts the LRU
-enough to break other things.
+> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+> Subject: Re: [PATCH] mm: implement WasActive page flag (for improving cle=
+ancache)
 
-Do not do higher order page isolation unless we really are in
-lumpy reclaim mode.
+Thanks for the review Dave!
+=20
+> On 01/25/2012 01:58 PM, Dan Magenheimer wrote:
+> > (Feedback welcome if there is a different/better way to do this
+> > without using a page flag!)
+> >
+> > Since about 2.6.27, the page replacement algorithm maintains
+> > an "active" bit to help decide which pages are most eligible
+> > to reclaim, see http://linux-mm.org/PageReplacementDesign
+> >
+> > This "active' information is also useful to cleancache but is lost
+> > by the time that cleancache has the opportunity to preserve the
+> > pageful of data.  This patch adds a new page flag "WasActive" to
+> > retain the state.  The flag may possibly be useful elsewhere.
+>=20
+> I guess cleancache itself is clearing the bit, right?  I didn't see any
+> clearing going on in the patch.
 
-Stop reclaiming pages once we have enough free pages that
-compaction can deal with things, and we hit the normal order 0
-watermarks used by kswapd.
+No, there are no changes in cleancache.c so it isn't clearing
+the bit.
 
-Also remove a line of code that increments balanced right before
-exiting the function.
+> I do think it also needs to get cleared on the way in to the page
+> allocator.  Otherwise:
+>=20
+> =09PageSetWasActive(page);
+> =09free_page(page);
+> =09...
+> =09another_user_page =3D get_free_page()
+> =09// now cleancache sees the active bit for the prev user
+>=20
+> Or am I missing somewhere it gets cleared non-explicitly somewhere?
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
--v4: further cleanups suggested by Mel Gorman
- mm/vmscan.c |   43 +++++++++++++++++++++++++++++--------------
- 1 files changed, 29 insertions(+), 14 deletions(-)
+True, it is not getting cleared and it should be, good catch!
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2880396..2e2e43d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1139,7 +1139,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
-  * @mz:		The mem_cgroup_zone to pull pages from.
-  * @dst:	The temp list to put pages on to.
-  * @nr_scanned:	The number of pages that were scanned.
-- * @order:	The caller's attempted allocation order
-+ * @sc:		The scan_control struct for this reclaim session
-  * @mode:	One of the LRU isolation modes
-  * @active:	True [1] if isolating active pages
-  * @file:	True [1] if isolating file [!anon] pages
-@@ -1148,8 +1148,8 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
-  */
- static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		struct mem_cgroup_zone *mz, struct list_head *dst,
--		unsigned long *nr_scanned, int order, isolate_mode_t mode,
--		int active, int file)
-+		unsigned long *nr_scanned, struct scan_control *sc,
-+		isolate_mode_t mode, int active, int file)
- {
- 	struct lruvec *lruvec;
- 	struct list_head *src;
-@@ -1195,7 +1195,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			BUG();
- 		}
- 
--		if (!order)
-+		if (!sc->order || !(sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM))
- 			continue;
- 
- 		/*
-@@ -1209,8 +1209,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		 */
- 		zone_id = page_zone_id(page);
- 		page_pfn = page_to_pfn(page);
--		pfn = page_pfn & ~((1 << order) - 1);
--		end_pfn = pfn + (1 << order);
-+		pfn = page_pfn & ~((1 << sc->order) - 1);
-+		end_pfn = pfn + (1 << sc->order);
- 		for (; pfn < end_pfn; pfn++) {
- 			struct page *cursor_page;
- 
-@@ -1276,7 +1276,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 	*nr_scanned = scan;
- 
--	trace_mm_vmscan_lru_isolate(order,
-+	trace_mm_vmscan_lru_isolate(sc->order,
- 			nr_to_scan, scan,
- 			nr_taken,
- 			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
-@@ -1535,7 +1535,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	nr_taken = isolate_lru_pages(nr_to_scan, mz, &page_list,
--				     &nr_scanned, sc->order,
-+				     &nr_scanned, sc,
- 				     reclaim_mode, 0, file);
- 	if (global_reclaim(sc)) {
- 		zone->pages_scanned += nr_scanned;
-@@ -1713,7 +1713,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	nr_taken = isolate_lru_pages(nr_to_scan, mz, &l_hold,
--				     &nr_scanned, sc->order,
-+				     &nr_scanned, sc,
- 				     reclaim_mode, 1, file);
- 	if (global_reclaim(sc))
- 		zone->pages_scanned += nr_scanned;
-@@ -2754,7 +2754,7 @@ loop_again:
- 		 */
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			int nr_slab;
-+			int nr_slab, testorder;
- 			unsigned long balance_gap;
- 
- 			if (!populated_zone(zone))
-@@ -2787,7 +2787,20 @@ loop_again:
- 				(zone->present_pages +
- 					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
- 				KSWAPD_ZONE_BALANCE_GAP_RATIO);
--			if (!zone_watermark_ok_safe(zone, order,
-+			/*
-+			 * Kswapd reclaims only single pages with compaction
-+			 * enabled. Trying too hard to reclaim until contiguous
-+			 * free pages have become available can hurt performance
-+			 * by evicting too much useful data from memory.
-+			 * Do not reclaim more than needed for compaction.
-+			 */
-+			testorder = order;
-+			if (COMPACTION_BUILD && order &&
-+					compaction_suitable(zone, order) !=
-+						COMPACT_SKIPPED)
-+				testorder = 0;
-+
-+			if (!zone_watermark_ok_safe(zone, testorder,
- 					high_wmark_pages(zone) + balance_gap,
- 					end_zone, 0)) {
- 				shrink_zone(priority, zone, &sc);
-@@ -2816,7 +2829,7 @@ loop_again:
- 				continue;
- 			}
- 
--			if (!zone_watermark_ok_safe(zone, order,
-+			if (!zone_watermark_ok_safe(zone, testorder,
- 					high_wmark_pages(zone), end_zone, 0)) {
- 				all_zones_ok = 0;
- 				/*
-@@ -2913,6 +2926,10 @@ out:
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;
- 
-+			/* Would compaction fail due to lack of free memory? */
-+			if (compaction_suitable(zone, order) == COMPACT_SKIPPED)
-+				goto loop_again;
-+
- 			/* Confirm the zone is balanced for order-0 */
- 			if (!zone_watermark_ok(zone, 0,
- 					high_wmark_pages(zone), 0, 0)) {
-@@ -2922,8 +2939,6 @@ out:
- 
- 			/* If balanced, clear the congested flag */
- 			zone_clear_flag(zone, ZONE_CONGESTED);
--			if (i <= *classzone_idx)
--				balanced += zone->present_pages;
- 		}
- 	}
- 
+I'll find the place to add the call to ClearPageWasActive() for v2.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
