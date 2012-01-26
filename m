@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id BCF536B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:11:14 -0500 (EST)
-Date: Thu, 26 Jan 2012 12:10:41 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH v9 3.2 0/9] Uprobes patchset with perf probe support
-Message-ID: <20120126111041.GG3853@elte.hu>
-References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
- <20120116083442.GA23622@elte.hu>
- <20120116151755.GH10189@linux.vnet.ibm.com>
- <20120117093925.GC10397@elte.hu>
- <1327500687.2614.70.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1327500687.2614.70.camel@laptop>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id AF6996B005A
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:27:22 -0500 (EST)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: [PATCH 1/4] dma-buf: Constify ops argument to dma_buf_export()
+Date: Thu, 26 Jan 2012 12:27:22 +0100
+Message-Id: <1327577245-20354-2-git-send-email-laurent.pinchart@ideasonboard.com>
+In-Reply-To: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
+References: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Sumit Semwal <sumit.semwal@ti.com>
+Cc: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
 
+This allows drivers to make the dma buf operations structure constant.
 
-* Peter Zijlstra <peterz@infradead.org> wrote:
+Signed-off-by: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+---
+ drivers/base/dma-buf.c  |    2 +-
+ include/linux/dma-buf.h |    8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
-> On Tue, 2012-01-17 at 10:39 +0100, Ingo Molnar wrote:
-> 
-> > I did not suggest anything complex or intrusive: just basically 
-> > unify the namespace, have a single set of callbacks, and call 
-> > into the uprobes and perf code from those callbacks - out of the 
-> > sight of MM code.
-> > 
-> > That unified namespace could be called:
-> > 
-> >     event_mmap(...);
-> >     event_fork(...);
-> > 
-> > etc. - and from event_mmap() you could do a simple:
-> > 
-> > 	perf_event_mmap(...)
-> > 	uprobes_event_mmap(...)
-> > 
-> > [ Once all this is updated to use tracepoints it would turn into 
-> >   a notification callback chain kind of thing. ]
-> 
-> We keep disagreeing on this. I utterly loathe hiding stuff in 
-> notifier lists. It makes it completely non-obvious who all 
-> does what.
-
-My immediate suggestion was not a notifier list but an 
-open-coded list of function calls done in helper inline 
-functions - to minimize the impact of the callbacks on mm/.
-
-> Another very good reason to not do what you suggest is that 
-> perf_event_mmap() is a pure consumer, it doesn't have a return 
-> value, whereas uprobes_mmap() can actually fail the mmap.
-
-You know that i disagree with that, there is no fundamental 
-reason why event callbacks couldnt participate in program logic, 
-as long as the call site explicitly wants such side effects. It 
-avoids senseless duplication of callbacks.
-
-Anyway, if Andrew is fine with the current callbacks as-is then 
-it's fine to me as well.
-
-Thanks,
-
-	Ingo
+diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+index e38ad24..965833ac 100644
+--- a/drivers/base/dma-buf.c
++++ b/drivers/base/dma-buf.c
+@@ -71,7 +71,7 @@ static inline int is_dma_buf_file(struct file *file)
+  * ops, or error in allocating struct dma_buf, will return negative error.
+  *
+  */
+-struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
++struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
+ 				size_t size, int flags)
+ {
+ 	struct dma_buf *dmabuf;
+diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+index f8ac076..86f6241 100644
+--- a/include/linux/dma-buf.h
++++ b/include/linux/dma-buf.h
+@@ -114,8 +114,8 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+ 							struct device *dev);
+ void dma_buf_detach(struct dma_buf *dmabuf,
+ 				struct dma_buf_attachment *dmabuf_attach);
+-struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+-			size_t size, int flags);
++struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
++			       size_t size, int flags);
+ int dma_buf_fd(struct dma_buf *dmabuf);
+ struct dma_buf *dma_buf_get(int fd);
+ void dma_buf_put(struct dma_buf *dmabuf);
+@@ -138,8 +138,8 @@ static inline void dma_buf_detach(struct dma_buf *dmabuf,
+ }
+ 
+ static inline struct dma_buf *dma_buf_export(void *priv,
+-						struct dma_buf_ops *ops,
+-						size_t size, int flags)
++					     const struct dma_buf_ops *ops,
++					     size_t size, int flags)
+ {
+ 	return ERR_PTR(-ENODEV);
+ }
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
