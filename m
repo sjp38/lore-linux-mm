@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 3B94F6B005D
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 4726D6B0070
 	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:01:05 -0500 (EST)
-Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LYE000OGEDO2M@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Thu, 26 Jan 2012 09:01:00 +0000 (GMT)
+ with ESMTP id <0LYE001EMEDQNO@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 26 Jan 2012 09:01:02 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LYE002PFEDN0I@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 26 Jan 2012 09:01:00 +0000 (GMT)
-Date: Thu, 26 Jan 2012 10:00:44 +0100
+ 2004)) with ESMTPA id <0LYE00IZREDP1Y@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Jan 2012 09:01:02 +0000 (GMT)
+Date: Thu, 26 Jan 2012 10:00:49 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 02/15] mm: page_alloc: update migrate type of pages on pcp when
- isolating
+Subject: [PATCH 07/15] mm: page_alloc: change fallbacks array handling
 In-reply-to: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1327568457-27734-3-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1327568457-27734-8-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -28,79 +27,52 @@ Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsun
 
 From: Michal Nazarewicz <mina86@mina86.com>
 
-This commit changes set_migratetype_isolate() so that it updates
-migrate type of pages on pcp list which is saved in their
-page_private.
+This commit adds a row for MIGRATE_ISOLATE type to the fallbacks array
+which was missing from it.  It also, changes the array traversal logic
+a little making MIGRATE_RESERVE an end marker.  The letter change,
+removes the implicit MIGRATE_UNMOVABLE from the end of each row which
+was read by __rmqueue_fallback() function.
 
 Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 ---
- include/linux/page-isolation.h |    6 ++++++
- mm/page_alloc.c                |    1 +
- mm/page_isolation.c            |   24 ++++++++++++++++++++++++
- 3 files changed, 31 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 051c1b1..8c02c2b 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -27,6 +27,12 @@ extern int
- test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
- 
- /*
-+ * Check all pages in pageblock, find the ones on pcp list, and set
-+ * their page_private to MIGRATE_ISOLATE.
-+ */
-+extern void update_pcp_isolate_block(unsigned long pfn);
-+
-+/*
-  * Internal funcs.Changes pageblock's migrate type.
-  * Please use make_pagetype_isolated()/make_pagetype_movable().
-  */
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e1c5656..70709e7 100644
+index b4f50532..0a9cc8e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5465,6 +5465,7 @@ out:
- 	if (!ret) {
- 		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
- 		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-+		update_pcp_isolate_block(pfn);
- 	}
+@@ -875,11 +875,12 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+  * This array describes the order lists are fallen back to when
+  * the free lists for the desirable migrate type are depleted
+  */
+-static int fallbacks[MIGRATE_TYPES][MIGRATE_TYPES-1] = {
++static int fallbacks[MIGRATE_TYPES][3] = {
+ 	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+ 	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+ 	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
+-	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE,     MIGRATE_RESERVE,   MIGRATE_RESERVE }, /* Never used */
++	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
++	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
+ };
  
- 	spin_unlock_irqrestore(&zone->lock, flags);
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 4ae42bb..9ea2f6e 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -139,3 +139,27 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	return ret ? 0 : -EBUSY;
- }
-+
-+/* must hold zone->lock */
-+void update_pcp_isolate_block(unsigned long pfn)
-+{
-+	unsigned long end_pfn = pfn + pageblock_nr_pages;
-+	struct page *page;
-+
-+	while (pfn < end_pfn) {
-+		if (!pfn_valid_within(pfn)) {
-+			++pfn;
-+			continue;
-+		}
-+
-+		page = pfn_to_page(pfn);
-+		if (PageBuddy(page)) {
-+			pfn += 1 << page_order(page);
-+		} else if (page_count(page) == 0) {
-+			set_page_private(page, MIGRATE_ISOLATE);
-+			++pfn;
-+		} else {
-+			++pfn;
-+		}
-+	}
-+}
+ /*
+@@ -974,12 +975,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1; current_order >= order;
+ 						--current_order) {
+-		for (i = 0; i < MIGRATE_TYPES - 1; i++) {
++		for (i = 0;; i++) {
+ 			migratetype = fallbacks[start_migratetype][i];
+ 
+ 			/* MIGRATE_RESERVE handled later if necessary */
+ 			if (migratetype == MIGRATE_RESERVE)
+-				continue;
++				break;
+ 
+ 			area = &(zone->free_area[current_order]);
+ 			if (list_empty(&area->free_list[migratetype]))
 -- 
 1.7.1.569.g6f426
 
