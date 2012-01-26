@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 239016B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:32:19 -0500 (EST)
-Received: by wibhj13 with SMTP id hj13so402975wib.14
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2012 03:32:17 -0800 (PST)
-Date: Thu, 26 Jan 2012 12:32:18 +0100
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id EE6596B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:35:16 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so405476wib.14
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2012 03:35:15 -0800 (PST)
+Date: Thu, 26 Jan 2012 12:35:16 +0100
 From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [Linaro-mm-sig] [PATCH 1/4] dma-buf: Constify ops argument to
- dma_buf_export()
-Message-ID: <20120126113218.GD3896@phenom.ffwll.local>
+Subject: Re: [Linaro-mm-sig] [PATCH 2/4] dma-buf: Remove unneeded sanity
+ checks
+Message-ID: <20120126113516.GE3896@phenom.ffwll.local>
 References: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
- <1327577245-20354-2-git-send-email-laurent.pinchart@ideasonboard.com>
+ <1327577245-20354-3-git-send-email-laurent.pinchart@ideasonboard.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1327577245-20354-2-git-send-email-laurent.pinchart@ideasonboard.com>
+In-Reply-To: <1327577245-20354-3-git-send-email-laurent.pinchart@ideasonboard.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 Cc: Sumit Semwal <sumit.semwal@ti.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
 
-On Thu, Jan 26, 2012 at 12:27:22PM +0100, Laurent Pinchart wrote:
-> This allows drivers to make the dma buf operations structure constant.
+On Thu, Jan 26, 2012 at 12:27:23PM +0100, Laurent Pinchart wrote:
+> ops, ops->map_dma_buf and ops->unmap_dma_buf are guaranteed to be
+> non-NULL by a check in dma_buf_export(). Remove NULL checks on those
+> variables in the other API functions.
 > 
 > Signed-off-by: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
