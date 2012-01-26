@@ -1,71 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id AD9656B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:00:24 -0500 (EST)
-Message-ID: <4F211607.10403@panasas.com>
-Date: Thu, 26 Jan 2012 10:59:51 +0200
-From: Boaz Harrosh <bharrosh@panasas.com>
-MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [dm-devel]  [LSF/MM TOPIC] a few storage topics
-References: <20120124203936.GC20650@quack.suse.cz> <20120125032932.GA7150@localhost> <F6F2DEB8-F096-4A3B-89E3-3A132033BC76@dilger.ca> <1327502034.2720.23.camel@menhir> <D3F292ADF945FB49B35E96C94C2061B915A638A6@nsmail.netscout.com> <1327509623.2720.52.camel@menhir> <1327512727.2776.52.camel@dabdike.int.hansenpartnership.com> <D3F292ADF945FB49B35E96C94C2061B915A63A30@nsmail.netscout.com> <1327516668.7168.7.camel@dabdike.int.hansenpartnership.com> <20120125200613.GH15866@shiny> <20120125224614.GM30782@redhat.com>
-In-Reply-To: <20120125224614.GM30782@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 112686B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:01:02 -0500 (EST)
+Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LYE000ODEDO2M@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 26 Jan 2012 09:01:00 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LYE0019FEDNKG@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Jan 2012 09:00:59 +0000 (GMT)
+Date: Thu, 26 Jan 2012 10:00:45 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH 03/15] mm: compaction: introduce isolate_migratepages_range().
+In-reply-to: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1327568457-27734-4-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Chris Mason <chris.mason@oracle.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Loke, Chetan" <Chetan.Loke@netscout.com>, Steven Whitehouse <swhiteho@redhat.com>, Andreas Dilger <adilger@dilger.ca>, Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>, linux-scsi@vger.kernel.org, neilb@suse.de, dm-devel@redhat.com, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Wu Fengguang <fengguang.wu@gmail.com>, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, "Darrick J.Wong" <djwong@us.ibm.com>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-On 01/26/2012 12:46 AM, Andrea Arcangeli wrote:
-> On Wed, Jan 25, 2012 at 03:06:13PM -0500, Chris Mason wrote:
->> We can talk about scaling up how big the RA windows get on their own,
->> but if userland asks for 1MB, we don't have to worry about futile RA, we
->> just have to make sure we don't oom the box trying to honor 1MB reads
->> from 5000 different procs.
-> 
-> :) that's for sure if read has a 1M buffer as destination. However
-> even cp /dev/sda reads/writes through a 32kb buffer, so it's not so
-> common to read in 1m buffers.
-> 
+From: Michal Nazarewicz <mina86@mina86.com>
 
-That's not so true. cp is a bad example because it's brain dead and
-someone should fix it. cp performance is terrible. Even KDE's GUI
-copy is better.
+This commit introduces isolate_migratepages_range() function which
+extracts functionality from isolate_migratepages() so that it can be
+used on arbitrary PFN ranges.
 
-But applications (and dd users) that do care about read performance
-do use large buffers and want the Kernel to not ignore that.
+isolate_migratepages() function is implemented as a simple wrapper
+around isolate_migratepages_range().
 
-What a better hint for Kernel is the read() destination buffer size.
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+---
+ mm/compaction.c |   77 +++++++++++++++++++++++++++++++++++++++---------------
+ 1 files changed, 55 insertions(+), 22 deletions(-)
 
-> But I also would prefer to stay on the simple side (on a side note we
-> run out of page flags already on 32bit I think as I had to nuke
-> PG_buddy already).
-> 
-
-So what would be more simple then not ignoring read() request
-size from application, which will give applications all the control
-they need.
-
-<snip> (I Agree)
-
-> The config option is also ok with me, but I think it'd be nicer to set
-> it at boot depending on ram size (one less option to configure
-> manually and zero overhead).
-
-If you actually take into account the destination buffer size, you'll see
-that the read-ahead size becomes less important for these workloads that
-actually care. But Yes some mount time heuristics could be nice, depending
-on DEV size and MEM size.
-
-For example in my file-system with self registered BDI I set readhead sizes
-according to raid-strip sizes and such so to get good read performance.
-
-And speaking of reads and readhead. What about alignments? both of offset
-and length? though in reads it's not so important. One thing some people
-have ask for is raid-verify-reads as a mount option.
-
-Thanks
-Boaz
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 71a58f6..a42bbdd 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -250,31 +250,34 @@ typedef enum {
+ 	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+ } isolate_migrate_t;
+ 
+-/*
+- * Isolate all pages that can be migrated from the block pointed to by
+- * the migrate scanner within compact_control.
++/**
++ * isolate_migratepages_range() - isolate all migrate-able pages in range.
++ * @zone:	Zone pages are in.
++ * @cc:		Compaction control structure.
++ * @low_pfn:	The first PFN of the range.
++ * @end_pfn:	The one-past-the-last PFN of the range.
++ *
++ * Isolate all pages that can be migrated from the range specified by
++ * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
++ * pending), otherwise PFN of the first page that was not scanned
++ * (which may be both less, equal to or more then end_pfn).
++ *
++ * Assumes that cc->migratepages is empty and cc->nr_migratepages is
++ * zero.
++ *
++ * Apart from cc->migratepages and cc->nr_migratetypes this function
++ * does not modify any cc's fields, in particular it does not modify
++ * (or read for that matter) cc->migrate_pfn.
+  */
+-static isolate_migrate_t isolate_migratepages(struct zone *zone,
+-					struct compact_control *cc)
++static unsigned long
++isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
++			   unsigned long low_pfn, unsigned long end_pfn)
+ {
+-	unsigned long low_pfn, end_pfn;
+ 	unsigned long last_pageblock_nr = 0, pageblock_nr;
+ 	unsigned long nr_scanned = 0, nr_isolated = 0;
+ 	struct list_head *migratelist = &cc->migratepages;
+ 	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
+ 
+-	/* Do not scan outside zone boundaries */
+-	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+-
+-	/* Only scan within a pageblock boundary */
+-	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
+-
+-	/* Do not cross the free scanner or scan within a memory hole */
+-	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
+-		cc->migrate_pfn = end_pfn;
+-		return ISOLATE_NONE;
+-	}
+-
+ 	/*
+ 	 * Ensure that there are not too many pages isolated from the LRU
+ 	 * list by either parallel reclaimers or compaction. If there are,
+@@ -283,12 +286,12 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	while (unlikely(too_many_isolated(zone))) {
+ 		/* async migration should just abort */
+ 		if (!cc->sync)
+-			return ISOLATE_ABORT;
++			return 0;
+ 
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		if (fatal_signal_pending(current))
+-			return ISOLATE_ABORT;
++			return 0;
+ 	}
+ 
+ 	/* Time to isolate some pages for migration */
+@@ -313,7 +316,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 		} else if (!locked)
+ 			spin_lock_irq(&zone->lru_lock);
+ 
+-		if (!pfn_valid_within(low_pfn))
++		if (!pfn_valid(low_pfn))
+ 			continue;
+ 		nr_scanned++;
+ 
+@@ -374,10 +377,40 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	acct_isolated(zone, cc);
+ 
+ 	spin_unlock_irq(&zone->lru_lock);
+-	cc->migrate_pfn = low_pfn;
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
++	return low_pfn;
++}
++
++/*
++ * Isolate all pages that can be migrated from the block pointed to by
++ * the migrate scanner within compact_control.
++ */
++static isolate_migrate_t isolate_migratepages(struct zone *zone,
++					struct compact_control *cc)
++{
++	unsigned long low_pfn, end_pfn;
++
++	/* Do not scan outside zone boundaries */
++	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
++
++	/* Only scan within a pageblock boundary */
++	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
++
++	/* Do not cross the free scanner or scan within a memory hole */
++	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
++		cc->migrate_pfn = end_pfn;
++		return ISOLATE_NONE;
++	}
++
++	/* Perform the isolation */
++	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
++	if (!low_pfn)
++		return ISOLATE_ABORT;
++
++	cc->migrate_pfn = low_pfn;
++
+ 	return ISOLATE_SUCCESS;
+ }
+ 
+-- 
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
