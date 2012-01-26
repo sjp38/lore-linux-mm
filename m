@@ -1,25 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 00E2D6B005A
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 10:31:24 -0500 (EST)
-Date: Thu, 26 Jan 2012 09:09:47 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [v7 5/8] slub: only IPI CPUs that have per cpu obj to flush
-In-Reply-To: <1327572121-13673-6-git-send-email-gilad@benyossef.com>
-Message-ID: <alpine.DEB.2.00.1201260909190.23426@router.home>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327572121-13673-6-git-send-email-gilad@benyossef.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id E7D8F6B005C
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 10:31:52 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv19 00/15] Contiguous Memory Allocator
+Date: Thu, 26 Jan 2012 15:31:40 +0000
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201201261531.40551.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.org>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-On Thu, 26 Jan 2012, Gilad Ben-Yossef wrote:
+On Thursday 26 January 2012, Marek Szyprowski wrote:
+> Welcome everyone!
+> 
+> Yes, that's true. This is yet another release of the Contiguous Memory
+> Allocator patches. This version mainly includes code cleanups requested
+> by Mel Gorman and a few minor bug fixes.
 
-> produces 166 IPIs on an cpuset isolated CPU. With it it produces none.
+Hi Marek,
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Thanks for keeping up this work! I really hope it works out for the
+next merge window.
+
+> TODO (optional):
+> - implement support for contiguous memory areas placed in HIGHMEM zone
+> - resolve issue with movable pages with pending io operations
+
+Can you clarify these? I believe the contiguous memory areas in highmem
+is something that should really be after the existing code is merged
+into the upstream kernel and should better not be listed as TODO here.
+
+I haven't followed the last two releases so closely. It seems that
+in v17 the movable pages with pending i/o was still a major problem
+but in v18 you added a solution. Is that right? What is still left
+to be done here then?
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
