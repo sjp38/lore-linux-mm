@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 314F26B004F
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 21:13:05 -0500 (EST)
-Message-ID: <4F20B692.4080906@redhat.com>
-Date: Wed, 25 Jan 2012 21:12:34 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 570586B004F
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2012 22:19:19 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so98059wgb.26
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 19:19:17 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 -mm 1/3] mm: reclaim at order 0 when compaction is
- enabled
-References: <20120124131822.4dc03524@annuminas.surriel.com> <20120124132136.3b765f0c@annuminas.surriel.com> <20120125150016.GB3901@csn.ul.ie> <4F201F60.8080808@redhat.com> <20120125221632.GL30782@redhat.com>
-In-Reply-To: <20120125221632.GL30782@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120125170054.affb676b.akpm@linux-foundation.org>
+References: <CAJd=RBDVxT5Pc2HZjz15LUb7xhFbztpFmXqLXVB3nCoQLKHiHg@mail.gmail.com>
+	<20120123170354.82b9f127.akpm@linux-foundation.org>
+	<CAJd=RBByNhLSiBtyaYOHeMRQpXmAO=hEKTOanPTzrb2gRZTOSg@mail.gmail.com>
+	<20120125170054.affb676b.akpm@linux-foundation.org>
+Date: Thu, 26 Jan 2012 11:19:17 +0800
+Message-ID: <CAJd=RBCv1F3oWpnEbqrvOaRzg_G6Xj_PPHP8v6OADL=vH2pt8g@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: fix malused nr_reclaimed in shrinking zone
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 01/25/2012 05:16 PM, Andrea Arcangeli wrote:
-> On Wed, Jan 25, 2012 at 10:27:28AM -0500, Rik van Riel wrote:
->> On 01/25/2012 10:00 AM, Mel Gorman wrote:
->>> On Tue, Jan 24, 2012 at 01:21:36PM -0500, Rik van Riel wrote:
->>>> When built with CONFIG_COMPACTION, kswapd does not try to free
->>>> contiguous pages.
->>>
->>> balance_pgdat() gets its order from wakeup_kswapd(). This does not apply
->>> to THP because kswapd does not get woken for THP but it should be woken
->>> up for allocations like jumbo frames or order-1.
->>
->> In the kernel I run at home, I wake up kswapd for THP
->> as well. This is a larger change, which Andrea asked
->> me to delay submitting upstream for a bit.
->>
->> So far there seem to be no ill effects. I'll continue
->> watching for them.
+Hi Andrew
+
+On Thu, Jan 26, 2012 at 9:00 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
 >
-> The only problem we had last time when we managed to add compaction in
-> kswapd upstream, was a problem of that too high kswapd wakeup
-> frequency that kept kswapd spinning at 100% load and destroying
-> specsfs performance. It may have been a fundamental problem of
-> compaction not being worthwhile to run to generate jumbo frames
-> because the cost of migrating memory, copying, flushing ptes
+> I'm thinking we have a bit of code rot happening here. =C2=A0This comment=
+:
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * On large memory=
+ systems, scan >> priority can become
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * really large. T=
+his is fine for the starting priority;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * we want to put =
+equal scanning pressure on each zone.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * However, if the=
+ VM has a harder time of freeing pages,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * with multiple p=
+rocesses reclaiming pages, the total
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * freeing target =
+can get unreasonably large.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+>
+> seems to have little to do with the code which it is trying to
+> describe. =C2=A0Or at least, I'm not sure this is the best we can possibl=
+y
+> do :(
+>
 
-I suspect the problem was much simpler back then.  Kswapd
-invoked compaction inside the loop, instead of outside the
-loop, and there was no throttling at all.
+Try to do it soon 8-)
 
-> About THP, it may not give problems for THP because the allocation
-> rate is much slower.
+>
+> Also, your email client is adding MIME goop to the emails which mine
+> (sylpheed) is unable to decrypt. =C2=A0It turns "=3D" into "=3D3D" everyw=
+here.
+> This:
+>
+> MIME-Version: 1.0
+> Content-Type: text/plain; charset=3DUTF-8
+> Content-Transfer-Encoding: quoted-printable
+>
+> I blame sylpheed for this, but if you can make it stop, that would make
+> my life easier, and perhaps others.
+>
 
-> I'm still quite afraid that compaction in kswapd waken by jumbo frames
-> may not work well,
+More care will take gmail later on.
 
-THP allocations may be slower, but jumbo frames get freed
-again quickly. We do not have to compact memory for every
-few jumbo frame allocations, only when the number of packets
-in flight is going up...
-
-You are right that it should be tested, though :)
-
-I will look into that.
-
--- 
-All rights reversed
+Thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
