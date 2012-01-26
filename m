@@ -1,51 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id B05DC6B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 07:37:44 -0500 (EST)
-Received: by wera13 with SMTP id a13so444608wer.14
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:37:43 -0800 (PST)
-Date: Thu, 26 Jan 2012 13:37:43 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [Linaro-mm-sig] [PATCH 4/4] dma-buf: Move code out of
- mutex-protected section in dma_buf_attach()
-Message-ID: <20120126123743.GH3896@phenom.ffwll.local>
-References: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
- <1327577245-20354-5-git-send-email-laurent.pinchart@ideasonboard.com>
- <e0d58a$3259e0@orsmga002.jf.intel.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 889566B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 08:38:24 -0500 (EST)
+Message-ID: <4F21574A.9030507@hitachi.com>
+Date: Thu, 26 Jan 2012 22:38:18 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e0d58a$3259e0@orsmga002.jf.intel.com>
+Subject: Re: [PATCH v9 3.2 1/9] uprobes: Install and remove breakpoints.
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com> <20120110114831.17610.88468.sendpatchset@srdronam.in.ibm.com> <CAK1hOcO3pz+zBLQKfdty3UwQG8zxXwBWo9euFaE+zKawiqTE2g@mail.gmail.com>
+In-Reply-To: <CAK1hOcO3pz+zBLQKfdty3UwQG8zxXwBWo9euFaE+zKawiqTE2g@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Sumit Semwal <sumit.semwal@ti.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
 
-On Thu, Jan 26, 2012 at 12:11:57PM +0000, Chris Wilson wrote:
-> On Thu, 26 Jan 2012 12:27:25 +0100, Laurent Pinchart <laurent.pinchart@ideasonboard.com> wrote:
-> > Some fields can be set without mutex protection. Initialize them before
-> > locking the mutex.
+(2012/01/26 0:13), Denys Vlasenko wrote:
+> On Tue, Jan 10, 2012 at 12:48 PM, Srikar Dronamraju
+> <srikar@linux.vnet.ibm.com> wrote:
+>> +/*
+>> + * If uprobe->insn doesn't use rip-relative addressing, return
+>> + * immediately.  Otherwise, rewrite the instruction so that it accesses
+>> + * its memory operand indirectly through a scratch register.  Set
+>> + * uprobe->arch_info.fixups and uprobe->arch_info.rip_rela_target_address
+>> + * accordingly.  (The contents of the scratch register will be saved
+>> + * before we single-step the modified instruction, and restored
+>> + * afterward.)
+>> + *
+>> + * We do this because a rip-relative instruction can access only a
+>> + * relatively small area (+/- 2 GB from the instruction), and the XOL
+>> + * area typically lies beyond that area.  At least for instructions
+>> + * that store to memory, we can't execute the original instruction
+>> + * and "fix things up" later, because the misdirected store could be
+>> + * disastrous.
+>> + *
+>> + * Some useful facts about rip-relative instructions:
+>> + * - There's always a modrm byte.
+>> + * - There's never a SIB byte.
+>> + * - The displacement is always 4 bytes.
+>> + */
+>> +static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
+>> +                                                       struct insn *insn)
+>> +{
+>> +       u8 *cursor;
+>> +       u8 reg;
+>> +
+>> +       if (mm->context.ia32_compat)
+>> +               return;
+>> +
+>> +       uprobe->arch_info.rip_rela_target_address = 0x0;
+>> +       if (!insn_rip_relative(insn))
+>> +               return;
+>> +
+>> +       /*
+>> +        * Point cursor at the modrm byte.  The next 4 bytes are the
+>> +        * displacement.  Beyond the displacement, for some instructions,
+>> +        * is the immediate operand.
+>> +        */
+>> +       cursor = uprobe->insn + insn->prefixes.nbytes
+>> +                       + insn->rex_prefix.nbytes + insn->opcode.nbytes;
+>> +       insn_get_length(insn);
+>> +
+>> +       /*
+>> +        * Convert from rip-relative addressing to indirect addressing
+>> +        * via a scratch register.  Change the r/m field from 0x5 (%rip)
+>> +        * to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the offset field.
+>> +        */
+>> +       reg = MODRM_REG(insn);
+>> +       if (reg == 0) {
+>> +               /*
+>> +                * The register operand (if any) is either the A register
+>> +                * (%rax, %eax, etc.) or (if the 0x4 bit is set in the
+>> +                * REX prefix) %r8.  In any case, we know the C register
+>> +                * is NOT the register operand, so we use %rcx (register
+>> +                * #1) for the scratch register.
+>> +                */
+>> +               uprobe->arch_info.fixups = UPROBES_FIX_RIP_CX;
+>> +               /* Change modrm from 00 000 101 to 00 000 001. */
+>> +               *cursor = 0x1;
+>> +       } else {
+>> +               /* Use %rax (register #0) for the scratch register. */
+>> +               uprobe->arch_info.fixups = UPROBES_FIX_RIP_AX;
+>> +               /* Change modrm from 00 xxx 101 to 00 xxx 000 */
+>> +               *cursor = (reg << 3);
+>> +       }
+>> +
+>> +       /* Target address = address of next instruction + (signed) offset */
+>> +       uprobe->arch_info.rip_rela_target_address = (long)insn->length
+>> +                                       + insn->displacement.value;
+>> +       /* Displacement field is gone; slide immediate field (if any) over. */
+>> +       if (insn->immediate.nbytes) {
+>> +               cursor++;
+>> +               memmove(cursor, cursor + insn->displacement.nbytes,
+>> +                                               insn->immediate.nbytes);
+>> +       }
+>> +       return;
+>> +}
 > 
-> struct mutex lock is described as
+> It seems to be possible to store RIP value *without displacement*
+> into AX/CX and convert rip-relative instruction into AX/CX *relative* one.
+> Example:
+> c7 05 78 56 34 12 2a 00 00 00 	movl   $0x2a,0x12345678(%rip)
+> converts to:
+> c7 81 78 56 34 12 2a 00 00 00 	movl   $0x2a,0x12345678(%rcx)
 > 
->  /* mutex to serialize list manipulation and other ops */
-> 
-> maybe now is a good time to be a little more descriptive in what that
-> mutex is meant to protect and sprinkle enforcement throughout the code
-> as a means of documentation.
+> This way instruction size stays the same and you don't need
+> to memmove immediate value.
 
-As, sore spot there. I think the current locking scheme is rather much
-still in flux. I think we need to pull out callbacks to the exporter out
-from the dma_buf mutex because otherwise we won't be able to avoid
-deadlocks.
+Right, I agree there is a possibility of optimizing.
+However, for ease of review, I think it's better to be
+a separate patch.
 
-I think we'll need to wait for 1-2 exporters to show up in upstream until
-we can clarify this. But it is very much on my list.
--Daniel
+Thank you,
+
 -- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
