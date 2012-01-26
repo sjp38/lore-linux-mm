@@ -1,34 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 922616B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:27:22 -0500 (EST)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 963826B005C
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:27:25 -0500 (EST)
 From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: [PATCH 0/4] Miscellaneous dma-buf patches
-Date: Thu, 26 Jan 2012 12:27:21 +0100
-Message-Id: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
+Subject: [PATCH 3/4] dma-buf: Return error instead of using a goto statement when possible
+Date: Thu, 26 Jan 2012 12:27:24 +0100
+Message-Id: <1327577245-20354-4-git-send-email-laurent.pinchart@ideasonboard.com>
+In-Reply-To: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
+References: <1327577245-20354-1-git-send-email-laurent.pinchart@ideasonboard.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sumit Semwal <sumit.semwal@ti.com>
 Cc: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
 
-Hi Sumit,
+Remove an error label in dma_buf_attach() that just returns an error
+code.
 
-Here are 4 dma-buf patches that fix small issues.
+Signed-off-by: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+---
+ drivers/base/dma-buf.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
-Laurent Pinchart (4):
-  dma-buf: Constify ops argument to dma_buf_export()
-  dma-buf: Remove unneeded sanity checks
-  dma-buf: Return error instead of using a goto statement when possible
-  dma-buf: Move code out of mutex-protected section in dma_buf_attach()
-
- drivers/base/dma-buf.c  |   26 +++++++++++---------------
- include/linux/dma-buf.h |    8 ++++----
- 2 files changed, 15 insertions(+), 19 deletions(-)
-
+diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+index 198edd8..97450a5 100644
+--- a/drivers/base/dma-buf.c
++++ b/drivers/base/dma-buf.c
+@@ -190,7 +190,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+ 
+ 	attach = kzalloc(sizeof(struct dma_buf_attachment), GFP_KERNEL);
+ 	if (attach == NULL)
+-		goto err_alloc;
++		return ERR_PTR(-ENOMEM);
+ 
+ 	mutex_lock(&dmabuf->lock);
+ 
+@@ -206,8 +206,6 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+ 	mutex_unlock(&dmabuf->lock);
+ 	return attach;
+ 
+-err_alloc:
+-	return ERR_PTR(-ENOMEM);
+ err_attach:
+ 	kfree(attach);
+ 	mutex_unlock(&dmabuf->lock);
 -- 
-Regards,
-
-Laurent Pinchart
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
