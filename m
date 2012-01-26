@@ -1,95 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 48D526B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 00:59:44 -0500 (EST)
-Received: by mail-pz0-f42.google.com with SMTP id z17so198351dal.15
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2012 21:59:43 -0800 (PST)
-From: Roland Dreier <roland@kernel.org>
-Subject: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages() parameters
-Date: Wed, 25 Jan 2012 21:59:34 -0800
-Message-Id: <1327557574-6125-1-git-send-email-roland@kernel.org>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 7E1AA6B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 02:46:11 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LYE005RXAWXNJ10@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Jan 2012 07:46:09 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LYE00MX9AWWGI@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Jan 2012 07:46:09 +0000 (GMT)
+Date: Thu, 26 Jan 2012 08:46:05 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 8/8] ARM: dma-mapping: add support for IOMMU mapper
+In-reply-to: <20120125144727.2722b4a1fb8017dd3633d7ad@nvidia.com>
+Message-id: <007401ccdbfe$8f024ad0$ad06e070$%szyprowski@samsung.com>
+Content-language: pl
+References: <1323448798-18184-1-git-send-email-m.szyprowski@samsung.com>
+ <1323448798-18184-9-git-send-email-m.szyprowski@samsung.com>
+ <20120125144727.2722b4a1fb8017dd3633d7ad@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-rdma@vger.kernel.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Hiroshi Doyu' <hdoyu@nvidia.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'KyongHo Cho' <pullip.cho@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-From: Roland Dreier <roland@purestorage.com>
+Hello,
 
-Right now, we always pass write==1 to get_user_pages(), even when we
-only intend to read the memory.  We pass force==1 if we're going for
-read-only and force==0 if we want writable.  The reasoning behind this
-seems to be contained in this out-of-tree changelog from 2005:
+On Wednesday, January 25, 2012 1:47 PM Hiroshi Doyu wrote:
 
-    Always ask get_user_pages() for writable pages, but pass force=1
-    if the consumer has only asked for read-only pages.  This fixes a
-    problem registering memory that has just been allocated but not
-    touched yet, while allowing registration of read-only memory to
-    continue to work.
+> Hi Marek,
+> 
+> On Fri, 9 Dec 2011 17:39:58 +0100
+> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+> 
+> > This patch add a complete implementation of DMA-mapping API for
+> > devices that have IOMMU support. All DMA-mapping calls are supported.
+> >
+> > This patch contains some of the code kindly provided by Krishna Reddy
+> > <vdumpa@nvidia.com> and Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> >
+> > Add initial proof of concept implementation of DMA-mapping API for
+> > devices that have IOMMU support. Right now only dma_alloc_coherent,
+> > dma_free_coherent and dma_mmap_coherent functions are supported.
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> > ---
+> >  arch/arm/Kconfig                 |    8 +
+> >  arch/arm/include/asm/device.h    |    3 +
+> >  arch/arm/include/asm/dma-iommu.h |   36 +++
+> >  arch/arm/mm/dma-mapping.c        |  637 +++++++++++++++++++++++++++++++++++++-
+> >  arch/arm/mm/vmregion.h           |    2 +-
+> >  5 files changed, 671 insertions(+), 15 deletions(-)
+> >  create mode 100644 arch/arm/include/asm/dma-iommu.h
+> >
+> > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> > index 8827c9b..87416fc 100644
+> > --- a/arch/arm/Kconfig
+> > +++ b/arch/arm/Kconfig
+> > @@ -42,6 +42,14 @@ config ARM
+> >  config ARM_HAS_SG_CHAIN
+> >         bool
+> >
+> > +config NEED_SG_DMA_LENGTH
+> > +       bool
+> > +
+> > +config ARM_DMA_USE_IOMMU
+> > +       select NEED_SG_DMA_LENGTH
+> > +       select ARM_HAS_SG_CHAIN
+> > +       bool
+> > +
+> >  config HAVE_PWM
+> >         bool
+> >
+> > diff --git a/arch/arm/include/asm/device.h b/arch/arm/include/asm/device.h
+> > index 6e2cb0e..b69c0d3 100644
+> > --- a/arch/arm/include/asm/device.h
+> > +++ b/arch/arm/include/asm/device.h
+> > @@ -14,6 +14,9 @@ struct dev_archdata {
+> >  #ifdef CONFIG_IOMMU_API
+> >         void *iommu; /* private IOMMU data */
+> >  #endif
+> > +#ifdef CONFIG_ARM_DMA_USE_IOMMU
+> > +       struct dma_iommu_mapping        *mapping;
+> > +#endif
+> >  };
+> >
+> >  struct omap_device;
+> > diff --git a/arch/arm/include/asm/dma-iommu.h b/arch/arm/include/asm/dma-iommu.h
+> > new file mode 100644
+> > index 0000000..6668b41
+> > --- /dev/null
+> > +++ b/arch/arm/include/asm/dma-iommu.h
+> > @@ -0,0 +1,36 @@
+> > +#ifndef ASMARM_DMA_IOMMU_H
+> > +#define ASMARM_DMA_IOMMU_H
+> > +
+> > +#ifdef __KERNEL__
+> > +
+> > +#include <linux/mm_types.h>
+> > +#include <linux/scatterlist.h>
+> > +#include <linux/dma-debug.h>
+> > +#include <linux/kmemcheck.h>
+> > +
+> > +#include <asm/memory.h>
+> > +
+> > +struct dma_iommu_mapping {
+> > +       /* iommu specific data */
+> > +       struct iommu_domain     *domain;
+> > +
+> > +       void                    *bitmap;
+> > +       size_t                  bits;
+> > +       unsigned int            order;
+> > +       dma_addr_t              base;
+> > +
+> > +       spinlock_t              lock;
+> > +       struct kref             kref;
+> > +};
+> > +
+> > +struct dma_iommu_mapping *
+> > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
+> > +                        int order);
+> > +
+> > +void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping);
+> > +
+> > +int arm_iommu_attach_device(struct device *dev,
+> > +                                       struct dma_iommu_mapping *mapping);
+> > +
+> > +#endif /* __KERNEL__ */
+> > +#endif
+> > diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> > index 4845c09..7ac5a95 100644
+> > --- a/arch/arm/mm/dma-mapping.c
+> > +++ b/arch/arm/mm/dma-mapping.c
+> > @@ -27,6 +27,9 @@
+> >  #include <asm/sizes.h>
+> >  #include <asm/mach/arch.h>
+> >
+> > +#include <linux/iommu.h>
+> > +#include <asm/dma-iommu.h>
+> > +
+> >  #include "mm.h"
+> >
+> >  /*
+> .....
+> > +
+> > +static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
+> > +               size_t size, enum dma_data_direction dir,
+> > +               struct dma_attrs *attrs)
+> > +{
+> > +       struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+> > +       dma_addr_t iova = handle & PAGE_MASK;
+> > +       struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
+> > +       int offset = handle & ~PAGE_MASK;
+> > +
+> > +       if (!iova)
+> > +               return;
+> > +
+> > +       if (!arch_is_coherent())
+> > +               __dma_page_dev_to_cpu(page, offset, size, dir);
+> > +
+> > +       iommu_unmap(mapping->domain, iova, size);
+> 
+> Is __free_iova() needed here as below?
+> 
+> 	Modified arch/arm/mm/dma-mapping.c
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 9aa1675..66830b2 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1212,6 +1212,7 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
+> 		__dma_page_dev_to_cpu(page, offset, size, dir);
+> 
+> 	iommu_unmap(mapping->domain, iova, size);
+> +       __free_iova(mapping, iova, size);
+>  }
 
-However, I don't think the mm works like this today, and indeed GUP
-will fault in pages for an untouched read-only mapping just fine with
-write and force set to 0.  In fact, always passing 1 for write causes
-problems with modern kernels, because we end up hitting the "early
-C-O-W break" case in __do_fault(), even for read-only mappings where
-this makes no sense.
+Right, thanks for finding this bug!
 
-Signed-off-by: Roland Dreier <roland@purestorage.com>
----
-This patch comes from me trying to do userspace RDMA on a memory
-region exported from a character driver and mapped with
-
-    mmap(... PROT_READ, MAP_PRIVATE ...)
-
-The character driver has a trivial mmap method that just sets vm_ops
-and and equally trivial fault method that essentially just does
-
-    vmf->page = vmalloc_to_page(buf + (vmf->pgoff << PAGE_SHIFT));
-
-ie the most elementary way to export a vmalloc'ed buffer to userspace.
-
-However, when I tried doing
-
-    ibv_reg_mr(... IBV_ACCESS_REMOTE_READ ...)
-
-in userspace on that mmap region, I found that COW was happening and
-so neither userspace nor the registered memory ended up pointing at
-the kernel buffer anymore, exactly because of the COW in __do_fault()
-I mention in the changelog above.
-
-The patch below fixes my test case, and doesn't seem to break any of
-the ibverbs examples and other simple tests of userspace verbs that I
-tried.  But that's far from an exhaustive test suite.
-
-I'd definitely appreciate comments from MM experts here, since I'm not
-positive of my understand of G-U-P and friends, and I don't want to
-apps because this is wrong in some special case I didn't try.
-
-Also testing from anyone with an RDMA app that does anything at all
-fancy with memory allocation or registration would be helpful.
-
-Thanks!
-
-PS Let me know if I didn't go on long enough about this one-line patch
-and I can write some more.
-
- drivers/infiniband/core/umem.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index 71f0c0f..fb5abd3 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -152,7 +152,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
- 		ret = get_user_pages(current, current->mm, cur_base,
- 				     min_t(unsigned long, npages,
- 					   PAGE_SIZE / sizeof (struct page *)),
--				     1, !umem->writable, page_list, vma_list);
-+				     umem->writable, 0, page_list, vma_list);
- 
- 		if (ret < 0)
- 			goto out;
+Best regards
 -- 
-1.7.8.3
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
