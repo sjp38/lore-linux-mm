@@ -1,97 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 509076B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 05:03:28 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c13so138786eek.14
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2012 02:03:27 -0800 (PST)
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [v7 8/8] mm: add vmstat counters for tracking PCP drains
-Date: Thu, 26 Jan 2012 12:02:01 +0200
-Message-Id: <1327572121-13673-9-git-send-email-gilad@benyossef.com>
-In-Reply-To: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id F2D976B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 05:46:45 -0500 (EST)
+Message-ID: <4F212F09.4090802@5t9.de>
+Date: Thu, 26 Jan 2012 11:46:33 +0100
+From: Lutz Vieweg <lvml@5t9.de>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
+ (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while charging
+ it for memcg
+References: <20110622120635.GB14343@tiehlicka.suse.cz> <20110622121516.GA28359@infradead.org> <20110622123204.GC14343@tiehlicka.suse.cz> <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com> <20110623074133.GA31593@tiehlicka.suse.cz> <20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com> <20110623090204.GE31593@tiehlicka.suse.cz> <20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com> <20110624075742.GA10455@tiehlicka.suse.cz> <BANLkTin7TbK1dNjPG6jz_FaJy-QgOjDJaA@mail.gmail.com> <20110712094841.GC10552@tiehlicka.suse.cz>
+In-Reply-To: <20110712094841.GC10552@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>
 
-This patch introduces two new vmstat counters for testing purposes:
-pcp_global_drain that counts the number of times a per-cpu pages
-global drain was requested and pcp_global_ipi_saved that counts
-the number of times the number of CPUs with per-cpu pages in any
-zone were less then 1/2 of the number of online CPUs.
+On 07/12/2011 11:48 AM, Michal Hocko wrote:
+> Is there any intereset in discussing this or the email just got lost?
+> Just for reference preallocation patch from Kamezawa is already in the
+> Andrew's tree.
 
-The patch purpose is to show the usefulness of only sending an IPI
-asking to drain per-cpu pages to CPUs that actually have them
-instead of a blind global IPI. It is probably not useful by itself.
+It's been a long time since this discussion, I just wanted to add
+that I've been recently able to confirm the ability of memcg
+to prevent single users from DOSing a system by "make -j" - in
+a real-world scenario (using linux-3.2.1).
 
-Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Chris Metcalf <cmetcalf@tilera.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Frederic Weisbecker <fweisbec@gmail.com>
-CC: linux-mm@kvack.org
-CC: Pekka Enberg <penberg@kernel.org>
-CC: Matt Mackall <mpm@selenic.com>
-CC: Sasha Levin <levinsasha928@gmail.com>
-CC: Rik van Riel <riel@redhat.com>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Mel Gorman <mel@csn.ul.ie>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
-CC: Avi Kivity <avi@redhat.com>
-CC: Michal Nazarewicz <mina86@mina86.com>
-CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
-CC: Milton Miller <miltonm@bga.com>
----
- include/linux/vm_event_item.h |    1 +
- mm/page_alloc.c               |    5 +++++
- mm/vmstat.c                   |    2 ++
- 3 files changed, 8 insertions(+), 0 deletions(-)
+So thanks to all who contributed to the solution in whatever way :-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 03b90cd..3657f6f 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -58,6 +58,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_COLLAPSE_ALLOC_FAILED,
- 		THP_SPLIT,
- #endif
-+		PCP_GLOBAL_DRAIN, PCP_GLOBAL_IPI_SAVED,
- 		NR_VM_EVENT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4135983..1aa9031 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1195,6 +1195,11 @@ void drain_all_pages(void)
- 			cpumask_clear_cpu(cpu, &cpus_with_pcps);
- 	}
- 	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
-+
-+	count_vm_event(PCP_GLOBAL_DRAIN);
-+	if (cpumask_weight(&cpus_with_pcps) <
-+	   (cpumask_weight(cpu_online_mask) / 2))
-+		count_vm_event(PCP_GLOBAL_IPI_SAVED);
- }
- 
- #ifdef CONFIG_HIBERNATION
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index f600557..3ee5f99 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -786,6 +786,8 @@ const char * const vmstat_text[] = {
- 	"thp_collapse_alloc_failed",
- 	"thp_split",
- #endif
-+	"pcp_global_drain",
-+	"pcp_global_ipi_saved"
- 
- #endif /* CONFIG_VM_EVENTS_COUNTERS */
- };
--- 
-1.7.0.4
+(A minor issue remained: The kernel is very verbose when
+killing tasks due to memcg restrictions. In fork-bomb like
+scenarios, this can lead to high resource utilization for
+syslog et al.)
+
+Regards,
+
+Lutz Vieweg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
