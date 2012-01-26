@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 346016B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 12:31:49 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Thu, 26 Jan 2012 12:31:48 -0500
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 84B55C902A5
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 12:28:28 -0500 (EST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q0QHSRxi313968
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 12:28:28 -0500
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q0QHSQGT007746
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 10:28:27 -0700
-Message-ID: <4F218D36.2060308@linux.vnet.ibm.com>
-Date: Thu, 26 Jan 2012 09:28:22 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 245D96B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 13:28:50 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so856095wib.14
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2012 10:28:48 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: implement WasActive page flag (for improving cleancache)
-References: <ea3b0850-dfe0-46db-9201-2bfef110848d@default>
-In-Reply-To: <ea3b0850-dfe0-46db-9201-2bfef110848d@default>
+In-Reply-To: <4F215FCE.8010209@hitachi.com>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+ <20120110114831.17610.88468.sendpatchset@srdronam.in.ibm.com>
+ <CAK1hOcO3pz+zBLQKfdty3UwQG8zxXwBWo9euFaE+zKawiqTE2g@mail.gmail.com>
+ <CAK1hOcMeYDrLpgbyQXFAkrqk3Le-rLkoVwCN3wjkT61YJg0G6Q@mail.gmail.com> <4F215FCE.8010209@hitachi.com>
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Date: Thu, 26 Jan 2012 19:28:28 +0100
+Message-ID: <CAK1hOcP-+gXcfCV6zJFEu381R9XPR=qxNFQTOT8Y2o4L-1mwhA@mail.gmail.com>
+Subject: Re: [PATCH v9 3.2 1/9] uprobes: Install and remove breakpoints.
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Nebojsa Trpkovic <trx.lists@gmail.com>, minchan@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, riel@redhat.com, Chris Mason <chris.mason@oracle.com>
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
 
-On 01/25/2012 01:58 PM, Dan Magenheimer wrote:
-> (Feedback welcome if there is a different/better way to do this
-> without using a page flag!)
-> 
-> Since about 2.6.27, the page replacement algorithm maintains
-> an "active" bit to help decide which pages are most eligible
-> to reclaim, see http://linux-mm.org/PageReplacementDesign 
-> 
-> This "active' information is also useful to cleancache but is lost
-> by the time that cleancache has the opportunity to preserve the
-> pageful of data.  This patch adds a new page flag "WasActive" to
-> retain the state.  The flag may possibly be useful elsewhere.
+On Thu, Jan 26, 2012 at 3:14 PM, Masami Hiramatsu
+<masami.hiramatsu.pt@hitachi.com> wrote:
+> (2012/01/26 0:32), Denys Vlasenko wrote:
+>> On Wed, Jan 25, 2012 at 4:13 PM, Denys Vlasenko
+>> <vda.linux@googlemail.com> wrote:
+>>>> + =A0 =A0 =A0 /*
+>>>> + =A0 =A0 =A0 =A0* Convert from rip-relative addressing to indirect ad=
+dressing
+>>>> + =A0 =A0 =A0 =A0* via a scratch register. =A0Change the r/m field fro=
+m 0x5 (%rip)
+>>>> + =A0 =A0 =A0 =A0* to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the of=
+fset field.
+>>>> + =A0 =A0 =A0 =A0*/
+>>>> + =A0 =A0 =A0 reg =3D MODRM_REG(insn);
+>>>> + =A0 =A0 =A0 if (reg =3D=3D 0) {
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* The register operand (if any) is ei=
+ther the A register
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* (%rax, %eax, etc.) or (if the 0x4 b=
+it is set in the
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* REX prefix) %r8. =A0In any case, we=
+ know the C register
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* is NOT the register operand, so we =
+use %rcx (register
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* #1) for the scratch register.
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 uprobe->arch_info.fixups =3D UPROBES_FIX=
+_RIP_CX;
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Change modrm from 00 000 101 to 00 00=
+0 001. */
+>>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 *cursor =3D 0x1;
+>>
+>> Hmm. I think we have a bug here.
+>>
+>> What if this instruction has REX.B =3D 1? Granted, REX.B =3D 1 has no ef=
+fect on
+>> rip-relative addressing and therefore normally won't be generated by gcc=
+/as,
+>> but still. If you replace md and r/m fields as above, you are trying to =
+convert
+>> 0x12345678(%rip) reference to (%rcx), but if REX.B =3D 1, then you in fa=
+ct
+>> converted it to (%r9)!
+>
+> Right, thanks for finding :)
+> And %rax register reference encoding has same problem, doesn't it?
 
-I guess cleancache itself is clearing the bit, right?  I didn't see any
-clearing going on in the patch.
+Yes.
 
-I do think it also needs to get cleared on the way in to the page
-allocator.  Otherwise:
+The solution is trivial: "if (REX pfx exists) REX.B =3D 0;"
 
-	PageSetWasActive(page);
-	free_page(page);
-	...
-	another_user_page = get_free_page()
-	// now cleancache sees the active bit for the prev user
+Also, I don't remember whether (%rip) addressing is
+affected by 0x67 (address size) prefix. If it is, then
+nothing needs to be done.
 
-Or am I missing somewhere it gets cleared non-explicitly somewhere?
+But if there is an exception and CPU ignores 0x67 pfx
+for (%rip) addressing, we will need to check for and
+remove this pfx.
+
+Otherwise, it'll instruct to use 32-bit registers
+for addressing, thus it will turn our (%rax) operand
+into (%eax). Not good.
+
+--=20
+vda
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
