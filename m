@@ -1,43 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id F2D976B004F
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 05:46:45 -0500 (EST)
-Message-ID: <4F212F09.4090802@5t9.de>
-Date: Thu, 26 Jan 2012 11:46:33 +0100
-From: Lutz Vieweg <lvml@5t9.de>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id BCF536B004F
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 06:11:14 -0500 (EST)
+Date: Thu, 26 Jan 2012 12:10:41 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH v9 3.2 0/9] Uprobes patchset with perf probe support
+Message-ID: <20120126111041.GG3853@elte.hu>
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com>
+ <20120116083442.GA23622@elte.hu>
+ <20120116151755.GH10189@linux.vnet.ibm.com>
+ <20120117093925.GC10397@elte.hu>
+ <1327500687.2614.70.camel@laptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
- (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while charging
- it for memcg
-References: <20110622120635.GB14343@tiehlicka.suse.cz> <20110622121516.GA28359@infradead.org> <20110622123204.GC14343@tiehlicka.suse.cz> <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com> <20110623074133.GA31593@tiehlicka.suse.cz> <20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com> <20110623090204.GE31593@tiehlicka.suse.cz> <20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com> <20110624075742.GA10455@tiehlicka.suse.cz> <BANLkTin7TbK1dNjPG6jz_FaJy-QgOjDJaA@mail.gmail.com> <20110712094841.GC10552@tiehlicka.suse.cz>
-In-Reply-To: <20110712094841.GC10552@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1327500687.2614.70.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On 07/12/2011 11:48 AM, Michal Hocko wrote:
-> Is there any intereset in discussing this or the email just got lost?
-> Just for reference preallocation patch from Kamezawa is already in the
-> Andrew's tree.
 
-It's been a long time since this discussion, I just wanted to add
-that I've been recently able to confirm the ability of memcg
-to prevent single users from DOSing a system by "make -j" - in
-a real-world scenario (using linux-3.2.1).
+* Peter Zijlstra <peterz@infradead.org> wrote:
 
-So thanks to all who contributed to the solution in whatever way :-)
+> On Tue, 2012-01-17 at 10:39 +0100, Ingo Molnar wrote:
+> 
+> > I did not suggest anything complex or intrusive: just basically 
+> > unify the namespace, have a single set of callbacks, and call 
+> > into the uprobes and perf code from those callbacks - out of the 
+> > sight of MM code.
+> > 
+> > That unified namespace could be called:
+> > 
+> >     event_mmap(...);
+> >     event_fork(...);
+> > 
+> > etc. - and from event_mmap() you could do a simple:
+> > 
+> > 	perf_event_mmap(...)
+> > 	uprobes_event_mmap(...)
+> > 
+> > [ Once all this is updated to use tracepoints it would turn into 
+> >   a notification callback chain kind of thing. ]
+> 
+> We keep disagreeing on this. I utterly loathe hiding stuff in 
+> notifier lists. It makes it completely non-obvious who all 
+> does what.
 
-(A minor issue remained: The kernel is very verbose when
-killing tasks due to memcg restrictions. In fork-bomb like
-scenarios, this can lead to high resource utilization for
-syslog et al.)
+My immediate suggestion was not a notifier list but an 
+open-coded list of function calls done in helper inline 
+functions - to minimize the impact of the callbacks on mm/.
 
-Regards,
+> Another very good reason to not do what you suggest is that 
+> perf_event_mmap() is a pure consumer, it doesn't have a return 
+> value, whereas uprobes_mmap() can actually fail the mmap.
 
-Lutz Vieweg
+You know that i disagree with that, there is no fundamental 
+reason why event callbacks couldnt participate in program logic, 
+as long as the call site explicitly wants such side effects. It 
+avoids senseless duplication of callbacks.
+
+Anyway, if Andrew is fine with the current callbacks as-is then 
+it's fine to me as well.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
