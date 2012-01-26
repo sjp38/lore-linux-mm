@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id EF01B6B0080
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:01:13 -0500 (EST)
-Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+	by kanga.kvack.org (Postfix) with SMTP id 80FDC6B0075
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 04:01:16 -0500 (EST)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LYE001ODEDQOK@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ with ESMTP id <0LYE001OFEDQOK@mailout2.w1.samsung.com> for linux-mm@kvack.org;
  Thu, 26 Jan 2012 09:01:06 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LYE001AFEDQKG@spt2.w1.samsung.com> for
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LYE00IZSEDP1Y@spt1.w1.samsung.com> for
  linux-mm@kvack.org; Thu, 26 Jan 2012 09:01:02 +0000 (GMT)
-Date: Thu, 26 Jan 2012 10:00:56 +0100
+Date: Thu, 26 Jan 2012 10:00:50 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 14/15] ARM: integrate CMA with DMA-mapping subsystem
+Subject: [PATCH 08/15] mm: mmzone: MIGRATE_CMA migration type added
 In-reply-to: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1327568457-27734-15-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1327568457-27734-9-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -25,794 +25,303 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-This patch adds support for CMA to dma-mapping subsystem for ARM
-architecture. By default a global CMA area is used, but specific devices
-are allowed to have their private memory areas if required (they can be
-created with dma_declare_contiguous() function during board
-initialization).
+From: Michal Nazarewicz <mina86@mina86.com>
 
-Contiguous memory areas reserved for DMA are remapped with 2-level page
-tables on boot. Once a buffer is requested, a low memory kernel mapping
-is updated to to match requested memory access type.
+The MIGRATE_CMA migration type has two main characteristics:
+(i) only movable pages can be allocated from MIGRATE_CMA
+pageblocks and (ii) page allocator will never change migration
+type of MIGRATE_CMA pageblocks.
 
-GFP_ATOMIC allocations are performed from special pool which is created
-early during boot. This way remapping page attributes is not needed on
-allocation time.
+This guarantees (to some degree) that page in a MIGRATE_CMA page
+block can always be migrated somewhere else (unless there's no
+memory left in the system).
 
-CMA has been enabled unconditionally for ARMv6+ systems.
+It is designed to be used for allocating big chunks (eg. 10MiB)
+of physically contiguous memory.  Once driver requests
+contiguous memory, pages from MIGRATE_CMA pageblocks may be
+migrated away to create a contiguous block.
 
+To minimise number of migrations, MIGRATE_CMA migration type
+is the last type tried when page allocator falls back to other
+migration types then requested.
+
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- Documentation/kernel-parameters.txt   |    4 +
- arch/arm/Kconfig                      |    2 +
- arch/arm/include/asm/dma-contiguous.h |   16 ++
- arch/arm/include/asm/mach/map.h       |    1 +
- arch/arm/kernel/setup.c               |    9 +-
- arch/arm/mm/dma-mapping.c             |  368 +++++++++++++++++++++++++++------
- arch/arm/mm/init.c                    |   22 ++-
- arch/arm/mm/mm.h                      |    3 +
- arch/arm/mm/mmu.c                     |   31 ++-
- 9 files changed, 368 insertions(+), 88 deletions(-)
- create mode 100644 arch/arm/include/asm/dma-contiguous.h
+ include/linux/mmzone.h         |   43 +++++++++++++++++++++----
+ include/linux/page-isolation.h |    3 ++
+ mm/Kconfig                     |    2 +-
+ mm/compaction.c                |   11 +++++--
+ mm/page_alloc.c                |   68 +++++++++++++++++++++++++++++++++-------
+ mm/vmstat.c                    |    3 ++
+ 6 files changed, 107 insertions(+), 23 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 84982e2..ff97085 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -520,6 +520,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			a hypervisor.
- 			Default: yes
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 650ba2f..fcd4a14 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -35,13 +35,37 @@
+  */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
  
-+	coherent_pool=nn[KMG]	[ARM,KNL]
-+			Sets the size of memory pool for coherent, atomic dma
-+			allocations if Contiguous Memory Allocator (CMA) is used.
-+
- 	code_bytes	[X86] How many bytes of object code to print
- 			in an oops report.
- 			Range: 0 - 8192
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 24626b0..8179981 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -4,6 +4,8 @@ config ARM
- 	select HAVE_AOUT
- 	select HAVE_DMA_API_DEBUG
- 	select HAVE_IDE if PCI || ISA || PCMCIA
-+	select HAVE_DMA_CONTIGUOUS if (CPU_V6 || CPU_V6K || CPU_V7)
-+	select CMA if (CPU_V6 || CPU_V6K || CPU_V7)
- 	select HAVE_MEMBLOCK
- 	select RTC_LIB
- 	select SYS_SUPPORTS_APM_EMULATION
-diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
-new file mode 100644
-index 0000000..c7ba05e
---- /dev/null
-+++ b/arch/arm/include/asm/dma-contiguous.h
-@@ -0,0 +1,16 @@
-+#ifndef ASMARM_DMA_CONTIGUOUS_H
-+#define ASMARM_DMA_CONTIGUOUS_H
-+
-+#ifdef __KERNEL__
-+
-+#include <linux/device.h>
-+#include <linux/dma-contiguous.h>
-+#include <asm-generic/dma-contiguous.h>
+-#define MIGRATE_UNMOVABLE     0
+-#define MIGRATE_RECLAIMABLE   1
+-#define MIGRATE_MOVABLE       2
+-#define MIGRATE_PCPTYPES      3 /* the number of types on the pcp lists */
+-#define MIGRATE_RESERVE       3
+-#define MIGRATE_ISOLATE       4 /* can't allocate from here */
+-#define MIGRATE_TYPES         5
++enum {
++	MIGRATE_UNMOVABLE,
++	MIGRATE_RECLAIMABLE,
++	MIGRATE_MOVABLE,
++	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
++	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
++#ifdef CONFIG_CMA
++	/*
++	 * MIGRATE_CMA migration type is designed to mimic the way
++	 * ZONE_MOVABLE works.  Only movable pages can be allocated
++	 * from MIGRATE_CMA pageblocks and page allocator never
++	 * implicitly change migration type of MIGRATE_CMA pageblock.
++	 *
++	 * The way to use it is to change migratetype of a range of
++	 * pageblocks to MIGRATE_CMA which can be done by
++	 * __free_pageblock_cma() function.  What is important though
++	 * is that a range of pageblocks must be aligned to
++	 * MAX_ORDER_NR_PAGES should biggest page be bigger then
++	 * a single pageblock.
++	 */
++	MIGRATE_CMA,
++#endif
++	MIGRATE_ISOLATE,	/* can't allocate from here */
++	MIGRATE_TYPES
++};
 +
 +#ifdef CONFIG_CMA
-+
-+void dma_contiguous_early_fixup(phys_addr_t base, unsigned long size);
-+
++#  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
++#else
++#  define is_migrate_cma(migratetype) false
 +#endif
-+#endif
-+#endif
-diff --git a/arch/arm/include/asm/mach/map.h b/arch/arm/include/asm/mach/map.h
-index b36f365..a6efcdd 100644
---- a/arch/arm/include/asm/mach/map.h
-+++ b/arch/arm/include/asm/mach/map.h
-@@ -30,6 +30,7 @@ struct map_desc {
- #define MT_MEMORY_DTCM		12
- #define MT_MEMORY_ITCM		13
- #define MT_MEMORY_SO		14
-+#define MT_MEMORY_DMA_READY	15
  
- #ifdef CONFIG_MMU
- extern void iotable_init(struct map_desc *, int);
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index 129fbd5..ae9e86d 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -80,6 +80,7 @@ __setup("fpe=", fpe_setup);
- extern void paging_init(struct machine_desc *desc);
- extern void sanity_check_meminfo(void);
- extern void reboot_setup(char *str);
-+extern void setup_dma_zone(struct machine_desc *desc);
- 
- unsigned int processor_id;
- EXPORT_SYMBOL(processor_id);
-@@ -910,12 +911,8 @@ void __init setup_arch(char **cmdline_p)
- 	machine_desc = mdesc;
- 	machine_name = mdesc->name;
- 
--#ifdef CONFIG_ZONE_DMA
--	if (mdesc->dma_zone_size) {
--		extern unsigned long arm_dma_zone_size;
--		arm_dma_zone_size = mdesc->dma_zone_size;
--	}
--#endif
-+	setup_dma_zone(mdesc);
-+
- 	if (mdesc->restart_mode)
- 		reboot_setup(&mdesc->restart_mode);
- 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 1aa664a..77e7755 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -17,7 +17,9 @@
- #include <linux/init.h>
- #include <linux/device.h>
- #include <linux/dma-mapping.h>
-+#include <linux/dma-contiguous.h>
- #include <linux/highmem.h>
-+#include <linux/memblock.h>
- #include <linux/slab.h>
- 
- #include <asm/memory.h>
-@@ -26,6 +28,8 @@
- #include <asm/tlbflush.h>
- #include <asm/sizes.h>
- #include <asm/mach/arch.h>
-+#include <asm/mach/map.h>
-+#include <asm/dma-contiguous.h>
- 
- #include "mm.h"
- 
-@@ -56,6 +60,19 @@ static u64 get_coherent_dma_mask(struct device *dev)
- 	return mask;
+ #define for_each_migratetype_order(order, type) \
+ 	for (order = 0; order < MAX_ORDER; order++) \
+@@ -54,6 +78,11 @@ static inline int get_pageblock_migratetype(struct page *page)
+ 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
  }
  
-+static void __dma_clear_buffer(struct page *page, size_t size)
++static inline bool is_pageblock_cma(struct page *page)
 +{
-+	void *ptr;
-+	/*
-+	 * Ensure that the allocated pages are zeroed, and that any data
-+	 * lurking in the kernel direct-mapped region is invalidated.
-+	 */
-+	ptr = page_address(page);
-+	memset(ptr, 0, size);
-+	dmac_flush_range(ptr, ptr + size);
-+	outer_flush_range(__pa(ptr), __pa(ptr) + size);
++	return is_migrate_cma(get_pageblock_migratetype(page));
++}
++
+ struct free_area {
+ 	struct list_head	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 430cf61..454dd29 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -45,6 +45,9 @@ extern void unset_migratetype_isolate(struct page *page);
+ extern int alloc_contig_range(unsigned long start, unsigned long end);
+ extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+ 
++/* CMA stuff */
++extern void init_cma_reserved_pageblock(struct page *page);
++
+ #endif
+ 
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index e338407..3922002 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -198,7 +198,7 @@ config COMPACTION
+ config MIGRATION
+ 	bool "Page migration"
+ 	def_bool y
+-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
++	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
+ 	help
+ 	  Allows the migration of the physical location of pages of processes
+ 	  while the virtual addresses are not changed. This is useful in
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 3e21d28..a075b43 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -35,6 +35,11 @@ static unsigned long release_freepages(struct list_head *freelist)
+ 	return count;
+ }
+ 
++static inline bool migrate_async_suitable(int migratetype)
++{
++	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
 +}
 +
  /*
-  * Allocate a DMA buffer for 'dev' of size 'size' using the
-  * specified gfp mask.  Note that 'size' must be page aligned.
-@@ -64,23 +81,6 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
- {
- 	unsigned long order = get_order(size);
- 	struct page *page, *p, *e;
--	void *ptr;
--	u64 mask = get_coherent_dma_mask(dev);
--
--#ifdef CONFIG_DMA_API_DEBUG
--	u64 limit = (mask + 1) & ~mask;
--	if (limit && size >= limit) {
--		dev_warn(dev, "coherent allocation too big (requested %#x mask %#llx)\n",
--			size, mask);
--		return NULL;
--	}
--#endif
--
--	if (!mask)
--		return NULL;
--
--	if (mask < 0xffffffffULL)
--		gfp |= GFP_DMA;
+  * Isolate free pages onto a private freelist. Caller must hold zone->lock.
+  * If @strict is true, will abort returning 0 on any invalid PFNs or non-free
+@@ -274,7 +279,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		 */
+ 		pageblock_nr = low_pfn >> pageblock_order;
+ 		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+-				get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
++		    migrate_async_suitable(get_pageblock_migratetype(page))) {
+ 			low_pfn += pageblock_nr_pages;
+ 			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
+ 			last_pageblock_nr = pageblock_nr;
+@@ -342,8 +347,8 @@ static bool suitable_migration_target(struct page *page)
+ 	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+ 		return true;
  
- 	page = alloc_pages(gfp, order);
- 	if (!page)
-@@ -93,14 +93,7 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
- 	for (p = page + (size >> PAGE_SHIFT), e = page + (1 << order); p < e; p++)
- 		__free_page(p);
+-	/* If the block is MIGRATE_MOVABLE, allow migration */
+-	if (migratetype == MIGRATE_MOVABLE)
++	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
++	if (migrate_async_suitable(migratetype))
+ 		return true;
  
--	/*
--	 * Ensure that the allocated pages are zeroed, and that any data
--	 * lurking in the kernel direct-mapped region is invalidated.
--	 */
--	ptr = page_address(page);
--	memset(ptr, 0, size);
--	dmac_flush_range(ptr, ptr + size);
--	outer_flush_range(__pa(ptr), __pa(ptr) + size);
-+	__dma_clear_buffer(page, size);
- 
- 	return page;
+ 	/* Otherwise skip the block */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0a9cc8e..0fcde78 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -750,6 +750,26 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
+ 	__free_pages(page, order);
  }
-@@ -170,6 +163,9 @@ static int __init consistent_init(void)
- 	unsigned long base = consistent_base;
- 	unsigned long num_ptes = (CONSISTENT_END - base) >> PMD_SHIFT;
  
-+	if (cpu_architecture() >= CPU_ARCH_ARMv6)
-+		return 0;
-+
- 	consistent_pte = kmalloc(num_ptes * sizeof(pte_t), GFP_KERNEL);
- 	if (!consistent_pte) {
- 		pr_err("%s: no memory\n", __func__);
-@@ -210,9 +206,101 @@ static int __init consistent_init(void)
- 
- 	return ret;
- }
--
- core_initcall(consistent_init);
- 
-+static void *__alloc_from_contiguous(struct device *dev, size_t size,
-+				     pgprot_t prot, struct page **ret_page);
-+
-+static struct arm_vmregion_head coherent_head = {
-+	.vm_lock	= __SPIN_LOCK_UNLOCKED(&coherent_head.vm_lock),
-+	.vm_list	= LIST_HEAD_INIT(coherent_head.vm_list),
-+};
-+
-+size_t coherent_pool_size = DEFAULT_CONSISTENT_DMA_SIZE / 8;
-+
-+static int __init early_coherent_pool(char *p)
-+{
-+	coherent_pool_size = memparse(p, &p);
-+	return 0;
-+}
-+early_param("coherent_pool", early_coherent_pool);
-+
++#ifdef CONFIG_CMA
 +/*
-+ * Initialise the coherent pool for atomic allocations.
++ * Free whole pageblock and set it's migration type to MIGRATE_CMA.
 + */
-+static int __init coherent_init(void)
++void __init init_cma_reserved_pageblock(struct page *page)
 +{
-+	pgprot_t prot = pgprot_dmacoherent(pgprot_kernel);
-+	size_t size = coherent_pool_size;
-+	struct page *page;
-+	void *ptr;
++	unsigned i = pageblock_nr_pages;
++	struct page *p = page;
 +
-+	if (cpu_architecture() < CPU_ARCH_ARMv6)
-+		return 0;
++	do {
++		__ClearPageReserved(p);
++		set_page_count(p, 0);
++	} while (++p, --i);
 +
-+	ptr = __alloc_from_contiguous(NULL, size, prot, &page);
-+	if (ptr) {
-+		coherent_head.vm_start = (unsigned long) ptr;
-+		coherent_head.vm_end = (unsigned long) ptr + size;
-+		printk(KERN_INFO "DMA: preallocated %u KiB pool for atomic coherent allocations\n",
-+		       (unsigned)size / 1024);
-+		return 0;
-+	}
-+	printk(KERN_ERR "DMA: failed to allocate %u KiB pool for atomic coherent allocation\n",
-+	       (unsigned)size / 1024);
-+	return -ENOMEM;
++	set_page_refcounted(page);
++	set_pageblock_migratetype(page, MIGRATE_CMA);
++	__free_pages(page, pageblock_order);
++	totalram_pages += pageblock_nr_pages;
 +}
-+/*
-+ * CMA is activated by core_initcall, so we must be called after it
-+ */
-+postcore_initcall(coherent_init);
-+
-+struct dma_contig_early_reserve {
-+	phys_addr_t base;
-+	unsigned long size;
-+};
-+
-+static struct dma_contig_early_reserve dma_mmu_remap[MAX_CMA_AREAS] __initdata;
-+
-+static int dma_mmu_remap_num __initdata;
-+
-+void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
-+{
-+	dma_mmu_remap[dma_mmu_remap_num].base = base;
-+	dma_mmu_remap[dma_mmu_remap_num].size = size;
-+	dma_mmu_remap_num++;
-+}
-+
-+void __init dma_contiguous_remap(void)
-+{
-+	int i;
-+	for (i = 0; i < dma_mmu_remap_num; i++) {
-+		phys_addr_t start = dma_mmu_remap[i].base;
-+		phys_addr_t end = start + dma_mmu_remap[i].size;
-+		struct map_desc map;
-+		unsigned long addr;
-+
-+		if (end > arm_lowmem_limit)
-+			end = arm_lowmem_limit;
-+		if (start >= end)
-+			return;
-+
-+		map.pfn = __phys_to_pfn(start);
-+		map.virtual = __phys_to_virt(start);
-+		map.length = end - start;
-+		map.type = MT_MEMORY_DMA_READY;
-+
-+		/*
-+		 * Clear previous low-memory mapping
-+		 */
-+		for (addr = __phys_to_virt(start); addr < __phys_to_virt(end);
-+		     addr += PGDIR_SIZE)
-+			pmd_clear(pmd_off_k(addr));
-+
-+		iotable_init(&map, 1);
-+	}
-+}
-+
- static void *
- __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
- {
-@@ -318,20 +406,172 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
- 	arm_vmregion_free(&consistent_head, c);
- }
- 
-+static int __dma_update_pte(pte_t *pte, pgtable_t token, unsigned long addr,
-+			    void *data)
-+{
-+	struct page *page = virt_to_page(addr);
-+	pgprot_t prot = *(pgprot_t *)data;
-+
-+	set_pte_ext(pte, mk_pte(page, prot), 0);
-+	return 0;
-+}
-+
-+static void __dma_remap(struct page *page, size_t size, pgprot_t prot)
-+{
-+	unsigned long start = (unsigned long) page_address(page);
-+	unsigned end = start + size;
-+
-+	apply_to_page_range(&init_mm, start, size, __dma_update_pte, &prot);
-+	dsb();
-+	flush_tlb_kernel_range(start, end);
-+}
-+
-+static void *__alloc_remap_buffer(struct device *dev, size_t size, gfp_t gfp,
-+				 pgprot_t prot, struct page **ret_page)
-+{
-+	struct page *page;
-+	void *ptr;
-+	page = __dma_alloc_buffer(dev, size, gfp);
-+	if (!page)
-+		return NULL;
-+
-+	ptr = __dma_alloc_remap(page, size, gfp, prot);
-+	if (!ptr) {
-+		__dma_free_buffer(page, size);
-+		return NULL;
-+	}
-+
-+	*ret_page = page;
-+	return ptr;
-+}
-+
-+static void *__alloc_from_pool(struct device *dev, size_t size,
-+			       struct page **ret_page)
-+{
-+	struct arm_vmregion *c;
-+	size_t align;
-+
-+	if (!coherent_head.vm_start) {
-+		printk(KERN_ERR "%s: coherent pool not initialised!\n",
-+		       __func__);
-+		dump_stack();
-+		return NULL;
-+	}
-+
-+	/*
-+	 * Align the region allocation - allocations from pool are rather
-+	 * small, so align them to their order in pages, minimum is a page
-+	 * size. This helps reduce fragmentation of the DMA space.
-+	 */
-+	align = PAGE_SIZE << get_order(size);
-+	c = arm_vmregion_alloc(&coherent_head, align, size, 0);
-+	if (c) {
-+		void *ptr = (void *)c->vm_start;
-+		struct page *page = virt_to_page(ptr);
-+		*ret_page = page;
-+		return ptr;
-+	}
-+	return NULL;
-+}
-+
-+static int __free_from_pool(void *cpu_addr, size_t size)
-+{
-+	unsigned long start = (unsigned long)cpu_addr;
-+	unsigned long end = start + size;
-+	struct arm_vmregion *c;
-+
-+	if (start < coherent_head.vm_start || end > coherent_head.vm_end)
-+		return 0;
-+
-+	c = arm_vmregion_find_remove(&coherent_head, (unsigned long)start);
-+
-+	if ((c->vm_end - c->vm_start) != size) {
-+		printk(KERN_ERR "%s: freeing wrong coherent size (%ld != %d)\n",
-+		       __func__, c->vm_end - c->vm_start, size);
-+		dump_stack();
-+		size = c->vm_end - c->vm_start;
-+	}
-+
-+	arm_vmregion_free(&coherent_head, c);
-+	return 1;
-+}
-+
-+static void *__alloc_from_contiguous(struct device *dev, size_t size,
-+				     pgprot_t prot, struct page **ret_page)
-+{
-+	unsigned long order = get_order(size);
-+	size_t count = size >> PAGE_SHIFT;
-+	struct page *page;
-+
-+	page = dma_alloc_from_contiguous(dev, count, order);
-+	if (!page)
-+		return NULL;
-+
-+	__dma_clear_buffer(page, size);
-+	__dma_remap(page, size, prot);
-+
-+	*ret_page = page;
-+	return page_address(page);
-+}
-+
-+static void __free_from_contiguous(struct device *dev, struct page *page,
-+				   size_t size)
-+{
-+	__dma_remap(page, size, pgprot_kernel);
-+	dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT);
-+}
-+
-+#define nommu() 0
-+
- #else	/* !CONFIG_MMU */
- 
--#define __dma_alloc_remap(page, size, gfp, prot)	page_address(page)
--#define __dma_free_remap(addr, size)			do { } while (0)
-+#define nommu() 1
-+
-+#define __alloc_remap_buffer(dev, size, gfp, prot, ret)	NULL
-+#define __alloc_from_pool(dev, size, ret_page)		NULL
-+#define __alloc_from_contiguous(dev, size, prot, ret)	NULL
-+#define __free_from_pool(cpu_addr, size)		0
-+#define __free_from_contiguous(dev, page, size)		do { } while (0)
-+#define __dma_free_remap(cpu_addr, size)		do { } while (0)
- 
- #endif	/* CONFIG_MMU */
- 
--static void *
--__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
--	    pgprot_t prot)
-+static void *__alloc_simple_buffer(struct device *dev, size_t size, gfp_t gfp,
-+				   struct page **ret_page)
- {
- 	struct page *page;
-+	page = __dma_alloc_buffer(dev, size, gfp);
-+	if (!page)
-+		return NULL;
-+
-+	*ret_page = page;
-+	return page_address(page);
-+}
-+
-+
-+
-+static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
-+			 gfp_t gfp, pgprot_t prot)
-+{
-+	u64 mask = get_coherent_dma_mask(dev);
-+	struct page *page;
- 	void *addr;
- 
-+#ifdef CONFIG_DMA_API_DEBUG
-+	u64 limit = (mask + 1) & ~mask;
-+	if (limit && size >= limit) {
-+		dev_warn(dev, "coherent allocation too big (requested %#x mask %#llx)\n",
-+			size, mask);
-+		return NULL;
-+	}
 +#endif
-+
-+	if (!mask)
-+		return NULL;
-+
-+	if (mask < 0xffffffffULL)
-+		gfp |= GFP_DMA;
-+
- 	/*
- 	 * Following is a work-around (a.k.a. hack) to prevent pages
- 	 * with __GFP_COMP being passed to split_page() which cannot
-@@ -344,19 +584,17 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
- 	*handle = ~0;
- 	size = PAGE_ALIGN(size);
  
--	page = __dma_alloc_buffer(dev, size, gfp);
--	if (!page)
--		return NULL;
--
--	if (!arch_is_coherent())
--		addr = __dma_alloc_remap(page, size, gfp, prot);
-+	if (arch_is_coherent() || nommu())
-+		addr = __alloc_simple_buffer(dev, size, gfp, &page);
-+	else if (cpu_architecture() < CPU_ARCH_ARMv6)
-+		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page);
-+	else if (gfp & GFP_ATOMIC)
-+		addr = __alloc_from_pool(dev, size, &page);
- 	else
--		addr = page_address(page);
-+		addr = __alloc_from_contiguous(dev, size, prot, &page);
- 
- 	if (addr)
- 		*handle = pfn_to_dma(dev, page_to_pfn(page));
--	else
--		__dma_free_buffer(page, size);
- 
- 	return addr;
- }
-@@ -365,8 +603,8 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
-  * Allocate DMA-coherent memory space and return both the kernel remapped
-  * virtual and bus address for that space.
-  */
--void *
--dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
-+void *dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle,
-+			 gfp_t gfp)
- {
- 	void *memory;
- 
-@@ -395,25 +633,11 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
- {
- 	int ret = -ENXIO;
- #ifdef CONFIG_MMU
--	unsigned long user_size, kern_size;
--	struct arm_vmregion *c;
--
--	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
--
--	c = arm_vmregion_find(&consistent_head, (unsigned long)cpu_addr);
--	if (c) {
--		unsigned long off = vma->vm_pgoff;
--
--		kern_size = (c->vm_end - c->vm_start) >> PAGE_SHIFT;
--
--		if (off < kern_size &&
--		    user_size <= (kern_size - off)) {
--			ret = remap_pfn_range(vma, vma->vm_start,
--					      page_to_pfn(c->vm_pages) + off,
--					      user_size << PAGE_SHIFT,
--					      vma->vm_page_prot);
--		}
--	}
-+	unsigned long pfn = dma_to_pfn(dev, dma_addr);
-+	ret = remap_pfn_range(vma, vma->vm_start,
-+			      pfn + vma->vm_pgoff,
-+			      vma->vm_end - vma->vm_start,
-+			      vma->vm_page_prot);
- #endif	/* CONFIG_MMU */
- 
- 	return ret;
-@@ -435,23 +659,33 @@ int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
- }
- EXPORT_SYMBOL(dma_mmap_writecombine);
- 
-+
  /*
-- * free a page as defined by the above mapping.
-- * Must not be called with IRQs disabled.
-+ * Free a buffer as defined by the above mapping.
+  * The order of subdivision here is critical for the IO subsystem.
+@@ -875,10 +895,15 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+  * This array describes the order lists are fallen back to when
+  * the free lists for the desirable migrate type are depleted
   */
- void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
- {
--	WARN_ON(irqs_disabled());
-+	struct page *page = pfn_to_page(dma_to_pfn(dev, handle));
- 
- 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
- 		return;
- 
- 	size = PAGE_ALIGN(size);
- 
--	if (!arch_is_coherent())
-+	if (arch_is_coherent() || nommu()) {
-+		__dma_free_buffer(page, size);
-+	} else if (cpu_architecture() < CPU_ARCH_ARMv6) {
- 		__dma_free_remap(cpu_addr, size);
--
--	__dma_free_buffer(pfn_to_page(dma_to_pfn(dev, handle)), size);
-+		__dma_free_buffer(page, size);
-+	} else {
-+		if (__free_from_pool(cpu_addr, size))
-+			return;
-+		/*
-+		 * Non-atomic allocations cannot be freed with IRQs disabled
-+		 */
-+		WARN_ON(irqs_disabled());
-+		__free_from_contiguous(dev, page, size);
-+	}
- }
- EXPORT_SYMBOL(dma_free_coherent);
- 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 6ec1226..eb8d662 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -20,6 +20,7 @@
- #include <linux/highmem.h>
- #include <linux/gfp.h>
- #include <linux/memblock.h>
-+#include <linux/dma-contiguous.h>
- 
- #include <asm/mach-types.h>
- #include <asm/memblock.h>
-@@ -227,6 +228,17 @@ static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
- }
- #endif
- 
-+void __init setup_dma_zone(struct machine_desc *mdesc)
-+{
-+#ifdef CONFIG_ZONE_DMA
-+	if (mdesc->dma_zone_size) {
-+		arm_dma_zone_size = mdesc->dma_zone_size;
-+		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
-+	} else
-+		arm_dma_limit = 0xffffffff;
+-static int fallbacks[MIGRATE_TYPES][3] = {
++static int fallbacks[MIGRATE_TYPES][4] = {
+ 	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+ 	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_RESERVE },
++#ifdef CONFIG_CMA
++	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_CMA    , MIGRATE_RESERVE },
++	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
++#else
+ 	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
 +#endif
-+}
-+
- static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
- 	unsigned long max_high)
- {
-@@ -274,12 +286,9 @@ static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
- 	 * Adjust the sizes according to any special requirements for
- 	 * this machine type.
- 	 */
--	if (arm_dma_zone_size) {
-+	if (arm_dma_zone_size)
- 		arm_adjust_dma_zone(zone_size, zhole_size,
- 			arm_dma_zone_size >> PAGE_SHIFT);
--		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
--	} else
--		arm_dma_limit = 0xffffffff;
- #endif
- 
- 	free_area_init_node(0, zone_size, min, zhole_size);
-@@ -365,6 +374,11 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
- 	if (mdesc->reserve)
- 		mdesc->reserve();
- 
-+	/* reserve memory for DMA contigouos allocations,
-+	   must come from DMA area inside low memory */
-+	dma_contiguous_reserve(arm_dma_limit < arm_lowmem_limit ?
-+			       arm_dma_limit : arm_lowmem_limit);
-+
- 	arm_memblock_steal_permitted = false;
- 	memblock_allow_resize();
- 	memblock_dump_all();
-diff --git a/arch/arm/mm/mm.h b/arch/arm/mm/mm.h
-index 70f6d3ea..398c438 100644
---- a/arch/arm/mm/mm.h
-+++ b/arch/arm/mm/mm.h
-@@ -43,5 +43,8 @@ extern u32 arm_dma_limit;
- #define arm_dma_limit ((u32)~0)
- #endif
- 
-+extern phys_addr_t arm_lowmem_limit;
-+
- void __init bootmem_init(void);
- void arm_mm_memblock_reserve(void);
-+void dma_contiguous_remap(void);
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index 94c5a0c..b9fbec2 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -286,6 +286,11 @@ static struct mem_type mem_types[] = {
- 				PMD_SECT_UNCACHED | PMD_SECT_XN,
- 		.domain    = DOMAIN_KERNEL,
- 	},
-+	[MT_MEMORY_DMA_READY] = {
-+		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY,
-+		.prot_l1   = PMD_TYPE_TABLE,
-+		.domain    = DOMAIN_KERNEL,
-+	},
+ 	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
+ 	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
  };
+@@ -995,11 +1020,18 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 * pages to the preferred allocation list. If falling
+ 			 * back for a reclaimable kernel allocation, be more
+ 			 * aggressive about taking ownership of free pages
++			 *
++			 * On the other hand, never change migration
++			 * type of MIGRATE_CMA pageblocks nor move CMA
++			 * pages on different free lists. We don't
++			 * want unmovable pages to be allocated from
++			 * MIGRATE_CMA areas.
+ 			 */
+-			if (unlikely(current_order >= (pageblock_order >> 1)) ||
+-					start_migratetype == MIGRATE_RECLAIMABLE ||
+-					page_group_by_mobility_disabled) {
+-				unsigned long pages;
++			if (!is_pageblock_cma(page) &&
++			    (unlikely(current_order >= pageblock_order / 2) ||
++			     start_migratetype == MIGRATE_RECLAIMABLE ||
++			     page_group_by_mobility_disabled)) {
++				int pages;
+ 				pages = move_freepages_block(zone, page,
+ 								start_migratetype);
  
- const struct mem_type *get_mem_type(unsigned int type)
-@@ -427,6 +432,7 @@ static void __init build_mem_type_table(void)
- 	if (arch_is_coherent() && cpu_is_xsc3()) {
- 		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
- 		mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
-+		mem_types[MT_MEMORY_DMA_READY].prot_pte |= L_PTE_SHARED;
- 		mem_types[MT_MEMORY_NONCACHED].prot_sect |= PMD_SECT_S;
- 		mem_types[MT_MEMORY_NONCACHED].prot_pte |= L_PTE_SHARED;
+@@ -1017,11 +1049,14 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			rmv_page_order(page);
+ 
+ 			/* Take ownership for orders >= pageblock_order */
+-			if (current_order >= pageblock_order)
++			if (current_order >= pageblock_order &&
++			    !is_pageblock_cma(page))
+ 				change_pageblock_range(page, current_order,
+ 							start_migratetype);
+ 
+-			expand(zone, page, order, current_order, area, migratetype);
++			expand(zone, page, order, current_order, area,
++			       is_migrate_cma(start_migratetype)
++			     ? start_migratetype : migratetype);
+ 
+ 			trace_mm_page_alloc_extfrag(page, order, current_order,
+ 				start_migratetype, migratetype);
+@@ -1093,7 +1128,12 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			list_add(&page->lru, list);
+ 		else
+ 			list_add_tail(&page->lru, list);
+-		set_page_private(page, migratetype);
++#ifdef CONFIG_CMA
++		if (is_pageblock_cma(page))
++			set_page_private(page, MIGRATE_CMA);
++		else
++#endif
++			set_page_private(page, migratetype);
+ 		list = &page->lru;
  	}
-@@ -458,6 +464,7 @@ static void __init build_mem_type_table(void)
- 			mem_types[MT_DEVICE_CACHED].prot_pte |= L_PTE_SHARED;
- 			mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
- 			mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
-+			mem_types[MT_MEMORY_DMA_READY].prot_pte |= L_PTE_SHARED;
- 			mem_types[MT_MEMORY_NONCACHED].prot_sect |= PMD_SECT_S;
- 			mem_types[MT_MEMORY_NONCACHED].prot_pte |= L_PTE_SHARED;
- 		}
-@@ -509,6 +516,7 @@ static void __init build_mem_type_table(void)
- 	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
- 	mem_types[MT_MEMORY].prot_sect |= ecc_mask | cp->pmd;
- 	mem_types[MT_MEMORY].prot_pte |= kern_pgprot;
-+	mem_types[MT_MEMORY_DMA_READY].prot_pte |= kern_pgprot;
- 	mem_types[MT_MEMORY_NONCACHED].prot_sect |= ecc_mask;
- 	mem_types[MT_ROM].prot_sect |= cp->pmd;
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+@@ -1337,8 +1377,12 @@ int split_free_page(struct page *page)
  
-@@ -593,7 +601,7 @@ static void __init alloc_init_section(pud_t *pud, unsigned long addr,
- 	 * L1 entries, whereas PGDs refer to a group of L1 entries making
- 	 * up one logical pointer to an L2 table.
+ 	if (order >= pageblock_order - 1) {
+ 		struct page *endpage = page + (1 << order) - 1;
+-		for (; page < endpage; page += pageblock_nr_pages)
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++		for (; page < endpage; page += pageblock_nr_pages) {
++			int mt = get_pageblock_migratetype(page);
++			if (mt != MIGRATE_ISOLATE && !is_migrate_cma(mt))
++				set_pageblock_migratetype(page,
++							  MIGRATE_MOVABLE);
++		}
+ 	}
+ 
+ 	return 1 << order;
+@@ -5375,8 +5419,8 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
  	 */
--	if (((addr | end | phys) & ~SECTION_MASK) == 0) {
-+	if (type->prot_sect && ((addr | end | phys) & ~SECTION_MASK) == 0) {
- 		pmd_t *p = pmd;
+ 	if (zone_idx(zone) == ZONE_MOVABLE)
+ 		return true;
+-
+-	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE)
++	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
++	    is_pageblock_cma(page))
+ 		return true;
  
- #ifndef CONFIG_ARM_LPAE
-@@ -811,7 +819,7 @@ static int __init early_vmalloc(char *arg)
- }
- early_param("vmalloc", early_vmalloc);
- 
--static phys_addr_t lowmem_limit __initdata = 0;
-+phys_addr_t arm_lowmem_limit __initdata = 0;
- 
- void __init sanity_check_meminfo(void)
- {
-@@ -894,8 +902,8 @@ void __init sanity_check_meminfo(void)
- 			bank->size = newsize;
- 		}
- #endif
--		if (!bank->highmem && bank->start + bank->size > lowmem_limit)
--			lowmem_limit = bank->start + bank->size;
-+		if (!bank->highmem && bank->start + bank->size > arm_lowmem_limit)
-+			arm_lowmem_limit = bank->start + bank->size;
- 
- 		j++;
- 	}
-@@ -920,8 +928,8 @@ void __init sanity_check_meminfo(void)
- 	}
- #endif
- 	meminfo.nr_banks = j;
--	high_memory = __va(lowmem_limit - 1) + 1;
--	memblock_set_current_limit(lowmem_limit);
-+	high_memory = __va(arm_lowmem_limit - 1) + 1;
-+	memblock_set_current_limit(arm_lowmem_limit);
- }
- 
- static inline void prepare_page_table(void)
-@@ -946,8 +954,8 @@ static inline void prepare_page_table(void)
- 	 * Find the end of the first block of lowmem.
- 	 */
- 	end = memblock.memory.regions[0].base + memblock.memory.regions[0].size;
--	if (end >= lowmem_limit)
--		end = lowmem_limit;
-+	if (end >= arm_lowmem_limit)
-+		end = arm_lowmem_limit;
- 
- 	/*
- 	 * Clear out all the kernel space mappings, except for the first
-@@ -1087,8 +1095,8 @@ static void __init map_lowmem(void)
- 		phys_addr_t end = start + reg->size;
- 		struct map_desc map;
- 
--		if (end > lowmem_limit)
--			end = lowmem_limit;
-+		if (end > arm_lowmem_limit)
-+			end = arm_lowmem_limit;
- 		if (start >= end)
- 			break;
- 
-@@ -1109,11 +1117,12 @@ void __init paging_init(struct machine_desc *mdesc)
- {
- 	void *zero_page;
- 
--	memblock_set_current_limit(lowmem_limit);
-+	memblock_set_current_limit(arm_lowmem_limit);
- 
- 	build_mem_type_table();
- 	prepare_page_table();
- 	map_lowmem();
-+	dma_contiguous_remap();
- 	devicemaps_init(mdesc);
- 	kmap_init();
+ 	pfn = page_to_pfn(page);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index f600557..ace5383 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -613,6 +613,9 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
+ 	"Reclaimable",
+ 	"Movable",
+ 	"Reserve",
++#ifdef CONFIG_CMA
++	"CMA",
++#endif
+ 	"Isolate",
+ };
  
 -- 
 1.7.1.569.g6f426
