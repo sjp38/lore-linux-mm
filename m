@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 9B8406B0068
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 18:01:57 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 4/6] pagemap: document KPF_THP and make page-types aware of it
-Date: Fri, 27 Jan 2012 18:02:51 -0500
-Message-Id: <1327705373-29395-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1327705373-29395-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1327705373-29395-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 0B1536B004F
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 18:31:28 -0500 (EST)
+Date: Fri, 27 Jan 2012 15:31:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 -mm 1/3] mm: reclaim at order 0 when compaction is
+ enabled
+Message-Id: <20120127153127.f1fa82c3.akpm@linux-foundation.org>
+In-Reply-To: <20120126145914.58619765@cuia.bos.redhat.com>
+References: <20120126145450.2d3d2f4c@cuia.bos.redhat.com>
+	<20120126145914.58619765@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-page-types, which is a common user of pagemap, gets aware of thp
-with this patch. This helps system admins and kernel hackers know
-about how thp works.
-Here is a sample output of page-types over a thp:
+On Thu, 26 Jan 2012 14:59:14 -0500
+Rik van Riel <riel@redhat.com> wrote:
 
-  $ page-types -p <pid> --raw --list
+> When built with CONFIG_COMPACTION, kswapd should not try to free
+> contiguous pages, because it is not trying hard enough to have
+> a real chance at being successful, but still disrupts the LRU
+> enough to break other things.
+> 
+> Do not do higher order page isolation unless we really are in
+> lumpy reclaim mode.
+> 
+> Stop reclaiming pages once we have enough free pages that
+> compaction can deal with things, and we hit the normal order 0
+> watermarks used by kswapd.
+> 
+> Also remove a line of code that increments balanced right before
+> exiting the function.
+> 
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1139,7 +1139,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+>   * @mz:		The mem_cgroup_zone to pull pages from.
+>   * @dst:	The temp list to put pages on to.
+>   * @nr_scanned:	The number of pages that were scanned.
+> - * @order:	The caller's attempted allocation order
+> + * @sc:		The scan_control struct for this reclaim session
+>   * @mode:	One of the LRU isolation modes
+>   * @active:	True [1] if isolating active pages
+>   * @file:	True [1] if isolating file [!anon] pages
+> @@ -1148,8 +1148,8 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+>   */
+>  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		struct mem_cgroup_zone *mz, struct list_head *dst,
+> -		unsigned long *nr_scanned, int order, isolate_mode_t mode,
+> -		int active, int file)
+> +		unsigned long *nr_scanned, struct scan_control *sc,
+> +		isolate_mode_t mode, int active, int file)
+>  {
+>  	struct lruvec *lruvec;
+>  	struct list_head *src;
+> @@ -1195,7 +1195,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			BUG();
+>  		}
+>  
+> -		if (!order)
+> +		if (!sc->order || !(sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM))
 
-  voffset offset  len     flags
-  ...
-  7f9d40200       3f8400  1       ___U_lA____Ma_bH______t____________
-  7f9d40201       3f8401  1ff     ________________T_____t____________
+We should have a comment here explaining the reason for the code.
 
-               flags      page-count       MB  symbolic-flags                     long-symbolic-flags
-  0x0000000000410000             511        1  ________________T_____t____________        compound_tail,thp
-  0x000000000040d868               1        0  ___U_lA____Ma_bH______t____________        uptodate,lru,active,mmap,anonymous,swapbacked,compound_head,thp
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Changes since v1:
-  - fix misused word
----
- Documentation/vm/page-types.c |    2 ++
- Documentation/vm/pagemap.txt  |    4 ++++
- 2 files changed, 6 insertions(+), 0 deletions(-)
-
-diff --git 3.3-rc1.orig/Documentation/vm/page-types.c 3.3-rc1/Documentation/vm/page-types.c
-index 7445caa..0b13f02 100644
---- 3.3-rc1.orig/Documentation/vm/page-types.c
-+++ 3.3-rc1/Documentation/vm/page-types.c
-@@ -98,6 +98,7 @@
- #define KPF_HWPOISON		19
- #define KPF_NOPAGE		20
- #define KPF_KSM			21
-+#define KPF_THP			22
- 
- /* [32-] kernel hacking assistances */
- #define KPF_RESERVED		32
-@@ -147,6 +148,7 @@ static const char *page_flag_names[] = {
- 	[KPF_HWPOISON]		= "X:hwpoison",
- 	[KPF_NOPAGE]		= "n:nopage",
- 	[KPF_KSM]		= "x:ksm",
-+	[KPF_THP]		= "t:thp",
- 
- 	[KPF_RESERVED]		= "r:reserved",
- 	[KPF_MLOCKED]		= "m:mlocked",
-diff --git 3.3-rc1.orig/Documentation/vm/pagemap.txt 3.3-rc1/Documentation/vm/pagemap.txt
-index df09b96..4600cbe 100644
---- 3.3-rc1.orig/Documentation/vm/pagemap.txt
-+++ 3.3-rc1/Documentation/vm/pagemap.txt
-@@ -60,6 +60,7 @@ There are three components to pagemap:
-     19. HWPOISON
-     20. NOPAGE
-     21. KSM
-+    22. THP
- 
- Short descriptions to the page flags:
- 
-@@ -97,6 +98,9 @@ Short descriptions to the page flags:
- 21. KSM
-     identical memory pages dynamically shared between one or more processes
- 
-+22. THP
-+    contiguous pages which construct transparent hugepages
-+
-     [IO related page flags]
-  1. ERROR     IO error occurred
-  3. UPTODATE  page has up-to-date data
--- 
-1.7.7.6
+And the immediately following comment isn't very good: "Only take those
+pages of the same active state as that tag page".  As is common with
+poor comments, it tells us "what", but not "why".  Reclaiming inactive
+_and_ inactive pages would make larger-page freeing more successful and
+might be a good thing!  Apparently someone felt otherwise, but the
+reader is kept in the dark...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
