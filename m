@@ -1,71 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 4B7326B0087
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 22:40:38 -0500 (EST)
-Message-Id: <20120127031327.567686120@intel.com>
-Date: Fri, 27 Jan 2012 11:05:33 +0800
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 359A16B0088
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 22:40:39 -0500 (EST)
+Message-Id: <20120127031326.752229208@intel.com>
+Date: Fri, 27 Jan 2012 11:05:27 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 9/9] readahead: snap readahead request to EOF
+Subject: [PATCH 3/9] readahead: tag mmap page fault call sites
 References: <20120127030524.854259561@intel.com>
-Content-Disposition: inline; filename=readahead-eof
+Content-Disposition: inline; filename=readahead-for-mmap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-If the file size is 20kb and readahead request is [0, 16kb),
-it's better to expand the readahead request to [0, 20kb), which will
-likely save one followup I/O for the ending [16kb, 20kb).
-
-If the readahead request already covers EOF, trimm it down to EOF.
-Also don't set the PG_readahead mark to avoid an unnecessary future
-invocation of the readahead code.
-
-This special handling looks worthwhile because small to medium sized
-files are pretty common.
+Introduce a bit field ra->for_mmap for tagging mmap reads.
+The tag will be cleared immediate after submitting the IO.
 
 Acked-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/readahead.c |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ include/linux/fs.h |    1 +
+ mm/filemap.c       |    6 +++++-
+ mm/readahead.c     |    1 +
+ 3 files changed, 7 insertions(+), 1 deletion(-)
 
---- linux-next.orig/mm/readahead.c	2012-01-25 15:57:58.000000000 +0800
-+++ linux-next/mm/readahead.c	2012-01-25 15:57:59.000000000 +0800
-@@ -466,6 +466,25 @@ unsigned long max_sane_readahead(unsigne
- 		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+--- linux-next.orig/include/linux/fs.h	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/include/linux/fs.h	2012-01-25 15:57:51.000000000 +0800
+@@ -954,6 +954,7 @@ struct file_ra_state {
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+ 	u16 mmap_miss;			/* Cache miss stat for mmap accesses */
+ 	u8 pattern;			/* one of RA_PATTERN_* */
++	unsigned int for_mmap:1;	/* readahead for mmap accesses */
+ 
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+--- linux-next.orig/mm/filemap.c	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/mm/filemap.c	2012-01-25 15:57:51.000000000 +0800
+@@ -1578,6 +1578,7 @@ static void do_sync_mmap_readahead(struc
+ 		return;
+ 
+ 	if (VM_SequentialReadHint(vma)) {
++		ra->for_mmap = 1;
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1597,6 +1598,7 @@ static void do_sync_mmap_readahead(struc
+ 	/*
+ 	 * mmap read-around
+ 	 */
++	ra->for_mmap = 1;
+ 	ra->pattern = RA_PATTERN_MMAP_AROUND;
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+@@ -1622,9 +1624,11 @@ static void do_async_mmap_readahead(stru
+ 		return;
+ 	if (ra->mmap_miss > 0)
+ 		ra->mmap_miss--;
+-	if (PageReadahead(page))
++	if (PageReadahead(page)) {
++		ra->for_mmap = 1;
+ 		page_cache_async_readahead(mapping, ra, file,
+ 					   page, offset, ra->ra_pages);
++	}
  }
  
-+static void snap_to_eof(struct file_ra_state *ra, struct address_space *mapping)
-+{
-+	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
-+	pgoff_t start = ra->start;
-+	unsigned int size = ra->size;
-+
-+	/*
-+	 * skip backwards and random reads
-+	 */
-+	if (ra->pattern > RA_PATTERN_MMAP_AROUND)
-+		return;
-+
-+	size += min(size / 2, ra->ra_pages / 4);
-+	if (start + size > eof) {
-+		ra->size = eof - start;
-+		ra->async_size = 0;
-+	}
-+}
-+
- /*
-  * Submit IO for the read-ahead request in file_ra_state.
-  */
-@@ -477,6 +496,8 @@ unsigned long ra_submit(struct file_ra_s
- {
- 	int actual;
- 
-+	snap_to_eof(ra, mapping);
-+
+ /**
+--- linux-next.orig/mm/readahead.c	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/mm/readahead.c	2012-01-25 15:57:51.000000000 +0800
+@@ -259,6 +259,7 @@ unsigned long ra_submit(struct file_ra_s
  	actual = __do_page_cache_readahead(mapping, filp,
  					ra->start, ra->size, ra->async_size);
+ 
++	ra->for_mmap = 0;
+ 	return actual;
+ }
  
 
 
