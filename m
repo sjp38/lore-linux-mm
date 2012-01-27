@@ -1,100 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id ACF756B004F
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 08:43:10 -0500 (EST)
-Message-ID: <1327671787.2977.17.camel@dabdike.int.hansenpartnership.com>
-Subject: RE: [PATCH] mm: implement WasActive page flag (for improving
- cleancache)
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Fri, 27 Jan 2012 07:43:07 -0600
-In-Reply-To: <7198bfb3-1e32-40d3-8601-d88aed7aabd8@default>
-References: <ea3b0850-dfe0-46db-9201-2bfef110848d@default>
-	 <4F218D36.2060308@linux.vnet.ibm.com>
-	 <9fcd06f5-360e-4542-9fbb-f8c7efb28cb6@default>
-	 <20120126163150.31a8688f.akpm@linux-foundation.org>
-	 <ccb76a4d-d453-4faa-93a9-d1ce015255c0@default>
-	 <20120126171548.2c85dd44.akpm@linux-foundation.org>
-	 <7198bfb3-1e32-40d3-8601-d88aed7aabd8@default>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 167836B004F
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 09:27:34 -0500 (EST)
+Received: by mail-tul01m020-f173.google.com with SMTP id up16so2286858obb.32
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2012 06:27:33 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com>
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+	<1327568457-27734-13-git-send-email-m.szyprowski@samsung.com>
+	<CADMYwHw1B4RNV_9BqAg_M70da=g69Z3kyo5Cr6izCMwJ9LAtvA@mail.gmail.com>
+	<00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com>
+Date: Fri, 27 Jan 2012 08:27:33 -0600
+Message-ID: <CAO8GWqnQg-W=TEc+CUc8hs=GrdCa9XCCWcedQx34cqURhNwNwA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 12/15] drivers: add Contiguous Memory Allocator
+From: "Clark, Rob" <rob@ti.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Nebojsa Trpkovic <trx.lists@gmail.com>, minchan@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, riel@redhat.com, Chris Mason <chris.mason@oracle.com>, lsf-pc@lists.linux-foundation.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Thu, 2012-01-26 at 18:43 -0800, Dan Magenheimer wrote:
-> > From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > It really didn't tell us anything, apart from referring to vague
-> > "problems on streaming workloads", which forces everyone to go off and
-> > do an hour or two's kernel archeology, probably in the area of
-> > readahead.
-> > 
-> > Just describe the problem!  Why is it slow?  Where's the time being
-> > spent?  How does the proposed fix (which we haven't actually seen)
-> > address the problem?  If you inform us of these things then perhaps
-> > someone will have a useful suggestion.  And as a side-effect, we'll
-> > understand cleancache better.
-> 
-> Sorry, I'm often told that my explanations are long-winded so
-> as a result I sometimes err on the side of brevity...
-> 
-> The problem is that if a pageframe is used for a page that is
-> very unlikely (or never going) to be used again instead of for
-> a page that IS likely to be used again, it results in more
-> refaults (which means more I/O which means poorer performance).
-> So we want to keep pages that are most likely to be used again.
-> And pages that were active are more likely to be used again than
-> pages that were never active... at least the post-2.6.27 kernel
-> makes that assumption.  A cleancache backend can keep or discard
-> any page it pleases... it makes sense for it to keep pages
-> that were previously active rather than pages that were never
-> active.
-> 
-> For zcache, we can store twice as many pages per pageframe.
-> But if we are storing two pages that are very unlikely
-> (or never going) to be used again instead of one page
-> that IS likely to be used again, that's probably still a bad choice.
-> Further, for every page that never gets used again (or gets reclaimed
-> before it can be used again because there's so much data streaming
-> through cleancache), zcache wastes the cpu cost of a page compression.
-> On newer machines, compression is suitably fast that this additional
-> cpu cost is small-ish.  On older machines, it adds up fast and that's
-> what Nebojsa was seeing in https://lkml.org/lkml/2011/8/17/351 
-> 
-> Page replacement algorithms are all about heuristics and
-> heuristics require information.  The WasActive flag provides
-> information that has proven useful to the kernel (as proven
-> by the 2.6.27 page replacement design rewrite) to cleancache
-> backends (such as zcache).
+2012/1/27 Marek Szyprowski <m.szyprowski@samsung.com>:
+> Hi Ohad,
+>
+> On Friday, January 27, 2012 10:44 AM Ohad Ben-Cohen wrote:
+>
+>> With v19, I can't seem to allocate big regions anymore (e.g. 101MiB).
+>> In particular, this seems to fail:
+>>
+>> On Thu, Jan 26, 2012 at 11:00 AM, Marek Szyprowski
+>> <m.szyprowski@samsung.com> wrote:
+>> > +static int cma_activate_area(unsigned long base_pfn, unsigned long co=
+unt)
+>> > +{
+>> > + =A0 =A0 =A0 unsigned long pfn =3D base_pfn;
+>> > + =A0 =A0 =A0 unsigned i =3D count >> pageblock_order;
+>> > + =A0 =A0 =A0 struct zone *zone;
+>> > +
+>> > + =A0 =A0 =A0 WARN_ON_ONCE(!pfn_valid(pfn));
+>> > + =A0 =A0 =A0 zone =3D page_zone(pfn_to_page(pfn));
+>> > +
+>> > + =A0 =A0 =A0 do {
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned j;
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 base_pfn =3D pfn;
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (j =3D pageblock_nr_pages; j; --j, p=
+fn++) {
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON_ONCE(!pfn_valid(=
+pfn));
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (page_zone(pfn_to_pag=
+e(pfn)) !=3D zone)
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -=
+EINVAL;
+>>
+>> The above WARN_ON_ONCE is triggered, and then the conditional is
+>> asserted (page_zone() retuns a "Movable" zone, whereas zone is
+>> "Normal") and the function fails.
+>>
+>> This happens to me on OMAP4 with your 3.3-rc1-cma-v19 branch (and a
+>> bunch of remoteproc/rpmsg patches).
+>>
+>> Do big allocations work for you ?
+>
+> I've tested it with 256MiB on Exynos4 platform. Could you check if the
+> problem also appears on 3.2-cma-v19 branch (I've uploaded it a few hours
+> ago) and 3.2-cma-v18? Both are available on our public repo:
+> git://git.infradead.org/users/kmpark/linux-samsung/
+>
+> The above code has not been changed since v16, so I'm really surprised
+> that it causes problems. Maybe the memory configuration or layout has
+> been changed in 3.3-rc1 for OMAP4?
 
-So this sounds very similar to the recent discussion which I cc'd to
-this list about readahead:
+is highmem still an issue?  I remember hitting this WARN_ON_ONCE() but
+went away after I switched to a 2g/2g vm split (which avoids highmem)
 
-http://marc.info/?l=linux-scsi&m=132750980203130
+BR,
+-R
 
-It sounds like we want to measure something similar (whether a page has
-been touched since it was brought in).  It isn't exactly your WasActive
-flag because we want to know after we bring a page in for readahead was
-it ever actually used, but it's very similar.
-
-What I was wondering was instead of using a flag, could we make the LRU
-lists do this for us ... something like have a special LRU list for
-pages added to the page cache but never referenced since added?  It
-sounds like you can get your WasActive information from the same type of
-LRU list tricks (assuming we can do them).
-
-I think the memory pressure eviction heuristic is: referenced but not
-recently used pages first followed by unreferenced and not recently used
-readahead pages.  The key being to keep recently read in readahead pages
-until last because there's a time between doing readahead and getting
-the page accessed and we don't want to trash a recently red in readahead
-page only to have the process touch it and find it has to be read in
-again.
-
-James
-
-
+> Best regards
+> --
+> Marek Szyprowski
+> Samsung Poland R&D Center
+>
+>
+>
+>
+> _______________________________________________
+> Linaro-mm-sig mailing list
+> Linaro-mm-sig@lists.linaro.org
+> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
