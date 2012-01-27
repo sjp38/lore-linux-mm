@@ -1,129 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 650B16B0088
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 015BB6B0098
 	for <linux-mm@kvack.org>; Thu, 26 Jan 2012 22:40:40 -0500 (EST)
-Message-Id: <20120127031327.293145482@intel.com>
-Date: Fri, 27 Jan 2012 11:05:31 +0800
+Message-Id: <20120127031327.159293683@intel.com>
+Date: Fri, 27 Jan 2012 11:05:30 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 7/9] readahead: basic support for backwards prefetching
+Subject: [PATCH 6/9] readahead: add /debug/readahead/stats
 References: <20120127030524.854259561@intel.com>
-Content-Disposition: inline; filename=readahead-backwards.patch
+Content-Disposition: inline; filename=readahead-stats.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Li Shaohua <shaohua.li@intel.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Add the backwards prefetching feature. It's pretty simple if we don't
-support async prefetching and interleaved reads.
+The accounting code will be compiled in by default (CONFIG_READAHEAD_STATS=y),
+and will remain inactive by default.
 
-tail and tac are observed to have the reverse read pattern:
+It can be runtime enabled/disabled through the debugfs interface
 
-tail-3501  [006]   111.881191: readahead: readahead-random(bdi=0:16, ino=1548450, req=750+1, ra=750+1-0, async=0) = 1
-tail-3501  [006]   111.881506: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=748+2, ra=746+5-0, async=0) = 4
-tail-3501  [006]   111.882021: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=744+2, ra=726+25-0, async=0) = 20
-tail-3501  [006]   111.883713: readahead: readahead-backwards(bdi=0:16, ino=1548450, req=724+2, ra=626+125-0, async=0) = 100
+	echo 1 > /debug/readahead/stats_enable
+	echo 0 > /debug/readahead/stats_enable
 
- tac-3528  [001]   118.671924: readahead: readahead-random(bdi=0:16, ino=1548445, req=750+1, ra=750+1-0, async=0) = 1
- tac-3528  [001]   118.672371: readahead: readahead-backwards(bdi=0:16, ino=1548445, req=748+2, ra=746+5-0, async=0) = 4
- tac-3528  [001]   118.673039: readahead: readahead-backwards(bdi=0:16, ino=1548445, req=744+2, ra=726+25-0, async=0) = 20
+Example output:
+(taken from a fresh booted NFS-ROOT console box with rsize=524288)
 
-Here is the behavior with an 8-page read sequence from 10000 down to 0.
-(The readahead size is a bit large since it's an NFS mount.)
+$ cat /debug/readahead/stats
+pattern     readahead    eof_hit  cache_hit         io    sync_io    mmap_io    meta_io       size async_size    io_size
+initial           702        511          0        692        692          0          0          2          0          2
+subsequent          7          0          1          7          1          1          0         23         22         23
+context           160        161          0          2          0          1          0          0          0         16
+around            184        184        177        184        184        184          0         58          0         53
+backwards           2          0          2          2          2          0          0          4          0          3
+fadvise          2593         47          8       2588       2588          0          0          1          0          1
+oversize            0          0          0          0          0          0          0          0          0          0
+random             45         20          0         44         44          0          0          1          0          1
+all              3697        923        188       3519       3511        186          0          4          0          4
 
-readahead-random(dev=0:16, ino=3948605, req=10000+8, ra=10000+8-0, async=0) = 8
-readahead-backwards(dev=0:16, ino=3948605, req=9992+8, ra=9968+32-0, async=0) = 32
-readahead-backwards(dev=0:16, ino=3948605, req=9960+8, ra=9840+128-0, async=0) = 128
-readahead-backwards(dev=0:16, ino=3948605, req=9832+8, ra=9584+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9576+8, ra=9072+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9064+8, ra=8048+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8040+8, ra=6128+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6120+8, ra=4208+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4200+8, ra=2288+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2280+8, ra=368+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=360+8, ra=0+368-0, async=0) = 368
+The two most important columns are
+- io		number of readahead IO
+- io_size	average readahead IO size
 
-And a simple 1-page read sequence from 10000 down to 0.
-
-readahead-random(dev=0:16, ino=3948605, req=10000+1, ra=10000+1-0, async=0) = 1
-readahead-backwards(dev=0:16, ino=3948605, req=9999+1, ra=9996+4-0, async=0) = 4
-readahead-backwards(dev=0:16, ino=3948605, req=9995+1, ra=9980+16-0, async=0) = 16
-readahead-backwards(dev=0:16, ino=3948605, req=9979+1, ra=9916+64-0, async=0) = 64
-readahead-backwards(dev=0:16, ino=3948605, req=9915+1, ra=9660+256-0, async=0) = 256
-readahead-backwards(dev=0:16, ino=3948605, req=9659+1, ra=9148+512-0, async=0) = 512
-readahead-backwards(dev=0:16, ino=3948605, req=9147+1, ra=8124+1024-0, async=0) = 1024
-readahead-backwards(dev=0:16, ino=3948605, req=8123+1, ra=6204+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=6203+1, ra=4284+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=4283+1, ra=2364+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=2363+1, ra=444+1920-0, async=0) = 1920
-readahead-backwards(dev=0:16, ino=3948605, req=443+1, ra=0+444-0, async=0) = 444
-
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Li Shaohua <shaohua.li@intel.com>
-Acked-by: Jan Kara <jack@suse.cz>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/fs.h         |    2 ++
- include/trace/events/vfs.h |    1 +
- mm/readahead.c             |   20 ++++++++++++++++++++
- 3 files changed, 23 insertions(+)
+ mm/Kconfig     |   15 +++
+ mm/readahead.c |  202 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 217 insertions(+)
 
---- linux-next.orig/include/linux/fs.h	2012-01-25 15:57:52.000000000 +0800
-+++ linux-next/include/linux/fs.h	2012-01-25 15:57:57.000000000 +0800
-@@ -975,6 +975,7 @@ struct file_ra_state {
-  *				streams.
-  * RA_PATTERN_MMAP_AROUND	read-around on mmap page faults
-  *				(w/o any sequential/random hints)
-+ * RA_PATTERN_BACKWARDS		reverse reading detected
-  * RA_PATTERN_FADVISE		triggered by POSIX_FADV_WILLNEED or FMODE_RANDOM
-  * RA_PATTERN_OVERSIZE		a random read larger than max readahead size,
-  *				do max readahead to break down the read size
-@@ -985,6 +986,7 @@ enum readahead_pattern {
- 	RA_PATTERN_SUBSEQUENT,
- 	RA_PATTERN_CONTEXT,
- 	RA_PATTERN_MMAP_AROUND,
-+	RA_PATTERN_BACKWARDS,
- 	RA_PATTERN_FADVISE,
- 	RA_PATTERN_OVERSIZE,
- 	RA_PATTERN_RANDOM,
---- linux-next.orig/mm/readahead.c	2012-01-25 15:57:53.000000000 +0800
-+++ linux-next/mm/readahead.c	2012-01-25 15:57:57.000000000 +0800
-@@ -695,6 +695,26 @@ ondemand_readahead(struct address_space 
- 	}
+--- linux-next.orig/mm/readahead.c	2012-01-25 15:57:52.000000000 +0800
++++ linux-next/mm/readahead.c	2012-01-25 15:57:53.000000000 +0800
+@@ -33,6 +33,202 @@ EXPORT_SYMBOL_GPL(file_ra_state_init);
  
- 	/*
-+	 * backwards reading
-+	 */
-+	if (offset < ra->start && offset + req_size >= ra->start) {
-+		ra->pattern = RA_PATTERN_BACKWARDS;
-+		ra->size = get_next_ra_size(ra, max);
-+		if (ra->size > ra->start) {
-+			/*
-+			 * ra->start may be concurrently set to some huge
-+			 * value, the min() at least avoids submitting huge IO
-+			 * in this race condition
-+			 */
-+			ra->size = min(ra->start, max);
-+			ra->start = 0;
-+		} else
-+			ra->start -= ra->size;
-+		ra->async_size = 0;
-+		goto readit;
+ #define list_to_page(head) (list_entry((head)->prev, struct page, lru))
+ 
++#ifdef CONFIG_READAHEAD_STATS
++#include <linux/ftrace_event.h>
++#include <linux/seq_file.h>
++#include <linux/debugfs.h>
++
++static u32 readahead_stats_enable __read_mostly;
++
++static const struct trace_print_flags ra_pattern_names[] = {
++	READAHEAD_PATTERNS
++};
++
++enum ra_account {
++	/* number of readaheads */
++	RA_ACCOUNT_COUNT,	/* readahead request */
++	RA_ACCOUNT_EOF,		/* readahead request covers EOF */
++	RA_ACCOUNT_CACHE_HIT,	/* readahead request covers some cached pages */
++	RA_ACCOUNT_IOCOUNT,	/* readahead IO */
++	RA_ACCOUNT_SYNC,	/* readahead IO that is synchronous */
++	RA_ACCOUNT_MMAP,	/* readahead IO by mmap page faults */
++	RA_ACCOUNT_METADATA,	/* readahead IO on metadata */
++	/* number of readahead pages */
++	RA_ACCOUNT_SIZE,	/* readahead size */
++	RA_ACCOUNT_ASYNC_SIZE,	/* readahead async size */
++	RA_ACCOUNT_ACTUAL,	/* readahead actual IO size */
++	/* end mark */
++	RA_ACCOUNT_MAX,
++};
++
++#define RA_STAT_BATCH	(INT_MAX / 2)
++static struct percpu_counter ra_stat[RA_PATTERN_ALL][RA_ACCOUNT_MAX];
++
++static inline void add_ra_stat(int i, int j, s64 amount)
++{
++	__percpu_counter_add(&ra_stat[i][j], amount, RA_STAT_BATCH);
++}
++
++static inline void inc_ra_stat(int i, int j)
++{
++	add_ra_stat(i, j, 1);
++}
++
++static void readahead_stats(struct address_space *mapping,
++			    pgoff_t offset,
++			    unsigned long req_size,
++			    bool for_mmap,
++			    bool for_metadata,
++			    enum readahead_pattern pattern,
++			    pgoff_t start,
++			    unsigned long size,
++			    unsigned long async_size,
++			    int actual)
++{
++	pgoff_t eof = ((i_size_read(mapping->host)-1) >> PAGE_CACHE_SHIFT) + 1;
++
++	inc_ra_stat(pattern, RA_ACCOUNT_COUNT);
++	add_ra_stat(pattern, RA_ACCOUNT_SIZE, size);
++	add_ra_stat(pattern, RA_ACCOUNT_ASYNC_SIZE, async_size);
++	add_ra_stat(pattern, RA_ACCOUNT_ACTUAL, actual);
++
++	if (start + size >= eof)
++		inc_ra_stat(pattern, RA_ACCOUNT_EOF);
++	if (actual < size)
++		inc_ra_stat(pattern, RA_ACCOUNT_CACHE_HIT);
++
++	if (actual) {
++		inc_ra_stat(pattern, RA_ACCOUNT_IOCOUNT);
++
++		if (start <= offset && offset < start + size)
++			inc_ra_stat(pattern, RA_ACCOUNT_SYNC);
++
++		if (for_mmap)
++			inc_ra_stat(pattern, RA_ACCOUNT_MMAP);
++		if (for_metadata)
++			inc_ra_stat(pattern, RA_ACCOUNT_METADATA);
++	}
++}
++
++static void readahead_stats_reset(void)
++{
++	int i, j;
++
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++)
++			percpu_counter_set(&ra_stat[i][j], 0);
++}
++
++static void
++readahead_stats_sum(long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
++{
++	int i, j;
++
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++) {
++			s64 n = percpu_counter_sum(&ra_stat[i][j]);
++			ra_stats[i][j] += n;
++			ra_stats[RA_PATTERN_ALL][j] += n;
++		}
++}
++
++static int readahead_stats_show(struct seq_file *s, void *_)
++{
++	long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
++	int i;
++
++	seq_printf(s,
++		   "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
++		   "pattern", "readahead", "eof_hit", "cache_hit",
++		   "io", "sync_io", "mmap_io", "meta_io",
++		   "size", "async_size", "io_size");
++
++	memset(ra_stats, 0, sizeof(ra_stats));
++	readahead_stats_sum(ra_stats);
++
++	for (i = 0; i < RA_PATTERN_MAX; i++) {
++		unsigned long count = ra_stats[i][RA_ACCOUNT_COUNT];
++		unsigned long iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
++		/*
++		 * avoid division-by-zero
++		 */
++		if (count == 0)
++			count = 1;
++		if (iocount == 0)
++			iocount = 1;
++
++		seq_printf(s, "%-10s %10lld %10lld %10lld %10lld %10lld "
++			   "%10lld %10lld %10lld %10lld %10lld\n",
++				ra_pattern_names[i].name,
++				ra_stats[i][RA_ACCOUNT_COUNT],
++				ra_stats[i][RA_ACCOUNT_EOF],
++				ra_stats[i][RA_ACCOUNT_CACHE_HIT],
++				ra_stats[i][RA_ACCOUNT_IOCOUNT],
++				ra_stats[i][RA_ACCOUNT_SYNC],
++				ra_stats[i][RA_ACCOUNT_MMAP],
++				ra_stats[i][RA_ACCOUNT_METADATA],
++				ra_stats[i][RA_ACCOUNT_SIZE] / count,
++				ra_stats[i][RA_ACCOUNT_ASYNC_SIZE] / count,
++				ra_stats[i][RA_ACCOUNT_ACTUAL] / iocount);
 +	}
 +
-+	/*
- 	 * Query the page cache and look for the traces(cached history pages)
- 	 * that a sequential stream would leave behind.
- 	 */
---- linux-next.orig/include/trace/events/vfs.h	2012-01-25 15:57:52.000000000 +0800
-+++ linux-next/include/trace/events/vfs.h	2012-01-25 15:57:57.000000000 +0800
-@@ -14,6 +14,7 @@
- 			{ RA_PATTERN_SUBSEQUENT,	"subsequent"	}, \
- 			{ RA_PATTERN_CONTEXT,		"context"	}, \
- 			{ RA_PATTERN_MMAP_AROUND,	"around"	}, \
-+			{ RA_PATTERN_BACKWARDS,		"backwards"	}, \
- 			{ RA_PATTERN_FADVISE,		"fadvise"	}, \
- 			{ RA_PATTERN_OVERSIZE,		"oversize"	}, \
- 			{ RA_PATTERN_RANDOM,		"random"	}, \
++	return 0;
++}
++
++static int readahead_stats_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, readahead_stats_show, NULL);
++}
++
++static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
++				     size_t size, loff_t *offset)
++{
++	readahead_stats_reset();
++	return size;
++}
++
++static const struct file_operations readahead_stats_fops = {
++	.owner		= THIS_MODULE,
++	.open		= readahead_stats_open,
++	.write		= readahead_stats_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
++static int __init readahead_create_debugfs(void)
++{
++	struct dentry *root;
++	struct dentry *entry;
++	int i, j;
++
++	root = debugfs_create_dir("readahead", NULL);
++	if (!root)
++		goto out;
++
++	entry = debugfs_create_file("stats", 0644, root,
++				    NULL, &readahead_stats_fops);
++	if (!entry)
++		goto out;
++
++	entry = debugfs_create_bool("stats_enable", 0644, root,
++				    &readahead_stats_enable);
++	if (!entry)
++		goto out;
++
++	for (i = 0; i < RA_PATTERN_ALL; i++)
++		for (j = 0; j < RA_ACCOUNT_MAX; j++)
++			percpu_counter_init(&ra_stat[i][j], 0);
++
++	return 0;
++out:
++	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
++	return -ENOMEM;
++}
++
++late_initcall(readahead_create_debugfs);
++#endif
++
+ static inline void readahead_event(struct address_space *mapping,
+ 				   pgoff_t offset,
+ 				   unsigned long req_size,
+@@ -44,6 +240,12 @@ static inline void readahead_event(struc
+ 				   unsigned long async_size,
+ 				   int actual)
+ {
++#ifdef CONFIG_READAHEAD_STATS
++	if (readahead_stats_enable)
++		readahead_stats(mapping, offset, req_size,
++				for_mmap, for_metadata,
++				pattern, start, size, async_size, actual);
++#endif
+ 	trace_readahead(mapping, offset, req_size,
+ 			pattern, start, size, async_size, actual);
+ }
+--- linux-next.orig/mm/Kconfig	2012-01-25 15:57:46.000000000 +0800
++++ linux-next/mm/Kconfig	2012-01-25 15:57:53.000000000 +0800
+@@ -379,3 +379,18 @@ config CLEANCACHE
+ 	  in a negligible performance hit.
+ 
+ 	  If unsure, say Y to enable cleancache
++
++config READAHEAD_STATS
++	bool "Collect page cache readahead stats"
++	depends on DEBUG_FS
++	default n
++	help
++	  This provides the readahead events accounting facilities.
++
++	  To do readahead accounting for a workload:
++
++	  echo 1 > /sys/kernel/debug/readahead/stats_enable
++	  echo 0 > /sys/kernel/debug/readahead/stats  # reset counters
++	  # run the workload
++	  cat /sys/kernel/debug/readahead/stats       # check counters
++	  echo 0 > /sys/kernel/debug/readahead/stats_enable
 
 
 --
