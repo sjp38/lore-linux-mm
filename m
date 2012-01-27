@@ -1,69 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id CBE2B6B004F
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 10:17:09 -0500 (EST)
-Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LYG00CZMQGJR1@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 27 Jan 2012 15:17:07 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LYG001FEQGJVA@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 27 Jan 2012 15:17:07 +0000 (GMT)
-Date: Fri, 27 Jan 2012 16:17:03 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 12/15] drivers: add Contiguous Memory
- Allocator
-In-reply-to: 
- <CAK=WgbZWHBKNQwcoY9OiXXH-r1n3XxB=ZODZJN-3vZopU2yhJA@mail.gmail.com>
-Message-id: <010501ccdd06$b9844f20$2c8ced60$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
- <1327568457-27734-13-git-send-email-m.szyprowski@samsung.com>
- <CADMYwHw1B4RNV_9BqAg_M70da=g69Z3kyo5Cr6izCMwJ9LAtvA@mail.gmail.com>
- <00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com>
- <CAO8GWqnQg-W=TEc+CUc8hs=GrdCa9XCCWcedQx34cqURhNwNwA@mail.gmail.com>
- <010301ccdd03$1ad15ab0$50741010$%szyprowski@samsung.com>
- <CAK=WgbZWHBKNQwcoY9OiXXH-r1n3XxB=ZODZJN-3vZopU2yhJA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 6FC9F6B004F
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 11:21:40 -0500 (EST)
+Date: Fri, 27 Jan 2012 10:21:36 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 6/9] readahead: add /debug/readahead/stats
+In-Reply-To: <20120127031327.159293683@intel.com>
+Message-ID: <alpine.DEB.2.00.1201271006480.16756@router.home>
+References: <20120127030524.854259561@intel.com> <20120127031327.159293683@intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Ohad Ben-Cohen' <ohad@wizery.com>
-Cc: "'Clark, Rob'" <rob@ti.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On Fri, 27 Jan 2012, Wu Fengguang wrote:
 
-On Friday, January 27, 2012 3:59 PM Ohad Ben-Cohen wrote:
+> +
+> +#define RA_STAT_BATCH	(INT_MAX / 2)
+> +static struct percpu_counter ra_stat[RA_PATTERN_ALL][RA_ACCOUNT_MAX];
 
-> 2012/1/27 Marek Szyprowski <m.szyprowski@samsung.com>:
-> > Ohad, could you tell a bit more about your issue?
-> 
-> Sure, feel free to ask.
-> 
-> > Does this 'large region'
-> > is a device private region (declared with dma_declare_contiguous())
-> 
-> Yes, it is.
-> 
-> See omap_rproc_reserve_cma() in:
-> 
-> http://git.kernel.org/?p=linux/kernel/git/ohad/remoteproc.git;a=commitdiff;h=dab6a2584550a6297
-> 46fa1dea2be8ffbe1910277
+Why use percpu counter here? The stats structures are not dynamically
+allocated so you can just use a DECLARE_PER_CPU statement. That way you do
+not have the overhead of percpu counter calls. Instead simple instructions
+are generated to deal with the counter.
 
-There have been some vmalloc layout changes merged to v3.3-rc1. Please check
-if the hardcoded OMAP_RPROC_CMA_BASE+CONFIG_OMAP_DUCATI_CMA_SIZE fits into kernel
-low-memory. Some hints you can find after the "Virtual kernel memory layout:" 
-message during boot and using "cat /proc/iomem".
+There are also no calls to any of the fast access functions for percpu
+counter so percpu_counter has to always having to loop over all
+counters anyways to get the results. The batching of the percpu_counters
+is therefore not used.
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+Its simpler to just do a loop that sums over all counters when displaying
+the results.
 
+> +static inline void add_ra_stat(int i, int j, s64 amount)
+> +{
+> +	__percpu_counter_add(&ra_stat[i][j], amount, RA_STAT_BATCH);
 
+	__this_cpu_add(ra_stat[i][j], amount);
+
+> +}
+
+> +
+> +static void readahead_stats_reset(void)
+> +{
+> +	int i, j;
+> +
+> +	for (i = 0; i < RA_PATTERN_ALL; i++)
+> +		for (j = 0; j < RA_ACCOUNT_MAX; j++)
+> +			percpu_counter_set(&ra_stat[i][j], 0);
+
+for_each_online(cpu)
+	memset(per_cpu_ptr(&ra_stat, cpu), 0, sizeof(ra_stat));
+
+> +}
+> +
+> +static void
+> +readahead_stats_sum(long long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX])
+> +{
+> +	int i, j;
+> +
+> +	for (i = 0; i < RA_PATTERN_ALL; i++)
+> +		for (j = 0; j < RA_ACCOUNT_MAX; j++) {
+> +			s64 n = percpu_counter_sum(&ra_stat[i][j]);
+> +			ra_stats[i][j] += n;
+> +			ra_stats[RA_PATTERN_ALL][j] += n;
+> +		}
+> +}
+
+Define a function stats instead?
+
+static long get_stat_sum(long __per_cpu *x)
+{
+	int cpu;
+	long sum;
+
+	for_each_online(cpu)
+		sum += *per_cpu_ptr(x, cpu);
+
+	return sum;
+}
+
+> +
+> +static int readahead_stats_show(struct seq_file *s, void *_)
+> +{
+
+> +	readahead_stats_sum(ra_stats);
+> +
+> +	for (i = 0; i < RA_PATTERN_MAX; i++) {
+> +		unsigned long count = ra_stats[i][RA_ACCOUNT_COUNT];
+
+			= get_stats(&ra_stats[i][RA_ACCOUNT]);
+
+...
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
