@@ -1,31 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id E10FB6B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:40 -0400 (EDT)
-Message-ID: <4F980DC6.9020000@parallels.com>
-Date: Wed, 25 Apr 2012 11:44:22 -0300
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere> <4F9759C0.1070805@jp.fujitsu.com>
-In-Reply-To: <4F9759C0.1070805@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 4C8BB6B004A
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:53:02 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so1930404pbc.14
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 07:53:01 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: fix incorrect return type of get_any_partial()
+Date: Fri, 27 Jan 2012 00:12:23 -0800
+Message-Id: <1327651943-28225-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph
- Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
+Commit 497b66f2ecc97844493e6a147fd5a7e73f73f408 ('slub: return object pointer
+from get_partial() / new_slab().') changed return type of some functions.
+This updates missing part.
 
->
-> About kmem, if we count task_struct, page tables, etc...which can be freed by
-> OOM-Killer i.e. it's allocated for 'process', should be aware of OOM problem.
-> Using mm->owner makes sense to me until someone finds a great idea to handle
-> OOM situation rather than task killing.
->
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-noted, will update.
+diff --git a/mm/slub.c b/mm/slub.c
+index ffe13fd..18bf13e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1579,7 +1579,7 @@ static void *get_partial_node(struct kmem_cache *s,
+ /*
+  * Get a page from somewhere. Search in increasing NUMA distances.
+  */
+-static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
++static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 		struct kmem_cache_cpu *c)
+ {
+ #ifdef CONFIG_NUMA
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
