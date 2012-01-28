@@ -1,42 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id BD4D16B004D
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 22:33:10 -0500 (EST)
-Received: by dake40 with SMTP id e40so2410212dak.14
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2012 19:33:09 -0800 (PST)
-Date: Fri, 27 Jan 2012 19:32:49 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel bug: mmap, XIP, page faults, multiple threads
-In-Reply-To: <CAEMjCzJ0JD58xrtPD6DZQbBTwLwcfUphRi+vFUn=nu69s8zH9Q@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1201271837350.3731@eggly.anvils>
-References: <CAEMjCzJ0JD58xrtPD6DZQbBTwLwcfUphRi+vFUn=nu69s8zH9Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id CB19B6B004D
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2012 06:23:49 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so2621186wib.14
+        for <linux-mm@kvack.org>; Sat, 28 Jan 2012 03:23:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1327705373-29395-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1327705373-29395-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1327705373-29395-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Sat, 28 Jan 2012 19:23:47 +0800
+Message-ID: <CAJd=RBCGeqqAMvNAF3wPKAVQCFO-hNk1c+7UwKod6tMWqQ1Gkw@mail.gmail.com>
+Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Louis Alex Eisner <leisner@cs.ucsd.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, Carsten Otte <cotte@de.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
 
-On Thu, 26 Jan 2012, Louis Alex Eisner wrote:
-> 
->    I hope I'm sending this to the right people, but I wasn't sure who to
-> send it to, since I'm not entirely sure exactly where the bug lives.
->  Without further ado:
-> 
-> Summary:
-> When multiple threads simultaneously attempt to write to the same page of a
-> file which has been mmapped using XIP for the first time, an unhandled
-> EBUSY signal causes the kernel to panic.
+Hi Naoya
 
-Thanks a lot for your report, and all the info you carefully gathered.
+On Sat, Jan 28, 2012 at 7:02 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> Currently when we check if we can handle thp as it is or we need to
+> split it into regular sized pages, we hold page table lock prior to
+> check whether a given pmd is mapping thp or not. Because of this,
+> when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
+> To remove it, this patch introduces a optimized check function and
+> replace several similar logics with it.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: David Rientjes <rientjes@google.com>
+>
+> Changes since v3:
+> =C2=A0- Fix likely/unlikely pattern in pmd_trans_huge_stable()
+> =C2=A0- Change suffix from _stable to _lock
+> =C2=A0- Introduce __pmd_trans_huge_lock() to avoid micro-regression
+> =C2=A0- Return 1 when wait_split_huge_page path is taken
+>
+> Changes since v2:
+> =C2=A0- Fix missing "return 0" in "thp under splitting" path
+> =C2=A0- Remove unneeded comment
+> =C2=A0- Change the name of check function to describe what it does
+> =C2=A0- Add VM_BUG_ON(mmap_sem)
+> ---
+> =C2=A0fs/proc/task_mmu.c =C2=A0 =C2=A0 =C2=A0| =C2=A0 70 +++++++++-------=
+-----------
+> =C2=A0include/linux/huge_mm.h | =C2=A0 17 +++++++
+> =C2=A0mm/huge_memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0120 +++++++++++=
++++++++++++-------------------------
+> =C2=A03 files changed, 96 insertions(+), 111 deletions(-)
+>
+[...]
 
-I confess that I haven't looked at it at all!  Because I was thinking
-maybe I should take a look, and when did we last hear from Carsten?
-And though I now see more recent postings from him in other fields,
-what came first to my eye was this nugget below.
+> @@ -1064,21 +1056,14 @@ int mincore_huge_pmd(struct vm_area_struct *vma, =
+pmd_t *pmd,
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0int ret =3D 0;
+>
+> - =C2=A0 =C2=A0 =C2=A0 spin_lock(&vma->vm_mm->page_table_lock);
+> - =C2=A0 =C2=A0 =C2=A0 if (likely(pmd_trans_huge(*pmd))) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D !pmd_trans_spl=
+itting(*pmd);
 
-It was white-space-damaged and wouldn't apply (I bet that's why it
-got lost), so I've fixed that up and reformatted the description,
-and added you as a Reporter - but otherwise it's as Carsten posted.
+Here the value of ret is either false or true,
 
-Hugh
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock(&vma->vm_m=
+m->page_table_lock);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (unlikely(!ret))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 wait_split_huge_page(vma->anon_vma, pmd);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* All logical pages in the range are present
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* if backed by a huge page.
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0*/
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 memset(vec, 1, (end - addr) >> PAGE_SHIFT);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+> - =C2=A0 =C2=A0 =C2=A0 } else
+> + =C2=A0 =C2=A0 =C2=A0 if (__pmd_trans_huge_lock(pmd, vma) =3D=3D 1) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* All logical pa=
+ges in the range are present
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* if backed by a=
+ huge page.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock(&vma->=
+vm_mm->page_table_lock);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memset(vec, 1, (end - =
+addr) >> PAGE_SHIFT);
+> + =C2=A0 =C2=A0 =C2=A0 }
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
+
+what is the returned value of this function? /Hillf
+
+> =C2=A0}
+> @@ -1108,20 +1093,10 @@ int move_huge_pmd(struct vm_area_struct *vma, str=
+uct vm_area_struct *new_vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto out;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
