@@ -1,107 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 977466B004D
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 19:12:38 -0500 (EST)
-Date: Fri, 27 Jan 2012 16:12:36 -0800
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 2F89D6B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2012 19:26:26 -0500 (EST)
+Date: Fri, 27 Jan 2012 16:26:24 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [v7 7/8] mm: only IPI CPUs to drain local pages if they exist
-Message-Id: <20120127161236.ff1e7e7e.akpm@linux-foundation.org>
-In-Reply-To: <1327572121-13673-8-git-send-email-gilad@benyossef.com>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	<1327572121-13673-8-git-send-email-gilad@benyossef.com>
+Subject: Re: [PATCHv19 00/15] Contiguous Memory Allocator
+Message-Id: <20120127162624.40cba14e.akpm@linux-foundation.org>
+In-Reply-To: <201201261531.40551.arnd@arndb.de>
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+	<201201261531.40551.arnd@arndb.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Milton Miller <miltonm@bga.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-On Thu, 26 Jan 2012 12:02:00 +0200
-Gilad Ben-Yossef <gilad@benyossef.com> wrote:
+On Thu, 26 Jan 2012 15:31:40 +0000
+Arnd Bergmann <arnd@arndb.de> wrote:
 
-> Calculate a cpumask of CPUs with per-cpu pages in any zone
-> and only send an IPI requesting CPUs to drain these pages
-> to the buddy allocator if they actually have pages when
-> asked to flush.
+> On Thursday 26 January 2012, Marek Szyprowski wrote:
+> > Welcome everyone!
+> > 
+> > Yes, that's true. This is yet another release of the Contiguous Memory
+> > Allocator patches. This version mainly includes code cleanups requested
+> > by Mel Gorman and a few minor bug fixes.
 > 
-> This patch saves 85%+ of IPIs asking to drain per-cpu
-> pages in case of severe memory preassure that leads
-> to OOM since in these cases multiple, possibly concurrent,
-> allocation requests end up in the direct reclaim code
-> path so when the per-cpu pages end up reclaimed on first
-> allocation failure for most of the proceeding allocation
-> attempts until the memory pressure is off (possibly via
-> the OOM killer) there are no per-cpu pages on most CPUs
-> (and there can easily be hundreds of them).
+> Hi Marek,
 > 
-> This also has the side effect of shortening the average
-> latency of direct reclaim by 1 or more order of magnitude
-> since waiting for all the CPUs to ACK the IPI takes a
-> long time.
-> 
-> Tested by running "hackbench 400" on a 8 CPU x86 VM and
-> observing the difference between the number of direct
-> reclaim attempts that end up in drain_all_pages() and
-> those were more then 1/2 of the online CPU had any per-cpu
-> page in them, using the vmstat counters introduced
-> in the next patch in the series and using proc/interrupts.
-> 
-> In the test sceanrio, this was seen to save around 3600 global
-> IPIs after trigerring an OOM on a concurrent workload:
-> 
->
-> ...
->
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1165,7 +1165,36 @@ void drain_local_pages(void *arg)
->   */
->  void drain_all_pages(void)
->  {
-> -	on_each_cpu(drain_local_pages, NULL, 1);
-> +	int cpu;
-> +	struct per_cpu_pageset *pcp;
-> +	struct zone *zone;
-> +
-> +	/* Allocate in the BSS so we wont require allocation in
-> +	 * direct reclaim path for CONFIG_CPUMASK_OFFSTACK=y
-> +	 */
-> +	static cpumask_t cpus_with_pcps;
-> +
-> +	/*
-> +	 * We don't care about racing with CPU hotplug event
-> +	 * as offline notification will cause the notified
-> +	 * cpu to drain that CPU pcps and on_each_cpu_mask
-> +	 * disables preemption as part of its processing
-> +	 */
+> Thanks for keeping up this work! I really hope it works out for the
+> next merge window.
 
-hmmm.
+Someone please tell me when it's time to start paying attention
+again ;)
 
-> +	for_each_online_cpu(cpu) {
-> +		bool has_pcps = false;
-> +		for_each_populated_zone(zone) {
-> +			pcp = per_cpu_ptr(zone->pageset, cpu);
-> +			if (pcp->pcp.count) {
-> +				has_pcps = true;
-> +				break;
-> +			}
-> +		}
-> +		if (has_pcps)
-> +			cpumask_set_cpu(cpu, &cpus_with_pcps);
-> +		else
-> +			cpumask_clear_cpu(cpu, &cpus_with_pcps);
-> +	}
-> +	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
->  }
+These patches don't seem to have as many acked-bys and reviewed-bys as
+I'd expect.  Given the scope and duration of this, it would be useful
+to gather these up.  But please ensure they are real ones - people
+sometimes like to ack things without showing much sign of having
+actually read them.
 
-Can we end up sending an IPI to a now-unplugged CPU?  That won't work
-very well if that CPU is now sitting on its sysadmin's desk.
+Also there is the supreme tag: "Tested-by:.".  Ohad (at least) has been
+testing the code.  Let's mention that.
 
-There's also the case of CPU online.  We could end up failing to IPI a
-CPU which now has some percpu pages.  That's not at all serious - 90%
-is good enough in page reclaim.  But this thinking merits a mention in
-the comment.  Or we simply make this code hotplug-safe.
+
+The patches do seem to have been going round in ever-decreasing circles
+lately and I think we have decided to merge them (yes?) so we may as well
+get on and do that and sort out remaining issues in-tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
