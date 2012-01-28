@@ -1,70 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id BE8D86B004D
-	for <linux-mm@kvack.org>; Sat, 28 Jan 2012 13:57:34 -0500 (EST)
-Received: by iadk27 with SMTP id k27so4960698iad.14
-        for <linux-mm@kvack.org>; Sat, 28 Jan 2012 10:57:34 -0800 (PST)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 3BCE76B004D
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2012 14:25:58 -0500 (EST)
+Date: Sat, 28 Jan 2012 12:25:53 -0700
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our
+ get_user_pages() parameters
+Message-ID: <20120128192553.GA16231@obsidianresearch.com>
+References: <1327557574-6125-1-git-send-email-roland@kernel.org>
+ <alpine.LSU.2.00.1201261133230.1369@eggly.anvils>
+ <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com>
+ <CAL1RGDVBR49QrAbkZ0Wa9Gh98HTwjtsQbFQ4Ws3Ra7rEjT1Mng@mail.gmail.com>
+ <alpine.LSU.2.00.1201271819260.3402@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <010501ccdd06$b9844f20$2c8ced60$%szyprowski@samsung.com>
-References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
- <1327568457-27734-13-git-send-email-m.szyprowski@samsung.com>
- <CADMYwHw1B4RNV_9BqAg_M70da=g69Z3kyo5Cr6izCMwJ9LAtvA@mail.gmail.com>
- <00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com> <CAO8GWqnQg-W=TEc+CUc8hs=GrdCa9XCCWcedQx34cqURhNwNwA@mail.gmail.com>
- <010301ccdd03$1ad15ab0$50741010$%szyprowski@samsung.com> <CAK=WgbZWHBKNQwcoY9OiXXH-r1n3XxB=ZODZJN-3vZopU2yhJA@mail.gmail.com>
- <010501ccdd06$b9844f20$2c8ced60$%szyprowski@samsung.com>
-From: Ohad Ben-Cohen <ohad@wizery.com>
-Date: Sat, 28 Jan 2012 20:57:14 +0200
-Message-ID: <CAK=WgbY3L7u0AC1c=iNvoMXX+LSJoz1W-xb=S6gmhqcse5CKaA@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 12/15] drivers: add Contiguous Memory Allocator
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1201271819260.3402@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "Clark, Rob" <rob@ti.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Marek,
+On Fri, Jan 27, 2012 at 06:31:07PM -0800, Hugh Dickins wrote:
 
-On Fri, Jan 27, 2012 at 5:17 PM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> There have been some vmalloc layout changes merged to v3.3-rc1.
+> My first impression is that that's not what you want at all: that will
+> not do a preliminary COW of anonymous page to be written into by the
+> driver when the user only wants VM_READ access.  But perhaps I'm
+> worrying about the second order while you're sticking to first order.
 
-That was dead-on, thanks a lot!
+IMHO, in this instance, the RDMA driver should not violate the
+mprotect flags of the page, ie if you ask to register memory for
+RDMA WRITE that the process cannot write to, that should be denied.
 
-I did then bump into a different allocation failure which happened
-because dma_alloc_from_contiguous() computes 'mask' before capping the
-'align' argument.
+I know accessing system memory (eg obtained via mmap on
+/sys/bus/pci/devices/0000:00:02.0/resource0) has been asked for in the
+past, and IIRC, the problem was that some of the common code, (GUP?)
+errored on these maps. I don't know if Roland's case is similar.
 
-The early 'mask' computation was added in v18 (and therefore exists in
-v19 too) and I was actually testing v17 previously, so I didn't notice
-it before.
+The main point (at least before) was to have a uniform userspace API
+for memory registration that worked on any address range mapped into
+the process no matter where it came from. Currently the API just calls
+GUP unconditionally...
 
-You may want to squash something like this:
-
-diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-index f41e699..8455cb7 100644
---- a/drivers/base/dma-contiguous.c
-+++ b/drivers/base/dma-contiguous.c
-@@ -319,8 +319,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, i
-                                       unsigned int align)
- {
-        struct cma *cma = dev_get_cma_area(dev);
--       unsigned long pfn, pageno, start = 0;
--       unsigned long mask = (1 << align) - 1;
-+       unsigned long mask, pfn, pageno, start = 0;
-        int ret;
-
-        if (!cma || !cma->count)
-@@ -329,6 +328,8 @@ struct page *dma_alloc_from_contiguous(struct device *dev, i
-        if (align > CONFIG_CMA_ALIGNMENT)
-                align = CONFIG_CMA_ALIGNMENT;
-
-+       mask = (1 << align) - 1;
-+
-        pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
-                 count, align);
-
-Thanks,
-Ohad.
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
