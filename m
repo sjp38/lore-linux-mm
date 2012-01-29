@@ -1,37 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 89E706B004D
-	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 08:17:34 -0500 (EST)
-Received: by wgbdt12 with SMTP id dt12so2960579wgb.26
-        for <linux-mm@kvack.org>; Sun, 29 Jan 2012 05:17:32 -0800 (PST)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 968AF6B004D
+	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 08:25:39 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so3337087wib.14
+        for <linux-mm@kvack.org>; Sun, 29 Jan 2012 05:25:38 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1327705373-29395-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1327705373-29395-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1327705373-29395-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Sun, 29 Jan 2012 21:17:32 +0800
-Message-ID: <CAJd=RBDLEWuAKmRcaUJXuz=h9_3kaexbdGyqv7KXn+dmMeUvCQ@mail.gmail.com>
-Subject: Re: [PATCH 1/6] pagemap: avoid splitting thp when reading /proc/pid/pagemap
+In-Reply-To: <20120126145914.58619765@cuia.bos.redhat.com>
+References: <20120126145450.2d3d2f4c@cuia.bos.redhat.com>
+	<20120126145914.58619765@cuia.bos.redhat.com>
+Date: Sun, 29 Jan 2012 21:25:37 +0800
+Message-ID: <CAJd=RBC+yfoFhNrsu7XCS1_84_HVKb4R_JavHh3Fb-_47_nWQA@mail.gmail.com>
+Subject: Re: [PATCH v3 -mm 1/3] mm: reclaim at order 0 when compaction is enabled
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hillf Danton <dhillf@gmail.com>
 
-Hi Naoya
-
-On Sat, Jan 28, 2012 at 7:02 AM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> Thp split is not necessary if we explicitly check whether pmds are
-> mapping thps or not. This patch introduces this check and adds code
-> to generate pagemap entries for pmds mapping thps, which results in
-> less performance impact of pagemap on thp.
->
-
-Could the method proposed here cover the two cases of split THP in mem cgroup?
-
-Thanks
-Hillf
+SGkgUmlrCgpPbiBGcmksIEphbiAyNywgMjAxMiBhdCAzOjU5IEFNLCBSaWsgdmFuIFJpZWwgPHJp
+ZWxAcmVkaGF0LmNvbT4gd3JvdGU6ClsuLi5dCgo+IEBAIC0yNzU0LDcgKzI3NTQsNyBAQCBsb29w
+X2FnYWluOgo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICovCj4gwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqBmb3IgKGkgPSAwOyBpIDw9IGVuZF96b25lOyBpKyspIHsKPiDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoHN0cnVjdCB6b25lICp6b25lID0gcGdkYXQtPm5vZGVfem9uZXMg
+KyBpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaW50IG5yX3NsYWI7Cj4g
+KyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpbnQgbnJfc2xhYiwgdGVzdG9yZGVy
+Owo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgdW5zaWduZWQgbG9uZyBiYWxh
+bmNlX2dhcDsKPgo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaWYgKCFwb3B1
+bGF0ZWRfem9uZSh6b25lKSkKPiBAQCAtMjc4Nyw3ICsyNzg3LDIwIEBAIGxvb3BfYWdhaW46Cj4g
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAoem9uZS0+cHJl
+c2VudF9wYWdlcyArCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqBLU1dBUERfWk9ORV9CQUxBTkNFX0dBUF9SQVRJTy0xKSAvCj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBLU1dBUERfWk9ORV9C
+QUxBTkNFX0dBUF9SQVRJTyk7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBp
+ZiAoIXpvbmVfd2F0ZXJtYXJrX29rX3NhZmUoem9uZSwgb3JkZXIsCj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCAvKgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAqIEtzd2FwZCByZWNsYWltcyBvbmx5IHNpbmdsZSBwYWdlcyB3aXRoIGNvbXBhY3Rpb24K
+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBlbmFibGVkLiBUcnlpbmcg
+dG9vIGhhcmQgdG8gcmVjbGFpbSB1bnRpbCBjb250aWd1b3VzCj4gKyDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCogZnJlZSBwYWdlcyBoYXZlIGJlY29tZSBhdmFpbGFibGUgY2Fu
+IGh1cnQgcGVyZm9ybWFuY2UKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+KiBieSBldmljdGluZyB0b28gbXVjaCB1c2VmdWwgZGF0YSBmcm9tIG1lbW9yeS4KPiArIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBEbyBub3QgcmVjbGFpbSBtb3JlIHRoYW4g
+bmVlZGVkIGZvciBjb21wYWN0aW9uLgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAqLwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgdGVzdG9yZGVyID0g
+b3JkZXI7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoQ09NUEFDVElP
+Tl9CVUlMRCAmJiBvcmRlciAmJgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgY29tcGFjdGlvbl9zdWl0YWJsZSh6b25lLCBvcmRlcikg
+IT0KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIENPTVBBQ1RfU0tJUFBFRCkKPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHRlc3RvcmRlciA9IDA7Cj4gKwo+ICsgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCF6b25lX3dhdGVybWFya19va19zYWZlKHpv
+bmUsIHRlc3RvcmRlciwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoGhpZ2hfd21hcmtfcGFnZXMoem9uZSkgKyBiYWxhbmNlX2dhcCwK
+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoGVuZF96b25lLCAwKSkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgc2hyaW5rX3pvbmUocHJpb3JpdHksIHpvbmUsICZzYyk7CgpIYXJkIHRvIHVu
+ZGVyc3RhbmQgdGhhdCB6b25lIGlzIHNocnVuayBhcyBoYXJkIGFzIGl0IHdhcywKd2l0aCB3YXRl
+ciBtYXJrIGNoZWNrZWQgd2l0aCBuZXcgb3JkZXIsIHRpcHBvaW50IHBsZWFzZS4KCkhpbGxmCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
