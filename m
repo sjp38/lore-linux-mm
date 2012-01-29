@@ -1,64 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 968AF6B004D
-	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 08:25:39 -0500 (EST)
-Received: by wibhj13 with SMTP id hj13so3337087wib.14
-        for <linux-mm@kvack.org>; Sun, 29 Jan 2012 05:25:38 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120126145914.58619765@cuia.bos.redhat.com>
-References: <20120126145450.2d3d2f4c@cuia.bos.redhat.com>
-	<20120126145914.58619765@cuia.bos.redhat.com>
-Date: Sun, 29 Jan 2012 21:25:37 +0800
-Message-ID: <CAJd=RBC+yfoFhNrsu7XCS1_84_HVKb4R_JavHh3Fb-_47_nWQA@mail.gmail.com>
-Subject: Re: [PATCH v3 -mm 1/3] mm: reclaim at order 0 when compaction is enabled
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 761846B004D
+	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 10:24:14 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so3012095wgb.26
+        for <linux-mm@kvack.org>; Sun, 29 Jan 2012 07:24:12 -0800 (PST)
+From: sagig@mellanox.com
+Subject: [PATCH RFC] mm: convert rcu_read_lock() to srcu_read_lock(), thus allowing to sleep in callbacks
+Date: Sun, 29 Jan 2012 17:23:55 +0200
+Message-Id: <4f25649b.8253b40a.3800.319d@mx.google.com>
+In-Reply-To: <y>
+References: <y>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hillf Danton <dhillf@gmail.com>
+To: aarcange@redhat.com
+Cc: gleb@redhat.com, oren@mellanox.com, ogerlitz@mellanox.com, sagig@mellanox.com, linux-mm@kvack.org, sagi grimberg <sagig@mellanox.co.il>
 
-SGkgUmlrCgpPbiBGcmksIEphbiAyNywgMjAxMiBhdCAzOjU5IEFNLCBSaWsgdmFuIFJpZWwgPHJp
-ZWxAcmVkaGF0LmNvbT4gd3JvdGU6ClsuLi5dCgo+IEBAIC0yNzU0LDcgKzI3NTQsNyBAQCBsb29w
-X2FnYWluOgo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICovCj4gwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqBmb3IgKGkgPSAwOyBpIDw9IGVuZF96b25lOyBpKyspIHsKPiDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoHN0cnVjdCB6b25lICp6b25lID0gcGdkYXQtPm5vZGVfem9uZXMg
-KyBpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaW50IG5yX3NsYWI7Cj4g
-KyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpbnQgbnJfc2xhYiwgdGVzdG9yZGVy
-Owo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgdW5zaWduZWQgbG9uZyBiYWxh
-bmNlX2dhcDsKPgo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaWYgKCFwb3B1
-bGF0ZWRfem9uZSh6b25lKSkKPiBAQCAtMjc4Nyw3ICsyNzg3LDIwIEBAIGxvb3BfYWdhaW46Cj4g
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAoem9uZS0+cHJl
-c2VudF9wYWdlcyArCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqBLU1dBUERfWk9ORV9CQUxBTkNFX0dBUF9SQVRJTy0xKSAvCj4gwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBLU1dBUERfWk9ORV9C
-QUxBTkNFX0dBUF9SQVRJTyk7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBp
-ZiAoIXpvbmVfd2F0ZXJtYXJrX29rX3NhZmUoem9uZSwgb3JkZXIsCj4gKyDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCAvKgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAqIEtzd2FwZCByZWNsYWltcyBvbmx5IHNpbmdsZSBwYWdlcyB3aXRoIGNvbXBhY3Rpb24K
-PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBlbmFibGVkLiBUcnlpbmcg
-dG9vIGhhcmQgdG8gcmVjbGFpbSB1bnRpbCBjb250aWd1b3VzCj4gKyDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCogZnJlZSBwYWdlcyBoYXZlIGJlY29tZSBhdmFpbGFibGUgY2Fu
-IGh1cnQgcGVyZm9ybWFuY2UKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-KiBieSBldmljdGluZyB0b28gbXVjaCB1c2VmdWwgZGF0YSBmcm9tIG1lbW9yeS4KPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKiBEbyBub3QgcmVjbGFpbSBtb3JlIHRoYW4g
-bmVlZGVkIGZvciBjb21wYWN0aW9uLgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAqLwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgdGVzdG9yZGVyID0g
-b3JkZXI7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoQ09NUEFDVElP
-Tl9CVUlMRCAmJiBvcmRlciAmJgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgY29tcGFjdGlvbl9zdWl0YWJsZSh6b25lLCBvcmRlcikg
-IT0KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIENPTVBBQ1RfU0tJUFBFRCkKPiArIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHRlc3RvcmRlciA9IDA7Cj4gKwo+ICsgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCF6b25lX3dhdGVybWFya19va19zYWZlKHpv
-bmUsIHRlc3RvcmRlciwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoGhpZ2hfd21hcmtfcGFnZXMoem9uZSkgKyBiYWxhbmNlX2dhcCwK
-PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoGVuZF96b25lLCAwKSkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgc2hyaW5rX3pvbmUocHJpb3JpdHksIHpvbmUsICZzYyk7CgpIYXJkIHRvIHVu
-ZGVyc3RhbmQgdGhhdCB6b25lIGlzIHNocnVuayBhcyBoYXJkIGFzIGl0IHdhcywKd2l0aCB3YXRl
-ciBtYXJrIGNoZWNrZWQgd2l0aCBuZXcgb3JkZXIsIHRpcHBvaW50IHBsZWFzZS4KCkhpbGxmCg==
+Callbacks: invalidate_page, invalidate_range_start/end, change_pte
+Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation cllabacks
+This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods
+
+Signed-off-by: sagi grimberg <sagig@mellanox.co.il>
+---
+ mm/mmu_notifier.c |   63 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 9a611d3..70dadd5 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -123,10 +123,16 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
+ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ 			       pte_t pte)
+ {
++	int idx = -1;
++	struct srcu_struct srcu;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	if (init_srcu_struct(&srcu))
++		rcu_read_lock();
++	else
++		idx = srcu_read_lock(&srcu);
++
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->change_pte)
+ 			mn->ops->change_pte(mn, mm, address, pte);
+@@ -137,49 +143,90 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ 		else if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
++
++	if (idx < 0)
++		rcu_read_unlock();
++	else
++		srcu_read_unlock(&srcu, idx);
++
++	cleanup_srcu_struct(&srcu);
+ }
+ 
+ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
++	int idx = -1;
++	struct srcu_struct srcu;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	if (init_srcu_struct(&srcu))
++		rcu_read_lock();
++	else
++		idx = srcu_read_lock(&srcu);
++
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
++
++	if (idx < 0)
++		rcu_read_unlock();
++	else
++		srcu_read_unlock(&srcu, idx);
++
++	cleanup_srcu_struct(&srcu);
+ }
+ 
+ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
++	int idx = -1;
++	struct srcu_struct srcu;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	if (init_srcu_struct(&srcu))
++		rcu_read_lock();
++	else
++		idx = srcu_read_lock(&srcu);
++
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_start)
+ 			mn->ops->invalidate_range_start(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
++
++	if (idx < 0)
++		rcu_read_unlock();
++	else
++		srcu_read_unlock(&srcu, idx);
++
++	cleanup_srcu_struct(&srcu);
+ }
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
++	int idx = -1;
++	struct srcu_struct srcu;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	if (init_srcu_struct(&srcu))
++		rcu_read_lock();
++	else
++		idx = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_end)
+ 			mn->ops->invalidate_range_end(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
++
++	if (idx < 0)
++		rcu_read_unlock();
++	else
++		srcu_read_unlock(&srcu, idx);
++
++	cleanup_srcu_struct(&srcu);
+ }
+ 
+ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+-- 
+1.7.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
