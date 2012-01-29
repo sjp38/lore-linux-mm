@@ -1,94 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 5919E6B004D
-	for <linux-mm@kvack.org>; Sat, 28 Jan 2012 17:32:42 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
-Date: Sat, 28 Jan 2012 17:33:46 -0500
-Message-Id: <1327790026-29060-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAJd=RBCGeqqAMvNAF3wPKAVQCFO-hNk1c+7UwKod6tMWqQ1Gkw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id E03B46B004D
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2012 19:50:48 -0500 (EST)
+Message-ID: <4F2497DC.2040405@redhat.com>
+Date: Sat, 28 Jan 2012 19:50:36 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: implement WasActive page flag (for improving cleancache)
+References: <ea3b0850-dfe0-46db-9201-2bfef110848d@default>  <4F218D36.2060308@linux.vnet.ibm.com>  <9fcd06f5-360e-4542-9fbb-f8c7efb28cb6@default>  <20120126163150.31a8688f.akpm@linux-foundation.org>  <ccb76a4d-d453-4faa-93a9-d1ce015255c0@default>  <20120126171548.2c85dd44.akpm@linux-foundation.org>  <7198bfb3-1e32-40d3-8601-d88aed7aabd8@default>  <1327671787.2977.17.camel@dabdike.int.hansenpartnership.com>  <3ac611ee-8830-41bd-8464-6867da701948@default>  <1327686876.2977.37.camel@dabdike.int.hansenpartnership.com>  <9813c0cd-0335-4994-b734-e9fc7872c0cb@default> <1327700951.2977.78.camel@dabdike.int.hansenpartnership.com>
+In-Reply-To: <1327700951.2977.78.camel@dabdike.int.hansenpartnership.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Nebojsa Trpkovic <trx.lists@gmail.com>, minchan@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, lsf-pc@lists.linux-foundation.org
 
-Hi Hillf,
+On 01/27/2012 04:49 PM, James Bottomley wrote:
 
-On Sat, Jan 28, 2012 at 07:23:47PM +0800, Hillf Danton wrote:
-> Hi Naoya
-> 
-> On Sat, Jan 28, 2012 at 7:02 AM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-> > Currently when we check if we can handle thp as it is or we need to
-> > split it into regular sized pages, we hold page table lock prior to
-> > check whether a given pmd is mapping thp or not. Because of this,
-> > when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
-> > To remove it, this patch introduces a optimized check function and
-> > replace several similar logics with it.
-> >
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> >
-> > Changes since v3:
-> > - Fix likely/unlikely pattern in pmd_trans_huge_stable()
-> > - Change suffix from _stable to _lock
-> > - Introduce __pmd_trans_huge_lock() to avoid micro-regression
-> > - Return 1 when wait_split_huge_page path is taken
-> >
-> > Changes since v2:
-> > - Fix missing "return 0" in "thp under splitting" path
-> > - Remove unneeded comment
-> > - Change the name of check function to describe what it does
-> > - Add VM_BUG_ON(mmap_sem)
-> > ---
-> > fs/proc/task_mmu.c   |  70 +++++++++------------------
-> > include/linux/huge_mm.h |  17 +++++++
-> > mm/huge_memory.c    | 120 ++++++++++++++++++++++-------------------------
-> > 3 files changed, 96 insertions(+), 111 deletions(-)
-> >
-> [...]
-> 
-> > @@ -1064,21 +1056,14 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> > {
-> >    int ret = 0;
-> >
-> > -    spin_lock(&vma->vm_mm->page_table_lock);
-> > -    if (likely(pmd_trans_huge(*pmd))) {
-> > -        ret = !pmd_trans_splitting(*pmd);
-> 
-> Here the value of ret is either false or true,
+> So here, I was just saying your desire to store more data in the page
+> table and expand the page flags looks complex.
+>
+> Perhaps we do have a fundamental misunderstanding:  For readahead, I
+> don't really care about the referenced part.  referenced just means
+> pointed to by one or more vmas and active means pointed to by two or
+> more vmas (unless executable in which case it's one).
 
-You're right.
+That is not at all what "referenced" means everywhere
+else in the VM.
 
-> > -        spin_unlock(&vma->vm_mm->page_table_lock);
-> > -        if (unlikely(!ret))
-> > -            wait_split_huge_page(vma->anon_vma, pmd);
-> > -        else {
-> > -            /*
-> > -            * All logical pages in the range are present
-> > -            * if backed by a huge page.
-> > -            */
-> > -            memset(vec, 1, (end - addr) >> PAGE_SHIFT);
-> > -        }
-> > -    } else
-> > +    if (__pmd_trans_huge_lock(pmd, vma) == 1) {
-> > +        /*
-> > +        * All logical pages in the range are present
-> > +        * if backed by a huge page.
-> > +        */
-> >        spin_unlock(&vma->vm_mm->page_table_lock);
-> > +        memset(vec, 1, (end - addr) >> PAGE_SHIFT);
-> > +    }
-> >
-> >    return ret;
-> 
-> what is the returned value of this function? /Hillf
+If you write theories on what Dan should use, it would
+help if you limited yourself to stuff the VM provides
+and/or could provide :)
 
-In this patch, mincore_huge_pmd() always returns 0 and it's obviously wrong.
-We need to set ret to 1 in if-block.
+> What I think we care about for readahead is accessed.  This means a page
+> that got touched regardless of how many references it has.  An
+> unaccessed unaged RA page is a less good candidate for reclaim because
+> it should soon be accessed (under the RA heuristics) than an accessed RA
+> page.  Obviously if the heuristics misfire, we end up with futile RA
+> pages, which we read in expecting to be accessed, but which in fact
+> never were (so an unaccessed aged RA page) and need to be evicted.
+>
+> But for me, perhaps it's enough to put unaccessed RA pages into the
+> active list on instantiation and then actually put them in the inactive
+> list when they're accessed
 
-Thanks,
-Naoya
+That is an absolutely terrible idea for many obvious reasons.
+
+Having readahead pages displace the working set wholesale
+is the absolute last thing we want.
+
+> I'm less clear on why you think a WasActive() flag is needed.  I think
+> you mean a member of the inactive list that was at some point previously
+> active.
+
+> Um, that's complex.  Doesn't your inactive-C list really just identify
+> pages that were shared but have sunk in the LRU lists due to lack of
+> use?
+
+Nope. Pages that are not mapped can still end up on the active
+list, by virtue of getting accessed multiple times in a "short"
+period of time (the residence on the inactive list).
+
+We want to cache frequently accessed pages with preference over
+streaming IO data that gets accessed infrequently.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
