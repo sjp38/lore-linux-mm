@@ -1,81 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 074366B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 03:36:49 -0500 (EST)
-Received: by bkbzs2 with SMTP id zs2so2802545bkb.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 00:36:48 -0800 (PST)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 69CEC6B005A
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 03:38:28 -0500 (EST)
+Received: by bkbzs2 with SMTP id zs2so2803900bkb.14
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 00:38:26 -0800 (PST)
 From: Dmitry Antipov <dmitry.antipov@linaro.org>
-Subject: [PATCH 1/3] percpu: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
-Date: Mon, 30 Jan 2012 12:37:34 +0400
-Message-Id: <1327912654-8738-1-git-send-email-dmitry.antipov@linaro.org>
+Subject: [PATCH 2/3] vmalloc: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
+Date: Mon, 30 Jan 2012 12:39:26 +0400
+Message-Id: <1327912766-8779-1-git-send-email-dmitry.antipov@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, patches@linaro.org, linaro-dev@lists.linaro.org, Dmitry Antipov <dmitry.antipov@linaro.org>
 
-Fix pcpu_alloc() to return ZERO_SIZE_PTR if requested size is 0;
-fix free_percpu() to check passed pointer with ZERO_OR_NULL_PTR.
+ - Fix vmap() to return ZERO_SIZE_PTR if 0 pages are requested;
+ - fix __vmalloc_node_range() to return ZERO_SIZE_PTR if 0 bytes
+   are requested;
+ - fix __vunmap() to check passed pointer with ZERO_OR_NULL_PTR.
 
 Signed-off-by: Dmitry Antipov <dmitry.antipov@linaro.org>
 ---
- mm/percpu.c |   16 +++++++++++-----
- 1 files changed, 11 insertions(+), 5 deletions(-)
+ mm/vmalloc.c |   10 +++++++---
+ 1 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index f47af91..e903a19 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -702,7 +702,8 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
-  * Does GFP_KERNEL allocation.
-  *
-  * RETURNS:
-- * Percpu pointer to the allocated area on success, NULL on failure.
-+ * ZERO_SIZE_PTR if @size is zero, percpu pointer to the
-+ * allocated area on success or NULL on failure.
-  */
- static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 86ce9a5..040a9cd 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1456,7 +1456,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
  {
-@@ -713,7 +714,10 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
- 	unsigned long flags;
- 	void __percpu *ptr;
+ 	struct vm_struct *area;
  
--	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
-+	if (unlikely(!size))
-+		return ZERO_SIZE_PTR;
-+
-+	if (unlikely(size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
- 		WARN(true, "illegal size (%zu) or align (%zu) for "
- 		     "percpu allocation\n", size, align);
- 		return NULL;
-@@ -834,7 +838,8 @@ fail_unlock_mutex:
-  * Does GFP_KERNEL allocation.
-  *
-  * RETURNS:
-- * Percpu pointer to the allocated area on success, NULL on failure.
-+ * ZERO_SIZE_PTR if @size is zero, percpu pointer to the
-+ * allocated area on success, NULL on failure.
-  */
- void __percpu *__alloc_percpu(size_t size, size_t align)
- {
-@@ -856,7 +861,8 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
-  * Does GFP_KERNEL allocation.
-  *
-  * RETURNS:
-- * Percpu pointer to the allocated area on success, NULL on failure.
-+ * ZERO_SIZE_PTR if @size is zero, percpu pointer to the
-+ * allocated area on success or NULL on failure.
-  */
- void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
- {
-@@ -917,7 +923,7 @@ void free_percpu(void __percpu *ptr)
- 	unsigned long flags;
- 	int off;
- 
--	if (!ptr)
-+	if (unlikely(ZERO_OR_NULL_PTR(ptr)))
+-	if (!addr)
++	if (unlikely(ZERO_OR_NULL_PTR(addr)))
  		return;
  
- 	kmemleak_free_percpu(ptr);
+ 	if ((PAGE_SIZE-1) & (unsigned long)addr) {
+@@ -1548,7 +1548,9 @@ void *vmap(struct page **pages, unsigned int count,
+ 
+ 	might_sleep();
+ 
+-	if (count > totalram_pages)
++	if (unlikely(!count))
++		return ZERO_SIZE_PTR;
++	if (unlikely(count > totalram_pages))
+ 		return NULL;
+ 
+ 	area = get_vm_area_caller((count << PAGE_SHIFT), flags,
+@@ -1648,8 +1650,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 	void *addr;
+ 	unsigned long real_size = size;
+ 
++	if (unlikely(!size))
++		return ZERO_SIZE_PTR;
+ 	size = PAGE_ALIGN(size);
+-	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
++	if (unlikely((size >> PAGE_SHIFT) > totalram_pages))
+ 		goto fail;
+ 
+ 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNLIST,
 -- 
 1.7.7.6
 
