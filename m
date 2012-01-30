@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 00D4B6B005C
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 09:20:47 -0500 (EST)
-Message-ID: <4F26A701.3090006@stericsson.com>
-Date: Mon, 30 Jan 2012 15:19:45 +0100
-From: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 830196B005D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 09:52:34 -0500 (EST)
+Date: Mon, 30 Jan 2012 14:52:30 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 08/15] mm: mmzone: MIGRATE_CMA migration type added
+Message-ID: <20120130145230.GQ25268@csn.ul.ie>
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+ <1327568457-27734-9-git-send-email-m.szyprowski@samsung.com>
+ <20120130123542.GL25268@csn.ul.ie>
+ <op.v8wepotk3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Subject: Re: [RFCv1 0/6] PASR: Partial Array Self-Refresh Framework
-References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <20120130135341.GA3720@elte.hu>
-In-Reply-To: <20120130135341.GA3720@elte.hu>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <op.v8wepotk3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-Dear Ingo,
+On Mon, Jan 30, 2012 at 02:06:50PM +0100, Michal Nazarewicz wrote:
+> >>@@ -1017,11 +1049,14 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+> >> 			rmv_page_order(page);
+> >>
+> >> 			/* Take ownership for orders >= pageblock_order */
+> >>-			if (current_order >= pageblock_order)
+> >>+			if (current_order >= pageblock_order &&
+> >>+			    !is_pageblock_cma(page))
+> >> 				change_pageblock_range(page, current_order,
+> >> 							start_migratetype);
+> >>
+> >>-			expand(zone, page, order, current_order, area, migratetype);
+> >>+			expand(zone, page, order, current_order, area,
+> >>+			       is_migrate_cma(start_migratetype)
+> >>+			     ? start_migratetype : migratetype);
+> >>
+> >
+> >What is this check meant to be doing?
+> >
+> >start_migratetype is determined by allocflags_to_migratetype() and
+> >that never will be MIGRATE_CMA so is_migrate_cma(start_migratetype)
+> >should always be false.
+> 
+> Right, thanks!  This should be the other way around, ie.:
+> 
+> +			expand(zone, page, order, current_order, area,
+> +			       is_migrate_cma(migratetype)
+> +			     ? migratetype : start_migratetype);
+> 
+> I'll fix this and the calls to is_pageblock_cma().
+> 
 
-On 01/30/2012 02:53 PM, Ingo Molnar wrote:
-> * Maxime Coquelin<maxime.coquelin@stericsson.com>  wrote:
->
->> The role of this framework is to stop the refresh of unused
->> memory to enhance DDR power consumption.
-> I'm wondering in what scenarios this is useful, and how
-> consistently it is useful.
->
-> The primary concern I can see is that on most Linux systems with
-> an uptime more than a couple of minutes RAM gets used up by the
-> Linux page-cache:
->
->   $ uptime
->    14:46:39 up 11 days,  2:04, 19 users,  load average: 0.11, 0.29, 0.80
->   $ free
->                total       used       free     shared    buffers     cached
->   Mem:      12255096   12030152     224944          0     651560    6000452
->   -/+ buffers/cache:    5378140    6876956
->
-> Even mobile phones easily have days of uptime - quite often
-> weeks of uptime. I'd expect the page-cache to fill up RAM on
-> such systems.
->
-> So how will this actually end up saving power consistently? Does
-> it have to be combined with a VM policy that more aggressively
-> flushes cached pages from the page-cache?
-You're right Ingo, page-cache fills up the RAM.
-This framework is to be used in combination with a page-cache flush 
-governor.
-In the case of a mobile phone, we can imagine dropping the cache when 
-system's
-screen is off for a while, in order to preserve user's experience.
+That makes a lot more sense. Thanks.
 
->
-> A secondary concern is fragmentation: right now we fragment
-> memory rather significantly.
-Yes, I think fragmentation is the main challenge.
-This is the same problem faced for Memory Hotplug feature.
-The solution I see is to add a significant Movable zone in the system and
-use the Compaction feature from Mel Gorman.
-The problem of course remains for the Normal zone.
+I have a vague recollection that there was a problem with finding
+unmovable pages in MIGRATE_CMA regions. This might have been part of
+the problem.
 
-> For the Ux500 PASR driver you've
-> implemented the section size is 64 MB. Do I interpret the code
-> correctly in that a continuous, 64MB physical block of RAM has
-> to be 100% free for us to be able to turn off refresh and power
-> for this block of RAM?
-Current DDR (2Gb/4Gb dies) used in mobile platform have 64MB banks and 
-segments.
-This is the lower granularity for Partial Array Self-refresh.
-
-Thanks for your comments,
-Maxime
-> Thanks,
->
-> 	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
