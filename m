@@ -1,44 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 199446B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 14:19:44 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id o1so4702932wic.8
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 11:19:38 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120128192553.GA16231@obsidianresearch.com>
-References: <1327557574-6125-1-git-send-email-roland@kernel.org>
- <alpine.LSU.2.00.1201261133230.1369@eggly.anvils> <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com>
- <CAL1RGDVBR49QrAbkZ0Wa9Gh98HTwjtsQbFQ4Ws3Ra7rEjT1Mng@mail.gmail.com>
- <alpine.LSU.2.00.1201271819260.3402@eggly.anvils> <20120128192553.GA16231@obsidianresearch.com>
-From: Roland Dreier <roland@kernel.org>
-Date: Mon, 30 Jan 2012 11:19:18 -0800
-Message-ID: <CAL1RGDWm6q9SxO_X5PR8Z7_V6wiYmoHqdPfX++8=Ph1v5HiZ6Q@mail.gmail.com>
-Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages() parameters
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 6F6AF6B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 14:22:44 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/6] pagemap: avoid splitting thp when reading /proc/pid/pagemap
+Date: Mon, 30 Jan 2012 14:23:52 -0500
+Message-Id: <1327951432-29110-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <CAJd=RBDLEWuAKmRcaUJXuz=h9_3kaexbdGyqv7KXn+dmMeUvCQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-rdma@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Jan 28, 2012 at 11:25 AM, Jason Gunthorpe
-<jgunthorpe@obsidianresearch.com> wrote:
-> I know accessing system memory (eg obtained via mmap on
-> /sys/bus/pci/devices/0000:00:02.0/resource0) has been asked for in the
-> past, and IIRC, the problem was that some of the common code, (GUP?)
-> errored on these maps. I don't know if Roland's case is similar.
+On Sun, Jan 29, 2012 at 09:17:32PM +0800, Hillf Danton wrote:
+> Hi Naoya
+> 
+> On Sat, Jan 28, 2012 at 7:02 AM, Naoya Horiguchi
+> <n-horiguchi@ah.jp.nec.com> wrote:
+> > Thp split is not necessary if we explicitly check whether pmds are
+> > mapping thps or not. This patch introduces this check and adds code
+> > to generate pagemap entries for pmds mapping thps, which results in
+> > less performance impact of pagemap on thp.
+> >
+> 
+> Could the method proposed here cover the two cases of split THP in mem cgroup?
 
-I think the problem there is that this is done via remap_pfn_range()
-or similar, and the mapping has no underlying pages at all.  So we
-would need a new interface that gives us different information for
-such cases.
+No for now, but yes if "move charge" function supports THP.
+I think this can be a bit large step so it is the next work.
 
-This is quite a bit trickier since I don't think the DMA API even has
-a way to express getting a "device A" bus address for some memory
-that is in a BAR for "device B".  So I'm not trying to address this case
-(yet).  First I'd like to deal with as many flavors of page-backed
-mappings as I can.
-
- - R.
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
