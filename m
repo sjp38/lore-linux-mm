@@ -1,115 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 141ED6B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 04:09:28 -0500 (EST)
-Date: Mon, 30 Jan 2012 09:09:23 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [BUG] 3.2.2 crash in isolate_migratepages
-Message-ID: <20120130090923.GD4065@suse.de>
-References: <4F231A6B.1050607@oracle.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 57A856B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 04:16:33 -0500 (EST)
+Received: by iadk27 with SMTP id k27so7115744iad.14
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 01:16:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F231A6B.1050607@oracle.com>
+In-Reply-To: <014101ccdf22$eb610d30$c2232790$%szyprowski@samsung.com>
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+ <1327568457-27734-13-git-send-email-m.szyprowski@samsung.com>
+ <CADMYwHw1B4RNV_9BqAg_M70da=g69Z3kyo5Cr6izCMwJ9LAtvA@mail.gmail.com>
+ <00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com> <CAO8GWqnQg-W=TEc+CUc8hs=GrdCa9XCCWcedQx34cqURhNwNwA@mail.gmail.com>
+ <010301ccdd03$1ad15ab0$50741010$%szyprowski@samsung.com> <CAK=WgbZWHBKNQwcoY9OiXXH-r1n3XxB=ZODZJN-3vZopU2yhJA@mail.gmail.com>
+ <010501ccdd06$b9844f20$2c8ced60$%szyprowski@samsung.com> <CAK=WgbY3L7u0AC1c=iNvoMXX+LSJoz1W-xb=S6gmhqcse5CKaA@mail.gmail.com>
+ <014101ccdf22$eb610d30$c2232790$%szyprowski@samsung.com>
+From: Ohad Ben-Cohen <ohad@wizery.com>
+Date: Mon, 30 Jan 2012 11:16:12 +0200
+Message-ID: <CAK=WgbaDpbeMGZ4eyPv6bGRFibQ8EaQ8kk5DQZ_qwDoMorD6uQ@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 12/15] drivers: add Contiguous Memory Allocator
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
-Cc: linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "Clark, Rob" <rob@ti.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Fri, Jan 27, 2012 at 01:43:07PM -0800, Herbert van den Bergh wrote:
-> 
-> 3.2.2 panics on a 16GB i686 blade:
-> 
-> BUG: unable to handle kernel paging request at 01c00008
-> IP: [<c0522399>] isolate_migratepages+0x119/0x390
-> *pdpt = 000000002f7ce001 *pde = 0000000000000000
-> 
-> The crash happens on this line in mm/compaction.c::isolate_migratepages:
-> 
->     328                 page = pfn_to_page(low_pfn);
-> 
+Hi Marek,
 
-This is not line 328 on kernel 3.2.2. Can you double check what version
-you are using?
+On Mon, Jan 30, 2012 at 9:43 AM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+> Did you managed to fix this issue?
 
-> This macro finds the struct page pointer for a given pfn.  These struct
-> page pointers are stored in sections of 131072 pages if
-> CONFIG_SPARSEMEM=y.  If an entire section has no memory pages, the page
-> structs are not allocated for this section.  On this particular machine,
-> there is no RAM mapped from 2GB - 4GB:
-> 
-> # dmesg|grep usable
->  BIOS-e820: 0000000000000000 - 000000000009f400 (usable)
->  BIOS-e820: 0000000000100000 - 000000007fe4e000 (usable)
->  BIOS-e820: 000000007fe56000 - 000000007fe57000 (usable)
->  BIOS-e820: 0000000100000000 - 000000047ffff000 (usable)
-> 
-> So there are no page structs for the sections between 2GB and 4GB.
-> 
-> I believe this check was intended to catch page numbers that point to holes:
-> 
->     323                 if (!pfn_valid_within(low_pfn))
->     324                         continue;
+Yes -- the recent increase in the vmalloc region triggered a bigger
+truncation in the system RAM than we had before, and therefore
+conflicted with the previous hardcoded region we were using.
 
-Can you try the following patch please?
+Long term, our plan is to get rid of those hardcoded values, but for
+the moment our remote RTOS still needs to know the physical address in
+advance.
 
----8<---
-mm: compaction: Check pfn_valid when entering a new MAX_ORDER_NR_PAGES block during isolation for migration
+> Right, thanks for spotting it, I will squash it to the next release.
 
-When isolating for migration, migration starts at the start of a zone
-which is not necessarily pageblock aligned. Further, it stops isolating
-when COMPACT_CLUSTER_MAX pages are isolated so migrate_pfn is generally
-not aligned.
+Thanks. With that hunk squashed in, feel free to add my Tested-by tag
+to the patches.
 
-The problem is that pfn_valid is only called on the first PFN being
-checked. Lets say we have a case like this
-
-H = MAX_ORDER_NR_PAGES boundary
-| = pageblock boundary
-m = cc->migrate_pfn
-f = cc->free_pfn
-o = memory hole
-
-H------|------H------|----m-Hoooooo|ooooooH-f----|------H
-
-The migrate_pfn is just below a memory hole and the free scanner is
-beyond the hole. When isolate_migratepages started, it scans from
-migrate_pfn to migrate_pfn+pageblock_nr_pages which is now in a memory
-hole. It checks pfn_valid() on the first PFN but then scans into the
-hole where there are not necessarily valid struct pages.
-
-This patch ensures that isolate_migratepages calls pfn_valid when
-necessary.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/compaction.c |   13 +++++++++++++
- 1 files changed, 13 insertions(+), 0 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 899d956..edc1e26 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -313,6 +313,19 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		} else if (!locked)
- 			spin_lock_irq(&zone->lru_lock);
- 
-+		/*
-+		 * migrate_pfn does not necessarily start aligned to a
-+		 * pageblock. Ensure that pfn_valid is called when moving
-+		 * into a new MAX_ORDER_NR_PAGES range in case of large
-+		 * memory holes within the zone
-+		 */
-+		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
-+			if (!pfn_valid(low_pfn)) {
-+				low_pfn += MAX_ORDER_NR_PAGES - 1;
-+				continue;
-+			}
-+		}
-+
- 		if (!pfn_valid_within(low_pfn))
- 			continue;
- 		nr_scanned++;
+Thanks!
+Ohad.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
