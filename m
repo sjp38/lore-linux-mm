@@ -1,26 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id DEA436B0074
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 13:15:35 -0500 (EST)
-Date: Mon, 30 Jan 2012 12:15:32 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] percpu: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
-In-Reply-To: <20120130181313.GI3355@google.com>
-Message-ID: <alpine.DEB.2.00.1201301215120.28693@router.home>
-References: <1327912654-8738-1-git-send-email-dmitry.antipov@linaro.org> <20120130171558.GB3355@google.com> <alpine.DEB.2.00.1201301121330.28693@router.home> <20120130174256.GF3355@google.com> <alpine.DEB.2.00.1201301145570.28693@router.home>
- <20120130175434.GG3355@google.com> <alpine.DEB.2.00.1201301156530.28693@router.home> <20120130180224.GH3355@google.com> <20120130181313.GI3355@google.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 3BE806B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 13:16:23 -0500 (EST)
+Message-ID: <4F26DE75.5050409@oracle.com>
+Date: Mon, 30 Jan 2012 10:16:21 -0800
+From: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [BUG] 3.2.2 crash in isolate_migratepages
+References: <4F231A6B.1050607@oracle.com> <20120130090923.GD4065@suse.de>
+In-Reply-To: <20120130090923.GD4065@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Dmitry Antipov <dmitry.antipov@linaro.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, patches@linaro.org, linaro-dev@lists.linaro.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-On Mon, 30 Jan 2012, Tejun Heo wrote:
+On 1/30/12 1:09 AM, Mel Gorman wrote:
+> On Fri, Jan 27, 2012 at 01:43:07PM -0800, Herbert van den Bergh wrote:
+>> 3.2.2 panics on a 16GB i686 blade:
+>>
+>> BUG: unable to handle kernel paging request at 01c00008
+>> IP: [<c0522399>] isolate_migratepages+0x119/0x390
+>> *pdpt = 000000002f7ce001 *pde = 0000000000000000
+>>
+>> The crash happens on this line in mm/compaction.c::isolate_migratepages:
+>>
+>>     328                 page = pfn_to_page(low_pfn);
+>>
+> This is not line 328 on kernel 3.2.2. Can you double check what version
+> you are using?
 
-> Anyways, yeah, it seems we should improve this part too.
+That's right, I was using 3.1, but reproduced the problem on 3.2.2.  The
+source code line numbers are from 3.1.  Sorry for the confusion.
+>> This macro finds the struct page pointer for a given pfn.  These struct
+>> page pointers are stored in sections of 131072 pages if
+>> CONFIG_SPARSEMEM=y.  If an entire section has no memory pages, the page
+>> structs are not allocated for this section.  On this particular machine,
+>> there is no RAM mapped from 2GB - 4GB:
+>>
+>> # dmesg|grep usable
+>>  BIOS-e820: 0000000000000000 - 000000000009f400 (usable)
+>>  BIOS-e820: 0000000000100000 - 000000007fe4e000 (usable)
+>>  BIOS-e820: 000000007fe56000 - 000000007fe57000 (usable)
+>>  BIOS-e820: 0000000100000000 - 000000047ffff000 (usable)
+>>
+>> So there are no page structs for the sections between 2GB and 4GB.
+>>
+>> I believe this check was intended to catch page numbers that point to holes:
+>>
+>>     323                 if (!pfn_valid_within(low_pfn))
+>>     324                         continue;
+> Can you try the following patch please?
+The following patch fixes the crash on this system.
 
-I agree.
+Thanks,
+Herbert.
+
+>
+> ---8<---
+> mm: compaction: Check pfn_valid when entering a new MAX_ORDER_NR_PAGES block during isolation for migration
+>
+> When isolating for migration, migration starts at the start of a zone
+> which is not necessarily pageblock aligned. Further, it stops isolating
+> when COMPACT_CLUSTER_MAX pages are isolated so migrate_pfn is generally
+> not aligned.
+>
+> The problem is that pfn_valid is only called on the first PFN being
+> checked. Lets say we have a case like this
+>
+> H = MAX_ORDER_NR_PAGES boundary
+> | = pageblock boundary
+> m = cc->migrate_pfn
+> f = cc->free_pfn
+> o = memory hole
+>
+> H------|------H------|----m-Hoooooo|ooooooH-f----|------H
+>
+> The migrate_pfn is just below a memory hole and the free scanner is
+> beyond the hole. When isolate_migratepages started, it scans from
+> migrate_pfn to migrate_pfn+pageblock_nr_pages which is now in a memory
+> hole. It checks pfn_valid() on the first PFN but then scans into the
+> hole where there are not necessarily valid struct pages.
+>
+> This patch ensures that isolate_migratepages calls pfn_valid when
+> necessary.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/compaction.c |   13 +++++++++++++
+>  1 files changed, 13 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 899d956..edc1e26 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -313,6 +313,19 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		} else if (!locked)
+>  			spin_lock_irq(&zone->lru_lock);
+>  
+> +		/*
+> +		 * migrate_pfn does not necessarily start aligned to a
+> +		 * pageblock. Ensure that pfn_valid is called when moving
+> +		 * into a new MAX_ORDER_NR_PAGES range in case of large
+> +		 * memory holes within the zone
+> +		 */
+> +		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
+> +			if (!pfn_valid(low_pfn)) {
+> +				low_pfn += MAX_ORDER_NR_PAGES - 1;
+> +				continue;
+> +			}
+> +		}
+> +
+>  		if (!pfn_valid_within(low_pfn))
+>  			continue;
+>  		nr_scanned++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
