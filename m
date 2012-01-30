@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 57A856B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 04:16:33 -0500 (EST)
-Received: by iadk27 with SMTP id k27so7115744iad.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 01:16:33 -0800 (PST)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 290416B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 04:51:44 -0500 (EST)
+Message-ID: <4F26681A.3090507@hitachi.com>
+Date: Mon, 30 Jan 2012 18:51:22 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-In-Reply-To: <014101ccdf22$eb610d30$c2232790$%szyprowski@samsung.com>
-References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
- <1327568457-27734-13-git-send-email-m.szyprowski@samsung.com>
- <CADMYwHw1B4RNV_9BqAg_M70da=g69Z3kyo5Cr6izCMwJ9LAtvA@mail.gmail.com>
- <00de01ccdce1$e7c8a360$b759ea20$%szyprowski@samsung.com> <CAO8GWqnQg-W=TEc+CUc8hs=GrdCa9XCCWcedQx34cqURhNwNwA@mail.gmail.com>
- <010301ccdd03$1ad15ab0$50741010$%szyprowski@samsung.com> <CAK=WgbZWHBKNQwcoY9OiXXH-r1n3XxB=ZODZJN-3vZopU2yhJA@mail.gmail.com>
- <010501ccdd06$b9844f20$2c8ced60$%szyprowski@samsung.com> <CAK=WgbY3L7u0AC1c=iNvoMXX+LSJoz1W-xb=S6gmhqcse5CKaA@mail.gmail.com>
- <014101ccdf22$eb610d30$c2232790$%szyprowski@samsung.com>
-From: Ohad Ben-Cohen <ohad@wizery.com>
-Date: Mon, 30 Jan 2012 11:16:12 +0200
-Message-ID: <CAK=WgbaDpbeMGZ4eyPv6bGRFibQ8EaQ8kk5DQZ_qwDoMorD6uQ@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 12/15] drivers: add Contiguous Memory Allocator
+Subject: Re: [PATCH v9 3.2 1/9] uprobes: Install and remove breakpoints.
+References: <20120110114821.17610.9188.sendpatchset@srdronam.in.ibm.com> <20120110114831.17610.88468.sendpatchset@srdronam.in.ibm.com> <CAK1hOcO3pz+zBLQKfdty3UwQG8zxXwBWo9euFaE+zKawiqTE2g@mail.gmail.com> <CAK1hOcMeYDrLpgbyQXFAkrqk3Le-rLkoVwCN3wjkT61YJg0G6Q@mail.gmail.com> <4F215FCE.8010209@hitachi.com> <CAK1hOcP-+gXcfCV6zJFEu381R9XPR=qxNFQTOT8Y2o4L-1mwhA@mail.gmail.com>
+In-Reply-To: <CAK1hOcP-+gXcfCV6zJFEu381R9XPR=qxNFQTOT8Y2o4L-1mwhA@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "Clark, Rob" <rob@ti.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
 
-Hi Marek,
+(2012/01/27 3:28), Denys Vlasenko wrote:
+> On Thu, Jan 26, 2012 at 3:14 PM, Masami Hiramatsu
+> <masami.hiramatsu.pt@hitachi.com> wrote:
+>> (2012/01/26 0:32), Denys Vlasenko wrote:
+>>> On Wed, Jan 25, 2012 at 4:13 PM, Denys Vlasenko
+>>> <vda.linux@googlemail.com> wrote:
+>>>>> +       /*
+>>>>> +        * Convert from rip-relative addressing to indirect addressing
+>>>>> +        * via a scratch register.  Change the r/m field from 0x5 (%rip)
+>>>>> +        * to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the offset field.
+>>>>> +        */
+>>>>> +       reg = MODRM_REG(insn);
+>>>>> +       if (reg == 0) {
+>>>>> +               /*
+>>>>> +                * The register operand (if any) is either the A register
+>>>>> +                * (%rax, %eax, etc.) or (if the 0x4 bit is set in the
+>>>>> +                * REX prefix) %r8.  In any case, we know the C register
+>>>>> +                * is NOT the register operand, so we use %rcx (register
+>>>>> +                * #1) for the scratch register.
+>>>>> +                */
+>>>>> +               uprobe->arch_info.fixups = UPROBES_FIX_RIP_CX;
+>>>>> +               /* Change modrm from 00 000 101 to 00 000 001. */
+>>>>> +               *cursor = 0x1;
+>>>
+>>> Hmm. I think we have a bug here.
+>>>
+>>> What if this instruction has REX.B = 1? Granted, REX.B = 1 has no effect on
+>>> rip-relative addressing and therefore normally won't be generated by gcc/as,
+>>> but still. If you replace md and r/m fields as above, you are trying to convert
+>>> 0x12345678(%rip) reference to (%rcx), but if REX.B = 1, then you in fact
+>>> converted it to (%r9)!
+>>
+>> Right, thanks for finding :)
+>> And %rax register reference encoding has same problem, doesn't it?
+>
+> Yes.
+>
+> The solution is trivial: "if (REX pfx exists) REX.B = 0;"
+>
+> Also, I don't remember whether (%rip) addressing is
+> affected by 0x67 (address size) prefix. If it is, then
+> nothing needs to be done.
 
-On Mon, Jan 30, 2012 at 9:43 AM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> Did you managed to fix this issue?
+In Intel SDM vol.2, "2.2.1.6 RIP-Relative Addressing" explains
+that as below;
 
-Yes -- the recent increase in the vmalloc region triggered a bigger
-truncation in the system RAM than we had before, and therefore
-conflicted with the previous hardcoded region we were using.
+---
+RIP-relative addressing is enabled by 64-bit mode, not by a 64-bit address-size.
+The use of the address-size prefix does not disable RIP-relative addressing. The
+effect of the address-size prefix is to truncate and zero-extend the computed
+effective address to 32 bits.
+---
 
-Long term, our plan is to get rid of those hardcoded values, but for
-the moment our remote RTOS still needs to know the physical address in
-advance.
+This means 0x67 pfx can be used with RIP-relative, and
+effective address(EA) will be 32bit, as same as others.
+So, I think it should work :)
 
-> Right, thanks for spotting it, I will squash it to the next release.
 
-Thanks. With that hunk squashed in, feel free to add my Tested-by tag
-to the patches.
+Thank you!
 
-Thanks!
-Ohad.
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
