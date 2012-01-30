@@ -1,125 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 346BF6B0085
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 11:53:06 -0500 (EST)
-Message-ID: <4F26CAD1.2000209@stericsson.com>
-Date: Mon, 30 Jan 2012 17:52:33 +0100
-From: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 5C9566B0068
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 12:16:04 -0500 (EST)
+Received: by iadk27 with SMTP id k27so7884686iad.14
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 09:16:03 -0800 (PST)
+Date: Mon, 30 Jan 2012 09:15:58 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/3] percpu: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
+Message-ID: <20120130171558.GB3355@google.com>
+References: <1327912654-8738-1-git-send-email-dmitry.antipov@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [RFCv1 3/6] PASR: mm: Integrate PASR in Buddy allocator
-References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com> <20120130152237.GS25268@csn.ul.ie>
-In-Reply-To: <20120130152237.GS25268@csn.ul.ie>
-Content-Type: text/plain; charset="ISO-8859-15"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1327912654-8738-1-git-send-email-dmitry.antipov@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>
+To: Dmitry Antipov <dmitry.antipov@linaro.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, patches@linaro.org, linaro-dev@lists.linaro.org
 
-Hello Mel,
+On Mon, Jan 30, 2012 at 12:37:34PM +0400, Dmitry Antipov wrote:
+> Fix pcpu_alloc() to return ZERO_SIZE_PTR if requested size is 0;
+> fix free_percpu() to check passed pointer with ZERO_OR_NULL_PTR.
+> 
+> Signed-off-by: Dmitry Antipov <dmitry.antipov@linaro.org>
+> ---
+>  mm/percpu.c |   16 +++++++++++-----
+>  1 files changed, 11 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index f47af91..e903a19 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -702,7 +702,8 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
+>   * Does GFP_KERNEL allocation.
+>   *
+>   * RETURNS:
+> - * Percpu pointer to the allocated area on success, NULL on failure.
+> + * ZERO_SIZE_PTR if @size is zero, percpu pointer to the
+> + * allocated area on success or NULL on failure.
+>   */
+>  static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+>  {
+> @@ -713,7 +714,10 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+>  	unsigned long flags;
+>  	void __percpu *ptr;
+>  
+> -	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+> +	if (unlikely(!size))
+> +		return ZERO_SIZE_PTR;
 
-Thanks for your comments,
+Percpu pointers are in a different address space and using
+ZERO_SIZE_PTR directly will trigger sparse address space warning.
+Also, I'm not entirely sure whether 16 is guaranteed to be unused in
+percpu address space (maybe it is but I don't think we have anything
+enforcing that).
 
-On 01/30/2012 04:22 PM, Mel Gorman wrote:
-> On Mon, Jan 30, 2012 at 02:33:53PM +0100, Maxime Coquelin wrote:
->> Any allocators might call the PASR Framework for DDR power savings. Currently,
->> only Linux Buddy allocator is patched, but HWMEM and PMEM physically
->> contiguous memory allocators will follow.
->>
->> Linux Buddy allocator porting uses Buddy specificities to reduce the overhead
->> induced by the PASR Framework counter updates. Indeed, the PASR Framework is
->> called only when MAX_ORDER (4MB page blocs by default) buddies are
->> inserted/removed from the free lists.
->>
->> To port PASR FW into a new allocator:
->>
->> * Call pasr_put(phys_addr, size) each time a memory chunk becomes unused.
->> * Call pasr_get(phys_addr, size) each time a memory chunk becomes used.
->>
->>
->> Signed-off-by: Maxime Coquelin<maxime.coquelin@stericsson.com>
->> ---
->>   mm/page_alloc.c |    9 +++++++++
->>   1 files changed, 9 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 03d8c48..c62fe11 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -57,6 +57,7 @@
->>   #include<linux/ftrace_event.h>
->>   #include<linux/memcontrol.h>
->>   #include<linux/prefetch.h>
->> +#include<linux/pasr.h>
->>
->>   #include<asm/tlbflush.h>
->>   #include<asm/div64.h>
->> @@ -534,6 +535,7 @@ static inline void __free_one_page(struct page *page,
->>   		/* Our buddy is free, merge with it and move up one order. */
->>   		list_del(&buddy->lru);
->>   		zone->free_area[order].nr_free--;
->> +		pasr_kget(buddy, order);
->>   		rmv_page_order(buddy);
->>   		combined_idx = buddy_idx&  page_idx;
->>   		page = page + (combined_idx - page_idx);
-> I did not review this series carefully and I know nothing about
-> how you implemented PASR support but driver hooks like this in the
-> page allocator are heavily frowned upon. It is subject to abuse but
-> it adds overhead to the allocator although I note that you avoiding
-> putting hooks in the per-cpu page allocator.
-I catch your point.
-However, adding hooks in the page allocator is the only way I see to 
-ensure memory that is accessed is refreshed.
+Thanks.
 
-> I note that you hardcode
-> it so only PASR can use the hook but it looks like there is no way
-> of avoiding that overhead on platforms that do not have PASR if
-> it is enabled in the config.
-In that RFC patch set, I assumed the PASR would be enabled in the config 
-only in case it is used.
-If not activated, there is no overhead.
-
-This could of course be improved in next patch set.
->   At a glance, it appears to be doing a
-> fair amount of work too - looking up maps, taking locks etc.
-Note that we do that work only on MAX_ORDER pages, so it limits the 
-overhead.
->   This
-> potentially creates a new hot lock because in this paths, we have
-> per-zone locking but you are adding a PASR lock into the mix that
-> may be more coarse than zone->lock (I didn't check).
-Ok.
-We might fall in a deadlock if the underlying PASR driver allocates 
-something in its apply_mask callback.
-However, this callback should be used only to write a register of the 
-DDR controller.
-
-> You may be able to use the existing arch_alloc_page() hook and
-> call PASR on architectures that support it if and only if PASR is
-> present and enabled by the administrator but even this is likely to be
-> unpopular as it'll have a measurable performance impact on platforms
-> with PASR (not to mention the PASR lock will be even heavier as it'll
-> now be also used for per-cpu page allocations). To get the hook you
-> want, you'd need to show significant benefit before they were happy with
-> the hook.
-Your proposal sounds good.
-AFAIK, per-cpu allocation maximum size is 32KB. Please correct me if I'm 
-wrong.
-Since pasr_kget/kput() calls the PASR framework only on MAX_ORDER 
-allocations, we wouldn't add any locking risks nor contention compared 
-to current patch.
-I will update the patch set using  arch_alloc/free_page().
-
->
-> What is more likely is that you will get pushed to doing something like
-> periodically scanning memory as part of a separate power management
-> module and calling into PASR if regions of memory that are found that
-> can be powered down in some ways.
-With this solution, we need in any case to add some hooks in the 
-allocator to ensure the pages being allocated are refreshed.
-
-Best regards,
-Maxime
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
