@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 462F16B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 13:28:20 -0500 (EST)
-Received: by eaaa11 with SMTP id a11so1764044eaa.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 10:28:18 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [BUG] 3.2.2 crash in isolate_migratepages
-References: <4F231A6B.1050607@oracle.com> <20120130090923.GD4065@suse.de>
- <4F26DE75.5050409@oracle.com>
-Date: Mon, 30 Jan 2012 19:28:16 +0100
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id D67336B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 13:50:03 -0500 (EST)
+Received: by pbaa12 with SMTP id a12so5071020pba.14
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 10:50:03 -0800 (PST)
+Date: Mon, 30 Jan 2012 10:49:39 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Help] : RSS/PSS showing 0 during smaps for Xorg
+In-Reply-To: <1327912964.12941.YahooMailNeo@web162006.mail.bf1.yahoo.com>
+Message-ID: <alpine.LSU.2.00.1201301034100.1884@eggly.anvils>
+References: <1327310360.96918.YahooMailNeo@web162003.mail.bf1.yahoo.com> <1327313719.76517.YahooMailNeo@web162002.mail.bf1.yahoo.com> <alpine.LSU.2.00.1201231125200.1677@eggly.anvils> <1327468926.52380.YahooMailNeo@web162002.mail.bf1.yahoo.com>
+ <alpine.LSU.2.00.1201251623340.2141@eggly.anvils> <1327912964.12941.YahooMailNeo@web162006.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v8wtleuf3l0zgt@mpn-glaptop>
-In-Reply-To: <4F26DE75.5050409@oracle.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1200577600-1327949391=:1884"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
-Cc: linux-mm@kvack.org
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-> On 1/30/12 1:09 AM, Mel Gorman wrote:
->> The migrate_pfn is just below a memory hole and the free scanner is
->> beyond the hole. When isolate_migratepages started, it scans from
->> migrate_pfn to migrate_pfn+pageblock_nr_pages which is now in a memor=
-y
->> hole. It checks pfn_valid() on the first PFN but then scans into the
->> hole where there are not necessarily valid struct pages.
->>
->> This patch ensures that isolate_migratepages calls pfn_valid when
->> necessary.
->>
->> Signed-off-by: Mel Gorman <mgorman@suse.de>
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-If anyone cares, this looks good to me, so:
+--8323584-1200577600-1327949391=:1884
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+On Mon, 30 Jan 2012, PINTU KUMAR wrote:
+> =A0
+> >If these are ordinary pages with struct pages, then you could probably
+> >use a loop of vm_insert_page()s to insert them at mmap time, or a fault
+> >routine to insert them on fault.=A0 But as I said, I don't know if this
+> >memory is part of the ordinary page pool or not.
+> =A0
+> You suggestion about using vm_insert_page() instead of remap_pfn_range wo=
+rked for me and I got the Rss/Pss information for my driver.
 
->> ---
->>  mm/compaction.c |   13 +++++++++++++
->>  1 files changed, 13 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 899d956..edc1e26 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -313,6 +313,19 @@ static isolate_migrate_t isolate_migratepages(st=
-ruct zone *zone,
->>  		} else if (!locked)
->>  			spin_lock_irq(&zone->lru_lock);
->>
->> +		/*
->> +		 * migrate_pfn does not necessarily start aligned to a
->> +		 * pageblock. Ensure that pfn_valid is called when moving
->> +		 * into a new MAX_ORDER_NR_PAGES range in case of large
->> +		 * memory holes within the zone
->> +		 */
->> +		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) =3D=3D 0) {
->> +			if (!pfn_valid(low_pfn)) {
->> +				low_pfn +=3D MAX_ORDER_NR_PAGES - 1;
->> +				continue;
->> +			}
->> +		}
->> +
->>  		if (!pfn_valid_within(low_pfn))
->>  			continue;
->>  		nr_scanned++;
+Oh, I'm glad that happened to work for you.
 
--- =
+> But still there is one problem related to page fault.=20
+> If I remove remap_pfn_range then I get a page fault in the beginning.=20
+> I tried to use the same vm_insert_page() during page_fault_handler for ea=
+ch vmf->virtual_address but it did not work.
+> So for time being I remove the page fault handler from my vm_operations.
+> But with these my menu screen(LCD screen) is not behaving properly (I get=
+ colorful lines on my LCD).
+> So I need to handle the page fault properly.
+> =A0
+> But I am not sure what is that I need to do inside page fault handler. Do=
+ you have any example or references or suggestions?
 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Sounds like you're not using vm_insert_page() properly: I would not expect
+you to get a page fault there once you've set up the area with a loop of
+vm_insert_page()s.
+
+Check the comments above it in mm/memory.c ("Your vma protection will
+have to be set up correctly" might be relevant).
+
+Compare how you're using it with other users of vm_insert_page() in
+the kernel tree.  Sorry, I don't have time to do your debugging.
+
+> =A0
+> >Really, the question has to be, why do you need to see non-0s there?
+> I want Rss/Pss value to account for how much video memory is used by the =
+driver for the menu-screen,Xorg processes.
+
+So, userspace does an mmap for a large-enough window, but only some part of
+that is filled by the driver (whether by remap_pfn_range or vm_insert_pages=
+),
+and you'd like to communicate back how much via the Rss, instead of adding
+some ioctl or sysfs interface to the driver?  Fair enough.
+
+I expect userspace could also work it out by touching pages of the area
+until it gets a SIGBUS, but that might be too dirty a way of finding out.
+
+Hmm, SIGBUS: maybe that's related to the faults that are puzzling you:
+perhaps you're mapping less than you need to.
+
+Hugh
+--8323584-1200577600-1327949391=:1884--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
