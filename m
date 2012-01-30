@@ -1,124 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 42B246B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 10:14:38 -0500 (EST)
-Received: by vcbfl11 with SMTP id fl11so3571629vcb.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 07:14:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id EFB0E6B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 10:22:40 -0500 (EST)
+Date: Mon, 30 Jan 2012 15:22:37 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFCv1 3/6] PASR: mm: Integrate PASR in Buddy allocator
+Message-ID: <20120130152237.GS25268@csn.ul.ie>
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
+ <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com>
 MIME-Version: 1.0
-In-Reply-To: <20120130145900.GR25268@csn.ul.ie>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	<1327572121-13673-8-git-send-email-gilad@benyossef.com>
-	<20120130145900.GR25268@csn.ul.ie>
-Date: Mon, 30 Jan 2012 17:14:37 +0200
-Message-ID: <CAOtvUMcshnvQs4q4ySbtySWv_qHeEnHiD4USBSiOLGFNHSwzUw@mail.gmail.com>
-Subject: Re: [v7 7/8] mm: only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Milton Miller <miltonm@bga.com>
+To: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ankita Garg <ankita@in.ibm.com>, linux-kernel@vger.kernel.org, linus.walleij@stericsson.com, andrea.gallo@stericsson.com, vincent.guittot@stericsson.com, philippe.langlais@stericsson.com, loic.pallardy@stericsson.com
 
-On Mon, Jan 30, 2012 at 4:59 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Thu, Jan 26, 2012 at 12:02:00PM +0200, Gilad Ben-Yossef wrote:
->> Calculate a cpumask of CPUs with per-cpu pages in any zone
->> and only send an IPI requesting CPUs to drain these pages
->> to the buddy allocator if they actually have pages when
->> asked to flush.
->>
-...
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index d2186ec..4135983 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1165,7 +1165,36 @@ void drain_local_pages(void *arg)
->> =A0 */
->> =A0void drain_all_pages(void)
->> =A0{
->> - =A0 =A0 on_each_cpu(drain_local_pages, NULL, 1);
->> + =A0 =A0 int cpu;
->> + =A0 =A0 struct per_cpu_pageset *pcp;
->> + =A0 =A0 struct zone *zone;
->> +
->> + =A0 =A0 /* Allocate in the BSS so we wont require allocation in
->> + =A0 =A0 =A0* direct reclaim path for CONFIG_CPUMASK_OFFSTACK=3Dy
->> + =A0 =A0 =A0*/
->> + =A0 =A0 static cpumask_t cpus_with_pcps;
->> +
->> + =A0 =A0 /*
->> + =A0 =A0 =A0* We don't care about racing with CPU hotplug event
->> + =A0 =A0 =A0* as offline notification will cause the notified
->> + =A0 =A0 =A0* cpu to drain that CPU pcps and on_each_cpu_mask
->> + =A0 =A0 =A0* disables preemption as part of its processing
->> + =A0 =A0 =A0*/
->> + =A0 =A0 for_each_online_cpu(cpu) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 bool has_pcps =3D false;
->> + =A0 =A0 =A0 =A0 =A0 =A0 for_each_populated_zone(zone) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pcp =3D per_cpu_ptr(zone->page=
-set, cpu);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pcp->pcp.count) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 has_pcps =3D t=
-rue;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (has_pcps)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_set_cpu(cpu, &cpus_wit=
-h_pcps);
->> + =A0 =A0 =A0 =A0 =A0 =A0 else
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpumask_clear_cpu(cpu, &cpus_w=
-ith_pcps);
->> + =A0 =A0 }
->
-> Lets take two CPUs running this code at the same time. CPU 1 has per-cpu
-> pages in all zones. CPU 2 has no per-cpu pages in any zone. If both run
-> at the same time, CPU 2 can be clearing the mask for CPU 1 before it has
-> had a chance to send the IPI. This means we'll miss sending IPIs to CPUs
-> that we intended to.
+On Mon, Jan 30, 2012 at 02:33:53PM +0100, Maxime Coquelin wrote:
+> Any allocators might call the PASR Framework for DDR power savings. Currently,
+> only Linux Buddy allocator is patched, but HWMEM and PMEM physically
+> contiguous memory allocators will follow.
+> 
+> Linux Buddy allocator porting uses Buddy specificities to reduce the overhead
+> induced by the PASR Framework counter updates. Indeed, the PASR Framework is
+> called only when MAX_ORDER (4MB page blocs by default) buddies are
+> inserted/removed from the free lists.
+> 
+> To port PASR FW into a new allocator:
+> 
+> * Call pasr_put(phys_addr, size) each time a memory chunk becomes unused.
+> * Call pasr_get(phys_addr, size) each time a memory chunk becomes used.
+> 
+> 
+> Signed-off-by: Maxime Coquelin <maxime.coquelin@stericsson.com>
+> ---
+>  mm/page_alloc.c |    9 +++++++++
+>  1 files changed, 9 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 03d8c48..c62fe11 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -57,6 +57,7 @@
+>  #include <linux/ftrace_event.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/prefetch.h>
+> +#include <linux/pasr.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
+> @@ -534,6 +535,7 @@ static inline void __free_one_page(struct page *page,
+>  		/* Our buddy is free, merge with it and move up one order. */
+>  		list_del(&buddy->lru);
+>  		zone->free_area[order].nr_free--;
+> +		pasr_kget(buddy, order);
+>  		rmv_page_order(buddy);
+>  		combined_idx = buddy_idx & page_idx;
+>  		page = page + (combined_idx - page_idx);
 
-I'm confused. You seem to be assuming that each CPU is looking at its own p=
-cps
-only (per zone). Assuming no change in the state of the pcps when both CPUs
-run this code at the same time, both of them should mark the bit for
-their respective
-CPUs the same, unless one of them raced and managed to send the IPI to clea=
-r
-pcps from the other, at which point you might see one of them send a
-spurious IPI
-to drains pcps that have been drained - but that isn't bad.
+I did not review this series carefully and I know nothing about
+how you implemented PASR support but driver hooks like this in the
+page allocator are heavily frowned upon. It is subject to abuse but
+it adds overhead to the allocator although I note that you avoiding
+putting hooks in the per-cpu page allocator. I note that you hardcode
+it so only PASR can use the hook but it looks like there is no way
+of avoiding that overhead on platforms that do not have PASR if
+it is enabled in the config. At a glance, it appears to be doing a
+fair amount of work too - looking up maps, taking locks etc. This
+potentially creates a new hot lock because in this paths, we have
+per-zone locking but you are adding a PASR lock into the mix that
+may be more coarse than zone->lock (I didn't check).
 
-At least, that is what I meant the code to do and what I believe it
-does. What have I
-missed?
+You may be able to use the existing arch_alloc_page() hook and
+call PASR on architectures that support it if and only if PASR is
+present and enabled by the administrator but even this is likely to be
+unpopular as it'll have a measurable performance impact on platforms
+with PASR (not to mention the PASR lock will be even heavier as it'll
+now be also used for per-cpu page allocations). To get the hook you
+want, you'd need to show significant benefit before they were happy with
+the hook.
 
-> As I was willing to send no IPI at all;
->
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
+What is more likely is that you will get pushed to doing something like
+periodically scanning memory as part of a separate power management
+module and calling into PASR if regions of memory that are found that
+can be powered down in some ways.
 
-Thank you for the review and the ACK :-)
->
-> But if this gets another revision, add a comment saying that two CPUs
-> can interfere with each other running at the same time but we don't
-> care.
->
->> + =A0 =A0 on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
->> =A0}
->>
-
-Gilad
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
