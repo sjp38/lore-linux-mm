@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id D25886B0068
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 08:34:42 -0500 (EST)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E19806B005C
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 08:34:45 -0500 (EST)
 From: Maxime Coquelin <maxime.coquelin@stericsson.com>
-Subject: [RFCv1 2/6] PASR: Add core Framework
-Date: Mon, 30 Jan 2012 14:33:52 +0100
-Message-ID: <1327930436-10263-3-git-send-email-maxime.coquelin@stericsson.com>
+Subject: [RFCv1 6/6] PASR: Ux500: Add PASR support
+Date: Mon, 30 Jan 2012 14:33:56 +0100
+Message-ID: <1327930436-10263-7-git-send-email-maxime.coquelin@stericsson.com>
 In-Reply-To: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
 References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
 MIME-Version: 1.0
@@ -15,290 +15,294 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Mel Gorman <mel@csn.ul.ie>, Ankita Garg <ankita@in.ibm.com>
 Cc: linux-kernel@vger.kernel.org, Maxime Coquelin <maxime.coquelin@stericsson.com>, linus.walleij@stericsson.com, andrea.gallo@stericsson.com, vincent.guittot@stericsson.com, philippe.langlais@stericsson.com, loic.pallardy@stericsson.com
 
-This patch introduces the core of the PASR Framework, whose role is to update
-sections counters and Self-Refresh masks when sections become free/used.
+The MR16/MR17 PASR mask registers are generally accessible through the DDR
+controller. At probe time, the DDR controller driver should register the
+callback used by PASR Framework to apply the refresh mask for every DDR die
+using pasr_register_mask_function(die_addr, callback, cookie).
+
+The callback passed to apply mask must not sleep since it can me called in
+interrupt contexts.
+
+This example creates a new PASR stubbed driver for Nova platforms.
 
 Signed-off-by: Maxime Coquelin <maxime.coquelin@stericsson.com>
 ---
- drivers/staging/pasr/Makefile |    3 +-
- drivers/staging/pasr/core.c   |  168 +++++++++++++++++++++++++++++++++++++++++
- include/linux/pasr.h          |   70 +++++++++++++++++
- 3 files changed, 240 insertions(+), 1 deletions(-)
- create mode 100644 drivers/staging/pasr/core.c
+ arch/arm/Kconfig                            |    1 +
+ arch/arm/mach-ux500/include/mach/hardware.h |   11 ++++
+ arch/arm/mach-ux500/include/mach/memory.h   |    8 +++
+ drivers/mfd/db8500-prcmu.c                  |   67 +++++++++++++++++++++++++++
+ drivers/staging/pasr/Kconfig                |    5 ++
+ drivers/staging/pasr/Makefile               |    1 +
+ drivers/staging/pasr/ux500.c                |   58 +++++++++++++++++++++++
+ include/linux/ux500-pasr.h                  |   11 ++++
+ 8 files changed, 162 insertions(+), 0 deletions(-)
+ create mode 100644 drivers/staging/pasr/ux500.c
+ create mode 100644 include/linux/ux500-pasr.h
 
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 3df3573..b8981ee 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -826,6 +826,7 @@ config ARCH_U8500
+ 	select HAVE_CLK
+ 	select ARCH_HAS_CPUFREQ
+ 	select NOMADIK_GPIO
++	select ARCH_HAS_PASR
+ 	help
+ 	  Support for ST-Ericsson's Ux500 architecture
+ 
+diff --git a/arch/arm/mach-ux500/include/mach/hardware.h b/arch/arm/mach-ux500/include/mach/hardware.h
+index d8f218b..11c23b1 100644
+--- a/arch/arm/mach-ux500/include/mach/hardware.h
++++ b/arch/arm/mach-ux500/include/mach/hardware.h
+@@ -39,6 +39,17 @@
+ #include <mach/db5500-regs.h>
+ 
+ /*
++ * DDR Dies base addresses for PASR
++ */
++#define U8500_CS0_BASE_ADDR	0x00000000
++#define U8500_CS1_BASE_ADDR	0x10000000
++
++#define U9540_DDR0_CS0_BASE_ADDR 0x00000000
++#define U9540_DDR0_CS1_BASE_ADDR 0x20000000
++#define U9540_DDR1_CS0_BASE_ADDR 0xC0000000
++#define U9540_DDR1_CS1_BASE_ADDR 0xE0000000
++
++/*
+  * FIFO offsets for IPs
+  */
+ #define MSP_TX_RX_REG_OFFSET	0
+diff --git a/arch/arm/mach-ux500/include/mach/memory.h b/arch/arm/mach-ux500/include/mach/memory.h
+index ada8ad0..5f5c339 100644
+--- a/arch/arm/mach-ux500/include/mach/memory.h
++++ b/arch/arm/mach-ux500/include/mach/memory.h
+@@ -15,6 +15,14 @@
+ #define PLAT_PHYS_OFFSET	UL(0x00000000)
+ #define BUS_OFFSET	UL(0x00000000)
+ 
++
++#ifdef CONFIG_UX500_PASR
++#define PASR_SECTION_SZ_BITS	26 /* 64MB sections */
++#define PASR_SECTION_SZ	(1 << PASR_SECTION_SZ_BITS)
++#define PASR_MAX_DIE_NR		4
++#define PASR_MAX_SECTION_NR_PER_DIE	8 /* 32 * 64MB = 2GB */
++#endif
++
+ #ifdef CONFIG_UX500_SOC_DB8500
+ /*
+  * STE NMF CM driver only used on the U8500 allocate using dma_alloc_coherent:
+diff --git a/drivers/mfd/db8500-prcmu.c b/drivers/mfd/db8500-prcmu.c
+index 65a644d..db4ebd8 100644
+--- a/drivers/mfd/db8500-prcmu.c
++++ b/drivers/mfd/db8500-prcmu.c
+@@ -30,6 +30,7 @@
+ #include <linux/mfd/dbx500-prcmu.h>
+ #include <linux/regulator/db8500-prcmu.h>
+ #include <linux/regulator/machine.h>
++#include <linux/ux500-pasr.h>
+ #include <mach/hardware.h>
+ #include <mach/irqs.h>
+ #include <mach/db8500-regs.h>
+@@ -105,6 +106,10 @@
+ #define MB0H_CONFIG_WAKEUPS_EXE		1
+ #define MB0H_READ_WAKEUP_ACK		3
+ #define MB0H_CONFIG_WAKEUPS_SLEEP	4
++#define MB0H_SET_PASR_DDR0_CS0		5
++#define MB0H_SET_PASR_DDR0_CS1		6
++#define MB0H_SET_PASR_DDR1_CS0		7
++#define MB0H_SET_PASR_DDR1_CS1		8
+ 
+ #define MB0H_WAKEUP_EXE 2
+ #define MB0H_WAKEUP_SLEEP 5
+@@ -116,6 +121,8 @@
+ #define PRCM_REQ_MB0_DO_NOT_WFI		(PRCM_REQ_MB0 + 0x3)
+ #define PRCM_REQ_MB0_WAKEUP_8500	(PRCM_REQ_MB0 + 0x4)
+ #define PRCM_REQ_MB0_WAKEUP_4500	(PRCM_REQ_MB0 + 0x8)
++#define PRCM_REQ_MB0_PASR_MR16		(PRCM_REQ_MB0 + 0x0)
++#define PRCM_REQ_MB0_PASR_MR17		(PRCM_REQ_MB0 + 0x2)
+ 
+ /* Mailbox 0 ACKs */
+ #define PRCM_ACK_MB0_AP_PWRSTTR_STATUS	(PRCM_ACK_MB0 + 0x0)
+@@ -3909,6 +3916,52 @@ static struct mfd_cell db8500_prcmu_devs[] = {
+ 	},
+ };
+ 
++static struct ux500_pasr_data u9540_pasr_pdata[] = {
++	{
++		.base_addr = U9540_DDR0_CS0_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR0_CS0,
++	},
++	{
++		.base_addr = U9540_DDR0_CS1_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR0_CS1,
++	},
++	{
++		.base_addr = U9540_DDR1_CS0_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR1_CS0,
++	},
++	{
++		.base_addr = U9540_DDR1_CS1_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR1_CS1,
++	},
++	{
++		/*  End marker */
++		.base_addr = 0xFFFFFFFF
++	},
++};
++
++static struct ux500_pasr_data u8500_pasr_pdata[] = {
++	{
++		.base_addr = U8500_CS0_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR0_CS0,
++	},
++	{
++		.base_addr = U8500_CS1_BASE_ADDR,
++		.mailbox = MB0H_SET_PASR_DDR0_CS1,
++	},
++	{
++		/*  End marker */
++		.base_addr = 0xFFFFFFFF
++	},
++};
++
++
++static struct mfd_cell ux500_pasr_devs[] = {
++	{
++		.name = "ux500-pasr",
++	},
++};
++
++
+ /**
+  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
+  *
+@@ -3951,6 +4004,20 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
+ 	else
+ 		pr_info("DB8500 PRCMU initialized\n");
+ 
++	if (cpu_is_u9540()) {
++		ux500_pasr_devs[0].platform_data = u9540_pasr_pdata;
++		ux500_pasr_devs[0].pdata_size = sizeof(u9540_pasr_pdata);
++	} else {
++		ux500_pasr_devs[0].platform_data = u8500_pasr_pdata;
++		ux500_pasr_devs[0].pdata_size = sizeof(u8500_pasr_pdata);
++	}
++
++	err = mfd_add_devices(&pdev->dev, 0, ux500_pasr_devs,
++			      ARRAY_SIZE(ux500_pasr_devs), NULL,
++			      0);
++	if (err)
++		pr_err("prcmu: Failed to add PASR subdevice\n");
++
+ 	/*
+ 	 * Temporary U9540 bringup code - Enable all clock gates.
+ 	 * Write 1 to all bits of PRCM_YYCLKEN0_MGT_SET and
+diff --git a/drivers/staging/pasr/Kconfig b/drivers/staging/pasr/Kconfig
+index 6bd2421..b8145e0 100644
+--- a/drivers/staging/pasr/Kconfig
++++ b/drivers/staging/pasr/Kconfig
+@@ -12,3 +12,8 @@ config PASR_DEBUG
+ 	bool "Add PASR debug prints"
+ 	def_bool n
+ 	depends on PASR
++
++config UX500_PASR
++	bool "Ux500 Family PASR driver"
++	def_bool n
++	depends on (PASR && UX500_SOC_DB8500)
 diff --git a/drivers/staging/pasr/Makefile b/drivers/staging/pasr/Makefile
-index 72f7c27..d172294 100644
+index d172294..0b18a79 100644
 --- a/drivers/staging/pasr/Makefile
 +++ b/drivers/staging/pasr/Makefile
-@@ -1,4 +1,5 @@
--pasr-objs := helper.o init.o
-+pasr-objs := helper.o init.o core.o
-+
+@@ -1,5 +1,6 @@
+ pasr-objs := helper.o init.o core.o
+ 
  obj-$(CONFIG_PASR) += pasr.o
++obj-$(CONFIG_UX500_PASR) += ux500.o
  
  ccflags-$(CONFIG_PASR_DEBUG) := -DDEBUG
-diff --git a/drivers/staging/pasr/core.c b/drivers/staging/pasr/core.c
+diff --git a/drivers/staging/pasr/ux500.c b/drivers/staging/pasr/ux500.c
 new file mode 100644
-index 0000000..49bacb9
+index 0000000..ce5df0c
 --- /dev/null
-+++ b/drivers/staging/pasr/core.c
-@@ -0,0 +1,168 @@
++++ b/drivers/staging/pasr/ux500.c
+@@ -0,0 +1,58 @@
 +/*
-+ * Copyright (C) ST-Ericsson SA 2011
++ * Copyright (C) ST-Ericsson SA 2012
++ * Author: Maxime Coquelin <maxime.coquelin@stericsson.com> for ST-Ericsson.
++ * License terms:  GNU General Public License (GPL), version 2
++ */
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/mfd/dbx500-prcmu.h>
++#include <linux/pasr.h>
++#include <linux/ux500-pasr.h>
++
++
++static void ux500_pasr_apply_mask(u16 *mem_reg, void *cookie)
++{
++	printk(KERN_INFO"%s: cookie = %d, mem_reg = 0x%04x\n",
++			__func__, (int)cookie, *mem_reg);
++}
++
++static int ux500_pasr_probe(struct platform_device *pdev)
++{
++	int i;
++	struct ux500_pasr_data *pasr_data = dev_get_platdata(&pdev->dev);
++
++	if (!pasr_data)
++		return -ENODEV;
++
++	for (i = 0; pasr_data[i].base_addr != 0xFFFFFFFF; i++) {
++		phys_addr_t base = pasr_data[i].base_addr;
++
++		/*
++		 * We don't have specific structure pointer to pass, but only
++		 * DDR die channel in PRCMU. This may change in future
++		 * version.
++		 */
++		void *cookie = (void *)(int)pasr_data[i].mailbox;
++
++		if (pasr_register_mask_function(base,
++				&ux500_pasr_apply_mask,
++				cookie))
++			printk(KERN_ERR"Pasr register failed\n");
++	}
++
++	return 0;
++}
++
++static struct platform_driver ux500_pasr_driver = {
++	.probe = ux500_pasr_probe,
++	.driver = {
++		.name = "ux500-pasr",
++		.owner = THIS_MODULE,
++	},
++};
++
++static int __init ux500_pasr_init(void)
++{
++	return platform_driver_register(&ux500_pasr_driver);
++}
++module_init(ux500_pasr_init);
+diff --git a/include/linux/ux500-pasr.h b/include/linux/ux500-pasr.h
+new file mode 100644
+index 0000000..c62d961
+--- /dev/null
++++ b/include/linux/ux500-pasr.h
+@@ -0,0 +1,11 @@
++/*
++ * Copyright (C) ST-Ericsson SA 2012
 + * Author: Maxime Coquelin <maxime.coquelin@stericsson.com> for ST-Ericsson.
 + * License terms:  GNU General Public License (GPL), version 2
 + */
 +
-+#include <linux/mm.h>
-+#include <linux/spinlock.h>
-+#include <linux/pasr.h>
-+
-+#include "helper.h"
-+
-+enum pasr_state {
-+	PASR_REFRESH,
-+	PASR_NO_REFRESH,
++struct ux500_pasr_data {
++	phys_addr_t base_addr;
++	u8 mailbox;
 +};
 +
-+struct pasr_fw {
-+	struct pasr_map *map;
-+};
-+
-+static struct pasr_fw pasr;
-+
-+void pasr_update_mask(struct pasr_section *section, enum pasr_state state)
-+{
-+	struct pasr_die *die = section->die;
-+	phys_addr_t addr = section->start - die->start;
-+	u8 bit = addr >> PASR_SECTION_SZ_BITS;
-+
-+	if (state == PASR_REFRESH)
-+		die->mem_reg &= ~(1 << bit);
-+	else
-+		die->mem_reg |= (1 << bit);
-+
-+	pr_debug("%s(): %s refresh section 0x%08x. Die%d mem_reg = 0x%02x\n"
-+			, __func__, state == PASR_REFRESH ? "Start" : "Stop"
-+			, section->start, die->idx, die->mem_reg);
-+
-+	if (die->apply_mask)
-+		die->apply_mask(&die->mem_reg, die->cookie);
-+
-+	return;
-+}
-+
-+void pasr_put(phys_addr_t paddr, unsigned long size)
-+{
-+	struct pasr_section *s;
-+	unsigned long cur_sz;
-+	unsigned long flags;
-+
-+	if (!pasr.map) {
-+		WARN_ONCE(1, KERN_INFO"%s(): Map not initialized.\n"
-+			"\tCommand line parameters missing or incorrect\n"
-+			, __func__);
-+		goto out;
-+	}
-+
-+	do {
-+		s = pasr_addr2section(pasr.map, paddr);
-+		if (!s)
-+			goto out;
-+
-+		cur_sz = ((paddr + size) < (s->start + PASR_SECTION_SZ)) ?
-+			size : s->start + PASR_SECTION_SZ - paddr;
-+
-+		if (s->lock)
-+			spin_lock_irqsave(s->lock, flags);
-+
-+		s->free_size += cur_sz;
-+		BUG_ON(s->free_size > PASR_SECTION_SZ);
-+
-+		if (s->free_size < PASR_SECTION_SZ)
-+			goto unlock;
-+
-+		if (!s->pair)
-+			pasr_update_mask(s, PASR_NO_REFRESH);
-+		else if (s->pair->free_size == PASR_SECTION_SZ) {
-+				pasr_update_mask(s, PASR_NO_REFRESH);
-+				pasr_update_mask(s->pair, PASR_NO_REFRESH);
-+		}
-+unlock:
-+		if (s->lock)
-+			spin_unlock_irqrestore(s->lock, flags);
-+
-+		paddr += cur_sz;
-+		size -= cur_sz;
-+	} while (size);
-+
-+out:
-+	return;
-+}
-+
-+void pasr_get(phys_addr_t paddr, unsigned long size)
-+{
-+	unsigned long flags;
-+	unsigned long cur_sz;
-+	struct pasr_section *s;
-+
-+	if (!pasr.map) {
-+		WARN_ONCE(1, KERN_INFO"%s(): Map not initialized.\n"
-+			"\tCommand line parameters missing or incorrect\n"
-+			, __func__);
-+		return;
-+	}
-+
-+	do {
-+		s = pasr_addr2section(pasr.map, paddr);
-+		if (!s)
-+			goto out;
-+
-+		cur_sz = ((paddr + size) < (s->start + PASR_SECTION_SZ)) ?
-+			size : s->start + PASR_SECTION_SZ - paddr;
-+
-+		if (s->lock)
-+			spin_lock_irqsave(s->lock, flags);
-+
-+		if (s->free_size < PASR_SECTION_SZ)
-+			goto unlock;
-+
-+		if (!s->pair)
-+			pasr_update_mask(s, PASR_REFRESH);
-+		else if (s->pair->free_size == PASR_SECTION_SZ) {
-+				pasr_update_mask(s, PASR_REFRESH);
-+				pasr_update_mask(s->pair, PASR_REFRESH);
-+		}
-+unlock:
-+		BUG_ON(cur_sz > s->free_size);
-+		s->free_size -= cur_sz;
-+
-+		if (s->lock)
-+			spin_unlock_irqrestore(s->lock, flags);
-+
-+		paddr += cur_sz;
-+		size -= cur_sz;
-+	} while (size);
-+
-+out:
-+	return;
-+}
-+
-+int pasr_register_mask_function(phys_addr_t addr, void *function, void *cookie)
-+{
-+	struct pasr_die *die = pasr_addr2die(pasr.map, addr);
-+
-+	if (!die) {
-+		pr_err("%s: No DDR die corresponding to address 0x%08x\n",
-+				__func__, addr);
-+		return -EINVAL;
-+	}
-+
-+	if (addr != die->start)
-+		pr_warning("%s: Addresses mismatch (Die = 0x%08x, addr = 0x%08x\n"
-+				, __func__, die->start, addr);
-+
-+	die->cookie = cookie;
-+	die->apply_mask = function;
-+
-+	die->apply_mask(&die->mem_reg, die->cookie);
-+
-+	return 0;
-+}
-+
-+int __init pasr_init_core(struct pasr_map *map)
-+{
-+	pasr.map = map;
-+	return 0;
-+}
-+
-diff --git a/include/linux/pasr.h b/include/linux/pasr.h
-index 93867f0..e85be73 100644
---- a/include/linux/pasr.h
-+++ b/include/linux/pasr.h
-@@ -49,6 +49,10 @@ struct pasr_die {
- 	int idx;
- 	int nr_sections;
- 	struct pasr_section section[PASR_MAX_SECTION_NR_PER_DIE];
-+	u16 mem_reg; /* Either MR16 or MR17 */
-+
-+	void (*apply_mask)(u16 *mem_reg, void *cookie);
-+	void *cookie;
- };
- 
- /**
-@@ -68,6 +72,72 @@ struct pasr_map {
-                                 j < map.die[i].nr_sections; \
-                                 j++, s = &map.die[i].section[j])
- 
-+/**
-+ * pasr_register_mask_function()
-+ *
-+ * @die_addr: Physical base address of the die.
-+ * @function: Callback function for applying the DDR PASR mask.
-+ * @cookie: Private data called with the callback function.
-+ *
-+ * This function is to be called by the platform specific PASR driver in
-+ * charge of application of the PASR masks.
-+ */
-+int pasr_register_mask_function(phys_addr_t die_addr,
-+		void *function, void *cookie);
-+
-+/**
-+ * pasr_put()
-+ *
-+ * @paddr: Physical address of the freed memory chunk.
-+ * @size: Size of the freed memory chunk.
-+ *
-+ * This function is to be placed in the allocators when memory chunks are
-+ * inserted in the free memory pool.
-+ * This function has only to be called for unused memory, otherwise retention
-+ * cannot be guaranteed.
-+ */
-+void pasr_put(phys_addr_t paddr, unsigned long size);
-+
-+/**
-+ * pasr_get()
-+ *
-+ * @paddr: Physical address of the allocated memory chunk.
-+ * @size: Size of the allocated memory chunk.
-+ *
-+ * This function is to be placed in the allocators when memory chunks are
-+ * removed from the free memory pool.
-+ * If pasr_put() is used by the allocator, using this function is mandatory to
-+ * guarantee retention.
-+ */
-+void pasr_get(phys_addr_t paddr, unsigned long size);
-+
-+
-+static inline void pasr_kput(struct page *page, int order)
-+{
-+	if (order != MAX_ORDER - 1)
-+		return;
-+
-+	pasr_put(page_to_phys(page), PAGE_SIZE << (MAX_ORDER - 1));
-+}
-+
-+static inline void pasr_kget(struct page *page, int order)
-+{
-+	if (order != MAX_ORDER - 1)
-+		return;
-+
-+	pasr_get(page_to_phys(page), PAGE_SIZE << (MAX_ORDER - 1));
-+}
-+
-+int __init early_pasr_setup(void);
-+int __init late_pasr_setup(void);
-+int __init pasr_init_core(struct pasr_map *);
-+
-+#else
-+#define pasr_kput(page, order) do {} while (0)
-+#define pasr_kget(page, order) do {} while (0)
-+
-+#define pasr_put(paddr, size) do {} while (0)
-+#define pasr_get(paddr, size) do {} while (0)
- #endif /* CONFIG_PASR */
- 
- #endif /* _LINUX_PASR_H */
 -- 
 1.7.8
 
