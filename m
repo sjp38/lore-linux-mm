@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 3927B6B004D
-	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 21:34:50 -0500 (EST)
-Message-ID: <4F2601C9.6000606@cn.fujitsu.com>
-Date: Mon, 30 Jan 2012 10:34:49 +0800
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id A30586B004D
+	for <linux-mm@kvack.org>; Sun, 29 Jan 2012 21:47:34 -0500 (EST)
+Message-ID: <4F2604C5.7050900@cn.fujitsu.com>
+Date: Mon, 30 Jan 2012 10:47:33 +0800
 From: Peng Haitao <penght@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: how to make memory.memsw.failcnt is nonzero
-References: <4EFADFF8.5020703@cn.fujitsu.com> <20120103160411.GD3891@tiehlicka.suse.cz>
-In-Reply-To: <20120103160411.GD3891@tiehlicka.suse.cz>
+References: <4EFADFF8.5020703@cn.fujitsu.com> <20120103160411.GD3891@tiehlicka.suse.cz> <4F06C31E.4010904@cn.fujitsu.com> <20120106101219.GB10292@tiehlicka.suse.cz>
+In-Reply-To: <20120106101219.GB10292@tiehlicka.suse.cz>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -17,59 +17,41 @@ To: Michal Hocko <mhocko@suse.cz>
 Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
 
-Michal Hocko said the following on 2012-1-4 0:04:
-> On Wed 28-12-11 17:23:04, Peng Haitao wrote:
+Michal Hocko said the following on 2012-1-6 18:12:
+>> If there is something wrong, I think the bug will be in mem_cgroup_do_charge()
+>> of mm/memcontrol.c
 >>
->> memory.memsw.failcnt shows the number of memory+Swap hits limits.
->> So I think when memory+swap usage is equal to limit, memsw.failcnt should be nonzero.
+>> 2210         ret = res_counter_charge(&memcg->res, csize, &fail_res);
+>> 2211 
+>> 2212         if (likely(!ret)) {
+...
+>> 2221                 flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+>> 2222         } else
+>> 2223                 mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
 >>
->> I test as follows:
->>
->> # uname -a
->> Linux K-test 3.2.0-rc7-17-g371de6e #2 SMP Wed Dec 28 12:02:52 CST 2011 x86_64 x86_64 x86_64 GNU/Linux
->> # mkdir /cgroup/memory/group
->> # cd /cgroup/memory/group/
->> # echo 10M > memory.limit_in_bytes
->> # echo 10M > memory.memsw.limit_in_bytes
->> # echo $$ > tasks
->> # dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
->> Killed
->> # cat memory.memsw.failcnt
->> 0
->> # grep "failcnt" /var/log/messages | tail -2
->> Dec 28 17:05:52 K-test kernel: memory: usage 10240kB, limit 10240kB, failcnt 21
->> Dec 28 17:05:52 K-test kernel: memory+swap: usage 10240kB, limit 10240kB, failcnt 0
->>
->> memory+swap usage is equal to limit, but memsw.failcnt is zero.
->>
-> Please note that memsw.limit_in_bytes is triggered only if we have
-> consumed some swap space already (and the feature is primarily intended
-> to stop extensive swap usage in fact).
-> It goes like this: If we trigger hard limit (memory.limit_in_bytes) then
-> we start the direct reclaim (with swap available). If we trigger memsw
-> limit then we try to reclaim without swap available. We will OOM if we
-> cannot reclaim enough to satisfy the respective limit.
+>> When hit memory.limit_in_bytes, res_counter_charge() will return -ENOMEM,
+>> this will execute line 2222: } else.
+>> But I think when hit memory.limit_in_bytes, the function should determine further
+>> to memory.memsw.limit_in_bytes.
+>> This think is OK?
 > 
-> The other part of the answer is, yes there is something wrong going
-> on her because we definitely shouldn't OOM. The workload is a single
-> threaded and we have a plenty of page cache that could be reclaimed
-> easily. On the other hand we end up with:
-> # echo $$ > tasks 
-> /dev/memctl/a# echo 10M > memory.limit_in_bytes 
-> /dev/memctl/a# echo 10M > memory.memsw.limit_in_bytes 
-> /dev/memctl/a# dd if=/dev/zero of=/tmp/temp_file count=20 bs=1M
-> Killed
-> /dev/memctl/a# cat memory.stat 
-> cache 9265152
-> [...]
+> I don't think so. We have an invariant (hard limit is "stronger" than
+> memsw limit) memory.limit_in_bytes <= memory.memsw.limit_in_bytes so
+> when we hit the hard limit we do not have to consider memsw because
+> resource counter:
+>  a) we already have to do reclaim for hard limit
+>  b) we check whether we might swap out later on in
+>  mem_cgroup_hierarchical_reclaim (root_memcg->memsw_is_minimum) so we
+>  will not end up swapping just to make hard limit ok and go over memsw
+>  limit.
 > 
-> So there is almost 10M of page cache that we can simply reclaim. If we
-> use 40M limit then we are OK. So this looks like the small limit somehow
-> tricks our math in the reclaim path and we think there is nothing to
-> reclaim.
-> I will look into this.
+> Please also note that we will retry charging after reclaim if there is a
+> chance to meet the limit.
+> Makes sense?
 
-Have any conclusion for this?
+Yeah.
+
+But I want to test memory.memsw.failcnt is nonzero, how steps?
 Thanks.
 
 -- 
