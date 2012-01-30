@@ -1,83 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id D67336B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 13:50:03 -0500 (EST)
-Received: by pbaa12 with SMTP id a12so5071020pba.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 10:50:03 -0800 (PST)
-Date: Mon, 30 Jan 2012 10:49:39 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [Help] : RSS/PSS showing 0 during smaps for Xorg
-In-Reply-To: <1327912964.12941.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-Message-ID: <alpine.LSU.2.00.1201301034100.1884@eggly.anvils>
-References: <1327310360.96918.YahooMailNeo@web162003.mail.bf1.yahoo.com> <1327313719.76517.YahooMailNeo@web162002.mail.bf1.yahoo.com> <alpine.LSU.2.00.1201231125200.1677@eggly.anvils> <1327468926.52380.YahooMailNeo@web162002.mail.bf1.yahoo.com>
- <alpine.LSU.2.00.1201251623340.2141@eggly.anvils> <1327912964.12941.YahooMailNeo@web162006.mail.bf1.yahoo.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 281A16B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2012 14:16:25 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id o1so4819632wic.22
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 11:16:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1200577600-1327949391=:1884"
+In-Reply-To: <alpine.LSU.2.00.1201271458130.3402@eggly.anvils>
+References: <1327557574-6125-1-git-send-email-roland@kernel.org>
+ <alpine.LSU.2.00.1201261133230.1369@eggly.anvils> <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com>
+ <alpine.LSU.2.00.1201271458130.3402@eggly.anvils>
+From: Roland Dreier <roland@kernel.org>
+Date: Mon, 30 Jan 2012 11:16:04 -0800
+Message-ID: <CAL1RGDXqguZ2QKV=yjLXtk2n_Ag4Nf3CW+kF2BFQFR4ySTNaRA@mail.gmail.com>
+Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages() parameters
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-rdma@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Fri, Jan 27, 2012 at 6:19 PM, Hugh Dickins <hughd@google.com> wrote:
+>> > > This patch comes from me trying to do userspace RDMA on a memory
+>> > > region exported from a character driver and mapped with
+>> > >
+>> > > =A0 =A0 mmap(... PROT_READ, MAP_PRIVATE ...)
+>
+> Why MAP_PRIVATE? =A0There you are explicitly asking for COW: okay,
+> you wouldn't normally expect any COW while it's just PROT_READ, but
+> once you bring GUP into the picture, with use of write and force,
+> then you are just begging for COW with that MAP_PRIVATE. =A0Please
+> change it to MAP_SHARED - any reason why not?
 
---8323584-1200577600-1327949391=:1884
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+I have no idea of the history there... probably could be changed with
+no problems.
 
-On Mon, 30 Jan 2012, PINTU KUMAR wrote:
-> =A0
-> >If these are ordinary pages with struct pages, then you could probably
-> >use a loop of vm_insert_page()s to insert them at mmap time, or a fault
-> >routine to insert them on fault.=A0 But as I said, I don't know if this
-> >memory is part of the ordinary page pool or not.
-> =A0
-> You suggestion about using vm_insert_page() instead of remap_pfn_range wo=
-rked for me and I got the Rss/Pss information for my driver.
+However, get_user_pages has this comment:
 
-Oh, I'm glad that happened to work for you.
+ * @force:	whether to force write access even if user mapping is
+ *		readonly. This will result in the page being COWed even
+ *		in MAP_SHARED mappings. You do not want this.
 
-> But still there is one problem related to page fault.=20
-> If I remove remap_pfn_range then I get a page fault in the beginning.=20
-> I tried to use the same vm_insert_page() during page_fault_handler for ea=
-ch vmf->virtual_address but it did not work.
-> So for time being I remove the page fault handler from my vm_operations.
-> But with these my menu screen(LCD screen) is not behaving properly (I get=
- colorful lines on my LCD).
-> So I need to handle the page fault properly.
-> =A0
-> But I am not sure what is that I need to do inside page fault handler. Do=
- you have any example or references or suggestions?
+but I don't see where in the code FOLL_FORCE does COW
+for MAP_SHARED mappings.  But on the OTOH I don't see
+why we set force in the first place.  Why wouldn't we respect
+the user's mapping permissions.
 
-Sounds like you're not using vm_insert_page() properly: I would not expect
-you to get a page fault there once you've set up the area with a loop of
-vm_insert_page()s.
+> I feel you're trying to handle two very different cases (rdma into
+> user-supplied anonymous memory, and exporting driver memory to the
+> user) with the same set of args to get_user_pages(). =A0In fact, I
+> don't even see why you need get_user_pages() at all when exporting
+> driver memory to the user. =A0Ah, perhaps you don't, but you do want
+> your standard access method (which already involves GUP) not to
+> mess up when applied to such a mapping - is that it?
 
-Check the comments above it in mm/memory.c ("Your vma protection will
-have to be set up correctly" might be relevant).
+Exactly.  Right now we have the libibverbs userspace API, which
+basically lets userspace create an abstract "memory region" (MR)
+that is then given to the RDMA hardware to do IO on.  Userspace does
 
-Compare how you're using it with other users of vm_insert_page() in
-the kernel tree.  Sorry, I don't have time to do your debugging.
+    mr =3D ibv_reg_mr(..., buf, size, access_flags);
 
-> =A0
-> >Really, the question has to be, why do you need to see non-0s there?
-> I want Rss/Pss value to account for how much video memory is used by the =
-driver for the menu-screen,Xorg processes.
+where access flags say whether we're going to let the hardware
+read and/or write the memory.
 
-So, userspace does an mmap for a large-enough window, but only some part of
-that is filled by the driver (whether by remap_pfn_range or vm_insert_pages=
-),
-and you'd like to communicate back how much via the Rss, instead of adding
-some ioctl or sysfs interface to the driver?  Fair enough.
+Ideally userspace should not have to know where the memory
+underlying its "buf" came from or what type of mapping it is.
 
-I expect userspace could also work it out by touching pages of the area
-until it gets a SIGBUS, but that might be too dirty a way of finding out.
+Certainly there are still more unresolved issues around the case
+where userspace wants to map, say, part of a GPUs PCI memory
+(which won't have any underlying page structs at all), but I'm at
+least hoping we can come up with a way to handle both anonymous
+private maps (which will be COWed from the zero page when
+the memory is touched for writing) and shared mappings of kernel
+memory exported by a driver's mmap method.
 
-Hmm, SIGBUS: maybe that's related to the faults that are puzzling you:
-perhaps you're mapping less than you need to.
 
-Hugh
---8323584-1200577600-1327949391=:1884--
+So I guess I'm left thinking that it seems at least plausible that
+what we want is a new FOLL_ flag for __get_user_pages() that triggers
+COW exactly on the pages that userspace might trigger COW on,
+and avoids COW otherwise -- ie do FOLL_WRITE exactly for the
+pages that have VM_WRITE in their mapping.
+
+I don't think we want to do the "force" semantics or deal with the
+VM_MAYWRITE possiblity -- the access we give the hardware on
+behalf of userspace should just match the access that userspace
+actually has.  It seems that if we don't try to get pages for writing
+when VM_WRITE isn't set, we don't need force anymore.
+
+ - R.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
