@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 26D236B13F0
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 01:33:04 -0500 (EST)
-Received: by vbbfd1 with SMTP id fd1so4510671vbb.14
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2012 22:33:03 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120130135201.7bb5f173.akpm@linux-foundation.org>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	<1327572121-13673-2-git-send-email-gilad@benyossef.com>
-	<CAOtvUMc3XJ_SqpWAZnhyi6Anjd6rEGQTK_iAWJox-5Y4n4Z8hQ@mail.gmail.com>
-	<20120130135201.7bb5f173.akpm@linux-foundation.org>
-Date: Tue, 31 Jan 2012 08:33:03 +0200
-Message-ID: <CAOtvUMef-8p8WVL1uZEuMTOyiM+HTUDPjexw4jhL=0-xodta5w@mail.gmail.com>
-Subject: Re: [v7 1/8] smp: introduce a generic on_each_cpu_mask function
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id D1D6B6B13F0
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 03:00:40 -0500 (EST)
+Subject: [PATCH] fix readahead pipeline break caused by block plug
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 31 Jan 2012 15:59:40 +0800
+Message-ID: <1327996780.21268.42.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Wu Fengguang <wfg@linux.intel.com>
 
-On Mon, Jan 30, 2012 at 11:52 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sun, 29 Jan 2012 14:24:16 +0200
-> Gilad Ben-Yossef <gilad@benyossef.com> wrote:
->
->> On Thu, Jan 26, 2012 at 12:01 PM, Gilad Ben-Yossef <gilad@benyossef.com>=
- wrote:
->> > on_each_cpu_mask calls a function on processors specified by
->> > cpumask, which may or may not include the local processor.
->> >
->> > You must not call this function with disabled interrupts or
->> > from a hardware interrupt handler or from a bottom half handler.
->> >
->> > Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
->> > Reviewed-by: Christoph Lameter <cl@linux.com>
->> > CC: Chris Metcalf <cmetcalf@tilera.com>
->> ...
->> > ---
->> > __include/linux/smp.h | __ 22 ++++++++++++++++++++++
->> > __kernel/smp.c __ __ __ __| __ 29 +++++++++++++++++++++++++++++
->> > __2 files changed, 51 insertions(+), 0 deletions(-)
->> >
->>
->>
->> Milton made the very sensible comment that while adding on_each_cpu() in=
- the
->> arch generic code and removing the two arch specific instances from tile=
- and arm
->> in separate patches is good for review, it will break bisect.
->>
->> He suggested I squash =A0them into a single commit when it goes in.
->>
->> Since you picked the patch set into linux-mm, will now be a good time fo=
-r that?
->
-> I can fold the patches together - I do that all the time.
->
-> Please identify exactly whcih patches you're referring to here.
->
-> arm-move-arm-over-to-generic-on_each_cpu_mask and
-> tile-move-tile-to-use-generic-on_each_cpu_mask should be folded into
-> smp-introduce-a-generic-on_each_cpu_mask-function, yes?
+Herbert Poetzl reported a performance regression since 2.6.39. The test
+is a simple dd read, but with big block size. The reason is:
 
-Yes. Thank you.
+T1: ra (A, A+128k), (A+128k, A+256k)
+T2: lock_page for page A, submit the 256k
+T3: hit page A+128K, ra (A+256k, A+384). the range isn't submitted
+because of plug and there isn't any lock_page till we hit page A+256k
+because all pages from A to A+256k is in memory
+T4: hit page A+256k, ra (A+384, A+ 512). Because of plug, the range isn't
+submitted again.
+T5: lock_page A+256k, so (A+256k, A+512k) will be submitted. The task is
+waitting for (A+256k, A+512k) finish.
 
-Gilad
+There is no request to disk in T3 and T4, so readahead pipeline breaks.
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+We really don't need block plug for generic_file_aio_read() for buffered
+I/O. The readahead already has plug and has fine grained control when I/O
+should be submitted. Deleting plug for buffered I/O fixes the regression.
 
-"Unfortunately, cache misses are an equal opportunity pain provider."
--- Mike Galbraith, LKML
+One side effect is plug makes the request size 256k, the size is 128k
+without it. This is because default ra size is 128k and not a reason we
+need plug here.
+
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Tested-by: Herbert Poetzl <herbert@13thfloor.at>
+Tested-by: Eric Dumazet <eric.dumazet@gmail.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 97f49ed..b662757 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1400,15 +1400,12 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 	unsigned long seg = 0;
+ 	size_t count;
+ 	loff_t *ppos = &iocb->ki_pos;
+-	struct blk_plug plug;
+ 
+ 	count = 0;
+ 	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
+ 	if (retval)
+ 		return retval;
+ 
+-	blk_start_plug(&plug);
+-
+ 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+ 	if (filp->f_flags & O_DIRECT) {
+ 		loff_t size;
+@@ -1424,8 +1421,12 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 			retval = filemap_write_and_wait_range(mapping, pos,
+ 					pos + iov_length(iov, nr_segs) - 1);
+ 			if (!retval) {
++				struct blk_plug plug;
++
++				blk_start_plug(&plug);
+ 				retval = mapping->a_ops->direct_IO(READ, iocb,
+ 							iov, pos, nr_segs);
++				blk_finish_plug(&plug);
+ 			}
+ 			if (retval > 0) {
+ 				*ppos = pos + retval;
+@@ -1481,7 +1482,6 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 			break;
+ 	}
+ out:
+-	blk_finish_plug(&plug);
+ 	return retval;
+ }
+ EXPORT_SYMBOL(generic_file_aio_read);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
