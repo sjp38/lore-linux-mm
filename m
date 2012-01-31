@@ -1,86 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id CF2096B002C
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 16:56:15 -0500 (EST)
-Date: Tue, 31 Jan 2012 22:56:05 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] sunrpc: initialize delayed work on each rpc_inode
- allocation
-In-Reply-To: <20120131101216.00788753@tlielax.poochiereds.net>
-Message-ID: <alpine.LFD.2.02.1201312231311.6143@ionos>
-References: <1327426850-14837-1-git-send-email-jlayton@redhat.com> <4F2700E2.9020803@RedHat.com> <1327957652.4090.32.camel@lade.trondhjem.org> <20120130185753.50280816@tlielax.poochiereds.net> <4F2800B4.6040302@panasas.com>
- <20120131101216.00788753@tlielax.poochiereds.net>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 097DA6B002C
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 17:03:42 -0500 (EST)
+Date: Tue, 31 Jan 2012 17:03:33 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
+Message-ID: <20120131220333.GD4378@redhat.com>
+References: <1327996780.21268.42.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1327996780.21268.42.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Boaz Harrosh <bharrosh@panasas.com>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, Steve Dickson <SteveD@redhat.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Wu Fengguang <wfg@linux.intel.com>
 
-On Tue, 31 Jan 2012, Jeff Layton wrote:
-
-> On Tue, 31 Jan 2012 16:54:44 +0200
-> Boaz Harrosh <bharrosh@panasas.com> wrote:
+On Tue, Jan 31, 2012 at 03:59:40PM +0800, Shaohua Li wrote:
+> Herbert Poetzl reported a performance regression since 2.6.39. The test
+> is a simple dd read, but with big block size. The reason is:
 > 
-> > On 01/31/2012 01:57 AM, Jeff Layton wrote:
-> > >     WARNING: at lib/debugobjects.c:262 debug_print_object+0x8c/0xb0()
-> > > 
-> > > For now, this patch is really just papering over that problem, but it
-> > > should be "mostly harmless". That said, I'm ok with dropping it if
-> > > Thomas is planning to fix this in the debugobjects code however.
-> > > 
-> > 
-> > I disagree it's harmless. What if kmem_cache_free/kmem_cache_alloc deploys
-> > a poisoning schema, in debug mode. Which stumps over memory. Is it
-> > initialized then?
-> > 
+> T1: ra (A, A+128k), (A+128k, A+256k)
+> T2: lock_page for page A, submit the 256k
+> T3: hit page A+128K, ra (A+256k, A+384). the range isn't submitted
+> because of plug and there isn't any lock_page till we hit page A+256k
+> because all pages from A to A+256k is in memory
+> T4: hit page A+256k, ra (A+384, A+ 512). Because of plug, the range isn't
+> submitted again.
+> T5: lock_page A+256k, so (A+256k, A+512k) will be submitted. The task is
+> waitting for (A+256k, A+512k) finish.
 > 
-> Different slab allocators handle that differently. As best I can tell:
+> There is no request to disk in T3 and T4, so readahead pipeline breaks.
 > 
-> SLAB: calls ctor on the poisoned object before handing it back out
+> We really don't need block plug for generic_file_aio_read() for buffered
+> I/O. The readahead already has plug and has fine grained control when I/O
+> should be submitted. Deleting plug for buffered I/O fixes the regression.
 > 
-> SLUB: avoids poisoning the object if there's a ->ctor defined
+> One side effect is plug makes the request size 256k, the size is 128k
+> without it. This is because default ra size is 128k and not a reason we
+> need plug here.
 
-Brilliant. Preventing debug code from catching bugs is really a great
-idea. This needs to be fixed ASAP.
- 
-> SLOB: I'm not sure -- haven't looked at it
-> 
-> > What was the last state of the timer, is it safe for resume?
-> > 
-> 
-> Yes, either way it's safe to reuse the recycled object, aside from the
-> problem with debugobjects. If it's not then that's clearly a bug in the
-> slab allocator.
-> > For us this is a new object we should initialize it.
-> > 
-> 
-> I tend to agree that not relying on slab ctor functions is preferable.
-> They are widely used though so this problem almost assuredly exists in
-> other places besides just rpc_pipefs. If it's not fixed in the
-> debugobjects code (or the slab allocators) then I wouldn't be surprised
-> if this popped up again in another area.
+For me, this patch helps only so much and does not get back all the
+performance lost in case of raw disk read. It does improve the throughput
+from around 85-90 MB/s to 110-120 MB/s but running the same dd with
+iflag=direct, gets me more than 250MB/s.
 
-There is nothing the debugobjects code can do about this. The
-indication for removing the object from the hash is the
-kmem_cache_free() operation and from that point on the object is not
-longer usable. That's correct and it's not going to change.
+# echo 3 > /proc/sys/vm/drop_caches 
+# dd if=/dev/sdb of=/dev/null bs=1M count=1K
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB) copied, 9.03305 s, 119 MB/s
 
-The correct solution to this problem is to do the following:
+echo 3 > /proc/sys/vm/drop_caches 
+# dd if=/dev/sdb of=/dev/null bs=1M count=1K iflag=direct
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB) copied, 4.07426 s, 264 MB/s
 
-Extend the kmemcache with a debug_ctor() callback. 
+I think it is happening because in case of raw read we are submitting
+one page at a time to request queue and by the time all the pages
+are submitted and one big merged request is formed it wates lot of time.
 
-In case of slab poisoning make it call ctor().
+In case of direct IO, we are getting bigger IOs at request queue so
+less cpu overhead, less idling on queue.
 
-In case of debugobjects (w/o slab poisoning) make it a function which
-reinitializes the timer or what ever subobject which needs an explicit
-state check. In case of timers this should be a separate function
-(e.g. timer_reinit()) which soleley makes the timer known to the debug
-code again.
+I created ext4 filesystem on same SSD and did the buffered read and
+that seems to work just fine. Now I am getting bigger requests at
+the request queue. (128K, 256 sectors).
 
-Thanks,
+[root@chilli common]# echo 3 > /proc/sys/vm/drop_caches 
+[root@chilli common]# dd if=zerofile-4G of=/dev/null bs=1M count=1K
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB) copied, 4.09186 s, 262 MB/s
 
-	tglx
+Anyway, remvoing top level plug in case of buffered reads sounds
+reasonable.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
