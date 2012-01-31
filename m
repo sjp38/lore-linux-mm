@@ -1,105 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 082026B13F0
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 09:01:46 -0500 (EST)
-Date: Tue, 31 Jan 2012 14:01:43 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFCv1 3/6] PASR: mm: Integrate PASR in Buddy allocator
-Message-ID: <20120131140143.GW25268@csn.ul.ie>
-References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
- <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com>
- <20120130152237.GS25268@csn.ul.ie>
- <4F26CAD1.2000209@stericsson.com>
- <4F27DB7B.4010103@stericsson.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 730C96B13F0
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 09:47:44 -0500 (EST)
+Date: Tue, 31 Jan 2012 09:47:34 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
+Message-ID: <20120131144734.GA4378@redhat.com>
+References: <1327996780.21268.42.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F27DB7B.4010103@stericsson.com>
+In-Reply-To: <1327996780.21268.42.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxime Coquelin <maxime.coquelin@stericsson.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Wu Fengguang <wfg@linux.intel.com>
 
-On Tue, Jan 31, 2012 at 01:15:55PM +0100, Maxime Coquelin wrote:
-> Hello Mel,
-> On 01/30/2012 05:52 PM, Maxime Coquelin wrote:
-> >
-> >On 01/30/2012 04:22 PM, Mel Gorman wrote:
-> >
-> >>You may be able to use the existing arch_alloc_page() hook and
-> >>call PASR on architectures that support it if and only if PASR is
-> >>present and enabled by the administrator but even this is likely to be
-> >>unpopular as it'll have a measurable performance impact on platforms
-> >>with PASR (not to mention the PASR lock will be even heavier as it'll
-> >>now be also used for per-cpu page allocations). To get the hook you
-> >>want, you'd need to show significant benefit before they were happy with
-> >>the hook.
-> >Your proposal sounds good.
-> >AFAIK, per-cpu allocation maximum size is 32KB. Please correct me
-> >if I'm wrong.
-> >Since pasr_kget/kput() calls the PASR framework only on MAX_ORDER
-> >allocations, we wouldn't add any locking risks nor contention
-> >compared to current patch.
-> >I will update the patch set using  arch_alloc/free_page().
-> >
-> I just had a deeper look at when arch_alloc_page() is called. I
-> think it does not fit with PASR framework needs.
-> pasr_kget() calls pasr_get() only for max order pages (same for
-> pasr_kput()) to avoid overhead.
+On Tue, Jan 31, 2012 at 03:59:40PM +0800, Shaohua Li wrote:
+> Herbert Poetzl reported a performance regression since 2.6.39. The test
+> is a simple dd read, but with big block size. The reason is:
 > 
+> T1: ra (A, A+128k), (A+128k, A+256k)
+> T2: lock_page for page A, submit the 256k
+> T3: hit page A+128K, ra (A+256k, A+384). the range isn't submitted
+> because of plug and there isn't any lock_page till we hit page A+256k
+> because all pages from A to A+256k is in memory
+> T4: hit page A+256k, ra (A+384, A+ 512). Because of plug, the range isn't
+> submitted again.
 
-I see. My bad.
+Why IO is not submitted because of plug? Doesn't task now get scheduled
+out causing an unplug? IOW, are we now busy waiting somewhere preventing
+unplug?
 
-> In current patch set, pasr_kget() is called when pages are removed
-> from the free lists, and pasr_kput() when pages are inserted in the
-> free lists.
-> So, pasr_get() is called in case of :
->     - allocation of a max order page
->     - split of a max order page into lower order pages to fulfill
-> allocation of pages smaller than max order
-> And pasr_put() is called in case of:
->     - release of a max order page
->     - coalescence of two "max order -1" pages when smaller pages are
-> released
-> 
-> If we call the PASR framework in arch_alloc_page(), we have two
-> possibilities:
->     1) using pasr_kget(): the PASR framework will only be notified
-> of max order allocations, so the coalesce/split of free pages case
-> will not be taken into account.
->     2) using pasr_get(): the PASR framework will be called for every
-> orders of page allocation/release. The induced overhead is not
-> acceptable.
-> 
-> To avoid calling pasr_kget/kput() directly in page_alloc.c, do you
-> think adding some arch specific hooks when a page is inserted or
-> removed from the free lists could be acceptable?
-
-It's not the name that is the problem, I'm strongly against any hook
-that can delay the page allocator for arbitrary lengths of time like
-this. I am open to being convinced otherwise but for me PASR would
-need to demonstrate large savings for a wide variety of machines and
-the alternatives would have to be considered and explained why they
-would be far inferior or unsuitable.
-
-For example - it seems like this could be also be done with a
-balloon driver instead of page allocator hooks. A governer would
-identify when the machine was under no memory pressure or triggered
-from userspace. To power down memory, it would use page reclaim and
-page migration to allocate large contiguous ranges of memory - CMA
-could potentially be adapted when it gets merged to save a lot of
-implementation work. The governer should register a slab shrinker
-so that under memory pressure it gets called so it can shrink the
-ballon, power the DIMMS back up and free the memory back to the
-buddy allocator. This would keep all the cost out of the allocator
-paths and move the cost to when the machine is either idle (in the
-case of powering down) or under memory pressure (where the cost of
-powering up will be small in comparison to the overall cost of the
-page reclaim operation).
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
