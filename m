@@ -1,118 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 8DA6D6B13F1
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 12:17:06 -0500 (EST)
-Received: by ggnu2 with SMTP id u2so223823ggn.14
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2012 09:17:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id B78DD6B002C
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 13:56:20 -0500 (EST)
+Message-ID: <4F283933.6070401@stericsson.com>
+Date: Tue, 31 Jan 2012 19:55:47 +0100
+From: Maxime Coquelin <maxime.coquelin@stericsson.com>
 MIME-Version: 1.0
-In-Reply-To: <op.v8wlzbc53l0zgt@mpn-glaptop>
-References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
-	<201201261531.40551.arnd@arndb.de>
-	<20120127162624.40cba14e.akpm@linux-foundation.org>
-	<20120130132512.GO25268@csn.ul.ie>
-	<op.v8wlzbc53l0zgt@mpn-glaptop>
-Date: Tue, 31 Jan 2012 18:17:05 +0100
-Message-ID: <CA+M3ks7h1t6DbPSAhPN6LJ5Dw84hSukfWG16avh2eZL+o4caJg@mail.gmail.com>
-Subject: Re: [PATCHv19 00/15] Contiguous Memory Allocator
-From: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Content-Type: multipart/alternative; boundary=e89a8f3ba6b1d587c304b7d62100
+Subject: Re: [RFCv1 3/6] PASR: mm: Integrate PASR in Buddy allocator
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com> <20120130152237.GS25268@csn.ul.ie> <4F26CAD1.2000209@stericsson.com> <4F27DB7B.4010103@stericsson.com> <20120131140143.GW25268@csn.ul.ie>
+In-Reply-To: <20120131140143.GW25268@csn.ul.ie>
+Content-Type: text/plain; charset="ISO-8859-15"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>
 
---e89a8f3ba6b1d587c304b7d62100
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On 01/31/2012 03:01 PM, Mel Gorman wrote:
+> On Tue, Jan 31, 2012 at 01:15:55PM +0100, Maxime Coquelin wrote:
+>> In current patch set, pasr_kget() is called when pages are removed
+>> from the free lists, and pasr_kput() when pages are inserted in the
+>> free lists.
+>> So, pasr_get() is called in case of :
+>>      - allocation of a max order page
+>>      - split of a max order page into lower order pages to fulfill
+>> allocation of pages smaller than max order
+>> And pasr_put() is called in case of:
+>>      - release of a max order page
+>>      - coalescence of two "max order -1" pages when smaller pages are
+>> released
+>>
+>> If we call the PASR framework in arch_alloc_page(), we have two
+>> possibilities:
+>>      1) using pasr_kget(): the PASR framework will only be notified
+>> of max order allocations, so the coalesce/split of free pages case
+>> will not be taken into account.
+>>      2) using pasr_get(): the PASR framework will be called for every
+>> orders of page allocation/release. The induced overhead is not
+>> acceptable.
+>>
+>> To avoid calling pasr_kget/kput() directly in page_alloc.c, do you
+>> think adding some arch specific hooks when a page is inserted or
+>> removed from the free lists could be acceptable?
+> It's not the name that is the problem, I'm strongly against any hook
+> that can delay the page allocator for arbitrary lengths of time like
+> this. I am open to being convinced otherwise but for me PASR would
+> need to demonstrate large savings for a wide variety of machines and
+> the alternatives would have to be considered and explained why they
+> would be far inferior or unsuitable.
+Ok Mel, I understand your point of view.
 
-Hi Marek,
+The goal of this RFC patch set was to collect comments, so I'm glad to 
+get your opinion.
+I propose to forget the patch in the Buddy allocator.
 
-I have rebase Linaro CMA test driver to be compatible with CMA v19, it now
-use dma-mapping API instead of v17 CMA API.
-A kernel for snowball with CMA v19 and test driver is available here:
-http://git.linaro.org/gitweb?p=3Dpeople/bgaignard/linux-snowball-test-cma-v=
-19.git;a=3Dsummary
+> For example - it seems like this could be also be done with a
+> balloon driver instead of page allocator hooks. A governer would
+> identify when the machine was under no memory pressure or triggered
+> from userspace. To power down memory, it would use page reclaim and
+> page migration to allocate large contiguous ranges of memory - CMA
+> could potentially be adapted when it gets merged to save a lot of
+> implementation work. The governer should register a slab shrinker
+> so that under memory pressure it gets called so it can shrink the
+> ballon, power the DIMMS back up and free the memory back to the
+> buddy allocator. This would keep all the cost out of the allocator
+> paths and move the cost to when the machine is either idle (in the
+> case of powering down) or under memory pressure (where the cost of
+> powering up will be small in comparison to the overall cost of the
+> page reclaim operation).
+>
+This is very interesting.
+I know Linaro plans to work on DDR power management topic.
+One of the options they envisage is to use the Memory Hotplug feature.
+However, the main problem with Memory Hotplug is to handle the memory 
+pressure, i.e. when to re-plug the memory sections.
+Your proposal address this issue. I don't know if such a driver could be 
+done in the Linaro scope.
 
->From this kernel build, I have execute CMA lava (the linaro automatic test
-tool) test, the same than we are running since v16, the test is OK.
-With previous versions of CMA some the test has found issues when the
-memory was filled with reclaimables pages, but with v19 this issue is no
-more present.
-Test logs are here:
-https://validation.linaro.org/lava-server/scheduler/job/10841
+Anyway, even with a balloon driver, I think the PASR framework could be 
+suitable to keep an "hardware" view of the memory layout (dies, banks, 
+segments...).
+Moreover, this framework is designed to also support some physically 
+contiguous memory allocators (such as hwmem and pmem).
 
-so you can add:
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-
-Regards,
-Benjamin
-
-Benjamin Gaignard
-
-Multimedia Working Group
-
-Linaro.org <http://www.linaro.org/>* **=E2=94=82 *Open source software for =
-ARM SoCs
-
-**
-
-Follow *Linaro: *Facebook <http://www.facebook.com/pages/Linaro> |
-Twitter<http://twitter.com/#!/linaroorg>
- | Blog <http://www.linaro.org/linaro-blog/>
-
---e89a8f3ba6b1d587c304b7d62100
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-Hi Marek,<div><br></div><div>I have rebase Linaro CMA test driver to be com=
-patible with CMA v19, it now use dma-mapping API instead of v17 CMA API.<br=
->A kernel for snowball with CMA v19 and test driver is available here:=C2=
-=A0</div>
-<div><a href=3D"http://git.linaro.org/gitweb?p=3Dpeople/bgaignard/linux-sno=
-wball-test-cma-v19.git;a=3Dsummary">http://git.linaro.org/gitweb?p=3Dpeople=
-/bgaignard/linux-snowball-test-cma-v19.git;a=3Dsummary</a></div><div><br></=
-div><div>
->From this kernel build, I have execute CMA lava (the linaro automatic test =
-tool) test, the same than we are running since v16, the test is OK.</div><d=
-iv>With previous versions of CMA some the test has found issues when the me=
-mory was filled with reclaimables pages, but with v19 this issue is no more=
- present.</div>
-<div>Test logs are here: =C2=A0<a href=3D"https://validation.linaro.org/lav=
-a-server/scheduler/job/10841">https://validation.linaro.org/lava-server/sch=
-eduler/job/10841</a></div><div><br></div><meta http-equiv=3D"content-type" =
-content=3D"text/html; charset=3Dutf-8"><div>
-so you can add:</div><div>Tested-by: Benjamin Gaignard &lt;<a href=3D"mailt=
-o:benjamin.gaignard@linaro.org">benjamin.gaignard@linaro.org</a>&gt;</div><=
-div><br><div class=3D"gmail_quote">Regards,</div><div class=3D"gmail_quote"=
->Benjamin</div>
-<div class=3D"gmail_quote"><br></div><span style=3D"border-collapse:collaps=
-e;font-family:arial,sans-serif;font-size:13px"><p style=3D"margin-top:0px;m=
-argin-right:0px;margin-bottom:0px;margin-left:0px">Benjamin Gaignard=C2=A0<=
-/p><p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0px;margin-lef=
-t:0px">
-Multimedia Working Group</p><p style=3D"margin-top:0px;margin-right:0px;mar=
-gin-bottom:0px;margin-left:0px"><span lang=3D"EN-US" style=3D"font-size:10p=
-t;color:rgb(0,176,80)"><span style=3D"color:rgb(0,68,252)"><a href=3D"http:=
-//www.linaro.org/" style=3D"color:rgb(0,0,204)" target=3D"_blank">Linaro.or=
-g</a></span><b>=C2=A0</b></span><b><span lang=3D"EN-US" style=3D"font-size:=
-10pt">=E2=94=82=C2=A0</span></b><span lang=3D"EN-US" style=3D"font-size:10p=
-t">Open source software for ARM SoCs</span></p>
-<p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0=
-px"><u></u></p><p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0p=
-x;margin-left:0px"><span lang=3D"EN-US" style=3D"font-size:10pt">Follow=C2=
-=A0<b>Linaro:=C2=A0</b></span><span style=3D"font-size:10pt;color:rgb(0,68,=
-252)"><a href=3D"http://www.facebook.com/pages/Linaro" style=3D"color:rgb(0=
-,0,204)" target=3D"_blank"><span style=3D"color:blue">Facebook</span></a></=
-span><span style=3D"font-size:10pt">=C2=A0|=C2=A0<span style=3D"color:rgb(0=
-,68,252)"><a href=3D"http://twitter.com/#!/linaroorg" style=3D"color:rgb(0,=
-0,204)" target=3D"_blank"><span style=3D"color:blue">Twitter</span></a></sp=
-an>=C2=A0|=C2=A0<span style=3D"color:rgb(0,68,252)"><a href=3D"http://www.l=
-inaro.org/linaro-blog/" style=3D"color:rgb(0,0,204)" target=3D"_blank"><spa=
-n style=3D"color:blue">Blog</span></a></span></span></p>
-</span><br>
-</div>
-
---e89a8f3ba6b1d587c304b7d62100--
+Best regards,
+Maxime
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
