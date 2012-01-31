@@ -1,60 +1,60 @@
-Return-Path: <catullusl303@dhl.com>
+Return-Path: <numbnessd7@dhl.com>
 From: "DHL Express International" <no-reply@dhl.com>
-Subject: DHL Express Tracking Notification ID 4OR0GXL0QFKS5HJERJGJJ
-Date: Wed, 31 Jan 2012 18:10:21 +0530
+Subject: DHL Express Delivery Notification Message  TrackId-SGOVFGZCPSAF
+Date: Wed, 31 Jan 2012 13:42:39 +0100
 MIME-Version: 1.0
-Message-ID: <3XL582VOOLGGSBLJCBRBJ7P2V4AZF5M2TL01402PI57Y8JXL8VWQBE06703675@kul-dc.dhl.com>
+Message-ID: <JG53U6K07KZ7CPUI5GU08LW8032JRQKN2SAPPIVVYFLM58HXQZ0WHE94542837@kul-dc.dhl.com>
 Content-Type: multipart/mixed;
-  boundary="----=x__igxfgwx_44_53_11"
+  boundary="----=x__tcck_39_01_94"
 To: linux-mm-archive@kvack.org, linux-mm@kvack.org, linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=x__igxfgwx_44_53_11
+------=x__tcck_39_01_94
 Content-Type: multipart/alternative;
-  boundary="----=_igxfgwx_44_53_11"
+  boundary="----=_tcck_39_01_94"
 
-------=_igxfgwx_44_53_11
+------=_tcck_39_01_94
 Content-Type: text/plain;
-	charset="iso-8859-1"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 18:10:21 =
-+0530Custom  Reference: 17830-5QN9DQ88NAKDTracking Number: 5LH-5858557232=
-6 Pickup Date: Wed, 31 Jan 2012 18:10:21 +0530Service: AIR/GROUNDPieces: =
-1
+Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 13:42:39 =
++0100Custom  Reference: 15686-Y5N4A239UWL2Tracking Number: 85A-6412357379=
+1 Pickup Date: Wed, 31 Jan 2012 13:42:39 +0100Service: AIR/GROUNDPieces: =
+3
 
-Wed, 31 Jan 2012 18:10:21 +0530 -  Processing complete successfullyPLEASE=
+Wed, 31 Jan 2012 13:42:39 +0100 -  Processing complete successfullyPLEASE=
  REFER TO ATTACHED FILE FOR DETAILED INFORMATION.Shipment status may also=
  be obtained from our Internet site in USA under http://track.dhl-usa.com=
  or Globally under http://www.dhl.com/track Please do not reply to this e=
 mail. This is an automated application used only for sending proactive no=
 tificationsThanks in advance,DHL Express International Inc.
-------=_igxfgwx_44_53_11
+------=_tcck_39_01_94
 Content-Type: text/html;
-	charset="iso-8859-1"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-=
-1">
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii"=
+>
 <STYLE></STYLE>
 </HEAD>
 <BODY>
 Hello Dear, 
 <p>
-DHL Express Tracking Notification: Wed, 31 Jan 2012 18:10:21 +0530
+DHL Express Tracking Notification: Wed, 31 Jan 2012 13:42:39 +0100
 <br>
 <hr>
 </p
 <p>
 <table border=3D0><tr>
 <td>
-Custom  Reference: 17830-5QN9DQ88NAKD<br>
-Tracking Number: 5LH-58585572326 <br>
-Pickup Date: Wed, 31 Jan 2012 18:10:21 +0530<br>
+Custom  Reference: 15686-Y5N4A239UWL2<br>
+Tracking Number: 85A-64123573791 <br>
+Pickup Date: Wed, 31 Jan 2012 13:42:39 +0100<br>
 Service: AIR/GROUND<br>
-Pieces: 1<br><br>
+Pieces: 3<br><br>
 <hr>
 </td></tr>
 <tr><td width=3D"100%">
@@ -63,7 +63,7 @@ Pieces: 1<br><br>
 </tr>
 </table>
 <p><br>
-<b>Wed, 31 Jan 2012 18:10:21 +0530 -  Processing complete successfully
+<b>Wed, 31 Jan 2012 13:42:39 +0100 -  Processing complete successfully
 <br><b>
 PLEASE REFER TO ATTACHED FILE FOR DETAILED INFORMATION.
 </b>
@@ -89,12 +89,12 @@ DHL Express International Inc.
 
 </BODY></HTML>
 
-------=_igxfgwx_44_53_11--
+------=_tcck_39_01_94--
 
-------=x__igxfgwx_44_53_11
-Content-Type: application/zip; name="DHL-Express-Shipment-Notification-JUQ03184FEB2012.zip"
+------=x__tcck_39_01_94
+Content-Type: application/zip; name="DHL-Express-Shipment-Notification-5MW15827FEB2012.zip"
 Content-Transfer-Encoding: base64
-Content-ID: <001401cce043$987f6c20$1474f175@ZDGP3R93>
+Content-ID: <005201cce01e$32a1d890$3201a8c0@F8SRO1X>
 
 UEsDBBQAAAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAREhMLUV4cHJlc3MtSW50ZXJuYXRpb25h
 bC1TaGlwbWVudC1Ob3RpZmljYXRpb24tMDIwMTEyLmV4Zez5Y7A4QdM9CF7btm3btm3b5u/a
@@ -3783,4 +3783,4 @@ AAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAAAAAAAAAIAAAAAAAAABESEwtRXhwcmVzcy1JbnRl
 cm5hdGlvbmFsLVNoaXBtZW50LU5vdGlmaWNhdGlvbi0wMjAxMTIuZXhlUEsFBgAAAAABAAEA
 aAAAANoIAwAAAA== 
 
-------=x__igxfgwx_44_53_11--
+------=x__tcck_39_01_94--
