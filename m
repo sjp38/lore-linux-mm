@@ -1,22 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 631DB6B13F0
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 03:36:48 -0500 (EST)
-Date: Tue, 31 Jan 2012 03:36:40 -0500
-From: Christoph Hellwig <hch@infradead.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id C7DF86B13F0
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 03:48:48 -0500 (EST)
+Received: by bkbzs2 with SMTP id zs2so4176792bkb.14
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2012 00:48:46 -0800 (PST)
+Message-ID: <1327999722.2422.11.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
 Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
-Message-ID: <20120131083640.GA13556@infradead.org>
-References: <1327996780.21268.42.camel@sli10-conroe>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Tue, 31 Jan 2012 09:48:42 +0100
 In-Reply-To: <1327996780.21268.42.camel@sli10-conroe>
+References: <1327996780.21268.42.camel@sli10-conroe>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shaohua.li@intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Wu Fengguang <wfg@linux.intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Vivek Goyal <vgoyal@redhat.com>, Wu Fengguang <wfg@linux.intel.com>
 
-On Tue, Jan 31, 2012 at 03:59:40PM +0800, Shaohua Li wrote:
+Le mardi 31 janvier 2012 A  15:59 +0800, Shaohua Li a A(C)crit :
 > Herbert Poetzl reported a performance regression since 2.6.39. The test
 > is a simple dd read, but with big block size. The reason is:
 > 
@@ -43,9 +45,60 @@ On Tue, Jan 31, 2012 at 03:59:40PM +0800, Shaohua Li wrote:
 > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 > Tested-by: Herbert Poetzl <herbert@13thfloor.at>
 > Tested-by: Eric Dumazet <eric.dumazet@gmail.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Please also CC -stable on this.
+Hmm, this is not exactly the patch I tested from Wu Fengguang 
+
+I'll test this one before adding my "Tested-by: ..."
+
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 97f49ed..b662757 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1400,15 +1400,12 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+>  	unsigned long seg = 0;
+>  	size_t count;
+>  	loff_t *ppos = &iocb->ki_pos;
+> -	struct blk_plug plug;
+>  
+>  	count = 0;
+>  	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
+>  	if (retval)
+>  		return retval;
+>  
+> -	blk_start_plug(&plug);
+> -
+>  	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+>  	if (filp->f_flags & O_DIRECT) {
+>  		loff_t size;
+> @@ -1424,8 +1421,12 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+>  			retval = filemap_write_and_wait_range(mapping, pos,
+>  					pos + iov_length(iov, nr_segs) - 1);
+>  			if (!retval) {
+> +				struct blk_plug plug;
+> +
+> +				blk_start_plug(&plug);
+
+This part was not on the tested patch yesterday.
+
+>  				retval = mapping->a_ops->direct_IO(READ, iocb,
+>  							iov, pos, nr_segs);
+> +				blk_finish_plug(&plug);
+>  			}
+>  			if (retval > 0) {
+>  				*ppos = pos + retval;
+> @@ -1481,7 +1482,6 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+>  			break;
+>  	}
+>  out:
+> -	blk_finish_plug(&plug);
+>  	return retval;
+>  }
+>  EXPORT_SYMBOL(generic_file_aio_read);
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
