@@ -1,58 +1,58 @@
-Return-Path: <sinewyq1@dhl-usa.com>
+Return-Path: <catullusl303@dhl.com>
 From: "DHL Express International" <no-reply@dhl.com>
-Subject: DHL Express Delivery Notification Message  TrackId-A30D7K28MQ6T
-Date: Wed, 31 Jan 2012 13:28:58 +0100
+Subject: DHL Express Tracking Notification ID 4OR0GXL0QFKS5HJERJGJJ
+Date: Wed, 31 Jan 2012 18:10:21 +0530
 MIME-Version: 1.0
-Message-ID: <28DAHHLMCWXW8QG3E5ET5CATELA9L2669DPNJ6FK860HSOSPM3OBZ411066114@kul-dc.dhl.com>
+Message-ID: <3XL582VOOLGGSBLJCBRBJ7P2V4AZF5M2TL01402PI57Y8JXL8VWQBE06703675@kul-dc.dhl.com>
 Content-Type: multipart/mixed;
-  boundary="----=x__kyjtfaih_49_44_71"
+  boundary="----=x__igxfgwx_44_53_11"
 To: linux-mm-archive@kvack.org, linux-mm@kvack.org, linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=x__kyjtfaih_49_44_71
+------=x__igxfgwx_44_53_11
 Content-Type: multipart/alternative;
-  boundary="----=_kyjtfaih_49_44_71"
+  boundary="----=_igxfgwx_44_53_11"
 
-------=_kyjtfaih_49_44_71
+------=_igxfgwx_44_53_11
 Content-Type: text/plain;
-	charset="windows-1250"
+	charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 
-Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 13:28:58 =
-+0100Custom  Reference: 16087-8TKPHMUT34MBTracking Number: X1V-7427361848=
-3 Pickup Date: Wed, 31 Jan 2012 13:28:58 +0100Service: AIR/GROUNDPieces: =
+Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 18:10:21 =
++0530Custom  Reference: 17830-5QN9DQ88NAKDTracking Number: 5LH-5858557232=
+6 Pickup Date: Wed, 31 Jan 2012 18:10:21 +0530Service: AIR/GROUNDPieces: =
 1
 
-Wed, 31 Jan 2012 13:28:58 +0100 -  Processing complete successfullyPLEASE=
+Wed, 31 Jan 2012 18:10:21 +0530 -  Processing complete successfullyPLEASE=
  REFER TO ATTACHED FILE FOR DETAILED INFORMATION.Shipment status may also=
  be obtained from our Internet site in USA under http://track.dhl-usa.com=
  or Globally under http://www.dhl.com/track Please do not reply to this e=
 mail. This is an automated application used only for sending proactive no=
 tificationsThanks in advance,DHL Express International Inc.
-------=_kyjtfaih_49_44_71
+------=_igxfgwx_44_53_11
 Content-Type: text/html;
-	charset="windows-1250"
+	charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1=
-250">
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-=
+1">
 <STYLE></STYLE>
 </HEAD>
 <BODY>
 Hello Dear, 
 <p>
-DHL Express Tracking Notification: Wed, 31 Jan 2012 13:28:58 +0100
+DHL Express Tracking Notification: Wed, 31 Jan 2012 18:10:21 +0530
 <br>
 <hr>
 </p
 <p>
 <table border=3D0><tr>
 <td>
-Custom  Reference: 16087-8TKPHMUT34MB<br>
-Tracking Number: X1V-74273618483 <br>
-Pickup Date: Wed, 31 Jan 2012 13:28:58 +0100<br>
+Custom  Reference: 17830-5QN9DQ88NAKD<br>
+Tracking Number: 5LH-58585572326 <br>
+Pickup Date: Wed, 31 Jan 2012 18:10:21 +0530<br>
 Service: AIR/GROUND<br>
 Pieces: 1<br><br>
 <hr>
@@ -63,7 +63,7 @@ Pieces: 1<br><br>
 </tr>
 </table>
 <p><br>
-<b>Wed, 31 Jan 2012 13:28:58 +0100 -  Processing complete successfully
+<b>Wed, 31 Jan 2012 18:10:21 +0530 -  Processing complete successfully
 <br><b>
 PLEASE REFER TO ATTACHED FILE FOR DETAILED INFORMATION.
 </b>
@@ -89,12 +89,12 @@ DHL Express International Inc.
 
 </BODY></HTML>
 
-------=_kyjtfaih_49_44_71--
+------=_igxfgwx_44_53_11--
 
-------=x__kyjtfaih_49_44_71
-Content-Type: application/zip; name="DHL-Express-Shipment-Notification-P2157205FEB2012.zip"
+------=x__igxfgwx_44_53_11
+Content-Type: application/zip; name="DHL-Express-Shipment-Notification-JUQ03184FEB2012.zip"
 Content-Transfer-Encoding: base64
-Content-ID: <002701cce01c$49473010$0969a8c0@NBQFJ9J6>
+Content-ID: <001401cce043$987f6c20$1474f175@ZDGP3R93>
 
 UEsDBBQAAAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAREhMLUV4cHJlc3MtSW50ZXJuYXRpb25h
 bC1TaGlwbWVudC1Ob3RpZmljYXRpb24tMDIwMTEyLmV4Zez5Y7A4QdM9CF7btm3btm3b5u/a
@@ -3783,4 +3783,4 @@ AAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAAAAAAAAAIAAAAAAAAABESEwtRXhwcmVzcy1JbnRl
 cm5hdGlvbmFsLVNoaXBtZW50LU5vdGlmaWNhdGlvbi0wMjAxMTIuZXhlUEsFBgAAAAABAAEA
 aAAAANoIAwAAAA== 
 
-------=x__kyjtfaih_49_44_71--
+------=x__igxfgwx_44_53_11--
