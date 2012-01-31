@@ -1,46 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D57BC6B13F0
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 07:30:46 -0500 (EST)
-Date: Tue, 31 Jan 2012 20:20:39 +0800
-From: Wu Fengguang <wfg@linux.intel.com>
-Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
-Message-ID: <20120131122039.GA12706@localhost>
-References: <1327996780.21268.42.camel@sli10-conroe>
- <20120131103416.GA1661@localhost>
- <20120131104621.GA27003@infradead.org>
- <20120131105754.GA3867@localhost>
- <20120131113452.GA3235@infradead.org>
- <20120131114256.GA8796@localhost>
- <20120131115716.GA19829@infradead.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D67A76B13F0
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 07:39:09 -0500 (EST)
+Date: Tue, 31 Jan 2012 13:39:03 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFCv1 0/6] PASR: Partial Array Self-Refresh Framework
+Message-ID: <20120131123903.GB4408@elte.hu>
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
+ <20120130135341.GA3720@elte.hu>
+ <4F26A701.3090006@stericsson.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120131115716.GA19829@infradead.org>
+In-Reply-To: <4F26A701.3090006@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, Jan 31, 2012 at 06:57:16AM -0500, Christoph Hellwig wrote:
-> On Tue, Jan 31, 2012 at 07:42:56PM +0800, Wu Fengguang wrote:
-> > > So what?  Better do a bit more work now and keep the damn thing
-> > > maintainable.
-> > 
-> > What if we add a wrapper function for doing
-> > 
-> >         blk_start_plug(&plug);
-> >         ->direct_IO()
-> >         blk_finish_plug(&plug);
+
+* Maxime Coquelin <maxime.coquelin@stericsson.com> wrote:
+
+> Dear Ingo,
 > 
-> No.  Just put it into __blockdev_direct_IO - a quick 2 minute audit of
-> the kernel source shows that is in fact the only ->direct_IO instance
-> which ever submits block I/O anyway.
+> On 01/30/2012 02:53 PM, Ingo Molnar wrote:
+> >* Maxime Coquelin<maxime.coquelin@stericsson.com>  wrote:
+> >
+> >>The role of this framework is to stop the refresh of unused
+> >>memory to enhance DDR power consumption.
+> >I'm wondering in what scenarios this is useful, and how
+> >consistently it is useful.
+> >
+> >The primary concern I can see is that on most Linux systems with
+> >an uptime more than a couple of minutes RAM gets used up by the
+> >Linux page-cache:
+> >
+> >  $ uptime
+> >   14:46:39 up 11 days,  2:04, 19 users,  load average: 0.11, 0.29, 0.80
+> >  $ free
+> >               total       used       free     shared    buffers     cached
+> >  Mem:      12255096   12030152     224944          0     651560    6000452
+> >  -/+ buffers/cache:    5378140    6876956
+> >
+> > Even mobile phones easily have days of uptime - quite often 
+> > weeks of uptime. I'd expect the page-cache to fill up RAM on 
+> > such systems.
+> >
+> > So how will this actually end up saving power consistently? 
+> > Does it have to be combined with a VM policy that more 
+> > aggressively flushes cached pages from the page-cache?
+>
+> You're right Ingo, page-cache fills up the RAM. This framework 
+> is to be used in combination with a page-cache flush governor. 
+> In the case of a mobile phone, we can imagine dropping the 
+> cache when system's screen is off for a while, in order to 
+> preserve user's experience.
 
-Right, so nice point!
+Is this "page-cache flush governor" some existing code?
+How does it work and does it need upstream patches?
+
+> > A secondary concern is fragmentation: right now we fragment 
+> > memory rather significantly.
+>
+> Yes, I think fragmentation is the main challenge. This is the 
+> same problem faced for Memory Hotplug feature. The solution I 
+> see is to add a significant Movable zone in the system and use 
+> the Compaction feature from Mel Gorman. The problem of course 
+> remains for the Normal zone.
+
+Ok. I guess phones/appliances can generally live with a 
+relatively large movable zone as they don't have serious
+memory pressure issues.
+
+> > For the Ux500 PASR driver you've implemented the section 
+> > size is 64 MB. Do I interpret the code correctly in that a 
+> > continuous, 64MB physical block of RAM has to be 100% free 
+> > for us to be able to turn off refresh and power for this 
+> > block of RAM?
+>
+> Current DDR (2Gb/4Gb dies) used in mobile platform have 64MB 
+> banks and segments. This is the lower granularity for Partial 
+> Array Self-refresh.
+
+Ok, so do you see real, consistent power savings with a large 
+movable zone, with page cache governor patches applied (assuming 
+it's a kernel mechanism) and CONFIG_COMPACTION=y enabled, on an 
+upstream kernel with all these patches applied?
 
 Thanks,
-Fengguang
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
