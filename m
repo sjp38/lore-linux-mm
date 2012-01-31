@@ -1,140 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 46D476B002C
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 12:15:10 -0500 (EST)
-Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LYO00CC9AL8A4@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 31 Jan 2012 17:15:08 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LYO0051IAL8TI@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 31 Jan 2012 17:15:08 +0000 (GMT)
-Date: Tue, 31 Jan 2012 18:15:04 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 11/15] mm: trigger page reclaim in alloc_contig_range() to
- stabilize watermarks
-In-reply-to: <20120130130540.GN25268@csn.ul.ie>
-Message-id: <023001cce03b$dfddf760$9f99e620$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 8DA6D6B13F1
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 12:17:06 -0500 (EST)
+Received: by ggnu2 with SMTP id u2so223823ggn.14
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2012 09:17:05 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <op.v8wlzbc53l0zgt@mpn-glaptop>
 References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
- <1327568457-27734-12-git-send-email-m.szyprowski@samsung.com>
- <20120130130540.GN25268@csn.ul.ie>
+	<201201261531.40551.arnd@arndb.de>
+	<20120127162624.40cba14e.akpm@linux-foundation.org>
+	<20120130132512.GO25268@csn.ul.ie>
+	<op.v8wlzbc53l0zgt@mpn-glaptop>
+Date: Tue, 31 Jan 2012 18:17:05 +0100
+Message-ID: <CA+M3ks7h1t6DbPSAhPN6LJ5Dw84hSukfWG16avh2eZL+o4caJg@mail.gmail.com>
+Subject: Re: [PATCHv19 00/15] Contiguous Memory Allocator
+From: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+Content-Type: multipart/alternative; boundary=e89a8f3ba6b1d587c304b7d62100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-Hello,
+--e89a8f3ba6b1d587c304b7d62100
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-On Monday, January 30, 2012 2:06 PM Mel Gorman wrote:
+Hi Marek,
 
-> On Thu, Jan 26, 2012 at 10:00:53AM +0100, Marek Szyprowski wrote:
-> > alloc_contig_range() performs memory allocation so it also should keep
-> > track on keeping the correct level of memory watermarks. This commit adds
-> > a call to *_slowpath style reclaim to grab enough pages to make sure that
-> > the final collection of contiguous pages from freelists will not starve
-> > the system.
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > CC: Michal Nazarewicz <mina86@mina86.com>
-> > ---
-> >  mm/page_alloc.c |   36 ++++++++++++++++++++++++++++++++++++
-> >  1 files changed, 36 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index e35d06b..05eaa82 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5613,6 +5613,34 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned
-> long end)
-> >  	return ret;
-> >  }
-> >
-> > +/*
-> > + * Trigger memory pressure bump to reclaim some pages in order to be able to
-> > + * allocate 'count' pages in single page units. Does similar work as
-> > + *__alloc_pages_slowpath() function.
-> > + */
-> > +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
-> > +{
-> > +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-> > +	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
-> > +	int did_some_progress = 0;
-> > +	int order = 1;
-> > +	unsigned long watermark;
-> > +
-> > +	/* Obey watermarks as if the page was being allocated */
-> > +	watermark = low_wmark_pages(zone) + count;
-> > +	while (!zone_watermark_ok(zone, 0, watermark, 0, 0)) {
-> > +		wake_all_kswapd(order, zonelist, high_zoneidx, zone_idx(zone));
-> > +
-> > +		did_some_progress = __perform_reclaim(gfp_mask, order, zonelist,
-> > +						      NULL);
-> > +		if (!did_some_progress) {
-> > +			/* Exhausted what can be done so it's blamo time */
-> > +			out_of_memory(zonelist, gfp_mask, order, NULL);
-> > +		}
-> 
-> There are three problems here
-> 
-> 1. CMA can trigger the OOM killer.
-> 
-> That seems like overkill to me but as I do not know the consequences
-> of CMA failing, it's your call.
+I have rebase Linaro CMA test driver to be compatible with CMA v19, it now
+use dma-mapping API instead of v17 CMA API.
+A kernel for snowball with CMA v19 and test driver is available here:
+http://git.linaro.org/gitweb?p=3Dpeople/bgaignard/linux-snowball-test-cma-v=
+19.git;a=3Dsummary
 
-This behavior is intended, we agreed that the contiguous allocations should
-have higher priority than others.
+>From this kernel build, I have execute CMA lava (the linaro automatic test
+tool) test, the same than we are running since v16, the test is OK.
+With previous versions of CMA some the test has found issues when the
+memory was filled with reclaimables pages, but with v19 this issue is no
+more present.
+Test logs are here:
+https://validation.linaro.org/lava-server/scheduler/job/10841
 
-> 2. You cannot guarantee that try_to_free_pages will free pages from the
->    zone you care about or that kswapd will do anything
-> 
-> You check the watermarks and take into account the size of the pending
-> CMA allocation. kswapd in vmscan.c on the other hand will simply check
-> the watermarks and probably go back to sleep. You should be aware of
-> this in case you ever get bugs that CMA takes too long and that it
-> appears to be stuck in this loop with kswapd staying asleep.
+so you can add:
+Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-Right, I experienced this problem today. The simplest workaround I've 
-found is to adjust watermark before calling kswapd, but I'm not sure 
-that increasing min_free_kbytes and calling setup_per_zone_wmarks() is
-the nicest approach for it.
+Regards,
+Benjamin
 
-> 3. You reclaim from zones other than your target zone
-> 
-> try_to_free_pages is not necessarily going to free pages in the
-> zone you are checking for. It'll work on ARM in many cases because
-> there will be only one zone but on other arches, this logic will
-> be problematic and will potentially livelock. You need to pass in
-> a zonelist that only contains the zone that CMA cares about. If it
-> cannot reclaim, did_some_progress == 0 and it'll exit. Otherwise
-> there is a possibility that this will loop forever reclaiming pages
-> from the wrong zones.
+Benjamin Gaignard
 
-Right. I tested it on a system with only one zone, so I never experienced 
-such problem. For the first version I think we might assume that the buffer
-allocated by alloc_contig_range() must fit the single zone. I will add some
-comments about it. Later we can extend it for more advanced cases. 
+Multimedia Working Group
 
-> I won't ack this particular patch but I am not going to insist that
-> you fix these prior to merging either. If you leave problem 3 as it
-> is, I would really like to see a comment explaning the problem for
-> future users of CMA on other arches (if they exist).
+Linaro.org <http://www.linaro.org/>* **=E2=94=82 *Open source software for =
+ARM SoCs
 
-I will add more comments about the issues You have pointed out to make
-the life easier for other arch developers.
+**
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+Follow *Linaro: *Facebook <http://www.facebook.com/pages/Linaro> |
+Twitter<http://twitter.com/#!/linaroorg>
+ | Blog <http://www.linaro.org/linaro-blog/>
 
+--e89a8f3ba6b1d587c304b7d62100
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
+Hi Marek,<div><br></div><div>I have rebase Linaro CMA test driver to be com=
+patible with CMA v19, it now use dma-mapping API instead of v17 CMA API.<br=
+>A kernel for snowball with CMA v19 and test driver is available here:=C2=
+=A0</div>
+<div><a href=3D"http://git.linaro.org/gitweb?p=3Dpeople/bgaignard/linux-sno=
+wball-test-cma-v19.git;a=3Dsummary">http://git.linaro.org/gitweb?p=3Dpeople=
+/bgaignard/linux-snowball-test-cma-v19.git;a=3Dsummary</a></div><div><br></=
+div><div>
+>From this kernel build, I have execute CMA lava (the linaro automatic test =
+tool) test, the same than we are running since v16, the test is OK.</div><d=
+iv>With previous versions of CMA some the test has found issues when the me=
+mory was filled with reclaimables pages, but with v19 this issue is no more=
+ present.</div>
+<div>Test logs are here: =C2=A0<a href=3D"https://validation.linaro.org/lav=
+a-server/scheduler/job/10841">https://validation.linaro.org/lava-server/sch=
+eduler/job/10841</a></div><div><br></div><meta http-equiv=3D"content-type" =
+content=3D"text/html; charset=3Dutf-8"><div>
+so you can add:</div><div>Tested-by: Benjamin Gaignard &lt;<a href=3D"mailt=
+o:benjamin.gaignard@linaro.org">benjamin.gaignard@linaro.org</a>&gt;</div><=
+div><br><div class=3D"gmail_quote">Regards,</div><div class=3D"gmail_quote"=
+>Benjamin</div>
+<div class=3D"gmail_quote"><br></div><span style=3D"border-collapse:collaps=
+e;font-family:arial,sans-serif;font-size:13px"><p style=3D"margin-top:0px;m=
+argin-right:0px;margin-bottom:0px;margin-left:0px">Benjamin Gaignard=C2=A0<=
+/p><p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0px;margin-lef=
+t:0px">
+Multimedia Working Group</p><p style=3D"margin-top:0px;margin-right:0px;mar=
+gin-bottom:0px;margin-left:0px"><span lang=3D"EN-US" style=3D"font-size:10p=
+t;color:rgb(0,176,80)"><span style=3D"color:rgb(0,68,252)"><a href=3D"http:=
+//www.linaro.org/" style=3D"color:rgb(0,0,204)" target=3D"_blank">Linaro.or=
+g</a></span><b>=C2=A0</b></span><b><span lang=3D"EN-US" style=3D"font-size:=
+10pt">=E2=94=82=C2=A0</span></b><span lang=3D"EN-US" style=3D"font-size:10p=
+t">Open source software for ARM SoCs</span></p>
+<p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0=
+px"><u></u></p><p style=3D"margin-top:0px;margin-right:0px;margin-bottom:0p=
+x;margin-left:0px"><span lang=3D"EN-US" style=3D"font-size:10pt">Follow=C2=
+=A0<b>Linaro:=C2=A0</b></span><span style=3D"font-size:10pt;color:rgb(0,68,=
+252)"><a href=3D"http://www.facebook.com/pages/Linaro" style=3D"color:rgb(0=
+,0,204)" target=3D"_blank"><span style=3D"color:blue">Facebook</span></a></=
+span><span style=3D"font-size:10pt">=C2=A0|=C2=A0<span style=3D"color:rgb(0=
+,68,252)"><a href=3D"http://twitter.com/#!/linaroorg" style=3D"color:rgb(0,=
+0,204)" target=3D"_blank"><span style=3D"color:blue">Twitter</span></a></sp=
+an>=C2=A0|=C2=A0<span style=3D"color:rgb(0,68,252)"><a href=3D"http://www.l=
+inaro.org/linaro-blog/" style=3D"color:rgb(0,0,204)" target=3D"_blank"><spa=
+n style=3D"color:blue">Blog</span></a></span></span></p>
+</span><br>
+</div>
+
+--e89a8f3ba6b1d587c304b7d62100--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
