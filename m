@@ -1,35 +1,35 @@
-Return-Path: <plummetsi0@dhl.com>
+Return-Path: <hadingavv7@dhl-usa.com>
 From: "DHL Express International" <no-reply@dhl.com>
-Subject: DHL International Notification for shipment  3363-8150-FXHO0TY
-Date: Wed, 31 Jan 2012 13:18:55 +0100
+Subject: DHL International Notification for shipment  3972-0317-JIWIGBC
+Date: Wed, 31 Jan 2012 17:56:20 +0530
 MIME-Version: 1.0
-Message-ID: <EM5GDB49A99GEZJ75S0SPZ1RHF8FZAZGL07YNS061TSAC65H6UO3R487075250@kul-dc.dhl.com>
+Message-ID: <3R17FUBCPM2NAQKR5K38OP6Z80JHJ68GBIA2EN6NVAZ2CBY19UQVYJ89454805@kul-dc.dhl.com>
 Content-Type: multipart/mixed;
-  boundary="----=x__bwqwkzir_65_42_81"
+  boundary="----=x__vukq_95_13_21"
 To: linux-mm-archive@kvack.org, linux-mm@kvack.org, linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=x__bwqwkzir_65_42_81
+------=x__vukq_95_13_21
 Content-Type: multipart/alternative;
-  boundary="----=_bwqwkzir_65_42_81"
+  boundary="----=_vukq_95_13_21"
 
-------=_bwqwkzir_65_42_81
+------=_vukq_95_13_21
 Content-Type: text/plain;
 	charset="Windows-1252"
 Content-Transfer-Encoding: quoted-printable
 
-Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 13:18:55 =
-+0100Custom  Reference: 25067-MZEV5MLMSSF3Tracking Number: 5WV-4555370798=
-6 Pickup Date: Wed, 31 Jan 2012 13:18:55 +0100Service: AIR/GROUNDPieces: =
-1
+Hello Dear, DHL Express Tracking Notification: Wed, 31 Jan 2012 17:56:20 =
++0530Custom  Reference: 67569-CNT6APBL606CTracking Number: 326-4873887812=
+4 Pickup Date: Wed, 31 Jan 2012 17:56:20 +0530Service: AIR/GROUNDPieces: =
+3
 
-Wed, 31 Jan 2012 13:18:55 +0100 -  Processing complete successfullyPLEASE=
+Wed, 31 Jan 2012 17:56:20 +0530 -  Processing complete successfullyPLEASE=
  REFER TO ATTACHED FILE FOR DETAILED INFORMATION.Shipment status may also=
  be obtained from our Internet site in USA under http://track.dhl-usa.com=
  or Globally under http://www.dhl.com/track Please do not reply to this e=
 mail. This is an automated application used only for sending proactive no=
 tificationsThanks in advance,DHL Express International Inc.
-------=_bwqwkzir_65_42_81
+------=_vukq_95_13_21
 Content-Type: text/html;
 	charset="Windows-1252"
 Content-Transfer-Encoding: quoted-printable
@@ -43,18 +43,18 @@ Content-Transfer-Encoding: quoted-printable
 <BODY>
 Hello Dear, 
 <p>
-DHL Express Tracking Notification: Wed, 31 Jan 2012 13:18:55 +0100
+DHL Express Tracking Notification: Wed, 31 Jan 2012 17:56:20 +0530
 <br>
 <hr>
 </p
 <p>
 <table border=3D0><tr>
 <td>
-Custom  Reference: 25067-MZEV5MLMSSF3<br>
-Tracking Number: 5WV-45553707986 <br>
-Pickup Date: Wed, 31 Jan 2012 13:18:55 +0100<br>
+Custom  Reference: 67569-CNT6APBL606C<br>
+Tracking Number: 326-48738878124 <br>
+Pickup Date: Wed, 31 Jan 2012 17:56:20 +0530<br>
 Service: AIR/GROUND<br>
-Pieces: 1<br><br>
+Pieces: 3<br><br>
 <hr>
 </td></tr>
 <tr><td width=3D"100%">
@@ -63,7 +63,7 @@ Pieces: 1<br><br>
 </tr>
 </table>
 <p><br>
-<b>Wed, 31 Jan 2012 13:18:55 +0100 -  Processing complete successfully
+<b>Wed, 31 Jan 2012 17:56:20 +0530 -  Processing complete successfully
 <br><b>
 PLEASE REFER TO ATTACHED FILE FOR DETAILED INFORMATION.
 </b>
@@ -89,12 +89,12 @@ DHL Express International Inc.
 
 </BODY></HTML>
 
-------=_bwqwkzir_65_42_81--
+------=_vukq_95_13_21--
 
-------=x__bwqwkzir_65_42_81
-Content-Type: application/zip; name="DHL-Express-Shipment-Notification-63X12693FEB2012.zip"
+------=x__vukq_95_13_21
+Content-Type: application/zip; name="DHL-Express-Shipment-Notification-ZRM70614FEB2012.zip"
 Content-Transfer-Encoding: base64
-Content-ID: <006201cce01a$e1f122f0$7900a8c0@9U3W4O>
+Content-ID: <004701cce041$a34d4cf0$0801a8c0@5LLDX7Y>
 
 UEsDBBQAAAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAREhMLUV4cHJlc3MtSW50ZXJuYXRpb25h
 bC1TaGlwbWVudC1Ob3RpZmljYXRpb24tMDIwMTEyLmV4Zez5Y7A4QdM9CF7btm3btm3b5u/a
@@ -3783,4 +3783,4 @@ AAAIAPBbQUDUcK9sgggDAAAWAwA6AAAAAAAAAAAAIAAAAAAAAABESEwtRXhwcmVzcy1JbnRl
 cm5hdGlvbmFsLVNoaXBtZW50LU5vdGlmaWNhdGlvbi0wMjAxMTIuZXhlUEsFBgAAAAABAAEA
 aAAAANoIAwAAAA== 
 
-------=x__bwqwkzir_65_42_81--
+------=x__vukq_95_13_21--
