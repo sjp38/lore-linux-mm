@@ -1,87 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id C3DEC6B002C
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 21:26:32 -0500 (EST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 56ECC6B002C
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2012 22:37:05 -0500 (EST)
+Date: Tue, 31 Jan 2012 22:36:53 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
 Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20120131103416.GA1661@localhost>
+Message-ID: <20120201033653.GA12092@redhat.com>
 References: <1327996780.21268.42.camel@sli10-conroe>
-	 <20120131103416.GA1661@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 01 Feb 2012 10:25:26 +0800
-Message-ID: <1328063126.21268.54.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20120131220333.GD4378@redhat.com>
+ <20120131141301.ba35ffe0.akpm@linux-foundation.org>
+ <20120131222217.GE4378@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120131222217.GE4378@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <wfg@linux.intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shaohua.li@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Wu Fengguang <wfg@linux.intel.com>
 
-On Tue, 2012-01-31 at 18:34 +0800, Wu Fengguang wrote:
-> I'd like to propose a sister patch on the write part. It may not be
-> as easy to measure any performance impacts of it, but I'll try.
-I did think about it, the write case doesn't matter because we didn't do
-real IO there.
-I can do another patch to cleanup the code (moving it to direct_io),
-sounds ok?
+On Tue, Jan 31, 2012 at 05:22:17PM -0500, Vivek Goyal wrote:
+[..]
 
-> ---
-> Subject: remove plugging at buffered write time 
-> Date: Tue Jan 31 18:25:48 CST 2012
+> > 
+> > We've never really bothered making the /dev/sda[X] I/O very efficient
+> > for large I/O's under the (probably wrong) assumption that it isn't a
+> > very interesting case.  Regular files will (or should) use the mpage
+> > functions, via address_space_operations.readpages().  fs/blockdev.c
+> > doesn't even implement it.
+> > 
+> > > and by the time all the pages
+> > > are submitted and one big merged request is formed it wates lot of time.
+> > 
+> > But that was the case in eariler kernels too.  Why did it change?
 > 
-> Buffered write(2) is not directly tied to IO, so no need to handle plug
-> in generic_file_aio_write().
-> 
-> CC: Jens Axboe <axboe@kernel.dk>
-> CC: Li Shaohua <shaohua.li@intel.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/filemap.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> --- linux-next.orig/mm/filemap.c	2012-01-31 18:23:52.000000000 +0800
-> +++ linux-next/mm/filemap.c	2012-01-31 18:25:38.000000000 +0800
-> @@ -2267,6 +2267,7 @@ generic_file_direct_write(struct kiocb *
->  	struct file	*file = iocb->ki_filp;
->  	struct address_space *mapping = file->f_mapping;
->  	struct inode	*inode = mapping->host;
-> +	struct blk_plug plug;
->  	ssize_t		written;
->  	size_t		write_len;
->  	pgoff_t		end;
-> @@ -2301,7 +2302,9 @@ generic_file_direct_write(struct kiocb *
->  		}
->  	}
->  
-> +	blk_start_plug(&plug);
->  	written = mapping->a_ops->direct_IO(WRITE, iocb, iov, pos, *nr_segs);
-> +	blk_finish_plug(&plug);
->  
->  	/*
->  	 * Finally, try again to invalidate clean pages which might have been
-> @@ -2610,13 +2613,11 @@ ssize_t generic_file_aio_write(struct ki
->  {
->  	struct file *file = iocb->ki_filp;
->  	struct inode *inode = file->f_mapping->host;
-> -	struct blk_plug plug;
->  	ssize_t ret;
->  
->  	BUG_ON(iocb->ki_pos != pos);
->  
->  	mutex_lock(&inode->i_mutex);
-> -	blk_start_plug(&plug);
->  	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
->  	mutex_unlock(&inode->i_mutex);
->  
-> @@ -2627,7 +2628,6 @@ ssize_t generic_file_aio_write(struct ki
->  		if (err < 0 && ret > 0)
->  			ret = err;
->  	}
-> -	blk_finish_plug(&plug);
->  	return ret;
->  }
->  EXPORT_SYMBOL(generic_file_aio_write);
+> Actually, I assumed that the case of reading /dev/sda[X] worked well in
+> earlier kernels. Sorry about that. Will build a 2.6.38 kernel tonight
+> and run the test case again to make sure we had same overhead and
+> relatively poor performance while reading /dev/sda[X].
 
+Ok, I tried it with 2.6.38 kernel and results look more or less same.
+Throughput varied between 105MB to 145MB. Many a times it was close to
+110MB and other times it was 145MB. Don't know what causes that spike
+sometimes.
+
+I still see that IO is being submitted one page at a time. The only
+real difference seems to be that queue unplug happening at random times
+and many a times we are submitting much smaller requests (40 sectors, 48
+sectors etc).
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
