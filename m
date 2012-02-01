@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 5BBBF6B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 17:02:18 -0500 (EST)
-Received: by pbaa12 with SMTP id a12so1812042pba.14
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 14:02:17 -0800 (PST)
-Date: Wed, 1 Feb 2012 14:02:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 60C506B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 17:05:22 -0500 (EST)
+Received: by dadv6 with SMTP id v6so1597708dad.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 14:05:21 -0800 (PST)
+Date: Wed, 1 Feb 2012 14:05:19 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Slub cleanup 4/9] slub: Simplify control flow in
- __slab_alloc()
-In-Reply-To: <20120123201707.746733370@linux.com>
-Message-ID: <alpine.DEB.2.00.1202011402040.10854@chino.kir.corp.google.com>
-References: <20120123201646.924319545@linux.com> <20120123201707.746733370@linux.com>
+Subject: Re: [Slub cleanup 5/9] slub: new_slab_objects() can also get objects
+ from partial list
+In-Reply-To: <20120123201708.312262597@linux.com>
+Message-ID: <alpine.DEB.2.00.1202011405090.10854@chino.kir.corp.google.com>
+References: <20120123201646.924319545@linux.com> <20120123201708.312262597@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,7 +20,8 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
 On Mon, 23 Jan 2012, Christoph Lameter wrote:
 
-> Simplify control flow a bit avoiding nesting.
+> Moving the attempt to get a slab page from the partial lists simplifies
+> __slab_alloc which is rather complicated.
 > 
 > Signed-off-by: Christoph Lameter <cl@linux.com>
 
