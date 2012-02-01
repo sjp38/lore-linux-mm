@@ -1,67 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C28F46B13F1
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 12:30:53 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <6a13108f-a473-4ea1-9d05-7f52c30adcc8@default>
-Date: Wed, 1 Feb 2012 09:30:52 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: Re: [LSF/MM TOPIC] [ATTEND] memory compaction & ballooning
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id A63126B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 12:35:40 -0500 (EST)
+Message-ID: <1328117722.2446.262.camel@twins>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Wed, 01 Feb 2012 18:35:22 +0100
+In-Reply-To: <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
+	 <1327591185.2446.102.camel@twins>
+	 <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Konrad Wilk <konrad.wilk@oracle.com>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>, paulmck <paulmck@linux.vnet.ibm.com>
 
-Re: http://marc.info/?l=3Dlinux-mm&m=3D132732724710038&w=3D2=20
-(sorry I couldn't properly thread this)
+On Sun, 2012-01-29 at 10:25 +0200, Gilad Ben-Yossef wrote:
+>=20
+> If this is of interest, I keep a list tracking global IPI and global
+> task schedulers sources in the core kernel here:
+> https://github.com/gby/linux/wiki.=20
 
-> I would like to discuss / brainstorm improvements to
-> compaction and ways to keep memory allocations better
-> separated, to be better able to come up with contiguous
-> 2MB areas.
-
-Hi Rik --
-
-I have some thoughts on how in-kernel cleancache/tmem can be
-used to help achieve this.  We can talk about it more
-in April, but basically:
-
-- IMHO the big issue with superpage ballooning is that you need
-  to either maintain a ready-to-use free-list of superpages
-  (but keeping this list is far too wasteful of space); or you
-  need to do just-in-time compaction of a lot of superpages
-  which is time-consuming (periodic "pauses") and subject
-  to failure due to fragmentation.
-- Under the conditions where you would want to do ballooning,
-  most of the wasted space in a superpage free list would
-  otherwise be used for clean file-mapped pagecache pages.
-  So a large superpage free list would lead to a potentially
-  large increase in refaults (and thus disk reads).
-
-So:
-
-- Implement a zcache-like driver that allocates 2MB superpages
-  and uses each to store large quantities of cleancache 4K
-  pages (compressed or not) AND all associated meta-data,
-  such that all 4K pages stored in the superpage can be instantly
-  evicted from cleancache simply by removing the superpage
-  from a list.
-- This list of reclaimable superpages would be primarily used by
-  the balloon superpage driver but can also be reclaimed under
-  certain low-memory conditions.
-- If implemented properly, there is no internal fragmentation
-  (in the non-compression case).
-
-Of course this is not free either; it serves a similar
-purpose to compaction but amortizes the cost over time.
-And you have the choice of compression, which increases
-density by increasing CPU cost, or non-compression which
-has only page-copy overhead and some small meta-data space
-overhead.
-
-Dan
+You can add synchronize_.*_expedited() to the list, it does its best to
+bash the entire machine in order to try and make RCU grace periods
+happen fast.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
