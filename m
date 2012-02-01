@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id E76F76B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 03:07:19 -0500 (EST)
-Received: by obbta7 with SMTP id ta7so1336445obb.14
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 00:07:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 972CD6B002C
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 03:40:37 -0500 (EST)
+Date: Wed, 1 Feb 2012 16:30:32 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] move vm tools from Documentation/vm/ to tools/
+Message-ID: <20120201083032.GA6774@localhost>
+References: <20120201063420.GA10204@darkstar.nay.redhat.com>
+ <CAOJsxLGVS3bK=hiKJu4NwTv-Nf8TCSAEL4reSZoY4=44hPt8rA@mail.gmail.com>
+ <4F28EC9D.7000907@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-References: <1326558605.19951.7.camel@lappy>
-	<1326561043.5287.24.camel@edumazet-laptop>
-	<1326632384.11711.3.camel@lappy>
-	<1326648305.5287.78.camel@edumazet-laptop>
-	<alpine.DEB.2.00.1201170910130.4800@router.home>
-	<1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-	<alpine.DEB.2.00.1201170927020.4800@router.home>
-	<1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Date: Wed, 1 Feb 2012 10:07:18 +0200
-Message-ID: <CAOJsxLFLkQDxYq9nuM91q8DB99gSuz9DBfXktNGpS4Ss63GHdA@mail.gmail.com>
-Subject: Re: Hung task when calling clone() due to netfilter/slab
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F28EC9D.7000907@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
+To: Dave Young <dyoung@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Jan 17, 2012 at 5:30 PM, Eric Dumazet <eric.dumazet@gmail.com> wrot=
-e:
-> Le mardi 17 janvier 2012 =E0 09:27 -0600, Christoph Lameter a =E9crit :
->
->> Subject: slub: Do not hold slub_lock when calling sysfs_slab_add()
->>
->> sysfs_slab_add() calls various sysfs functions that actually may
->> end up in userspace doing all sorts of things.
->>
->> Release the slub_lock after adding the kmem_cache structure to the list.
->> At that point the address of the kmem_cache is not known so we are
->> guaranteed exlusive access to the following modifications to the
->> kmem_cache structure.
->>
->> If the sysfs_slab_add fails then reacquire the slub_lock to
->> remove the kmem_cache structure from the list.
->>
->> Reported-by: Sasha Levin <levinsasha928@gmail.com>
->> Signed-off-by: Christoph Lameter <cl@linux.com>
->>
->> ---
->> =A0mm/slub.c | =A0 =A03 ++-
->> =A01 file changed, 2 insertions(+), 1 deletion(-)
->>
->> Index: linux-2.6/mm/slub.c
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- linux-2.6.orig/mm/slub.c =A02012-01-17 03:07:11.140010438 -0600
->> +++ linux-2.6/mm/slub.c =A0 =A0 =A0 2012-01-17 03:26:06.799986908 -0600
->> @@ -3929,13 +3929,14 @@ struct kmem_cache *kmem_cache_create(con
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (kmem_cache_open(s, n,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size, align,=
- flags, ctor)) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add(&s->list, &slab_cac=
-hes);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 up_write(&slub_lock);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (sysfs_slab_add(s)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 down_write(&sl=
-ub_lock);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&s-=
->list);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(n);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(s);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 up_write(&slub_lock);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return s;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(n);
->
-> Thanks !
->
-> Acked-by: Eric Dumazet <eric.dumazet@gmail.com>
+On Wed, Feb 01, 2012 at 03:41:17PM +0800, Dave Young wrote:
+> On 02/01/2012 03:32 PM, Pekka Enberg wrote:
+> 
+> > On Wed, Feb 1, 2012 at 8:34 AM, Dave Young <dyoung@redhat.com> wrote:
+> >> tools/ is the better place for vm tools which are used by many people.
+> >> Moving them to tools also make them open to more users instead of hide in
+> >> Documentation folder.
+> > 
+> > For moving the code:
+> > 
+> > Acked-by: Pekka Enberg <penberg@kernel.org>
 
-I'm planning to queue this for v3.4 and tagging it for -stable for
-v3.3. Do we need this for older versions as well?
+I have no problem with the move -- actually I sent a similar patch
+long time ago to Andrew ;)
 
-                        Pekka
+Will git-mv end up with a better commit?
+
+> >> Also fixed several coding style problem.
+> > 
+> > Can you please make that a separate patch?
+> 
+> 
+> Will do.
+> 
+> BTW, I think tools/slub/slabinfo.c should be included in tools/vm/ as
+> well, will move it in v2 patch
+
+CC Christoph. Maybe not a big deal since it's already under tools/.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
