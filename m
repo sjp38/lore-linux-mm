@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 60C506B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 17:05:22 -0500 (EST)
-Received: by dadv6 with SMTP id v6so1597708dad.14
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 14:05:21 -0800 (PST)
-Date: Wed, 1 Feb 2012 14:05:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E30B76B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 17:11:59 -0500 (EST)
+Received: by pbaa12 with SMTP id a12so1820192pba.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 14:11:59 -0800 (PST)
+Date: Wed, 1 Feb 2012 14:11:56 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Slub cleanup 5/9] slub: new_slab_objects() can also get objects
- from partial list
-In-Reply-To: <20120123201708.312262597@linux.com>
-Message-ID: <alpine.DEB.2.00.1202011405090.10854@chino.kir.corp.google.com>
-References: <20120123201646.924319545@linux.com> <20120123201708.312262597@linux.com>
+Subject: Re: [Slub cleanup 6/9] slub: Get rid of the node field
+In-Reply-To: <20120123201708.869898930@linux.com>
+Message-ID: <alpine.DEB.2.00.1202011411250.10854@chino.kir.corp.google.com>
+References: <20120123201646.924319545@linux.com> <20120123201708.869898930@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,9 +19,15 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
 On Mon, 23 Jan 2012, Christoph Lameter wrote:
 
-> Moving the attempt to get a slab page from the partial lists simplifies
-> __slab_alloc which is rather complicated.
+> The node field is always page_to_nid(c->page). So its rather easy to
+> replace. Note that there maybe slightly more overhead in various hot paths
+> due to the need to shift the bits from page->flags. However, that is mostly
+> compensated for by a smaller footprint of the kmem_cache_cpu structure (this
+> patch reduces that to 3 words per cache) which allows better caching.
 > 
+
+s/3 words per cache/4 words per cache/
+
 > Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
