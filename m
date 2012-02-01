@@ -1,33 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 06F3C6B002C
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 04:18:15 -0500 (EST)
-Date: Wed, 1 Feb 2012 04:18:07 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
-Message-ID: <20120201091807.GA7451@infradead.org>
-References: <1327996780.21268.42.camel@sli10-conroe>
- <20120131220333.GD4378@redhat.com>
- <20120131141301.ba35ffe0.akpm@linux-foundation.org>
- <20120131222217.GE4378@redhat.com>
- <20120201033653.GA12092@redhat.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id B441E6B002C
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 04:51:04 -0500 (EST)
+Message-ID: <4F290B9E.1090605@redhat.com>
+Date: Wed, 01 Feb 2012 17:53:34 +0800
+From: Dave Young <dyoung@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120201033653.GA12092@redhat.com>
+Subject: Re: [PATCH] move vm tools from Documentation/vm/ to tools/
+References: <20120201063420.GA10204@darkstar.nay.redhat.com> <CAOJsxLGVS3bK=hiKJu4NwTv-Nf8TCSAEL4reSZoY4=44hPt8rA@mail.gmail.com> <4F28EC9D.7000907@redhat.com> <20120201083032.GA6774@localhost>
+In-Reply-To: <20120201083032.GA6774@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>, Wu Fengguang <wfg@linux.intel.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Jan 31, 2012 at 10:36:53PM -0500, Vivek Goyal wrote:
-> I still see that IO is being submitted one page at a time. The only
-> real difference seems to be that queue unplug happening at random times
-> and many a times we are submitting much smaller requests (40 sectors, 48
-> sectors etc).
+On 02/01/2012 04:30 PM, Wu Fengguang wrote:
 
-This is expected given that the block device node uses
-block_read_full_page, and not mpage_readpage(s).
+> On Wed, Feb 01, 2012 at 03:41:17PM +0800, Dave Young wrote:
+>> On 02/01/2012 03:32 PM, Pekka Enberg wrote:
+>>
+>>> On Wed, Feb 1, 2012 at 8:34 AM, Dave Young <dyoung@redhat.com> wrote:
+>>>> tools/ is the better place for vm tools which are used by many people.
+>>>> Moving them to tools also make them open to more users instead of hide in
+>>>> Documentation folder.
+>>>
+>>> For moving the code:
+>>>
+>>> Acked-by: Pekka Enberg <penberg@kernel.org>
+> 
+> I have no problem with the move -- actually I sent a similar patch
+> long time ago to Andrew ;)
+
+
+Good to know, then do you mind I add your signed-off line?
+
+> 
+> Will git-mv end up with a better commit?
+> 
+>>>> Also fixed several coding style problem.
+>>>
+>>> Can you please make that a separate patch?
+>>
+>>
+>> Will do.
+>>
+>> BTW, I think tools/slub/slabinfo.c should be included in tools/vm/ as
+>> well, will move it in v2 patch
+> 
+> CC Christoph. Maybe not a big deal since it's already under tools/.
+> 
+> Thanks,
+> Fengguang
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+
+
+-- 
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
