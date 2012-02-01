@@ -1,120 +1,98 @@
-From: "Chanho Min" <chanho.min@lge.com>
-Subject: RE: [PATCH] mm/backing-dev.c: fix crash when USB/SCSI device is detached
-Date: Tue, 3 Jan 2012 20:22:50 +0900
-Message-ID: <9980.1323297017$1325589822@news.gmane.org>
-References: <004401ccc932$444a0070$ccde0150$@min@lge.com> <20120102095711.GA16570@localhost> <002e01ccc9c7$1928c940$4b7a5bc0$@min@lge.com> <20120103044933.GA31778@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Ri2Su-0002El-9S
-	for glkm-linux-mm-2@m.gmane.org; Tue, 03 Jan 2012 12:23:36 +0100
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 8A69A6B006E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2012 06:23:22 -0500 (EST)
-In-Reply-To: <20120103044933.GA31778@localhost>
-Content-Language: ko
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 62DD06B002C
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 02:12:55 -0500 (EST)
+Date: Wed, 1 Feb 2012 15:02:47 +0800
+From: Wu Fengguang <wfg@linux.intel.com>
+Subject: Re: [PATCH] fix readahead pipeline break caused by block plug
+Message-ID: <20120201070247.GA29083@localhost>
+References: <1327996780.21268.42.camel@sli10-conroe>
+ <20120131220333.GD4378@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120131220333.GD4378@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Wu Fengguang' <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Rabin Vincent' <rabin.vincent@stericsson.com>, 'Linus Walleij' <linus.walleij@linaro.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Herbert Poetzl <herbert@13thfloor.at>, Eric Dumazet <eric.dumazet@gmail.com>
 
->On Tue, Jan 03, 2012 at 12:23:44PM +0900, Chanho Min wrote:
->> >On Mon, Jan 02, 2012 at 06:38:21PM +0900, =
-=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=C8=A3 wrote:
->> >> from Chanho Min <chanho.min@lge.com>
->> >>
->> >> System may crash in backing-dev.c when removal SCSI device is =
-detached.
->> >> bdi task is killed by bdi_unregister()/'khubd', but task's point
->remains.
->> >> Shortly afterward, If 'wb->wakeup_timer' is expired before
->> >> del_timer()/bdi_forker_thread,
->> >> wakeup_timer_fn() may wake up the dead thread which cause the =
-crash.
->> >> 'bdi->wb.task' should be NULL as this patch.
->> >
->> >Is it some race condition between del_timer() and del_timer_sync()?
->> >
->> >bdi_unregister() calls
->> >
->> >        del_timer_sync
->> >        bdi_wb_shutdown
->> >            kthread_stop
->> >
->> >in turn, and del_timer_sync() should guarantee wakeup_timer_fn() is
->> >no longer called to access the stopped task.
->> >
->>
->> It is not race condition. This happens when USB is removed during =
-write-
->access.
->> bdi_wakeup_thread_delayed is called after kthread_stop, and timer is
->activated again.
->>
->> 	bdi_unregister
->> 		kthread_stop
->> 	bdi_wakeup_thread_delayed (sys_write mostly calls this)
->> 	timer fires
->
->Ah OK, the timer could be restarted in the mean while, which breaks
->the synchronization rule in del_timer_sync().
->
->I noticed a related fix is merged recently, does your test kernel
->contain this commit?
->
+On Tue, Jan 31, 2012 at 05:03:33PM -0500, Vivek Goyal wrote:
+> On Tue, Jan 31, 2012 at 03:59:40PM +0800, Shaohua Li wrote:
+> > Herbert Poetzl reported a performance regression since 2.6.39. The test
+> > is a simple dd read, but with big block size. The reason is:
+> > 
+> > T1: ra (A, A+128k), (A+128k, A+256k)
+> > T2: lock_page for page A, submit the 256k
+> > T3: hit page A+128K, ra (A+256k, A+384). the range isn't submitted
+> > because of plug and there isn't any lock_page till we hit page A+256k
+> > because all pages from A to A+256k is in memory
+> > T4: hit page A+256k, ra (A+384, A+ 512). Because of plug, the range isn't
+> > submitted again.
+> > T5: lock_page A+256k, so (A+256k, A+512k) will be submitted. The task is
+> > waitting for (A+256k, A+512k) finish.
+> > 
+> > There is no request to disk in T3 and T4, so readahead pipeline breaks.
+> > 
+> > We really don't need block plug for generic_file_aio_read() for buffered
+> > I/O. The readahead already has plug and has fine grained control when I/O
+> > should be submitted. Deleting plug for buffered I/O fixes the regression.
+> > 
+> > One side effect is plug makes the request size 256k, the size is 128k
+> > without it. This is because default ra size is 128k and not a reason we
+> > need plug here.
+> 
+> For me, this patch helps only so much and does not get back all the
+> performance lost in case of raw disk read. It does improve the throughput
+> from around 85-90 MB/s to 110-120 MB/s but running the same dd with
+> iflag=direct, gets me more than 250MB/s.
+> 
+> # echo 3 > /proc/sys/vm/drop_caches 
+> # dd if=/dev/sdb of=/dev/null bs=1M count=1K
+> 1024+0 records in
+> 1024+0 records out
+> 1073741824 bytes (1.1 GB) copied, 9.03305 s, 119 MB/s
+> 
+> echo 3 > /proc/sys/vm/drop_caches 
+> # dd if=/dev/sdb of=/dev/null bs=1M count=1K iflag=direct
+> 1024+0 records in
+> 1024+0 records out
+> 1073741824 bytes (1.1 GB) copied, 4.07426 s, 264 MB/s
+> 
+> I think it is happening because in case of raw read we are submitting
+> one page at a time to request queue and by the time all the pages
+> are submitted and one big merged request is formed it wates lot of time.
+> 
+> In case of direct IO, we are getting bigger IOs at request queue so
+> less cpu overhead, less idling on queue.
 
-No, I will try to reproduce with this patch.=20
-But, bdi_destroy is not called during write-access. Same result is =
-expected.
+Note that "dd bs=1M" will result in 128KB readahead IO. The buffered
+dd reads may perform much better if 1MB readahead size is used:
 
->commit 7a401a972df8e184b3d1a3fc958c0a4ddee8d312
->Author: Rabin Vincent <rabin.vincent@stericsson.com>
->Date:   Fri Nov 11 13:29:04 2011 +0100
->
->    backing-dev: ensure wakeup_timer is deleted
->
->> Anyway,Is this safeguard to prevent from waking up killed thread?
->
->This patch makes no guarantee wakeup_timer_fn() will see NULL
->bdi->wb.task before the task is stopped, so there is still race
->conditions. And still, the complete fix would be to prevent
->wakeup_timer_fn() from being called at all.
+blockdev --setra 2048 /dev/sda
 
-If wakeup_timer_fn() see NULL bdi->wb.task, wakeup_timer_fn regards task =
-as killed
-and wake up forker thread instead of the defined thread.
-Is this intended behavior of the bdi?
+> I created ext4 filesystem on same SSD and did the buffered read and
+> that seems to work just fine. Now I am getting bigger requests at
+> the request queue. (128K, 256 sectors).
+> 
+> [root@chilli common]# echo 3 > /proc/sys/vm/drop_caches 
+> [root@chilli common]# dd if=zerofile-4G of=/dev/null bs=1M count=1K
+> 1024+0 records in
+> 1024+0 records out
+> 1073741824 bytes (1.1 GB) copied, 4.09186 s, 262 MB/s
 
->
->Thanks,
->Fengguang
->
->> >> Signed-off-by: Chanho Min <chanho.min@lge.com>
->> >> ---
->> >>  mm/backing-dev.c |    1 +
->> >>  1 files changed, 1 insertions(+), 0 deletions(-)
->> >>
->> >> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
->> >> index 71034f4..4378a5e 100644
->> >> --- a/mm/backing-dev.c
->> >> +++ b/mm/backing-dev.c
->> >> @@ -607,6 +607,7 @@ static void bdi_wb_shutdown(struct =
-backing_dev_info
->> >> *bdi)
->> >>         if (bdi->wb.task) {
->> >>                 thaw_process(bdi->wb.task);
->> >>                 kthread_stop(bdi->wb.task);
->> >> +               bdi->wb.task =3D NULL;
->> >>         }
->> >>  }
->> >>
->> >> --
->> >> 1.7.0.4
+So the raw sda reads have some performance problems. What's the exact
+blktrace sequence for sda reads? And the block size?
+
+blockdev --getbsz /dev/sda               
+
+> Anyway, remvoing top level plug in case of buffered reads sounds
+> reasonable.
+
+Yup.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
