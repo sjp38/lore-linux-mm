@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 050986B002C
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 02:38:43 -0500 (EST)
-Message-ID: <4F28EC9D.7000907@redhat.com>
-Date: Wed, 01 Feb 2012 15:41:17 +0800
-From: Dave Young <dyoung@redhat.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id BC0876B002C
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 03:05:55 -0500 (EST)
+Received: by obbta7 with SMTP id ta7so1334430obb.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 00:05:55 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] move vm tools from Documentation/vm/ to tools/
-References: <20120201063420.GA10204@darkstar.nay.redhat.com> <CAOJsxLGVS3bK=hiKJu4NwTv-Nf8TCSAEL4reSZoY4=44hPt8rA@mail.gmail.com>
-In-Reply-To: <CAOJsxLGVS3bK=hiKJu4NwTv-Nf8TCSAEL4reSZoY4=44hPt8rA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1201200848040.25882@router.home>
+References: <1326558605.19951.7.camel@lappy>
+	<1326561043.5287.24.camel@edumazet-laptop>
+	<1326632384.11711.3.camel@lappy>
+	<1326648305.5287.78.camel@edumazet-laptop>
+	<alpine.DEB.2.00.1201170910130.4800@router.home>
+	<1326813630.2259.19.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<alpine.DEB.2.00.1201170927020.4800@router.home>
+	<1326814208.2259.21.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	<alpine.DEB.2.00.1201170942240.4800@router.home>
+	<alpine.DEB.2.00.1201171620590.14697@router.home>
+	<m1bopz2ws3.fsf@fess.ebiederm.org>
+	<m14nvr2vbu.fsf@fess.ebiederm.org>
+	<alpine.DEB.2.00.1201191959540.14480@router.home>
+	<m1y5t3yuil.fsf@fess.ebiederm.org>
+	<alpine.DEB.2.00.1201200848040.25882@router.home>
+Date: Wed, 1 Feb 2012 10:05:54 +0200
+Message-ID: <CAOJsxLFtvJbNUkXbesXdu39CwyrRrb0yT2jjWtj7m7R0GSr=YA@mail.gmail.com>
+Subject: Re: Hung task when calling clone() due to netfilter/slab
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Eric Dumazet <eric.dumazet@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Dave Jones <davej@redhat.com>, davem <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, kaber@trash.net, pablo@netfilter.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, netdev <netdev@vger.kernel.org>
 
-On 02/01/2012 03:32 PM, Pekka Enberg wrote:
+On Fri, Jan 20, 2012 at 4:49 PM, Christoph Lameter <cl@linux.com> wrote:
+> Ok then I guess my last patch is needed to make sysfs operations safe.
 
-> On Wed, Feb 1, 2012 at 8:34 AM, Dave Young <dyoung@redhat.com> wrote:
->> tools/ is the better place for vm tools which are used by many people.
->> Moving them to tools also make them open to more users instead of hide in
->> Documentation folder.
-> 
-> For moving the code:
-> 
-> Acked-by: Pekka Enberg <penberg@kernel.org>
-> 
->> Also fixed several coding style problem.
-> 
-> Can you please make that a separate patch?
-
-
-Will do.
-
-BTW, I think tools/slub/slabinfo.c should be included in tools/vm/ as
-well, will move it in v2 patch
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
-
-
--- 
-Thanks
-Dave
+Hmm. So is the latter patch needed or not?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
