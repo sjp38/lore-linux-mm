@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A124B6B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 16:55:01 -0500 (EST)
-Received: by dadv6 with SMTP id v6so1589094dad.14
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 13:55:01 -0800 (PST)
-Date: Wed, 1 Feb 2012 13:54:59 -0800 (PST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 5BBBF6B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 17:02:18 -0500 (EST)
+Received: by pbaa12 with SMTP id a12so1812042pba.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 14:02:17 -0800 (PST)
+Date: Wed, 1 Feb 2012 14:02:15 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Slub cleanup 2/9] slub: Add frozen check in __slab_alloc
-In-Reply-To: <20120123201706.547465637@linux.com>
-Message-ID: <alpine.DEB.2.00.1202011354470.10854@chino.kir.corp.google.com>
-References: <20120123201646.924319545@linux.com> <20120123201706.547465637@linux.com>
+Subject: Re: [Slub cleanup 4/9] slub: Simplify control flow in
+ __slab_alloc()
+In-Reply-To: <20120123201707.746733370@linux.com>
+Message-ID: <alpine.DEB.2.00.1202011402040.10854@chino.kir.corp.google.com>
+References: <20120123201646.924319545@linux.com> <20120123201707.746733370@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,8 +20,7 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
 On Mon, 23 Jan 2012, Christoph Lameter wrote:
 
-> Verify that objects returned from __slab_alloc come from slab pages
-> in the correct state.
+> Simplify control flow a bit avoiding nesting.
 > 
 > Signed-off-by: Christoph Lameter <cl@linux.com>
 
