@@ -1,45 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 6BE6D6B13F2
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 09:03:22 -0500 (EST)
-Message-ID: <4F294626.4020207@redhat.com>
-Date: Wed, 01 Feb 2012 09:03:18 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 595AA6B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 09:40:12 -0500 (EST)
+Date: Wed, 1 Feb 2012 08:40:09 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] move vm tools from Documentation/vm/ to tools/
+In-Reply-To: <20120201083032.GA6774@localhost>
+Message-ID: <alpine.DEB.2.00.1202010839540.28991@router.home>
+References: <20120201063420.GA10204@darkstar.nay.redhat.com> <CAOJsxLGVS3bK=hiKJu4NwTv-Nf8TCSAEL4reSZoY4=44hPt8rA@mail.gmail.com> <4F28EC9D.7000907@redhat.com> <20120201083032.GA6774@localhost>
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] [ATTEND] mm track: RAM utilization and page replacement
- topics
-References: <f6fc422f-fbc2-4a19-b723-82c23f6aa3fe@default>
-In-Reply-To: <f6fc422f-fbc2-4a19-b723-82c23f6aa3fe@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Young <dyoung@redhat.com>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/27/2012 12:19 PM, Dan Magenheimer wrote:
-> Some (related) topics proposed for the MM track:
->
-> 1) Optimizing the utilization of RAM as a resource, i.e. how do we teach the
->     kernel to NOT use all RAM when it doesn't really "need" it.  See
->     http://lwn.net/Articles/475681/ (or if you don't want to read the whole
->     article, start with "Interestingly, ..." four paragraphs from the end).
->
-> 2) RAMster now exists and works... where are the holes and what next?
->     http://marc.info/?l=linux-mm&m=132768187222840&w=2
->
-> 3) Next steps in the page replacement algorithm:
-> 	a) WasActive https://lkml.org/lkml/2012/1/25/300
-> 	b) readahead http://marc.info/?l=linux-scsi&m=132750980203130
->
-> 4) Remaining impediments for merging frontswap
->
-> 5) Page flags and 64-bit-only... what are the tradeoffs?
+On Wed, 1 Feb 2012, Wu Fengguang wrote:
 
-I am interested in these topics.
+> > BTW, I think tools/slub/slabinfo.c should be included in tools/vm/ as
+> > well, will move it in v2 patch
+>
+> CC Christoph. Maybe not a big deal since it's already under tools/.
 
--- 
-All rights reversed
+Sure. You have my blessing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
