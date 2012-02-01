@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id D205C6B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:29:41 -0500 (EST)
-Date: Wed, 1 Feb 2012 19:29:32 +0100
-From: Johannes Stezenbach <js@sig21.net>
-Subject: Re: huge debug_objects_cache. swapping but 25% mem free
-Message-ID: <20120201182932.GA15518@sig21.net>
-References: <20120130154048.GA421@sig21.net>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 16E376B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 13:41:52 -0500 (EST)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 1 Feb 2012 11:41:50 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 6F9E519D8026
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 11:40:55 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q11IeuBd172708
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2012 11:40:56 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q11Ieka2020479
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2012 11:40:47 -0700
+Date: Wed, 1 Feb 2012 10:40:45 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+Message-ID: <20120201184045.GG2382@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
+ <1327591185.2446.102.camel@twins>
+ <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
+ <1328117722.2446.262.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120130154048.GA421@sig21.net>
+In-Reply-To: <1328117722.2446.262.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Mon, Jan 30, 2012 at 04:40:48PM +0100, Johannes Stezenbach wrote:
+On Wed, Feb 01, 2012 at 06:35:22PM +0100, Peter Zijlstra wrote:
+> On Sun, 2012-01-29 at 10:25 +0200, Gilad Ben-Yossef wrote:
+> > 
+> > If this is of interest, I keep a list tracking global IPI and global
+> > task schedulers sources in the core kernel here:
+> > https://github.com/gby/linux/wiki. 
 > 
-> According to slabtop debug_objects_cache eats half the
-> memory, is this expected?  The Kconfig help text does not
-> suggest it.
+> You can add synchronize_.*_expedited() to the list, it does its best to
+> bash the entire machine in order to try and make RCU grace periods
+> happen fast.
 
-FWIW, today after running full backup using rsync:
+I have duly added "Make synchronize_sched_expedited() avoid IPIing idle
+CPUs" to http://kernel.org/pub/linux/kernel/people/paulmck/rcutodo.html.
 
-  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-4025450 4025447  99%    0.36K 183977       22   1471816K debug_objects_cache
-170266  87241  51%    1.74K   9645       18    308640K ext3_inode_cache
- 54855  40215  73%    0.58K   2034       27     32544K dentry
- 38124  12474  32%    0.42K   2119       18     16952K buffer_head
- 17794  17464  98%    0.51K    574       31      9184K sysfs_dir_cache
- 11434   8494  74%    0.87K    713       18     11408K radix_tree_node
- 11400   5570  48%    0.38K    570       20      4560K kmalloc-64
+This should not be hard once I have built up some trust in the new
+RCU idle-detection code.  It would also automatically apply to
+Frederic's dyntick-idle userspace work.
 
-/sys/kernel/debug/debug_objects/stats:
-max_chain     :870
-warnings      :0
-fixups        :0
-pool_free     :258
-pool_min_free :252
-pool_used     :4025193
-pool_max_used :4025195
-
-
-then after "echo 3 >/proc/sys/vm/drop_caches":
-
-  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-4030488 4030485  99%    0.36K 184206       22   1473648K debug_objects_cache
- 17955   9071  50%    0.58K    665       27     10640K dentry
- 17763  17455  98%    0.51K    573       31      9168K sysfs_dir_cache
-  9408   9156  97%    0.33K    392       24      3136K kmalloc-8
-
-
-I'm still not sure if this is normal behaviour of DEBUG_OBJECTS or a bug?
-
-
-Anyway, I'm going to turn it off now.
-
-
-Johannes
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
