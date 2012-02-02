@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 72C9D6B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 04:42:26 -0500 (EST)
-Received: by yhoo22 with SMTP id o22so1271325yho.14
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 01:42:25 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1328119072.2446.264.camel@twins>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	<1327591185.2446.102.camel@twins>
-	<CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
-	<1328117722.2446.262.camel@twins>
-	<1328119072.2446.264.camel@twins>
-Date: Thu, 2 Feb 2012 11:42:25 +0200
-Message-ID: <CAOtvUMcXjKFKiy1VQPz7WofFaxZMTTDBo-pKwGhVZerht=KCTg@mail.gmail.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 1C9E66B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 04:45:44 -0500 (EST)
+Received: by iagz16 with SMTP id z16so4090420iag.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 01:45:43 -0800 (PST)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH] memcg: make threshold index in the right position
+Date: Thu,  2 Feb 2012 17:45:19 +0800
+Message-Id: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>, paulmck <paulmck@linux.vnet.ibm.com>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Sha Zhengju <handai.szj@taobao.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Wed, Feb 1, 2012 at 7:57 PM, Peter Zijlstra <peterz@infradead.org> wrote=
-:
-> On Wed, 2012-02-01 at 18:35 +0100, Peter Zijlstra wrote:
->> On Sun, 2012-01-29 at 10:25 +0200, Gilad Ben-Yossef wrote:
->> >
->> > If this is of interest, I keep a list tracking global IPI and global
->> > task schedulers sources in the core kernel here:
->> > https://github.com/gby/linux/wiki.
->>
->> You can add synchronize_.*_expedited() to the list, it does its best to
->> bash the entire machine in order to try and make RCU grace periods
->> happen fast.
->
-> Also anything using stop_machine, such as module unload, cpu hot-unplug
-> and text_poke().
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Thanks! I've added it to the list together with the clocksource
-watchdog, which is registering
-a timer on each cpu in a cyclinc fashion.
+Index current_threshold may point to threshold that just equal to
+usage after __mem_cgroup_threshold is triggerd. But after registering
+a new event, it will change (pointing to threshold just below usage).
+So make it consistent here.
 
-Gilad
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ mm/memcontrol.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
-=A0-- Jean-Baptiste Queru
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 22d94f5..79f4a58 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -183,7 +183,7 @@ struct mem_cgroup_threshold {
+ 
+ /* For threshold */
+ struct mem_cgroup_threshold_ary {
+-	/* An array index points to threshold just below usage. */
++	/* An array index points to threshold just below or equal to usage. */
+ 	int current_threshold;
+ 	/* Size of entries[] */
+ 	unsigned int size;
+@@ -4319,14 +4319,15 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
+ 	/* Find current threshold */
+ 	new->current_threshold = -1;
+ 	for (i = 0; i < size; i++) {
+-		if (new->entries[i].threshold < usage) {
++		if (new->entries[i].threshold <= usage) {
+ 			/*
+ 			 * new->current_threshold will not be used until
+ 			 * rcu_assign_pointer(), so it's safe to increment
+ 			 * it here.
+ 			 */
+ 			++new->current_threshold;
+-		}
++		} else
++			break;
+ 	}
+ 
+ 	/* Free old spare buffer and save old primary buffer as spare */
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
