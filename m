@@ -1,136 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id EF7E76B13F2
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 11:13:15 -0500 (EST)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Thu, 2 Feb 2012 16:13:14 -0000
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q12GDAqh2945092
-	for <linux-mm@kvack.org>; Thu, 2 Feb 2012 16:13:10 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q122DAee019228
-	for <linux-mm@kvack.org>; Wed, 1 Feb 2012 19:13:11 -0700
-Message-ID: <4F2AB614.1060907@de.ibm.com>
-Date: Thu, 02 Feb 2012 17:13:08 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reply-To: gerald.schaefer@de.ibm.com
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 8B9AC6B13F3
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 11:15:22 -0500 (EST)
+Message-ID: <4F2AB66C.2030309@redhat.com>
+Date: Thu, 02 Feb 2012 18:14:36 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: ksm/memory hotplug: lockdep warning for ksm_thread_mutex vs. (memory_chain).rwsem
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327591185.2446.102.camel@twins> <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <1328117722.2446.262.camel@twins> <20120201184045.GG2382@linux.vnet.ibm.com> <alpine.DEB.2.00.1202011404500.2074@router.home> <20120201201336.GI2382@linux.vnet.ibm.com> <4F2A58A1.90800@redhat.com> <20120202153437.GD2518@linux.vnet.ibm.com>
+In-Reply-To: <20120202153437.GD2518@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: paulmck@linux.vnet.ibm.com
+Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-Setting a memory block offline triggers the following lockdep warning. This
-looks exactly like the issue reported by Kosaki Motohiro in
-https://lkml.org/lkml/2010/10/25/110. Seems like the resulting commit a0b0f58cdd
-did not fix the lockdep warning. I'm able to reproduce it with current 3.3.0-rc2
-as well as 2.6.37-rc4-00147-ga0b0f58.
+On 02/02/2012 05:34 PM, Paul E. McKenney wrote:
+> On Thu, Feb 02, 2012 at 11:34:25AM +0200, Avi Kivity wrote:
+> > On 02/01/2012 10:13 PM, Paul E. McKenney wrote:
+> > > > 
+> > > > Could we also apply the same approach to processors busy doing
+> > > > computational work? In that case the OS is also not needed. Interrupting
+> > > > these activities is impacting on performance and latency.
+> > >
+> > > Yep, that is in fact what Frederic's dyntick-idle userspace work does.
+> > 
+> > Running in a guest is a special case of running in userspace, so we'd
+> > need to extend this work to kvm as well.
+>
+> As long as rcu_idle_enter() is called at the appropriate time, RCU will
+> happily ignore the CPU.  ;-)
+>
 
-I'm not familiar with lockdep annotations, but I tried using down_read_nested()
-for (memory_chain).rwsem, similar to the mutex_lock_nested() which was
-introduced for ksm_thread_mutex, but that didn't help.
+It's not called (since the cpu is not idle).  Instead we call
+rcu_virt_note_context_switch().
 
-
-======================================================
-[ INFO: possible circular locking dependency detected ]
-3.3.0-rc2 #8 Not tainted
--------------------------------------------------------
-sh/973 is trying to acquire lock:
- ((memory_chain).rwsem){.+.+.+}, at: [<000000000015b0e4>] __blocking_notifier_call_chain+0x40/0x8c
-
-but task is already holding lock:
- (ksm_thread_mutex/1){+.+.+.}, at: [<0000000000247484>] ksm_memory_callback+0x48/0xd0
-
-which lock already depends on the new lock.
-
-
-the existing dependency chain (in reverse order) is:
-
--> #1 (ksm_thread_mutex/1){+.+.+.}:
-       [<0000000000195746>] __lock_acquire+0x47a/0xbd4
-       [<00000000001964b6>] lock_acquire+0xc2/0x148
-       [<00000000005dba62>] mutex_lock_nested+0x5a/0x354
-       [<0000000000247484>] ksm_memory_callback+0x48/0xd0
-       [<00000000005e1d4e>] notifier_call_chain+0x52/0x9c
-       [<000000000015b0fa>] __blocking_notifier_call_chain+0x56/0x8c
-       [<000000000015b15a>] blocking_notifier_call_chain+0x2a/0x3c
-       [<00000000005d116e>] offline_pages.clone.21+0x17a/0x6f0
-       [<000000000046363a>] memory_block_change_state+0x172/0x2f4
-       [<0000000000463876>] store_mem_state+0xba/0xf0
-       [<00000000002e1592>] sysfs_write_file+0xf6/0x1a8
-       [<0000000000260d94>] vfs_write+0xb0/0x18c
-       [<0000000000261108>] SyS_write+0x58/0xb4
-       [<00000000005dfab8>] sysc_noemu+0x22/0x28
-       [<000003fffcfa46c0>] 0x3fffcfa46c0
-
--> #0 ((memory_chain).rwsem){.+.+.+}:
-       [<00000000001946ee>] validate_chain.clone.24+0x1106/0x11b4
-       [<0000000000195746>] __lock_acquire+0x47a/0xbd4
-       [<00000000001964b6>] lock_acquire+0xc2/0x148
-       [<00000000005dc30e>] down_read+0x4a/0x88
-       [<000000000015b0e4>] __blocking_notifier_call_chain+0x40/0x8c
-       [<000000000015b15a>] blocking_notifier_call_chain+0x2a/0x3c
-       [<00000000005d16be>] offline_pages.clone.21+0x6ca/0x6f0
-       [<000000000046363a>] memory_block_change_state+0x172/0x2f4
-       [<0000000000463876>] store_mem_state+0xba/0xf0
-       [<00000000002e1592>] sysfs_write_file+0xf6/0x1a8
-       [<0000000000260d94>] vfs_write+0xb0/0x18c
-       [<0000000000261108>] SyS_write+0x58/0xb4
-       [<00000000005dfab8>] sysc_noemu+0x22/0x28
-       [<000003fffcfa46c0>] 0x3fffcfa46c0
-
-other info that might help us debug this:
-
- Possible unsafe locking scenario:
-
-       CPU0                    CPU1
-       ----                    ----
-  lock(ksm_thread_mutex/1);
-                               lock((memory_chain).rwsem);
-                               lock(ksm_thread_mutex/1);
-  lock((memory_chain).rwsem);
-
- *** DEADLOCK ***
-
-6 locks held by sh/973:
- #0:  (&buffer->mutex){+.+.+.}, at: [<00000000002e14e6>] sysfs_write_file+0x4a/0x1a8
- #1:  (s_active#53){.+.+.+}, at: [<00000000002e156e>] sysfs_write_file+0xd2/0x1a8
- #2:  (&mem->state_mutex){+.+.+.}, at: [<000000000046350a>] memory_block_change_state+0x42/0x2f4
- #3:  (mem_hotplug_mutex){+.+.+.}, at: [<0000000000252e30>] lock_memory_hotplug+0x2c/0x4c
- #4:  (pm_mutex#2){+.+.+.}, at: [<00000000005d10ea>] offline_pages.clone.21+0xf6/0x6f0
- #5:  (ksm_thread_mutex/1){+.+.+.}, at: [<0000000000247484>] ksm_memory_callback+0x48/0xd0
-
-stack backtrace:
-CPU: 1 Not tainted 3.3.0-rc2 #8
-Process sh (pid: 973, task: 000000003ecb8000, ksp: 000000003b24b898)
-000000003b24b930 000000003b24b8b0 0000000000000002 0000000000000000.
-       000000003b24b950 000000003b24b8c8 000000003b24b8c8 00000000005da66a.
-       0000000000000000 0000000000000000 000000003b24ba08 000000003ecb8000.
-       000000000000000d 000000000000000c 000000003b24b918 0000000000000000.
-       0000000000000000 0000000000100af8 000000003b24b8b0 000000003b24b8f0.
-Call Trace:
-([<0000000000100a06>] show_trace+0xee/0x144)
- [<0000000000192564>] print_circular_bug+0x220/0x328
- [<00000000001946ee>] validate_chain.clone.24+0x1106/0x11b4
- [<0000000000195746>] __lock_acquire+0x47a/0xbd4
- [<00000000001964b6>] lock_acquire+0xc2/0x148
- [<00000000005dc30e>] down_read+0x4a/0x88
- [<000000000015b0e4>] __blocking_notifier_call_chain+0x40/0x8c
- [<000000000015b15a>] blocking_notifier_call_chain+0x2a/0x3c
- [<00000000005d16be>] offline_pages.clone.21+0x6ca/0x6f0
- [<000000000046363a>] memory_block_change_state+0x172/0x2f4
- [<0000000000463876>] store_mem_state+0xba/0xf0
- [<00000000002e1592>] sysfs_write_file+0xf6/0x1a8
- [<0000000000260d94>] vfs_write+0xb0/0x18c
- [<0000000000261108>] SyS_write+0x58/0xb4
- [<00000000005dfab8>] sysc_noemu+0x22/0x28
- [<000003fffcfa46c0>] 0x3fffcfa46c0
-INFO: lockdep is turned off.
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
