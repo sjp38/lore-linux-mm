@@ -1,109 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 445616B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 06:41:23 -0500 (EST)
-Date: Thu, 2 Feb 2012 19:31:15 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.
-Message-ID: <20120202113115.GA21994@localhost>
-References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com>
- <CAHH2K0bPdqzpuWv82uyvEu4d+cDqJOYoHbw=GeP5OZk4-3gCUg@mail.gmail.com>
- <20120202063345.GA15124@localhost>
- <20120202101525.GD31730@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id EF3266B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 07:26:54 -0500 (EST)
+Date: Thu, 2 Feb 2012 14:27:47 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] memcg: make threshold index in the right position
+Message-ID: <20120202122747.GA12575@shutemov.name>
+References: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
+ <20120202101410.GA12291@shutemov.name>
+ <4F2A6B5F.3090303@gmail.com>
+ <4F2A6EBC.5090207@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20120202101525.GD31730@quack.suse.cz>
+In-Reply-To: <4F2A6EBC.5090207@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Feb 02, 2012 at 11:15:25AM +0100, Jan Kara wrote:
-> On Thu 02-02-12 14:33:45, Wu Fengguang wrote:
-> > Hi Greg,
-> > 
-> > On Wed, Feb 01, 2012 at 12:24:25PM -0800, Greg Thelen wrote:
-> > > On Tue, Jan 31, 2012 at 4:55 PM, KAMEZAWA Hiroyuki
-> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > 4. dirty ratio
-> > > > A  In the last year, patches were posted but not merged. I'd like to hear
-> > > > A  works on this area.
-> > > 
-> > > I would like to attend to discuss this topic.  I have not had much time to work
-> > > on this recently, but should be able to focus more on this soon.  The
-> > > IO less writeback changes require some redesign and may allow for a
-> > > simpler implementation of mem_cgroup_balance_dirty_pages().
-> > > Maintaining a per container dirty page counts, ratios, and limits is
-> > > fairly easy, but integration with writeback is the challenge.  My big
-> > > questions are for writeback people:
-> > > 1. how to compute per-container pause based on bdi bandwidth, cgroup
-> > > dirty page usage.
-> > > 2. how to ensure that writeback will engage even if system and bdi are
-> > > below respective background dirty ratios, yet a memcg is above its bg
-> > > dirty limit.
-> > 
-> > The solution to (1,2) would be something like this:
-> > 
-> > --- linux-next.orig/mm/page-writeback.c	2012-02-02 14:13:45.000000000 +0800
-> > +++ linux-next/mm/page-writeback.c	2012-02-02 14:24:11.000000000 +0800
-> > @@ -654,6 +654,17 @@ static unsigned long bdi_position_ratio(
-> >  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-> >  	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
-> >  
-> > +	if (memcg) {
-> > +		long long f;
-> > +		x = div_s64((memcg_setpoint - memcg_dirty) << RATELIMIT_CALC_SHIFT,
-> > +			    memcg_limit - memcg_setpoint + 1);
-> > +		f = x;
-> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
-> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
-> > +		f += 1 << RATELIMIT_CALC_SHIFT;
-> > +		pos_ratio = pos_ratio * f >> RATELIMIT_CALC_SHIFT;
-> > +	}
-> > +
->   Hmm, so you multiply pos_ratio computed for global situation with
-> pos_ratio computed for memcg situation, right? Why? My natural choice would
-> be to just use memcg situation for computing pos_ratio since memcg is
-> supposed to have less memory & stricter limits than root cgroup (global)...
+On Thu, Feb 02, 2012 at 07:08:44PM +0800, Sha Zhengju wrote:
+> On 02/02/2012 06:54 PM, Sha Zhengju wrote:
+> >On 02/02/2012 06:14 PM, Kirill A. Shutemov wrote:
+> >>On Thu, Feb 02, 2012 at 05:45:19PM +0800, Sha Zhengju wrote:
+> >>>From: Sha Zhengju<handai.szj@taobao.com>
+> >>>
+> >>>Index current_threshold may point to threshold that just equal to
+> >>>usage after __mem_cgroup_threshold is triggerd.
+> >>I don't see it. Could you describe conditions?
+> >>
+> >It is because of the following code path in __mem_cgroup_threshold:
+> >{
+> >    ...
+> >        i = t->current_threshold;
+> >
+> >        for (; i >= 0 && unlikely(t->entries[i].threshold > usage); i--)
+> >                eventfd_signal(t->entries[i].eventfd, 1);
+> >        i++;
+> >
+> >        for (; i < t->size && unlikely(t->entries[i].threshold <=
+> >usage); i++)
+> >                eventfd_signal(t->entries[i].eventfd, 1);
+> >
+> >        t->current_threshold = i - 1;
+> >    ...
+> >}
+> >
+> >For example:
+> >now:
+> >    threshold array:  3  5  7  9   (usage = 6)
+> >                                   ^
+> >                                index
+> >
+> >next turn:
+> >    threshold array:  3  5  7  9   (usage = 7)
+> >                                       ^
+> >                                    index
+> >
+> >after registering a new event(threshold = 10):
+> >    threshold array:  3  5  7  9  10 (usage = 7)
+> >                                   ^
+> >                                index
+> Err.. Sorry for showing inaccurate index position... (may because of
+> the mail format)
+> 
+> now:
+>     threshold array:  3  [5]  7  9   (usage = 6, index = 5)
+> 
+> next turn:
+>     threshold array:  3  5  [7]  9   (usage = 7, index = 7)
+> 
+> after registering a new event(threshold = 10):
+>     threshold array:  3  [5]  7  9  10 (usage = 7, index = 5)
 
-Yeah I also started with considering a standalone memcg pos_ratio.
-However the above form can free us from worrying about misconfigured
-memcg dirty limit exceeding global dirty limit, or the more
-uncontrollable scheme of the memcg dirty limit exceeding some bdi
-threshold.
+Good catch! Thank you.
 
-> >  	/*
-> >  	 * We have computed basic pos_ratio above based on global situation. If
-> >  	 * the bdi is over/under its share of dirty pages, we want to scale
-> > @@ -1202,6 +1213,8 @@ static void balance_dirty_pages(struct a
-> >  		freerun = dirty_freerun_ceiling(dirty_thresh,
-> >  						background_thresh);
-> >  		if (nr_dirty <= freerun) {
-> > +			if (memcg && memcg_dirty > memcg_freerun)
-> > +				goto start_writeback;
-> >  			current->dirty_paused_when = now;
-> >  			current->nr_dirtied = 0;
-> >  			current->nr_dirtied_pause =
-> > @@ -1209,6 +1222,7 @@ static void balance_dirty_pages(struct a
-> >  			break;
-> >  		}
-> >  
-> > +start_writeback:
-> >  		if (unlikely(!writeback_in_progress(bdi)))
-> >  			bdi_start_background_writeback(bdi);
->   I guess this should better be coupled with memcg-aware writeback which
-> was part of Greg's original patches if I remember right. That way we'd know
-> we are making progress on the pages of the right cgroup. But we can
-> certainly try this minimal change and see whether cgroups won't get starved
-> too much...
+Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-Agreed. The complete solution would need more code from Greg to
-teach the flusher to focus on the memcg inodes/pages.
-
-Thanks,
-Fengguang
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
