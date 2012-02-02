@@ -1,63 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 3F0D66B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 00:26:22 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
-Date: Thu,  2 Feb 2012 00:27:58 -0500
-Message-Id: <1328160478-28346-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120130152212.3a6a2039.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3CC6B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 01:24:17 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so1272497ghr.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 22:24:16 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com>
+References: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
+	<1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com>
+Date: Thu, 2 Feb 2012 11:54:16 +0530
+Message-ID: <CAAHN_R2g9zaujw30+zLf91AGDHNqE6HDc8Z4yJbrzgJcJYFkXg@mail.gmail.com>
+Subject: [RESEND][PATCH] Mark thread stack correctly in proc/<pid>/maps
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
 
-On Mon, Jan 30, 2012 at 03:22:12PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 27 Jan 2012 18:02:49 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
->
-> > Currently when we check if we can handle thp as it is or we need to
-> > split it into regular sized pages, we hold page table lock prior to
-> > check whether a given pmd is mapping thp or not. Because of this,
-> > when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
-> > To remove it, this patch introduces a optimized check function and
-> > replace several similar logics with it.
-> >
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> >
-> > Changes since v3:
-> >   - Fix likely/unlikely pattern in pmd_trans_huge_stable()
-> >   - Change suffix from _stable to _lock
-> >   - Introduce __pmd_trans_huge_lock() to avoid micro-regression
-> >   - Return 1 when wait_split_huge_page path is taken
-> >
-> > Changes since v2:
-> >   - Fix missing "return 0" in "thp under splitting" path
-> >   - Remove unneeded comment
-> >   - Change the name of check function to describe what it does
-> >   - Add VM_BUG_ON(mmap_sem)
->
->
-> > +/*
-> > + * Returns 1 if a given pmd maps a stable (not under splitting) thp,
-> > + * -1 if the pmd maps thp under splitting, 0 if the pmd does not map thp.
-> > + *
-> > + * Note that if it returns 1, this routine returns without unlocking page
-> > + * table locks. So callers must unlock them.
-> > + */
->
->
-> Seems nice clean up but... why you need to return (-1, 0, 1) ?
->
-> It seems the caller can't see the difference between -1 and 0.
->
-> Why not just return 0 (not locked) or 1 (thp found and locked) ?
+Hi,
 
-Sorry, I changed wrongly from v3.
-We can do fine without return value of -1 if we remove else-if (!err)
-{...} block after move_huge_pmd() call in move_page_tables(), right?
-(split_huge_page_pmd() after wait_split_huge_page() do nothing...)
+Resending since I did not get any feedback on the second take of the patch.
+
+Thanks,
+Siddhesh
+
+
+---------- Forwarded message ----------
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Date: Tue, Jan 17, 2012 at 10:24 AM
+Subject: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+To: Jamie Lokier <jamie@shareable.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro
+<viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael
+Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Siddhesh
+Poyarekar <siddhesh.poyarekar@gmail.com>
+
+
+[Take 2]
+
+Memory mmaped by glibc for a thread stack currently shows up as a simple
+anonymous map, which makes it difficult to differentiate between memory
+usage of the thread on stack and other dynamic allocation. Since glibc
+already uses MAP_STACK to request this mapping, the attached patch
+uses this flag to add additional VM_STACK_FLAGS to the resulting vma
+so that the mapping is treated as a stack and not any regular
+anonymous mapping. Also, one may use vm_flags to decide if a vma is a
+stack.
+
+This patch also changes the maps output to annotate stack guards for
+both the process stack as well as the thread stacks. Thus is born the
+[stack guard] annotation, which should be exactly a page long for the
+process stack and can be longer than a page (configurable in
+userspace) for POSIX compliant thread stacks. A thread stack guard is
+simply page(s) with PROT_NONE.
+
+If accepted, this should also reflect in the man page for mmap since
+MAP_STACK will no longer be a noop.
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+---
+=A0fs/proc/task_mmu.c | =A0 41 ++++++++++++++++++++++++++++++++++++-----
+=A0include/linux/mm.h | =A0 19 +++++++++++++++++--
+=A0mm/mmap.c =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
+=A03 files changed, 56 insertions(+), 7 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index e418c5a..650330c 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -227,13 +227,42 @@ static void show_map_vma(struct seq_file *m,
+struct vm_area_struct *vma)
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pgoff =3D ((loff_t)vma->vm_pgoff) << PAGE_SH=
+IFT;
+=A0 =A0 =A0 =A0}
+
+- =A0 =A0 =A0 /* We don't show the stack guard page in /proc/maps */
++ =A0 =A0 =A0 /*
++ =A0 =A0 =A0 =A0* Mark the process stack guard, which is just one page at =
+the
++ =A0 =A0 =A0 =A0* beginning of the stack within the stack vma.
++ =A0 =A0 =A0 =A0*/
+=A0 =A0 =A0 =A0start =3D vma->vm_start;
+- =A0 =A0 =A0 if (stack_guard_page_start(vma, start))
++ =A0 =A0 =A0 if (stack_guard_page_start(vma, start)) {
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %0=
+2x:%02x %lu %n",
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start + PAGE_=
+SIZE,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_RE=
+AD ? 'r' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_WR=
+ITE ? 'w' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_EX=
+EC ? 'x' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_MA=
+YSHARE ? 's' : 'p',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pgoff,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(dev), M=
+INOR(dev), ino, &len);
++
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 pad_len_spaces(m, len);
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 seq_puts(m, "[stack guard]\n");
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0start +=3D PAGE_SIZE;
++ =A0 =A0 =A0 }
+=A0 =A0 =A0 =A0end =3D vma->vm_end;
+- =A0 =A0 =A0 if (stack_guard_page_end(vma, end))
++ =A0 =A0 =A0 if (stack_guard_page_end(vma, end)) {
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %0=
+2x:%02x %lu %n",
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 end - PAGE_SI=
+ZE,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 end,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_RE=
+AD ? 'r' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_WR=
+ITE ? 'w' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_EX=
+EC ? 'x' : '-',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags & VM_MA=
+YSHARE ? 's' : 'p',
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pgoff,
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(dev), M=
+INOR(dev), ino, &len);
++
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 pad_len_spaces(m, len);
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 seq_puts(m, "[stack guard]\n");
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0end -=3D PAGE_SIZE;
++ =A0 =A0 =A0 }
+
+=A0 =A0 =A0 =A0seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n"=
+,
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0start,
+@@ -259,8 +288,10 @@ static void show_map_vma(struct seq_file *m,
+struct vm_area_struct *vma)
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (vma->vm_=
+start <=3D mm->brk &&
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0vma->vm_end >=3D mm->start_brk) {
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0name =3D "[heap]";
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else if (vm=
+a->vm_start <=3D mm->start_stack &&
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0vma->vm_end >=3D mm->start_stack) {
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else if (vm=
+a_is_stack(vma) &&
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0vma_is_guard(vma)) {
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 name =3D "[stack guard]";
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else if (vm=
+a_is_stack(vma)) {
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0name =3D "[stack]";
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0} else {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 17b27cd..4e57753 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1018,12 +1018,26 @@ static inline int vma_growsdown(struct
+vm_area_struct *vma, unsigned long addr)
+=A0 =A0 =A0 =A0return vma && (vma->vm_end =3D=3D addr) && (vma->vm_flags & =
+VM_GROWSDOWN);
+=A0}
+
++static inline int vma_is_stack(struct vm_area_struct *vma)
++{
++ =A0 =A0 =A0 return vma && (vma->vm_flags & (VM_GROWSUP | VM_GROWSDOWN));
++}
++
++/*
++ * Check guard set by userspace (PROT_NONE)
++ */
++static inline int vma_is_guard(struct vm_area_struct *vma)
++{
++ =A0 =A0 =A0 return (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC |
+VM_SHARED)) =3D=3D 0;
++}
++
+=A0static inline int stack_guard_page_start(struct vm_area_struct *vma,
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 unsigned long addr)
+=A0{
+=A0 =A0 =A0 =A0return (vma->vm_flags & VM_GROWSDOWN) &&
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0(vma->vm_start =3D=3D addr) &&
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_growsdown(vma->vm_prev, addr);
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_growsdown(vma->vm_prev, addr) &&
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_is_guard(vma);
+=A0}
+
+=A0/* Is the vma a continuation of the stack vma below it? */
+@@ -1037,7 +1051,8 @@ static inline int stack_guard_page_end(struct
+vm_area_struct *vma,
+=A0{
+=A0 =A0 =A0 =A0return (vma->vm_flags & VM_GROWSUP) &&
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0(vma->vm_end =3D=3D addr) &&
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_growsup(vma->vm_next, addr);
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_growsup(vma->vm_next, addr) &&
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 !vma_is_guard(vma);
+=A0}
+
+=A0extern unsigned long move_page_tables(struct vm_area_struct *vma,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f758c7..2f9f540 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -992,6 +992,9 @@ unsigned long do_mmap_pgoff(struct file *file,
+unsigned long addr,
+=A0 =A0 =A0 =A0vm_flags =3D calc_vm_prot_bits(prot) | calc_vm_flag_bits(fla=
+gs) |
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mm->def_flags | VM_MAYREAD |=
+ VM_MAYWRITE | VM_MAYEXEC;
+
++ =A0 =A0 =A0 if (flags & MAP_STACK)
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 vm_flags |=3D VM_STACK_FLAGS;
++
+=A0 =A0 =A0 =A0if (flags & MAP_LOCKED)
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!can_do_mlock())
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EPERM;
+--
+1.7.7.4
+
+
+
+--=20
+Siddhesh Poyarekar
+http://siddhesh.in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
