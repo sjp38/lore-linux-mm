@@ -1,89 +1,281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 0BE296B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 19:00:45 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so1246198qcs.14
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 16:00:45 -0800 (PST)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id CD6416B13F0
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 21:53:07 -0500 (EST)
+Message-ID: <4F2A0827.4080305@xenotime.net>
+Date: Wed, 01 Feb 2012 19:51:03 -0800
+From: Randy Dunlap <rdunlap@xenotime.net>
 MIME-Version: 1.0
-In-Reply-To: <20120201135442.0491d882.kamezawa.hiroyu@jp.fujitsu.com>
-References: <CALWz4iypV=k-7gVcFx=OsHJsWcUzQsfEoYbQ4+ySQoTob_PWcQ@mail.gmail.com>
-	<20120201135442.0491d882.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 1 Feb 2012 16:00:44 -0800
-Message-ID: <CALWz4iwHq6rX72gv4XMVAviqtFT8mjW2OgCBtjU6AVX94YsnGg@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] [ATTEND] memcg: soft limit reclaim (continue) and others
-From: Ying Han <yinghan@google.com>
+Subject: Re: [RFCv1 5/6] PASR: Add Documentation
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <1327930436-10263-6-git-send-email-maxime.coquelin@stericsson.com>
+In-Reply-To: <1327930436-10263-6-git-send-email-maxime.coquelin@stericsson.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Mel Gorman <mel@csn.ul.ie>, Ankita Garg <ankita@in.ibm.com>, linux-kernel@vger.kernel.org, linus.walleij@stericsson.com, andrea.gallo@stericsson.com, vincent.guittot@stericsson.com, philippe.langlais@stericsson.com, loic.pallardy@stericsson.com
 
-On Tue, Jan 31, 2012 at 8:54 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 31 Jan 2012 11:59:40 -0800
-> Ying Han <yinghan@google.com> wrote:
->
->> some topics that I would like to discuss this year:
->>
->> 1) we talked about soft limit redesign during last LSF, and there are
->> quite a lot of efforts and changes being pushed after that. I would
->> like to take this time to sync-up our efforts and also discuss some of
->> the remaining issues.
->>
->> Discussion from last year :
->> http://www.spinics.net/lists/linux-mm/msg17102.html and lots of
->> changes have been made since then.
->>
->
-> Yes, it seems re-sync is required.
->
->> 2) memory.stat, this is the main stat file for all memcg statistics.
->> are we planning to keep stuff it for something like per-memcg
->> vmscan_stat, vmstat or not.
->>
->
-> Could you calrify ? Do you want to have another stat file like memory.vmstat ?
+On 01/30/2012 05:33 AM, Maxime Coquelin wrote:
+> Signed-off-by: Maxime Coquelin <maxime.coquelin@stericsson.com>
+> ---
+>  Documentation/pasr.txt |  183 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 183 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/pasr.txt
+> 
+> diff --git a/Documentation/pasr.txt b/Documentation/pasr.txt
+> new file mode 100644
+> index 0000000..d40e3f6
+> --- /dev/null
+> +++ b/Documentation/pasr.txt
+> @@ -0,0 +1,183 @@
+> +Partial Array Self-Refresh Framework
+> +
+> +(C) 2012 Maxime Coquelin <maxime.coquelin@stericsson.com>, ST-Ericsson.
+> +
+> +CONTENT
+> +1. Introduction
+> +2. Command-line parameters
+> +3. Allocators patching
+> +4. PASR platform drivers
+> +
+> +
+> +1. Introduction
+> +
+> +PASR Frameworks brings support for the Partial Array Self-Refresh DDR power
 
-I was planning to add per-memcg vmstat file at one point, but there
-were discussions of just extending memory.stat. I don't mind to have
-very long memory.stat file since my screen is now vertical anyway.
-Just want to sync-up our final decision for later patches.
+  The PASR framework brings support
 
->
->
->> 3) root cgroup now becomes quite interesting, especially after we
->> bring back the exclusive lru to root. To be more specific, root cgroup
->> now is like a sink which contains pages allocated on its own, and also
->> pages being re-parented. Those pages won't be reclaimed until there is
->> a global pressure, and we want to see anything we can do better.
->>
->
-> I'm sorry I can't get your point.
->
-> Do you think it's better to shrink root mem cgroup LRU even if there are
-> no memory pressure ?
+> +management feature. PASR has been introduced in LP-DDR2, and is also present
 
-The benefit will be reduced memory reclaim latency.
+                            was introduced in LP-DDR2 and is also present
 
-That is something I am thinking now. Now what we do in removing a
-cgroup is re-parent all the pages, and root become a sink with all the
-left-over pages. There is no external memory pressure to push those
-pages out unless global reclaim, and the machine size will look
-smaller and smaller on admin perspective.
 
-I am thinking to use some existing reclaim mechanism to apply pressure
-on those pages inside the kernel.
+> +in DDR3.
+> +
+> +PASR provides 4 modes:
+> +
+> +* Single-Ended: Only 1/1, 1/2, 1/4 or 1/8 are refreshed, masking starting at
+> +  the end of the DDR die.
+> +
+> +* Double-Ended: Same as Single-Ended, but refresh-masking does not start
+> +  necessairly at the end of the DDR die.
 
---Ying
+     necessarily
 
-> Or Do you think root memcg should have some soft limit and should be
-> reclaimed in the same schedule line as other memcgs ? The benefit will be fairness.
->
-> or other idea ?
->
-> Thanks,
-> -Kame
->
+> +
+> +* Bank-Selective: Refresh of each bank of a die can be masked or unmasked via
+> +  a dedicated DDR register (MR16). This mode is convenient for DDR configured
+> +  in BRC (Bank-Row-Column) mode.
+> +
+> +* Segment-Selective: Refresh of each segment of a die can be masked or unmasked
+> +  via a dedicated DDR register (MR17). This mode is convenient for DDR configured
+> +  in RBC (Row-Bank-Column) mode.
+> +
+> +The role of this framework is to stop the refresh of unused memory to enhance
+> +DDR power consumption.
+> +
+> +It supports Bank-Selective and Segment-Selective modes, as the more adapted to
+> +modern OSes.
+
+huh?  parse error above.
+
+> +
+> +At early boot stage, a representation of the physical DDR layout is built:
+> +
+> +             Die 0
+> +_______________________________
+> +| I--------------------------I |
+> +| I    Bank or Segment 0     I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment 1     I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment ...   I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment n     I |
+> +| I--------------------------I |
+> +|______________________________|
+> +             ...
+> +
+> +             Die n
+> +_______________________________
+> +| I--------------------------I |
+> +| I    Bank or Segment 0     I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment 1     I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment ...   I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment n     I |
+> +| I--------------------------I |
+> +|______________________________|
+> +
+> +The first level is a table where elements represent a die:
+> +* Base address,
+> +* Number of segments,
+> +* Table representing banks/segments,
+> +* MR16/MR17 refresh mask,
+> +* DDR Controller callback to update MR16/MR17 refresh mask.
+> +
+> +The second level is the section tables representing the banks or segments,
+> +depending on hardware configuration:
+> +* Base address,
+> +* Unused memory size counter,
+> +* Possible pointer to another section it depends on (E.g. Interleaving)
+> +
+> +When some memory becomes unused, the allocator owning this memory calls the PASR
+> +Framework's pasr_put(phys_addr, size) function. The framework finds the
+> +sections impacted and updates their counters accordingly.
+> +If a section counter reach the section size, the refresh of the section is
+
+                        reaches
+
+> +masked. If the corresponding section has a dependency with another section
+> +(E.g. because of DDR interleaving, see figure below), it checks the "paired" section is also
+
+                                                         it checks if the "paired" section is also
+
+> +unused before updating the refresh mask.
+> +
+> +When some unused memory is requested by the allocator, the allocator owning
+> +this memory calls the PASR Framework's pasr_get(phys_addr, size) function. The
+> +framework find the section impacted and updates their counters accordingly.
+
+             finds                     and updates its counter accordingly.
+or
+             find the sections impacted and updates their counters accordingly.
+
+
+> +If before the update, the section counter was to the section size, the refrewh
+
+                                             was equal to the section size, the refresh
+
+> +of the section is unmasked. If the corresponding section has a dependency with
+> +another section, it also unmask the refresh of the other section.
+
+                            unmasks
+
+> +
+> +Interleaving example:
+> +
+> +             Die 0
+> +_______________________________
+> +| I--------------------------I |
+> +| I    Bank or Segment 0     I |<----|
+> +| I--------------------------I |     |
+> +| I--------------------------I |     |
+> +| I    Bank or Segment 1     I |     |
+> +| I--------------------------I |     |
+> +| I--------------------------I |     |
+> +| I    Bank or Segment ...   I |     |
+> +| I--------------------------I |     |
+> +| I--------------------------I |     |
+> +| I    Bank or Segment n     I |     |
+> +| I--------------------------I |     |
+> +|______________________________|     |
+> +                                     |
+> +             Die 1                   |
+> +_______________________________      |
+> +| I--------------------------I |     |
+> +| I    Bank or Segment 0     I |<----|
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment 1     I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment ...   I |
+> +| I--------------------------I |
+> +| I--------------------------I |
+> +| I    Bank or Segment n     I |
+> +| I--------------------------I |
+> +|______________________________|
+> +
+> +In the above example, bank 0 of die 0 is interleaved with bank0 of die 0.
+
+                                                             bank 0 of die 1.
+
+> +The interleaving is done in HW by inverting some addresses lines. The goal is
+
+                            in hardware
+
+> +to improve DDR bandwidth.
+> +Practically, one buffer seen as contiguous by the kernel might be spread
+> +into two DDR dies physically.
+> +
+> +
+> +2. Command-line parameters
+> +
+> +To buid the DDR physical layout representation, two parameters are requested:
+
+      build
+
+> +
+> +* ddr_die (mandatory): Should be added for every DDR dies present in the system.
+
+                                                        die
+
+> +   - Usage: ddr_die=xxx[M|G]@yyy[M|G] where xxx represents the size and yyy
+> +     the base address of the die. E.g.: ddr_die=512M@0 ddr_die=512M@512M
+> +
+> +* interleaved (optionnal): Should be added for every interleaved dependencies.
+
+                 (optional):                  for all interleaved dependencies.
+
+
+> +   - Usage: interleaved=xxx[M|G]@yyy[M|G]:zzz[M|G] where xxx is the size of
+> +     the interleaved area between the adresses yyy and zzz. E.g
+> +     interleaved=256M@0:512M
+> +
+> +
+> +3. Allocator patching
+> +
+> +Any allocators might call the PASR Framework for DDR power savings. Currently,
+> +only Linux Buddy allocator is patched, but HWMEM and PMEM physically
+
+   only the Linux Buddy
+
+> +contiguous memory allocators will follow.
+> +
+> +Linux Buddy allocator porting uses Buddy specificities to reduce the overhead
+> +induced by the PASR Framework counter updates. Indeed, the PASR Framework is
+> +called only when MAX_ORDER (4MB page blocs by default) buddies are
+
+                                        blocks
+
+> +inserted/removed from the free lists.
+> +
+> +To port PASR FW into a new allocator:
+
+           the PASR framework
+
+> +
+> +* Call pasr_put(phys_addr, size) each time a memory chunk becomes unused.
+> +* Call pasr_get(phys_addr, size) each time a memory chunk becomes used.
+> +
+> +4. PASR platform drivers
+> +
+> +The MR16/MR17 PASR mask registers are generally accessible through the DDR
+> +controller. At probe time, the DDR controller driver should register the
+> +callback used by PASR Framework to apply the refresh mask for every DDR die
+> +using pasr_register_mask_function(die_addr, callback, cookie).
+> +
+> +The callback passed to apply mask must not sleep since it can me called in
+
+                                                             can be
+
+> +interrupt contexts.
+> +
+
+
+-- 
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
