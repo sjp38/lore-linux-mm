@@ -1,281 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id CD6416B13F0
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2012 21:53:07 -0500 (EST)
-Message-ID: <4F2A0827.4080305@xenotime.net>
-Date: Wed, 01 Feb 2012 19:51:03 -0800
-From: Randy Dunlap <rdunlap@xenotime.net>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id D71A46B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 00:20:42 -0500 (EST)
+Received: by pbaa12 with SMTP id a12so2121168pba.14
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2012 21:20:42 -0800 (PST)
+Date: Wed, 1 Feb 2012 21:20:18 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Help] : RSS/PSS showing 0 during smaps for Xorg
+In-Reply-To: <1328107758.5077.YahooMailNeo@web162002.mail.bf1.yahoo.com>
+Message-ID: <alpine.LSU.2.00.1202012119180.31109@eggly.anvils>
+References: <1327310360.96918.YahooMailNeo@web162003.mail.bf1.yahoo.com> <1327313719.76517.YahooMailNeo@web162002.mail.bf1.yahoo.com> <alpine.LSU.2.00.1201231125200.1677@eggly.anvils> <1327468926.52380.YahooMailNeo@web162002.mail.bf1.yahoo.com>
+ <alpine.LSU.2.00.1201251623340.2141@eggly.anvils> <1327912964.12941.YahooMailNeo@web162006.mail.bf1.yahoo.com> <alpine.LSU.2.00.1201301034100.1884@eggly.anvils> <1328107758.5077.YahooMailNeo@web162002.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Subject: Re: [RFCv1 5/6] PASR: Add Documentation
-References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <1327930436-10263-6-git-send-email-maxime.coquelin@stericsson.com>
-In-Reply-To: <1327930436-10263-6-git-send-email-maxime.coquelin@stericsson.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1541958601-1328160030=:31109"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxime Coquelin <maxime.coquelin@stericsson.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Mel Gorman <mel@csn.ul.ie>, Ankita Garg <ankita@in.ibm.com>, linux-kernel@vger.kernel.org, linus.walleij@stericsson.com, andrea.gallo@stericsson.com, vincent.guittot@stericsson.com, philippe.langlais@stericsson.com, loic.pallardy@stericsson.com
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/30/2012 05:33 AM, Maxime Coquelin wrote:
-> Signed-off-by: Maxime Coquelin <maxime.coquelin@stericsson.com>
-> ---
->  Documentation/pasr.txt |  183 ++++++++++++++++++++++++++++++++++++++++++++++++
->  1 files changed, 183 insertions(+), 0 deletions(-)
->  create mode 100644 Documentation/pasr.txt
-> 
-> diff --git a/Documentation/pasr.txt b/Documentation/pasr.txt
-> new file mode 100644
-> index 0000000..d40e3f6
-> --- /dev/null
-> +++ b/Documentation/pasr.txt
-> @@ -0,0 +1,183 @@
-> +Partial Array Self-Refresh Framework
-> +
-> +(C) 2012 Maxime Coquelin <maxime.coquelin@stericsson.com>, ST-Ericsson.
-> +
-> +CONTENT
-> +1. Introduction
-> +2. Command-line parameters
-> +3. Allocators patching
-> +4. PASR platform drivers
-> +
-> +
-> +1. Introduction
-> +
-> +PASR Frameworks brings support for the Partial Array Self-Refresh DDR power
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-  The PASR framework brings support
+--8323584-1541958601-1328160030=:31109
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-> +management feature. PASR has been introduced in LP-DDR2, and is also present
+On Wed, 1 Feb 2012, PINTU KUMAR wrote:
+> =A0
+> 2)=A0 But after doing all this also my menu-screen is not proper.
+>     Still I am getting colorful lines on the menu-screen.
+> =A0=A0=A0=A0Can you point me out what could be the problem??
 
-                            was introduced in LP-DDR2 and is also present
+Sorry, I do not know.
 
-
-> +in DDR3.
-> +
-> +PASR provides 4 modes:
-> +
-> +* Single-Ended: Only 1/1, 1/2, 1/4 or 1/8 are refreshed, masking starting at
-> +  the end of the DDR die.
-> +
-> +* Double-Ended: Same as Single-Ended, but refresh-masking does not start
-> +  necessairly at the end of the DDR die.
-
-     necessarily
-
-> +
-> +* Bank-Selective: Refresh of each bank of a die can be masked or unmasked via
-> +  a dedicated DDR register (MR16). This mode is convenient for DDR configured
-> +  in BRC (Bank-Row-Column) mode.
-> +
-> +* Segment-Selective: Refresh of each segment of a die can be masked or unmasked
-> +  via a dedicated DDR register (MR17). This mode is convenient for DDR configured
-> +  in RBC (Row-Bank-Column) mode.
-> +
-> +The role of this framework is to stop the refresh of unused memory to enhance
-> +DDR power consumption.
-> +
-> +It supports Bank-Selective and Segment-Selective modes, as the more adapted to
-> +modern OSes.
-
-huh?  parse error above.
-
-> +
-> +At early boot stage, a representation of the physical DDR layout is built:
-> +
-> +             Die 0
-> +_______________________________
-> +| I--------------------------I |
-> +| I    Bank or Segment 0     I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment 1     I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment ...   I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment n     I |
-> +| I--------------------------I |
-> +|______________________________|
-> +             ...
-> +
-> +             Die n
-> +_______________________________
-> +| I--------------------------I |
-> +| I    Bank or Segment 0     I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment 1     I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment ...   I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment n     I |
-> +| I--------------------------I |
-> +|______________________________|
-> +
-> +The first level is a table where elements represent a die:
-> +* Base address,
-> +* Number of segments,
-> +* Table representing banks/segments,
-> +* MR16/MR17 refresh mask,
-> +* DDR Controller callback to update MR16/MR17 refresh mask.
-> +
-> +The second level is the section tables representing the banks or segments,
-> +depending on hardware configuration:
-> +* Base address,
-> +* Unused memory size counter,
-> +* Possible pointer to another section it depends on (E.g. Interleaving)
-> +
-> +When some memory becomes unused, the allocator owning this memory calls the PASR
-> +Framework's pasr_put(phys_addr, size) function. The framework finds the
-> +sections impacted and updates their counters accordingly.
-> +If a section counter reach the section size, the refresh of the section is
-
-                        reaches
-
-> +masked. If the corresponding section has a dependency with another section
-> +(E.g. because of DDR interleaving, see figure below), it checks the "paired" section is also
-
-                                                         it checks if the "paired" section is also
-
-> +unused before updating the refresh mask.
-> +
-> +When some unused memory is requested by the allocator, the allocator owning
-> +this memory calls the PASR Framework's pasr_get(phys_addr, size) function. The
-> +framework find the section impacted and updates their counters accordingly.
-
-             finds                     and updates its counter accordingly.
-or
-             find the sections impacted and updates their counters accordingly.
-
-
-> +If before the update, the section counter was to the section size, the refrewh
-
-                                             was equal to the section size, the refresh
-
-> +of the section is unmasked. If the corresponding section has a dependency with
-> +another section, it also unmask the refresh of the other section.
-
-                            unmasks
-
-> +
-> +Interleaving example:
-> +
-> +             Die 0
-> +_______________________________
-> +| I--------------------------I |
-> +| I    Bank or Segment 0     I |<----|
-> +| I--------------------------I |     |
-> +| I--------------------------I |     |
-> +| I    Bank or Segment 1     I |     |
-> +| I--------------------------I |     |
-> +| I--------------------------I |     |
-> +| I    Bank or Segment ...   I |     |
-> +| I--------------------------I |     |
-> +| I--------------------------I |     |
-> +| I    Bank or Segment n     I |     |
-> +| I--------------------------I |     |
-> +|______________________________|     |
-> +                                     |
-> +             Die 1                   |
-> +_______________________________      |
-> +| I--------------------------I |     |
-> +| I    Bank or Segment 0     I |<----|
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment 1     I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment ...   I |
-> +| I--------------------------I |
-> +| I--------------------------I |
-> +| I    Bank or Segment n     I |
-> +| I--------------------------I |
-> +|______________________________|
-> +
-> +In the above example, bank 0 of die 0 is interleaved with bank0 of die 0.
-
-                                                             bank 0 of die 1.
-
-> +The interleaving is done in HW by inverting some addresses lines. The goal is
-
-                            in hardware
-
-> +to improve DDR bandwidth.
-> +Practically, one buffer seen as contiguous by the kernel might be spread
-> +into two DDR dies physically.
-> +
-> +
-> +2. Command-line parameters
-> +
-> +To buid the DDR physical layout representation, two parameters are requested:
-
-      build
-
-> +
-> +* ddr_die (mandatory): Should be added for every DDR dies present in the system.
-
-                                                        die
-
-> +   - Usage: ddr_die=xxx[M|G]@yyy[M|G] where xxx represents the size and yyy
-> +     the base address of the die. E.g.: ddr_die=512M@0 ddr_die=512M@512M
-> +
-> +* interleaved (optionnal): Should be added for every interleaved dependencies.
-
-                 (optional):                  for all interleaved dependencies.
-
-
-> +   - Usage: interleaved=xxx[M|G]@yyy[M|G]:zzz[M|G] where xxx is the size of
-> +     the interleaved area between the adresses yyy and zzz. E.g
-> +     interleaved=256M@0:512M
-> +
-> +
-> +3. Allocator patching
-> +
-> +Any allocators might call the PASR Framework for DDR power savings. Currently,
-> +only Linux Buddy allocator is patched, but HWMEM and PMEM physically
-
-   only the Linux Buddy
-
-> +contiguous memory allocators will follow.
-> +
-> +Linux Buddy allocator porting uses Buddy specificities to reduce the overhead
-> +induced by the PASR Framework counter updates. Indeed, the PASR Framework is
-> +called only when MAX_ORDER (4MB page blocs by default) buddies are
-
-                                        blocks
-
-> +inserted/removed from the free lists.
-> +
-> +To port PASR FW into a new allocator:
-
-           the PASR framework
-
-> +
-> +* Call pasr_put(phys_addr, size) each time a memory chunk becomes unused.
-> +* Call pasr_get(phys_addr, size) each time a memory chunk becomes used.
-> +
-> +4. PASR platform drivers
-> +
-> +The MR16/MR17 PASR mask registers are generally accessible through the DDR
-> +controller. At probe time, the DDR controller driver should register the
-> +callback used by PASR Framework to apply the refresh mask for every DDR die
-> +using pasr_register_mask_function(die_addr, callback, cookie).
-> +
-> +The callback passed to apply mask must not sleep since it can me called in
-
-                                                             can be
-
-> +interrupt contexts.
-> +
-
-
--- 
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Hugh
+--8323584-1541958601-1328160030=:31109--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
