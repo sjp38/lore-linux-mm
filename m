@@ -1,95 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id ED8B96B13F2
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 05:15:28 -0500 (EST)
-Date: Thu, 2 Feb 2012 11:15:25 +0100
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id A14AB6B13F2
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 05:39:56 -0500 (EST)
+Date: Thu, 2 Feb 2012 11:39:53 +0100
 From: Jan Kara <jack@suse.cz>
 Subject: Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.
-Message-ID: <20120202101525.GD31730@quack.suse.cz>
+Message-ID: <20120202103953.GE31730@quack.suse.cz>
 References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com>
  <CAHH2K0bPdqzpuWv82uyvEu4d+cDqJOYoHbw=GeP5OZk4-3gCUg@mail.gmail.com>
  <20120202063345.GA15124@localhost>
+ <20120202075234.GA3039@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20120202063345.GA15124@localhost>
+In-Reply-To: <20120202075234.GA3039@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu 02-02-12 14:33:45, Wu Fengguang wrote:
-> Hi Greg,
-> 
-> On Wed, Feb 01, 2012 at 12:24:25PM -0800, Greg Thelen wrote:
-> > On Tue, Jan 31, 2012 at 4:55 PM, KAMEZAWA Hiroyuki
-> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 4. dirty ratio
-> > >   In the last year, patches were posted but not merged. I'd like to hear
-> > >   works on this area.
+On Thu 02-02-12 15:52:34, Wu Fengguang wrote:
+> On Thu, Feb 02, 2012 at 02:33:45PM +0800, Wu Fengguang wrote:
+> > Hi Greg,
 > > 
-> > I would like to attend to discuss this topic.  I have not had much time to work
-> > on this recently, but should be able to focus more on this soon.  The
-> > IO less writeback changes require some redesign and may allow for a
-> > simpler implementation of mem_cgroup_balance_dirty_pages().
-> > Maintaining a per container dirty page counts, ratios, and limits is
-> > fairly easy, but integration with writeback is the challenge.  My big
-> > questions are for writeback people:
-> > 1. how to compute per-container pause based on bdi bandwidth, cgroup
-> > dirty page usage.
-> > 2. how to ensure that writeback will engage even if system and bdi are
-> > below respective background dirty ratios, yet a memcg is above its bg
-> > dirty limit.
+> > On Wed, Feb 01, 2012 at 12:24:25PM -0800, Greg Thelen wrote:
+> > > On Tue, Jan 31, 2012 at 4:55 PM, KAMEZAWA Hiroyuki
+> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > 4. dirty ratio
+> > > >   In the last year, patches were posted but not merged. I'd like to hear
+> > > >   works on this area.
+> > > 
+> > > I would like to attend to discuss this topic.  I have not had much time to work
+> > > on this recently, but should be able to focus more on this soon.  The
+> > > IO less writeback changes require some redesign and may allow for a
+> > > simpler implementation of mem_cgroup_balance_dirty_pages().
+> > > Maintaining a per container dirty page counts, ratios, and limits is
+> > > fairly easy, but integration with writeback is the challenge.  My big
+> > > questions are for writeback people:
+> > > 1. how to compute per-container pause based on bdi bandwidth, cgroup
+> > > dirty page usage.
+> > > 2. how to ensure that writeback will engage even if system and bdi are
+> > > below respective background dirty ratios, yet a memcg is above its bg
+> > > dirty limit.
+> > 
+> > The solution to (1,2) would be something like this:
+> > 
+> > --- linux-next.orig/mm/page-writeback.c	2012-02-02 14:13:45.000000000 +0800
+> > +++ linux-next/mm/page-writeback.c	2012-02-02 14:24:11.000000000 +0800
+> > @@ -654,6 +654,17 @@ static unsigned long bdi_position_ratio(
+> >  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
+> >  	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
+> >  
+> > +	if (memcg) {
+> > +		long long f;
+> > +		x = div_s64((memcg_setpoint - memcg_dirty) << RATELIMIT_CALC_SHIFT,
+> > +			    memcg_limit - memcg_setpoint + 1);
+> > +		f = x;
+> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > +		f += 1 << RATELIMIT_CALC_SHIFT;
+> > +		pos_ratio = pos_ratio * f >> RATELIMIT_CALC_SHIFT;
+> > +	}
+> > +
+> >  	/*
+> >  	 * We have computed basic pos_ratio above based on global situation. If
+> >  	 * the bdi is over/under its share of dirty pages, we want to scale
+> > @@ -1202,6 +1213,8 @@ static void balance_dirty_pages(struct a
+> >  		freerun = dirty_freerun_ceiling(dirty_thresh,
+> >  						background_thresh);
+> >  		if (nr_dirty <= freerun) {
+> > +			if (memcg && memcg_dirty > memcg_freerun)
+> > +				goto start_writeback;
+> >  			current->dirty_paused_when = now;
+> >  			current->nr_dirtied = 0;
+> >  			current->nr_dirtied_pause =
+> > @@ -1209,6 +1222,7 @@ static void balance_dirty_pages(struct a
+> >  			break;
+> >  		}
+> >  
+> > +start_writeback:
+> >  		if (unlikely(!writeback_in_progress(bdi)))
+> >  			bdi_start_background_writeback(bdi);
+> >  
+> > 
+> > That makes the minimal change to enforce per-memcg dirty ratio.
+> > It could result in a less stable control system, but should still
+> > be able to balance things out.
 > 
-> The solution to (1,2) would be something like this:
+> Unfortunately the memcg partitioning could fundamentally make the
+> dirty throttling more bumpy.
 > 
-> --- linux-next.orig/mm/page-writeback.c	2012-02-02 14:13:45.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2012-02-02 14:24:11.000000000 +0800
-> @@ -654,6 +654,17 @@ static unsigned long bdi_position_ratio(
->  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
->  	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
->  
-> +	if (memcg) {
-> +		long long f;
-> +		x = div_s64((memcg_setpoint - memcg_dirty) << RATELIMIT_CALC_SHIFT,
-> +			    memcg_limit - memcg_setpoint + 1);
-> +		f = x;
-> +		f = f * x >> RATELIMIT_CALC_SHIFT;
-> +		f = f * x >> RATELIMIT_CALC_SHIFT;
-> +		f += 1 << RATELIMIT_CALC_SHIFT;
-> +		pos_ratio = pos_ratio * f >> RATELIMIT_CALC_SHIFT;
-> +	}
-> +
-  Hmm, so you multiply pos_ratio computed for global situation with
-pos_ratio computed for memcg situation, right? Why? My natural choice would
-be to just use memcg situation for computing pos_ratio since memcg is
-supposed to have less memory & stricter limits than root cgroup (global)...
+> Imagine 10 memcgs each with
+> 
+> - memcg_dirty_limit=50MB
+> - 1 dd dirty task
+> 
+> The flusher thread will be working on 10 inodes in turn, each time
+> grabbing the next inode and taking ~0.5s to write ~50MB of its dirty
+> pages to the disk. So each inode will be flushed on every ~5s.
+> 
+> Without memcg dirty ratio, the dd tasks will be throttled quite
+> smoothly.  However with memcg, each memcg will be limited to 50MB
+> dirty pages, and the dirty number will be dropping quickly from 50MB
+> to 0 on every 5 seconds.
+>
+> As a result, the small partitions of dirty pages will transmit the
+> flusher's bumpy writeout (which is necessary for performance) to the
+> dd tasks' bumpy progress. The dd tasks will be blocked for seconds
+> from time to time.
+> 
+> So I cannot help thinking: can the problem be canceled in the root?
+> The basic scheme could be: when reclaiming from a memcg zone, if any
+> PG_writeback/PG_dirty pages are encountered, mark PG_reclaim on it and
+> move it to the global zone and de-account it from the memcg.
+> 
+> In this way, we can avoid dirty/writeback pages hurting the (possibly
+> small) memcg zones. The aggressive dirtier tasks will be throttled by
+> the global 20% limit and the memcg page reclaims can go on smoothly.
+  If I remember Google's usecase right, their ultimate goal is to partition
+the machine so that processes in memcg A get say 1/4 of the available
+disk bandwidth, processes in memcg B get 1/2 of the disk bandwidth.
 
->  	/*
->  	 * We have computed basic pos_ratio above based on global situation. If
->  	 * the bdi is over/under its share of dirty pages, we want to scale
-> @@ -1202,6 +1213,8 @@ static void balance_dirty_pages(struct a
->  		freerun = dirty_freerun_ceiling(dirty_thresh,
->  						background_thresh);
->  		if (nr_dirty <= freerun) {
-> +			if (memcg && memcg_dirty > memcg_freerun)
-> +				goto start_writeback;
->  			current->dirty_paused_when = now;
->  			current->nr_dirtied = 0;
->  			current->nr_dirtied_pause =
-> @@ -1209,6 +1222,7 @@ static void balance_dirty_pages(struct a
->  			break;
->  		}
->  
-> +start_writeback:
->  		if (unlikely(!writeback_in_progress(bdi)))
->  			bdi_start_background_writeback(bdi);
-  I guess this should better be coupled with memcg-aware writeback which
-was part of Greg's original patches if I remember right. That way we'd know
-we are making progress on the pages of the right cgroup. But we can
-certainly try this minimal change and see whether cgroups won't get starved
-too much...
+Now you can do the bandwidth limitting in CFQ but it doesn't really work
+for buffered writes because these are done by flusher thread ignoring any
+memcg boundaries. So they introduce knowledge of memcgs into flusher thread
+so that writeback done by flusher thread reflects the configured
+proportions.
+
+But then the result is that processes in memcg A will simply accumulate
+more dirty pages because writeback is slower for them. So that's why you
+want to stop dirtying processes in that memcg when they reach their
+dirty_limit. All in all, I believe more bumpy writeback / lower throughput
+(you can choose between these two) is unavoidable for this usecase. But
+OTOH I'm not sure how big problem this will be in practice because machines
+should be big enough so that even after partitioning you get a resonably
+sized machine...
 
 								Honza
 -- 
