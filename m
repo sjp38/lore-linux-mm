@@ -1,66 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 35F186B13F1
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 12:53:23 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 2 Feb 2012 12:53:22 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 1AF7838C8056
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 12:53:19 -0500 (EST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q12Hpvf4265406
-	for <linux-mm@kvack.org>; Thu, 2 Feb 2012 12:51:59 -0500
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q12Hpuv7017555
-	for <linux-mm@kvack.org>; Thu, 2 Feb 2012 10:51:57 -0700
-Date: Thu, 2 Feb 2012 09:51:55 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-Message-ID: <20120202175155.GV2518@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
- <1328117722.2446.262.camel@twins>
- <20120201184045.GG2382@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1202011404500.2074@router.home>
- <20120201201336.GI2382@linux.vnet.ibm.com>
- <4F2A58A1.90800@redhat.com>
- <20120202153437.GD2518@linux.vnet.ibm.com>
- <4F2AB66C.2030309@redhat.com>
- <20120202170134.GM2518@linux.vnet.ibm.com>
- <4F2AC69B.7000704@redhat.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 8AB086B002C
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 14:53:30 -0500 (EST)
+Received: by eaag11 with SMTP id g11so1331801eaa.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 11:53:28 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 02/15] mm: page_alloc: update migrate type of pages on pcp
+ when isolating
+References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
+ <1327568457-27734-3-git-send-email-m.szyprowski@samsung.com>
+ <20120130111522.GE25268@csn.ul.ie> <op.v8wlu8ws3l0zgt@mpn-glaptop>
+ <20120130161447.GU25268@csn.ul.ie>
+ <022e01cce034$bc6cf440$3546dcc0$%szyprowski@samsung.com>
+ <20120202124729.GA5796@csn.ul.ie>
+Date: Thu, 02 Feb 2012 20:53:25 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F2AC69B.7000704@redhat.com>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v82hjbd13l0zgt@mpn-glaptop>
+In-Reply-To: <20120202124729.GA5796@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>
 
-On Thu, Feb 02, 2012 at 07:23:39PM +0200, Avi Kivity wrote:
-> On 02/02/2012 07:01 PM, Paul E. McKenney wrote:
-> > > 
-> > > It's not called (since the cpu is not idle).  Instead we call
-> > > rcu_virt_note_context_switch().
-> >
-> > Frederic's work checks to see if there is only one runnable user task
-> > on a given CPU.  If there is only one, then the scheduling-clock interrupt
-> > is turned off for that CPU, and RCU is told to ignore it while it is
-> > executing in user space.  Not sure whether this covers KVM guests.
-> 
-> Conceptually it's the same.  Maybe it needs adjustments, since kvm
-> enters a guest in a different way than the kernel exits to userspace.
-> 
-> > In any case, this is not yet in mainline.
-> 
-> Let me know when it's in, and I'll have a look.
+> On Tue, Jan 31, 2012 at 05:23:59PM +0100, Marek Szyprowski wrote:
+>> Pages, which have incorrect migrate type on free finally
+>> causes pageblock migration type change from MIGRATE_CMA to MIGRATE_MO=
+VABLE.
 
-Could you please touch base with Frederic Weisbecker to make sure that
-what he is doing works for you?
+On Thu, 02 Feb 2012 13:47:29 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
+> I'm not quite seeing this. In free_hot_cold_page(), the pageblock
+> type is checked so the page private should be set to MIGRATE_CMA or
+> MIGRATE_ISOLATE for the CMA area. It's not clear how this can change a=
 
-							Thanx, Paul
+> pageblock to MIGRATE_MOVABLE in error.
+
+Here's what I think may happen:
+
+When drain_all_pages() is called, __free_one_page() is called for each p=
+age on
+pcp list with migrate type deducted from page_private() which is MIGRATE=
+_CMA.
+This result in the page being put on MIGRATE_CMA freelist even though it=
+s
+pageblock's migrate type is MIGRATE_ISOLATE.
+
+When allocation happens and pcp list is empty, rmqueue_bulk() will get e=
+xecuted
+with migratetype argument set to MIGRATE_MOVABLE.  It calls __rmqueue() =
+to grab
+some pages and because the page described above is on MIGRATE_CMA freeli=
+st it
+may be returned back to rmqueue_bulk().
+
+But, pageblock's migrate type is not MIGRATE_CMA but MIGRATE_ISOLATE, so=
+ the
+following code:
+
+#ifdef CONFIG_CMA
+		if (is_pageblock_cma(page))
+			set_page_private(page, MIGRATE_CMA);
+		else
+#endif
+			set_page_private(page, migratetype);
+
+will set it's private to MIGRATE_MOVABLE and in the end the page lands b=
+ack
+on MIGRATE_MOVABLE pcp list but this time with page_private =3D=3D MIGRA=
+TE_MOVABLE
+and not MIGRATE_CMA.
+
+One more drain_all_pages() (which may happen since alloc_contig_range() =
+calls
+set_migratetype_isolate() for each block) and next __rmqueue_fallback() =
+may
+convert the whole pageblock to MIGRATE_MOVABLE.
+
+I know, this sounds crazy and improbable, but I couldn't find an easier =
+path
+to destruction.  As you pointed, once the page is allocated, free_hot_co=
+ld_page()
+will do the right thing by reading pageblock's migrate type.
+
+Marek is currently experimenting with various patches including the foll=
+owing
+change:
+
+#ifdef CONFIG_CMA
+                 int mt =3D get_pageblock_migratetype(page);
+                 if (is_migrate_cma(mt) || mt =3D=3D MIGRATE_ISOLATE)
+                         set_page_private(page, mt);
+                 else
+#endif
+                         set_page_private(page, migratetype);
+
+As a matter of fact, if __rmqueue() was changed to return migrate type o=
+f the
+freelist it took page from, we could avoid this get_pageblock_migratetyp=
+e() all
+together.  For now, however, I'd rather not go that way just yet -- I'll=
+ be happy
+to dig into it once CMA gets merged.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
