@@ -1,937 +1,402 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 945456B13F2
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 09:30:30 -0500 (EST)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id C64246B13F3
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 09:30:38 -0500 (EST)
 Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 2 Feb 2012 14:26:09 +1000
+	Thu, 2 Feb 2012 14:28:31 +1000
 Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q12EUFBU860378
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 01:30:15 +1100
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q12EUXep987244
+	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 01:30:33 +1100
 Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q12EUDCV002172
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 01:30:15 +1100
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q12EUTR4002649
+	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 01:30:32 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Thu, 02 Feb 2012 19:49:06 +0530
-Message-Id: <20120202141906.5967.25201.sendpatchset@srdronam.in.ibm.com>
+Date: Thu, 02 Feb 2012 19:49:22 +0530
+Message-Id: <20120202141922.5967.72111.sendpatchset@srdronam.in.ibm.com>
 In-Reply-To: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
 References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH v10 3.3-rc2 2/9] uprobes: handle breakpoint and signal step exception.
+Subject: [PATCH v10 3.3-rc2 3/9] uprobes: slot allocation.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
 
-Uprobes uses exception notifiers to get to know if a thread hit a
-breakpoint or singlestep exception.
+Uprobes executes the original instruction at a probed location out of
+line. For this, we allocate a page (per mm) upon the first uprobe hit,
+in the process' user address space, divide it into slots that are used
+to store the actual instructions to be singlestepped.
 
-When a thread hits a uprobe or is singlestepping post a uprobe hit,
-the uprobe exception notifier, sets its TIF_UPROBE bit, which will
-then be checked on its return to userspace path (do_notify_resume()
-->uprobe_notify_resume()), where the consumers handlers are run
-(in task context) based on the defined filters.
+Care is taken to ensure that the allocation is in an unmapped area as
+close to the top of the user address space as possible, with appropriate
+permission settings to keep selinux like frameworks happy.
 
-Uprobe hits are thread specific and hence we need to maintain
-information about if a task hit a uprobe, what uprobe was hit, the slot
-where the original instruction was copied for xol so that it can be
-singlestepped with appropriate fixups.
+Upon a uprobe hit, a free slot is acquired, and is released after the
+singlestep completes.
 
-In some cases, special care is needed for instructions that are
-executed out of line (xol). These are architecture specific artefacts,
-such as handling RIP relative instructions on x86_64.
+[ Folded a fix for build issue on powerpc fixed and reported by Stephen
+Rothwell]
 
-Since the instruction at which the uprobe was inserted is executed out
-of line, architecture specific fixups are added so that the thread
-continues normal execution in the presence of a uprobe.
-
-Postpone the signals until we execute the probed insn. post_xol()
-path does a recalc_sigpending() before return to user-mode, this
-ensures the signal can't be lost.
-
-Uprobes relies on DIE_DEBUG notification to notify if a singlestep is
-complete.
-
-Adds x86 specific uprobe exception notifiers and appropriate hooks
-needed to determine a uprobe hit and subsequent post processing.
-
-Add requisite x86 fixups for xol for uprobes. Specific cases needing
-fixups include relative jumps (x86_64), calls, etc.
-
-Where possible, we check and skip singlestepping the breakpointed
-instructions. For now we skip single byte as well as few multibyte
-nop instructions. However this can be extended to other
-instructions too.
-
-Credits to Oleg Nesterov for suggestions/patches related to signal,
-breakpoint, singlestep handling code.
+Lots of improvements courtesy suggestions/inputs from Peter and Oleg.
 
 Signed-off-by: Jim Keniston <jkenisto@us.ibm.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
-(Changelog (since v9): Use instruction_pointer_set instead of
-set_instruction_pointer.
-Changed can_skip_xol to uprobe_skip_sstep as suggested by Ananth
-
-(Changelog (since v7)): Resolve comments from Dan Carpenter.
-- add_utask returns NULL on error.
-- Handles architecture agnostic parts of a uprobe breakpoint hit and
-  subsequent xol singlestepping.
-
-Changelog (since v6)
-- added x86 specific hook for aborting xol.
-
 Changelog (since v5)
-- Use srcu_raw instead of synchronize_sched
-- Introduce per task srcu_id to store the srcu_id
-- Modified comments.
-- No more do a i386 specific enable interrupts. (Its not part of another
-  patch posted separately)
+- no more spin lock needed for slot allocation.
+- use install_special_mapping to add a vma. (previous approach used
+  init_creds)
+- set uprobes_xol_area while holding map_sem exclusively.
 
- arch/x86/include/asm/thread_info.h |    2 
- arch/x86/include/asm/uprobes.h     |   16 ++
- arch/x86/kernel/signal.c           |    6 +
- arch/x86/kernel/uprobes.c          |  262 ++++++++++++++++++++++++++++++++++
- include/linux/sched.h              |    4 +
- include/linux/uprobes.h            |   46 ++++++
- kernel/fork.c                      |    7 +
- kernel/signal.c                    |    3 
- kernel/uprobes.c                   |  275 ++++++++++++++++++++++++++++++++++++
- 9 files changed, 619 insertions(+), 2 deletions(-)
+ include/linux/mm_types.h |    4 +
+ include/linux/uprobes.h  |   25 ++++++
+ kernel/fork.c            |    4 +
+ kernel/uprobes.c         |  202 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 235 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index bc817cd..114dca1 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -85,6 +85,7 @@ struct thread_info {
- #define TIF_SECCOMP		8	/* secure computing */
- #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
- #define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
-+#define TIF_UPROBE		12	/* breakpointed or singlestepping */
- #define TIF_NOTSC		16	/* TSC is not accessible in userland */
- #define TIF_IA32		17	/* 32bit process */
- #define TIF_FORK		18	/* ret_from_fork */
-@@ -107,6 +108,7 @@ struct thread_info {
- #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
- #define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
- #define _TIF_USER_RETURN_NOTIFY	(1 << TIF_USER_RETURN_NOTIFY)
-+#define _TIF_UPROBE		(1 << TIF_UPROBE)
- #define _TIF_NOTSC		(1 << TIF_NOTSC)
- #define _TIF_IA32		(1 << TIF_IA32)
- #define _TIF_FORK		(1 << TIF_FORK)
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index 8208234..88df7ec 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -23,6 +23,8 @@
-  *	Jim Keniston
-  */
- 
-+#include <linux/notifier.h>
-+
- typedef u8 uprobe_opcode_t;
- #define MAX_UINSN_BYTES 16
- #define UPROBES_XOL_SLOT_BYTES	128	/* to keep it cache aligned */
-@@ -37,6 +39,20 @@ struct uprobe_arch_info {
- #endif
- };
- 
-+struct uprobe_task_arch_info {
-+	unsigned long saved_trap_no;
-+#ifdef CONFIG_X86_64
-+	unsigned long saved_scratch_register;
-+#endif
-+};
-+
- struct uprobe;
-+
- extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
-+extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern bool xol_was_trapped(struct task_struct *tsk);
-+extern int uprobe_exception_notify(struct notifier_block *self,
-+				       unsigned long val, void *data);
-+extern void abort_xol(struct pt_regs *regs, struct uprobe *uprobe);
- #endif	/* _ASM_UPROBES_H */
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 46a01bd..f190103 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -20,6 +20,7 @@
- #include <linux/personality.h>
- #include <linux/uaccess.h>
- #include <linux/user-return-notifier.h>
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 3cc3062..9ade86e 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -12,6 +12,7 @@
+ #include <linux/completion.h>
+ #include <linux/cpumask.h>
+ #include <linux/page-debug-flags.h>
 +#include <linux/uprobes.h>
+ #include <asm/page.h>
+ #include <asm/mmu.h>
  
- #include <asm/processor.h>
- #include <asm/ucontext.h>
-@@ -816,6 +817,11 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
- 		mce_notify_process();
- #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
- 
-+	if (thread_info_flags & _TIF_UPROBE) {
-+		clear_thread_flag(TIF_UPROBE);
-+		uprobe_notify_resume(regs);
-+	}
-+
- 	/* deal with pending signal delivery */
- 	if (thread_info_flags & _TIF_SIGPENDING)
- 		do_signal(regs);
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 23478b0..16de947 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -25,10 +25,17 @@
- #include <linux/sched.h>
- #include <linux/ptrace.h>
- #include <linux/uprobes.h>
-+#include <linux/uaccess.h>
- 
- #include <linux/kdebug.h>
- #include <asm/insn.h>
- 
-+#ifdef CONFIG_X86_32
-+#define is_32bit_app(tsk) 1
-+#else
-+#define is_32bit_app(tsk) (test_tsk_thread_flag(tsk, TIF_IA32))
-+#endif
-+
- /* Post-execution fixups. */
- 
- /* No fixup needed */
-@@ -400,3 +407,258 @@ int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
- 	prepare_fixups(uprobe, &insn);
- 	return 0;
- }
-+
-+#define	UPROBE_TRAP_NO		UINT_MAX
-+
-+/*
-+ * pre_xol - prepare to execute out of line.
-+ * @uprobe: the probepoint information.
-+ * @regs: reflects the saved user state of @tsk.
-+ *
-+ * If we're emulating a rip-relative instruction, save the contents
-+ * of the scratch register and store the target address in that register.
-+ *
-+ * Returns true if @uprobe->opcode is @bkpt_insn.
-+ */
-+#ifdef CONFIG_X86_64
-+int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
-+
-+	tskinfo->saved_trap_no = current->thread.trap_no;
-+	current->thread.trap_no = UPROBE_TRAP_NO;
-+
-+	regs->ip = current->utask->xol_vaddr;
-+	if (uprobe->arch_info.fixups & UPROBES_FIX_RIP_AX) {
-+		tskinfo->saved_scratch_register = regs->ax;
-+		regs->ax = current->utask->vaddr;
-+		regs->ax += uprobe->arch_info.rip_rela_target_address;
-+	} else if (uprobe->arch_info.fixups & UPROBES_FIX_RIP_CX) {
-+		tskinfo->saved_scratch_register = regs->cx;
-+		regs->cx = current->utask->vaddr;
-+		regs->cx += uprobe->arch_info.rip_rela_target_address;
-+	}
-+	return 0;
-+}
-+#else
-+int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
-+
-+	tskinfo->saved_trap_no = current->thread.trap_no;
-+	current->thread.trap_no = UPROBE_TRAP_NO;
-+
-+	regs->ip = current->utask->xol_vaddr;
-+	return 0;
-+}
-+#endif
-+
-+/*
-+ * Called by post_xol() to adjust the return address pushed by a call
-+ * instruction executed out of line.
-+ */
-+static int adjust_ret_addr(unsigned long sp, long correction)
-+{
-+	int rasize, ncopied;
-+	long ra = 0;
-+
-+	if (is_32bit_app(current))
-+		rasize = 4;
-+	else
-+		rasize = 8;
-+
-+	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	ra += correction;
-+	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	return 0;
-+}
-+
-+#ifdef CONFIG_X86_64
-+static bool is_riprel_insn(struct uprobe *uprobe)
-+{
-+	return ((uprobe->arch_info.fixups &
-+			(UPROBES_FIX_RIP_AX | UPROBES_FIX_RIP_CX)) != 0);
-+}
-+
-+static void handle_riprel_post_xol(struct uprobe *uprobe,
-+			struct pt_regs *regs, long *correction)
-+{
-+	if (is_riprel_insn(uprobe)) {
-+		struct uprobe_task_arch_info *tskinfo;
-+		tskinfo = &current->utask->tskinfo;
-+
-+		if (uprobe->arch_info.fixups & UPROBES_FIX_RIP_AX)
-+			regs->ax = tskinfo->saved_scratch_register;
-+		else
-+			regs->cx = tskinfo->saved_scratch_register;
-+		/*
-+		 * The original instruction includes a displacement, and so
-+		 * is 4 bytes longer than what we've just single-stepped.
-+		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-+		 * "callq *...(%rip)".
-+		 */
-+		if (correction)
-+			*correction += 4;
-+	}
-+}
-+#else
-+static void handle_riprel_post_xol(struct uprobe *uprobe,
-+			struct pt_regs *regs, long *correction)
-+{
-+}
-+#endif
-+
-+/*
-+ * If xol insn itself traps and generates a signal(Say,
-+ * SIGILL/SIGSEGV/etc), then detect the case where a singlestepped
-+ * instruction jumps back to its own address. It is assumed that anything
-+ * like do_page_fault/do_trap/etc sets thread.trap_no != -1.
-+ *
-+ * pre_xol/post_xol save/restore thread.trap_no, xol_was_trapped() simply
-+ * checks that ->trap_no is not equal to UPROBE_TRAP_NO == -1 set by
-+ * pre_xol().
-+ */
-+bool xol_was_trapped(struct task_struct *tsk)
-+{
-+	if (tsk->thread.trap_no != UPROBE_TRAP_NO)
-+		return true;
-+
-+	return false;
-+}
-+
-+/*
-+ * Called after single-stepping. To avoid the SMP problems that can
-+ * occur when we temporarily put back the original opcode to
-+ * single-step, we single-stepped a copy of the instruction.
-+ *
-+ * This function prepares to resume execution after the single-step.
-+ * We have to fix things up as follows:
-+ *
-+ * Typically, the new ip is relative to the copied instruction.  We need
-+ * to make it relative to the original instruction (FIX_IP).  Exceptions
-+ * are return instructions and absolute or indirect jump or call instructions.
-+ *
-+ * If the single-stepped instruction was a call, the return address that
-+ * is atop the stack is the address following the copied instruction.  We
-+ * need to make it the address following the original instruction (FIX_CALL).
-+ *
-+ * If the original instruction was a rip-relative instruction such as
-+ * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
-+ * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
-+ * We need to restore the contents of the scratch register and adjust
-+ * the ip, keeping in mind that the instruction we executed is 4 bytes
-+ * shorter than the original instruction (since we squeezed out the offset
-+ * field).  (FIX_RIP_AX or FIX_RIP_CX)
-+ */
-+int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask = current->utask;
-+	int result = 0;
-+	long correction;
-+
-+	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NO);
-+
-+	current->thread.trap_no = utask->tskinfo.saved_trap_no;
-+	correction = (long)(utask->vaddr - utask->xol_vaddr);
-+	handle_riprel_post_xol(uprobe, regs, &correction);
-+	if (uprobe->arch_info.fixups & UPROBES_FIX_IP)
-+		regs->ip += correction;
-+	if (uprobe->arch_info.fixups & UPROBES_FIX_CALL)
-+		result = adjust_ret_addr(regs->sp, correction);
-+	return result;
-+}
-+
-+/*
-+ * Wrapper routine for handling exceptions.
-+ */
-+int uprobe_exception_notify(struct notifier_block *self,
-+				       unsigned long val, void *data)
-+{
-+	struct die_args *args = data;
-+	struct pt_regs *regs = args->regs;
-+	int ret = NOTIFY_DONE;
-+
-+	/* We are only interested in userspace traps */
-+	if (regs && !user_mode_vm(regs))
-+		return NOTIFY_DONE;
-+
-+	switch (val) {
-+	case DIE_INT3:
-+		/* Run your handler here */
-+		if (uprobe_bkpt_notifier(regs))
-+			ret = NOTIFY_STOP;
-+		break;
-+	case DIE_DEBUG:
-+		if (uprobe_post_notifier(regs))
-+			ret = NOTIFY_STOP;
-+	default:
-+		break;
-+	}
-+	return ret;
-+}
-+
-+/*
-+ * xol insn either trapped or thread has a fatal signal, so reset the
-+ * instruction pointer to its probed address.
-+ */
-+void abort_xol(struct pt_regs *regs, struct uprobe *uprobe)
-+{
-+	struct uprobe_task *utask = current->utask;
-+
-+	current->thread.trap_no = utask->tskinfo.saved_trap_no;
-+	handle_riprel_post_xol(uprobe, regs, NULL);
-+	instruction_pointer_set(regs, utask->vaddr);
-+}
-+
-+/*
-+ * Skip these instructions:
-+ *
-+ * 0f 19 90 90 90 90 90		nopl   -0x6f6f6f70(%rax)
-+ * 0f 1f 00			nopl (%rax)
-+ * 0f 1f 40 00			nopl 0x0(%rax)
-+ * 0f 1f 44 00 00		nopl 0x0(%rax,%rax,1)
-+ * 0f 1f 80 00 00 00 00		nopl 0x0(%rax)
-+ * 0f 1f 84 00 00 00 00		nopl 0x0(%rax,%rax,1)
-+ * 66 0f 1f 44 00 00 00		nopw 0x0(%rax,%rax,1)
-+ * 66 0f 1f 84 00 00 00		nopw 0x0(%rax,%rax,1)
-+ * 66 87 c0			xchg %eax,%eax
-+ * 66 90			nop
-+ * 87 c0			xchg %eax,%eax
-+ * 90 				nop
-+ */
-+
-+bool uprobe_skip_sstep(struct pt_regs *regs, struct uprobe *u)
-+{
-+	int i;
-+
-+	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-+		if ((u->insn[i] == 0x66))
-+			continue;
-+
-+		if (u->insn[i] == 0x90)
-+			return true;
-+
-+		if (i == (MAX_UINSN_BYTES - 1))
-+			break;
-+
-+		if ((u->insn[i] == 0x0f) && (u->insn[i+1] == 0x1f))
-+			return true;
-+
-+		if ((u->insn[i] == 0x0f) && (u->insn[i+1] == 0x19))
-+			return true;
-+
-+		if ((u->insn[i] == 0x87) && (u->insn[i+1] == 0xc0))
-+			return true;
-+
-+		break;
-+	}
-+
-+	u->flags &= ~UPROBES_SKIP_SSTEP;
-+	return false;
-+}
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 2234985..4a485ea 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1590,6 +1590,10 @@ struct task_struct {
- #ifdef CONFIG_HAVE_HW_BREAKPOINT
- 	atomic_t ptrace_bp_refcnt;
+@@ -388,6 +389,9 @@ struct mm_struct {
+ #ifdef CONFIG_CPUMASK_OFFSTACK
+ 	struct cpumask cpumask_allocation;
  #endif
 +#ifdef CONFIG_UPROBES
-+	struct uprobe_task *utask;
-+	int uprobes_srcu_id;
++	struct uprobes_xol_area *uprobes_xol_area;
 +#endif
  };
  
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
+ static inline void mm_init_cpumask(struct mm_struct *mm)
 diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index f1d13fd..333e775 100644
+index 333e775..c9ad7fc 100644
 --- a/include/linux/uprobes.h
 +++ b/include/linux/uprobes.h
-@@ -33,7 +33,7 @@ struct vm_area_struct;
+@@ -27,6 +27,7 @@
+ #include <linux/rbtree.h>
  
- typedef u8 uprobe_opcode_t;
- struct uprobe_arch_info {};
--
-+struct uprobe_task_arch_info {};	/* arch specific task info */
- #define MAX_UINSN_BYTES 4
- #endif
- 
-@@ -44,6 +44,8 @@ struct uprobe_arch_info {};
- #define UPROBES_COPY_INSN	0x1
- /* Dont run handlers when first register/ last unregister in progress*/
- #define UPROBES_RUN_HANDLER	0x2
-+/* Can skip singlestep */
-+#define UPROBES_SKIP_SSTEP	0x4
- 
- struct uprobe_consumer {
- 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
-@@ -69,6 +71,27 @@ struct uprobe {
- 	u8			insn[MAX_UINSN_BYTES];
+ struct vm_area_struct;
++struct mm_struct;
+ #ifdef CONFIG_ARCH_SUPPORTS_UPROBES
+ #include <asm/uprobes.h>
+ #else
+@@ -92,6 +93,26 @@ struct uprobe_task {
+ 	struct uprobe *active_uprobe;
  };
  
-+enum uprobe_task_state {
-+	UTASK_RUNNING,
-+	UTASK_BP_HIT,
-+	UTASK_SSTEP,
-+	UTASK_SSTEP_ACK,
-+	UTASK_SSTEP_TRAPPED,
-+};
-+
 +/*
-+ * uprobe_task: Metadata of a task while it singlesteps.
++ * On a breakpoint hit, thread contests for a slot.  It free the
++ * slot after singlestep.  Only definite number of slots are
++ * allocated.
 + */
-+struct uprobe_task {
-+	unsigned long xol_vaddr;
-+	unsigned long vaddr;
 +
-+	enum uprobe_task_state state;
-+	struct uprobe_task_arch_info tskinfo;
++struct uprobes_xol_area {
++	wait_queue_head_t wq;	/* if all slots are busy */
++	atomic_t slot_count;	/* currently in use slots */
++	unsigned long *bitmap;	/* 0 = free slot */
++	struct page *page;
 +
-+	struct uprobe *active_uprobe;
++	/*
++	 * We keep the vma's vm_start rather than a pointer to the vma
++	 * itself.  The probed process or a naughty kernel module could make
++	 * the vma go away, and we must handle that reasonably gracefully.
++	 */
++	unsigned long vaddr;		/* Page(s) of instruction slots */
 +};
 +
  #ifdef CONFIG_UPROBES
  extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
  							unsigned long vaddr);
-@@ -79,7 +102,14 @@ extern int register_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer);
+@@ -103,6 +124,7 @@ extern int register_uprobe(struct inode *inode, loff_t offset,
  extern void unregister_uprobe(struct inode *inode, loff_t offset,
  				struct uprobe_consumer *consumer);
-+extern void free_uprobe_utask(struct task_struct *tsk);
+ extern void free_uprobe_utask(struct task_struct *tsk);
++extern void free_uprobes_xol_area(struct mm_struct *mm);
  extern int mmap_uprobe(struct vm_area_struct *vma);
-+extern unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs);
-+extern int uprobe_post_notifier(struct pt_regs *regs);
-+extern int uprobe_bkpt_notifier(struct pt_regs *regs);
-+extern void uprobe_notify_resume(struct pt_regs *regs);
-+extern bool uprobe_deny_signal(void);
-+extern bool __weak uprobe_skip_sstep(struct pt_regs *regs, struct uprobe *u);
- #else /* CONFIG_UPROBES is not defined */
- static inline int register_uprobe(struct inode *inode, loff_t offset,
- 				struct uprobe_consumer *consumer)
-@@ -94,5 +124,19 @@ static inline int mmap_uprobe(struct vm_area_struct *vma)
+ extern unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs);
+ extern int uprobe_post_notifier(struct pt_regs *regs);
+@@ -138,5 +160,8 @@ static inline unsigned long get_uprobe_bkpt_addr(struct pt_regs *regs)
+ static inline void free_uprobe_utask(struct task_struct *tsk)
  {
- 	return 0;
  }
-+static inline void uprobe_notify_resume(struct pt_regs *regs)
-+{
-+}
-+static inline bool uprobe_deny_signal(void)
-+{
-+	return false;
-+}
-+static inline unsigned long get_uprobe_bkpt_addr(struct pt_regs *regs)
-+{
-+	return 0;
-+}
-+static inline void free_uprobe_utask(struct task_struct *tsk)
++static inline void free_uprobes_xol_area(struct mm_struct *mm)
 +{
 +}
  #endif /* CONFIG_UPROBES */
  #endif	/* _LINUX_UPROBES_H */
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 051f090..4e81a01 100644
+index 4e81a01..8e65a55 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -66,6 +66,7 @@
- #include <linux/user-return-notifier.h>
- #include <linux/oom.h>
- #include <linux/khugepaged.h>
-+#include <linux/uprobes.h>
+@@ -553,6 +553,7 @@ void mmput(struct mm_struct *mm)
+ 	might_sleep();
  
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -680,6 +681,8 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
- 		exit_pi_state_list(tsk);
- #endif
- 
-+	free_uprobe_utask(tsk);
-+
- 	/* Get rid of any cached register state */
- 	deactivate_mm(tsk, mm);
- 
-@@ -1272,6 +1275,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 	INIT_LIST_HEAD(&p->pi_state_list);
- 	p->pi_state_cache = NULL;
+ 	if (atomic_dec_and_test(&mm->mm_users)) {
++		free_uprobes_xol_area(mm);
+ 		exit_aio(mm);
+ 		ksm_exit(mm);
+ 		khugepaged_exit(mm); /* must run before exit_mmap */
+@@ -739,6 +740,9 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	mm->pmd_huge_pte = NULL;
  #endif
 +#ifdef CONFIG_UPROBES
-+	p->utask = NULL;
-+	p->uprobes_srcu_id = -1;
++	mm->uprobes_xol_area = NULL;
 +#endif
- 	/*
- 	 * sigaltstack should be cleared when sharing the same VM
- 	 */
-diff --git a/kernel/signal.c b/kernel/signal.c
-index c73c428..412f0dc 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -2182,6 +2182,9 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
- 	struct signal_struct *signal = current->signal;
- 	int signr;
  
-+	if (unlikely(uprobe_deny_signal()))
-+		return 0;
-+
- relock:
- 	/*
- 	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
 diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-index 72e8bb3..810d15d 100644
+index 810d15d..f789c84 100644
 --- a/kernel/uprobes.c
 +++ b/kernel/uprobes.c
-@@ -29,8 +29,11 @@
- #include <linux/rmap.h>		/* anon_vma_prepare */
- #include <linux/mmu_notifier.h>	/* set_pte_at_notify */
- #include <linux/swap.h>		/* try_to_free_swap */
-+#include <linux/ptrace.h>	/* user_enable_single_step */
-+#include <linux/kdebug.h>	/* notifier mechanism */
+@@ -33,6 +33,9 @@
+ #include <linux/kdebug.h>	/* notifier mechanism */
  #include <linux/uprobes.h>
  
-+static struct srcu_struct uprobes_srcu;
++#define UINSNS_PER_PAGE	(PAGE_SIZE/UPROBES_XOL_SLOT_BYTES)
++#define MAX_UPROBES_XOL_SLOTS UINSNS_PER_PAGE
++
+ static struct srcu_struct uprobes_srcu;
  static struct rb_root uprobes_tree = RB_ROOT;
  static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
- 
-@@ -460,6 +463,9 @@ static struct uprobe *insert_uprobe(struct uprobe *uprobe)
- 	spin_lock_irqsave(&uprobes_treelock, flags);
- 	u = __insert_uprobe(uprobe);
- 	spin_unlock_irqrestore(&uprobes_treelock, flags);
-+
-+	/* For now assume that the instruction need not be single-stepped */
-+	uprobe->flags |= UPROBES_SKIP_SSTEP;
- 	return u;
- }
- 
-@@ -495,6 +501,24 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
- 	return uprobe;
- }
- 
-+static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_consumer *consumer;
-+
-+	if (!(uprobe->flags & UPROBES_RUN_HANDLER))
-+		return;
-+
-+	down_read(&uprobe->consumer_rwsem);
-+	consumer = uprobe->consumers;
-+	for (consumer = uprobe->consumers; consumer;
-+					consumer = consumer->next) {
-+		if (!consumer->filter ||
-+				consumer->filter(consumer, current))
-+			consumer->handler(consumer, regs);
-+	}
-+	up_read(&uprobe->consumer_rwsem);
-+}
-+
- /* Returns the previous consumer */
- static struct uprobe_consumer *add_consumer(struct uprobe *uprobe,
- 				struct uprobe_consumer *consumer)
-@@ -630,10 +654,21 @@ static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
- 	set_orig_insn(mm, uprobe, (unsigned long)vaddr, true);
- }
- 
-+/*
-+ * There could be threads that have hit the breakpoint and are entering the
-+ * notifier code and trying to acquire the uprobes_treelock. The thread
-+ * calling delete_uprobe() that is removing the uprobe from the rb_tree can
-+ * race with these threads and might acquire the uprobes_treelock compared
-+ * to some of the breakpoint hit threads. In such a case, the breakpoint hit
-+ * threads will not find the uprobe. Hence wait till the current breakpoint
-+ * hit threads acquire the uprobes_treelock before the uprobe is removed
-+ * from the rbtree.
-+ */
- static void delete_uprobe(struct uprobe *uprobe)
- {
- 	unsigned long flags;
- 
-+	synchronize_srcu(&uprobes_srcu);
- 	spin_lock_irqsave(&uprobes_treelock, flags);
- 	rb_erase(&uprobe->rb_node, &uprobes_tree);
- 	spin_unlock_irqrestore(&uprobes_treelock, flags);
-@@ -957,6 +992,243 @@ int mmap_uprobe(struct vm_area_struct *vma)
+@@ -992,6 +995,201 @@ int mmap_uprobe(struct vm_area_struct *vma)
  	return ret;
  }
  
-+/**
-+ * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
-+ * @regs: Reflects the saved state of the task after it has hit a breakpoint
-+ * instruction.
-+ * Return the address of the breakpoint instruction.
-+ */
-+unsigned long __weak get_uprobe_bkpt_addr(struct pt_regs *regs)
++/* Slot allocation for XOL */
++static int xol_add_vma(struct uprobes_xol_area *area)
 +{
-+	return instruction_pointer(regs) - UPROBES_BKPT_INSN_SIZE;
++	struct mm_struct *mm;
++	int ret;
++
++	area->page = alloc_page(GFP_HIGHUSER);
++	if (!area->page)
++		return -ENOMEM;
++
++	mm = current->mm;
++	down_write(&mm->mmap_sem);
++	ret = -EALREADY;
++	if (mm->uprobes_xol_area)
++		goto fail;
++
++	ret = -ENOMEM;
++
++	/* Try to map as high as possible, this is only a hint. */
++	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
++							PAGE_SIZE, 0, 0);
++	if (area->vaddr & ~PAGE_MASK) {
++		ret = area->vaddr;
++		goto fail;
++	}
++
++	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
++				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO,
++				&area->page);
++	if (ret)
++		goto fail;
++
++	smp_wmb();	/* pairs with get_uprobes_xol_area() */
++	mm->uprobes_xol_area = area;
++	ret = 0;
++
++fail:
++	up_write(&mm->mmap_sem);
++	if (ret)
++		__free_page(area->page);
++
++	return ret;
++}
++
++static struct uprobes_xol_area *get_uprobes_xol_area(struct mm_struct *mm)
++{
++	struct uprobes_xol_area *area = mm->uprobes_xol_area;
++	smp_read_barrier_depends();/* pairs with wmb in xol_add_vma() */
++	return area;
 +}
 +
 +/*
-+ * Called with no locks held.
-+ * Called in context of a exiting or a exec-ing thread.
-+ */
-+void free_uprobe_utask(struct task_struct *tsk)
-+{
-+	struct uprobe_task *utask = tsk->utask;
-+
-+	if (tsk->uprobes_srcu_id != -1)
-+		srcu_read_unlock_raw(&uprobes_srcu, tsk->uprobes_srcu_id);
-+
-+	if (!utask)
-+		return;
-+
-+	if (utask->active_uprobe)
-+		put_uprobe(utask->active_uprobe);
-+
-+	kfree(utask);
-+	tsk->utask = NULL;
-+}
-+
-+/*
-+ * Allocate a uprobe_task object for the task.
-+ * Called when the thread hits a breakpoint for the first time.
++ * xol_alloc_area - Allocate process's uprobes_xol_area.
++ * This area will be used for storing instructions for execution out of
++ * line.
 + *
-+ * Returns:
-+ * - pointer to new uprobe_task on success
-+ * - NULL otherwise
++ * Returns the allocated area or NULL.
 + */
-+static struct uprobe_task *add_utask(void)
++static struct uprobes_xol_area *xol_alloc_area(void)
 +{
-+	struct uprobe_task *utask;
++	struct uprobes_xol_area *area;
 +
-+	utask = kzalloc(sizeof *utask, GFP_KERNEL);
-+	if (unlikely(utask == NULL))
++	area = kzalloc(sizeof(*area), GFP_KERNEL);
++	if (unlikely(!area))
 +		return NULL;
 +
-+	utask->active_uprobe = NULL;
-+	current->utask = utask;
-+	return utask;
-+}
++	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
++								GFP_KERNEL);
 +
-+/* Prepare to single-step probed instruction out of line. */
-+static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
-+				unsigned long vaddr)
-+{
-+	return -EFAULT;
++	if (!area->bitmap)
++		goto fail;
++
++	init_waitqueue_head(&area->wq);
++	if (!xol_add_vma(area))
++		return area;
++
++fail:
++	kfree(area->bitmap);
++	kfree(area);
++	return get_uprobes_xol_area(current->mm);
 +}
 +
 +/*
-+ * If we are singlestepping, then ensure this thread is not connected to
-+ * non-fatal signals until completion of singlestep.  When xol insn itself
-+ * triggers the signal,  restart the original insn even if the task is
-+ * already SIGKILL'ed (since coredump should report the correct ip).  This
-+ * is even more important if the task has a handler for SIGSEGV/etc, The
-+ * _same_ instruction should be repeated again after return from the signal
-+ * handler, and SSTEP can never finish in this case.
++ * free_uprobes_xol_area - Free the area allocated for slots.
 + */
-+bool uprobe_deny_signal(void)
++void free_uprobes_xol_area(struct mm_struct *mm)
 +{
-+	struct task_struct *tsk = current;
-+	struct uprobe_task *utask = tsk->utask;
++	struct uprobes_xol_area *area = mm->uprobes_xol_area;
 +
-+	if (likely(!utask || !utask->active_uprobe))
-+		return false;
++	if (!area)
++		return;
 +
-+	WARN_ON_ONCE(utask->state != UTASK_SSTEP);
++	put_page(area->page);
++	kfree(area->bitmap);
++	kfree(area);
++}
 +
-+	if (signal_pending(tsk)) {
-+		spin_lock_irq(&tsk->sighand->siglock);
-+		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
-+		spin_unlock_irq(&tsk->sighand->siglock);
++/*
++ *  - search for a free slot.
++ */
++static unsigned long xol_take_insn_slot(struct uprobes_xol_area *area)
++{
++	unsigned long slot_addr;
++	int slot_nr;
 +
-+		if (__fatal_signal_pending(tsk) || xol_was_trapped(tsk)) {
-+			utask->state = UTASK_SSTEP_TRAPPED;
-+			set_tsk_thread_flag(tsk, TIF_UPROBE);
-+			set_tsk_thread_flag(tsk, TIF_NOTIFY_RESUME);
++	do {
++		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
++		if (slot_nr < UINSNS_PER_PAGE) {
++			if (!test_and_set_bit(slot_nr, area->bitmap))
++				break;
++
++			slot_nr = UINSNS_PER_PAGE;
++			continue;
 +		}
-+	}
++		wait_event(area->wq,
++			(atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
++	} while (slot_nr >= UINSNS_PER_PAGE);
 +
-+	return true;
-+}
-+
-+bool __weak uprobe_skip_sstep(struct pt_regs *regs, struct uprobe *u)
-+{
-+	u->flags &= ~UPROBES_SKIP_SSTEP;
-+	return false;
-+}
-+
-+/*
-+ * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag.  (and on
-+ * subsequent probe hits on the thread sets the state to UTASK_BP_HIT) and
-+ * allows the thread to return from interrupt.  While returning to
-+ * userspace, thread noticies the TIF_UPROBE flag and calls
-+ * uprobe_notify_resume(). uprobe_notify_resume will run the handler and ask
-+ * the thread to singlestep.
-+ *
-+ * On subsequent singlestep exception, singlestep notifier sets the
-+ * TIF_UPROBE flag and also sets the state to UTASK_SSTEP_ACK and allows the
-+ * thread to return from interrupt. While returning to userspace, thread
-+ * notices the TIF_UPROBE and calls uprobe_notify_resume().
-+ * uprobe_notify_resume disables singlestep and performs the required
-+ * fix-ups.
-+ *
-+ * All non-fatal signals cannot interrupt thread while the thread singlesteps.
-+ */
-+void uprobe_notify_resume(struct pt_regs *regs)
-+{
-+	struct vm_area_struct *vma;
-+	struct uprobe_task *utask;
-+	struct mm_struct *mm;
-+	struct uprobe *u = NULL;
-+	unsigned long probept;
-+
-+	utask = current->utask;
-+	mm = current->mm;
-+	if (!utask || utask->state == UTASK_BP_HIT) {
-+		probept = get_uprobe_bkpt_addr(regs);
-+		down_read(&mm->mmap_sem);
-+		vma = find_vma(mm, probept);
-+		if (vma && vma->vm_start <= probept && valid_vma(vma, false))
-+			u = find_uprobe(vma->vm_file->f_mapping->host,
-+					probept - vma->vm_start +
-+					(vma->vm_pgoff << PAGE_SHIFT));
-+
-+		srcu_read_unlock_raw(&uprobes_srcu,
-+					current->uprobes_srcu_id);
-+		current->uprobes_srcu_id = -1;
-+		up_read(&mm->mmap_sem);
-+		if (!u)
-+			/* No matching uprobe; signal SIGTRAP. */
-+			goto cleanup_ret;
-+		if (!utask) {
-+			utask = add_utask();
-+			/* Cannot Allocate; re-execute the instruction. */
-+			if (!utask)
-+				goto cleanup_ret;
-+		}
-+		utask->active_uprobe = u;
-+		handler_chain(u, regs);
-+
-+		if (u->flags & UPROBES_SKIP_SSTEP && uprobe_skip_sstep(regs, u))
-+			goto cleanup_ret;
-+
-+		utask->state = UTASK_SSTEP;
-+		if (!pre_ssout(u, regs, probept))
-+			user_enable_single_step(current);
-+		else
-+			/* Cannot Singlestep; re-execute the instruction. */
-+			goto cleanup_ret;
-+	} else {
-+		u = utask->active_uprobe;
-+		if (utask->state == UTASK_SSTEP_ACK)
-+			post_xol(u, regs);
-+		else if (utask->state == UTASK_SSTEP_TRAPPED)
-+			abort_xol(regs, u);
-+		else
-+			WARN_ON_ONCE(1);
-+
-+		put_uprobe(u);
-+		utask->active_uprobe = NULL;
-+		utask->state = UTASK_RUNNING;
-+		user_disable_single_step(current);
-+
-+		spin_lock_irq(&current->sighand->siglock);
-+		recalc_sigpending(); /* see uprobe_deny_signal() */
-+		spin_unlock_irq(&current->sighand->siglock);
-+	}
-+	return;
-+
-+cleanup_ret:
-+	if (utask) {
-+		utask->active_uprobe = NULL;
-+		utask->state = UTASK_RUNNING;
-+	}
-+	if (u) {
-+		if (!(u->flags & UPROBES_SKIP_SSTEP))
-+			instruction_pointer_set(regs, probept);
-+
-+		put_uprobe(u);
-+	} else
-+		send_sig(SIGTRAP, current, 0);
++	slot_addr = area->vaddr + (slot_nr * UPROBES_XOL_SLOT_BYTES);
++	atomic_inc(&area->slot_count);
++	return slot_addr;
 +}
 +
 +/*
-+ * uprobe_bkpt_notifier gets called from interrupt context as part of
-+ * notifier mechanism. Set TIF_UPROBE flag and indicate breakpoint hit.
++ * xol_get_insn_slot - If was not allocated a slot, then
++ * allocate a slot.
++ * Returns the allocated slot address or 0.
 + */
-+int uprobe_bkpt_notifier(struct pt_regs *regs)
++static unsigned long xol_get_insn_slot(struct uprobe *uprobe,
++					unsigned long slot_addr)
 +{
-+	struct uprobe_task *utask;
++	struct uprobes_xol_area *area;
++	unsigned long offset;
++	void *vaddr;
 +
-+	if (!current->mm)
++	area = get_uprobes_xol_area(current->mm);
++	if (!area) {
++		area = xol_alloc_area();
++		if (!area)
++			return 0;
++	}
++	current->utask->xol_vaddr = xol_take_insn_slot(area);
++
++	/*
++	 * Initialize the slot if xol_vaddr points to valid
++	 * instruction slot.
++	 */
++	if (unlikely(!current->utask->xol_vaddr))
 +		return 0;
 +
-+	utask = current->utask;
-+	if (utask)
-+		utask->state = UTASK_BP_HIT;
-+
-+	set_thread_flag(TIF_UPROBE);
-+	current->uprobes_srcu_id = srcu_read_lock_raw(&uprobes_srcu);
-+	return 1;
++	current->utask->vaddr = slot_addr;
++	offset = current->utask->xol_vaddr & ~PAGE_MASK;
++	vaddr = kmap_atomic(area->page);
++	memcpy(vaddr + offset, uprobe->insn, MAX_UINSN_BYTES);
++	kunmap_atomic(vaddr);
++	return current->utask->xol_vaddr;
 +}
 +
 +/*
-+ * uprobe_post_notifier gets called in interrupt context as part of notifier
-+ * mechanism. Set TIF_UPROBE flag and indicate completion of singlestep.
++ * xol_free_insn_slot - If slot was earlier allocated by
++ * @xol_get_insn_slot(), make the slot available for
++ * subsequent requests.
 + */
-+int uprobe_post_notifier(struct pt_regs *regs)
++static void xol_free_insn_slot(struct task_struct *tsk)
 +{
-+	struct uprobe_task *utask = current->utask;
++	struct uprobes_xol_area *area;
++	unsigned long vma_end;
++	unsigned long slot_addr;
 +
-+	if (!current->mm || !utask || !utask->active_uprobe)
-+		/* task is currently not uprobed */
-+		return 0;
++	if (!tsk->mm || !tsk->mm->uprobes_xol_area || !tsk->utask)
++		return;
 +
-+	utask->state = UTASK_SSTEP_ACK;
-+	set_thread_flag(TIF_UPROBE);
-+	return 1;
++	slot_addr = tsk->utask->xol_vaddr;
++
++	if (unlikely(!slot_addr || IS_ERR_VALUE(slot_addr)))
++		return;
++
++	area = tsk->mm->uprobes_xol_area;
++	vma_end = area->vaddr + PAGE_SIZE;
++	if (area->vaddr <= slot_addr && slot_addr < vma_end) {
++		int slot_nr;
++		unsigned long offset = slot_addr - area->vaddr;
++
++		slot_nr = offset / UPROBES_XOL_SLOT_BYTES;
++		if (slot_nr >= UINSNS_PER_PAGE)
++			return;
++
++		clear_bit(slot_nr, area->bitmap);
++		atomic_dec(&area->slot_count);
++		if (waitqueue_active(&area->wq))
++			wake_up(&area->wq);
++		tsk->utask->xol_vaddr = 0;
++	}
 +}
 +
-+struct notifier_block uprobe_exception_nb = {
-+	.notifier_call = uprobe_exception_notify,
-+	.priority = INT_MAX - 1,	/* notified after kprobes, kgdb */
-+};
-+
- static int __init init_uprobes(void)
+ /**
+  * get_uprobe_bkpt_addr - compute address of bkpt given post-bkpt regs
+  * @regs: Reflects the saved state of the task after it has hit a breakpoint
+@@ -1020,6 +1218,7 @@ void free_uprobe_utask(struct task_struct *tsk)
+ 	if (utask->active_uprobe)
+ 		put_uprobe(utask->active_uprobe);
+ 
++	xol_free_insn_slot(tsk);
+ 	kfree(utask);
+ 	tsk->utask = NULL;
+ }
+@@ -1049,6 +1248,8 @@ static struct uprobe_task *add_utask(void)
+ static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
+ 				unsigned long vaddr)
  {
- 	int i;
-@@ -965,7 +1237,8 @@ static int __init init_uprobes(void)
- 		mutex_init(&uprobes_mutex[i]);
- 		mutex_init(&uprobes_mmap_mutex[i]);
- 	}
--	return 0;
-+	init_srcu_struct(&uprobes_srcu);
-+	return register_die_notifier(&uprobe_exception_nb);
++	if (xol_get_insn_slot(uprobe, vaddr) && !pre_xol(uprobe, regs))
++		return 0;
+ 	return -EFAULT;
  }
  
- static void __exit exit_uprobes(void)
+@@ -1166,6 +1367,7 @@ void uprobe_notify_resume(struct pt_regs *regs)
+ 		utask->active_uprobe = NULL;
+ 		utask->state = UTASK_RUNNING;
+ 		user_disable_single_step(current);
++		xol_free_insn_slot(current);
+ 
+ 		spin_lock_irq(&current->sighand->siglock);
+ 		recalc_sigpending(); /* see uprobe_deny_signal() */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
