@@ -1,73 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 94E696B002C
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 12:07:04 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 2 Feb 2012 12:07:01 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id ABDB66E8218
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 12:02:57 -0500 (EST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q12H1erN033558
-	for <linux-mm@kvack.org>; Thu, 2 Feb 2012 12:01:40 -0500
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q12H1au1015569
-	for <linux-mm@kvack.org>; Thu, 2 Feb 2012 10:01:39 -0700
-Date: Thu, 2 Feb 2012 09:01:34 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-Message-ID: <20120202170134.GM2518@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
- <1327591185.2446.102.camel@twins>
- <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
- <1328117722.2446.262.camel@twins>
- <20120201184045.GG2382@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1202011404500.2074@router.home>
- <20120201201336.GI2382@linux.vnet.ibm.com>
- <4F2A58A1.90800@redhat.com>
- <20120202153437.GD2518@linux.vnet.ibm.com>
- <4F2AB66C.2030309@redhat.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 504C26B002C
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 12:12:49 -0500 (EST)
+Message-ID: <4F2AC3F2.3010400@stericsson.com>
+Date: Thu, 2 Feb 2012 18:12:18 +0100
+From: Maxime Coquelin <maxime.coquelin@stericsson.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F2AB66C.2030309@redhat.com>
+Subject: Re: [RFCv1 5/6] PASR: Add Documentation
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com> <1327930436-10263-6-git-send-email-maxime.coquelin@stericsson.com> <4F2A0827.4080305@xenotime.net>
+In-Reply-To: <4F2A0827.4080305@xenotime.net>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>
 
-On Thu, Feb 02, 2012 at 06:14:36PM +0200, Avi Kivity wrote:
-> On 02/02/2012 05:34 PM, Paul E. McKenney wrote:
-> > On Thu, Feb 02, 2012 at 11:34:25AM +0200, Avi Kivity wrote:
-> > > On 02/01/2012 10:13 PM, Paul E. McKenney wrote:
-> > > > > 
-> > > > > Could we also apply the same approach to processors busy doing
-> > > > > computational work? In that case the OS is also not needed. Interrupting
-> > > > > these activities is impacting on performance and latency.
-> > > >
-> > > > Yep, that is in fact what Frederic's dyntick-idle userspace work does.
-> > > 
-> > > Running in a guest is a special case of running in userspace, so we'd
-> > > need to extend this work to kvm as well.
-> >
-> > As long as rcu_idle_enter() is called at the appropriate time, RCU will
-> > happily ignore the CPU.  ;-)
-> >
-> 
-> It's not called (since the cpu is not idle).  Instead we call
-> rcu_virt_note_context_switch().
+On 02/02/2012 04:51 AM, Randy Dunlap wrote:
+> On 01/30/2012 05:33 AM, Maxime Coquelin wrote:
+>> Signed-off-by: Maxime Coquelin<maxime.coquelin@stericsson.com>
+>> ---
+>>   Documentation/pasr.txt |  183 ++++++++++++++++++++++++++++++++++++++++++++++++
+>>   1 files changed, 183 insertions(+), 0 deletions(-)
+>>   create mode 100644 Documentation/pasr.txt
+>>
+>> diff --git a/Documentation/pasr.txt b/Documentation/pasr.txt
+>> new file mode 100644
+>> index 0000000..d40e3f6
+>> --- /dev/null
+>> +++ b/Documentation/pasr.txt
+>> @@ -0,0 +1,183 @@
+>> +Partial Array Self-Refresh Framework
+>> +
+>> +(C) 2012 Maxime Coquelin<maxime.coquelin@stericsson.com>, ST-Ericsson.
+>> +
+>> +CONTENT
+>> +1. Introduction
+>> +2. Command-line parameters
+>> +3. Allocators patching
+>> +4. PASR platform drivers
+>> +
+>> +
+>> +1. Introduction
+>> +
+>> +PASR Frameworks brings support for the Partial Array Self-Refresh DDR power
+>    The PASR framework brings support
+>
+>> +management feature. PASR has been introduced in LP-DDR2, and is also present
+>                              was introduced in LP-DDR2 and is also present
+>
+>
+>> +in DDR3.
+>> +
+>> +PASR provides 4 modes:
+>> +
+>> +* Single-Ended: Only 1/1, 1/2, 1/4 or 1/8 are refreshed, masking starting at
+>> +  the end of the DDR die.
+>> +
+>> +* Double-Ended: Same as Single-Ended, but refresh-masking does not start
+>> +  necessairly at the end of the DDR die.
+>       necessarily
+>
+>> +
+>> +* Bank-Selective: Refresh of each bank of a die can be masked or unmasked via
+>> +  a dedicated DDR register (MR16). This mode is convenient for DDR configured
+>> +  in BRC (Bank-Row-Column) mode.
+>> +
+>> +* Segment-Selective: Refresh of each segment of a die can be masked or unmasked
+>> +  via a dedicated DDR register (MR17). This mode is convenient for DDR configured
+>> +  in RBC (Row-Bank-Column) mode.
+>> +
+>> +The role of this framework is to stop the refresh of unused memory to enhance
+>> +DDR power consumption.
+>> +
+>> +It supports Bank-Selective and Segment-Selective modes, as the more adapted to
+>> +modern OSes.
+> huh?  parse error above.
+>
+>> +
+>> +At early boot stage, a representation of the physical DDR layout is built:
+>> +
+>> +             Die 0
+>> +_______________________________
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 0     I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 1     I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment ...   I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment n     I |
+>> +| I--------------------------I |
+>> +|______________________________|
+>> +             ...
+>> +
+>> +             Die n
+>> +_______________________________
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 0     I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 1     I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment ...   I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment n     I |
+>> +| I--------------------------I |
+>> +|______________________________|
+>> +
+>> +The first level is a table where elements represent a die:
+>> +* Base address,
+>> +* Number of segments,
+>> +* Table representing banks/segments,
+>> +* MR16/MR17 refresh mask,
+>> +* DDR Controller callback to update MR16/MR17 refresh mask.
+>> +
+>> +The second level is the section tables representing the banks or segments,
+>> +depending on hardware configuration:
+>> +* Base address,
+>> +* Unused memory size counter,
+>> +* Possible pointer to another section it depends on (E.g. Interleaving)
+>> +
+>> +When some memory becomes unused, the allocator owning this memory calls the PASR
+>> +Framework's pasr_put(phys_addr, size) function. The framework finds the
+>> +sections impacted and updates their counters accordingly.
+>> +If a section counter reach the section size, the refresh of the section is
+>                          reaches
+>
+>> +masked. If the corresponding section has a dependency with another section
+>> +(E.g. because of DDR interleaving, see figure below), it checks the "paired" section is also
+>                                                           it checks if the "paired" section is also
+>
+>> +unused before updating the refresh mask.
+>> +
+>> +When some unused memory is requested by the allocator, the allocator owning
+>> +this memory calls the PASR Framework's pasr_get(phys_addr, size) function. The
+>> +framework find the section impacted and updates their counters accordingly.
+>               finds                     and updates its counter accordingly.
+> or
+>               find the sections impacted and updates their counters accordingly.
+>
+>
+>> +If before the update, the section counter was to the section size, the refrewh
+>                                               was equal to the section size, the refresh
+>
+>> +of the section is unmasked. If the corresponding section has a dependency with
+>> +another section, it also unmask the refresh of the other section.
+>                              unmasks
+>
+>> +
+>> +Interleaving example:
+>> +
+>> +             Die 0
+>> +_______________________________
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 0     I |<----|
+>> +| I--------------------------I |     |
+>> +| I--------------------------I |     |
+>> +| I    Bank or Segment 1     I |     |
+>> +| I--------------------------I |     |
+>> +| I--------------------------I |     |
+>> +| I    Bank or Segment ...   I |     |
+>> +| I--------------------------I |     |
+>> +| I--------------------------I |     |
+>> +| I    Bank or Segment n     I |     |
+>> +| I--------------------------I |     |
+>> +|______________________________|     |
+>> +                                     |
+>> +             Die 1                   |
+>> +_______________________________      |
+>> +| I--------------------------I |     |
+>> +| I    Bank or Segment 0     I |<----|
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment 1     I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment ...   I |
+>> +| I--------------------------I |
+>> +| I--------------------------I |
+>> +| I    Bank or Segment n     I |
+>> +| I--------------------------I |
+>> +|______________________________|
+>> +
+>> +In the above example, bank 0 of die 0 is interleaved with bank0 of die 0.
+>                                                               bank 0 of die 1.
+>
+>> +The interleaving is done in HW by inverting some addresses lines. The goal is
+>                              in hardware
+>
+>> +to improve DDR bandwidth.
+>> +Practically, one buffer seen as contiguous by the kernel might be spread
+>> +into two DDR dies physically.
+>> +
+>> +
+>> +2. Command-line parameters
+>> +
+>> +To buid the DDR physical layout representation, two parameters are requested:
+>        build
+>
+>> +
+>> +* ddr_die (mandatory): Should be added for every DDR dies present in the system.
+>                                                          die
+>
+>> +   - Usage: ddr_die=xxx[M|G]@yyy[M|G] where xxx represents the size and yyy
+>> +     the base address of the die. E.g.: ddr_die=512M@0 ddr_die=512M@512M
+>> +
+>> +* interleaved (optionnal): Should be added for every interleaved dependencies.
+>                   (optional):                  for all interleaved dependencies.
+>
+>
+>> +   - Usage: interleaved=xxx[M|G]@yyy[M|G]:zzz[M|G] where xxx is the size of
+>> +     the interleaved area between the adresses yyy and zzz. E.g
+>> +     interleaved=256M@0:512M
+>> +
+>> +
+>> +3. Allocator patching
+>> +
+>> +Any allocators might call the PASR Framework for DDR power savings. Currently,
+>> +only Linux Buddy allocator is patched, but HWMEM and PMEM physically
+>     only the Linux Buddy
+>
+>> +contiguous memory allocators will follow.
+>> +
+>> +Linux Buddy allocator porting uses Buddy specificities to reduce the overhead
+>> +induced by the PASR Framework counter updates. Indeed, the PASR Framework is
+>> +called only when MAX_ORDER (4MB page blocs by default) buddies are
+>                                          blocks
+>
+>> +inserted/removed from the free lists.
+>> +
+>> +To port PASR FW into a new allocator:
+>             the PASR framework
+>
+>> +
+>> +* Call pasr_put(phys_addr, size) each time a memory chunk becomes unused.
+>> +* Call pasr_get(phys_addr, size) each time a memory chunk becomes used.
+>> +
+>> +4. PASR platform drivers
+>> +
+>> +The MR16/MR17 PASR mask registers are generally accessible through the DDR
+>> +controller. At probe time, the DDR controller driver should register the
+>> +callback used by PASR Framework to apply the refresh mask for every DDR die
+>> +using pasr_register_mask_function(die_addr, callback, cookie).
+>> +
+>> +The callback passed to apply mask must not sleep since it can me called in
+>                                                               can be
+>
+>> +interrupt contexts.
+>> +
+>
 
-Frederic's work checks to see if there is only one runnable user task
-on a given CPU.  If there is only one, then the scheduling-clock interrupt
-is turned off for that CPU, and RCU is told to ignore it while it is
-executing in user space.  Not sure whether this covers KVM guests.
+Thanks Randy for the review.
 
-In any case, this is not yet in mainline.
-
-							Thanx, Paul
+Regards,
+Maxime
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
