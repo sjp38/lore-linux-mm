@@ -1,115 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 0C3E06B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 10:41:47 -0500 (EST)
-Message-ID: <4F2AAEB9.9070302@tilera.com>
-Date: Thu, 2 Feb 2012 10:41:45 -0500
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 5411D6B13F1
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 10:42:13 -0500 (EST)
+Date: Thu, 2 Feb 2012 16:42:09 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.
+Message-ID: <20120202154209.GG31730@quack.suse.cz>
+References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com>
+ <CAHH2K0bPdqzpuWv82uyvEu4d+cDqJOYoHbw=GeP5OZk4-3gCUg@mail.gmail.com>
+ <20120202063345.GA15124@localhost>
+ <20120202075234.GA3039@localhost>
+ <20120202103953.GE31730@quack.suse.cz>
+ <20120202110433.GA24419@localhost>
 MIME-Version: 1.0
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327591185.2446.102.camel@twins> <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <20120201170443.GE6731@somewhere.redhat.com> <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
-In-Reply-To: <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120202110433.GA24419@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 2/2/2012 3:46 AM, Gilad Ben-Yossef wrote:
-> On Wed, Feb 1, 2012 at 7:04 PM, Frederic Weisbecker <fweisbec@gmail.com> wrote:
->> Very nice especially as many people seem to be interested in CPU isolation.
+On Thu 02-02-12 19:04:34, Wu Fengguang wrote:
+> On Thu, Feb 02, 2012 at 11:39:53AM +0100, Jan Kara wrote:
+> > On Thu 02-02-12 15:52:34, Wu Fengguang wrote:
+> > > On Thu, Feb 02, 2012 at 02:33:45PM +0800, Wu Fengguang wrote:
+> > > > Hi Greg,
+> > > > 
+> > > > On Wed, Feb 01, 2012 at 12:24:25PM -0800, Greg Thelen wrote:
+> > > > > On Tue, Jan 31, 2012 at 4:55 PM, KAMEZAWA Hiroyuki
+> > > > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > > > 4. dirty ratio
+> > > > > >   In the last year, patches were posted but not merged. I'd like to hear
+> > > > > >   works on this area.
+> > > > > 
+> > > > > I would like to attend to discuss this topic.  I have not had much time to work
+> > > > > on this recently, but should be able to focus more on this soon.  The
+> > > > > IO less writeback changes require some redesign and may allow for a
+> > > > > simpler implementation of mem_cgroup_balance_dirty_pages().
+> > > > > Maintaining a per container dirty page counts, ratios, and limits is
+> > > > > fairly easy, but integration with writeback is the challenge.  My big
+> > > > > questions are for writeback people:
+> > > > > 1. how to compute per-container pause based on bdi bandwidth, cgroup
+> > > > > dirty page usage.
+> > > > > 2. how to ensure that writeback will engage even if system and bdi are
+> > > > > below respective background dirty ratios, yet a memcg is above its bg
+> > > > > dirty limit.
+> > > > 
+> > > > The solution to (1,2) would be something like this:
+> > > > 
+> > > > --- linux-next.orig/mm/page-writeback.c	2012-02-02 14:13:45.000000000 +0800
+> > > > +++ linux-next/mm/page-writeback.c	2012-02-02 14:24:11.000000000 +0800
+> > > > @@ -654,6 +654,17 @@ static unsigned long bdi_position_ratio(
+> > > >  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
+> > > >  	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
+> > > >  
+> > > > +	if (memcg) {
+> > > > +		long long f;
+> > > > +		x = div_s64((memcg_setpoint - memcg_dirty) << RATELIMIT_CALC_SHIFT,
+> > > > +			    memcg_limit - memcg_setpoint + 1);
+> > > > +		f = x;
+> > > > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > > > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > > > +		f += 1 << RATELIMIT_CALC_SHIFT;
+> > > > +		pos_ratio = pos_ratio * f >> RATELIMIT_CALC_SHIFT;
+> > > > +	}
+> > > > +
+> > > >  	/*
+> > > >  	 * We have computed basic pos_ratio above based on global situation. If
+> > > >  	 * the bdi is over/under its share of dirty pages, we want to scale
+> > > > @@ -1202,6 +1213,8 @@ static void balance_dirty_pages(struct a
+> > > >  		freerun = dirty_freerun_ceiling(dirty_thresh,
+> > > >  						background_thresh);
+> > > >  		if (nr_dirty <= freerun) {
+> > > > +			if (memcg && memcg_dirty > memcg_freerun)
+> > > > +				goto start_writeback;
+> > > >  			current->dirty_paused_when = now;
+> > > >  			current->nr_dirtied = 0;
+> > > >  			current->nr_dirtied_pause =
+> > > > @@ -1209,6 +1222,7 @@ static void balance_dirty_pages(struct a
+> > > >  			break;
+> > > >  		}
+> > > >  
+> > > > +start_writeback:
+> > > >  		if (unlikely(!writeback_in_progress(bdi)))
+> > > >  			bdi_start_background_writeback(bdi);
+> > > >  
+> > > > 
+> > > > That makes the minimal change to enforce per-memcg dirty ratio.
+> > > > It could result in a less stable control system, but should still
+> > > > be able to balance things out.
+> > > 
+> > > Unfortunately the memcg partitioning could fundamentally make the
+> > > dirty throttling more bumpy.
+> > > 
+> > > Imagine 10 memcgs each with
+> > > 
+> > > - memcg_dirty_limit=50MB
+> > > - 1 dd dirty task
+> > > 
+> > > The flusher thread will be working on 10 inodes in turn, each time
+> > > grabbing the next inode and taking ~0.5s to write ~50MB of its dirty
+> > > pages to the disk. So each inode will be flushed on every ~5s.
+> > > 
+> > > Without memcg dirty ratio, the dd tasks will be throttled quite
+> > > smoothly.  However with memcg, each memcg will be limited to 50MB
+> > > dirty pages, and the dirty number will be dropping quickly from 50MB
+> > > to 0 on every 5 seconds.
+> > >
+> > > As a result, the small partitions of dirty pages will transmit the
+> > > flusher's bumpy writeout (which is necessary for performance) to the
+> > > dd tasks' bumpy progress. The dd tasks will be blocked for seconds
+> > > from time to time.
+> > > 
+> > > So I cannot help thinking: can the problem be canceled in the root?
+> > > The basic scheme could be: when reclaiming from a memcg zone, if any
+> > > PG_writeback/PG_dirty pages are encountered, mark PG_reclaim on it and
+> > > move it to the global zone and de-account it from the memcg.
+> > > 
+> > > In this way, we can avoid dirty/writeback pages hurting the (possibly
+> > > small) memcg zones. The aggressive dirtier tasks will be throttled by
+> > > the global 20% limit and the memcg page reclaims can go on smoothly.
+> >   If I remember Google's usecase right, their ultimate goal is to partition
+> > the machine so that processes in memcg A get say 1/4 of the available
+> > disk bandwidth, processes in memcg B get 1/2 of the disk bandwidth.
+> > 
+> > Now you can do the bandwidth limitting in CFQ but it doesn't really work
+> > for buffered writes because these are done by flusher thread ignoring any
+> > memcg boundaries. So they introduce knowledge of memcgs into flusher thread
+> > so that writeback done by flusher thread reflects the configured
+> > proportions.
+> 
+> Actually the dirty rate can be controlled independent from the dirty pages:
+> 
+> blk-cgroup: async write IO controller 
+> https://github.com/fengguang/linux/commit/99b1ca4549a79af736ab03247805f6a9fc31ca2d
+> 
+> > But then the result is that processes in memcg A will simply accumulate
+> > more dirty pages because writeback is slower for them. So that's why you
+> > want to stop dirtying processes in that memcg when they reach their
+> 
+> The bandwidth control alone will be pretty smooth, not suffering from
+> the partition problem. And it don't need to alter the flusher behavior
+> (like make it focusing on some inodes) and hence won't impact performance.
+> 
+> If memcg A's dirty rate is throttled, its dirty pages will naturally
+> shrink. The flusher will automatically work less on A's dirty pages.
+  I'm not sure about details of requirements Google guys have. So this may
+or may not be good enough for them. I'd suspect they still wouldn't want
+one cgroup to fill up available page cache with dirty pages so just
+limitting bandwidth won't be enough for them. Also limitting dirty
+bandwidth has a problem that it's not coupled with how much reading the
+particular cgroup does. Anyway, until we are sure about their exact
+requirements, this is mostly philosophical talking ;).
 
-Indeed!
+> > dirty_limit. All in all, I believe more bumpy writeback / lower throughput
+> > (you can choose between these two) is unavoidable for this usecase. But
+> > OTOH I'm not sure how big problem this will be in practice because machines
+> > should be big enough so that even after partitioning you get a resonably
+> > sized machine...
+> 
+> The end user may expect big machines to handle 100 or even 1000 memcg,
+> so if each memcg corresponds to 1 dd, 1 dirty inode and 50MB dirty limit,
+> each inode will be waiting for 50 or 500 seconds to be flushed once.
+> The stall time will then go up to dozens/hundreds of seconds...  The
+> partition scheme simply won't scale...
+  There is always a reasonable load / reasonable partitioning for the
+machine and if you partition the machine too much, results will be
+suboptimal. It's like if you run 100 / 1000 KVM guests on the server...
 
-> Yes, that is what drives me as well. I have a bare metal program
-> I'm trying to kill here, I researched CPU isolation and ran into your
-> nohz patch set and asked myself: "OK, if we disable the tick what else
-> is on the way?"
-
-At Tilera we have been supporting a "dataplane" mode (aka Zero Overhead
-Linux - the marketing name).  This is configured on a per-cpu basis, and in
-addition to setting isolcpus for those nodes, also suppresses various
-things that might otherwise run (soft lockup detection, vmstat work,
-etc.).  The claim is that you need to specify these kinds of things
-per-core since it's not always possible for the kernel to know that you
-really don't want the scheduler or any other interrupt source to touch the
-core, as opposed to the case where you just happen to have a single process
-scheduled on the core and you don't mind occasional interrupts.  But
-there's definitely appeal in having the kernel do it adaptively too,
-particularly if it can be made to work just as well as configuring it
-statically.
-
-We also have a set_dataplane() syscall that a task can make to allow it to
-request some additional semantics from the kernel, such as various
-debugging modes, a flag to request populating the page table fully, and a
-flag to request that all pending kernel timer ticks, etc., happen while the
-task spins in the kernel before actually returning to userspace from a
-syscall (so you don't get unexpected interrupts once you're back in
-userspace).  I've appended the relevant bits of <asm/dataplane.h> for more
-details.
-
-We've been planning to start working with the community on returning this,
-but since fiddling with the scheduler is pretty tricky stuff and it wasn't
-clear there was a lot of interest, we've been deferring it in favor of
-other activities.  But seeing more about Frederic Weisbecker's and Gilad
-Ben-Yossef's work makes me think that it might be a good time for us to
-start that process.  For a start I'll see about putting up a git branch on
-kernel.org that has our dataplane stuff in it, for reference.
-
-/*
- * Quiesce the timer interrupt before returning to user space after a
- * system call.  Normally if a task on a dataplane core makes a
- * syscall, the system will run one or more timer ticks after the
- * syscall has completed, causing unexpected interrupts in userspace.
- * Setting DP_QUIESCE avoids that problem by having the kernel "hold"
- * the task in kernel mode until the timer ticks are complete.  This
- * will make syscalls dramatically slower.
- *
- * If multiple dataplane tasks are scheduled on a single core, this
- * in effect silently disables DP_QUIESCE, which allows the tasks to make
- * progress, but without actually disabling the timer tick.
- */
-#define DP_QUIESCE      0x1
-
-/*
- * Disallow the application from entering the kernel in any way,
- * unless it calls set_dataplane() again without this bit set.
- * Issuing any other syscall or causing a page fault would generate a
- * kernel message, and "kill -9" the process.
- *
- * Setting this flag automatically sets DP_QUIESCE as well.
- */
-#define DP_STRICT       0x2
-
-/*
- * Debug dataplane interrupts, so that if any interrupt source
- * attempts to involve a dataplane cpu, a kernel message and stack
- * backtrace will be generated on the console.  As this warning is a
- * slow event, it may make sense to avoid this mode in production code
- * to avoid making any possible interrupts even more heavyweight.
- *
- * Setting this flag automatically sets DP_QUIESCE as well.
- */
-#define DP_DEBUG        0x4
-
-/*
- * Cause all memory mappings to be populated in the page table.
- * Specifying this when entering dataplane mode ensures that no future
- * page fault events will occur to cause interrupts into the Linux
- * kernel, as long as no new mappings are installed by mmap(), etc.
- * Note that since the hardware TLB is of finite size, there will
- * still be the potential for TLB misses that the hypervisor handles,
- * either via its software TLB cache (fast path) or by walking the
- * kernel page tables (slow path), so touching large amounts of memory
- * will still incur hypervisor interrupt overhead.
- */
-#define DP_POPULATE     0x8
-
-
+								Honza
 -- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
