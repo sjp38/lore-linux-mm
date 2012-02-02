@@ -1,39 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id A3B446B13F1
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 16:40:16 -0500 (EST)
-Received: by iagz16 with SMTP id z16so5233764iag.14
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 13:40:16 -0800 (PST)
-Message-ID: <4F2B02BC.8010308@gmail.com>
-Date: Thu, 02 Feb 2012 16:40:12 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 2B3F76B002C
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 18:01:06 -0500 (EST)
+Received: by yhoo22 with SMTP id o22so1800795yho.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 15:01:05 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RESEND][PATCH] Mark thread stack correctly in proc/<pid>/maps
-References: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk> <1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com> <CAAHN_R2g9zaujw30+zLf91AGDHNqE6HDc8Z4yJbrzgJcJYFkXg@mail.gmail.com>
-In-Reply-To: <CAAHN_R2g9zaujw30+zLf91AGDHNqE6HDc8Z4yJbrzgJcJYFkXg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4F2AB614.1060907@de.ibm.com>
+References: <4F2AB614.1060907@de.ibm.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 2 Feb 2012 18:00:45 -0500
+Message-ID: <CAHGf_=rm286b5FWVRQ8Ob0vakxNcNOHPUksCtnZj4PvOEz47Jg@mail.gmail.com>
+Subject: Re: ksm/memory hotplug: lockdep warning for ksm_thread_mutex vs. (memory_chain).rwsem
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Cc: Jamie Lokier <jamie@shareable.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
+To: gerald.schaefer@de.ibm.com
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
->   extern unsigned long move_page_tables(struct vm_area_struct *vma,
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 3f758c7..2f9f540 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -992,6 +992,9 @@ unsigned long do_mmap_pgoff(struct file *file,
-> unsigned long addr,
->         vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
->                         mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+2012/2/2 Gerald Schaefer <gerald.schaefer@de.ibm.com>:
+> Setting a memory block offline triggers the following lockdep warning. This
+> looks exactly like the issue reported by Kosaki Motohiro in
+> https://lkml.org/lkml/2010/10/25/110. Seems like the resulting commit a0b0f58cdd
+> did not fix the lockdep warning. I'm able to reproduce it with current 3.3.0-rc2
+> as well as 2.6.37-rc4-00147-ga0b0f58.
 >
-> +       if (flags&  MAP_STACK)
-> +               vm_flags |= VM_STACK_FLAGS;
+> I'm not familiar with lockdep annotations, but I tried using down_read_nested()
+> for (memory_chain).rwsem, similar to the mutex_lock_nested() which was
+> introduced for ksm_thread_mutex, but that didn't help.
 
-??
-MAP_STACK doesn't mean auto stack expansion. Why do you turn on VM_GROWSDOWN?
-Seems incorrect.
+Heh, interesting. Simple question, do you have any user visible buggy
+behavior? or just false positive warn issue?
+
+*_nested() is just hacky trick. so, any change may break their lie.
+Anyway I'd like to dig this one. thanks for reporting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
