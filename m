@@ -1,94 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 84B0B6B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 06:35:08 -0500 (EST)
-Message-ID: <4F2A74A2.5080905@parallels.com>
-Date: Thu, 2 Feb 2012 15:33:54 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 445616B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 06:41:23 -0500 (EST)
+Date: Thu, 2 Feb 2012 19:31:15 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.
+Message-ID: <20120202113115.GA21994@localhost>
+References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com>
+ <CAHH2K0bPdqzpuWv82uyvEu4d+cDqJOYoHbw=GeP5OZk4-3gCUg@mail.gmail.com>
+ <20120202063345.GA15124@localhost>
+ <20120202101525.GD31730@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC][ATTEND] memcg topics.
-References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com> <4F28FEB6.4040905@parallels.com>
-In-Reply-To: <4F28FEB6.4040905@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120202101525.GD31730@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>
+To: Jan Kara <jack@suse.cz>
+Cc: Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 02/01/2012 12:58 PM, Glauber Costa wrote:
-> On 02/01/2012 04:55 AM, KAMEZAWA Hiroyuki wrote:
->> Hi, I guess we have some topics on memory cgroups.
->>
->> 1-4 : someone has an implemanation
->> 5 : no implemenation.
->>
->> 1. page_cgroup diet
->> memory cgroup uses 'struct page_cgroup', it was 40bytes per 4096bytes
->> in past.
->> Johannes removed ->page and ->lru from page_cgroup, then now,
->> sizeof(page_cgroup)==16. Now, I'm working on removing ->flags to make
->> sizeof(page_cgroup)==8.
->>
->> Then, finally, page_cgroup can be moved into struct page on 64bit
->> system ?
->> How 32bit system will be ?
->>
->> 2. memory reclaim
->> Johannes, Michal and Ying, ant others, are now working on memory
->> reclaim problem
->> with new LRU. Under it, LRU is per-memcg-per-zone.
->> Following topics are discussed now.
->>
->> - simplificaiton/re-implemenation of softlimit
->> - isolation of workload (by softlimit)
->> - when we should stop memory reclaim, especially under direct-reclaim.
->> (Now, we scan all zonelist..)
->>
->> 3. per-memcg-lru-zone-lru-lock
->> I hear Hugh Dickins have some patches and are testing it.
->> It will be good to discuss this if it has Pros. and Cons or
->> implemenation issue.
->>
->> 4. dirty ratio
->> In the last year, patches were posted but not merged. I'd like to hear
->> works on this area.
->>
->> 5. accounting other than user pages.
->> Last year, tcp buffer limiting was added to "memcg".
-> I was about to correct you about "last year", when suddenly my mind went
-> "oh god, this is 2012!"
->
->> If someone has other plans, I'd like to hear.
->> I myself don't think 'generic kernel memory limitation' is a good
->> thing....
->> admins can't predict performance.
->>
->> Can we make accounting on dentry/inode into memcg and call
->> shrink_slab() ?
->> But I guess per-zone-shrink-slab() should go 1st...
->
-> Well, I have work in progress to continue that. There are a couple of
-> slabs I'd like to track. I am convinced that a generic framework is a
-> good thing, but indeed, I am still not sure if a generic interface is.
->
-> The advantage of keeping it unified, is that it prevents the number of
-> knobs from exploding. For us, this is not that much of a problem,
-> because there are only a couple of ones we are interested in. dcache and
-> inode is an example of that: when we sent out some proposals (that
-> didn't use memcg), some people wanted to see inode, not dcache being
-> tracked. We disagreed. But yet, the truth remains that only *one* of
-> them needs to be tracked, because they live in a close relation to each
-> other. So if we manage to find a couple of slabs that are key to that,
-> we can limit only those.
->
-> Well, that was food for thought only. I do think this is a nice topic.
->
-> Also, there is no serious implementation for that, as you mentioned, but
-> a series of patches were sent out for appreciation last year. So there
-> is at least a basis for starting
->
-Forgot to add [ATTEND] to the subject. I'd like to attend to discuss that.
+On Thu, Feb 02, 2012 at 11:15:25AM +0100, Jan Kara wrote:
+> On Thu 02-02-12 14:33:45, Wu Fengguang wrote:
+> > Hi Greg,
+> > 
+> > On Wed, Feb 01, 2012 at 12:24:25PM -0800, Greg Thelen wrote:
+> > > On Tue, Jan 31, 2012 at 4:55 PM, KAMEZAWA Hiroyuki
+> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > 4. dirty ratio
+> > > > A  In the last year, patches were posted but not merged. I'd like to hear
+> > > > A  works on this area.
+> > > 
+> > > I would like to attend to discuss this topic.  I have not had much time to work
+> > > on this recently, but should be able to focus more on this soon.  The
+> > > IO less writeback changes require some redesign and may allow for a
+> > > simpler implementation of mem_cgroup_balance_dirty_pages().
+> > > Maintaining a per container dirty page counts, ratios, and limits is
+> > > fairly easy, but integration with writeback is the challenge.  My big
+> > > questions are for writeback people:
+> > > 1. how to compute per-container pause based on bdi bandwidth, cgroup
+> > > dirty page usage.
+> > > 2. how to ensure that writeback will engage even if system and bdi are
+> > > below respective background dirty ratios, yet a memcg is above its bg
+> > > dirty limit.
+> > 
+> > The solution to (1,2) would be something like this:
+> > 
+> > --- linux-next.orig/mm/page-writeback.c	2012-02-02 14:13:45.000000000 +0800
+> > +++ linux-next/mm/page-writeback.c	2012-02-02 14:24:11.000000000 +0800
+> > @@ -654,6 +654,17 @@ static unsigned long bdi_position_ratio(
+> >  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
+> >  	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
+> >  
+> > +	if (memcg) {
+> > +		long long f;
+> > +		x = div_s64((memcg_setpoint - memcg_dirty) << RATELIMIT_CALC_SHIFT,
+> > +			    memcg_limit - memcg_setpoint + 1);
+> > +		f = x;
+> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > +		f = f * x >> RATELIMIT_CALC_SHIFT;
+> > +		f += 1 << RATELIMIT_CALC_SHIFT;
+> > +		pos_ratio = pos_ratio * f >> RATELIMIT_CALC_SHIFT;
+> > +	}
+> > +
+>   Hmm, so you multiply pos_ratio computed for global situation with
+> pos_ratio computed for memcg situation, right? Why? My natural choice would
+> be to just use memcg situation for computing pos_ratio since memcg is
+> supposed to have less memory & stricter limits than root cgroup (global)...
+
+Yeah I also started with considering a standalone memcg pos_ratio.
+However the above form can free us from worrying about misconfigured
+memcg dirty limit exceeding global dirty limit, or the more
+uncontrollable scheme of the memcg dirty limit exceeding some bdi
+threshold.
+
+> >  	/*
+> >  	 * We have computed basic pos_ratio above based on global situation. If
+> >  	 * the bdi is over/under its share of dirty pages, we want to scale
+> > @@ -1202,6 +1213,8 @@ static void balance_dirty_pages(struct a
+> >  		freerun = dirty_freerun_ceiling(dirty_thresh,
+> >  						background_thresh);
+> >  		if (nr_dirty <= freerun) {
+> > +			if (memcg && memcg_dirty > memcg_freerun)
+> > +				goto start_writeback;
+> >  			current->dirty_paused_when = now;
+> >  			current->nr_dirtied = 0;
+> >  			current->nr_dirtied_pause =
+> > @@ -1209,6 +1222,7 @@ static void balance_dirty_pages(struct a
+> >  			break;
+> >  		}
+> >  
+> > +start_writeback:
+> >  		if (unlikely(!writeback_in_progress(bdi)))
+> >  			bdi_start_background_writeback(bdi);
+>   I guess this should better be coupled with memcg-aware writeback which
+> was part of Greg's original patches if I remember right. That way we'd know
+> we are making progress on the pages of the right cgroup. But we can
+> certainly try this minimal change and see whether cgroups won't get starved
+> too much...
+
+Agreed. The complete solution would need more code from Greg to
+teach the flusher to focus on the memcg inodes/pages.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
