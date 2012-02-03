@@ -1,103 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 0D1896B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 07:01:46 -0500 (EST)
-Message-ID: <4F2BCCA4.7040002@hitachi.com>
-Date: Fri, 03 Feb 2012 21:01:40 +0900
-From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v10 3.3-rc2 1/9] uprobes: Install and remove breakpoints.
-References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com> <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com>
-In-Reply-To: <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 7A9616B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 07:19:03 -0500 (EST)
+Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LYT003PTGVPHJ@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 03 Feb 2012 12:19:01 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LYT00DM5GVPFX@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 03 Feb 2012 12:19:01 +0000 (GMT)
+Date: Fri, 03 Feb 2012 13:18:44 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH 01/15] mm: page_alloc: remove trailing whitespace
+In-reply-to: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1328271538-14502-2-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-(2012/02/02 23:18), Srikar Dronamraju wrote:
-> 
-> Changelog: (Since v9) : Use insn_offset_modrm as suggested by Masami Hiramatsu.
+From: Michal Nazarewicz <mina86@mina86.com>
 
-Would you add REX.B clearing code to handle_riprel_insn() too?
-Of course, that might not happen because it's a non-effective bit,
-however user can program it and pass it to uprobes.
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
-> +static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
-> +							struct insn *insn)
-> +{
-> +	u8 *cursor;
-> +	u8 reg;
-> +
-> +	if (mm->context.ia32_compat)
-> +		return;
-> +
-> +	uprobe->arch_info.rip_rela_target_address = 0x0;
-> +	if (!insn_rip_relative(insn))
-> +		return;
-> +
-
-So, here you need a REX.B clearing, like below.
-
-insn_get_length(insn);
-if (insn->rex_prefix.nbytes) {
-	cursor = uprobe->insn + insn_offset_rex_prefix(insn);
-	*cursor &= 0xfe;	/* Clearing REX.B bit */
-}
-
-
-> +	/*
-> +	 * Point cursor at the modrm byte.  The next 4 bytes are the
-> +	 * displacement.  Beyond the displacement, for some instructions,
-> +	 * is the immediate operand.
-> +	 */
-> +	cursor = uprobe->insn + insn_offset_modrm(insn);
-> +	insn_get_length(insn);
-> +
-> +	/*
-> +	 * Convert from rip-relative addressing to indirect addressing
-> +	 * via a scratch register.  Change the r/m field from 0x5 (%rip)
-> +	 * to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the offset field.
-> +	 */
-> +	reg = MODRM_REG(insn);
-> +	if (reg == 0) {
-> +		/*
-> +		 * The register operand (if any) is either the A register
-> +		 * (%rax, %eax, etc.) or (if the 0x4 bit is set in the
-> +		 * REX prefix) %r8.  In any case, we know the C register
-> +		 * is NOT the register operand, so we use %rcx (register
-> +		 * #1) for the scratch register.
-> +		 */
-> +		uprobe->arch_info.fixups = UPROBES_FIX_RIP_CX;
-> +		/* Change modrm from 00 000 101 to 00 000 001. */
-> +		*cursor = 0x1;
-> +	} else {
-> +		/* Use %rax (register #0) for the scratch register. */
-> +		uprobe->arch_info.fixups = UPROBES_FIX_RIP_AX;
-> +		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
-> +		*cursor = (reg << 3);
-> +	}
-> +
-> +	/* Target address = address of next instruction + (signed) offset */
-> +	uprobe->arch_info.rip_rela_target_address = (long)insn->length
-> +					+ insn->displacement.value;
-> +	/* Displacement field is gone; slide immediate field (if any) over. */
-> +	if (insn->immediate.nbytes) {
-> +		cursor++;
-> +		memmove(cursor, cursor + insn->displacement.nbytes,
-> +						insn->immediate.nbytes);
-> +	}
-> +	return;
-> +}
-
-Thank you,
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d2186ec..7fe7697 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -513,10 +513,10 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+  * free pages of length of (1 << order) and marked with _mapcount -2. Page's
+  * order is recorded in page_private(page) field.
+  * So when we are allocating or freeing one, we can derive the state of the
+- * other.  That is, if we allocate a small block, and both were   
+- * free, the remainder of the region must be split into blocks.   
++ * other.  That is, if we allocate a small block, and both were
++ * free, the remainder of the region must be split into blocks.
+  * If a block is freed, and its buddy is also free, then this
+- * triggers coalescing into a block of larger size.            
++ * triggers coalescing into a block of larger size.
+  *
+  * -- wli
+  */
+@@ -1061,17 +1061,17 @@ retry_reserve:
+ 	return page;
+ }
+ 
+-/* 
++/*
+  * Obtain a specified number of elements from the buddy allocator, all under
+  * a single hold of the lock, for efficiency.  Add them to the supplied list.
+  * Returns the number of new pages which were placed at *list.
+  */
+-static int rmqueue_bulk(struct zone *zone, unsigned int order, 
++static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, int cold)
+ {
+ 	int i;
+-	
++
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+ 		struct page *page = __rmqueue(zone, order, migratetype);
+@@ -4258,7 +4258,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
+ 	pgdat->kswapd_max_order = 0;
+ 	pgdat_page_cgroup_init(pgdat);
+-	
++
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, memmap_pages;
+@@ -5081,11 +5081,11 @@ int __meminit init_per_zone_wmark_min(void)
+ module_init(init_per_zone_wmark_min)
+ 
+ /*
+- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
++ * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
+  *	that we can call two helper functions whenever min_free_kbytes
+  *	changes.
+  */
+-int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
++int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
 -- 
-Masami HIRAMATSU
-Software Platform Research Dept. Linux Technology Center
-Hitachi, Ltd., Yokohama Research Laboratory
-E-mail: masami.hiramatsu.pt@hitachi.com
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
