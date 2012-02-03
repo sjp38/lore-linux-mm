@@ -1,44 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 936CF6B13F2
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:09:06 -0500 (EST)
-Date: Fri, 3 Feb 2012 14:09:02 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCHv20 00/15] Contiguous Memory Allocator
-Message-ID: <20120203140902.GH5796@csn.ul.ie>
-References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id A4E6B6B13F1
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:11:08 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so3267195wgb.26
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 06:11:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <CADDb1s1sc=69=QsmC+KAqHP=G93JQ95nVdyUPRNRJaVYbwu=HA@mail.gmail.com>
+References: <1328275626-5322-1-git-send-email-amit.sahrawat83@gmail.com>
+	<1328275948.2662.15.camel@laptop>
+	<CADDb1s1sc=69=QsmC+KAqHP=G93JQ95nVdyUPRNRJaVYbwu=HA@mail.gmail.com>
+Date: Fri, 3 Feb 2012 19:41:07 +0530
+Message-ID: <CADDb1s0jj6gwJpinLcsAE14mhBqLSxQYdf8a0KfJXr8yBnORUw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: make do_writepages() use plugging
+From: Amit Sahrawat <amit.sahrawat83@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Amit Sahrawat <a.sahrawat@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Feb 03, 2012 at 01:18:43PM +0100, Marek Szyprowski wrote:
-> Welcome everyone again!
-> 
-> This is yet another quick update on Contiguous Memory Allocator patches.
-> This version includes another set of code cleanups requested by Mel
-> Gorman and a few minor bug fixes. I really hope that this version will
-> be accepted for merging and future development will be handled by
-> incremental patches.
+Is there a case for introducing blk_plug in write_one_page() can't
+seem to find that support in the code flow
+write_one_page()->mpage_writepage()
 
-FWIW, I've acked all I'm going to ack of this series and made some
-suggestions on follow-ups on the core MM parts that could be done
-in-tree. I think the current reclaim logic is going to burn CMA with
-race conditions but it is a CMA-specific problem so watch out for
-that :)
+Regards,
+Amit Sahrawat
 
-As before, I did not even look at the CMA driver itself or the
-arch-specific parts. I'm assuming Arnd has that side of things covered.
 
-Thanks Marek.
-
--- 
-Mel Gorman
-SUSE Labs
+On Fri, Feb 3, 2012 at 7:31 PM, Amit Sahrawat <amit.sahrawat83@gmail.com> w=
+rote:
+> Hi Peter,
+> Thanks for pointing out.
+>
+> While checking the plug support in Write code flow, I came across this
+> main point from which - we invoke
+> writepages(mapping->a_ops->writepages(mapping, wbc)) from almost all
+> the the filesystems.
+>
+> By mistake I checked 2 different kernel versions for this code(and
+> missed that the current version already has put plug in
+> mpage_writepages) ... so may be this patch is not worth considering.
+>
+> Regards,
+> Amit Sahrawat
+>
+>
+> On Fri, Feb 3, 2012 at 7:02 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> w=
+rote:
+>> On Fri, 2012-02-03 at 18:57 +0530, Amit Sahrawat wrote:
+>>> This will cover all the invocations for writepages to be called with
+>>> plugging support.
+>>
+>> This changelog fails to explain why this is a good thing... I thought
+>> the idea of the new plugging stuff was that we now don't need to
+>> sprinkle plugs all over the kernel..
+>>
+>>> Signed-off-by: Amit Sahrawat <a.sahrawat@samsung.com>
+>>> ---
+>>> =A0mm/page-writeback.c | =A0 =A04 ++++
+>>> =A01 files changed, 4 insertions(+), 0 deletions(-)
+>>>
+>>> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+>>> index 363ba70..2bea32c 100644
+>>> --- a/mm/page-writeback.c
+>>> +++ b/mm/page-writeback.c
+>>> @@ -1866,14 +1866,18 @@ EXPORT_SYMBOL(generic_writepages);
+>>>
+>>> =A0int do_writepages(struct address_space *mapping, struct writeback_co=
+ntrol *wbc)
+>>> =A0{
+>>> + =A0 =A0 struct blk_plug plug;
+>>> =A0 =A0 =A0 int ret;
+>>>
+>>> =A0 =A0 =A0 if (wbc->nr_to_write <=3D 0)
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>>> +
+>>> + =A0 =A0 blk_start_plug(&plug);
+>>> =A0 =A0 =A0 if (mapping->a_ops->writepages)
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mapping->a_ops->writepages(mapping,=
+ wbc);
+>>> =A0 =A0 =A0 else
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D generic_writepages(mapping, wbc);
+>>> + =A0 =A0 blk_finish_plug(&plug);
+>>> =A0 =A0 =A0 return ret;
+>>> =A0}
+>>>
+>>
+>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
