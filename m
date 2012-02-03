@@ -1,110 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 49C016B13F0
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 21:39:50 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 688C93EE0C3
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:39:48 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4486845DF7A
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:39:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2668245DF7B
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:39:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 18CA11DB803B
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:39:48 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B6F741DB803F
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:39:47 +0900 (JST)
-Date: Fri, 3 Feb 2012 11:38:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix up documentation on global LRU.
-Message-Id: <20120203113822.19cf6fd2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1328233033-14246-1-git-send-email-yinghan@google.com>
-References: <1328233033-14246-1-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 1F4036B13F2
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 21:50:30 -0500 (EST)
+Received: by iagz16 with SMTP id z16so5696069iag.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 18:50:29 -0800 (PST)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH] memcg: make threshold index in the right position
+Date: Fri,  3 Feb 2012 10:49:56 +0800
+Message-Id: <1328237396-12453-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
+References: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, kirill@shutemov.name, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu,  2 Feb 2012 17:37:13 -0800
-Ying Han <yinghan@google.com> wrote:
+From: Sha Zhengju <handai.szj@taobao.com>
 
-> In v3.3-rc1, the global LRU has been removed with commit
-> "mm: make per-memcg LRU lists exclusive". The patch fixes up the memcg docs.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   25 ++++++++++++-------------
->  1 files changed, 12 insertions(+), 13 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 4c95c00..847a2a4 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -34,8 +34,7 @@ Current Status: linux-2.6.34-mmotm(development version of 2010/April)
->  
->  Features:
->   - accounting anonymous pages, file caches, swap caches usage and limiting them.
-> - - private LRU and reclaim routine. (system's global LRU and private LRU
-> -   work independently from each other)
-> + - pages are linked to per-memcg LRU exclusively, and there is no global LRU.
->   - optionally, memory+swap usage can be accounted and limited.
->   - hierarchical accounting
->   - soft limit
-> @@ -154,7 +153,7 @@ updated. page_cgroup has its own LRU on cgroup.
->  2.2.1 Accounting details
->  
->  All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
-> -Some pages which are never reclaimable and will not be on the global LRU
-> +Some pages which are never reclaimable and will not be on the LRU
->  are not accounted. We just account pages under usual VM management.
->  
->  RSS pages are accounted at page_fault unless they've already been accounted
-> @@ -209,19 +208,19 @@ In this case, setting memsw.limit_in_bytes=3G will prevent bad use of swap.
->  By using memsw limit, you can avoid system OOM which can be caused by swap
->  shortage.
->  
-> -* why 'memory+swap' rather than swap.
-> -The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
-> -to move account from memory to swap...there is no change in usage of
-> -memory+swap. In other words, when we want to limit the usage of swap without
-> -affecting global LRU, memory+swap limit is better than just limiting swap from
-> -OS point of view.
-> -
->  * What happens when a cgroup hits memory.memsw.limit_in_bytes
->  When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
->  in this cgroup. Then, swap-out will not be done by cgroup routine and file
-> -caches are dropped. But as mentioned above, global LRU can do swapout memory
-> -from it for sanity of the system's memory management state. You can't forbid
-> -it by cgroup.
-> +caches are dropped.
-> +
-> +TODO:
-> +* use 'memory+swap' rather than swap was due to existence of global LRU. It can
-> +swap out arbitrary pages. Swap-out means to move account from memory to swap...
-> +there is no change in usage of memory+swap. In other words, when we want to
-> +limit the usage of swap without affecting global LRU, memory+swap limit is
-> +better than just limiting swap from OS point of view. However, the global LRU
-> +has been removed now and all pages are linked in private LRU. We might want to
-> +revisit this in the future.
->  
+Index current_threshold may point to threshold that just equal to
+usage after last call of __mem_cgroup_threshold. But after registering
+a new event, it will change (pointing to threshold just below usage).
+So make it consistent here.
 
-Could you devide this memory+swap discussion to otehr patch ?
+For example:
+now:
+	threshold array:  3  [5]  7  9   (usage = 6, [index] = 5)
 
-Do you want to do memory locking by setting swap_limit=0 ?
+next turn (after calling __mem_cgroup_threshold):
+	threshold array:  3   5  [7]  9   (usage = 7, [index] = 7)
 
-Thanks,
--Kame
+after registering a new event (threshold = 10):
+	threshold array:  3  [5]  7  9  10 (usage = 7, [index] = 5)  
 
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
 
+---
+ mm/memcontrol.c |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
 
-
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 22d94f5..95fc9f07 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -183,7 +183,7 @@ struct mem_cgroup_threshold {
+ 
+ /* For threshold */
+ struct mem_cgroup_threshold_ary {
+-	/* An array index points to threshold just below usage. */
++	/* An array index points to threshold just below or equal to usage. */
+ 	int current_threshold;
+ 	/* Size of entries[] */
+ 	unsigned int size;
+@@ -4193,7 +4193,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+ 	usage = mem_cgroup_usage(memcg, swap);
+ 
+ 	/*
+-	 * current_threshold points to threshold just below usage.
++	 * current_threshold points to threshold just below or equal to usage.
+ 	 * If it's not true, a threshold was crossed after last
+ 	 * call of __mem_cgroup_threshold().
+ 	 */
+@@ -4319,14 +4319,15 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
+ 	/* Find current threshold */
+ 	new->current_threshold = -1;
+ 	for (i = 0; i < size; i++) {
+-		if (new->entries[i].threshold < usage) {
++		if (new->entries[i].threshold <= usage) {
+ 			/*
+ 			 * new->current_threshold will not be used until
+ 			 * rcu_assign_pointer(), so it's safe to increment
+ 			 * it here.
+ 			 */
+ 			++new->current_threshold;
+-		}
++		} else
++			break;
+ 	}
+ 
+ 	/* Free old spare buffer and save old primary buffer as spare */
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
