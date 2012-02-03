@@ -1,81 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 6F0166B13F2
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 20:37:16 -0500 (EST)
-Received: by eekb57 with SMTP id b57so92751eek.2
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 17:37:14 -0800 (PST)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH] memcg: fix up documentation on global LRU.
-Date: Thu,  2 Feb 2012 17:37:13 -0800
-Message-Id: <1328233033-14246-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 9DEA76B13F0
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 20:40:29 -0500 (EST)
+Received: by pbaa12 with SMTP id a12so3118648pba.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 17:40:28 -0800 (PST)
+Date: Thu, 2 Feb 2012 17:40:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: vmscan: handle isolated pages with lru lock
+ released
+In-Reply-To: <20120116092745.7721ff31.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1202021726410.31915@eggly.anvils>
+References: <CAJd=RBANeF+TTTtn=F_Yx3N5KkVb5vFPY6FNYEjVntB1pPSLBA@mail.gmail.com> <CAJd=RBAH4+nFQ35JcHju6eSPfDcQpbkJjMX6GBaZFECVaL2swA@mail.gmail.com> <20120116092745.7721ff31.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In v3.3-rc1, the global LRU has been removed with commit
-"mm: make per-memcg LRU lists exclusive". The patch fixes up the memcg docs.
+From: Hillf Danton <dhillf@gmail.com>
 
-Signed-off-by: Ying Han <yinghan@google.com>
+When shrinking inactive lru list, isolated pages are queued on locally private
+list, so the lock-hold time could be reduced if pages are counted without lock
+protection.
+
+To achieve that, firstly updating reclaim stat is delayed until the
+putback stage, after reacquiring the lru lock.
+
+Secondly, operations related to vm and zone stats are now proteced with
+preemption disabled as they are per-cpu operations.
+
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |   25 ++++++++++++-------------
- 1 files changed, 12 insertions(+), 13 deletions(-)
+KAMEZAWA-san and I both admired this patch from Hillf; Rik and David
+liked its precursor: I think we'd all be glad to see it in linux-next.
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 4c95c00..847a2a4 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -34,8 +34,7 @@ Current Status: linux-2.6.34-mmotm(development version of 2010/April)
- 
- Features:
-  - accounting anonymous pages, file caches, swap caches usage and limiting them.
-- - private LRU and reclaim routine. (system's global LRU and private LRU
--   work independently from each other)
-+ - pages are linked to per-memcg LRU exclusively, and there is no global LRU.
-  - optionally, memory+swap usage can be accounted and limited.
-  - hierarchical accounting
-  - soft limit
-@@ -154,7 +153,7 @@ updated. page_cgroup has its own LRU on cgroup.
- 2.2.1 Accounting details
- 
- All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
--Some pages which are never reclaimable and will not be on the global LRU
-+Some pages which are never reclaimable and will not be on the LRU
- are not accounted. We just account pages under usual VM management.
- 
- RSS pages are accounted at page_fault unless they've already been accounted
-@@ -209,19 +208,19 @@ In this case, setting memsw.limit_in_bytes=3G will prevent bad use of swap.
- By using memsw limit, you can avoid system OOM which can be caused by swap
- shortage.
- 
--* why 'memory+swap' rather than swap.
--The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
--to move account from memory to swap...there is no change in usage of
--memory+swap. In other words, when we want to limit the usage of swap without
--affecting global LRU, memory+swap limit is better than just limiting swap from
--OS point of view.
+ mm/vmscan.c |   21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
+
+--- a/mm/vmscan.c	Sat Jan 14 14:02:20 2012
++++ b/mm/vmscan.c	Sat Jan 14 20:00:46 2012
+@@ -1414,7 +1414,6 @@ update_isolated_counts(struct mem_cgroup
+ 		       unsigned long *nr_anon,
+ 		       unsigned long *nr_file)
+ {
+-	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
+ 	struct zone *zone = mz->zone;
+ 	unsigned int count[NR_LRU_LISTS] = { 0, };
+ 	unsigned long nr_active = 0;
+@@ -1435,6 +1434,7 @@ update_isolated_counts(struct mem_cgroup
+ 		count[lru] += numpages;
+ 	}
+
++	preempt_disable();
+ 	__count_vm_events(PGDEACTIVATE, nr_active);
+
+ 	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+@@ -1449,8 +1449,9 @@ update_isolated_counts(struct mem_cgroup
+ 	*nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+ 	*nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+
+-	reclaim_stat->recent_scanned[0] += *nr_anon;
+-	reclaim_stat->recent_scanned[1] += *nr_file;
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
++	preempt_enable();
+ }
+
+ /*
+@@ -1512,6 +1513,7 @@ shrink_inactive_list(unsigned long nr_to
+ 	unsigned long nr_writeback = 0;
+ 	isolate_mode_t reclaim_mode = ISOLATE_INACTIVE;
+ 	struct zone *zone = mz->zone;
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
+
+ 	while (unlikely(too_many_isolated(zone, file, sc))) {
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+@@ -1546,19 +1548,13 @@ shrink_inactive_list(unsigned long nr_to
+ 			__count_zone_vm_events(PGSCAN_DIRECT, zone,
+ 					       nr_scanned);
+ 	}
++	spin_unlock_irq(&zone->lru_lock);
+
+-	if (nr_taken == 0) {
+-		spin_unlock_irq(&zone->lru_lock);
++	if (nr_taken == 0)
+ 		return 0;
+-	}
+
+ 	update_isolated_counts(mz, &page_list, &nr_anon, &nr_file);
+
+-	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
+-	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
 -
- * What happens when a cgroup hits memory.memsw.limit_in_bytes
- When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
- in this cgroup. Then, swap-out will not be done by cgroup routine and file
--caches are dropped. But as mentioned above, global LRU can do swapout memory
--from it for sanity of the system's memory management state. You can't forbid
--it by cgroup.
-+caches are dropped.
+-	spin_unlock_irq(&zone->lru_lock);
+-
+ 	nr_reclaimed = shrink_page_list(&page_list, mz, sc, priority,
+ 						&nr_dirty, &nr_writeback);
+
+@@ -1570,6 +1566,9 @@ shrink_inactive_list(unsigned long nr_to
+ 	}
+
+ 	spin_lock_irq(&zone->lru_lock);
 +
-+TODO:
-+* use 'memory+swap' rather than swap was due to existence of global LRU. It can
-+swap out arbitrary pages. Swap-out means to move account from memory to swap...
-+there is no change in usage of memory+swap. In other words, when we want to
-+limit the usage of swap without affecting global LRU, memory+swap limit is
-+better than just limiting swap from OS point of view. However, the global LRU
-+has been removed now and all pages are linked in private LRU. We might want to
-+revisit this in the future.
- 
- 2.5 Reclaim
- 
--- 
-1.7.7.3
++	reclaim_stat->recent_scanned[0] += nr_anon;
++	reclaim_stat->recent_scanned[1] += nr_file;
+
+ 	if (current_is_kswapd())
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
