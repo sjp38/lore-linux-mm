@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2B3F76B002C
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 18:01:06 -0500 (EST)
-Received: by yhoo22 with SMTP id o22so1800795yho.14
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 15:01:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 0792A6B002C
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 19:32:33 -0500 (EST)
 MIME-Version: 1.0
-In-Reply-To: <4F2AB614.1060907@de.ibm.com>
-References: <4F2AB614.1060907@de.ibm.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 2 Feb 2012 18:00:45 -0500
-Message-ID: <CAHGf_=rm286b5FWVRQ8Ob0vakxNcNOHPUksCtnZj4PvOEz47Jg@mail.gmail.com>
-Subject: Re: ksm/memory hotplug: lockdep warning for ksm_thread_mutex vs. (memory_chain).rwsem
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <abfed6dd-a194-4feb-b12e-735f9918804d@default>
+Date: Thu, 2 Feb 2012 16:32:32 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: Re: [LSF/MM TOPIC][ATTEND] cleancache extension and memory
+ checkpoint/restore
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gerald.schaefer@de.ibm.com
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: xemul@parallels.com
+Cc: linux-mm@kvack.org
 
-2012/2/2 Gerald Schaefer <gerald.schaefer@de.ibm.com>:
-> Setting a memory block offline triggers the following lockdep warning. This
-> looks exactly like the issue reported by Kosaki Motohiro in
-> https://lkml.org/lkml/2010/10/25/110. Seems like the resulting commit a0b0f58cdd
-> did not fix the lockdep warning. I'm able to reproduce it with current 3.3.0-rc2
-> as well as 2.6.37-rc4-00147-ga0b0f58.
->
-> I'm not familiar with lockdep annotations, but I tried using down_read_nested()
-> for (memory_chain).rwsem, similar to the mutex_lock_nested() which was
-> introduced for ksm_thread_mutex, but that didn't help.
+Hi Pavel --
 
-Heh, interesting. Simple question, do you have any user visible buggy
-behavior? or just false positive warn issue?
+> From: Pavel Emelyanov <xemul () parallels ! com>
+> 1. cleancache extension
 
-*_nested() is just hacky trick. so, any change may break their lie.
-Anyway I'd like to dig this one. thanks for reporting.
+> In containerized systems, when containers are more or less equal to each
+> other, we can save RAM and (!) disk IOPS if we share equal files between
+> containers. We've been using a unionfs-like approach and faced several=20
+> disadvantages of it (I can describe them in details if required).
+
+> Now we're working on extending the cleancache subsystem to achieve this=
+=20
+> sharing. The cost of fully isolated filesystems is very high, I can provi=
+de=20
+> numbers of various performance experiments, thus this is required badly f=
+or
+> containers.
+
+I agree this is a great use of cleancache!
+
+FYI, the Xen implementation of transcendent memory optionally
+does deduplication.  I think you are probably doing something
+very similar so you may be able to leverage some code.  No changes
+to cleancache are needed... you just need to register a different
+"backend" (e.g. like zcache or RAMster or the Xen tmem stubs).
+
+IIRC, the Xen implementation is much simpler than KSM because
+the candidate pages are more closely managed.
+
+Hopefully we can talk about it at LSF/MM!
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
