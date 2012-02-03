@@ -1,83 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 9A6556B13F2
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:01:29 -0500 (EST)
-Received: by wibhj13 with SMTP id hj13so3654575wib.14
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 06:01:27 -0800 (PST)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 07B056B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:04:31 -0500 (EST)
+Date: Fri, 3 Feb 2012 14:04:28 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 11/15] mm: trigger page reclaim in alloc_contig_range()
+ to stabilize watermarks
+Message-ID: <20120203140428.GG5796@csn.ul.ie>
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+ <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <1328275948.2662.15.camel@laptop>
-References: <1328275626-5322-1-git-send-email-amit.sahrawat83@gmail.com>
-	<1328275948.2662.15.camel@laptop>
-Date: Fri, 3 Feb 2012 19:31:27 +0530
-Message-ID: <CADDb1s1sc=69=QsmC+KAqHP=G93JQ95nVdyUPRNRJaVYbwu=HA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: make do_writepages() use plugging
-From: Amit Sahrawat <amit.sahrawat83@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Amit Sahrawat <a.sahrawat@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-Hi Peter,
-Thanks for pointing out.
+On Fri, Feb 03, 2012 at 01:18:54PM +0100, Marek Szyprowski wrote:
+> alloc_contig_range() performs memory allocation so it also should keep
+> track on keeping the correct level of memory watermarks. This commit adds
+> a call to *_slowpath style reclaim to grab enough pages to make sure that
+> the final collection of contiguous pages from freelists will not starve
+> the system.
+> 
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
+> Tested-by: Rob Clark <rob.clark@linaro.org>
+> Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
+> Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
-While checking the plug support in Write code flow, I came across this
-main point from which - we invoke
-writepages(mapping->a_ops->writepages(mapping, wbc)) from almost all
-the the filesystems.
+I still do not intend to ack this patch and any damage is confined to
+CMA but I have a few comments anyway.
 
-By mistake I checked 2 different kernel versions for this code(and
-missed that the current version already has put plug in
-mpage_writepages) ... so may be this patch is not worth considering.
+> ---
+>  mm/page_alloc.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 47 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 983ccba..371a79f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5632,6 +5632,46 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+>  	return ret > 0 ? 0 : ret;
+>  }
+>  
+> +/*
+> + * Trigger memory pressure bump to reclaim some pages in order to be able to
+> + * allocate 'count' pages in single page units. Does similar work as
+> + *__alloc_pages_slowpath() function.
+> + */
+> +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
+> +{
+> +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+> +	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
+> +	int did_some_progress = 0;
+> +	int order = 1;
+> +	unsigned long watermark;
+> +
+> +	/*
+> +	 * Increase level of watermarks to force kswapd do his job
+> +	 * to stabilize at new watermark level.
+> +	 */
+> +	min_free_kbytes += count * PAGE_SIZE / 1024;
 
-Regards,
-Amit Sahrawat
+There is a risk of overflow here although it is incredibly
+small. Still, a potentially nicer way of doing this was
 
+count << (PAGE_SHIFT - 10)
 
-On Fri, Feb 3, 2012 at 7:02 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> wro=
-te:
-> On Fri, 2012-02-03 at 18:57 +0530, Amit Sahrawat wrote:
->> This will cover all the invocations for writepages to be called with
->> plugging support.
->
-> This changelog fails to explain why this is a good thing... I thought
-> the idea of the new plugging stuff was that we now don't need to
-> sprinkle plugs all over the kernel..
->
->> Signed-off-by: Amit Sahrawat <a.sahrawat@samsung.com>
->> ---
->> =A0mm/page-writeback.c | =A0 =A04 ++++
->> =A01 files changed, 4 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
->> index 363ba70..2bea32c 100644
->> --- a/mm/page-writeback.c
->> +++ b/mm/page-writeback.c
->> @@ -1866,14 +1866,18 @@ EXPORT_SYMBOL(generic_writepages);
->>
->> =A0int do_writepages(struct address_space *mapping, struct writeback_con=
-trol *wbc)
->> =A0{
->> + =A0 =A0 struct blk_plug plug;
->> =A0 =A0 =A0 int ret;
->>
->> =A0 =A0 =A0 if (wbc->nr_to_write <=3D 0)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
->> +
->> + =A0 =A0 blk_start_plug(&plug);
->> =A0 =A0 =A0 if (mapping->a_ops->writepages)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mapping->a_ops->writepages(mapping, =
-wbc);
->> =A0 =A0 =A0 else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D generic_writepages(mapping, wbc);
->> + =A0 =A0 blk_finish_plug(&plug);
->> =A0 =A0 =A0 return ret;
->> =A0}
->>
->
->
->
+> +	setup_per_zone_wmarks();
+> +
+
+Nothing prevents two or more processes updating the wmarks at the same
+time which is racy and unpredictable. Today it is not much of a problem
+but CMA makes this path hotter than it was and you may see weirdness
+if two processes are updating zonelists at the same time. Swap-over-NFS
+actually starts with a patch that serialises setup_per_zone_wmarks()
+
+You also potentially have a BIG problem here if this happens
+
+min_free_kbytes = 32768
+Process a: min_free_kbytes  += 65536
+Process a: start direct reclaim
+echo 16374 > /proc/sys/vm/min_free_kbytes
+Process a: exit direct_reclaim
+Process a: min_free_kbytes -= 65536
+
+min_free_kbytes now wraps negative and the machine hangs.
+
+The damage is confined to CMA though so I am not going to lose sleep
+over it but you might want to consider at least preventing parallel
+updates to min_free_kbytes from proc.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
