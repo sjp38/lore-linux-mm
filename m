@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 1F4036B13F2
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2012 21:50:30 -0500 (EST)
-Received: by iagz16 with SMTP id z16so5696069iag.14
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 18:50:29 -0800 (PST)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH] memcg: make threshold index in the right position
-Date: Fri,  3 Feb 2012 10:49:56 +0800
-Message-Id: <1328237396-12453-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
-References: <1328175919-11209-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 514AB6B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 01:22:14 -0500 (EST)
+Received: by vbip1 with SMTP id p1so3076647vbi.14
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2012 22:22:13 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20120203012637.GA7438@localhost>
+References: <20120201095556.812db19c.kamezawa.hiroyu@jp.fujitsu.com>
+ <CAHH2K0bPdqzpuWv82uyvEu4d+cDqJOYoHbw=GeP5OZk4-3gCUg@mail.gmail.com>
+ <20120202063345.GA15124@localhost> <20120202075234.GA3039@localhost>
+ <20120202103953.GE31730@quack.suse.cz> <20120202110433.GA24419@localhost>
+ <20120202154209.GG31730@quack.suse.cz> <20120203012637.GA7438@localhost>
+From: Greg Thelen <gthelen@google.com>
+Date: Thu, 2 Feb 2012 22:21:53 -0800
+Message-ID: <CAHH2K0aq=a2LGLhznoLg=jmkLNLGRq1wLM1JE5x_h9moJMy48g@mail.gmail.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, kirill@shutemov.name, Sha Zhengju <handai.szj@taobao.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On Thu, Feb 2, 2012 at 5:26 PM, Wu Fengguang <fengguang.wu@intel.com> wrote=
+:
+> On Thu, Feb 02, 2012 at 04:42:09PM +0100, Jan Kara wrote:
+>> On Thu 02-02-12 19:04:34, Wu Fengguang wrote:
+>> > If memcg A's dirty rate is throttled, its dirty pages will naturally
+>> > shrink. The flusher will automatically work less on A's dirty pages.
+>> I'm not sure about details of requirements Google guys have. So this may
+>> or may not be good enough for them. I'd suspect they still wouldn't want
+>> one cgroup to fill up available page cache with dirty pages so just
+>> limitting bandwidth won't be enough for them. Also limitting dirty
+>> bandwidth has a problem that it's not coupled with how much reading the
+>> particular cgroup does. Anyway, until we are sure about their exact
+>> requirements, this is mostly philosophical talking ;).
+>
+> Yeah, I'm not sure what exactly Google needs and how big problem the
+> partition will be for them. Basically,
+>
+> - when there are N memcg each dirtying 1 file, each file will be
+> =A0flushed on every (N * 0.5) seconds, where 0.5s is the typical time
+>
+> - if (memcg_dirty_limit > 10 * bdi_bandwidth), the dd tasks should be
+> =A0able to progress reasonably smoothly
+>
+> Thanks,
+> Fengguang
 
-Index current_threshold may point to threshold that just equal to
-usage after last call of __mem_cgroup_threshold. But after registering
-a new event, it will change (pointing to threshold just below usage).
-So make it consistent here.
+I am looking for a solution that partitions memory and ideally disk
+bandwidth.  This is a large undertaking and I am willing to start
+small and grow into a more sophisticated solution (if needed).  One
+important goal is to enforce per-container memory limits - this
+includes dirty and clean page cache.  Moving memcg dirty pages to root
+is probably not going to work because it would not allow for control
+of job memory usage.  My hunch is that we will thus need per-memcg
+dirty counters, limits, and some writeback changes.  Perhaps the
+initial writeback changes would be small: enough to ensure that
+writeback continues writing until it services any over-limit cgroups.
+This is complicated by the fact that a memcg can have dirty memory
+spread on different bdi.  If blk bandwidth throttling is sufficient
+here, then let me know because it sounds easier ;)
 
-For example:
-now:
-	threshold array:  3  [5]  7  9   (usage = 6, [index] = 5)
+Here is an example of a memcg OOM seen on a 3.3 kernel:
+        # mkdir /dev/cgroup/memory/x
+        # echo 100M > /dev/cgroup/memory/x/memory.limit_in_bytes
+        # echo $$ > /dev/cgroup/memory/x/tasks
+        # dd if=3D/dev/zero of=3D/data/f1 bs=3D1k count=3D1M &
+        # dd if=3D/dev/zero of=3D/data/f2 bs=3D1k count=3D1M &
+        # wait
+        [1]-  Killed                  dd if=3D/dev/zero of=3D/data/f1 bs=3D=
+1M count=3D1k
+        [2]+  Killed                  dd if=3D/dev/zero of=3D/data/f1 bs=3D=
+1M count=3D1k
 
-next turn (after calling __mem_cgroup_threshold):
-	threshold array:  3   5  [7]  9   (usage = 7, [index] = 7)
-
-after registering a new event (threshold = 10):
-	threshold array:  3  [5]  7  9  10 (usage = 7, [index] = 5)  
-
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
-
----
- mm/memcontrol.c |    9 +++++----
- 1 files changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 22d94f5..95fc9f07 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -183,7 +183,7 @@ struct mem_cgroup_threshold {
- 
- /* For threshold */
- struct mem_cgroup_threshold_ary {
--	/* An array index points to threshold just below usage. */
-+	/* An array index points to threshold just below or equal to usage. */
- 	int current_threshold;
- 	/* Size of entries[] */
- 	unsigned int size;
-@@ -4193,7 +4193,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
- 	usage = mem_cgroup_usage(memcg, swap);
- 
- 	/*
--	 * current_threshold points to threshold just below usage.
-+	 * current_threshold points to threshold just below or equal to usage.
- 	 * If it's not true, a threshold was crossed after last
- 	 * call of __mem_cgroup_threshold().
- 	 */
-@@ -4319,14 +4319,15 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
- 	/* Find current threshold */
- 	new->current_threshold = -1;
- 	for (i = 0; i < size; i++) {
--		if (new->entries[i].threshold < usage) {
-+		if (new->entries[i].threshold <= usage) {
- 			/*
- 			 * new->current_threshold will not be used until
- 			 * rcu_assign_pointer(), so it's safe to increment
- 			 * it here.
- 			 */
- 			++new->current_threshold;
--		}
-+		} else
-+			break;
- 	}
- 
- 	/* Free old spare buffer and save old primary buffer as spare */
--- 
-1.7.4.1
+This is caused from direct reclaim not being able to reliably reclaim
+(write) dirty page cache pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
