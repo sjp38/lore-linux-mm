@@ -1,48 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 06BC66B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:35:19 -0500 (EST)
-Date: Fri, 3 Feb 2012 09:21:19 -0500
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [PATCH 2/2] mm: make do_writepages() use plugging
-Message-ID: <20120203142119.GM16796@shiny>
-References: <1328275626-5322-1-git-send-email-amit.sahrawat83@gmail.com>
- <20120203133823.GB17571@localhost>
- <20120203140834.GA15495@infradead.org>
+	by kanga.kvack.org (Postfix) with SMTP id 4EF446B13F1
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:53:08 -0500 (EST)
+Date: Fri, 3 Feb 2012 15:53:04 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Handling of unused variable 'do-numainfo on compilation
+ time
+Message-ID: <20120203145304.GA18335@tiehlicka.suse.cz>
+References: <1328258627-2241-1-git-send-email-geunsik.lim@gmail.com>
+ <20120203133950.GA1690@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120203140834.GA15495@infradead.org>
+In-Reply-To: <20120203133950.GA1690@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Amit Sahrawat <amit.sahrawat83@gmail.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, Amit Sahrawat <a.sahrawat@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Geunsik Lim <geunsik.lim@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-On Fri, Feb 03, 2012 at 09:08:34AM -0500, Christoph Hellwig wrote:
-> On Fri, Feb 03, 2012 at 09:38:23PM +0800, Wu Fengguang wrote:
-> > On Fri, Feb 03, 2012 at 06:57:06PM +0530, Amit Sahrawat wrote:
-> > > This will cover all the invocations for writepages to be called with
-> > > plugging support.
+On Fri 03-02-12 14:39:50, Johannes Weiner wrote:
+> Michal, this keeps coming up, please decide between the proposed
+> solutions ;-)
+
+Hmm, I thought we already sorted this out https://lkml.org/lkml/2012/1/26/25 ?
+
+> 
+> On Fri, Feb 03, 2012 at 05:43:47PM +0900, Geunsik Lim wrote:
+> > Actually, Usage of the variable 'do_numainfo'is not suitable for gcc compiler.
+> > Declare the variable 'do_numainfo' if the number of NUMA nodes > 1.
+> > 
+> > Signed-off-by: Geunsik Lim <geunsik.lim@samsung.com>
+> > ---
+> >  mm/memcontrol.c |    5 ++++-
+> >  1 files changed, 4 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 556859f..4e17ac5 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -776,7 +776,10 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+> >  	/* threshold event is triggered in finer grain than soft limit */
+> >  	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+> >  						MEM_CGROUP_TARGET_THRESH))) {
+> > -		bool do_softlimit, do_numainfo;
+> > +		bool do_softlimit;
+> > +#if MAX_NUMNODES > 1
+> > +                bool do_numainfo;
+> > +#endif
 > >  
-> > Thanks.  I'll test it on the major filesystems. But would you
-> > name a few filesystems that are expected to benefit from it?
-> > It's not obvious because some FS ->writepages eventually calls
-> > generic_writepages() which already does plugging.
-> 
-> Ant that's exactly where it should stay instead of beeing sprinkled all
-> over the VM code.
-> 
-> NAK to the patch.
+> >  		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+> >  						MEM_CGROUP_TARGET_SOFTLIMIT);
+> > -- 
+> > 1.7.8.1
+> > 
 
-We've actually had problems with plugging in the higher layers.
-writepages is queueing up lots and lots and lots of pages for IO, and
-especially on SSDs we want these IOs sent sooner rather than later.
-
-I'm not sure yet how to make the plugs aware of the
-please-feed-me-right-away demands of lower storage, but I'd rather not
-add more high level plugs that the filesystems can't control.
-
--chris
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
