@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 097CD6B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 08:23:17 -0500 (EST)
-Received: by dadv6 with SMTP id v6so3396081dad.14
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 05:23:17 -0800 (PST)
-From: Amit Sahrawat <amit.sahrawat83@gmail.com>
-Subject: [PATCH 2/2] mm: make do_writepages() use plugging
-Date: Fri,  3 Feb 2012 18:57:06 +0530
-Message-Id: <1328275626-5322-1-git-send-email-amit.sahrawat83@gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 366AB6B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 08:30:54 -0500 (EST)
+Date: Fri, 3 Feb 2012 13:30:50 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/15] mm: compaction: introduce map_pages()
+Message-ID: <20120203133050.GE5796@csn.ul.ie>
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+ <1328271538-14502-4-git-send-email-m.szyprowski@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1328271538-14502-4-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>
-Cc: Amit Sahrawat <a.sahrawat@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amit Sahrawat <amit.sahrawat83@gmail.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-This will cover all the invocations for writepages to be called with
-plugging support.
+On Fri, Feb 03, 2012 at 01:18:46PM +0100, Marek Szyprowski wrote:
+> From: Michal Nazarewicz <mina86@mina86.com>
+> 
+> This commit creates a map_pages() function which map pages freed
+> using split_free_pages().  This merely moves some code from
+> isolate_freepages() so that it can be reused in other places.
+> 
+> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 
-Signed-off-by: Amit Sahrawat <a.sahrawat@samsung.com>
----
- mm/page-writeback.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 363ba70..2bea32c 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1866,14 +1866,18 @@ EXPORT_SYMBOL(generic_writepages);
- 
- int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
- {
-+	struct blk_plug plug;
- 	int ret;
- 
- 	if (wbc->nr_to_write <= 0)
- 		return 0;
-+
-+	blk_start_plug(&plug);
- 	if (mapping->a_ops->writepages)
- 		ret = mapping->a_ops->writepages(mapping, wbc);
- 	else
- 		ret = generic_writepages(mapping, wbc);
-+	blk_finish_plug(&plug);
- 	return ret;
- }
- 
 -- 
-1.7.2.3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
