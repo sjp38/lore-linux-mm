@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id BA9046B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 03:21:04 -0500 (EST)
-Received: by pbaa12 with SMTP id a12so3376712pba.14
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 00:21:04 -0800 (PST)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id C01246B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 03:43:54 -0500 (EST)
+Received: by dadv6 with SMTP id v6so3179097dad.14
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 00:43:54 -0800 (PST)
 From: Geunsik Lim <geunsik.lim@gmail.com>
-Subject: [PATCH] Fix potentially derefencing uninitialized 'r'.
-Date: Fri,  3 Feb 2012 17:20:56 +0900
-Message-Id: <1328257256-1296-1-git-send-email-geunsik.lim@gmail.com>
+Subject: [PATCH] Handling of unused variable 'do-numainfo on compilation time
+Date: Fri,  3 Feb 2012 17:43:47 +0900
+Message-Id: <1328258627-2241-1-git-send-email-geunsik.lim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@linux.intel.com>
-Cc: Yinghai Lu <yinghai@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
 
-struct memblock_region 'r' will not be initialized potentially
-because of while statement's condition in __next_mem_pfn_range()function.
-Initialize struct memblock_region data structure by default.
+Actually, Usage of the variable 'do_numainfo'is not suitable for gcc compiler.
+Declare the variable 'do_numainfo' if the number of NUMA nodes > 1.
 
 Signed-off-by: Geunsik Lim <geunsik.lim@samsung.com>
 ---
- mm/memblock.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/memcontrol.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 77b5f22..867f5a2 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -671,7 +671,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
- 				unsigned long *out_end_pfn, int *out_nid)
- {
- 	struct memblock_type *type = &memblock.memory;
--	struct memblock_region *r;
-+	struct memblock_region *r = &type->regions[*idx];
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 556859f..4e17ac5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -776,7 +776,10 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 	/* threshold event is triggered in finer grain than soft limit */
+ 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_THRESH))) {
+-		bool do_softlimit, do_numainfo;
++		bool do_softlimit;
++#if MAX_NUMNODES > 1
++                bool do_numainfo;
++#endif
  
- 	while (++*idx < type->cnt) {
- 		r = &type->regions[*idx];
+ 		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_SOFTLIMIT);
 -- 
 1.7.8.1
 
