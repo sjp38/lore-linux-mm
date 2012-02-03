@@ -1,85 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D78116B13F2
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 10:50:33 -0500 (EST)
-Received: by eekc13 with SMTP id c13so1353559eek.14
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 07:50:32 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 08/15] mm: mmzone: MIGRATE_CMA migration type added
-References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
- <1328271538-14502-9-git-send-email-m.szyprowski@samsung.com>
- <CAJd=RBByc_wLEJTK66J4eY03CWnCoCRiwAeEYjXCZ5xEZhp3ag@mail.gmail.com>
-Date: Fri, 03 Feb 2012 16:50:30 +0100
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id BEFC66B002C
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 11:04:35 -0500 (EST)
+Date: Fri, 3 Feb 2012 17:04:31 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Handling of unused variable 'do-numainfo on compilation
+ time
+Message-ID: <20120203160431.GB13461@tiehlicka.suse.cz>
+References: <1328258627-2241-1-git-send-email-geunsik.lim@gmail.com>
+ <20120203133950.GA1690@cmpxchg.org>
+ <20120203145304.GA18335@tiehlicka.suse.cz>
+ <CAGFP0LK4_PhKLJVtMhsNe4YfUQoHcoTK3hJhHaBy51f359ef7A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v830ygma3l0zgt@mpn-glaptop>
-In-Reply-To: <CAJd=RBByc_wLEJTK66J4eY03CWnCoCRiwAeEYjXCZ5xEZhp3ag@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGFP0LK4_PhKLJVtMhsNe4YfUQoHcoTK3hJhHaBy51f359ef7A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Geunsik Lim <geunsik.lim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
 
-> On Fri, Feb 3, 2012 at 8:18 PM, Marek Szyprowski
-> <m.szyprowski@samsung.com> wrote:
->> From: Michal Nazarewicz <mina86@mina86.com>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index d5174c4..a6e7c64 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -45,6 +45,11 @@ static void map_pages(struct list_head *list)
->>        }
->>  }
->>
->> +static inline bool migrate_async_suitable(int migratetype)
+On Sat 04-02-12 00:36:36, Geunsik Lim wrote:
+> On Fri, Feb 3, 2012 at 11:53 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Fri 03-02-12 14:39:50, Johannes Weiner wrote:
+> > > Michal, this keeps coming up, please decide between the proposed
+> > > solutions ;-)
+> >
+> > Hmm, I thought we already sorted this out
+> > https://lkml.org/lkml/2012/1/26/25 ?
+> >
+> I don't know previous history about this variable.
+> Is it same? Please, adjust this patch or fix the unsuitable
+> variable 'do_numainfo' as I mentioned.
 
-On Fri, 03 Feb 2012 15:19:54 +0100, Hillf Danton <dhillf@gmail.com> wrot=
-e:
-> Just nitpick, since the helper is not directly related to what async m=
-eans,
-> how about migrate_suitable(int migrate_type) ?
+The patch (I guess the author is Andrew) just silence the compiler
+warning which is the easiest fix in this case because we know it will be
+used only for MAX_NUMNODES > 1.
+Your patch fixes it as well but it adds an ugly ifdef around the
+variable.
 
-I feel current name is better suited since it says that it's OK to scan =
-this
-block if it's an asynchronous compaction run.
-
->> +{
->> +       return is_migrate_cma(migratetype) || migratetype =3D=3D MIGR=
-ATE_MOVABLE;
->> +}
->> +
->>  /*
->>  * Isolate free pages onto a private freelist. Caller must hold zone-=
->lock.
->>  * If @strict is true, will abort returning 0 on any invalid PFNs or =
-non-free
->> @@ -277,7 +282,7 @@ isolate_migratepages_range(struct zone *zone, str=
-uct compact_control *cc,
->>                 */
->>                pageblock_nr =3D low_pfn >> pageblock_order;
->>                if (!cc->sync && last_pageblock_nr !=3D pageblock_nr &=
-&
->> -                               get_pageblock_migratetype(page) !=3D =
-MIGRATE_MOVABLE) {
->> +                   migrate_async_suitable(get_pageblock_migratetype(=
-page))) {
->
-> Here compaction looks corrupted if CMA not enabled, Mel?
-
-Damn, yes, this should be !migrate_async_suitable(...).  Sorry about tha=
-t.
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrew, could you pick up this one, please?
+---
