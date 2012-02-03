@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 4EF446B13F1
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 09:53:08 -0500 (EST)
-Date: Fri, 3 Feb 2012 15:53:04 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Handling of unused variable 'do-numainfo on compilation
- time
-Message-ID: <20120203145304.GA18335@tiehlicka.suse.cz>
-References: <1328258627-2241-1-git-send-email-geunsik.lim@gmail.com>
- <20120203133950.GA1690@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 1965A6B002C
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 10:27:13 -0500 (EST)
+Date: Fri, 3 Feb 2012 09:27:10 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [rfc PATCH]slub: per cpu partial statistics change
+In-Reply-To: <1328256695.12669.24.camel@debian>
+Message-ID: <alpine.DEB.2.00.1202030920060.2420@router.home>
+References: <1328256695.12669.24.camel@debian>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120203133950.GA1690@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Geunsik Lim <geunsik.lim@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: "Alex,Shi" <alex.shi@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri 03-02-12 14:39:50, Johannes Weiner wrote:
-> Michal, this keeps coming up, please decide between the proposed
-> solutions ;-)
+On Fri, 3 Feb 2012, Alex,Shi wrote:
 
-Hmm, I thought we already sorted this out https://lkml.org/lkml/2012/1/26/25 ?
+> This patch split the cpu_partial_free into 2 parts: cpu_partial_node, PCP refilling
+> times from node partial; and same name cpu_partial_free, PCP refilling times in
+> slab_free slow path. A new statistic 'release_cpu_partial' is added to get PCP
+> release times. These info are useful when do PCP tunning.
 
-> 
-> On Fri, Feb 03, 2012 at 05:43:47PM +0900, Geunsik Lim wrote:
-> > Actually, Usage of the variable 'do_numainfo'is not suitable for gcc compiler.
-> > Declare the variable 'do_numainfo' if the number of NUMA nodes > 1.
-> > 
-> > Signed-off-by: Geunsik Lim <geunsik.lim@samsung.com>
-> > ---
-> >  mm/memcontrol.c |    5 ++++-
-> >  1 files changed, 4 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 556859f..4e17ac5 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -776,7 +776,10 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
-> >  	/* threshold event is triggered in finer grain than soft limit */
-> >  	if (unlikely(mem_cgroup_event_ratelimit(memcg,
-> >  						MEM_CGROUP_TARGET_THRESH))) {
-> > -		bool do_softlimit, do_numainfo;
-> > +		bool do_softlimit;
-> > +#if MAX_NUMNODES > 1
-> > +                bool do_numainfo;
-> > +#endif
-> >  
-> >  		do_softlimit = mem_cgroup_event_ratelimit(memcg,
-> >  						MEM_CGROUP_TARGET_SOFTLIMIT);
-> > -- 
-> > 1.7.8.1
-> > 
+Releasing? The code where you inserted the new statistics counts the pages
+put on the cpu partial list when refilling from the node partial list.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+See more below.
+
+>  struct kmem_cache_cpu {
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 4907563..5dd299c 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1560,6 +1560,7 @@ static void *get_partial_node(struct kmem_cache *s,
+>  		} else {
+>  			page->freelist = t;
+>  			available = put_cpu_partial(s, page, 0);
+> +			stat(s, CPU_PARTIAL_NODE);
+
+This is refilling the per cpu partial list from the node list.
+
+>  		}
+>  		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+>  			break;
+> @@ -1973,6 +1974,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  				local_irq_restore(flags);
+>  				pobjects = 0;
+>  				pages = 0;
+> +				stat(s, RELEASE_CPU_PARTIAL);
+
+The callers count the cpu partial operations. Why is there now one in
+put_cpu_partial? It is moving a page to the cpu partial list. Not
+releasing it from the cpu partial list.
+
+>
+> @@ -2465,9 +2466,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>  		 * If we just froze the page then put it onto the
+>  		 * per cpu partial list.
+>  		 */
+> -		if (new.frozen && !was_frozen)
+> +		if (new.frozen && !was_frozen) {
+>  			put_cpu_partial(s, page, 1);
+> -
+> +			stat(s, CPU_PARTIAL_FREE);
+
+cpu partial list filled with a partial page created from a fully allocated
+slab (which therefore was not on any list before).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
