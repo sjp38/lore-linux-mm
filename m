@@ -1,107 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9EC606B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 06:27:07 -0500 (EST)
-Date: Fri, 3 Feb 2012 11:27:03 +0000
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 4DA426B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 06:44:14 -0500 (EST)
+Date: Fri, 3 Feb 2012 11:44:10 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/15] mm: page_alloc: update migrate type of pages on
- pcp when isolating
-Message-ID: <20120203112703.GB5796@csn.ul.ie>
-References: <1327568457-27734-1-git-send-email-m.szyprowski@samsung.com>
- <1327568457-27734-3-git-send-email-m.szyprowski@samsung.com>
- <20120130111522.GE25268@csn.ul.ie>
- <op.v8wlu8ws3l0zgt@mpn-glaptop>
- <20120130161447.GU25268@csn.ul.ie>
- <022e01cce034$bc6cf440$3546dcc0$%szyprowski@samsung.com>
- <20120202124729.GA5796@csn.ul.ie>
- <op.v82hjbd13l0zgt@mpn-glaptop>
+Subject: Re: [RFCv1 3/6] PASR: mm: Integrate PASR in Buddy allocator
+Message-ID: <20120203114410.GD5796@csn.ul.ie>
+References: <1327930436-10263-1-git-send-email-maxime.coquelin@stericsson.com>
+ <1327930436-10263-4-git-send-email-maxime.coquelin@stericsson.com>
+ <20120130152237.GS25268@csn.ul.ie>
+ <4F26CAD1.2000209@stericsson.com>
+ <4F27DB7B.4010103@stericsson.com>
+ <20120131140143.GW25268@csn.ul.ie>
+ <4F283933.6070401@stericsson.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <op.v82hjbd13l0zgt@mpn-glaptop>
+In-Reply-To: <4F283933.6070401@stericsson.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>
+To: Maxime Coquelin <maxime.coquelin@stericsson.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus WALLEIJ <linus.walleij@stericsson.com>, Andrea GALLO <andrea.gallo@stericsson.com>, Vincent GUITTOT <vincent.guittot@stericsson.com>, Philippe LANGLAIS <philippe.langlais@stericsson.com>, Loic PALLARDY <loic.pallardy@stericsson.com>
 
-On Thu, Feb 02, 2012 at 08:53:25PM +0100, Michal Nazarewicz wrote:
-> >On Tue, Jan 31, 2012 at 05:23:59PM +0100, Marek Szyprowski wrote:
-> >>Pages, which have incorrect migrate type on free finally
-> >>causes pageblock migration type change from MIGRATE_CMA to MIGRATE_MOVABLE.
+On Tue, Jan 31, 2012 at 07:55:47PM +0100, Maxime Coquelin wrote:
+> >>To avoid calling pasr_kget/kput() directly in page_alloc.c, do you
+> >>think adding some arch specific hooks when a page is inserted or
+> >>removed from the free lists could be acceptable?
+> >It's not the name that is the problem, I'm strongly against any hook
+> >that can delay the page allocator for arbitrary lengths of time like
+> >this. I am open to being convinced otherwise but for me PASR would
+> >need to demonstrate large savings for a wide variety of machines and
+> >the alternatives would have to be considered and explained why they
+> >would be far inferior or unsuitable.
+>
+> Ok Mel, I understand your point of view.
 > 
-> On Thu, 02 Feb 2012 13:47:29 +0100, Mel Gorman <mel@csn.ul.ie> wrote:
-> >I'm not quite seeing this. In free_hot_cold_page(), the pageblock
-> >type is checked so the page private should be set to MIGRATE_CMA or
-> >MIGRATE_ISOLATE for the CMA area. It's not clear how this can change a
-> >pageblock to MIGRATE_MOVABLE in error.
-> 
-> Here's what I think may happen:
-> 
-> When drain_all_pages() is called, __free_one_page() is called for each page on
-> pcp list with migrate type deducted from page_private() which is MIGRATE_CMA.
-> This result in the page being put on MIGRATE_CMA freelist even though its
-> pageblock's migrate type is MIGRATE_ISOLATE.
-> 
-
-Ok, although it will only be allocated for MIGRATE_CMA-compatible
-requests so it is not a disaster.
-
-> When allocation happens and pcp list is empty, rmqueue_bulk() will get executed
-> with migratetype argument set to MIGRATE_MOVABLE.  It calls __rmqueue() to grab
-> some pages and because the page described above is on MIGRATE_CMA freelist it
-> may be returned back to rmqueue_bulk().
+> The goal of this RFC patch set was to collect comments, so I'm glad
+> to get your opinion.
+> I propose to forget the patch in the Buddy allocator.
 > 
 
-This will allocate the page from a pageblock we are trying to isolate
-pages from, but only for a movable page that can still be migrated. It
-does mean that CMA is doing more work than it should of course and
-the problem also impacts memory hot-remove. It's worse for memory
-hot-remove because potentially an UNMOVABLE page was allocated from
-a MIGRATE_ISOLATE pageblock.
+Or at least tag it as "this should have an alternative"
 
-> But, pageblock's migrate type is not MIGRATE_CMA but MIGRATE_ISOLATE, so the
-> following code:
-> 
-> #ifdef CONFIG_CMA
-> 		if (is_pageblock_cma(page))
-> 			set_page_private(page, MIGRATE_CMA);
-> 		else
-> #endif
-> 			set_page_private(page, migratetype);
-> 
-> will set it's private to MIGRATE_MOVABLE and in the end the page lands back
-> on MIGRATE_MOVABLE pcp list but this time with page_private == MIGRATE_MOVABLE
-> and not MIGRATE_CMA.
-> 
-> One more drain_all_pages() (which may happen since alloc_contig_range() calls
-> set_migratetype_isolate() for each block) and next __rmqueue_fallback() may
-> convert the whole pageblock to MIGRATE_MOVABLE.
-> 
-> I know, this sounds crazy and improbable, but I couldn't find an easier path
-> to destruction.  As you pointed, once the page is allocated, free_hot_cold_page()
-> will do the right thing by reading pageblock's migrate type.
-> 
+> >For example - it seems like this could be also be done with a
+> >balloon driver instead of page allocator hooks. A governer would
+> >identify when the machine was under no memory pressure or triggered
+> >from userspace. To power down memory, it would use page reclaim and
+> >page migration to allocate large contiguous ranges of memory - CMA
+> >could potentially be adapted when it gets merged to save a lot of
+> >implementation work. The governer should register a slab shrinker
+> >so that under memory pressure it gets called so it can shrink the
+> >ballon, power the DIMMS back up and free the memory back to the
+> >buddy allocator. This would keep all the cost out of the allocator
+> >paths and move the cost to when the machine is either idle (in the
+> >case of powering down) or under memory pressure (where the cost of
+> >powering up will be small in comparison to the overall cost of the
+> >page reclaim operation).
+> >
+>
+> This is very interesting.
+> I know Linaro plans to work on DDR power management topic.
+> One of the options they envisage is to use the Memory Hotplug feature.
+> However, the main problem with Memory Hotplug is to handle the
+> memory pressure, i.e. when to re-plug the memory sections.
 
-Ok, it's crazy but the problem is there.
+heh, I was originally going to suggest the Memory Hotplug feature until
+I ran into the problem of how to bring the memory back. Technically,
+it could *also* use a shrinker and keep track of the memory it
+offlined. It would work on a similar principal to the balloon but I
+was worried that the cost of offlining and onlining memory would be
+too high for PASR. There was also the problem that it would require
+SPARSEMEM and would also require that you grew/shrunk memory in ranges
+of the section size which might be totally different to PASR.
 
-> Marek is currently experimenting with various patches including the following
-> change:
-> 
-> #ifdef CONFIG_CMA
->                 int mt = get_pageblock_migratetype(page);
->                 if (is_migrate_cma(mt) || mt == MIGRATE_ISOLATE)
->                         set_page_private(page, mt);
->                 else
-> #endif
->                         set_page_private(page, migratetype);
-> 
-> As a matter of fact, if __rmqueue() was changed to return migrate type of the
-> freelist it took page from, we could avoid this get_pageblock_migratetype() all
-> together.  For now, however, I'd rather not go that way just yet -- I'll be happy
-> to dig into it once CMA gets merged.
+> Your proposal address this issue. I don't know if such a driver
+> could be done in the Linaro scope.
 > 
 
-Ok, thanks for persisting with this.
+Beats me.
+
+> Anyway, even with a balloon driver, I think the PASR framework could
+> be suitable to keep an "hardware" view of the memory layout (dies,
+> banks, segments...).
+
+Oh yes, the balloon driver would still need this information!
+
+> Moreover, this framework is designed to also support some physically
+> contiguous memory allocators (such as hwmem and pmem).
+> 
+
+Not being familiar with hwmem or pmem, I can't be 100% certain but
+superficially, I would expect that the same balloon driver could be used
+for hwmem and pmem. The main difference between this balloon driver and
+others will be how it selects pages to add to the balloon.
+
+There are existing balloon drivers that you may or may not be able to
+leverage. There is some talk that KVM people want to be able to balloon
+2M contiguous pages. If this was ever implemented, it's possible that
+you could reuse it for PASR so keep an eye out for it.
 
 -- 
 Mel Gorman
