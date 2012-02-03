@@ -1,55 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id A83B06B13F2
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 10:38:27 -0500 (EST)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 3 Feb 2012 15:38:26 -0000
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q13Fbme82195538
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 15:37:48 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q13Fblh3016562
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2012 08:37:48 -0700
-Message-ID: <4F2BFF4C.5050905@de.ibm.com>
-Date: Fri, 03 Feb 2012 16:37:48 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reply-To: gerald.schaefer@de.ibm.com
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D78116B13F2
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 10:50:33 -0500 (EST)
+Received: by eekc13 with SMTP id c13so1353559eek.14
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 07:50:32 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 08/15] mm: mmzone: MIGRATE_CMA migration type added
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+ <1328271538-14502-9-git-send-email-m.szyprowski@samsung.com>
+ <CAJd=RBByc_wLEJTK66J4eY03CWnCoCRiwAeEYjXCZ5xEZhp3ag@mail.gmail.com>
+Date: Fri, 03 Feb 2012 16:50:30 +0100
 MIME-Version: 1.0
-Subject: Re: ksm/memory hotplug: lockdep warning for ksm_thread_mutex vs.
- (memory_chain).rwsem
-References: <4F2AB614.1060907@de.ibm.com> <CAHGf_=rm286b5FWVRQ8Ob0vakxNcNOHPUksCtnZj4PvOEz47Jg@mail.gmail.com>
-In-Reply-To: <CAHGf_=rm286b5FWVRQ8Ob0vakxNcNOHPUksCtnZj4PvOEz47Jg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v830ygma3l0zgt@mpn-glaptop>
+In-Reply-To: <CAJd=RBByc_wLEJTK66J4eY03CWnCoCRiwAeEYjXCZ5xEZhp3ag@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <martin.schwidefsky@de.ibm.com>, Heiko Carstens <h.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Hillf Danton <dhillf@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 03.02.2012 00:00, KOSAKI Motohiro wrote:
-> 2012/2/2 Gerald Schaefer<gerald.schaefer@de.ibm.com>:
->> Setting a memory block offline triggers the following lockdep warning. This
->> looks exactly like the issue reported by Kosaki Motohiro in
->> https://lkml.org/lkml/2010/10/25/110. Seems like the resulting commit a0b0f58cdd
->> did not fix the lockdep warning. I'm able to reproduce it with current 3.3.0-rc2
->> as well as 2.6.37-rc4-00147-ga0b0f58.
+> On Fri, Feb 3, 2012 at 8:18 PM, Marek Szyprowski
+> <m.szyprowski@samsung.com> wrote:
+>> From: Michal Nazarewicz <mina86@mina86.com>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index d5174c4..a6e7c64 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -45,6 +45,11 @@ static void map_pages(struct list_head *list)
+>>        }
+>>  }
 >>
->> I'm not familiar with lockdep annotations, but I tried using down_read_nested()
->> for (memory_chain).rwsem, similar to the mutex_lock_nested() which was
->> introduced for ksm_thread_mutex, but that didn't help.
-> 
-> Heh, interesting. Simple question, do you have any user visible buggy
-> behavior? or just false positive warn issue?
-> 
-> *_nested() is just hacky trick. so, any change may break their lie.
-> Anyway I'd like to dig this one. thanks for reporting.
+>> +static inline bool migrate_async_suitable(int migratetype)
 
-There is no real deadlock and no user visible buggy behaviour, the memory is
-being offlined as requested. I think your conclusion from last time is still
-valid, that both locks are inside mem_hotplug_mutex and there can't be a
-deadlock. Question is how to convince lockdep of this.
+On Fri, 03 Feb 2012 15:19:54 +0100, Hillf Danton <dhillf@gmail.com> wrot=
+e:
+> Just nitpick, since the helper is not directly related to what async m=
+eans,
+> how about migrate_suitable(int migrate_type) ?
+
+I feel current name is better suited since it says that it's OK to scan =
+this
+block if it's an asynchronous compaction run.
+
+>> +{
+>> +       return is_migrate_cma(migratetype) || migratetype =3D=3D MIGR=
+ATE_MOVABLE;
+>> +}
+>> +
+>>  /*
+>>  * Isolate free pages onto a private freelist. Caller must hold zone-=
+>lock.
+>>  * If @strict is true, will abort returning 0 on any invalid PFNs or =
+non-free
+>> @@ -277,7 +282,7 @@ isolate_migratepages_range(struct zone *zone, str=
+uct compact_control *cc,
+>>                 */
+>>                pageblock_nr =3D low_pfn >> pageblock_order;
+>>                if (!cc->sync && last_pageblock_nr !=3D pageblock_nr &=
+&
+>> -                               get_pageblock_migratetype(page) !=3D =
+MIGRATE_MOVABLE) {
+>> +                   migrate_async_suitable(get_pageblock_migratetype(=
+page))) {
+>
+> Here compaction looks corrupted if CMA not enabled, Mel?
+
+Damn, yes, this should be !migrate_async_suitable(...).  Sorry about tha=
+t.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
