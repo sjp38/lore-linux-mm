@@ -1,34 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id AC8566B13F0
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 15:03:39 -0500 (EST)
-Received: by qauh8 with SMTP id h8so2844621qau.14
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 12:03:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B17F06B13F0
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2012 15:16:00 -0500 (EST)
+Received: by qcsd16 with SMTP id d16so2741265qcs.14
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2012 12:15:59 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120203113822.19cf6fd2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120203161140.GC13461@tiehlicka.suse.cz>
 References: <1328233033-14246-1-git-send-email-yinghan@google.com>
-	<20120203113822.19cf6fd2.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 3 Feb 2012 12:03:38 -0800
-Message-ID: <CALWz4ixtGPwDxsd8vnW=ErSh7zaVgO6m=6C7wxk2xmK69QnURQ@mail.gmail.com>
+	<20120203161140.GC13461@tiehlicka.suse.cz>
+Date: Fri, 3 Feb 2012 12:15:59 -0800
+Message-ID: <CALWz4iz48O2TcGOFaGw1_FyhzJ_7njgZ_p8cELcpDJuuKa=Gxg@mail.gmail.com>
 Subject: Re: [PATCH] memcg: fix up documentation on global LRU.
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-On Thu, Feb 2, 2012 at 6:38 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, =A02 Feb 2012 17:37:13 -0800
-> Ying Han <yinghan@google.com> wrote:
->
+On Fri, Feb 3, 2012 at 8:11 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 02-02-12 17:37:13, Ying Han wrote:
 >> In v3.3-rc1, the global LRU has been removed with commit
 >> "mm: make per-memcg LRU lists exclusive". The patch fixes up the memcg d=
 ocs.
 >>
 >> Signed-off-by: Ying Han <yinghan@google.com>
+>
+> For the global LRU removal
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+>
+> see the comment about the swap extension bellow.
+>
+> Thanks
+>
 >> ---
 >> =A0Documentation/cgroups/memory.txt | =A0 25 ++++++++++++-------------
 >> =A01 files changed, 12 insertions(+), 13 deletions(-)
@@ -38,32 +43,7 @@ mory.txt
 >> index 4c95c00..847a2a4 100644
 >> --- a/Documentation/cgroups/memory.txt
 >> +++ b/Documentation/cgroups/memory.txt
->> @@ -34,8 +34,7 @@ Current Status: linux-2.6.34-mmotm(development version=
- of 2010/April)
->>
->> =A0Features:
->> =A0 - accounting anonymous pages, file caches, swap caches usage and lim=
-iting them.
->> - - private LRU and reclaim routine. (system's global LRU and private LR=
-U
->> - =A0 work independently from each other)
->> + - pages are linked to per-memcg LRU exclusively, and there is no globa=
-l LRU.
->> =A0 - optionally, memory+swap usage can be accounted and limited.
->> =A0 - hierarchical accounting
->> =A0 - soft limit
->> @@ -154,7 +153,7 @@ updated. page_cgroup has its own LRU on cgroup.
->> =A02.2.1 Accounting details
->>
->> =A0All mapped anon pages (RSS) and cache pages (Page Cache) are accounte=
-d.
->> -Some pages which are never reclaimable and will not be on the global LR=
-U
->> +Some pages which are never reclaimable and will not be on the LRU
->> =A0are not accounted. We just account pages under usual VM management.
->>
->> =A0RSS pages are accounted at page_fault unless they've already been acc=
-ounted
+> [...]
 >> @@ -209,19 +208,19 @@ In this case, setting memsw.limit_in_bytes=3D3G wi=
 ll prevent bad use of swap.
 >> =A0By using memsw limit, you can avoid system OOM which can be caused by=
@@ -93,39 +73,48 @@ orbid
 >> +
 >> +TODO:
 >> +* use 'memory+swap' rather than swap was due to existence of global LRU=
-. It can
->> +swap out arbitrary pages. Swap-out means to move account from memory to=
- swap...
->> +there is no change in usage of memory+swap. In other words, when we wan=
-t to
->> +limit the usage of swap without affecting global LRU, memory+swap limit=
- is
->> +better than just limiting swap from OS point of view. However, the glob=
-al LRU
->> +has been removed now and all pages are linked in private LRU. We might =
-want to
->> +revisit this in the future.
->>
->
-> Could you devide this memory+swap discussion to otehr patch ?
+.
 
-yes, will do that.
+I wasn't sure about the initial comment while making the patch. Since
+it mentions something about global LRU, which i figured we need to
+revisit it anyway.
 
->
-> Do you want to do memory locking by setting swap_limit=3D0 ?
+> Not really. It also helped inter-cgroup behavior. Consider an (anon) mem
+> hog which goes wild. You could end up with a full swap until it gets
+> killed which might be quite some time. With the swap extension, on the
+> other hand, you are able to stop it before it does too much damage.
 
-hmm, not sure what do you mean here?
+First of all, let me understand what are we comparing here. Is this
+comment about to compare 'memory+swap' vs 'memory' + 'swap', the later
+one is setting swap as separate limit ?
+
+If so, here was my interpretation of the initial comment: due to the
+existence of global LRU, random pages will be shoot down to swap from
+any memcg, which in turn change the 'memory' and 'swap' at the same
+time. While keeping 'memory+swap' per-memcg remains no change while
+that happens.
+
+Am I understanding it correctly? btw: I was warned that putting
+separate limit on swap doesn't make much sense.
+
+Thank you
 
 --Ying
+
+
+
+
+
+
 >
-> Thanks,
-> -Kame
 >
->
->
->
->
->
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
