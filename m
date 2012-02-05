@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id A05236B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 05:52:17 -0500 (EST)
-Received: by bkbzs2 with SMTP id zs2so5330091bkb.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 02:52:15 -0800 (PST)
-Message-ID: <4F2E5F5C.2080207@openvz.org>
-Date: Sun, 05 Feb 2012 14:52:12 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 40D896B002C
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 06:38:33 -0500 (EST)
+Received: by wera13 with SMTP id a13so4957885wer.14
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 03:38:31 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: convert rcu_read_lock() to srcu_read_lock(),
- thus allowing to sleep in callbacks
-References: <y> <4f25649b.8253b40a.3800.319d@mx.google.com> <4F2E5853.2060605@mellanox.com>
-In-Reply-To: <4F2E5853.2060605@mellanox.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <201202051107.26634.toralf.foerster@gmx.de>
+References: <201202041109.53003.toralf.foerster@gmx.de>
+	<201202041536.52189.toralf.foerster@gmx.de>
+	<CAJd=RBC-aceg6JUzGEfD3hcwv+0yd2M_N9kpS0v-JDMMKFaj_Q@mail.gmail.com>
+	<201202051107.26634.toralf.foerster@gmx.de>
+Date: Sun, 5 Feb 2012 19:38:31 +0800
+Message-ID: <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
+Subject: Re: swap storm since kernel 3.2.x
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sagig <sagig@mellanox.com>
-Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "gleb@redhat.com" <gleb@redhat.com>, "oren@mellanox.com" <oren@mellanox.com>, "ogerlitz@mellanox.com" <ogerlitz@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: =?UTF-8?Q?Toralf_F=C3=B6rster?= <toralf.foerster@gmx.de>
+Cc: Johannes Stezenbach <js@sig21.net>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-sagig wrote:
-> Hey all,
+2012/2/5 Toralf F=C3=B6rster <toralf.foerster@gmx.de>:
 >
-> I've published this patch [requested for comments] last week, But got no
-> responses.
-> Since I'm not sure what to do if  init_srcu_struct() call fails (it
-> might due to memory pressure), I'm interested in the community's advice
-> on how to act.
+> Hillf Danton wrote at 05:45:40
+>> Would you please try the patchset of Rik?
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0https://lkml.org/lkml/2012/1/26/374
 >
-> Thanks,
+> It doesn't applied successfully agains 3.2.3 (+patch +f 3.2.5)
+> :-(
 >
+That patchset already in -next tree, mind to try it with
+CONFIG_SLUB_DEBUG first disabled, and try again with it enabled?
 
-Your patch is completely wrong.
-There must be one shared srcu_struct structure.
-Please read how rcu works in Documentation/RCU/
-
-Thanks.
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
