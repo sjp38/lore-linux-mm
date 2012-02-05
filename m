@@ -1,153 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 55B4D6B13F0
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 11:29:22 -0500 (EST)
-Received: by wera13 with SMTP id a13so5084268wer.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 08:29:19 -0800 (PST)
-From: sagig@mellanox.com
-Subject: [PATCH RFC V1] mm: convert rcu_read_lock() to srcu_read_lock(), thus allowing to sleep in callbacks
-Date: Sun,  5 Feb 2012 18:29:12 +0200
-Message-Id: <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com>
-In-Reply-To: <y>
-References: <y>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 088FD6B13F0
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 11:59:38 -0500 (EST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sun, 5 Feb 2012 09:59:37 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 66F513E40036
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 09:59:31 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q15GxVS6141480
+	for <linux-mm@kvack.org>; Sun, 5 Feb 2012 09:59:31 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q15GxUbB010614
+	for <linux-mm@kvack.org>; Sun, 5 Feb 2012 09:59:31 -0700
+Date: Sun, 5 Feb 2012 08:59:27 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+Message-ID: <20120205165927.GH2467@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20120201184045.GG2382@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1202011404500.2074@router.home>
+ <20120201201336.GI2382@linux.vnet.ibm.com>
+ <4F2A58A1.90800@redhat.com>
+ <20120202153437.GD2518@linux.vnet.ibm.com>
+ <4F2AB66C.2030309@redhat.com>
+ <20120202170134.GM2518@linux.vnet.ibm.com>
+ <4F2AC69B.7000704@redhat.com>
+ <20120202175155.GV2518@linux.vnet.ibm.com>
+ <4F2E7311.8060808@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F2E7311.8060808@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com
-Cc: ogerlitz@mellanox.com, gleb@redhat.com, oren@mellanox.com, linux-mm@kvack.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation callbacks
-(such as invalidate_page, invalidate_range_start/end and change_pte) .
-This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods.
+On Sun, Feb 05, 2012 at 02:16:17PM +0200, Avi Kivity wrote:
+> On 02/02/2012 07:51 PM, Paul E. McKenney wrote:
+> > On Thu, Feb 02, 2012 at 07:23:39PM +0200, Avi Kivity wrote:
+> > > On 02/02/2012 07:01 PM, Paul E. McKenney wrote:
+> > > > > 
+> > > > > It's not called (since the cpu is not idle).  Instead we call
+> > > > > rcu_virt_note_context_switch().
+> > > >
+> > > > Frederic's work checks to see if there is only one runnable user task
+> > > > on a given CPU.  If there is only one, then the scheduling-clock interrupt
+> > > > is turned off for that CPU, and RCU is told to ignore it while it is
+> > > > executing in user space.  Not sure whether this covers KVM guests.
+> > > 
+> > > Conceptually it's the same.  Maybe it needs adjustments, since kvm
+> > > enters a guest in a different way than the kernel exits to userspace.
+> > > 
+> > > > In any case, this is not yet in mainline.
+> > > 
+> > > Let me know when it's in, and I'll have a look.
+> >
+> > Could you please touch base with Frederic Weisbecker to make sure that
+> > what he is doing works for you?
+> 
+> Looks like there are new rcu_user_enter() and rcu_user_exit() APIs which
+> we can use.  Hopefully they subsume rcu_virt_note_context_switch() so we
+> only need one set of APIs.
 
-Signed-off-by: sagi grimberg <sagig@mellanox.co.il>
----
- changes from V0:
- 1. srcu_struct should be shared and not allocated in each callback - removed from callbacks
- 2. added srcu_struct under mmu_notifier_mm
- 3. init_srcu_struct when creating mmu_notifier_mm
- 4. srcu_cleanup when destroying mmu_notifier_mm
+Now that you mention it, that is a good goal.  However, it requires
+coordination with Frederic's code as well, so some investigation
+is required.  Bad things happen if you tell RCU you are idle when you
+really are not and vice versa!
 
- include/linux/mmu_notifier.h |    3 +++
- mm/mmu_notifier.c            |   23 +++++++++++++++--------
- 2 files changed, 18 insertions(+), 8 deletions(-)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 1d1b1e1..f3d6f30 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -4,6 +4,7 @@
- #include <linux/list.h>
- #include <linux/spinlock.h>
- #include <linux/mm_types.h>
-+#include <linux/srcu.h>
- 
- struct mmu_notifier;
- struct mmu_notifier_ops;
-@@ -21,6 +22,8 @@ struct mmu_notifier_mm {
- 	struct hlist_head list;
- 	/* to serialize the list modifications and hlist_unhashed */
- 	spinlock_t lock;
-+	/* to enable sleeping in callbacks */
-+	struct srcu_struct srcu;
- };
- 
- struct mmu_notifier_ops {
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 9a611d3..3d4f007 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -123,10 +123,11 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
- void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
- 			       pte_t pte)
- {
-+	int idx;
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
-+	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->change_pte)
- 			mn->ops->change_pte(mn, mm, address, pte);
-@@ -137,49 +138,52 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
- 		else if (mn->ops->invalidate_page)
- 			mn->ops->invalidate_page(mn, mm, address);
- 	}
--	rcu_read_unlock();
-+	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
- }
- 
- void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
-+	int idx;
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
-+	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->invalidate_page)
- 			mn->ops->invalidate_page(mn, mm, address);
- 	}
--	rcu_read_unlock();
-+	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
- }
- 
- void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-+	int idx;
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
-+	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->invalidate_range_start)
- 			mn->ops->invalidate_range_start(mn, mm, start, end);
- 	}
--	rcu_read_unlock();
-+	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
- }
- 
- void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-+	int idx;
- 	struct mmu_notifier *mn;
- 	struct hlist_node *n;
- 
--	rcu_read_lock();
-+	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
- 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->invalidate_range_end)
- 			mn->ops->invalidate_range_end(mn, mm, start, end);
- 	}
--	rcu_read_unlock();
-+	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
- }
- 
- static int do_mmu_notifier_register(struct mmu_notifier *mn,
-@@ -204,6 +208,8 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 
- 	if (!mm_has_notifiers(mm)) {
- 		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
-+		if (init_srcu_struct(&mmu_notifier_mm->srcu))
-+			goto out_cleanup;
- 		spin_lock_init(&mmu_notifier_mm->lock);
- 		mm->mmu_notifier_mm = mmu_notifier_mm;
- 		mmu_notifier_mm = NULL;
-@@ -266,6 +272,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
- void __mmu_notifier_mm_destroy(struct mm_struct *mm)
- {
- 	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
-+	cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
- 	kfree(mm->mmu_notifier_mm);
- 	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
- }
--- 
-1.7.8.2
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
