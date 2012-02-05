@@ -1,174 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 179A46B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 11:04:09 -0500 (EST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Sun, 5 Feb 2012 15:48:52 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q15Fx5SK3551446
-	for <linux-mm@kvack.org>; Mon, 6 Feb 2012 02:59:05 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q15G420q025310
-	for <linux-mm@kvack.org>; Mon, 6 Feb 2012 03:04:03 +1100
-Message-ID: <4F2EA869.2080505@linux.vnet.ibm.com>
-Date: Sun, 05 Feb 2012 21:33:53 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v8 4/8] smp: add func to IPI cpus based on parameter func
-References: <1328448800-15794-1-git-send-email-gilad@benyossef.com> <1328449722-15959-3-git-send-email-gilad@benyossef.com> <4F2EA206.3000707@linux.vnet.ibm.com> <CAOtvUMdqpwOedhZHq6QpUnDyg1FzfK_K3=9HQujjoN9yU3XWnA@mail.gmail.com> <4F2EA785.9070706@linux.vnet.ibm.com>
-In-Reply-To: <4F2EA785.9070706@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 55B4D6B13F0
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 11:29:22 -0500 (EST)
+Received: by wera13 with SMTP id a13so5084268wer.14
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 08:29:19 -0800 (PST)
+From: sagig@mellanox.com
+Subject: [PATCH RFC V1] mm: convert rcu_read_lock() to srcu_read_lock(), thus allowing to sleep in callbacks
+Date: Sun,  5 Feb 2012 18:29:12 +0200
+Message-Id: <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com>
+In-Reply-To: <y>
+References: <y>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Milton Miller <miltonm@bga.com>
+To: aarcange@redhat.com
+Cc: ogerlitz@mellanox.com, gleb@redhat.com, oren@mellanox.com, linux-mm@kvack.org
 
-On 02/05/2012 09:30 PM, Srivatsa S. Bhat wrote:
+Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation callbacks
+(such as invalidate_page, invalidate_range_start/end and change_pte) .
+This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods.
 
-> On 02/05/2012 09:16 PM, Gilad Ben-Yossef wrote:
-> 
->> On Sun, Feb 5, 2012 at 5:36 PM, Srivatsa S. Bhat
->> <srivatsa.bhat@linux.vnet.ibm.com> wrote:
->>> On 02/05/2012 07:18 PM, Gilad Ben-Yossef wrote:
->>>
->>>> Add the on_each_cpu_cond() function that wraps on_each_cpu_mask()
->>>> and calculates the cpumask of cpus to IPI by calling a function supplied
->>>> as a parameter in order to determine whether to IPI each specific cpu.
->>>>
->>>> The function works around allocation failure of cpumask variable in
->>>> CONFIG_CPUMASK_OFFSTACK=y by itereating over cpus sending an IPI a
->>>> time via smp_call_function_single().
->>>>
->>>> The function is useful since it allows to seperate the specific
->>>> code that decided in each case whether to IPI a specific cpu for
->>>> a specific request from the common boilerplate code of handling
->>>> creating the mask, handling failures etc.
->>>>
->>>> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
->>> ...
->>>> diff --git a/include/linux/smp.h b/include/linux/smp.h
->>>> index d0adb78..da4d034 100644
->>>> --- a/include/linux/smp.h
->>>> +++ b/include/linux/smp.h
->>>> @@ -109,6 +109,15 @@ void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
->>>>               void *info, bool wait);
->>>>
->>>>  /*
->>>> + * Call a function on each processor for which the supplied function
->>>> + * cond_func returns a positive value. This may include the local
->>>> + * processor.
->>>> + */
->>>> +void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
->>>> +             smp_call_func_t func, void *info, bool wait,
->>>> +             gfp_t gfp_flags);
->>>> +
->>>> +/*
->>>>   * Mark the boot cpu "online" so that it can call console drivers in
->>>>   * printk() and can access its per-cpu storage.
->>>>   */
->>>> @@ -153,6 +162,21 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
->>>>                       local_irq_enable();             \
->>>>               }                                       \
->>>>       } while (0)
->>>> +/*
->>>> + * Preemption is disabled here to make sure the
->>>> + * cond_func is called under the same condtions in UP
->>>> + * and SMP.
->>>> + */
->>>> +#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags) \
->>>> +     do {                                            \
->>>> +             preempt_disable();                      \
->>>> +             if (cond_func(0, info)) {               \
->>>> +                     local_irq_disable();            \
->>>> +                     (func)(info);                   \
->>>> +                     local_irq_enable();             \
->>>> +             }                                       \
->>>> +             preempt_enable();                       \
->>>> +     } while (0)
->>>>
->>>>  static inline void smp_send_reschedule(int cpu) { }
->>>>  #define num_booting_cpus()                   1
->>>> diff --git a/kernel/smp.c b/kernel/smp.c
->>>> index a081e6c..28cbcc5 100644
->>>> --- a/kernel/smp.c
->>>> +++ b/kernel/smp.c
->>>> @@ -730,3 +730,63 @@ void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
->>>>       put_cpu();
->>>>  }
->>>>  EXPORT_SYMBOL(on_each_cpu_mask);
->>>> +
->>>> +/*
->>>> + * on_each_cpu_cond(): Call a function on each processor for which
->>>> + * the supplied function cond_func returns true, optionally waiting
->>>> + * for all the required CPUs to finish. This may include the local
->>>> + * processor.
->>>> + * @cond_func:       A callback function that is passed a cpu id and
->>>> + *           the the info parameter. The function is called
->>>> + *           with preemption disabled. The function should
->>>> + *           return a blooean value indicating whether to IPI
->>>> + *           the specified CPU.
->>>> + * @func:    The function to run on all applicable CPUs.
->>>> + *           This must be fast and non-blocking.
->>>> + * @info:    An arbitrary pointer to pass to both functions.
->>>> + * @wait:    If true, wait (atomically) until function has
->>>> + *           completed on other CPUs.
->>>> + * @gfp_flags:       GFP flags to use when allocating the cpumask
->>>> + *           used internally by the function.
->>>> + *
->>>> + * The function might sleep if the GFP flags indicates a non
->>>> + * atomic allocation is allowed.
->>>> + *
->>>> + * Preemption is disabled to protect against a hotplug event.
->>>
->>>
->>> Well, disabling preemption protects us only against CPU offline right?
->>> (because we use the stop_machine thing during cpu offline).
->>>
->>> What about CPU online?
->>>
->>> Just to cross-check my understanding of the code with the existing
->>> documentation on CPU hotplug, I looked up Documentation/cpu-hotplug.txt
->>> and this is what I found:
->>>
->>> "If you merely need to avoid cpus going away, you could also use
->>> preempt_disable() and preempt_enable() for those sections....
->>> ...The preempt_disable() will work as long as stop_machine_run() is used
->>> to take a cpu down."
->>>
->>> So even this only talks about using preempt_disable() to prevent CPU offline,
->>> not CPU online. Or, am I missing something?
->>
->> You are not missing anything, this is simply a bad choice of words on my part.
->> Thank you for pointing this out.
->>
->> I should write:
->>
->> " Preemption is disabled to protect against CPU going offline but not online.
->>   CPUs going online during the call will not be seen or sent an IPI."
->>
-> 
-> 
-> Yeah, that sounds better.
-> 
->> Protecting against CPU going online during the function is useless
->> since they might
->> as well go online right after the call is finished, so the caller has
->> to take care of it, if they
->> cares.
->>
-> 
-> 
-> Ah, makes sense, thanks!
-> 
+Signed-off-by: sagi grimberg <sagig@mellanox.co.il>
+---
+ changes from V0:
+ 1. srcu_struct should be shared and not allocated in each callback - removed from callbacks
+ 2. added srcu_struct under mmu_notifier_mm
+ 3. init_srcu_struct when creating mmu_notifier_mm
+ 4. srcu_cleanup when destroying mmu_notifier_mm
 
+ include/linux/mmu_notifier.h |    3 +++
+ mm/mmu_notifier.c            |   23 +++++++++++++++--------
+ 2 files changed, 18 insertions(+), 8 deletions(-)
 
-Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-
-Regards,
-Srivatsa S. Bhat
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 1d1b1e1..f3d6f30 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -4,6 +4,7 @@
+ #include <linux/list.h>
+ #include <linux/spinlock.h>
+ #include <linux/mm_types.h>
++#include <linux/srcu.h>
+ 
+ struct mmu_notifier;
+ struct mmu_notifier_ops;
+@@ -21,6 +22,8 @@ struct mmu_notifier_mm {
+ 	struct hlist_head list;
+ 	/* to serialize the list modifications and hlist_unhashed */
+ 	spinlock_t lock;
++	/* to enable sleeping in callbacks */
++	struct srcu_struct srcu;
+ };
+ 
+ struct mmu_notifier_ops {
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 9a611d3..3d4f007 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -123,10 +123,11 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
+ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ 			       pte_t pte)
+ {
++	int idx;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->change_pte)
+ 			mn->ops->change_pte(mn, mm, address, pte);
+@@ -137,49 +138,52 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ 		else if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
++	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+ }
+ 
+ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
++	int idx;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	rcu_read_unlock();
++	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+ }
+ 
+ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
++	int idx;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_start)
+ 			mn->ops->invalidate_range_start(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
++	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+ }
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
++	int idx;
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+ 
+-	rcu_read_lock();
++	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_end)
+ 			mn->ops->invalidate_range_end(mn, mm, start, end);
+ 	}
+-	rcu_read_unlock();
++	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+ }
+ 
+ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+@@ -204,6 +208,8 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 
+ 	if (!mm_has_notifiers(mm)) {
+ 		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
++		if (init_srcu_struct(&mmu_notifier_mm->srcu))
++			goto out_cleanup;
+ 		spin_lock_init(&mmu_notifier_mm->lock);
+ 		mm->mmu_notifier_mm = mmu_notifier_mm;
+ 		mmu_notifier_mm = NULL;
+@@ -266,6 +272,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
+ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
+ {
+ 	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
++	cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
+ 	kfree(mm->mmu_notifier_mm);
+ 	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
+ }
+-- 
+1.7.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
