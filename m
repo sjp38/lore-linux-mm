@@ -1,11 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id AB9FC6B13F1
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 03:15:57 -0500 (EST)
-Date: Sun, 5 Feb 2012 16:15:50 +0800
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 6F4B06B13F2
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 03:16:03 -0500 (EST)
+Date: Sun, 5 Feb 2012 16:15:55 +0800
 From: Dave Young <dyoung@redhat.com>
-Subject: [PATCH 2/3] move slabinfo.c to tools/vm
-Message-ID: <20120205081550.GA2247@darkstar.redhat.com>
+Subject: [PATCH 3/3] move hugepage test examples to
+ tools/testing/selftests/vm
+Message-ID: <20120205081555.GA2249@darkstar.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,36 +15,317 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com, cl@linux.com
 
-We have tools/vm/ folder for vm tools, so move slabinfo.c
-from tools/slub/ to tools/vm/
+hugepage-mmap.c, hugepage-shm.c and map_hugetlb.c in Documentation/vm are
+simple pass/fail tests, It's better to promote them to tools/testing/selftests
+
+Thanks suggestion of Andrew Morton about this. They all need firstly setting up
+proper nr_hugepages and hugepage-mmap need to mount hugetlbfs. So I add a shell
+script run_test to do such work which will call the three test programs and
+check the return value of them.
+
+Changes to original code including below:
+a. add run_test script
+b. return error when read_bytes mismatch with writed bytes.
+c. coding style fixes: do not use assignment in if condition
 
 Signed-off-by: Dave Young <dyoung@redhat.com>
 ---
- tools/vm/Makefile             |    4 ++--
- tools/{slub => vm}/slabinfo.c |    0
- 2 files changed, 2 insertions(+), 2 deletions(-)
- rename tools/{slub => vm}/slabinfo.c (100%)
+ Documentation/vm/Makefile                          |    8 --
+ tools/testing/selftests/Makefile                   |    2 +-
+ tools/testing/selftests/run_tests                  |    6 +-
+ tools/testing/selftests/vm/Makefile                |   11 +++
+ .../testing/selftests}/vm/hugepage-mmap.c          |   13 ++--
+ .../testing/selftests}/vm/hugepage-shm.c           |   10 ++-
+ .../testing/selftests}/vm/map_hugetlb.c            |   10 ++-
+ tools/testing/selftests/vm/run_test                |   77 ++++++++++++++++++++
+ 8 files changed, 112 insertions(+), 25 deletions(-)
+ delete mode 100644 Documentation/vm/Makefile
+ create mode 100644 tools/testing/selftests/vm/Makefile
+ rename {Documentation => tools/testing/selftests}/vm/hugepage-mmap.c (93%)
+ rename {Documentation => tools/testing/selftests}/vm/hugepage-shm.c (94%)
+ rename {Documentation => tools/testing/selftests}/vm/map_hugetlb.c (94%)
+ create mode 100755 tools/testing/selftests/vm/run_test
 
-diff --git a/tools/vm/Makefile b/tools/vm/Makefile
-index 3823d4b..8e30e5c 100644
---- a/tools/vm/Makefile
-+++ b/tools/vm/Makefile
-@@ -3,9 +3,9 @@
- CC = $(CROSS_COMPILE)gcc
- CFLAGS = -Wall -Wextra
+diff --git a/Documentation/vm/Makefile b/Documentation/vm/Makefile
+deleted file mode 100644
+index e538864..0000000
+--- a/Documentation/vm/Makefile
++++ /dev/null
+@@ -1,8 +0,0 @@
+-# kbuild trick to avoid linker error. Can be omitted if a module is built.
+-obj- := dummy.o
+-
+-# List of programs to build
+-hostprogs-y := hugepage-mmap hugepage-shm map_hugetlb
+-
+-# Tell kbuild to always build the programs
+-always := $(hostprogs-y)
+diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
+index 4ec8401..9a72fe5 100644
+--- a/tools/testing/selftests/Makefile
++++ b/tools/testing/selftests/Makefile
+@@ -1,4 +1,4 @@
+-TARGETS = breakpoints
++TARGETS = breakpoints vm
  
--all: page-types
-+all: page-types slabinfo
- %: %.c
- 	$(CC) $(CFLAGS) -o $@ $^
+ all:
+ 	for TARGET in $(TARGETS); do \
+diff --git a/tools/testing/selftests/run_tests b/tools/testing/selftests/run_tests
+index 320718a..1f4a5ef 100644
+--- a/tools/testing/selftests/run_tests
++++ b/tools/testing/selftests/run_tests
+@@ -1,8 +1,10 @@
+ #!/bin/bash
  
- clean:
--	$(RM) page-types
-+	$(RM) page-types slabinfo
-diff --git a/tools/slub/slabinfo.c b/tools/vm/slabinfo.c
-similarity index 100%
-rename from tools/slub/slabinfo.c
-rename to tools/vm/slabinfo.c
+-TARGETS=breakpoints
++TARGETS="breakpoints vm"
+ 
+ for TARGET in $TARGETS
+ do
+-	$TARGET/run_test
++	cd "$TARGET"
++	./run_test
++	cd ..
+ done
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+new file mode 100644
+index 0000000..537ec38
+--- /dev/null
++++ b/tools/testing/selftests/vm/Makefile
+@@ -0,0 +1,11 @@
++# Makefile for vm selftests
++
++CC = $(CROSS_COMPILE)gcc
++CFLAGS = -Wall -Wextra
++
++all: hugepage-mmap hugepage-shm  map_hugetlb
++%: %.c
++	$(CC) $(CFLAGS) -o $@ $^
++
++clean:
++	$(RM) hugepage-mmap hugepage-shm  map_hugetlb
+diff --git a/Documentation/vm/hugepage-mmap.c b/tools/testing/selftests/vm/hugepage-mmap.c
+similarity index 93%
+rename from Documentation/vm/hugepage-mmap.c
+rename to tools/testing/selftests/vm/hugepage-mmap.c
+index db0dd9a..a10f310 100644
+--- a/Documentation/vm/hugepage-mmap.c
++++ b/tools/testing/selftests/vm/hugepage-mmap.c
+@@ -22,7 +22,7 @@
+ #include <sys/mman.h>
+ #include <fcntl.h>
+ 
+-#define FILE_NAME "/mnt/hugepagefile"
++#define FILE_NAME "huge/hugepagefile"
+ #define LENGTH (256UL*1024*1024)
+ #define PROTECTION (PROT_READ | PROT_WRITE)
+ 
+@@ -48,7 +48,7 @@ static void write_bytes(char *addr)
+ 		*(addr + i) = (char)i;
+ }
+ 
+-static void read_bytes(char *addr)
++static int read_bytes(char *addr)
+ {
+ 	unsigned long i;
+ 
+@@ -56,14 +56,15 @@ static void read_bytes(char *addr)
+ 	for (i = 0; i < LENGTH; i++)
+ 		if (*(addr + i) != (char)i) {
+ 			printf("Mismatch at %lu\n", i);
+-			break;
++			return 1;
+ 		}
++	return 0;
+ }
+ 
+ int main(void)
+ {
+ 	void *addr;
+-	int fd;
++	int fd, ret;
+ 
+ 	fd = open(FILE_NAME, O_CREAT | O_RDWR, 0755);
+ 	if (fd < 0) {
+@@ -81,11 +82,11 @@ int main(void)
+ 	printf("Returned address is %p\n", addr);
+ 	check_bytes(addr);
+ 	write_bytes(addr);
+-	read_bytes(addr);
++	ret = read_bytes(addr);
+ 
+ 	munmap(addr, LENGTH);
+ 	close(fd);
+ 	unlink(FILE_NAME);
+ 
+-	return 0;
++	return ret;
+ }
+diff --git a/Documentation/vm/hugepage-shm.c b/tools/testing/selftests/vm/hugepage-shm.c
+similarity index 94%
+rename from Documentation/vm/hugepage-shm.c
+rename to tools/testing/selftests/vm/hugepage-shm.c
+index 07956d8..0d0ef4f 100644
+--- a/Documentation/vm/hugepage-shm.c
++++ b/tools/testing/selftests/vm/hugepage-shm.c
+@@ -57,8 +57,8 @@ int main(void)
+ 	unsigned long i;
+ 	char *shmaddr;
+ 
+-	if ((shmid = shmget(2, LENGTH,
+-			    SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W)) < 0) {
++	shmid = shmget(2, LENGTH, SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
++	if (shmid < 0) {
+ 		perror("shmget");
+ 		exit(1);
+ 	}
+@@ -82,14 +82,16 @@ int main(void)
+ 
+ 	dprintf("Starting the Check...");
+ 	for (i = 0; i < LENGTH; i++)
+-		if (shmaddr[i] != (char)i)
++		if (shmaddr[i] != (char)i) {
+ 			printf("\nIndex %lu mismatched\n", i);
++			exit(3);
++		}
+ 	dprintf("Done.\n");
+ 
+ 	if (shmdt((const void *)shmaddr) != 0) {
+ 		perror("Detach failure");
+ 		shmctl(shmid, IPC_RMID, NULL);
+-		exit(3);
++		exit(4);
+ 	}
+ 
+ 	shmctl(shmid, IPC_RMID, NULL);
+diff --git a/Documentation/vm/map_hugetlb.c b/tools/testing/selftests/vm/map_hugetlb.c
+similarity index 94%
+rename from Documentation/vm/map_hugetlb.c
+rename to tools/testing/selftests/vm/map_hugetlb.c
+index eda1a6d..ac56639 100644
+--- a/Documentation/vm/map_hugetlb.c
++++ b/tools/testing/selftests/vm/map_hugetlb.c
+@@ -44,7 +44,7 @@ static void write_bytes(char *addr)
+ 		*(addr + i) = (char)i;
+ }
+ 
+-static void read_bytes(char *addr)
++static int read_bytes(char *addr)
+ {
+ 	unsigned long i;
+ 
+@@ -52,13 +52,15 @@ static void read_bytes(char *addr)
+ 	for (i = 0; i < LENGTH; i++)
+ 		if (*(addr + i) != (char)i) {
+ 			printf("Mismatch at %lu\n", i);
+-			break;
++			return 1;
+ 		}
++	return 0;
+ }
+ 
+ int main(void)
+ {
+ 	void *addr;
++	int ret;
+ 
+ 	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
+ 	if (addr == MAP_FAILED) {
+@@ -69,9 +71,9 @@ int main(void)
+ 	printf("Returned address is %p\n", addr);
+ 	check_bytes(addr);
+ 	write_bytes(addr);
+-	read_bytes(addr);
++	ret = read_bytes(addr);
+ 
+ 	munmap(addr, LENGTH);
+ 
+-	return 0;
++	return ret;
+ }
+diff --git a/tools/testing/selftests/vm/run_test b/tools/testing/selftests/vm/run_test
+new file mode 100755
+index 0000000..33d355d
+--- /dev/null
++++ b/tools/testing/selftests/vm/run_test
+@@ -0,0 +1,77 @@
++#!/bin/bash
++#please run as root
++
++#we need 256M, below is the size in kB
++needmem=262144
++mnt=./huge
++
++#get pagesize and freepages from /proc/meminfo
++while read name size unit; do
++	if [ "$name" = "HugePages_Free:" ]; then
++		freepgs=$size
++	fi
++	if [ "$name" = "Hugepagesize:" ]; then
++		pgsize=$size
++	fi
++done < /proc/meminfo
++
++#set proper nr_hugepages
++if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
++	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
++	needpgs=`expr $needmem / $pgsize`
++	if [ $freepgs -lt $needpgs ]; then
++		lackpgs=$(( $needpgs - $freepgs ))
++		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
++		if [ $? -ne 0 ]; then
++			echo "Please run this test as root"
++			exit 1
++		fi
++	fi
++else
++	echo "no hugetlbfs support in kernel?"
++	exit 1
++fi
++
++mkdir $mnt
++mount -t hugetlbfs none $mnt
++
++echo "--------------------"
++echo "runing hugepage-mmap"
++echo "--------------------"
++./hugepage-mmap
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++else
++	echo "[PASS]"
++fi
++
++shmmax=`cat /proc/sys/kernel/shmmax`
++shmall=`cat /proc/sys/kernel/shmall`
++echo 268435456 > /proc/sys/kernel/shmmax
++echo 4194304 > /proc/sys/kernel/shmall
++echo "--------------------"
++echo "runing hugepage-shm"
++echo "--------------------"
++./hugepage-shm
++echo $shmmax > /proc/sys/kernel/shmmax
++echo $shmall > /proc/sys/kernel/shmall
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++else
++	echo "[PASS]"
++fi
++
++echo "--------------------"
++echo "runing map_hugetlb"
++echo "--------------------"
++./map_hugetlb
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++else
++	echo "[PASS]"
++fi
++
++#cleanup
++umount $mnt
++rm -rf $mnt
++echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
 -- 
 1.7.4.4
 
