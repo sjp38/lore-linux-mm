@@ -1,37 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id AB98A6B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 10:11:15 -0500 (EST)
-Date: Sun, 5 Feb 2012 23:00:59 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [LSF/MM][ATTEND] readahead and writeback
-Message-ID: <20120205150059.GA32739@localhost>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 44C2F6B002C
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 10:18:47 -0500 (EST)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Sun, 5 Feb 2012 20:48:44 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q15FIb2T4173850
+	for <linux-mm@kvack.org>; Sun, 5 Feb 2012 20:48:38 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q15FIakK025945
+	for <linux-mm@kvack.org>; Mon, 6 Feb 2012 02:18:37 +1100
+Message-ID: <4F2E9DC7.1070702@linux.vnet.ibm.com>
+Date: Sun, 05 Feb 2012 20:48:31 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH v8 1/8] smp: introduce a generic on_each_cpu_mask function
+References: <1328448800-15794-1-git-send-email-gilad@benyossef.com> <1328449499-15886-1-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1328449499-15886-1-git-send-email-gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-I would like to attend to participate in the readahead and writeback
-discussions. My questions are
+On 02/05/2012 07:14 PM, Gilad Ben-Yossef wrote:
 
-- readahead size and alignment, hope that we can reach some general
-  agreements on the policy stuff
+> on_each_cpu_mask calls a function on processors specified by
+> cpumask, which may or may not include the local processor.
+> 
+> You must not call this function with disabled interrupts or
+> from a hardware interrupt handler or from a bottom half handler.
+> 
+> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Reviewed-by: Christoph Lameter <cl@linux.com>
+> CC: Chris Metcalf <cmetcalf@tilera.com>
+> CC: Frederic Weisbecker <fweisbec@gmail.com>
+> CC: Russell King <linux@arm.linux.org.uk>
+> CC: linux-mm@kvack.org
+> CC: Pekka Enberg <penberg@kernel.org>
+> CC: Matt Mackall <mpm@selenic.com>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Andi Kleen <andi@firstfloor.org>
+> CC: Sasha Levin <levinsasha928@gmail.com>
+> CC: Mel Gorman <mel@csn.ul.ie>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Alexander Viro <viro@zeniv.linux.org.uk>
+> CC: linux-fsdevel@vger.kernel.org
+> CC: Avi Kivity <avi@redhat.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
+> CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
+> CC: Milton Miller <miltonm@bga.com>
+> ---
 
-- async write I/O bandwidth controller, will it be a good complement
-  feature to the current blk-cgroup I/O controller? Each seem to have
-  its own strong areas and weak points.
 
-- per-memcg dirty pages control, to be frank, it's non-trivial to
-  implement and I'm not sure it will perform well in some cases.
-  Before following that direction, I'm curious whether the much more
-  simple scheme of moving dirty pages to the global LRU can magically
-  satisfy the main user demands.
+Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 
-Thanks,
-Fengguang
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
