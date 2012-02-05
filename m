@@ -1,38 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id AE01C6B13F4
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 08:49:37 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c13so2082484eek.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 05:49:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id D4CCC6B13F5
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 08:49:40 -0500 (EST)
+Received: by mail-ey0-f169.google.com with SMTP id g11so2419561eaa.14
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 05:49:40 -0800 (PST)
+MIME-Version: 1.0
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v8 6/8] fs: only send IPI to invalidate LRU BH when needed
-Date: Sun,  5 Feb 2012 15:48:40 +0200
-Message-Id: <1328449722-15959-5-git-send-email-gilad@benyossef.com>
+Subject: [PATCH v8 7/8] mm: only IPI CPUs to drain local pages if they exist
+Date: Sun,  5 Feb 2012 15:48:41 +0200
+Message-Id: <1328449722-15959-6-git-send-email-gilad@benyossef.com>
 In-Reply-To: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Milton Miller <miltonm@bga.com>
 
-In several code paths, such as when unmounting a file system (but
-not only) we send an IPI to ask each cpu to invalidate its local
-LRU BHs.
+Calculate a cpumask of CPUs with per-cpu pages in any zone
+and only send an IPI requesting CPUs to drain these pages
+to the buddy allocator if they actually have pages when
+asked to flush.
 
-For multi-cores systems that have many cpus that may not have
-any LRU BH because they are idle or because they have not performed
-any file system accesses since last invalidation (e.g. CPU crunching
-on high perfomance computing nodes that write results to shared
-memory or only using filesystems that do not use the bh layer.)
-This can lead to loss of performance each time someone switches
-the KVM (the virtual keyboard and screen type, not the hypervisor)
-if it has a USB storage stuck in.
+This patch saves 85%+ of IPIs asking to drain per-cpu
+pages in case of severe memory preassure that leads
+to OOM since in these cases multiple, possibly concurrent,
+allocation requests end up in the direct reclaim code
+path so when the per-cpu pages end up reclaimed on first
+allocation failure for most of the proceeding allocation
+attempts until the memory pressure is off (possibly via
+the OOM killer) there are no per-cpu pages on most CPUs
+(and there can easily be hundreds of them).
 
-This patch attempts to only send an IPI to cpus that have LRU BH.
+This also has the side effect of shortening the average
+latency of direct reclaim by 1 or more order of magnitude
+since waiting for all the CPUs to ACK the IPI takes a
+long time.
+
+Tested by running "hackbench 400" on a 8 CPU x86 VM and
+observing the difference between the number of direct
+reclaim attempts that end up in drain_all_pages() and
+those were more then 1/2 of the online CPU had any per-cpu
+page in them, using the vmstat counters introduced
+in the next patch in the series and using proc/interrupts.
+
+In the test sceanrio, this was seen to save around 3600 global
+IPIs after trigerring an OOM on a concurrent workload:
+
+$ cat /proc/vmstat | tail -n 2
+pcp_global_drain 0
+pcp_global_ipi_saved 0
+
+$ cat /proc/interrupts | grep CAL
+CAL:          1          2          1          2
+          2          2          2          2   Function call interrupts
+
+$ hackbench 400
+[OOM messages snipped]
+
+$ cat /proc/vmstat | tail -n 2
+pcp_global_drain 3647
+pcp_global_ipi_saved 3642
+
+$ cat /proc/interrupts | grep CAL
+CAL:          6         13          6          3
+          3          3         1 2          7   Function call interrupts
+
+Please note that if the global drain is removed from the
+direct reclaim path as a patch from Mel Gorman currently
+suggests this should be replaced with an on_each_cpu_cond
+invocation.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Christoph Lameter <cl@linux.com>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Chris Metcalf <cmetcalf@tilera.com>
 CC: Frederic Weisbecker <fweisbec@gmail.com>
 CC: Russell King <linux@arm.linux.org.uk>
@@ -42,47 +84,69 @@ CC: Matt Mackall <mpm@selenic.com>
 CC: Sasha Levin <levinsasha928@gmail.com>
 CC: Rik van Riel <riel@redhat.com>
 CC: Andi Kleen <andi@firstfloor.org>
-CC: Mel Gorman <mel@csn.ul.ie>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Alexander Viro <viro@zeniv.linux.org.uk>
 CC: linux-fsdevel@vger.kernel.org
 CC: Avi Kivity <avi@redhat.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
-CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
 CC: Milton Miller <miltonm@bga.com>
 ---
- fs/buffer.c |   15 ++++++++++++++-
- 1 files changed, 14 insertions(+), 1 deletions(-)
+ mm/page_alloc.c |   39 +++++++++++++++++++++++++++++++++++++--
+ 1 files changed, 37 insertions(+), 2 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 1a30db7..baa075e 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -1384,10 +1384,23 @@ static void invalidate_bh_lru(void *arg)
- 	}
- 	put_cpu_var(bh_lrus);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d2186ec..3ff5aff 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1161,11 +1161,46 @@ void drain_local_pages(void *arg)
  }
-+
-+static bool has_bh_in_lru(int cpu, void *dummy)
-+{
-+	struct bh_lru *b = per_cpu_ptr(&bh_lrus, cpu);
-+	int i;
- 	
-+	for (i = 0; i < BH_LRU_SIZE; i++) {
-+		if (b->bhs[i])
-+			return 1;
-+	}
-+
-+	return 0;
-+}
-+
- void invalidate_bh_lrus(void)
- {
--	on_each_cpu(invalidate_bh_lru, NULL, 1);
-+	on_each_cpu_cond(has_bh_in_lru, invalidate_bh_lru, NULL, 1, GFP_KERNEL);
- }
- EXPORT_SYMBOL_GPL(invalidate_bh_lrus);
  
+ /*
+- * Spill all the per-cpu pages from all CPUs back into the buddy allocator
++ * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
++ *
++ * Note that this code is protected against sending an IPI to an offline
++ * CPU but does not guarantee sending an IPI to newly hotplugged CPUs:
++ * on_each_cpu_mask() blocks hotplug and won't talk to offlined CPUs but
++ * nothing keeps CPUs from showing up after we populated the cpumask and
++ * before the call to on_each_cpu_mask().
+  */
+ void drain_all_pages(void)
+ {
+-	on_each_cpu(drain_local_pages, NULL, 1);
++	int cpu;
++	struct per_cpu_pageset *pcp;
++	struct zone *zone;
++
++	/* Allocate in the BSS so we wont require allocation in
++	 * direct reclaim path for CONFIG_CPUMASK_OFFSTACK=y
++	 */
++	static cpumask_t cpus_with_pcps;
++
++	/*
++	 * We don't care about racing with CPU hotplug event
++	 * as offline notification will cause the notified
++	 * cpu to drain that CPU pcps and on_each_cpu_mask
++	 * disables preemption as part of its processing
++	 */
++	for_each_online_cpu(cpu) {
++		bool has_pcps = false;
++		for_each_populated_zone(zone) {
++			pcp = per_cpu_ptr(zone->pageset, cpu);
++			if (pcp->pcp.count) {
++				has_pcps = true;
++				break;
++			}
++		}
++		if (has_pcps)
++			cpumask_set_cpu(cpu, &cpus_with_pcps);
++		else
++			cpumask_clear_cpu(cpu, &cpus_with_pcps);
++	}
++	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
+ }
+ 
+ #ifdef CONFIG_HIBERNATION
 -- 
 1.7.0.4
 
