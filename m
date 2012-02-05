@@ -1,50 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 975C06B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 07:17:05 -0500 (EST)
-Message-ID: <4F2E7311.8060808@redhat.com>
-Date: Sun, 05 Feb 2012 14:16:17 +0200
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-References: <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <1328117722.2446.262.camel@twins> <20120201184045.GG2382@linux.vnet.ibm.com> <alpine.DEB.2.00.1202011404500.2074@router.home> <20120201201336.GI2382@linux.vnet.ibm.com> <4F2A58A1.90800@redhat.com> <20120202153437.GD2518@linux.vnet.ibm.com> <4F2AB66C.2030309@redhat.com> <20120202170134.GM2518@linux.vnet.ibm.com> <4F2AC69B.7000704@redhat.com> <20120202175155.GV2518@linux.vnet.ibm.com>
-In-Reply-To: <20120202175155.GV2518@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 1D1586B002C
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 08:34:10 -0500 (EST)
+Received: by eekc13 with SMTP id c13so2078827eek.14
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 05:34:08 -0800 (PST)
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Subject: [PATCH v8 0/8] Reduce cross CPU IPI interference
+Date: Sun,  5 Feb 2012 15:33:20 +0200
+Message-Id: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On 02/02/2012 07:51 PM, Paul E. McKenney wrote:
-> On Thu, Feb 02, 2012 at 07:23:39PM +0200, Avi Kivity wrote:
-> > On 02/02/2012 07:01 PM, Paul E. McKenney wrote:
-> > > > 
-> > > > It's not called (since the cpu is not idle).  Instead we call
-> > > > rcu_virt_note_context_switch().
-> > >
-> > > Frederic's work checks to see if there is only one runnable user task
-> > > on a given CPU.  If there is only one, then the scheduling-clock interrupt
-> > > is turned off for that CPU, and RCU is told to ignore it while it is
-> > > executing in user space.  Not sure whether this covers KVM guests.
-> > 
-> > Conceptually it's the same.  Maybe it needs adjustments, since kvm
-> > enters a guest in a different way than the kernel exits to userspace.
-> > 
-> > > In any case, this is not yet in mainline.
-> > 
-> > Let me know when it's in, and I'll have a look.
->
-> Could you please touch base with Frederic Weisbecker to make sure that
-> what he is doing works for you?
->
+We have lots of infrastructure in place to partition multi-core systems
+such that we have a group of CPUs that are dedicated to specific task:
+cgroups, scheduler and interrupt affinity, and cpuisol= boot parameter.
+Still, kernel code will at times interrupt all CPUs in the system via IPIs
+for various needs. These IPIs are useful and cannot be avoided altogether,
+but in certain cases it is possible to interrupt only specific CPUs that
+have useful work to do and not the entire system.
 
-Looks like there are new rcu_user_enter() and rcu_user_exit() APIs which
-we can use.  Hopefully they subsume rcu_virt_note_context_switch() so we
-only need one set of APIs.
+This patch set, inspired by discussions with Peter Zijlstra and Frederic
+Weisbecker when testing the nohz task patch set, is a first stab at trying
+to explore doing this by locating the places where such global IPI calls
+are being made and turning the global IPI into an IPI for a specific group
+of CPUs.  The purpose of the patch set is to get feedback if this is the
+right way to go for dealing with this issue and indeed, if the issue is
+even worth dealing with at all. Based on the feedback from this patch set
+I plan to offer further patches that address similar issue in other code
+paths.
 
--- 
-error compiling committee.c: too many arguments to function
+The patch creates an on_each_cpu_mask and on_each_cpu_cond infrastructure
+API (the former derived from existing arch specific versions in Tile and
+Arm) and uses them to turn several global IPI invocation to per CPU
+group invocations.
+
+This 8th iteration adds more verbose comments and coding style fixes
+based on review remarks by Andrew Morton and others.
+
+The patch set also available from the ipi_noise_v8 branch at
+git://github.com/gby/linux.git
+
+Merge notes: during merge, kindly squash the first three patches to avoid
+bisect failures. The last patch in the series is a review helper only.
+Please do not merge it.
+
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Christoph Lameter <cl@linux.com>
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: linux-mm@kvack.org
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Matt Mackall <mpm@selenic.com>
+CC: Sasha Levin <levinsasha928@gmail.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: Andi Kleen <andi@firstfloor.org>
+CC: Mel Gorman <mel@csn.ul.ie>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Alexander Viro <viro@zeniv.linux.org.uk>
+CC: Avi Kivity <avi@redhat.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
+CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
+CC: Milton Miller <miltonm@bga.com>
+
+Gilad Ben-Yossef (8):
+  smp: introduce a generic on_each_cpu_mask function
+  arm: move arm over to generic on_each_cpu_mask
+  tile: move tile to use generic on_each_cpu_mask
+  smp: add func to IPI cpus based on parameter func
+  slub: only IPI CPUs that have per cpu obj to flush
+  fs: only send IPI to invalidate LRU BH when needed
+  mm: only IPI CPUs to drain local pages if they exist
+  mm: add vmstat counters for tracking PCP drains
+
+ arch/arm/kernel/smp_tlb.c     |   20 ++-------
+ arch/tile/include/asm/smp.h   |    7 ---
+ arch/tile/kernel/smp.c        |   19 ---------
+ fs/buffer.c                   |   15 ++++++-
+ include/linux/smp.h           |   46 +++++++++++++++++++++
+ include/linux/vm_event_item.h |    1 +
+ kernel/smp.c                  |   89 +++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c               |   44 +++++++++++++++++++-
+ mm/slub.c                     |   10 ++++-
+ mm/vmstat.c                   |    2 +
+ 10 files changed, 208 insertions(+), 45 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
