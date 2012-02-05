@@ -1,43 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 542916B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 09:34:22 -0500 (EST)
-Received: by eaag11 with SMTP id g11so2431540eaa.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 06:34:20 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 516F66B002C
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 09:37:15 -0500 (EST)
+Received: by eaag11 with SMTP id g11so2432393eaa.14
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 06:37:13 -0800 (PST)
 Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 05/15] mm: compaction: export some of the functions
+Subject: Re: [PATCH 08/15] mm: mmzone: MIGRATE_CMA migration type added
 References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
- <1328271538-14502-6-git-send-email-m.szyprowski@samsung.com>
- <CAJd=RBBsTxV4bM_QEbKaU=uKkFTNgPEK4yTiLjbE0TaEp4KA7w@mail.gmail.com>
-Date: Sun, 05 Feb 2012 15:34:15 +0100
+ <1328271538-14502-9-git-send-email-m.szyprowski@samsung.com>
+ <CAJd=RBByc_wLEJTK66J4eY03CWnCoCRiwAeEYjXCZ5xEZhp3ag@mail.gmail.com>
+ <op.v830ygma3l0zgt@mpn-glaptop>
+ <CAJd=RBD765rmiCDiCz87Vf8vf8Wp-AiW=gZ3Nw5LjTPw70ZO7g@mail.gmail.com>
+Date: Sun, 05 Feb 2012 15:37:07 +0100
 MIME-Version: 1.0
 Content-Transfer-Encoding: Quoted-Printable
 From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v87mrdg83l0zgt@mpn-glaptop>
-In-Reply-To: <CAJd=RBBsTxV4bM_QEbKaU=uKkFTNgPEK4yTiLjbE0TaEp4KA7w@mail.gmail.com>
+Message-ID: <op.v87mv5ca3l0zgt@mpn-glaptop>
+In-Reply-To: <CAJd=RBD765rmiCDiCz87Vf8vf8Wp-AiW=gZ3Nw5LjTPw70ZO7g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Fri, Feb 3, 2012 at 8:18 PM, Marek Szyprowski
-> <m.szyprowski@samsung.com> wrote:
->> From: Michal Nazarewicz <mina86@mina86.com>
->>
->> This commit exports some of the functions from compaction.c file
->> outside of it adding their declaration into internal.h header
->> file so that other mm related code can use them.
->>
->> This forced compaction.c to always be compiled (as opposed to being
->> compiled only if CONFIG_COMPACTION is defined) but as to avoid
->> introducing code that user did not ask for, part of the compaction.c
->> is now wrapped in on #ifdef.
+>>>> +static inline bool migrate_async_suitable(int migratetype)
 
-On Sun, 05 Feb 2012 08:40:08 +0100, Hillf Danton <dhillf@gmail.com> wrot=
+>> On Fri, 03 Feb 2012 15:19:54 +0100, Hillf Danton <dhillf@gmail.com> w=
+rote:
+>>> Just nitpick, since the helper is not directly related to what async=
+
+>>> means, how about migrate_suitable(int migrate_type) ?
+
+> 2012/2/3 Michal Nazarewicz <mina86@mina86.com>:
+>> I feel current name is better suited since it says that it's OK to sc=
+an this
+>> block if it's an asynchronous compaction run.
+
+On Sat, 04 Feb 2012 10:09:02 +0100, Hillf Danton <dhillf@gmail.com> wrot=
 e:
-> What if both compaction and CMA are not enabled?
+> The input is the migrate type of page considered, and the async is onl=
+y one
+> of the modes that compaction should be carried out. Plus the helper is=
 
-What about it?  If both are enabled, both will be compiled and usable.
+> also used in other cases where async is entirely not concerned.
+>
+> That said, the naming is not clear, if not misleading.
+
+In the first version the function was called is_migrate_cma_or_movable()=
+ which
+described what the function checked.  Mel did not like it though, hence =
+the
+change to migrate_async_suitable().  Honestly, I'm not sure what would b=
+e the
+best name for function.
 
 -- =
 
