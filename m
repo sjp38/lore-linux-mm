@@ -1,152 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id D4CCC6B13F5
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 08:49:40 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 434386B13F6
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 08:49:44 -0500 (EST)
 Received: by mail-ey0-f169.google.com with SMTP id g11so2419561eaa.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 05:49:40 -0800 (PST)
-MIME-Version: 1.0
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 05:49:43 -0800 (PST)
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v8 7/8] mm: only IPI CPUs to drain local pages if they exist
-Date: Sun,  5 Feb 2012 15:48:41 +0200
-Message-Id: <1328449722-15959-6-git-send-email-gilad@benyossef.com>
+Subject: [PATCH v8 8/8] mm: add vmstat counters for tracking PCP drains
+Date: Sun,  5 Feb 2012 15:48:42 +0200
+Message-Id: <1328449722-15959-7-git-send-email-gilad@benyossef.com>
 In-Reply-To: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Milton Miller <miltonm@bga.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-Calculate a cpumask of CPUs with per-cpu pages in any zone
-and only send an IPI requesting CPUs to drain these pages
-to the buddy allocator if they actually have pages when
-asked to flush.
+This patch introduces two new vmstat counters for testing purposes:
+pcp_global_drain that counts the number of times a per-cpu pages
+global drain was requested and pcp_global_ipi_saved that counts
+the number of times the number of CPUs with per-cpu pages in any
+zone were less then 1/2 of the number of online CPUs.
 
-This patch saves 85%+ of IPIs asking to drain per-cpu
-pages in case of severe memory preassure that leads
-to OOM since in these cases multiple, possibly concurrent,
-allocation requests end up in the direct reclaim code
-path so when the per-cpu pages end up reclaimed on first
-allocation failure for most of the proceeding allocation
-attempts until the memory pressure is off (possibly via
-the OOM killer) there are no per-cpu pages on most CPUs
-(and there can easily be hundreds of them).
-
-This also has the side effect of shortening the average
-latency of direct reclaim by 1 or more order of magnitude
-since waiting for all the CPUs to ACK the IPI takes a
-long time.
-
-Tested by running "hackbench 400" on a 8 CPU x86 VM and
-observing the difference between the number of direct
-reclaim attempts that end up in drain_all_pages() and
-those were more then 1/2 of the online CPU had any per-cpu
-page in them, using the vmstat counters introduced
-in the next patch in the series and using proc/interrupts.
-
-In the test sceanrio, this was seen to save around 3600 global
-IPIs after trigerring an OOM on a concurrent workload:
-
-$ cat /proc/vmstat | tail -n 2
-pcp_global_drain 0
-pcp_global_ipi_saved 0
-
-$ cat /proc/interrupts | grep CAL
-CAL:          1          2          1          2
-          2          2          2          2   Function call interrupts
-
-$ hackbench 400
-[OOM messages snipped]
-
-$ cat /proc/vmstat | tail -n 2
-pcp_global_drain 3647
-pcp_global_ipi_saved 3642
-
-$ cat /proc/interrupts | grep CAL
-CAL:          6         13          6          3
-          3          3         1 2          7   Function call interrupts
-
-Please note that if the global drain is removed from the
-direct reclaim path as a patch from Mel Gorman currently
-suggests this should be replaced with an on_each_cpu_cond
-invocation.
+The patch purpose is to show the usefulness of only sending an IPI
+asking to drain per-cpu pages to CPUs that actually have them
+instead of a blind global IPI. It is not inteded to be merged.
 
 Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Christoph Lameter <cl@linux.com>
 CC: Chris Metcalf <cmetcalf@tilera.com>
 CC: Frederic Weisbecker <fweisbec@gmail.com>
-CC: Russell King <linux@arm.linux.org.uk>
 CC: linux-mm@kvack.org
 CC: Pekka Enberg <penberg@kernel.org>
 CC: Matt Mackall <mpm@selenic.com>
 CC: Sasha Levin <levinsasha928@gmail.com>
 CC: Rik van Riel <riel@redhat.com>
 CC: Andi Kleen <andi@firstfloor.org>
+CC: Mel Gorman <mel@csn.ul.ie>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Alexander Viro <viro@zeniv.linux.org.uk>
-CC: linux-fsdevel@vger.kernel.org
 CC: Avi Kivity <avi@redhat.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
+CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
 CC: Milton Miller <miltonm@bga.com>
 ---
- mm/page_alloc.c |   39 +++++++++++++++++++++++++++++++++++++--
- 1 files changed, 37 insertions(+), 2 deletions(-)
+ include/linux/vm_event_item.h |    1 +
+ mm/page_alloc.c               |    5 +++++
+ mm/vmstat.c                   |    2 ++
+ 3 files changed, 8 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 03b90cd..3657f6f 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -58,6 +58,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_COLLAPSE_ALLOC_FAILED,
+ 		THP_SPLIT,
+ #endif
++		PCP_GLOBAL_DRAIN, PCP_GLOBAL_IPI_SAVED,
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d2186ec..3ff5aff 100644
+index 3ff5aff..09d47eb 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1161,11 +1161,46 @@ void drain_local_pages(void *arg)
- }
- 
- /*
-- * Spill all the per-cpu pages from all CPUs back into the buddy allocator
-+ * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
-+ *
-+ * Note that this code is protected against sending an IPI to an offline
-+ * CPU but does not guarantee sending an IPI to newly hotplugged CPUs:
-+ * on_each_cpu_mask() blocks hotplug and won't talk to offlined CPUs but
-+ * nothing keeps CPUs from showing up after we populated the cpumask and
-+ * before the call to on_each_cpu_mask().
-  */
- void drain_all_pages(void)
- {
--	on_each_cpu(drain_local_pages, NULL, 1);
-+	int cpu;
-+	struct per_cpu_pageset *pcp;
-+	struct zone *zone;
+@@ -1201,6 +1201,11 @@ void drain_all_pages(void)
+ 			cpumask_clear_cpu(cpu, &cpus_with_pcps);
+ 	}
+ 	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
 +
-+	/* Allocate in the BSS so we wont require allocation in
-+	 * direct reclaim path for CONFIG_CPUMASK_OFFSTACK=y
-+	 */
-+	static cpumask_t cpus_with_pcps;
-+
-+	/*
-+	 * We don't care about racing with CPU hotplug event
-+	 * as offline notification will cause the notified
-+	 * cpu to drain that CPU pcps and on_each_cpu_mask
-+	 * disables preemption as part of its processing
-+	 */
-+	for_each_online_cpu(cpu) {
-+		bool has_pcps = false;
-+		for_each_populated_zone(zone) {
-+			pcp = per_cpu_ptr(zone->pageset, cpu);
-+			if (pcp->pcp.count) {
-+				has_pcps = true;
-+				break;
-+			}
-+		}
-+		if (has_pcps)
-+			cpumask_set_cpu(cpu, &cpus_with_pcps);
-+		else
-+			cpumask_clear_cpu(cpu, &cpus_with_pcps);
-+	}
-+	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
++	count_vm_event(PCP_GLOBAL_DRAIN);
++	if (cpumask_weight(&cpus_with_pcps) <
++	   (cpumask_weight(cpu_online_mask) / 2))
++		count_vm_event(PCP_GLOBAL_IPI_SAVED);
  }
  
  #ifdef CONFIG_HIBERNATION
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index f600557..3ee5f99 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -786,6 +786,8 @@ const char * const vmstat_text[] = {
+ 	"thp_collapse_alloc_failed",
+ 	"thp_split",
+ #endif
++	"pcp_global_drain",
++	"pcp_global_ipi_saved"
+ 
+ #endif /* CONFIG_VM_EVENTS_COUNTERS */
+ };
 -- 
 1.7.0.4
 
