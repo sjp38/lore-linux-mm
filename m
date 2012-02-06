@@ -1,83 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 27BEF6B13F1
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 04:13:47 -0500 (EST)
-Message-ID: <4F2F9941.3020509@mellanox.com>
-Date: Mon, 6 Feb 2012 11:11:29 +0200
-From: sagig <sagig@mellanox.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC V1] mm: convert rcu_read_lock() to srcu_read_lock(),
- thus allowing to sleep in callbacks
-References: <y> <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com> <4F2EE64F.6010900@openvz.org>
-In-Reply-To: <4F2EE64F.6010900@openvz.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 7452E6B002C
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 05:07:53 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4C72B3EE0AE
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:07:51 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 319E445DE9A
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:07:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CA8F645DE93
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:07:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BC2D41DB8055
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:07:50 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7631F1DB8048
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:07:50 +0900 (JST)
+Date: Mon, 6 Feb 2012 19:06:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 0/6 v3] memcg: page cgroup diet
+Message-Id: <20120206190627.7313ff82.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Or Gerlitz <ogerlitz@mellanox.com>, "gleb@redhat.com" <gleb@redhat.com>, Oren Duer <oren@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On 2/5/2012 10:27 PM, Konstantin Khlebnikov wrote:
-> sagig@mellanox.com wrote:
->> Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it 
->> is possible to schedule inside invalidation callbacks
->> (such as invalidate_page, invalidate_range_start/end and change_pte) .
->> This is essential for a scheduling HW sync in RDMA drivers which 
->> apply on demand paging methods.
->>
->> Signed-off-by: sagi grimberg<sagig@mellanox.co.il>
->
-> Ok, this is better, but it still does not work =)
-> Nobody synchronize with this srcu. There at least two candidates:
-> mmu_notifier_release() and mmu_notifier_unregister().
-> They call synchronize_rcu(), you must replace it with synchronize_srcu().
->
 
-Yes, I understand - will fix.
+Here is my page_cgroup diet series v3. Since v2, "remove PCG_CACHE" is alread
+merged.
 
->> ---
->>   changes from V0:
->>   1. srcu_struct should be shared and not allocated in each callback 
->> - removed from callbacks
->>   2. added srcu_struct under mmu_notifier_mm
->>   3. init_srcu_struct when creating mmu_notifier_mm
->>   4. srcu_cleanup when destroying mmu_notifier_mm
->>
->
->> @@ -204,6 +208,8 @@ static int do_mmu_notifier_register(struct 
->> mmu_notifier *mn,
->>
->>       if (!mm_has_notifiers(mm)) {
->>           INIT_HLIST_HEAD(&mmu_notifier_mm->list);
->> +        if (init_srcu_struct(&mmu_notifier_mm->srcu))
->> +            goto out_cleanup;
->
-> move it upper, out of mm->mmap_sem lock. and fix error path.
->
+This series changes page-stat-accounting per memcg 
 
-Yes, I see that init_srcu_struct is using GFP_KERNEL allocations.
-But what if do_mmu_notifier_register was called from 
-__mmu_notifier_register (where mmap_sem is held)? won't I end up with 
-the same violation?
+from:
+	if (change page's state)
+		mem_cgroup_update_page_state()
 
-Another question,
-Just to understand - I should move only the init_srcu_struct() call out 
-of mmap_sem (will require checking !mm_has_notifiers(mm) twice)? or the 
-entire mmu_notifier_mm initialization?
+to:
+	mem_cgroup_begin_update_page_state()
+	if (change page's state)
+		mem_cgroup_update_page_state()
+	mem_cgroup_end_update_page_state()
 
->
->>           spin_lock_init(&mmu_notifier_mm->lock);
->>           mm->mmu_notifier_mm = mmu_notifier_mm;
->>           mmu_notifier_mm = NULL;
->> @@ -266,6 +272,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
->>   void __mmu_notifier_mm_destroy(struct mm_struct *mm)
->>   {
->>       BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
->> +    cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
->>       kfree(mm->mmu_notifier_mm);
->>       mm->mmu_notifier_mm = LIST_POISON1; /* debug */
->>   }
->
+(see patch 4 for details.) This allows us not to duplicate page struct's
+information in page_cgroup's flag field.
+
+Because above sequence adds 2 extra calls to hot-path, performance will be problem.
+Patch 6 is a fix for performance, and I don't see performance regression in my
+small test. (see patch 6 for details.)
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
