@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 2BD7E6B13F0
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:37:15 -0500 (EST)
-Date: Mon, 6 Feb 2012 23:25:00 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/3] move page-types.c from Documentation to tools/vm
-Message-ID: <20120206152500.GA5687@localhost>
-References: <20120205081542.GA2245@darkstar.redhat.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 02C346B13F0
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 11:48:44 -0500 (EST)
+Date: Mon, 6 Feb 2012 10:48:42 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [LSF/MM TOPIC] [ATTEND] NUMA aware load-balancing
+In-Reply-To: <4F2FD25C.7070801@google.com>
+Message-ID: <alpine.DEB.2.00.1202061047450.2799@router.home>
+References: <20120131202836.GF31817@redhat.com> <4F2FD25C.7070801@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120205081542.GA2245@darkstar.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, xiyou.wangcong@gmail.com, penberg@kernel.org, cl@linux.com
+To: Paul Turner <pjt@google.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Sun, Feb 05, 2012 at 04:15:42PM +0800, Dave Young wrote:
-> tools/ is the better place for vm tools which are used by many people.
-> Moving them to tools also make them open to more users instead of hide in
-> Documentation folder.
-> 
-> This patch move page-types.c to tools/vm/page-types.c
-> Also add Makefile in tools/vm and fix two coding style problems of below:
-> a. change const arrary to 'const char * const'
-> b. change a space to tab for indent
-> 
-> Signed-off-by: Dave Young <dyoung@redhat.com>
+On Mon, 6 Feb 2012, Paul Turner wrote:
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> I don't see it proposed as a topic yet (unless I missed it) but I spoke with
+> Peter briefly and I think this would be a good opportunity in particular to
+> discuss NUMA-aware load-balancing.  Currently, we only try to solve the 1-d
+> problem of optimizing for weight; but there's recently been interest from
+> several parties in improving this.  Issues involves proactively accounting for
+> the distribution of current allocations, determining when to initiate reactive
+> migration (or when not to move tasks!), and the associated grouping semantics.
+
+So this would mean having statistics that show how many pages are
+allocated on each node and take that into consideration for load
+balancing? Which is something that we felt to be desirable for a long
+time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
