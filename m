@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id DA2B26B13F0
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 12:46:43 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id l4so7513301wer.39
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 09:46:43 -0800 (PST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 131076B13F0
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 13:19:50 -0500 (EST)
+Date: Mon, 6 Feb 2012 12:19:44 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+In-Reply-To: <CAOtvUMdCZpQuSvutKHpMxthktTm_VkA1R99yxpNhxpsYN9wTRQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1202061218420.2799@router.home>
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327591185.2446.102.camel@twins> <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <1328117722.2446.262.camel@twins> <20120201184045.GG2382@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1202011404500.2074@router.home> <20120201201336.GI2382@linux.vnet.ibm.com> <4F2A58A1.90800@redhat.com> <20120202153437.GD2518@linux.vnet.ibm.com> <4F2AB66C.2030309@redhat.com> <20120202170134.GM2518@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1202021124520.6338@router.home> <CAOtvUMdCZpQuSvutKHpMxthktTm_VkA1R99yxpNhxpsYN9wTRQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20120130202013.GJ30782@redhat.com>
-References: <1327557574-6125-1-git-send-email-roland@kernel.org>
- <alpine.LSU.2.00.1201261133230.1369@eggly.anvils> <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com>
- <alpine.LSU.2.00.1201271458130.3402@eggly.anvils> <CAL1RGDXqguZ2QKV=yjLXtk2n_Ag4Nf3CW+kF2BFQFR4ySTNaRA@mail.gmail.com>
- <20120130202013.GJ30782@redhat.com>
-From: Roland Dreier <roland@kernel.org>
-Date: Mon, 6 Feb 2012 09:46:23 -0800
-Message-ID: <CAL1RGDUzYTVJJNwYzraObNvkZmOT=1oR4gBL2hKhB2harAiLLw@mail.gmail.com>
-Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages() parameters
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-Hi Andrea, sorry for the slow reply, had to work on other stuff for a bit.
+On Sun, 5 Feb 2012, Gilad Ben-Yossef wrote
 
-On Mon, Jan 30, 2012 at 12:20 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> If you map it with an mmap(PROT_READ|PROT_WRITE), force or not force
-> won't change a thing in terms of cows. Just make sure you map your
-> control memory right, then safely remove force=1 and you won't get the
-> control page cowed by mistake. Then if you map it with MAP_SHARED it
-> won't be mapped read-only by fork() (leading to either parent or child
-> losing the control on the device), Hugh already suggested you to use
-> MAP_SHARED instead of MAP_PRIVATE.
+>
+> Frederic has the latest version in a git tree here:
+>
+> git://github.com/fweisbec/linux-dynticks.git
+>        nohz/cpuset-v2-pre-20120117
+>
+> It's on top latest rcu/core.
 
-Actually this isn't about control memory for the RDMA adapter...
-as you mentioned that typically is MMIO and mapped with remap_pfn
-stuff, without using any GUP stuff.
+Hmmm.. A pull vs upstream leads to lots of conflicts.
 
-I'm talking about the registration of other memory for reading/writing
-by a remote system via RDMA.
 
-The reason I'm talking about exporting kernel memory is that I wanted
-to do a debugging trick where a kernel module exposed some state
-into an mmap'able buffer.  And I wanted to be able to read that state
-even if my broken module killed the whole system (in fact exactly
-when things crash I want to be able to read the state to figure out
-why I crashed!).
+> But the good news is that with these hacks applied I managed to run a 100%
+> CPU task  with  zero interrupts  (ticks or  otherwise) on an isolated cpu.
 
-So I wrote a trivial userspace program that does nothing but mmap
-the buffer, accept RDMA connections from remote systems, and
-map the buffer for reading over those connections.  Then I can have
-a second system that connects to that process and polls the buffer.
+Cool.
 
-Because all the RDMA state is setup in advance, I can keep polling
-even after the first system panics.  It's sort of like that firewire remote
-debugging, except I only get access to a limited memory buffer.
+> Disregarding TLB overhead, you get bare metal performance with Linux user
+> space manageability and  debug capabilities.  Pretty magical really: It's like
+> eating your cake and having it too :-)
 
-The only difficulty is the problem that started this thread, ie a bogus
-COW so the remote system ends up polling the wrong pages.  So with
-my original patch, I'm able to debug but I guess we agree it's the
-wrong fix for the general problem, and I'll write up a patch that adds
-what I think is the correct fix (the new FOLL flag) soon.
-
- - R.
+We definitely need that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
