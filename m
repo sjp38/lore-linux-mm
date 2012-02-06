@@ -1,65 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 055436B002C
-	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 15:28:03 -0500 (EST)
-Received: by bkbzs2 with SMTP id zs2so5564125bkb.14
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2012 12:28:02 -0800 (PST)
-Message-ID: <4F2EE64F.6010900@openvz.org>
-Date: Mon, 06 Feb 2012 00:27:59 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC V1] mm: convert rcu_read_lock() to srcu_read_lock(),
- thus allowing to sleep in callbacks
-References: <y> <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com>
-In-Reply-To: <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id E5BBC6B002C
+	for <linux-mm@kvack.org>; Sun,  5 Feb 2012 20:48:26 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 91C903EE0C1
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:48:24 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 769EA45DEF2
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:48:24 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F76945DEEC
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:48:24 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35F281DB803E
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:48:24 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E06661DB803B
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 10:48:23 +0900 (JST)
+Date: Mon, 6 Feb 2012 10:46:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: fix up documentation on global LRU.
+Message-Id: <20120206104649.01a89d66.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <CALWz4iz48O2TcGOFaGw1_FyhzJ_7njgZ_p8cELcpDJuuKa=Gxg@mail.gmail.com>
+References: <1328233033-14246-1-git-send-email-yinghan@google.com>
+	<20120203161140.GC13461@tiehlicka.suse.cz>
+	<CALWz4iz48O2TcGOFaGw1_FyhzJ_7njgZ_p8cELcpDJuuKa=Gxg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "sagig@mellanox.com" <sagig@mellanox.com>
-Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "ogerlitz@mellanox.com" <ogerlitz@mellanox.com>, "gleb@redhat.com" <gleb@redhat.com>, "oren@mellanox.com" <oren@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Pavel Emelyanov <xemul@openvz.org>, linux-mm@kvack.org
 
-sagig@mellanox.com wrote:
-> Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation callbacks
-> (such as invalidate_page, invalidate_range_start/end and change_pte) .
-> This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods.
->
-> Signed-off-by: sagi grimberg<sagig@mellanox.co.il>
+On Fri, 3 Feb 2012 12:15:59 -0800
+Ying Han <yinghan@google.com> wrote:
 
-Ok, this is better, but it still does not work =)
-Nobody synchronize with this srcu. There at least two candidates:
-mmu_notifier_release() and mmu_notifier_unregister().
-They call synchronize_rcu(), you must replace it with synchronize_srcu().
+> On Fri, Feb 3, 2012 at 8:11 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Thu 02-02-12 17:37:13, Ying Han wrote:
+> >> In v3.3-rc1, the global LRU has been removed with commit
+> >> "mm: make per-memcg LRU lists exclusive". The patch fixes up the memcg docs.
+> >>
+> >> Signed-off-by: Ying Han <yinghan@google.com>
+> >
+> > For the global LRU removal
+> > Acked-by: Michal Hocko <mhocko@suse.cz>
+> >
+> > see the comment about the swap extension bellow.
+> >
+> > Thanks
+> >
+> >> ---
+> >> A Documentation/cgroups/memory.txt | A  25 ++++++++++++-------------
+> >> A 1 files changed, 12 insertions(+), 13 deletions(-)
+> >>
+> >> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> >> index 4c95c00..847a2a4 100644
+> >> --- a/Documentation/cgroups/memory.txt
+> >> +++ b/Documentation/cgroups/memory.txt
+> > [...]
+> >> @@ -209,19 +208,19 @@ In this case, setting memsw.limit_in_bytes=3G will prevent bad use of swap.
+> >> A By using memsw limit, you can avoid system OOM which can be caused by swap
+> >> A shortage.
+> >>
+> >> -* why 'memory+swap' rather than swap.
+> >> -The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
+> >> -to move account from memory to swap...there is no change in usage of
+> >> -memory+swap. In other words, when we want to limit the usage of swap without
+> >> -affecting global LRU, memory+swap limit is better than just limiting swap from
+> >> -OS point of view.
+> >> -
+> >> A * What happens when a cgroup hits memory.memsw.limit_in_bytes
+> >> A When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
+> >> A in this cgroup. Then, swap-out will not be done by cgroup routine and file
+> >> -caches are dropped. But as mentioned above, global LRU can do swapout memory
+> >> -from it for sanity of the system's memory management state. You can't forbid
+> >> -it by cgroup.
+> >> +caches are dropped.
+> >> +
+> >> +TODO:
+> >> +* use 'memory+swap' rather than swap was due to existence of global LRU.
+> 
+> I wasn't sure about the initial comment while making the patch. Since
+> it mentions something about global LRU, which i figured we need to
+> revisit it anyway.
+> 
 
-> ---
->   changes from V0:
->   1. srcu_struct should be shared and not allocated in each callback - removed from callbacks
->   2. added srcu_struct under mmu_notifier_mm
->   3. init_srcu_struct when creating mmu_notifier_mm
->   4. srcu_cleanup when destroying mmu_notifier_mm
->
+The "global LRU" here means 'the health of the whole memory management".
+memory+swap guarantees memcg will never be obstacles for routines which
+works for system memory management.
 
-> @@ -204,6 +208,8 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->
->   	if (!mm_has_notifiers(mm)) {
->   		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
-> +		if (init_srcu_struct(&mmu_notifier_mm->srcu))
-> +			goto out_cleanup;
+soft-limit _is_ a hint for global lru. but memory+swap will never be.
 
-move it upper, out of mm->mmap_sem lock. and fix error path.
-
-
->   		spin_lock_init(&mmu_notifier_mm->lock);
->   		mm->mmu_notifier_mm = mmu_notifier_mm;
->   		mmu_notifier_mm = NULL;
-> @@ -266,6 +272,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
->   void __mmu_notifier_mm_destroy(struct mm_struct *mm)
->   {
->   	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
-> +	cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
->   	kfree(mm->mmu_notifier_mm);
->   	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
->   }
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
