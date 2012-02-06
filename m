@@ -1,42 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 4B56D6B002C
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 07:51:56 -0500 (EST)
-Received: by wera13 with SMTP id a13so5710507wer.14
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 04:51:54 -0800 (PST)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1A0E06B13F0
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 08:11:29 -0500 (EST)
+Message-ID: <1328533887.46591.YahooMailNeo@web111709.mail.gq1.yahoo.com>
+Date: Mon, 6 Feb 2012 05:11:27 -0800 (PST)
+From: Mahmood Naderan <nt_mahmood@yahoo.com>
+Reply-To: Mahmood Naderan <nt_mahmood@yahoo.com>
+Subject: commit memory is larger than physical and limit
 MIME-Version: 1.0
-In-Reply-To: <op.v87mpive3l0zgt@mpn-glaptop>
-References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
-	<1328271538-14502-13-git-send-email-m.szyprowski@samsung.com>
-	<CAJd=RBBPOwftZJUfe3xc6y24=T8un5hPk0wEOT_5v6WMCbDSag@mail.gmail.com>
-	<op.v87mpive3l0zgt@mpn-glaptop>
-Date: Mon, 6 Feb 2012 20:51:54 +0800
-Message-ID: <CAJd=RBCqw=4AEDZU5aPexX2+xVKVhB+uo-ta2hviSAJO63axvw@mail.gmail.com>
-Subject: Re: [PATCH 12/15] drivers: add Contiguous Memory Allocator
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-2012/2/5 Michal Nazarewicz <mina86@mina86.com>:
-> On Sun, 05 Feb 2012 05:25:40 +0100, Hillf Danton <dhillf@gmail.com> wrote=
-:
->>
->> Without boot mem reservation, what is the successful rate of CMA to
->> serve requests of 1MiB, 2MiB, 4MiB and 8MiB chunks?
->
->
-> CMA will work as long as you manage to get some pageblocks marked as
-> MIGRATE_CMA and move all non-movable pages away. =C2=A0You might try and =
-get it
-> done after system has booted but we have not tried nor tested it.
-
-Better to include whatever test results in change log.
-
-And no more questions ;)
+Dear all,=0AI noticed that committed memory is much higher than physical me=
+mory and commit limit.=0A=0Aadmin@tiger:~$ cat /proc/meminfo=0AMemTotal:=A0=
+=A0=A0=A0=A0=A0 66108396 kB=0AMemFree:=A0=A0=A0=A0=A0=A0=A0 50265064 kB=0AB=
+uffers:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 0 kB=0ACached:=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0 403164 kB=0ASwapCached:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0 0 kB=0ACommitLimit:=A0=A0=A0 33054196 kB=0ACommitted_AS:=A0=A0 16045284=
+8 kB=0A=0A=A0=0ACan someone explain is it good or bad? How it is possible?=
+=0A=0A=0A// Naderan *Mahmood;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
