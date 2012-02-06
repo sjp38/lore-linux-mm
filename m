@@ -1,34 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 02C206B13F3
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 05:13:00 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 76DCA3EE0C0
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:12:59 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C93445DF84
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:12:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 328C445DF73
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:12:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 24E3C1DB8040
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:12:59 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C505B1DB803F
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 19:12:58 +0900 (JST)
-Date: Mon, 6 Feb 2012 19:11:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] [PATCH 6/6] memcg: fix performance of
- mem_cgroup_begin_update_page_stat()
-Message-Id: <20120206191141.e854b311.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120206190627.7313ff82.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20120206190627.7313ff82.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 0B5626B13F2
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 05:30:26 -0500 (EST)
+Date: Mon, 6 Feb 2012 11:30:24 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [ATTEND] LSF/MM conference
+Message-ID: <20120206103024.GA6890@quack.suse.cz>
+References: <CANN689EAfiTdXSr8L+UTWxJLEGHeLVziNLCsdbLuqzsVdERexg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689EAfiTdXSr8L+UTWxJLEGHeLVziNLCsdbLuqzsVdERexg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>
 
+  Hello,
+
+On Mon 06-02-12 00:14:58, Michel Lespinasse wrote:
+> I would like to attend the LSF/MM summit in April this year. I do not
+> have any formal topic proposals at this point; however there are
+> several MM areas I am interested in:
+> 
+> - mmap_sem locking: I have done some work in the past to reduce
+> mmap_sem hold times when page faults wait for transfering file pages
+> from disk, as well as during large mlock operations. However mmap_sem
+> can still be held for long times today when write page faults trigger
+> dirty write throttling, or when the system is under memory pressure
+> and page allocations within the page fault handler hit the ttfp path
+> (I have some pending work in these areas that I'd like to submit
+> shortly). This is an area that hasn't been much invested in, probably
+> because the fact that most users only need a read lock suffices to
+> mask the issues in many cases. However I expect it to become more
+> important as we keep improving performance isolation between
+> processes. One way we frequently hit mmap_sem related issues at Google
+> is when building monitoring mechanisms that are expected to stay
+> responsive when the monitored systems get into bad memory pressure
+> situations.
+  I'd be interested in this. Holding mmap_sem during write page faults
+(->page_mkwrite) is causing problems with lock ordering when handling
+filesystem freezing. I hope I can solve the problems by dropping mmap_sem
+when we see filesystem is frozen, wait for it to thaw, retake mmap_sem and
+return VM_FAULT_RETRY but I'd be happy for a less hacky solution...
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
