@@ -1,65 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 25A3A6B13F0
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 11:59:48 -0500 (EST)
-Date: Mon, 6 Feb 2012 17:59:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] NUMA aware load-balancing
-Message-ID: <20120206165945.GM31064@redhat.com>
-References: <20120131202836.GF31817@redhat.com>
- <4F2FD25C.7070801@google.com>
- <alpine.DEB.2.00.1202061047450.2799@router.home>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id BEFB46B13F0
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 12:26:32 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 6 Feb 2012 12:26:31 -0500
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 42AD36E804D
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 12:26:29 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q16HQTGp193786
+	for <linux-mm@kvack.org>; Mon, 6 Feb 2012 12:26:29 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q16HQSDF007581
+	for <linux-mm@kvack.org>; Mon, 6 Feb 2012 15:26:28 -0200
+Message-ID: <4F300D41.5050105@linux.vnet.ibm.com>
+Date: Mon, 06 Feb 2012 11:26:25 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1202061047450.2799@router.home>
+Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com> <1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com> <4F21A5AF.6010605@linux.vnet.ibm.com>
+In-Reply-To: <4F21A5AF.6010605@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Paul Turner <pjt@google.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@suse.de>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Hi,
+On 01/26/2012 01:12 PM, Dave Hansen wrote:
+> On 01/09/2012 02:51 PM, Seth Jennings wrote:
+>> +	area = &get_cpu_var(zs_map_area);
+>> +	if (off + class->size <= PAGE_SIZE) {
+>> +		/* this object is contained entirely within a page */
+>> +		area->vm_addr = kmap_atomic(page);
+>> +	} else {
+>> +		/* this object spans two pages */
+>> +		struct page *nextp;
+>> +
+>> +		nextp = get_next_page(page);
+>> +		BUG_ON(!nextp);
+>> +
+>> +
+>> +		set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
+>> +		set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
+>> +
+>> +		/* We pre-allocated VM area so mapping can never fail */
+>> +		area->vm_addr = area->vm->addr;
+>> +	}
+> 
+> This bit appears to be trying to make kmap_atomic() variant that can map
+> two pages in to contigious virtual addresses.  Instead of open-coding it
+> in a non-portable way like this, should we just make a new kmap_atomic()
+> variant that does this?
+> 
+> From the way it's implemented, I _think_ you're guaranteed to get two
+> contiguous addresses if you do two adjacent kmap_atomics() on the same CPU:
+> 
+> void *kmap_atomic_prot(struct page *page, pgprot_t prot)
+> {
+> ...
+>         type = kmap_atomic_idx_push();
+>         idx = type + KM_TYPE_NR*smp_processor_id();
+>         vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+> 
+> I think if you do a get_cpu()/put_cpu() or just a preempt_disable()
+> across the operations you'll be guaranteed to get two contiguous addresses.
 
-On Mon, Feb 06, 2012 at 10:48:42AM -0600, Christoph Lameter wrote:
-> So this would mean having statistics that show how many pages are
-> allocated on each node and take that into consideration for load
-> balancing? Which is something that we felt to be desirable for a long
-> time.
+I'm not quite following here.  kmap_atomic() only does this for highmem pages.
+For normal pages (all pages for 64-bit), it doesn't do any mapping at all.  It
+just returns the virtual address of the page since it is in the kernel's address
+space.
 
-Correct.
+For this design, the pages _must_ be mapped, even if the pages are directly
+reachable in the address space, because they must be virtually contiguous.
 
-The most difficult part after collecting the per page thread affinity
-and per-mm (process) thread affinity, is to compute it and drive both
-scheduler and migrate.c in function of it. The algorithm I got seems
-to work but it's not easy stuff. But at least it's not intrusive, it's
-trivial to proof absolutely zero change of runtime behavior the moment
-the core daemon that drives the whole thing stops running (sysfs
-disable or not compiled in).
-
-There are still areas where this logic needs improvement (like
-migrating unmapped pagecache when node is full etc..).
-
-I'm trying to clean things up so the code will be more readable and
-tunable at runtime. I also need to reduce its cost when you boot the
-kernel on a not-numa machine (allocating the data on the pgdat instead
-of struct page, which is not so easy with all memory models we got
-that allocate the pgdat data in different places, and allocate
-autonuma structures pointed by mm and task struct). All structures are
-embedded static right now (not allocated dynamically) but making it
-dynamic is not difficult cleanup even it's not the top priority at the
-moment.
-
-The only difficult feature I still miss is native THP migration which
-I plan to add after complete sysfs tuning works. (khugepaged is
-already capable to recreate THP on destination node, but I don't like
-that because the migration right now leads to temporary creation of
-sptes instead of sticking to spmds on KVM, not to tell a lot more
-vmexits than if we only get one for the spmd). For no-virt probably
-it's not so important feature as the hugepages are recreated later and
-a page fault costs less than a vmexit.
-
-Thanks,
-Andrea
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
