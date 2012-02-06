@@ -1,104 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C81376B002C
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 06:29:14 -0500 (EST)
-Received: by bkbzs2 with SMTP id zs2so6042282bkb.14
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 03:29:12 -0800 (PST)
-Message-ID: <4F2FB986.8040809@openvz.org>
-Date: Mon, 06 Feb 2012 15:29:10 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D68F76B002C
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 07:46:54 -0500 (EST)
+Received: by wera13 with SMTP id a13so5705794wer.14
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 04:46:52 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC V1] mm: convert rcu_read_lock() to srcu_read_lock(),
- thus allowing to sleep in callbacks
-References: <y> <4f2eae5e.e951b40a.3aa3.5ddc@mx.google.com> <4F2EE64F.6010900@openvz.org> <4F2F9926.3000708@mellanox.com>
-In-Reply-To: <4F2F9926.3000708@mellanox.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <op.v87mrdg83l0zgt@mpn-glaptop>
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+	<1328271538-14502-6-git-send-email-m.szyprowski@samsung.com>
+	<CAJd=RBBsTxV4bM_QEbKaU=uKkFTNgPEK4yTiLjbE0TaEp4KA7w@mail.gmail.com>
+	<op.v87mrdg83l0zgt@mpn-glaptop>
+Date: Mon, 6 Feb 2012 20:46:51 +0800
+Message-ID: <CAJd=RBAsRA-yggVSmijJPTLM2kKiLKWrTS9RjtESgPDc3pYTug@mail.gmail.com>
+Subject: Re: [PATCH 05/15] mm: compaction: export some of the functions
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sagig <sagig@mellanox.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Or Gerlitz <ogerlitz@mellanox.com>, "gleb@redhat.com" <gleb@redhat.com>, Oren Duer <oren@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-sagig wrote:
-> On 2/5/2012 10:27 PM, Konstantin Khlebnikov wrote:
->> sagig@mellanox.com wrote:
->>> Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it
->>> is possible to schedule inside invalidation callbacks
->>> (such as invalidate_page, invalidate_range_start/end and change_pte) .
->>> This is essential for a scheduling HW sync in RDMA drivers which
->>> apply on demand paging methods.
+2012/2/5 Michal Nazarewicz <mina86@mina86.com>:
+>> On Fri, Feb 3, 2012 at 8:18 PM, Marek Szyprowski
+>> <m.szyprowski@samsung.com> wrote:
 >>>
->>> Signed-off-by: sagi grimberg<sagig@mellanox.co.il>
->>
->> Ok, this is better, but it still does not work =)
->> Nobody synchronize with this srcu. There at least two candidates:
->> mmu_notifier_release() and mmu_notifier_unregister().
->> They call synchronize_rcu(), you must replace it with synchronize_srcu().
->>
->
-> Yes, I understand - will fix.
->
->>> ---
->>>    changes from V0:
->>>    1. srcu_struct should be shared and not allocated in each callback
->>> - removed from callbacks
->>>    2. added srcu_struct under mmu_notifier_mm
->>>    3. init_srcu_struct when creating mmu_notifier_mm
->>>    4. srcu_cleanup when destroying mmu_notifier_mm
+>>> From: Michal Nazarewicz <mina86@mina86.com>
 >>>
->>
->>> @@ -204,6 +208,8 @@ static int do_mmu_notifier_register(struct
->>> mmu_notifier *mn,
+>>> This commit exports some of the functions from compaction.c file
+>>> outside of it adding their declaration into internal.h header
+>>> file so that other mm related code can use them.
 >>>
->>>        if (!mm_has_notifiers(mm)) {
->>>            INIT_HLIST_HEAD(&mmu_notifier_mm->list);
->>> +        if (init_srcu_struct(&mmu_notifier_mm->srcu))
->>> +            goto out_cleanup;
->>
->> move it upper, out of mm->mmap_sem lock. and fix error path.
->>
+>>> This forced compaction.c to always be compiled (as opposed to being
+>>> compiled only if CONFIG_COMPACTION is defined) but as to avoid
+>>> introducing code that user did not ask for, part of the compaction.c
+>>> is now wrapped in on #ifdef.
 >
-> Yes, I see that init_srcu_struct is using GFP_KERNEL allocations.
-> But what if do_mmu_notifier_register was called from
-> __mmu_notifier_register (where mmap_sem is held)? won't I end up with
-> the same violation?
-
-In this case, it is not strictly necessary, but allocation outside of locks
-is usually better than under lock.
-
 >
-> Another question,
-> Just to understand - I should move only the init_srcu_struct() call out
-> of mmap_sem (will require checking !mm_has_notifiers(mm) twice)? or the
-> entire mmu_notifier_mm initialization?
-
-this code should do this steps:
-* allocate new struct mmu_notifiler_mm with all sub-structures, like srcu.
-* take locks
-* try to install new mmu-notifier
-* install our notifier into mmu-notifier
-* release locks
-* free new mmu-notifier and all sub-structures if it unused
-
-This is very commonly used pattern, sometimes it has fast-paths, sometimes not.
-Looks like in this case, there are usually only one notifier per-mm,
-so newly allocated mmu-notifier unlikely to be released.
-
->
+> On Sun, 05 Feb 2012 08:40:08 +0100, Hillf Danton <dhillf@gmail.com> wrote=
+:
 >>
->>>            spin_lock_init(&mmu_notifier_mm->lock);
->>>            mm->mmu_notifier_mm = mmu_notifier_mm;
->>>            mmu_notifier_mm = NULL;
->>> @@ -266,6 +272,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
->>>    void __mmu_notifier_mm_destroy(struct mm_struct *mm)
->>>    {
->>>        BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
->>> +    cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
->>>        kfree(mm->mmu_notifier_mm);
->>>        mm->mmu_notifier_mm = LIST_POISON1; /* debug */
->>>    }
->>
+>> What if both compaction and CMA are not enabled?
 >
+>
+> What about it? =C2=A0If both are enabled, both will be compiled and usabl=
+e.
+>
+
+Better if enforced compilation of compaction is addressed in separate
+patch in the patchset, according to the rule that one patch is delivered
+with one issue concerned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
