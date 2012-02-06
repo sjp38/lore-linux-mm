@@ -1,164 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 7492E6B13F0
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 04B866B13F1
 	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 17:56:22 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 00/15] Swap-over-NBD without deadlocking V8
-Date: Mon,  6 Feb 2012 22:56:03 +0000
-Message-Id: <1328568978-17553-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 01/15] mm: Serialize access to min_free_kbytes
+Date: Mon,  6 Feb 2012 22:56:04 +0000
+Message-Id: <1328568978-17553-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1328568978-17553-1-git-send-email-mgorman@suse.de>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V7
-  o Rebase to 3.3-rc2
-  o Take greater care propagating page->pfmemalloc to skb
-  o Propagate pfmemalloc from netdev_alloc_page to skb where possible
-  o Release RCU lock properly on preempt kernel
+There is a race between the min_free_kbytes sysctl, memory hotplug
+and transparent hugepage support enablement.  Memory hotplug uses a
+zonelists_mutex to avoid a race when building zonelists. Reuse it to
+serialise watermark updates.
 
-Changelog since V6
-  o Rebase to 3.1-rc8
-  o Use wake_up instead of wake_up_interruptible()
-  o Do not throttle kernel threads
-  o Avoid a potential race between kswapd going to sleep and processes being
-    throttled
+[a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |   23 +++++++++++++++--------
+ 1 files changed, 15 insertions(+), 8 deletions(-)
 
-Changelog since V5
-  o Rebase to 3.1-rc5
-
-Changelog since V4
-  o Update comment clarifying what protocols can be used		(Michal)
-  o Rebase to 3.0-rc3
-
-Changelog since V3
-  o Propogate pfmemalloc from packet fragment pages to skb		(Neil)
-  o Rebase to 3.0-rc2
-
-Changelog since V2
-  o Document that __GFP_NOMEMALLOC overrides __GFP_MEMALLOC		(Neil)
-  o Use wait_event_interruptible					(Neil)
-  o Use !! when casting to bool to avoid any possibilitity of type
-    truncation								(Neil)
-  o Nicer logic when using skb_pfmemalloc_protocol			(Neil)
-
-Changelog since V1
-  o Rebase on top of mmotm
-  o Use atomic_t for memalloc_socks		(David Miller)
-  o Remove use of sk_memalloc_socks in vmscan	(Neil Brown)
-  o Check throttle within prepare_to_wait	(Neil Brown)
-  o Add statistics on throttling instead of printk
-
-When a user or administrator requires swap for their application, they
-create a swap partition and file, format it with mkswap and activate it
-with swapon. Swap over the network is considered as an option in diskless
-systems. The two likely scenarios are when blade servers are used as part
-of a cluster where the form factor or maintenance costs do not allow the
-use of disks and thin clients.
-
-The Linux Terminal Server Project recommends the use of the
-Network Block Device (NBD) for swap according to the manual at
-https://sourceforge.net/projects/ltsp/files/Docs-Admin-Guide/LTSPManual.pdf/download
-There is also documentation and tutorials on how to setup swap over NBD
-at places like https://help.ubuntu.com/community/UbuntuLTSP/EnableNBDSWAP
-The nbd-client also documents the use of NBD as swap. Despite this, the
-fact is that a machine using NBD for swap can deadlock within minutes if
-swap is used intensively. This patch series addresses the problem.
-
-The core issue is that network block devices do not use mempools like normal
-block devices do. As the host cannot control where they receive packets from,
-they cannot reliably work out in advance how much memory they might need.
-
-Some years ago, Peter Ziljstra developed a series of patches that supported
-swap over an NFS that some distributions are carrying in their kernels. This
-patch series borrows very heavily from Peter's work to support swapping
-over NBD as a pre-requisite to supporting swap-over-NFS. The bulk of the
-complexity is concerned with preserving memory that is allocated from the
-PFMEMALLOC reserves for use by the network layer which is needed for both
-NBD and NFS.
-
-Patch 1 serialises access to min_free_kbytes. It's not strictly needed
-	by this series but as the series cares about watermarks in
-	general, it's a harmless fix. It could be merged independently.
-
-Patch 2 adds knowledge of the PFMEMALLOC reserves to SLAB and SLUB to
-	preserve access to pages allocated under low memory situations
-	to callers that are freeing memory.
-
-Patch 3 introduces __GFP_MEMALLOC to allow access to the PFMEMALLOC
-	reserves without setting PFMEMALLOC.
-
-Patch 4 opens the possibility for softirqs to use PFMEMALLOC reserves
-	for later use by network packet processing.
-
-Patch 5 ignores memory policies when ALLOC_NO_WATERMARKS is set.
-
-Patches 6-11 allows network processing to use PFMEMALLOC reserves when
-	the socket has been marked as being used by the VM to clean
-	pages. If packets are received and stored in pages that were
-	allocated under low-memory situations and are unrelated to
-	the VM, the packets are dropped.
-
-Patch 12 is a micro-optimisation to avoid a function call in the
-	common case.
-
-Patch 13 tags NBD sockets as being SOCK_MEMALLOC so they can use
-	PFMEMALLOC if necessary.
-
-Patch 14 notes that it is still possible for the PFMEMALLOC reserve
-	to be depleted. To prevent this, direct reclaimers get
-	throttled on a waitqueue if 50% of the PFMEMALLOC reserves are
-	depleted.  It is expected that kswapd and the direct reclaimers
-	already running will clean enough pages for the low watermark
-	to be reached and the throttled processes are woken up.
-
-Patch 15 adds a statistic to track how often processes get throttled
-
-Some basic performance testing was run using kernel builds, netperf
-on loopback for UDP and TCP, hackbench (pipes and sockets), iozone
-and sysbench. Each of them were expected to use the sl*b allocators
-reasonably heavily but there did not appear to be significant
-performance variances.
-
-For testing swap-over-NBD, a machine was booted with 2G of RAM with a
-swapfile backed by NBD. 8*NUM_CPU processes were started that create
-anonymous memory mappings and read them linearly in a loop. The total
-size of the mappings were 4*PHYSICAL_MEMORY to use swap heavily under
-memory pressure. Without the patches, the machine locks up within
-minutes and runs to completion with them applied.
-
- drivers/block/nbd.c                               |    6 +-
- drivers/net/ethernet/chelsio/cxgb4/sge.c          |    2 +-
- drivers/net/ethernet/chelsio/cxgb4vf/sge.c        |    2 +-
- drivers/net/ethernet/intel/igb/igb_main.c         |    2 +-
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |    2 +-
- drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |    3 +-
- drivers/net/usb/cdc-phonet.c                      |    2 +-
- drivers/usb/gadget/f_phonet.c                     |    2 +-
- include/linux/gfp.h                               |   13 +-
- include/linux/mm_types.h                          |    9 +
- include/linux/mmzone.h                            |    1 +
- include/linux/sched.h                             |    7 +
- include/linux/skbuff.h                            |   66 ++++++-
- include/linux/slub_def.h                          |    1 +
- include/linux/vm_event_item.h                     |    1 +
- include/net/sock.h                                |   19 ++
- include/trace/events/gfpflags.h                   |    1 +
- kernel/softirq.c                                  |    3 +
- mm/page_alloc.c                                   |   57 ++++-
- mm/slab.c                                         |  235 ++++++++++++++++++---
- mm/slub.c                                         |   36 +++-
- mm/vmscan.c                                       |   72 +++++++
- mm/vmstat.c                                       |    1 +
- net/core/dev.c                                    |   52 ++++-
- net/core/filter.c                                 |    8 +
- net/core/skbuff.c                                 |   93 +++++++--
- net/core/sock.c                                   |   42 ++++
- net/ipv4/tcp.c                                    |    3 +-
- net/ipv4/tcp_output.c                             |   16 +-
- net/ipv6/tcp_ipv6.c                               |   12 +-
- 30 files changed, 675 insertions(+), 94 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d2186ec..8b3b8cf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4932,14 +4932,7 @@ static void setup_per_zone_lowmem_reserve(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
+-/**
+- * setup_per_zone_wmarks - called when min_free_kbytes changes
+- * or when memory is hot-{added|removed}
+- *
+- * Ensures that the watermark[min,low,high] values for each zone are set
+- * correctly with respect to min_free_kbytes.
+- */
+-void setup_per_zone_wmarks(void)
++static void __setup_per_zone_wmarks(void)
+ {
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -4994,6 +4987,20 @@ void setup_per_zone_wmarks(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
++/**
++ * setup_per_zone_wmarks - called when min_free_kbytes changes
++ * or when memory is hot-{added|removed}
++ *
++ * Ensures that the watermark[min,low,high] values for each zone are set
++ * correctly with respect to min_free_kbytes.
++ */
++void setup_per_zone_wmarks(void)
++{
++	mutex_lock(&zonelists_mutex);
++	__setup_per_zone_wmarks();
++	mutex_unlock(&zonelists_mutex);
++}
++
+ /*
+  * The inactive anon list should be small enough that the VM never has to
+  * do too much work, but large enough that each inactive page has a chance
 -- 
 1.7.3.4
 
