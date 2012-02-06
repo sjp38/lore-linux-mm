@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 640566B140B
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 17:56:56 -0500 (EST)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/11] Avoid dereferencing bd_disk during swap_entry_free for network storage
-Date: Mon,  6 Feb 2012 22:56:41 +0000
-Message-Id: <1328569001-17599-12-git-send-email-mgorman@suse.de>
-In-Reply-To: <1328569001-17599-1-git-send-email-mgorman@suse.de>
-References: <1328569001-17599-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 9A07F6B13F6
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 18:53:47 -0500 (EST)
+Date: Mon, 6 Feb 2012 15:53:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/3] move hugepage test examples to
+ tools/testing/selftests/vm
+Message-Id: <20120206155340.b9075240.akpm@linux-foundation.org>
+In-Reply-To: <20120205081555.GA2249@darkstar.redhat.com>
+References: <20120205081555.GA2249@darkstar.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
+To: Dave Young <dyoung@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com, cl@linux.com, Frederic Weisbecker <fweisbec@gmail.com>
 
-Commit [b3a27d: swap: Add swap slot free callback to
-block_device_operations] dereferences p->bdev->bd_disk but this is a
-NULL dereference if using swap-over-NFS. This patch checks SWP_BLKDEV
-on the swap_info_struct before dereferencing.
+On Sun, 5 Feb 2012 16:15:55 +0800
+Dave Young <dyoung@redhat.com> wrote:
 
-With reference to this callback, Christoph Hellwig stated "Please
-just remove the callback entirely.  It has no user outside the staging
-tree and was added clearly against the rules for that staging tree".
-This would also be my preference but there was not an obvious way of
-keeping zram in staging/ happy.
+> hugepage-mmap.c, hugepage-shm.c and map_hugetlb.c in Documentation/vm are
+> simple pass/fail tests, It's better to promote them to tools/testing/selftests
+> 
+> Thanks suggestion of Andrew Morton about this. They all need firstly setting up
+> proper nr_hugepages and hugepage-mmap need to mount hugetlbfs. So I add a shell
+> script run_test to do such work which will call the three test programs and
+> check the return value of them.
+> 
+> Changes to original code including below:
+> a. add run_test script
+> b. return error when read_bytes mismatch with writed bytes.
+> c. coding style fixes: do not use assignment in if condition
+> 
 
-Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/swapfile.c |    9 +++++----
- 1 files changed, 5 insertions(+), 4 deletions(-)
+I think Frederic is doing away with tools/testing/selftests/run_tests
+in favour of a Makefile target?  ("make run_tests", for example).
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index e1bac6c..c549945 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -547,7 +547,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 
- 	/* free if no reference */
- 	if (!usage) {
--		struct gendisk *disk = p->bdev->bd_disk;
- 		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
- 		if (offset > p->highest_bit)
-@@ -557,9 +556,11 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p->type;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
--		if ((p->flags & SWP_BLKDEV) &&
--				disk->fops->swap_slot_free_notify)
--			disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		if (p->flags & SWP_BLKDEV) {
-+			struct gendisk *disk = p->bdev->bd_disk;
-+			if (disk->fops->swap_slot_free_notify)
-+				disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		}
- 	}
- 
- 	return usage;
--- 
-1.7.3.4
+Until we see such a patch we cannot finalise your patch and if I apply
+your patch, his patch will need more work.  Not that this is rocket
+science ;)
+
+> 
+> ...
+>
+> --- /dev/null
+> +++ b/tools/testing/selftests/vm/run_test
+
+(We now have a "run_tests" and a "run_test".  The difference in naming
+is irritating)
+
+Your vm/run_test file does quite a lot of work and we couldn't sensibly
+move all its functionality into Makefile, I expect.
+
+So I think it's OK to retain a script for this, but I do think that we
+should think up a standardized way of invoking it from vm/Makefile, so
+the top-level Makefile in tools/testing/selftests can simply do "cd
+vm;make run_test", where the run_test target exists in all
+subdirectories.  The vm/Makefile run_test target can then call out to
+the script.
+
+Also, please do not assume that the script has the x bit set.  The x
+bit easily gets lost on kernel scripts (patch(1) can lose it) so it is
+safer to invoke the script via "/bin/sh script-name" or $SHELL or
+whatever.
+
+Anyway, we should work with Frederic on sorting out some standard
+behavior before we can finalize this work, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
