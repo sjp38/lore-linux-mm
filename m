@@ -1,92 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 0C1BD6B13F0
-	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 12:40:02 -0500 (EST)
-Received: by mail-we0-f182.google.com with SMTP id m13so7144879wer.13
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 09:40:02 -0800 (PST)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id DA2B26B13F0
+	for <linux-mm@kvack.org>; Mon,  6 Feb 2012 12:46:43 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id l4so7513301wer.39
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 09:46:43 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1201301217530.4505@eggly.anvils>
+In-Reply-To: <20120130202013.GJ30782@redhat.com>
 References: <1327557574-6125-1-git-send-email-roland@kernel.org>
  <alpine.LSU.2.00.1201261133230.1369@eggly.anvils> <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com>
  <alpine.LSU.2.00.1201271458130.3402@eggly.anvils> <CAL1RGDXqguZ2QKV=yjLXtk2n_Ag4Nf3CW+kF2BFQFR4ySTNaRA@mail.gmail.com>
- <alpine.LSU.2.00.1201301217530.4505@eggly.anvils>
+ <20120130202013.GJ30782@redhat.com>
 From: Roland Dreier <roland@kernel.org>
-Date: Mon, 6 Feb 2012 09:39:42 -0800
-Message-ID: <CAL1RGDVSBb1DVsfvuz=ijRZX06crsqQfKoXWJ+6FO4xi3aYyTg@mail.gmail.com>
+Date: Mon, 6 Feb 2012 09:46:23 -0800
+Message-ID: <CAL1RGDUzYTVJJNwYzraObNvkZmOT=1oR4gBL2hKhB2harAiLLw@mail.gmail.com>
 Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages() parameters
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-rdma@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Sorry for the slow reply, I got caught in other business...
+Hi Andrea, sorry for the slow reply, had to work on other stuff for a bit.
 
-On Mon, Jan 30, 2012 at 12:34 PM, Hugh Dickins <hughd@google.com> wrote:
-> The hardest part about implementing that is deciding what snappy
-> name to give the FOLL_ flag.
+On Mon, Jan 30, 2012 at 12:20 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> If you map it with an mmap(PROT_READ|PROT_WRITE), force or not force
+> won't change a thing in terms of cows. Just make sure you map your
+> control memory right, then safely remove force=1 and you won't get the
+> control page cowed by mistake. Then if you map it with MAP_SHARED it
+> won't be mapped read-only by fork() (leading to either parent or child
+> losing the control on the device), Hugh already suggested you to use
+> MAP_SHARED instead of MAP_PRIVATE.
 
-Yes... FOLL_SOFT_COW ?  FOLL_READONLY_COW ?
-(plus a good comment explaining it I guess)
+Actually this isn't about control memory for the RDMA adapter...
+as you mentioned that typically is MMIO and mapped with remap_pfn
+stuff, without using any GUP stuff.
 
->> I don't think we want to do the "force" semantics or deal with the
->> VM_MAYWRITE possiblity -- the access we give the hardware on
->> behalf of userspace should just match the access that userspace
->> actually has. =A0It seems that if we don't try to get pages for writing
->> when VM_WRITE isn't set, we don't need force anymore.
->
-> I suspect you never needed or wanted the weird force behaviour on
-> shared maywrite, but that you did need the force COW behaviour on
-> private currently-unwritable maywrite. =A0You (or your forebears)
-> defined that interface to use the force flag, I'm guessing it was
-> for a reason; now you want to change it not to use the force flag,
-> and it sounds good, but I'm afraid you'll discover down the line
-> what the force flag was for.
+I'm talking about the registration of other memory for reading/writing
+by a remote system via RDMA.
 
-Actually I think I understand why the original code passed !write
-as the force parameter.
+The reason I'm talking about exporting kernel memory is that I wanted
+to do a debugging trick where a kernel module exposed some state
+into an mmap'able buffer.  And I wanted to be able to read that state
+even if my broken module killed the whole system (in fact exactly
+when things crash I want to be able to read the state to figure out
+why I crashed!).
 
-If the user is registering memory with read-only access, there are
-two common cases.  Possibly the underlying memory really has
-a read-only mapping, but probably more often it is just an ordinary
-buffer allocated in userspace with malloc() or the like.
+So I wrote a trivial userspace program that does nothing but mmap
+the buffer, accept RDMA connections from remote systems, and
+map the buffer for reading over those connections.  Then I can have
+a second system that connects to that process and polls the buffer.
 
-In the second case, it's quite likely we have a read/write mapping
-of anonymous pages.  We'll expose it read-only for RDMA but the
-userspace process will write data into the memory via ordinary CPU
-access.  However, if we do ibv_reg_mr() before initializing the memory
-it's quite possible that the mapping actually points to the zero page,
-waiting for a CPU write to trigger a COW.
+Because all the RDMA state is setup in advance, I can keep polling
+even after the first system panics.  It's sort of like that firewire remote
+debugging, except I only get access to a limited memory buffer.
 
-So in the second case, doing GUP without the write flag will leave
-the COW untriggered, and we'll end up mapping the zero page to
-the hardware, and RDMA won't read the data that userspace actually
-writes.  So (without GUP extension as we're discussing in this thread)
-we're forced to pass write=3D=3D1 to GUP, even if we expect hardware
-to only do reads.
-
-But if we pass write=3D=3D1, then GUP on the first case (mapping that
-is genuinely read-only) will fail, unless we pass force=3D=3D1 too.  But
-this should only succeed if we're going to only access the memory
-read-only, so we should set force to !writable-access-by-rdma.
-
-Which I think explains why the code is the way it is.  But clearly
-we could do better if we had a better way of telling GUP our real
-intentions -- ie the FOLL_READONLY_COW flag.
-
-> Can you, for example, enforce the permissions set up by the user?
-> I mean, if they do the ibv_reg_mr() on a private readonly area,
-> so __get_user_pages with the FOLL_APPROPRIATELY flag will fault
-> in ZERO_PAGEs, can you enforce that RDMA will never spray data
-> into those pages?
-
-Yes, the access flags passed into ibv_reg_mr() are enforced by
-the RDMA hardware, so if no write access is request, no write
-access is possible.
-
-And presumably if we do GUP with write=3D=3D1, force=3D=3D0 that will
-fail on a read-only mapping?
+The only difficulty is the problem that started this thread, ie a bogus
+COW so the remote system ends up polling the wrong pages.  So with
+my original patch, I'm able to debug but I guess we agree it's the
+wrong fix for the general problem, and I'll write up a patch that adds
+what I think is the correct fix (the new FOLL flag) soon.
 
  - R.
 
