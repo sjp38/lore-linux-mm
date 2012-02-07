@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 245E36B13F0
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 02:55:01 -0500 (EST)
-Received: by bkbzs2 with SMTP id zs2so7019093bkb.14
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 23:54:59 -0800 (PST)
-Subject: [PATCH 0/4] radix-tree: iterating general cleanup
+	by kanga.kvack.org (Postfix) with SMTP id F25C06B13F1
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 02:55:03 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id zs2so7019093bkb.14
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 23:55:03 -0800 (PST)
+Subject: [PATCH 1/4] bitops: implement "optimized" __find_next_bit()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Tue, 07 Feb 2012 11:54:56 +0400
-Message-ID: <20120207074905.29797.60353.stgit@zurg>
+Date: Tue, 07 Feb 2012 11:55:00 +0400
+Message-ID: <20120207075500.29797.95376.stgit@zurg>
+In-Reply-To: <20120207074905.29797.60353.stgit@zurg>
+References: <20120207074905.29797.60353.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -15,53 +17,63 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-This patchset implements common radix-tree iteration routine and
-reworks page-cache lookup functions with using it.
+This patch adds  __find_next_bit() -- static-inline variant of find_next_bit()
+optimized for small constant size arrays, because find_next_bit() is too heavy
+for searching in an array with one/two long elements.
+And unlike to find_next_bit() it does not mask tail bits.
 
-radix_tree_gang_lookup_*slot() now mostly unused (the last user somethere in
-drivers/sh/intc/virq.c), but they are exported, we cannot remove them for now.
-
-Also there some shmem-related radix-tree hacks can be reworked,
-radix_tree_locate_item() can be removed. I already have a few extra patches.
-
-And as usual my lovely bloat-o-meter:
-
-add/remove: 4/3 grow/shrink: 4/4 up/down: 1232/-964 (268)
-function                                     old     new   delta
-radix_tree_next_chunk                          -     499    +499
-static.shmem_find_get_pages_and_swap           -     404    +404
-find_get_pages_tag                           354     488    +134
-find_get_pages                               362     438     +76
-find_get_pages_contig                        345     407     +62
-__kstrtab_radix_tree_next_chunk                -      22     +22
-shmem_truncate_range                        1633    1652     +19
-__ksymtab_radix_tree_next_chunk                -      16     +16
-radix_tree_gang_lookup_tag_slot              208     180     -28
-radix_tree_gang_lookup_tag                   247     207     -40
-radix_tree_gang_lookup_slot                  204     162     -42
-radix_tree_gang_lookup                       231     160     -71
-__lookup                                     217       -    -217
-__lookup_tag                                 242       -    -242
-shmem_find_get_pages_and_swap                324       -    -324
-
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
+ include/asm-generic/bitops/find.h |   36 ++++++++++++++++++++++++++++++++++++
+ 1 files changed, 36 insertions(+), 0 deletions(-)
 
-Konstantin Khlebnikov (4):
-      bitops: implement "optimized" __find_next_bit()
-      radix-tree: introduce bit-optimized iterator
-      radix-tree: rewrite gang lookup with using iterator
-      radix-tree: use iterators in find_get_pages* functions
-
-
- include/asm-generic/bitops/find.h |   36 +++
- include/linux/radix-tree.h        |  129 +++++++++++
- lib/radix-tree.c                  |  422 +++++++++++++------------------------
- mm/filemap.c                      |   75 ++++---
- mm/shmem.c                        |   23 +-
- 5 files changed, 375 insertions(+), 310 deletions(-)
-
--- 
-Signature
+diff --git a/include/asm-generic/bitops/find.h b/include/asm-generic/bitops/find.h
+index 71c7780..1dd2495 100644
+--- a/include/asm-generic/bitops/find.h
++++ b/include/asm-generic/bitops/find.h
+@@ -12,6 +12,42 @@ extern unsigned long find_next_bit(const unsigned long *addr, unsigned long
+ 		size, unsigned long offset);
+ #endif
+ 
++#ifndef __find_next_bit
++/**
++ * __find_next_bit - find the next set bit in a memory region
++ * @addr: The address to base the search on
++ * @size: The bitmap size in bits
++ * @offset: The bitnumber to start searching at
++ *
++ * Unrollable variant of find_next_bit() for constant size arrays.
++ * Tail bits starting from size to roundup(size, BITS_PER_LONG) must be zero.
++ * Returns next bit offset, or size if nothing found.
++ */
++static inline unsigned long __find_next_bit(const unsigned long *addr,
++		unsigned long size, unsigned long offset)
++{
++	if (!__builtin_constant_p(size))
++		return find_next_bit(addr, size, offset);
++
++	if (offset < size) {
++		unsigned long tmp;
++
++		addr += offset / BITS_PER_LONG;
++		tmp = *addr >> (offset % BITS_PER_LONG);
++		if (tmp)
++			return __ffs(tmp) + offset;
++		offset = (offset + BITS_PER_LONG) & ~(BITS_PER_LONG - 1);
++		while (offset < size) {
++			tmp = *++addr;
++			if (tmp)
++				return __ffs(tmp) + offset;
++			offset += BITS_PER_LONG;
++		}
++	}
++	return size;
++}
++#endif
++
+ #ifndef find_next_zero_bit
+ /**
+  * find_next_zero_bit - find the next cleared bit in a memory region
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
