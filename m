@@ -1,119 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id BB8B86B13F2
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 00:46:43 -0500 (EST)
-Received: by lbbgg6 with SMTP id gg6so1902838lbb.14
-        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 21:46:41 -0800 (PST)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 245E36B13F0
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 02:55:01 -0500 (EST)
+Received: by bkbzs2 with SMTP id zs2so7019093bkb.14
+        for <linux-mm@kvack.org>; Mon, 06 Feb 2012 23:54:59 -0800 (PST)
+Subject: [PATCH 0/4] radix-tree: iterating general cleanup
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Tue, 07 Feb 2012 11:54:56 +0400
+Message-ID: <20120207074905.29797.60353.stgit@zurg>
 MIME-Version: 1.0
-In-Reply-To: <CAG4AFWZGr8SQF0rV+iys04HWmQ5WEGvXNcSZ9qJ7Jj9+FRbjCg@mail.gmail.com>
-References: <CAG4AFWaXVEHP+YikRSyt8ky9XsiBnwQ3O94Bgc7-b7nYL_2PZQ@mail.gmail.com>
-	<CANAOKxs8j2T2b0tKssFX9NeC1wyMqjLMQmgmRwMs9qvokYcW2w@mail.gmail.com>
-	<CAG4AFWZGr8SQF0rV+iys04HWmQ5WEGvXNcSZ9qJ7Jj9+FRbjCg@mail.gmail.com>
-Date: Mon, 6 Feb 2012 23:46:41 -0600
-Message-ID: <CANAOKxsFYCW7EzrbNn4jc3wOq6dmDE-pnpn0khxvb4C0iP3DtA@mail.gmail.com>
-Subject: Re: Strange finding about kernel samepage merging
-From: fluxion <flukshun@gmail.com>
-Content-Type: multipart/alternative; boundary=e0cb4efe2888adb99304b8594dc0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jidong Xiao <jidong.xiao@gmail.com>
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org
 
---e0cb4efe2888adb99304b8594dc0
-Content-Type: text/plain; charset=ISO-8859-1
+This patchset implements common radix-tree iteration routine and
+reworks page-cache lookup functions with using it.
 
-On Feb 6, 2012 10:14 PM, "Jidong Xiao" <jidong.xiao@gmail.com> wrote:
->
-> On Mon, Feb 6, 2012 at 10:35 PM, Michael Roth <mdroth@linux.vnet.ibm.com>
-wrote:
-> > My guess is you end up with 2 copies of each page on the guest: the
-copy in
-> > the guest's page cache, and the copy in the buffer you allocated. From
-the
-> > perspective of the host this all looks like anonymous memory, so ksm
-merges
-> > the pages.
->
-> Yes, the result definitely shows that there two copies. But I don't
-> understand why there would be two copies. So whenever you allocate
-> memory in a guest OS, you will always create two copies of the same
-> memory?
+radix_tree_gang_lookup_*slot() now mostly unused (the last user somethere in
+drivers/sh/intc/virq.c), but they are exported, we cannot remove them for now.
 
-Well, not just guests, hosts as well. Most operating systems will, by
-default, cache the data read from disks in memory to speed up subsequent
-access. In your case you're also creating a copy by allocating a second
-buffer and storing the data there as well.
+Also there some shmem-related radix-tree hacks can be reworked,
+radix_tree_locate_item() can be removed. I already have a few extra patches.
 
-Ksm only merges anonymous pages, not disk/page cache, but since your
-guest's pagecache looks like anonymous memory to the host, ksm is able to
-merge the dupes.
+And as usual my lovely bloat-o-meter:
 
->
-> An interesting thing is, if I replace the posix_memalign() function
-> with the malloc() function (See the original program, the commented
-> line.) there would be only one copy, i.e., no merging happens,
-> however, since I need to have some page-aligned memory, that's why I
-> use posix_memalign().
+add/remove: 4/3 grow/shrink: 4/4 up/down: 1232/-964 (268)
+function                                     old     new   delta
+radix_tree_next_chunk                          -     499    +499
+static.shmem_find_get_pages_and_swap           -     404    +404
+find_get_pages_tag                           354     488    +134
+find_get_pages                               362     438     +76
+find_get_pages_contig                        345     407     +62
+__kstrtab_radix_tree_next_chunk                -      22     +22
+shmem_truncate_range                        1633    1652     +19
+__ksymtab_radix_tree_next_chunk                -      16     +16
+radix_tree_gang_lookup_tag_slot              208     180     -28
+radix_tree_gang_lookup_tag                   247     207     -40
+radix_tree_gang_lookup_slot                  204     162     -42
+radix_tree_gang_lookup                       231     160     -71
+__lookup                                     217       -    -217
+__lookup_tag                                 242       -    -242
+shmem_find_get_pages_and_swap                324       -    -324
 
-Yup, ksm can only detect duplicate pages, so if your buffer isn't page
-aligned it's unable to merge with the copy in the guest's page cache
+---
 
->
-> Regards
-> Jidong
->
+Konstantin Khlebnikov (4):
+      bitops: implement "optimized" __find_next_bit()
+      radix-tree: introduce bit-optimized iterator
+      radix-tree: rewrite gang lookup with using iterator
+      radix-tree: use iterators in find_get_pages* functions
 
---e0cb4efe2888adb99304b8594dc0
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 
-<p><br>
-On Feb 6, 2012 10:14 PM, &quot;Jidong Xiao&quot; &lt;<a href=3D"mailto:jido=
-ng.xiao@gmail.com">jidong.xiao@gmail.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; On Mon, Feb 6, 2012 at 10:35 PM, Michael Roth &lt;<a href=3D"mailto:md=
-roth@linux.vnet.ibm.com">mdroth@linux.vnet.ibm.com</a>&gt; wrote:<br>
-&gt; &gt; My guess is you end up with 2 copies of each page on the guest: t=
-he copy in<br>
-&gt; &gt; the guest&#39;s page cache, and the copy in the buffer you alloca=
-ted. From the<br>
-&gt; &gt; perspective of the host this all looks like anonymous memory, so =
-ksm merges<br>
-&gt; &gt; the pages.<br>
-&gt;<br>
-&gt; Yes, the result definitely shows that there two copies. But I don&#39;=
-t<br>
-&gt; understand why there would be two copies. So whenever you allocate<br>
-&gt; memory in a guest OS, you will always create two copies of the same<br=
->
-&gt; memory?</p>
-<p>Well, not just guests, hosts as well. Most operating systems will, by de=
-fault, cache the data read from disks in memory to speed up subsequent acce=
-ss. In your case you&#39;re also creating a copy by allocating a second buf=
-fer and storing the data there as well.</p>
+ include/asm-generic/bitops/find.h |   36 +++
+ include/linux/radix-tree.h        |  129 +++++++++++
+ lib/radix-tree.c                  |  422 +++++++++++++------------------------
+ mm/filemap.c                      |   75 ++++---
+ mm/shmem.c                        |   23 +-
+ 5 files changed, 375 insertions(+), 310 deletions(-)
 
-<p>Ksm only merges anonymous pages, not disk/page cache, but since your gue=
-st&#39;s pagecache looks like anonymous memory to the host, ksm is able to =
-merge the dupes.</p>
-<p>&gt;<br>
-&gt; An interesting thing is, if I replace the posix_memalign() function<br=
->
-&gt; with the malloc() function (See the original program, the commented<br=
->
-&gt; line.) there would be only one copy, i.e., no merging happens,<br>
-&gt; however, since I need to have some page-aligned memory, that&#39;s why=
- I<br>
-&gt; use posix_memalign().</p>
-<p>Yup, ksm can only detect duplicate pages, so if your buffer isn&#39;t pa=
-ge aligned it&#39;s unable to merge with the copy in the guest&#39;s page c=
-ache</p>
-<p>&gt;<br>
-&gt; Regards<br>
-&gt; Jidong<br>
-&gt;<br>
-</p>
-
---e0cb4efe2888adb99304b8594dc0--
+-- 
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
