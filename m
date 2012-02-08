@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id BDC1E6B13F1
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:41:28 -0500 (EST)
-Date: Wed, 8 Feb 2012 17:31:20 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
-Message-ID: <20120208093120.GA18993@localhost>
-References: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 81FF36B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:52:15 -0500 (EST)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 8 Feb 2012 02:52:14 -0700
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B538D3E4004C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 02:52:11 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q189qBuw101852
+	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 02:52:11 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q189q9mb008474
+	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 02:52:10 -0700
+Date: Wed, 8 Feb 2012 15:10:09 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v10 3.3-rc2 1/9] uprobes: Install and remove
+ breakpoints.
+Message-ID: <20120208094009.GB24443@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
+ <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com>
+ <20120207171707.GA24443@linux.vnet.ibm.com>
+ <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Tue, Feb 07, 2012 at 11:55:05PM -0800, Greg Thelen wrote:
-> On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > If moving dirty pages out of the memcg to the 20% global dirty pages
-> > pool on page reclaim, the above OOM can be avoided. It does change the
-> > meaning of memory.limit_in_bytes in that the memcg tasks can now
-> > actually consume more pages (up to the shared global 20% dirty limit).
+* Denys Vlasenko <vda.linux@googlemail.com> [2012-02-08 10:40:30]:
+
+> On Tue, Feb 7, 2012 at 6:17 PM, Srikar Dronamraju
+> <srikar@linux.vnet.ibm.com> wrote:
+> > Changelog: (Since v10): Add code to clear REX.B prefix pointed out by Denys Vlasenko
+> > and fix suggested by Masami Hiramatsu.
+> ...
+> > +       /*
+> > +        * Point cursor at the modrm byte.  The next 4 bytes are the
+> > +        * displacement.  Beyond the displacement, for some instructions,
+> > +        * is the immediate operand.
+> > +        */
+> > +       cursor = uprobe->insn + insn_offset_modrm(insn);
+> > +       insn_get_length(insn);
+> > +       if (insn->rex_prefix.nbytes)
+> > +               *cursor &= 0xfe;        /* Clearing REX.B bit */
 > 
-> This seems like an easy change, but unfortunately the global 20% pool
-> has some shortcomings for my needs:
+> It looks like cursor points to mod/reg/rm byte, not rex byte.
+> Comment above says it too. You seem to be clearing a bit
+> in a wrong byte. I think it should be
+
+
+Oh okay, Will correct this and send out a new patch.
+
+
 > 
-> 1. the global 20% pool is not moderated.  One cgroup can dominate it
->     and deny service to other cgroups.
+>         /* Clear REX.b bit (extension of MODRM.rm field):
+>          * we want to encode rax/rcx, not r8/r9.
+>          */
+>         if (insn->rex_prefix.nbytes)
+>                 insn->rex_prefix.bytes[0] &= 0xfe;
 
-It is moderated by balance_dirty_pages() -- in terms of dirty ratelimit.
-And you have the freedom to control the bandwidth allocation with some
-async write I/O controller.
-
-Even though there is no direct control of dirty pages, we can roughly
-get it as the side effect of rate control. Given
-
-        ratelimit_cgroup_A = 2 * ratelimit_cgroup_B
-
-There will naturally be more dirty pages for cgroup A to be worked by
-the flusher. And the dirty pages will be roughly balanced around
-
-        nr_dirty_cgroup_A = 2 * nr_dirty_cgroup_B
-
-when writeout bandwidths for their dirty pages are equal.
-
-> 2. the global 20% pool is free, unaccounted memory.  Ideally cgroups only
->     use the amount of memory specified in their memory.limit_in_bytes.  The
->     goal is to sell portions of a system.  Global resource like the 20% are an
->     undesirable system-wide tax that's shared by jobs that may not even
->     perform buffered writes.
-
-Right, it is the shortcoming.
-
-> 3. Setting aside 20% extra memory for system wide dirty buffers is a lot of
->     memory.  This becomes a larger issue when the global dirty_ratio is
->     higher than 20%.
-
-Yeah the global pool scheme does mean that you'd better allocate at
-most 80% memory to individual memory cgroups, otherwise it's possible
-for a tiny memcg doing dd writes to push dirty pages to global LRU and
-*squeeze* the size of other memcgs.
-
-However I guess it should be mitigated by the fact that
-
-- we typically already reserve some space for the root memcg
-
-- 20% dirty ratio is mostly an overkill for large memory systems.
-  It's often enough to hold 10-30s worth of dirty data for them, which
-  is 1-3GB for one 100MB/s disk. This is the reason vm.dirty_bytes is
-  introduced: someone wants to do some <1% dirty ratio.
-
-Thanks,
-Fengguang
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
