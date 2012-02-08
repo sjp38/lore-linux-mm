@@ -1,200 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 3D0D46B13F6
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 10:52:49 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 6/6] pagemap: introduce data structure for pagemap entry
-Date: Wed,  8 Feb 2012 10:51:42 -0500
-Message-Id: <1328716302-16871-7-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1328716302-16871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1328716302-16871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 7AF606B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 11:34:27 -0500 (EST)
+Date: Wed, 8 Feb 2012 16:34:21 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20120208163421.GL5938@suse.de>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de>
+ <1328568978-17553-3-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1202071025050.30652@router.home>
+ <20120208144506.GI5938@suse.de>
+ <alpine.DEB.2.00.1202080907320.30248@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1202080907320.30248@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Currently a local variable of pagemap entry in pagemap_pte_range()
-is named pfn and typed with u64, but it's not correct (pfn should
-be unsigned long.)
-This patch introduces special type for pagemap entry and replace
-code with it.
+On Wed, Feb 08, 2012 at 09:14:32AM -0600, Christoph Lameter wrote:
+> On Wed, 8 Feb 2012, Mel Gorman wrote:
+> 
+> > o struct kmem_cache_cpu could be left alone even though it's a small saving
+> 
+> Its multiplied by the number of caches and by the number of
+> processors.
+> 
+> > o struct slab also be left alone
+> > o struct array_cache could be left alone although I would point out that
+> >   it would make no difference in size as touched is changed to a bool to
+> >   fit pfmemalloc in
+> 
+> Both of these are performance critical structures in slab.
+> 
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Ok, I looked into what is necessary to replace these with checking a page
+flag and the cost shifts quite a bit and ends up being more expensive.
 
-Changes since v4:
-  - Rename pme_t to pagemap_entry_t
----
- fs/proc/task_mmu.c |   69 ++++++++++++++++++++++++++++-----------------------
- 1 files changed, 38 insertions(+), 31 deletions(-)
+Right now, I use array_cache to record if there are any pfmemalloc
+objects in the free list at all. If there are not, no expensive checks
+are made. For example, in __ac_put_obj(), I check ac->pfmemalloc to see
+if an expensive check is required. Using a page flag, the same check
+requires a lookup with virt_to_page(). This in turns uses a
+pfn_to_page() which depending on the memory model can be very expensive.
+No matter what, it's more expensive than a simple check and this is in
+the slab free path.
 
-diff --git 3.3-rc2.orig/fs/proc/task_mmu.c 3.3-rc2/fs/proc/task_mmu.c
-index de94384..7810281 100644
---- 3.3-rc2.orig/fs/proc/task_mmu.c
-+++ 3.3-rc2/fs/proc/task_mmu.c
-@@ -589,9 +589,13 @@ const struct file_operations proc_clear_refs_operations = {
- 	.llseek		= noop_llseek,
- };
- 
-+typedef struct {
-+	u64 pme;
-+} pagemap_entry_t;
-+
- struct pagemapread {
- 	int pos, len;
--	u64 *buffer;
-+	pagemap_entry_t *buffer;
- };
- 
- #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-@@ -614,10 +618,15 @@ struct pagemapread {
- #define PM_NOT_PRESENT      PM_PSHIFT(PAGE_SHIFT)
- #define PM_END_OF_BUFFER    1
- 
--static int add_to_pagemap(unsigned long addr, u64 pfn,
-+static inline pagemap_entry_t make_pme(u64 val)
-+{
-+	return (pagemap_entry_t) { .pme = val };
-+}
-+
-+static int add_to_pagemap(unsigned long addr, pagemap_entry_t *pme,
- 			  struct pagemapread *pm)
- {
--	pm->buffer[pm->pos++] = pfn;
-+	pm->buffer[pm->pos++] = *pme;
- 	if (pm->pos >= pm->len)
- 		return PM_END_OF_BUFFER;
- 	return 0;
-@@ -629,8 +638,10 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
- 	struct pagemapread *pm = walk->private;
- 	unsigned long addr;
- 	int err = 0;
-+	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
-+
- 	for (addr = start; addr < end; addr += PAGE_SIZE) {
--		err = add_to_pagemap(addr, PM_NOT_PRESENT, pm);
-+		err = add_to_pagemap(addr, &pme, pm);
- 		if (err)
- 			break;
- 	}
-@@ -643,36 +654,33 @@ static u64 swap_pte_to_pagemap_entry(pte_t pte)
- 	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);
- }
- 
--static u64 pte_to_pagemap_entry(pte_t pte)
-+static void pte_to_pagemap_entry(pagemap_entry_t *pme, pte_t pte)
- {
--	u64 pme = 0;
- 	if (is_swap_pte(pte))
--		pme = PM_PFRAME(swap_pte_to_pagemap_entry(pte))
--			| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
-+		*pme = make_pme(PM_PFRAME(swap_pte_to_pagemap_entry(pte))
-+				| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP);
- 	else if (pte_present(pte))
--		pme = PM_PFRAME(pte_pfn(pte))
--			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
--	return pme;
-+		*pme = make_pme(PM_PFRAME(pte_pfn(pte))
-+				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--static u64 thp_pmd_to_pagemap_entry(pmd_t pmd, int offset)
-+static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme,
-+					pmd_t pmd, int offset)
- {
--	u64 pme = 0;
- 	/*
- 	 * Currently pmd for thp is always present because thp can not be
- 	 * swapped-out, migrated, or HWPOISONed (split in such cases instead.)
- 	 * This if-check is just to prepare for future implementation.
- 	 */
- 	if (pmd_present(pmd))
--		pme = PM_PFRAME(pmd_pfn(pmd) + offset)
--			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
--	return pme;
-+		*pme = make_pme(PM_PFRAME(pmd_pfn(pmd) + offset)
-+				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
- }
- #else
--static inline u64 thp_pmd_to_pagemap_entry(pmd_t pmd, int offset)
-+static inline void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme,
-+						pmd_t pmd, int offset)
- {
--	return 0;
+It is more complicated in check_ac_pfmemalloc() too although the performance
+impact is less because it is a slow path. If ac->pfmemalloc is false,
+the check of each slabp can be avoided. Without it, all the slabps must
+be checked unconditionally and each slabp that is checked must call
+virt_to_page().
+
+Overall, the memory savings of moving to a page flag are miniscule but
+the performance cost is far higher because of the use of virt_to_page().
+
+> > o It would still be necessary to do the object pointer tricks in slab.c
+> 
+> These trick are not done for slub. It seems that they are not necessary?
+> 
+
+In slub, it's sufficient to check kmem_cache_cpu to know whether the
+objects in the list are pfmemalloc or not.
+
+> > remain. However, the downside of requiring a page flag is very high. In
+> > the event we increase the number of page flags - great, I'll use one but
+> > right now I do not think the use of page flag is justified.
+> 
+> On 64 bit I think there is not much of an issue with another page flag.
+> 
+
+There isn't, but on 32 bit there is.
+
+> Also consider that the slab allocators do not make full use of the other
+> page flags. We could overload one of the existing flags. I removed
+> slubs use of them last year. PG_active could be overloaded I think.
+> 
+
+Yeah, you're right on the button there. I did my checking assuming that
+PG_active+PG_slab were safe to use. The following is an untested patch that
+I probably got details wrong in but it illustrates where virt_to_page()
+starts cropping up.
+
+It was a good idea and thanks for thinking of it but unfortunately the
+implementation would be more expensive than what I have currently.
+
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e90a673..108f3ce 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -432,6 +432,35 @@ static inline int PageTransCompound(struct page *page)
  }
  #endif
  
-@@ -683,7 +691,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	struct pagemapread *pm = walk->private;
- 	pte_t *pte;
- 	int err = 0;
--	u64 pfn = PM_NOT_PRESENT;
-+	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
- 
- 	/* find the first VMA at or above 'addr' */
- 	vma = find_vma(walk->mm, addr);
-@@ -692,8 +700,8 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		for (; addr != end; addr += PAGE_SIZE) {
- 			unsigned long offset = (addr & ~PAGEMAP_WALK_MASK)
- 				>> PAGE_SHIFT;
--			pfn = thp_pmd_to_pagemap_entry(*pmd, offset);
--			err = add_to_pagemap(addr, pfn, pm);
-+			thp_pmd_to_pagemap_entry(&pme, *pmd, offset);
-+			err = add_to_pagemap(addr, &pme, pm);
- 			if (err)
- 				break;
- 		}
-@@ -712,11 +720,11 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		if (vma && (vma->vm_start <= addr) &&
- 		    !is_vm_hugetlb_page(vma)) {
- 			pte = pte_offset_map(pmd, addr);
--			pfn = pte_to_pagemap_entry(*pte);
-+			pte_to_pagemap_entry(&pme, *pte);
- 			/* unmap before userspace copy */
- 			pte_unmap(pte);
- 		}
--		err = add_to_pagemap(addr, pfn, pm);
-+		err = add_to_pagemap(addr, &pme, pm);
- 		if (err)
- 			return err;
- 	}
-@@ -727,13 +735,12 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
++#ifdef CONFIG_NFS_SWAP
++static inline int PageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	return PageActive(page);
++}
++
++static inline void SetPageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	SetPageActive(page);
++}
++
++static inline void ClearPageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	ClearPageActive(page);
++}
++#else
++static inline int PageSlabPfmemalloc(struct page *page)
++{
++	return 0;
++}
++
++static inline void SetPageSlabPfmemalloc(struct page *page)
++{
++}
++#endif
++
+ #ifdef CONFIG_MMU
+ #define __PG_MLOCKED		(1 << PG_mlocked)
+ #else
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 1d9ae40..a32bcfd 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -46,7 +46,6 @@ struct kmem_cache_cpu {
+ 	struct page *page;	/* The slab from which we are allocating */
+ 	struct page *partial;	/* Partially allocated frozen slabs */
+ 	int node;		/* The node of the page (or -1 for debug) */
+-	bool pfmemalloc;	/* Slab page had pfmemalloc set */
+ #ifdef CONFIG_SLUB_STATS
+ 	unsigned stat[NR_SLUB_STAT_ITEMS];
+ #endif
+diff --git a/mm/slab.c b/mm/slab.c
+index 268cd96..3012186 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -233,7 +233,6 @@ struct slab {
+ 			unsigned int inuse;	/* num of objs active in slab */
+ 			kmem_bufctl_t free;
+ 			unsigned short nodeid;
+-			bool pfmemalloc;	/* Slab had pfmemalloc set */
+ 		};
+ 		struct slab_rcu __slab_cover_slab_rcu;
+ 	};
+@@ -255,8 +254,7 @@ struct array_cache {
+ 	unsigned int avail;
+ 	unsigned int limit;
+ 	unsigned int batchcount;
+-	bool touched;
+-	bool pfmemalloc;
++	unsigned int touched;
+ 	spinlock_t lock;
+ 	void *entry[];	/*
+ 			 * Must have this definition in here for the proper
+@@ -978,6 +976,13 @@ static struct array_cache *alloc_arraycache(int node, int entries,
+ 	return nc;
  }
  
- #ifdef CONFIG_HUGETLB_PAGE
--static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
-+static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme,
-+					pte_t pte, int offset)
- {
--	u64 pme = 0;
- 	if (pte_present(pte))
--		pme = PM_PFRAME(pte_pfn(pte) + offset)
--			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
--	return pme;
-+		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)
-+				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
++static inline bool is_slab_pfmemalloc(struct slab *slabp)
++{
++	struct page *page = virt_to_page(slabp->s_mem);
++
++	return PageSlabPfmemalloc(page);
++}
++
+ /* Clears ac->pfmemalloc if no slabs have pfmalloc set */
+ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 						struct array_cache *ac)
+@@ -985,22 +990,18 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 	struct kmem_list3 *l3 = cachep->nodelists[numa_mem_id()];
+ 	struct slab *slabp;
+ 
+-	if (!ac->pfmemalloc)
+-		return;
+-
+ 	list_for_each_entry(slabp, &l3->slabs_full, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+ 	list_for_each_entry(slabp, &l3->slabs_partial, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+ 	list_for_each_entry(slabp, &l3->slabs_free, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+-	ac->pfmemalloc = false;
  }
  
- /* This function walks within one hugetlb entry in the single call */
-@@ -743,12 +750,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+@@ -1036,7 +1037,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 		l3 = cachep->nodelists[numa_mem_id()];
+ 		if (!list_empty(&l3->slabs_free) && force_refill) {
+ 			struct slab *slabp = virt_to_slab(objp);
+-			slabp->pfmemalloc = false;
++			ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
+ 			clear_obj_pfmemalloc(&objp);
+ 			check_ac_pfmemalloc(cachep, ac);
+ 			return objp;
+@@ -1066,15 +1067,11 @@ static inline void *ac_get_obj(struct kmem_cache *cachep,
+ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 								void *objp)
  {
- 	struct pagemapread *pm = walk->private;
- 	int err = 0;
--	u64 pfn;
-+	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
+-	struct slab *slabp;
++	struct page *page = virt_to_page(objp);
  
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		int offset = (addr & ~hmask) >> PAGE_SHIFT;
--		pfn = huge_pte_to_pagemap_entry(*pte, offset);
--		err = add_to_pagemap(addr, pfn, pm);
-+		huge_pte_to_pagemap_entry(&pme, *pte, offset);
-+		err = add_to_pagemap(addr, &pme, pm);
- 		if (err)
- 			return err;
- 	}
--- 
-1.7.7.6
+ 	/* If there are pfmemalloc slabs, check if the object is part of one */
+-	if (unlikely(ac->pfmemalloc)) {
+-		slabp = virt_to_slab(objp);
+-
+-		if (slabp->pfmemalloc)
+-			set_obj_pfmemalloc(&objp);
+-	}
++	if (PageSlabPfmemalloc(page))
++		set_obj_pfmemalloc(&objp);
+ 
+ 	return objp;
+ }
+@@ -1906,9 +1903,13 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	else
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
+-	for (i = 0; i < nr_pages; i++)
++	for (i = 0; i < nr_pages; i++) {
+ 		__SetPageSlab(page + i);
+ 
++		if (*pfmemalloc)
++			SetPageSlabPfmemalloc(page);
++	}
++
+ 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+ 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
+ 
+@@ -2888,7 +2889,6 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
+ 	slabp->s_mem = objp + colour_off;
+ 	slabp->nodeid = nodeid;
+ 	slabp->free = 0;
+-	slabp->pfmemalloc = false;
+ 	return slabp;
+ }
+ 
+@@ -3074,13 +3074,6 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	if (!slabp)
+ 		goto opps1;
+ 
+-	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+-	if (pfmemalloc) {
+-		struct array_cache *ac = cpu_cache_get(cachep);
+-		slabp->pfmemalloc = true;
+-		ac->pfmemalloc = true;
+-	}
+-
+ 	slab_map_pages(cachep, slabp, objp);
+ 
+ 	cache_init_objs(cachep, slabp);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
