@@ -1,71 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id B24396B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 17:31:24 -0500 (EST)
-Date: Wed, 8 Feb 2012 16:13:15 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-In-Reply-To: <20120208212323.GM5938@suse.de>
-Message-ID: <alpine.DEB.2.00.1202081557540.5970@router.home>
-References: <1328568978-17553-1-git-send-email-mgorman@suse.de> <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home>
- <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home> <20120208212323.GM5938@suse.de>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 2D9CF6B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 18:07:54 -0500 (EST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 8 Feb 2012 16:07:52 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5DAE41FF0049
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 16:07:17 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q18N7G7Y104720
+	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 16:07:16 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q18N7EN9017056
+	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 16:07:15 -0700
+Message-ID: <4F33001E.50600@linux.vnet.ibm.com>
+Date: Wed, 08 Feb 2012 15:07:10 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com> <1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com> <4F21A5AF.6010605@linux.vnet.ibm.com> <4F300D41.5050105@linux.vnet.ibm.com> <4F32A55E.8010401@linux.vnet.ibm.com> <4F32B6A4.8030702@vflare.org> <4F32BEDC.6030502@linux.vnet.ibm.com> <4F32E1D2.4010809@vflare.org> <52f90b19-84b5-4e97-952a-373bdfeaa77d@default>
+In-Reply-To: <52f90b19-84b5-4e97-952a-373bdfeaa77d@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Wed, 8 Feb 2012, Mel Gorman wrote:
+On 02/08/2012 01:39 PM, Dan Magenheimer wrote:
+>> > map_vm_area() needs 'struct vm_struct' parameter but for mapping kernel
+>> > allocated pages within kernel, what should we pass here?  I think we can
+>> > instead use map_kernel_range_noflush() -- surprisingly
+>> > unmap_kernel_range_noflush() is exported but this one is not.
+> Creating a dependency on a core kernel change (even just an EXPORT_SYMBOL)
+> is probably not a good idea.  Unless Dave vehemently objects, I'd suggest
+> implementing it both ways, leaving the method that relies on the
+> kernel change ifdef'd out, and add this to "the list of things that
+> need to be done before zcache can be promoted out of staging".
 
-> On Wed, Feb 08, 2012 at 01:49:05PM -0600, Christoph Lameter wrote:
-> > On Wed, 8 Feb 2012, Mel Gorman wrote:
-> >
-> > > Ok, I looked into what is necessary to replace these with checking a page
-> > > flag and the cost shifts quite a bit and ends up being more expensive.
-> >
-> > That is only true if you go the slab route.
->
-> Well, yes but both slab and slub have to be supported. I see no reason
-> why I would choose to make this a slab-only or slub-only feature. Slob is
-> not supported because it's not expected that a platform using slob is also
-> going to use network-based swap.
-
-I think so far the patches in particular to slab.c are pretty significant
-in impact.
-
-> > Slab suffers from not having
-> > the page struct pointer readily available. The changes are likely already
-> > impacting slab performance without the virt_to_page patch.
-> >
->
-> The performance impact only comes into play when swap is on a network
-> device and pfmemalloc reserves are in use. The rest of the time the check
-> on ac avoids all the cost and there is a micro-optimisation later to avoid
-> calling a function (patch 12).
-
-We have been down this road too many times. Logic is added to critical
-paths and memory structures grow. This is not free. And for NBD swap
-support? Pretty exotic use case.
-
-> Ok, are you asking that I use the page flag for slub and leave kmem_cache_cpu
-> alone in the slub case? I can certainly check it out if that's what you
-> are asking for.
-
-No I am not asking for something. Still thinking about the best way to
-address the issues. I think we can easily come up with a minimally
-invasive patch for slub. Not sure about slab at this point. I think we
-could avoid most of the new fields but this requires some tinkering. I
-have a day @ home tomorrow which hopefully gives me a chance to
-put some focus on this issue.
-
-> I did come up with a way: the necessary information is in ac and slabp
-> on slab :/ . There are not exactly many ways that the information can
-> be recorded.
-
-Wish we had something that would not involve increasing the number of
-fields in these slab structures.
+Seems like a sane approach to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
