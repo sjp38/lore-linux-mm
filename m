@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 459C46B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 14:27:22 -0500 (EST)
-Received: by bkty12 with SMTP id y12so1112077bkt.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 11:27:20 -0800 (PST)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 1EFDD6B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 14:49:09 -0500 (EST)
+Date: Wed, 8 Feb 2012 13:49:05 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+In-Reply-To: <20120208163421.GL5938@suse.de>
+Message-ID: <alpine.DEB.2.00.1202081338210.32060@router.home>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de> <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home>
+ <20120208163421.GL5938@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <op.v9cr9sqm3l0zgt@mpn-glaptop>
-References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
- <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com>
- <20120203140428.GG5796@csn.ul.ie> <CA+K6fF49BQiNer=7Di+gCU_EX4E41q-teXJJUBjEd2xc12-j4w@mail.gmail.com>
- <op.v9cr9sqm3l0zgt@mpn-glaptop>
-From: sandeep patil <psandeep.s@gmail.com>
-Date: Wed, 8 Feb 2012 11:26:40 -0800
-Message-ID: <CA+K6fF7naDkPOK8Dv1gg-4RdrrCC5OTx498nFLxg==PPHz-q6g@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 11/15] mm: trigger page reclaim in
- alloc_contig_range() to stabilize watermarks
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Marek Szyprowski <m.szyprowski@samsung.com>, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-2012/2/8 Michal Nazarewicz <mina86@mina86.com>:
-> On Wed, 08 Feb 2012 03:04:18 +0100, sandeep patil <psandeep.s@gmail.com>
-> wrote:
->>
->> There's another problem I am facing with zone watermarks and CMA.
->>
->> Test details:
->> Memory =A0: 480 MB of total memory, 128 MB CMA region
->> Test case : around 600 MB of file transfer over USB RNDIS onto target
->> System Load : ftpd with console running on target.
->> No one is doing CMA allocations except for the DMA allocations done by t=
-he
->> drivers.
->>
->> Result : After about 300MB transfer, I start getting GFP_ATOMIC
->> allocation failures. =A0This only happens if CMA region is reserved.
->> Total memory available is way above the zone watermarks. So, we ended
->> up starving
->> UNMOVABLE/RECLAIMABLE atomic allocations that cannot fallback on CMA
->> region.
->
->
-> This looks like something Mel warned me about. =A0I don't really have a g=
-ood
-> solution for that yet. ;/
+On Wed, 8 Feb 2012, Mel Gorman wrote:
 
-What if we have NR_FREE_CMA_PAGES in vmstat and use them to calculate
-__zone_watermark_ok()?
-However, it still doesn't solve the problem when we DON'T want to use
-NR_FREE_CMA_PAGES in case of MOVABLE allocations.
+> Ok, I looked into what is necessary to replace these with checking a page
+> flag and the cost shifts quite a bit and ends up being more expensive.
 
+That is only true if you go the slab route. Slab suffers from not having
+the page struct pointer readily available. The changes are likely already
+impacting slab performance without the virt_to_page patch.
 
-Sandeep
+> In slub, it's sufficient to check kmem_cache_cpu to know whether the
+> objects in the list are pfmemalloc or not.
+
+We try to minimize the size of kmem_cache_cpu. The page pointer is readily
+available. We just removed the node field from kmem_cache_cpu because it
+was less expensive to get the node number from the struct page field.
+
+The same is certainly true for a PFMEMALLOC flag.
+
+> Yeah, you're right on the button there. I did my checking assuming that
+> PG_active+PG_slab were safe to use. The following is an untested patch that
+> I probably got details wrong in but it illustrates where virt_to_page()
+> starts cropping up.
+
+Yes you need to come up with a way to not use virt_to_page otherwise slab
+performance is significantly impacted. On NUMA we are already doing a page
+struct lookup on free in slab. If you would save the page struct pointer
+there and reuse it then you would not have an issue at least on free.
+
+You still would need to determine which "struct slab" pointer is in use
+which will also require similar lookups in varous places.
+
+Transfer of the pfmemalloc flags (guess you must have a pfmemalloc
+field in struct slab then) in slab is best be done when allocating and
+freeing a slab page from the page allocator.
+
+I think its rather trivial to add the support you want in a non intrusive
+way to slub. Slab would require some more thought and discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
