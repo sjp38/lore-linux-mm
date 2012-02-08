@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 4BD096B13F2
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 02:55:26 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so162153qcs.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 23:55:25 -0800 (PST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id C6E296B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 03:56:28 -0500 (EST)
+From: Toralf =?utf-8?q?F=C3=B6rster?= <toralf.foerster@gmx.de>
+Subject: Re: swap storm since kernel 3.2.x
+Date: Wed, 8 Feb 2012 09:56:15 +0100
+References: <201202041109.53003.toralf.foerster@gmx.de> <201202051107.26634.toralf.foerster@gmx.de> <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
+In-Reply-To: <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
 MIME-Version: 1.0
-From: Greg Thelen <gthelen@google.com>
-Date: Tue, 7 Feb 2012 23:55:05 -0800
-Message-ID: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
-Subject: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201202080956.18727.toralf.foerster@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Johannes Stezenbach <js@sig21.net>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> If moving dirty pages out of the memcg to the 20% global dirty pages
-> pool on page reclaim, the above OOM can be avoided. It does change the
-> meaning of memory.limit_in_bytes in that the memcg tasks can now
-> actually consume more pages (up to the shared global 20% dirty limit).
 
-This seems like an easy change, but unfortunately the global 20% pool
-has some shortcomings for my needs:
+Hillf Danton wrote at 12:38:31
+> 2012/2/5 Toralf F=C3=B6rster <toralf.foerster@gmx.de>:
+> > Hillf Danton wrote at 05:45:40
+> >=20
+> >> Would you please try the patchset of Rik?
+> >>=20
+> >>          https://lkml.org/lkml/2012/1/26/374
+> >=20
+> > It doesn't applied successfully agains 3.2.3 (+patch +f 3.2.5)
+> >=20
+> > :-(
+>=20
+> That patchset already in -next tree, mind to try it with
+> CONFIG_SLUB_DEBUG first disabled, and try again with it enabled?
+>=20
+> Hillf
+I switched back to 3.0.20 in the mean while.
 
-1. the global 20% pool is not moderated.  One cgroup can dominate it
-    and deny service to other cgroups.
+=46rom what I can tell is this:
+If the system is under heavy I/O load and hasn't too much free RAM (git pul=
+l,=20
+svn update and RAM consuming BOINC applications) then kernel 3.0.20 handle=
+=20
+this somehow while 3.2.x run into a swap storm like.
 
-2. the global 20% pool is free, unaccounted memory.  Ideally cgroups only
-    use the amount of memory specified in their memory.limit_in_bytes.  The
-    goal is to sell portions of a system.  Global resource like the 20% are an
-    undesirable system-wide tax that's shared by jobs that may not even
-    perform buffered writes.
-
-3. Setting aside 20% extra memory for system wide dirty buffers is a lot of
-    memory.  This becomes a larger issue when the global dirty_ratio is
-    higher than 20%.
+=2D-=20
+MfG/Sincerely
+Toralf F=C3=B6rster
+pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
