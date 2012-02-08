@@ -1,91 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 651936B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:33:17 -0500 (EST)
-Received: by eekc13 with SMTP id c13so133329eek.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 01:33:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 7E9106B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:36:47 -0500 (EST)
+Received: by eekc13 with SMTP id c13so134532eek.14
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 01:36:45 -0800 (PST)
 Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH v8 7/8] mm: only IPI CPUs to drain local pages if they
- exist
+Subject: Re: [PATCH v8 0/8] Reduce cross CPU IPI interference
 References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
- <1328449722-15959-6-git-send-email-gilad@benyossef.com>
-Date: Wed, 08 Feb 2012 10:33:13 +0100
+Date: Wed, 08 Feb 2012 10:36:42 +0100
 MIME-Version: 1.0
 Content-Transfer-Encoding: Quoted-Printable
 From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v9cstne43l0zgt@mpn-glaptop>
-In-Reply-To: <1328449722-15959-6-git-send-email-gilad@benyossef.com>
+Message-ID: <op.v9cszgo23l0zgt@mpn-glaptop>
+In-Reply-To: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell
- King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander
- Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Milton Miller <miltonm@bga.com>
+Cc: Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi
+ Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Sun, 05 Feb 2012 14:48:41 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
+On Sun, 05 Feb 2012 14:33:20 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
 m> wrote:
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d2186ec..3ff5aff 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1161,11 +1161,46 @@ void drain_local_pages(void *arg)
->  }
-> /*
-> - * Spill all the per-cpu pages from all CPUs back into the buddy allo=
-cator
-> + * Spill all the per-cpu pages from all CPUs back into the buddy allo=
-cator.
-> + *
-> + * Note that this code is protected against sending an IPI to an offl=
-ine
-> + * CPU but does not guarantee sending an IPI to newly hotplugged CPUs=
-:
-> + * on_each_cpu_mask() blocks hotplug and won't talk to offlined CPUs =
-but
-> + * nothing keeps CPUs from showing up after we populated the cpumask =
-and
-> + * before the call to on_each_cpu_mask().
->   */
->  void drain_all_pages(void)
->  {
-> -	on_each_cpu(drain_local_pages, NULL, 1);
-> +	int cpu;
-> +	struct per_cpu_pageset *pcp;
-> +	struct zone *zone;
-> +
-> +	/* Allocate in the BSS so we wont require allocation in
-> +	 * direct reclaim path for CONFIG_CPUMASK_OFFSTACK=3Dy
-> +	 */
+> This patch set, inspired by discussions with Peter Zijlstra and Freder=
+ic
+> Weisbecker when testing the nohz task patch set, is a first stab at tr=
+ying
+> to explore doing this by locating the places where such global IPI cal=
+ls
+> are being made and turning the global IPI into an IPI for a specific g=
+roup
+> of CPUs.  The purpose of the patch set is to get feedback if this is t=
+he
+> right way to go for dealing with this issue and indeed, if the issue i=
+s
+> even worth dealing with at all. Based on the feedback from this patch =
+set
+> I plan to offer further patches that address similar issue in other co=
+de
+> paths.
+>
+> The patch creates an on_each_cpu_mask and on_each_cpu_cond infrastruct=
+ure
+> API (the former derived from existing arch specific versions in Tile a=
+nd
+> Arm) and uses them to turn several global IPI invocation to per CPU
+> group invocations.
 
-If you are going to send next iteration, this comment should have
-=E2=80=9C/*=E2=80=9D on its own line just like comment below.
+> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Chris Metcalf <cmetcalf@tilera.com>
+> CC: Frederic Weisbecker <fweisbec@gmail.com>
+> CC: linux-mm@kvack.org
+> CC: Pekka Enberg <penberg@kernel.org>
+> CC: Matt Mackall <mpm@selenic.com>
+> CC: Sasha Levin <levinsasha928@gmail.com>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Andi Kleen <andi@firstfloor.org>
+> CC: Mel Gorman <mel@csn.ul.ie>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Alexander Viro <viro@zeniv.linux.org.uk>
+> CC: Avi Kivity <avi@redhat.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
 
-> +	static cpumask_t cpus_with_pcps;
-> +
-> +	/*
-> +	 * We don't care about racing with CPU hotplug event
-> +	 * as offline notification will cause the notified
-> +	 * cpu to drain that CPU pcps and on_each_cpu_mask
-> +	 * disables preemption as part of its processing
-> +	 */
-> +	for_each_online_cpu(cpu) {
-> +		bool has_pcps =3D false;
-> +		for_each_populated_zone(zone) {
-> +			pcp =3D per_cpu_ptr(zone->pageset, cpu);
-> +			if (pcp->pcp.count) {
-> +				has_pcps =3D true;
-> +				break;
-> +			}
-> +		}
-> +		if (has_pcps)
-> +			cpumask_set_cpu(cpu, &cpus_with_pcps);
-> +		else
-> +			cpumask_clear_cpu(cpu, &cpus_with_pcps);
-> +	}
-> +	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
->  }
-> #ifdef CONFIG_HIBERNATION
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
+for patches form 1 to 4 and 7.  The other two (5 and 6) look good but
+I don't know enough about slub and fs to feel confident acking.
+
+> CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
+> CC: Milton Miller <miltonm@bga.com>
 
 -- =
 
