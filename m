@@ -1,50 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 8CD6B6B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 10:38:07 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so356321ghr.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 07:38:06 -0800 (PST)
-Date: Wed, 8 Feb 2012 16:38:01 +0100
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH] selftests: Launch individual selftests from the main
- Makefile
-Message-ID: <20120208153759.GD25473@somewhere.redhat.com>
-References: <20120205081555.GA2249@darkstar.redhat.com>
- <20120206155340.b9075240.akpm@linux-foundation.org>
- <20120208034055.GA23894@somewhere.redhat.com>
- <alpine.DEB.2.00.1202080843250.29839@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1202080843250.29839@router.home>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 8AD6C6B13F2
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 10:52:48 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 4/6] pagemap: document KPF_THP and make page-types aware of it
+Date: Wed,  8 Feb 2012 10:51:40 -0500
+Message-Id: <1328716302-16871-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1328716302-16871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1328716302-16871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Wed, Feb 08, 2012 at 08:45:35AM -0600, Christoph Lameter wrote:
-> Note that slub also has an embedded selftest (see function
-> resiliency_test). That code could be separated out and put with the
-> selftests that you are creating now.
+page-types, which is a common user of pagemap, gets aware of thp
+with this patch. This helps system admins and kernel hackers know
+about how thp works.
+Here is a sample output of page-types over a thp:
 
-That would be nice. As long as it's in userspace and it runs validation
-tests, it's pretty welcome.
+  $ page-types -p <pid> --raw --list
 
-It's deemed to test expected behaviour with deterministic tests. stress tests
-probably don't fit well there although it should be no problem if they are short.
+  voffset offset  len     flags
+  ...
+  7f9d40200       3f8400  1       ___U_lA____Ma_bH______t____________
+  7f9d40201       3f8401  1ff     ________________T_____t____________
 
+               flags      page-count       MB  symbolic-flags                     long-symbolic-flags
+  0x0000000000410000             511        1  ________________T_____t____________        compound_tail,thp
+  0x000000000040d868               1        0  ___U_lA____Ma_bH______t____________        uptodate,lru,active,mmap,anonymous,swapbacked,compound_head,thp
 
-> I also have a series of in kernel benchmarks for the page allocation, vm
-> statistics and slab allocators that could be useful to included somewhere.
-> 
-> All this code runs in the kernel context.
-> 
-> For the in kernel benchmarks I am creating modules that fail to load but
-> first run the tests.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hmm, benchmarks tend to require some user analysis, I'm not sure if a batch of
-validation tests is the right place for them. But loading modules is probably
-not a problem.
+Changes since v1:
+  - fix misused word
+---
+ Documentation/vm/page-types.c |    2 ++
+ Documentation/vm/pagemap.txt  |    4 ++++
+ 2 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git 3.3-rc2.orig/Documentation/vm/page-types.c 3.3-rc2/Documentation/vm/page-types.c
+index 7445caa..0b13f02 100644
+--- 3.3-rc2.orig/Documentation/vm/page-types.c
++++ 3.3-rc2/Documentation/vm/page-types.c
+@@ -98,6 +98,7 @@
+ #define KPF_HWPOISON		19
+ #define KPF_NOPAGE		20
+ #define KPF_KSM			21
++#define KPF_THP			22
+ 
+ /* [32-] kernel hacking assistances */
+ #define KPF_RESERVED		32
+@@ -147,6 +148,7 @@ static const char *page_flag_names[] = {
+ 	[KPF_HWPOISON]		= "X:hwpoison",
+ 	[KPF_NOPAGE]		= "n:nopage",
+ 	[KPF_KSM]		= "x:ksm",
++	[KPF_THP]		= "t:thp",
+ 
+ 	[KPF_RESERVED]		= "r:reserved",
+ 	[KPF_MLOCKED]		= "m:mlocked",
+diff --git 3.3-rc2.orig/Documentation/vm/pagemap.txt 3.3-rc2/Documentation/vm/pagemap.txt
+index df09b96..4600cbe 100644
+--- 3.3-rc2.orig/Documentation/vm/pagemap.txt
++++ 3.3-rc2/Documentation/vm/pagemap.txt
+@@ -60,6 +60,7 @@ There are three components to pagemap:
+     19. HWPOISON
+     20. NOPAGE
+     21. KSM
++    22. THP
+ 
+ Short descriptions to the page flags:
+ 
+@@ -97,6 +98,9 @@ Short descriptions to the page flags:
+ 21. KSM
+     identical memory pages dynamically shared between one or more processes
+ 
++22. THP
++    contiguous pages which construct transparent hugepages
++
+     [IO related page flags]
+  1. ERROR     IO error occurred
+  3. UPTODATE  page has up-to-date data
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
