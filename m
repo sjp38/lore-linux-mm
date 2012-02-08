@@ -1,72 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 779656B13FB
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 20:30:40 -0500 (EST)
-Received: by bkty12 with SMTP id y12so43144bkt.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 17:30:38 -0800 (PST)
-Message-ID: <4F31D03B.9040707@openvz.org>
-Date: Wed, 08 Feb 2012 05:30:35 +0400
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id AB78F6B13FA
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 20:41:56 -0500 (EST)
+Received: by bkty12 with SMTP id y12so49519bkt.14
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 17:41:55 -0800 (PST)
+Message-ID: <4F31D2E0.5020704@openvz.org>
+Date: Wed, 08 Feb 2012 05:41:52 +0400
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
-References: <20120207074905.29797.60353.stgit@zurg>  <CA+55aFy3NZ2sWX0CNVd9FnPSx0mUKSe0XzDWpDsNfU21p6ebHQ@mail.gmail.com>
-In-Reply-To: <CA+55aFy3NZ2sWX0CNVd9FnPSx0mUKSe0XzDWpDsNfU21p6ebHQ@mail.gmail.com>
+Subject: Re: [PATCH BUGFIX] mm: fix find_get_page() for shmem exceptional
+ entries
+References: <20120207103121.28345.28611.stgit@zurg> <4F31003E.2090901@openvz.org> <alpine.LSU.2.00.1202071011450.1849@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1202071011450.1849@eggly.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Linus Torvalds wrote:
-> On Mon, Feb 6, 2012 at 11:54 PM, Konstantin Khlebnikov
-> <khlebnikov@openvz.org>  wrote:
->> This patchset implements common radix-tree iteration routine and
->> reworks page-cache lookup functions with using it.
+Hugh Dickins wrote:
+> On Tue, 7 Feb 2012, Konstantin Khlebnikov wrote:
 >
-> So what's the advantage? Both the line counts and the bloat-o-meter
-> seems to imply this is all just bad.
-
-If do not count comments here actually is negative line count change.
-And if drop (almost) unused radix_tree_gang_lookup_tag_slot() and
-radix_tree_gang_lookup_slot() total bloat-o-meter score becomes negative too.
-There also some shrinkable stuff in shmem code.
-So, if this is really a problem it is fixable. I just didn't want to bloat patchset.
-
+>> Bug was added in commit v3.0-7291-g8079b1c (mm: clarify the radix_tree
+>> exceptional cases)
+>> So, v3.1 and v3.2 affected.
+>>
+>> Konstantin Khlebnikov wrote:
+>>> It should return NULL, otherwise the caller will be very surprised.
+>>>
+>>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
 >
-> I assume there is some upside to it, but you really don't make that
-> obvious, so why should anybody ever waste even a second of time
-> looking at this?
+> Thanks for worrying about it, but Nak to this patch.
+>
+> If you have found somewhere that is surprised by an exceptional entry
+> instead of a page, then indeed we shall need to fix that: I'm not
+> aware of any.
 
-Hmm, from my point of view, this unified iterator code looks cleaner than
-current duplicated radix-tree code. That's why I was titled it "cleanup".
-
-There also some simple bit-hacks: find-next-bit instead of dumb loops in tagged-lookup.
-
-Here some benchmark results: there is radix-tree with 1024 slots, I fill and tag every <step> slot,
-and run lookup for all slots with radix_tree_gang_lookup() and radix_tree_gang_lookup_tag() in the loop.
-old/new rows -- nsec per iteration over whole tree.
-
-tagged-lookup
-step	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16
-old	7035	5248	4742	4308	4217	4133	4030	3920	4038	3933	3914	3796	3851	3755	3819	3582
-new	3578	2617	1899	1426	1220	1058	936	822	845	749	695	679	648	575	591	509
-
-so, new tagged-lookup always faster, especially for sparse trees.
-
-normal-lookup
-step	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16
-old	4156	2641	2068	1837	1630	1531	1467	1415	1373	1398	1333	1323	1308	1280	1236	1249
-new	3048	2520	2429	2280	2266	2296	2215	2219	2188	2170	2218	2332	2166	2096	2100	2058
-
-New normal lookup works faster for dense trees, on sparse trees it slower.
-Looks like it caused by struct radix_tree_iter aliasing,
-gcc cannot effectively use its field as loop counter in nested-loop.
-But how important is this? Anyway, I'll think how to fix this misfortune.
-
+Oh, this is very dangerous semantics, especially for function called "find-get-page"
+which sometimes returns not-getted not-a-page =)
 
 >
->                    Linus
+> There are several places that are prepared for the possibility:
+> find_lock_page() (and your patch would be breaking shmem.c's use of
+> find_lock_page()), mincore_page(), memcontrol.c's mc_handle_file_pte().
+>
+> Of the remaining calls to find_get_page(), my understanding is that
+> either they are filesystems operating upon their own pagecache, or
+> they involve using ->readpage() - that's one of the two reasons why
+> I gave shmem its own ->splice_read() and removed its ->readpage()
+> before switching over to use the exceptional entries.
+>
+> Hugh
+>
+>>> ---
+>>>    mm/filemap.c |    1 +
+>>>    1 files changed, 1 insertions(+), 0 deletions(-)
+>>>
+>>> diff --git a/mm/filemap.c b/mm/filemap.c
+>>> index 518223b..ca98cb5 100644
+>>> --- a/mm/filemap.c
+>>> +++ b/mm/filemap.c
+>>> @@ -693,6 +693,7 @@ repeat:
+>>>    			 * here as an exceptional entry: so return it without
+>>>    			 * attempting to raise page count.
+>>>    			 */
+>>> +			page = NULL;
+>>>    			goto out;
+>>>    		}
+>>>    		if (!page_cache_get_speculative(page))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
