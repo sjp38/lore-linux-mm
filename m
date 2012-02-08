@@ -1,82 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id EBF4D6B13FE
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 20:51:19 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so159618pbc.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 17:51:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 1EC8A6B13FA
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 21:05:00 -0500 (EST)
+Received: by bkty12 with SMTP id y12so62013bkt.14
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 18:04:58 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4F31D03B.9040707@openvz.org>
-References: <20120207074905.29797.60353.stgit@zurg> <CA+55aFy3NZ2sWX0CNVd9FnPSx0mUKSe0XzDWpDsNfU21p6ebHQ@mail.gmail.com>
- <4F31D03B.9040707@openvz.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 7 Feb 2012 17:50:59 -0800
-Message-ID: <CA+55aFx24n-W4-wTtrfbt9PNvVd7n+SvThnO6OQ74uW4yNrGxw@mail.gmail.com>
-Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
+In-Reply-To: <20120203140428.GG5796@csn.ul.ie>
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+ <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com> <20120203140428.GG5796@csn.ul.ie>
+From: sandeep patil <psandeep.s@gmail.com>
+Date: Tue, 7 Feb 2012 18:04:18 -0800
+Message-ID: <CA+K6fF49BQiNer=7Di+gCU_EX4E41q-teXJJUBjEd2xc12-j4w@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 11/15] mm: trigger page reclaim in
+ alloc_contig_range() to stabilize watermarks
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Tue, Feb 7, 2012 at 5:30 PM, Konstantin Khlebnikov
-<khlebnikov@openvz.org> wrote:
+On Fri, Feb 3, 2012 at 6:04 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Fri, Feb 03, 2012 at 01:18:54PM +0100, Marek Szyprowski wrote:
 >
-> If do not count comments here actually is negative line count change.
-
-Ok, fair enough.
-
-> And if drop (almost) unused radix_tree_gang_lookup_tag_slot() and
-> radix_tree_gang_lookup_slot() total bloat-o-meter score becomes negative
-> too.
-
-Good.
-
-> There also some simple bit-hacks: find-next-bit instead of dumb loops in
-> tagged-lookup.
+> Nothing prevents two or more processes updating the wmarks at the same
+> time which is racy and unpredictable. Today it is not much of a problem
+> but CMA makes this path hotter than it was and you may see weirdness
+> if two processes are updating zonelists at the same time. Swap-over-NFS
+> actually starts with a patch that serialises setup_per_zone_wmarks()
 >
-> Here some benchmark results: there is radix-tree with 1024 slots, I fill =
-and
-> tag every <step> slot,
-> and run lookup for all slots with radix_tree_gang_lookup() and
-> radix_tree_gang_lookup_tag() in the loop.
-> old/new rows -- nsec per iteration over whole tree.
+> You also potentially have a BIG problem here if this happens
 >
-> tagged-lookup
-> step =A0 =A01 =A0 =A0 =A0 2 =A0 =A0 =A0 3 =A0 =A0 =A0 4 =A0 =A0 =A0 5 =A0=
- =A0 =A0 6 =A0 =A0 =A0 7 =A0 =A0 =A0 8 =A0 =A0 =A0 9 =A0 =A0 =A0 10 =A0 =A0=
- =A011 =A0 =A0 =A012 =A0 =A0 =A013 =A0 =A0 =A014 =A0 =A0 =A015 =A0 =A0 =A01=
-6
-> old =A0 =A0 7035 =A0 =A05248 =A0 =A04742 =A0 =A04308 =A0 =A04217 =A0 =A04=
-133 =A0 =A04030 =A0 =A03920 =A0 =A04038 =A0 =A03933 =A0 =A03914 =A0 =A03796=
- =A0 =A03851 =A0 =A03755 =A0 =A03819 =A0 =A03582
-> new =A0 =A0 3578 =A0 =A02617 =A0 =A01899 =A0 =A01426 =A0 =A01220 =A0 =A01=
-058 =A0 =A0936 =A0 =A0 822 =A0 =A0 845 =A0 =A0 749 =A0 =A0 695 =A0 =A0 679 =
-=A0 =A0 648 =A0 =A0 575 =A0 =A0 591 =A0 =A0 509
+> min_free_kbytes =3D 32768
+> Process a: min_free_kbytes =A0+=3D 65536
+> Process a: start direct reclaim
+> echo 16374 > /proc/sys/vm/min_free_kbytes
+> Process a: exit direct_reclaim
+> Process a: min_free_kbytes -=3D 65536
 >
-> so, new tagged-lookup always faster, especially for sparse trees.
+> min_free_kbytes now wraps negative and the machine hangs.
+>
 
-Do you have any benchmarks when it's actually used by higher levels,
-though? I guess that will involve find_get_pages(), and we don't have
-all that any of them, but it would be lovely to see some real load
-(even if it is limited to one of the filesystems that uses this)
-numbers too..
+There's another problem I am facing with zone watermarks and CMA.
 
-> New normal lookup works faster for dense trees, on sparse trees it slower=
+Test details:
+Memory  : 480 MB of total memory, 128 MB CMA region
+Test case : around 600 MB of file transfer over USB RNDIS onto target
+System Load : ftpd with console running on target.
+No one is doing CMA allocations except for the DMA allocations done by the
+drivers.
+
+Result : After about 300MB transfer, I start getting GFP_ATOMIC
+allocation failures.
+This only happens if CMA region is reserved.
+
+Here's the free_list before I start the test
+
+Free pages count per migrate type at order       0      1      2
+3      4      5      6      7      8      9     10
+Node    0, zone   Normal, type    Unmovable      2      9      6
+7      3      3      3      4      2      1      0
+Node    0, zone   Normal, type  Reclaimable     31      4      1
+2      1      1      0      1      1      0      0
+Node    0, zone   Normal, type      Movable     22     20     23
+14      3      4      4      3      1      0     70
+Node    0, zone   Normal, type      Reserve      0      0      0
+0      0      0      0      0      0      0      1
+Node    0, zone   Normal, type          CMA      2      0      0
+2      1      1      1      1      1      1     34
+Node    0, zone   Normal, type      Isolate      0      0      0
+0      0      0      0      0      0      0      0
+
+and here's what I get when I print the same when allocation fails.
+
+Normal: Free pages count per migrate type at order       0      1
+2      3      4      5      6      7      8      9     10
+[  401.887634]                    zone   Normal, type    Unmovable
+ 0      0      0      0      0      0      0      0      0      0
+0
+[  401.901916]                    zone   Normal, type  Reclaimable
+ 0      0      0      0      0      0      0      0      0      0
+0
+[  401.916229]                    zone   Normal, type      Movable
+ 0      0      0      0      0      0      0      0      0      0
+0
+[  401.930541]                    zone   Normal, type      Reserve
+ 0      0      0      0      0      0      0      0      0      0
+0
+[  401.944824]                    zone   Normal, type          CMA
+6582   6580   2380      0      0      0      0      0      0      0
+  0
+[  401.961486]                    zone   Normal, type      Isolate
+ 0      0      0      0      0      0      0      0      0      0
+0
+
+Total memory available is way above the zone watermarks. So, we ended
+up starving
+UNMOVABLE/RECLAIMABLE atomic allocations that cannot fallback on CMA region=
 .
 
-I think that should be the common case, so that may be fine. Again, it
-would be nice to see numbers that are for something else than just the
-lookup - an actual use of it in some real context.
+I know the CMA region is big, but I think reducing the region size
+will only delay the problem.
+it walso on't recover as long as most of the CMA region pages get
+allocated and the zone
+watermark is hit
 
-Anyway, the patches themselves looked fine to me, modulo the fact that
-I wasn't all that happy with the new __find_next_bit, and I think it's
-better to not expose it in a generic header file. But I would really
-like to see more "real" numbers for the series
+To check my theory, I changed __zone_watermark_ok() to ignore free CMA page=
+s
+With this change, the transfer succeeds w/o any failures.
 
-Thanks,
+The patch does make things slow of course. Ideally, I would have liked
+to do this only if
+the watermark is being checked for non-Movable allocations, but I couldn't =
+find
+an easy way to do that.
 
-                   Linus
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 371a79f..b672d97 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1580,6 +1580,21 @@ static bool __zone_watermark_ok(struct zone *z,
+int order, unsigned long mark,
+ 		if (free_pages <=3D min)
+ 			return false;
+ 	}
++
++#ifdef CONFIG_CMA
++	/* If cma is enabled, ignore free pages from MIGRATE_CMA list
++	 * for watermark checks
++	 */
++	for (o =3D order; o < MAX_ORDER; o++) {
++		struct list_head *curr;
++		list_for_each(curr, &z->free_area[o].free_list[MIGRATE_CMA]) {
++			free_pages -=3D (1 << o);
++			if (free_pages <=3D min)
++				return false;
++		}
++	}
++#endif
++
+ 	return true;
+ }
+
+Sandeep
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
