@@ -1,64 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 5D7BC6B13F0
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 23:00:37 -0500 (EST)
-Received: by ggnf1 with SMTP id f1so52370ggn.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 20:00:36 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAAHN_R0+ExGcdpLM7KwC_KsPOemVOiRrmyWcowiu5_cWW3BPLQ@mail.gmail.com>
-References: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
-	<1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com>
-	<CAAHN_R2g9zaujw30+zLf91AGDHNqE6HDc8Z4yJbrzgJcJYFkXg@mail.gmail.com>
-	<4F2B02BC.8010308@gmail.com>
-	<CAAHN_R0O7a+RX7BDfas3+vC+mnQpp0h3y4bBa1u4T-Jt=S9J_w@mail.gmail.com>
-	<CAHGf_=qA6EFue2-mNUg9udWV4xSx86XQsnyGV07hfZOUx6_egw@mail.gmail.com>
-	<CAAHN_R0+ExGcdpLM7KwC_KsPOemVOiRrmyWcowiu5_cWW3BPLQ@mail.gmail.com>
-Date: Wed, 8 Feb 2012 09:30:36 +0530
-Message-ID: <CAAHN_R0N=3J4=VqvDsGB=_2Ln9yKBjOevW2=_UAMBK1pGepqvA@mail.gmail.com>
-Subject: Re: [RESEND][PATCH] Mark thread stack correctly in proc/<pid>/maps
-From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 5DC1F6B13F0
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 23:48:03 -0500 (EST)
+Subject: Re: [rfc PATCH]slub: per cpu partial statistics change
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1202070910320.29500@router.home>
+References: <1328256695.12669.24.camel@debian>
+	 <alpine.DEB.2.00.1202030920060.2420@router.home>
+	 <4F2C824E.8080501@intel.com>
+	 <alpine.DEB.2.00.1202060858510.393@router.home>
+	 <1328591165.12669.168.camel@debian>
+	 <alpine.DEB.2.00.1202070910320.29500@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 08 Feb 2012 12:44:50 +0800
+Message-ID: <1328676290.12669.431.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Jamie Lokier <jamie@shareable.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Mike Frysinger <vapier@gentoo.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sat, Feb 4, 2012 at 12:04 AM, Siddhesh Poyarekar
-<siddhesh.poyarekar@gmail.com> wrote:
-> On Fri, Feb 3, 2012 at 1:31 PM, KOSAKI Motohiro
-> <kosaki.motohiro@gmail.com> wrote:
->> The fact is, now process stack and pthread stack clearly behave
->> different dance. libc don't expect pthread stack grow automatically.
->> So, your patch will break userland. Just only change display thing.
-<snip>
-> I have also dropped an email on the libc-alpha list here to solicit
-> comments from libc maintainers on this:
->
-> http://sourceware.org/ml/libc-alpha/2012-02/msg00036.html
->
+On Tue, 2012-02-07 at 09:12 -0600, Christoph Lameter wrote:
+> On Tue, 7 Feb 2012, Alex,Shi wrote:
+> 
+> > Yes, I want to account the unfreeze_partialsi 1/4 ?i 1/4 ? actions in
+> > put_cpu_partiali 1/4 ?). The unfreezing accounting isn't conflict or repeat
+> > with the cpu_partial_free accounting, since they are different actions
+> > for the PCP.
+> 
+> Well what is happening here is that the whole per cpu partial list is
+> moved back to the per node partial list.
+> 
+> CPU_PARTIAL_DRAIN_TO_NODE_PARTIAL ?
+> 
+> A bit long I think. CPU_PARTIAL_DRAIN?
 
-Kosaki-san, your suggestion of adding an extra flag seems like the
-right way to go about this based on the discussion on libc-alpha,
-specifically, your point about pthread_getattr_np() -- it may not be a
-standard, but it's a breakage anyway. However, looking at the vm_flags
-options in mm.h, it looks like the entire 32-bit space has been
-exhausted for the flag value. The vm_flags is an unsigned long, so it
-ought to take 8 bytes on a 64-bit system, but 32-bit systems will be
-left behind.
+Yes. it is more meaningful. :) 
+Patch change here. 
 
-So there are two options for this:
+----------------
+>From af88a7b0134d3eea82a4cf9985026852e50f5343 Mon Sep 17 00:00:00 2001
+From: Alex Shi <alex.shi@intel.com>
+Date: Fri, 3 Feb 2012 23:34:56 +0800
+Subject: [PATCH] slub: per cpu partial statistics change
 
-1) make vm_flags 64-bit for all arches. This will cause ABI breakage
-on 32-bit systems, so any external drivers will have to be rebuilt
-2) Implement this patch for 64-bit only by defining the new flag only
-for 64-bit. 32-bit systems behave as is
+This patch split the cpu_partial_free into 2 parts: cpu_partial_node, PCP refilling
+times from node partial; and same name cpu_partial_free, PCP refilling times in
+slab_free slow path. A new statistic 'cpu_partial_drain' is added to get PCP
+drain to node partial times. These info are useful when do PCP tunning.
 
-Which of these would be better? I prefer the latter because it looks
-like the path of least breakage.
+The slabinfo.c code is unchanged, since cpu_partial_node is not on slow path.
 
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ include/linux/slub_def.h |    6 ++++--
+ mm/slub.c                |   12 +++++++++---
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index a32bcfd..6388a66 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -21,7 +21,7 @@ enum stat_item {
+ 	FREE_FROZEN,		/* Freeing to frozen slab */
+ 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
+ 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
+-	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from partial list */
++	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
+ 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
+ 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
+ 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
+@@ -37,7 +37,9 @@ enum stat_item {
+ 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
+ 	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
+ 	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
+-	CPU_PARTIAL_FREE,	/* USed cpu partial on free */
++	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
++	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
++	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
+ 	NR_SLUB_STAT_ITEMS };
+ 
+ struct kmem_cache_cpu {
+diff --git a/mm/slub.c b/mm/slub.c
+index 4907563..4e71a0a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1560,6 +1560,7 @@ static void *get_partial_node(struct kmem_cache *s,
+ 		} else {
+ 			page->freelist = t;
+ 			available = put_cpu_partial(s, page, 0);
++			stat(s, CPU_PARTIAL_NODE);
+ 		}
+ 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+ 			break;
+@@ -1973,6 +1974,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 				local_irq_restore(flags);
+ 				pobjects = 0;
+ 				pages = 0;
++				stat(s, CPU_PARTIAL_DRAIN);
+ 			}
+ 		}
+ 
+@@ -1984,7 +1986,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->next = oldpage;
+ 
+ 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+-	stat(s, CPU_PARTIAL_FREE);
+ 	return pobjects;
+ }
+ 
+@@ -2465,9 +2466,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		 * If we just froze the page then put it onto the
+ 		 * per cpu partial list.
+ 		 */
+-		if (new.frozen && !was_frozen)
++		if (new.frozen && !was_frozen) {
+ 			put_cpu_partial(s, page, 1);
+-
++			stat(s, CPU_PARTIAL_FREE);
++		}
+ 		/*
+ 		 * The list lock was not taken therefore no list
+ 		 * activity can be necessary.
+@@ -5059,6 +5061,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
+ STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
+ STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
+ STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
++STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
++STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
+ #endif
+ 
+ static struct attribute *slab_attrs[] = {
+@@ -5124,6 +5128,8 @@ static struct attribute *slab_attrs[] = {
+ 	&cmpxchg_double_cpu_fail_attr.attr,
+ 	&cpu_partial_alloc_attr.attr,
+ 	&cpu_partial_free_attr.attr,
++	&cpu_partial_node_attr.attr,
++	&cpu_partial_drain_attr.attr,
+ #endif
+ #ifdef CONFIG_FAILSLAB
+ 	&failslab_attr.attr,
 -- 
-Siddhesh Poyarekar
-http://siddhesh.in
+1.6.3.3
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
