@@ -1,67 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 908226B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 09:45:11 -0500 (EST)
-Date: Wed, 8 Feb 2012 14:45:06 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-Message-ID: <20120208144506.GI5938@suse.de>
-References: <1328568978-17553-1-git-send-email-mgorman@suse.de>
- <1328568978-17553-3-git-send-email-mgorman@suse.de>
- <alpine.DEB.2.00.1202071025050.30652@router.home>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 827036B13F1
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 09:45:38 -0500 (EST)
+Date: Wed, 8 Feb 2012 08:45:35 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] selftests: Launch individual selftests from the main
+ Makefile
+In-Reply-To: <20120208034055.GA23894@somewhere.redhat.com>
+Message-ID: <alpine.DEB.2.00.1202080843250.29839@router.home>
+References: <20120205081555.GA2249@darkstar.redhat.com> <20120206155340.b9075240.akpm@linux-foundation.org> <20120208034055.GA23894@somewhere.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1202071025050.30652@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com
 
-On Tue, Feb 07, 2012 at 10:27:56AM -0600, Christoph Lameter wrote:
-> On Mon, 6 Feb 2012, Mel Gorman wrote:
-> 
-> > Pages allocated from the reserve are returned with page->pfmemalloc
-> > set and it is up to the caller to determine how the page should be
-> > protected.  SLAB restricts access to any page with page->pfmemalloc set
-> 
-> pfmemalloc sounds like a page flag. If you would use one then the
-> preservation of the flag by copying it elsewhere may not be necessary and
-> the patches would be less invasive.
+Note that slub also has an embedded selftest (see function
+resiliency_test). That code could be separated out and put with the
+selftests that you are creating now.
 
-Using a page flag would simplify parts of the patch. The catch of course
-is that it requires a page flag which are in tight supply and I do not
-want to tie this to being 32-bit unnecessarily.
+I also have a series of in kernel benchmarks for the page allocation, vm
+statistics and slab allocators that could be useful to included somewhere.
 
-> Also you would not need to extend
-> and modify many of the structures.
-> 
- 
-Lets see;
+All this code runs in the kernel context.
 
-o struct page size would be unaffected
-o struct kmem_cache_cpu could be left alone even though it's a small saving
-o struct slab also be left alone
-o struct array_cache could be left alone although I would point out that
-  it would make no difference in size as touched is changed to a bool to
-  fit pfmemalloc in
-o It would still be necessary to do the object pointer tricks in slab.c
-  to avoid doing an excessive number of page lookups which is where much
-  of the complexity is
-o The virt_to_slab could be replaced by looking up the page flag instead
-  and avoiding a level of indirection that would be pleasing
-  to an int and placed with struct kmem_cache
-
-I agree that parts of the patch would be simplier although the
-complexity of storing pfmemalloc within the obj pointer would probably
-remain. However, the downside of requiring a page flag is very high. In
-the event we increase the number of page flags - great, I'll use one but
-right now I do not think the use of page flag is justified.
-
--- 
-Mel Gorman
-SUSE Labs
+For the in kernel benchmarks I am creating modules that fail to load but
+first run the tests.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
