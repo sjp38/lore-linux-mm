@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id C6E296B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 03:56:28 -0500 (EST)
-From: Toralf =?utf-8?q?F=C3=B6rster?= <toralf.foerster@gmx.de>
-Subject: Re: swap storm since kernel 3.2.x
-Date: Wed, 8 Feb 2012 09:56:15 +0100
-References: <201202041109.53003.toralf.foerster@gmx.de> <201202051107.26634.toralf.foerster@gmx.de> <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
-In-Reply-To: <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 66AC06B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:21:23 -0500 (EST)
+Received: by eekc13 with SMTP id c13so129186eek.14
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 01:21:21 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [Linaro-mm-sig] [PATCH 11/15] mm: trigger page reclaim in
+ alloc_contig_range() to stabilize watermarks
+References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
+ <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com>
+ <20120203140428.GG5796@csn.ul.ie>
+ <CA+K6fF49BQiNer=7Di+gCU_EX4E41q-teXJJUBjEd2xc12-j4w@mail.gmail.com>
+Date: Wed, 08 Feb 2012 10:21:18 +0100
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201202080956.18727.toralf.foerster@gmx.de>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v9cr9sqm3l0zgt@mpn-glaptop>
+In-Reply-To: <CA+K6fF49BQiNer=7Di+gCU_EX4E41q-teXJJUBjEd2xc12-j4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Johannes Stezenbach <js@sig21.net>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>, sandeep patil <psandeep.s@gmail.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
+On Wed, 08 Feb 2012 03:04:18 +0100, sandeep patil <psandeep.s@gmail.com>=
+ wrote:
+> There's another problem I am facing with zone watermarks and CMA.
+>
+> Test details:
+> Memory  : 480 MB of total memory, 128 MB CMA region
+> Test case : around 600 MB of file transfer over USB RNDIS onto target
+> System Load : ftpd with console running on target.
+> No one is doing CMA allocations except for the DMA allocations done by=
+ the
+> drivers.
+>
+> Result : After about 300MB transfer, I start getting GFP_ATOMIC
+> allocation failures.  This only happens if CMA region is reserved.
 
-Hillf Danton wrote at 12:38:31
-> 2012/2/5 Toralf F=C3=B6rster <toralf.foerster@gmx.de>:
-> > Hillf Danton wrote at 05:45:40
-> >=20
-> >> Would you please try the patchset of Rik?
-> >>=20
-> >>          https://lkml.org/lkml/2012/1/26/374
-> >=20
-> > It doesn't applied successfully agains 3.2.3 (+patch +f 3.2.5)
-> >=20
-> > :-(
->=20
-> That patchset already in -next tree, mind to try it with
-> CONFIG_SLUB_DEBUG first disabled, and try again with it enabled?
->=20
-> Hillf
-I switched back to 3.0.20 in the mean while.
+[...]
 
-=46rom what I can tell is this:
-If the system is under heavy I/O load and hasn't too much free RAM (git pul=
-l,=20
-svn update and RAM consuming BOINC applications) then kernel 3.0.20 handle=
-=20
-this somehow while 3.2.x run into a swap storm like.
+> Total memory available is way above the zone watermarks. So, we ended
+> up starving
+> UNMOVABLE/RECLAIMABLE atomic allocations that cannot fallback on CMA r=
+egion.
 
-=2D-=20
-MfG/Sincerely
-Toralf F=C3=B6rster
-pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
+This looks like something Mel warned me about.  I don't really have a go=
+od
+solution for that yet. ;/
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
