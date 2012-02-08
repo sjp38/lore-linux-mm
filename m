@@ -1,87 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 2D5086B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 16:31:33 -0500 (EST)
-Date: Thu, 9 Feb 2012 08:31:28 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
-Message-ID: <20120208213128.GD12836@dastard>
-References: <20120207074905.29797.60353.stgit@zurg>
- <CA+55aFy3NZ2sWX0CNVd9FnPSx0mUKSe0XzDWpDsNfU21p6ebHQ@mail.gmail.com>
- <4F31D03B.9040707@openvz.org>
- <CA+55aFx24n-W4-wTtrfbt9PNvVd7n+SvThnO6OQ74uW4yNrGxw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 1390F6B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 16:40:03 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <52f90b19-84b5-4e97-952a-373bdfeaa77d@default>
+Date: Wed, 8 Feb 2012 13:39:52 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4F21A5AF.6010605@linux.vnet.ibm.com> <4F300D41.5050105@linux.vnet.ibm.com>
+ <4F32A55E.8010401@linux.vnet.ibm.com> <4F32B6A4.8030702@vflare.org>
+ <4F32BEDC.6030502@linux.vnet.ibm.com> <4F32E1D2.4010809@vflare.org>
+In-Reply-To: <4F32E1D2.4010809@vflare.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFx24n-W4-wTtrfbt9PNvVd7n+SvThnO6OQ74uW4yNrGxw@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Nitin Gupta <ngupta@vflare.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 07, 2012 at 05:50:59PM -0800, Linus Torvalds wrote:
-> On Tue, Feb 7, 2012 at 5:30 PM, Konstantin Khlebnikov
-> <khlebnikov@openvz.org> wrote:
+(cc'ing the _real_ GregKH to avoid further bounces... Greg, if
+you care, the whole thread is on the various lists)
+
+> From: Nitin Gupta [mailto:ngupta@vflare.org]
+> Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation li=
+brary
+>=20
+> On 02/08/2012 01:28 PM, Dave Hansen wrote:
+>=20
+> > On 02/08/2012 09:53 AM, Nitin Gupta wrote:
+> >> vmap() is not just slower but also does memory allocations at various
+> >> places. Under memory pressure, this may cause failure in reading a
+> >> stored object just because we failed to map it. Also, it allocates VA
+> >> region each time its called which is a real big waste when we can simp=
+ly
+> >> pre-allocate 2 * PAGE_SIZE'ed VA regions (per-cpu).
 > >
-> > If do not count comments here actually is negative line count change.
-> 
-> Ok, fair enough.
-> 
-> > And if drop (almost) unused radix_tree_gang_lookup_tag_slot() and
-> > radix_tree_gang_lookup_slot() total bloat-o-meter score becomes negative
-> > too.
-> 
-> Good.
-> 
-> > There also some simple bit-hacks: find-next-bit instead of dumb loops in
-> > tagged-lookup.
+> > Yeah, vmap() is a bit heavy-handed.  I'm just loathe to go mucking
+> > around in the low-level pagetables too much.  Just seems like there'll
+> > be a ton of pitfalls, like arch-specific TLB flushing, and it _seems_
+> > like one of the existing kernel mechanisms should work.
 > >
-> > Here some benchmark results: there is radix-tree with 1024 slots, I fill and
-> > tag every <step> slot,
-> > and run lookup for all slots with radix_tree_gang_lookup() and
-> > radix_tree_gang_lookup_tag() in the loop.
-> > old/new rows -- nsec per iteration over whole tree.
-> >
-> > tagged-lookup
-> > step    1    2     3     4     5     6     7     8     9     10    11    12    13    14    15    16
-> > old   7035  5248  4742  4308  4217  4133  4030  3920  4038  3933  3914  3796  3851  3755  3819  3582
-> > new   3578  2617  1899  1426  1220  1058  936   822   845   749   695   679   648   575   591   509
-> >
-> > so, new tagged-lookup always faster, especially for sparse trees.
-> 
-> Do you have any benchmarks when it's actually used by higher levels,
-> though? I guess that will involve find_get_pages(), and we don't have
-> all that any of them, but it would be lovely to see some real load
-> (even if it is limited to one of the filesystems that uses this)
-> numbers too..
+> > I guess if you've exhaustively explored all of the existing kernel
+> > mapping mechanisms and found none of them to work, and none of them to
+> > be in any way suitably adaptable to your use, you should go ahead and
+> > roll your own.  I guess you do at least use alloc_vm_area().  What made
+> > map_vm_area() unsuitable for your needs?  If you're remapping, you
+> > should at least be guaranteed not to have to allocate pte pages.
+>=20
+> map_vm_area() needs 'struct vm_struct' parameter but for mapping kernel
+> allocated pages within kernel, what should we pass here?  I think we can
+> instead use map_kernel_range_noflush() -- surprisingly
+> unmap_kernel_range_noflush() is exported but this one is not.
 
-It's also a very small tree size to test - 1024 slots is only
-4MB of page cache data, but we regularly cache GBs of pages in
-a single tree.
-
-> > New normal lookup works faster for dense trees, on sparse trees it slower.
-
-Testing large trees (in the millions of entries) might show
-different results - I'd be interested to see the difference there
-given that iterating large trees is very common (e.g. in the
-writeback code)....
-
-> I think that should be the common case, so that may be fine. Again, it
-> would be nice to see numbers that are for something else than just the
-> lookup - an actual use of it in some real context.
-
-XFS also uses radix trees for it's inode caches and AG indexes. We
-iterate those trees by both normal and tagged lookups in different
-contexts, but it is extremely difficult to isolate the tree
-traversal from everything else that is going on around them, so I
-can't really help with a microbenchmark there...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Creating a dependency on a core kernel change (even just an EXPORT_SYMBOL)
+is probably not a good idea.  Unless Dave vehemently objects, I'd suggest
+implementing it both ways, leaving the method that relies on the
+kernel change ifdef'd out, and add this to "the list of things that
+need to be done before zcache can be promoted out of staging".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
