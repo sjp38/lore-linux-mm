@@ -1,75 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 81FF36B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:52:15 -0500 (EST)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 8 Feb 2012 02:52:14 -0700
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B538D3E4004C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 02:52:11 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q189qBuw101852
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 02:52:11 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q189q9mb008474
-	for <linux-mm@kvack.org>; Wed, 8 Feb 2012 02:52:10 -0700
-Date: Wed, 8 Feb 2012 15:10:09 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v10 3.3-rc2 1/9] uprobes: Install and remove
- breakpoints.
-Message-ID: <20120208094009.GB24443@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
- <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com>
- <20120207171707.GA24443@linux.vnet.ibm.com>
- <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 1BC346B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 06:00:31 -0500 (EST)
+Message-ID: <4F325587.4070605@mellanox.com>
+Date: Wed, 8 Feb 2012 12:59:19 +0200
+From: sagig <sagig@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
+Subject: Re: [PATCH RFC V2] mm: convert rcu_read_lock() to srcu_read_lock(),
+ thus allowing to sleep in callbacks
+References: <y> <4f2fe67e.e54cb40a.5700.ffff8fdf@mx.google.com>
+In-Reply-To: <4f2fe67e.e54cb40a.5700.ffff8fdf@mx.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denys Vlasenko <vda.linux@googlemail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Or Gerlitz <ogerlitz@mellanox.com>, Oren Duer <oren@mellanox.com>, linux-mm@kvack.org
 
-* Denys Vlasenko <vda.linux@googlemail.com> [2012-02-08 10:40:30]:
+Hey Konstantin,
+Do you have any comments on V2?
 
-> On Tue, Feb 7, 2012 at 6:17 PM, Srikar Dronamraju
-> <srikar@linux.vnet.ibm.com> wrote:
-> > Changelog: (Since v10): Add code to clear REX.B prefix pointed out by Denys Vlasenko
-> > and fix suggested by Masami Hiramatsu.
-> ...
-> > +       /*
-> > +        * Point cursor at the modrm byte.  The next 4 bytes are the
-> > +        * displacement.  Beyond the displacement, for some instructions,
-> > +        * is the immediate operand.
-> > +        */
-> > +       cursor = uprobe->insn + insn_offset_modrm(insn);
-> > +       insn_get_length(insn);
-> > +       if (insn->rex_prefix.nbytes)
-> > +               *cursor &= 0xfe;        /* Clearing REX.B bit */
-> 
-> It looks like cursor points to mod/reg/rm byte, not rex byte.
-> Comment above says it too. You seem to be clearing a bit
-> in a wrong byte. I think it should be
-
-
-Oh okay, Will correct this and send out a new patch.
-
-
-> 
->         /* Clear REX.b bit (extension of MODRM.rm field):
->          * we want to encode rax/rcx, not r8/r9.
->          */
->         if (insn->rex_prefix.nbytes)
->                 insn->rex_prefix.bytes[0] &= 0xfe;
-
--- 
-Thanks and Regards
-Srikar
+On 2/6/2012 4:40 PM, sagig@mellanox.com wrote:
+> From: Sagi Grimberg<sagig@mellanox.co.il>
+>
+> Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation callbacks
+> (such as invalidate_page, invalidate_range_start/end and change_pte) .
+> This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods.
+>
+> Signed-off-by: Sagi Grimberg<sagig@mellanox.co.il>
+> ---
+>   changes from V1:
+>   1. converted synchronize_rcu() to synchronize_srcu() to racing candidates (unregister, release)
+>   2. do_mmu_notifier_register: moved init_srcu_struct out of mmap_sem locking.
+>   3. do_mmu_notifier_register: fixed error path.
+>
+>   include/linux/mmu_notifier.h |    3 +++
+>   mm/mmu_notifier.c            |   38 +++++++++++++++++++++++++-------------
+>   2 files changed, 28 insertions(+), 13 deletions(-)
+>
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 1d1b1e1..f3d6f30 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -4,6 +4,7 @@
+>   #include<linux/list.h>
+>   #include<linux/spinlock.h>
+>   #include<linux/mm_types.h>
+> +#include<linux/srcu.h>
+>
+>   struct mmu_notifier;
+>   struct mmu_notifier_ops;
+> @@ -21,6 +22,8 @@ struct mmu_notifier_mm {
+>   	struct hlist_head list;
+>   	/* to serialize the list modifications and hlist_unhashed */
+>   	spinlock_t lock;
+> +	/* to enable sleeping in callbacks */
+> +	struct srcu_struct srcu;
+>   };
+>
+>   struct mmu_notifier_ops {
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index 9a611d3..7267fb2 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -67,7 +67,7 @@ void __mmu_notifier_release(struct mm_struct *mm)
+>   	spin_unlock(&mm->mmu_notifier_mm->lock);
+>
+>   	/*
+> -	 * synchronize_rcu here prevents mmu_notifier_release to
+> +	 * synchronize_srcu here prevents mmu_notifier_release to
+>   	 * return to exit_mmap (which would proceed freeing all pages
+>   	 * in the mm) until the ->release method returns, if it was
+>   	 * invoked by mmu_notifier_unregister.
+> @@ -75,7 +75,7 @@ void __mmu_notifier_release(struct mm_struct *mm)
+>   	 * The mmu_notifier_mm can't go away from under us because one
+>   	 * mm_count is hold by exit_mmap.
+>   	 */
+> -	synchronize_rcu();
+> +	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+>   }
+>
+>   /*
+> @@ -123,10 +123,11 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
+>   void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+>   			       pte_t pte)
+>   {
+> +	int idx;
+>   	struct mmu_notifier *mn;
+>   	struct hlist_node *n;
+>
+> -	rcu_read_lock();
+> +	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+>   	hlist_for_each_entry_rcu(mn, n,&mm->mmu_notifier_mm->list, hlist) {
+>   		if (mn->ops->change_pte)
+>   			mn->ops->change_pte(mn, mm, address, pte);
+> @@ -137,49 +138,52 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+>   		else if (mn->ops->invalidate_page)
+>   			mn->ops->invalidate_page(mn, mm, address);
+>   	}
+> -	rcu_read_unlock();
+> +	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+>   }
+>
+>   void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+>   					  unsigned long address)
+>   {
+> +	int idx;
+>   	struct mmu_notifier *mn;
+>   	struct hlist_node *n;
+>
+> -	rcu_read_lock();
+> +	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+>   	hlist_for_each_entry_rcu(mn, n,&mm->mmu_notifier_mm->list, hlist) {
+>   		if (mn->ops->invalidate_page)
+>   			mn->ops->invalidate_page(mn, mm, address);
+>   	}
+> -	rcu_read_unlock();
+> +	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+>   }
+>
+>   void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+>   				  unsigned long start, unsigned long end)
+>   {
+> +	int idx;
+>   	struct mmu_notifier *mn;
+>   	struct hlist_node *n;
+>
+> -	rcu_read_lock();
+> +	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+>   	hlist_for_each_entry_rcu(mn, n,&mm->mmu_notifier_mm->list, hlist) {
+>   		if (mn->ops->invalidate_range_start)
+>   			mn->ops->invalidate_range_start(mn, mm, start, end);
+>   	}
+> -	rcu_read_unlock();
+> +	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+>   }
+>
+>   void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+>   				  unsigned long start, unsigned long end)
+>   {
+> +	int idx;
+>   	struct mmu_notifier *mn;
+>   	struct hlist_node *n;
+>
+> -	rcu_read_lock();
+> +	idx = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+>   	hlist_for_each_entry_rcu(mn, n,&mm->mmu_notifier_mm->list, hlist) {
+>   		if (mn->ops->invalidate_range_end)
+>   			mn->ops->invalidate_range_end(mn, mm, start, end);
+>   	}
+> -	rcu_read_unlock();
+> +	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, idx);
+>   }
+>
+>   static int do_mmu_notifier_register(struct mmu_notifier *mn,
+> @@ -196,6 +200,9 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+>   	if (unlikely(!mmu_notifier_mm))
+>   		goto out;
+>
+> +	if (init_srcu_struct(&mmu_notifier_mm->srcu))
+> +		goto out_cleanup;
+> +
+>   	if (take_mmap_sem)
+>   		down_write(&mm->mmap_sem);
+>   	ret = mm_take_all_locks(mm);
+> @@ -226,8 +233,12 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+>   out_cleanup:
+>   	if (take_mmap_sem)
+>   		up_write(&mm->mmap_sem);
+> -	/* kfree() does nothing if mmu_notifier_mm is NULL */
+> -	kfree(mmu_notifier_mm);
+> +
+> +	if (mm->mmu_notifier_mm) {
+> +		/* in the case srcu_init failed srcu_cleanup is safe */
+> +		cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
+> +		kfree(mmu_notifier_mm);
+> +	}
+>   out:
+>   	BUG_ON(atomic_read(&mm->mm_users)<= 0);
+>   	return ret;
+> @@ -266,6 +277,7 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
+>   void __mmu_notifier_mm_destroy(struct mm_struct *mm)
+>   {
+>   	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
+> +	cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
+>   	kfree(mm->mmu_notifier_mm);
+>   	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
+>   }
+> @@ -309,7 +321,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+>   	 * Wait any running method to finish, of course including
+>   	 * ->release if it was run by mmu_notifier_relase instead of us.
+>   	 */
+> -	synchronize_rcu();
+> +	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+>
+>   	BUG_ON(atomic_read(&mm->mm_count)<= 0);
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
