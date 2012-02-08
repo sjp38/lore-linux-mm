@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 1390F6B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 16:40:03 -0500 (EST)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id B24396B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 17:31:24 -0500 (EST)
+Date: Wed, 8 Feb 2012 16:13:15 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+In-Reply-To: <20120208212323.GM5938@suse.de>
+Message-ID: <alpine.DEB.2.00.1202081557540.5970@router.home>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de> <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home>
+ <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home> <20120208212323.GM5938@suse.de>
 MIME-Version: 1.0
-Message-ID: <52f90b19-84b5-4e97-952a-373bdfeaa77d@default>
-Date: Wed, 8 Feb 2012 13:39:52 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation library
-References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1326149520-31720-2-git-send-email-sjenning@linux.vnet.ibm.com>
- <4F21A5AF.6010605@linux.vnet.ibm.com> <4F300D41.5050105@linux.vnet.ibm.com>
- <4F32A55E.8010401@linux.vnet.ibm.com> <4F32B6A4.8030702@vflare.org>
- <4F32BEDC.6030502@linux.vnet.ibm.com> <4F32E1D2.4010809@vflare.org>
-In-Reply-To: <4F32E1D2.4010809@vflare.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>, Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, Brian King <brking@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-(cc'ing the _real_ GregKH to avoid further bounces... Greg, if
-you care, the whole thread is on the various lists)
+On Wed, 8 Feb 2012, Mel Gorman wrote:
 
-> From: Nitin Gupta [mailto:ngupta@vflare.org]
-> Subject: Re: [PATCH 1/5] staging: zsmalloc: zsmalloc memory allocation li=
-brary
->=20
-> On 02/08/2012 01:28 PM, Dave Hansen wrote:
->=20
-> > On 02/08/2012 09:53 AM, Nitin Gupta wrote:
-> >> vmap() is not just slower but also does memory allocations at various
-> >> places. Under memory pressure, this may cause failure in reading a
-> >> stored object just because we failed to map it. Also, it allocates VA
-> >> region each time its called which is a real big waste when we can simp=
-ly
-> >> pre-allocate 2 * PAGE_SIZE'ed VA regions (per-cpu).
+> On Wed, Feb 08, 2012 at 01:49:05PM -0600, Christoph Lameter wrote:
+> > On Wed, 8 Feb 2012, Mel Gorman wrote:
 > >
-> > Yeah, vmap() is a bit heavy-handed.  I'm just loathe to go mucking
-> > around in the low-level pagetables too much.  Just seems like there'll
-> > be a ton of pitfalls, like arch-specific TLB flushing, and it _seems_
-> > like one of the existing kernel mechanisms should work.
+> > > Ok, I looked into what is necessary to replace these with checking a page
+> > > flag and the cost shifts quite a bit and ends up being more expensive.
 > >
-> > I guess if you've exhaustively explored all of the existing kernel
-> > mapping mechanisms and found none of them to work, and none of them to
-> > be in any way suitably adaptable to your use, you should go ahead and
-> > roll your own.  I guess you do at least use alloc_vm_area().  What made
-> > map_vm_area() unsuitable for your needs?  If you're remapping, you
-> > should at least be guaranteed not to have to allocate pte pages.
->=20
-> map_vm_area() needs 'struct vm_struct' parameter but for mapping kernel
-> allocated pages within kernel, what should we pass here?  I think we can
-> instead use map_kernel_range_noflush() -- surprisingly
-> unmap_kernel_range_noflush() is exported but this one is not.
+> > That is only true if you go the slab route.
+>
+> Well, yes but both slab and slub have to be supported. I see no reason
+> why I would choose to make this a slab-only or slub-only feature. Slob is
+> not supported because it's not expected that a platform using slob is also
+> going to use network-based swap.
 
-Creating a dependency on a core kernel change (even just an EXPORT_SYMBOL)
-is probably not a good idea.  Unless Dave vehemently objects, I'd suggest
-implementing it both ways, leaving the method that relies on the
-kernel change ifdef'd out, and add this to "the list of things that
-need to be done before zcache can be promoted out of staging".
+I think so far the patches in particular to slab.c are pretty significant
+in impact.
+
+> > Slab suffers from not having
+> > the page struct pointer readily available. The changes are likely already
+> > impacting slab performance without the virt_to_page patch.
+> >
+>
+> The performance impact only comes into play when swap is on a network
+> device and pfmemalloc reserves are in use. The rest of the time the check
+> on ac avoids all the cost and there is a micro-optimisation later to avoid
+> calling a function (patch 12).
+
+We have been down this road too many times. Logic is added to critical
+paths and memory structures grow. This is not free. And for NBD swap
+support? Pretty exotic use case.
+
+> Ok, are you asking that I use the page flag for slub and leave kmem_cache_cpu
+> alone in the slub case? I can certainly check it out if that's what you
+> are asking for.
+
+No I am not asking for something. Still thinking about the best way to
+address the issues. I think we can easily come up with a minimally
+invasive patch for slub. Not sure about slab at this point. I think we
+could avoid most of the new fields but this requires some tinkering. I
+have a day @ home tomorrow which hopefully gives me a chance to
+put some focus on this issue.
+
+> I did come up with a way: the necessary information is in ac and slabp
+> on slab :/ . There are not exactly many ways that the information can
+> be recorded.
+
+Wish we had something that would not involve increasing the number of
+fields in these slab structures.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
