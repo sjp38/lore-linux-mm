@@ -1,83 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 7E9106B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:36:47 -0500 (EST)
-Received: by eekc13 with SMTP id c13so134532eek.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 01:36:45 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH v8 0/8] Reduce cross CPU IPI interference
-References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
-Date: Wed, 08 Feb 2012 10:36:42 +0100
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id F2AD96B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 04:40:51 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so264922wgb.26
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 01:40:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v9cszgo23l0zgt@mpn-glaptop>
-In-Reply-To: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
+In-Reply-To: <20120207171707.GA24443@linux.vnet.ibm.com>
+References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
+ <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com> <20120207171707.GA24443@linux.vnet.ibm.com>
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Date: Wed, 8 Feb 2012 10:40:30 +0100
+Message-ID: <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
+Subject: Re: [PATCH v10 3.3-rc2 1/9] uprobes: Install and remove breakpoints.
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi
- Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Sun, 05 Feb 2012 14:33:20 +0100, Gilad Ben-Yossef <gilad@benyossef.co=
-m> wrote:
-> This patch set, inspired by discussions with Peter Zijlstra and Freder=
-ic
-> Weisbecker when testing the nohz task patch set, is a first stab at tr=
-ying
-> to explore doing this by locating the places where such global IPI cal=
-ls
-> are being made and turning the global IPI into an IPI for a specific g=
-roup
-> of CPUs.  The purpose of the patch set is to get feedback if this is t=
-he
-> right way to go for dealing with this issue and indeed, if the issue i=
-s
-> even worth dealing with at all. Based on the feedback from this patch =
-set
-> I plan to offer further patches that address similar issue in other co=
-de
-> paths.
->
-> The patch creates an on_each_cpu_mask and on_each_cpu_cond infrastruct=
-ure
-> API (the former derived from existing arch specific versions in Tile a=
-nd
-> Arm) and uses them to turn several global IPI invocation to per CPU
-> group invocations.
+On Tue, Feb 7, 2012 at 6:17 PM, Srikar Dronamraju
+<srikar@linux.vnet.ibm.com> wrote:
+> Changelog: (Since v10): Add code to clear REX.B prefix pointed out by Den=
+ys Vlasenko
+> and fix suggested by Masami Hiramatsu.
+...
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Point cursor at the modrm byte. =A0The next 4 bytes ar=
+e the
+> + =A0 =A0 =A0 =A0* displacement. =A0Beyond the displacement, for some ins=
+tructions,
+> + =A0 =A0 =A0 =A0* is the immediate operand.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 cursor =3D uprobe->insn + insn_offset_modrm(insn);
+> + =A0 =A0 =A0 insn_get_length(insn);
+> + =A0 =A0 =A0 if (insn->rex_prefix.nbytes)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 *cursor &=3D 0xfe; =A0 =A0 =A0 =A0/* Cleari=
+ng REX.B bit */
 
-> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Chris Metcalf <cmetcalf@tilera.com>
-> CC: Frederic Weisbecker <fweisbec@gmail.com>
-> CC: linux-mm@kvack.org
-> CC: Pekka Enberg <penberg@kernel.org>
-> CC: Matt Mackall <mpm@selenic.com>
-> CC: Sasha Levin <levinsasha928@gmail.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Andi Kleen <andi@firstfloor.org>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Alexander Viro <viro@zeniv.linux.org.uk>
-> CC: Avi Kivity <avi@redhat.com>
-> CC: Michal Nazarewicz <mina86@mina86.com>
+It looks like cursor points to mod/reg/rm byte, not rex byte.
+Comment above says it too. You seem to be clearing a bit
+in a wrong byte. I think it should be
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+        /* Clear REX.b bit (extension of MODRM.rm field):
+         * we want to encode rax/rcx, not r8/r9.
+         */
+        if (insn->rex_prefix.nbytes)
+                insn->rex_prefix.bytes[0] &=3D 0xfe;
 
-for patches form 1 to 4 and 7.  The other two (5 and 6) look good but
-I don't know enough about slub and fs to feel confident acking.
-
-> CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
-> CC: Milton Miller <miltonm@bga.com>
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=20
+vda
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
