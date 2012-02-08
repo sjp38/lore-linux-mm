@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 874666B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 18:10:49 -0500 (EST)
-Received: by dadv6 with SMTP id v6so1114237dad.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 15:10:48 -0800 (PST)
-Date: Wed, 8 Feb 2012 15:10:17 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH/RFC G-U-P experts] IB/umem: Modernize our get_user_pages()
- parameters
-In-Reply-To: <alpine.LSU.2.00.1202071225250.2024@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1202081446110.1320@eggly.anvils>
-References: <1327557574-6125-1-git-send-email-roland@kernel.org> <alpine.LSU.2.00.1201261133230.1369@eggly.anvils> <CAG4TOxNEV2VY9wOE86p9RnKGqpruB32ci9Wq3yBt8O2zc7f05w@mail.gmail.com> <alpine.LSU.2.00.1201271458130.3402@eggly.anvils>
- <CAL1RGDXqguZ2QKV=yjLXtk2n_Ag4Nf3CW+kF2BFQFR4ySTNaRA@mail.gmail.com> <alpine.LSU.2.00.1201301217530.4505@eggly.anvils> <CAL1RGDVSBb1DVsfvuz=ijRZX06crsqQfKoXWJ+6FO4xi3aYyTg@mail.gmail.com> <alpine.LSU.2.00.1202071225250.2024@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 691E46B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 18:20:24 -0500 (EST)
+Date: Wed, 8 Feb 2012 15:20:22 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] selftests: Launch individual selftests from the main
+ Makefile
+Message-Id: <20120208152022.1016434f.akpm@linux-foundation.org>
+In-Reply-To: <20120208034055.GA23894@somewhere.redhat.com>
+References: <20120205081555.GA2249@darkstar.redhat.com>
+	<20120206155340.b9075240.akpm@linux-foundation.org>
+	<20120208034055.GA23894@somewhere.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roland Dreier <roland@kernel.org>
-Cc: linux-rdma@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com, cl@linux.com
 
-On Tue, 7 Feb 2012, Hugh Dickins wrote:
-> On Mon, 6 Feb 2012, Roland Dreier wrote:
-> > Which I think explains why the code is the way it is.  But clearly
-> > we could do better if we had a better way of telling GUP our real
-> > intentions -- ie the FOLL_READONLY_COW flag.
+On Wed, 8 Feb 2012 04:40:59 +0100
+Frederic Weisbecker <fweisbec@gmail.com> wrote:
+
+> Drop the run_tests script and launch the selftests by calling
+> "make run_tests" from the selftests top directory instead. This
+> delegates to the Makefile on each selftest directory where it
+> is decided how to launch the local test.
 > 
-> You've persuaded me.  Yes, you have been using force because that was
-> the only tool available at the time, to get close to the sensible
-> behaviour you are now asking for.
-> 
-> > 
-> > > Can you, for example, enforce the permissions set up by the user?
-> > > I mean, if they do the ibv_reg_mr() on a private readonly area,
-> > > so __get_user_pages with the FOLL_APPROPRIATELY flag will fault
-> > > in ZERO_PAGEs, can you enforce that RDMA will never spray data
-> > > into those pages?
-> > 
-> > Yes, the access flags passed into ibv_reg_mr() are enforced by
-> > the RDMA hardware, so if no write access is request, no write
-> > access is possible.
-> 
-> Okay, if you enforce the agreed permissions in hardware, that's fine.
+> This drops the need to add each selftest directory on the
+> now removed "run_tests" top script.
 
-A doubt assaulted me overnight: sorry, I'm back to not understanding.
+Looks good.
 
-What are these access flags passed into ibv_reg_mr() that are enforced?
-What relation do they bear to what you will pass to __get_user_pages()?
+I did
 
-You are asking for a FOLL_FOLLOW ("follow permissions of the vma") flag,
-which automatically works for read-write access to a VM_READ|VM_WRITE vma,
-but read-only access to a VM_READ-only vma, without you having to know
-which permission applies to which range of memory in the area specified.
+	cd tools/testing/selftests
+	make run_tests
 
-But you don't need that new flag to set up read-only access, and if you
-use that new flag to set up read-write access to an area which happens to
-contain VM_READ-only ranges, you have set it up to write into ZERO_PAGEs.
+and it didn't work.  This?
 
-?Hugh?
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: selftests/Makefile: make `run_tests' depend on `all'
+
+So a "make run_tests" will build the tests before trying to run them.
+
+Cc: Frederic Weisbecker <fweisbec@gmail.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ tools/testing/selftests/Makefile |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN tools/testing/selftests/Makefile~a tools/testing/selftests/Makefile
+--- a/tools/testing/selftests/Makefile~a
++++ a/tools/testing/selftests/Makefile
+@@ -5,7 +5,7 @@ all:
+ 		make -C $$TARGET; \
+ 	done;
+ 
+-run_tests:
++run_tests: all
+ 	for TARGET in $(TARGETS); do \
+ 		make -C $$TARGET run_tests; \
+ 	done;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
