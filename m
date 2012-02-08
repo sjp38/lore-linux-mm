@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id C61BA6B13F0
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 06:14:34 -0500 (EST)
-Received: by bkty12 with SMTP id y12so455929bkt.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 03:14:33 -0800 (PST)
-Message-ID: <4F325916.20901@openvz.org>
-Date: Wed, 08 Feb 2012 15:14:30 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 403566B13F0
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 06:52:58 -0500 (EST)
+Date: Wed, 8 Feb 2012 12:52:44 +0100
+From: Johannes Stezenbach <js@sig21.net>
+Subject: Re: swap storm since kernel 3.2.x
+Message-ID: <20120208115244.GA24959@sig21.net>
+References: <201202041109.53003.toralf.foerster@gmx.de>
+ <201202051107.26634.toralf.foerster@gmx.de>
+ <CAJd=RBCvvVgWqfSkoEaWVG=2mwKhyXarDOthHt9uwOb2fuDE9g@mail.gmail.com>
+ <201202080956.18727.toralf.foerster@gmx.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC V2] mm: convert rcu_read_lock() to srcu_read_lock(),
- thus allowing to sleep in callbacks
-References: <y> <4f2fe67e.e54cb40a.5700.ffff8fdf@mx.google.com> <4F325587.4070605@mellanox.com>
-In-Reply-To: <4F325587.4070605@mellanox.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201202080956.18727.toralf.foerster@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sagig <sagig@mellanox.com>
-Cc: Or Gerlitz <ogerlitz@mellanox.com>, Oren Duer <oren@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Toralf =?iso-8859-1?Q?F=F6rster?= <toralf.foerster@gmx.de>
+Cc: Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-sagig wrote:
-> Hey Konstantin,
-> Do you have any comments on V2?
+On Wed, Feb 08, 2012 at 09:56:15AM +0100, Toralf Forster wrote:
+> 
+> From what I can tell is this:
+> If the system is under heavy I/O load and hasn't too much free RAM (git pull, 
+> svn update and RAM consuming BOINC applications) then kernel 3.0.20 handle 
+> this somehow while 3.2.x run into a swap storm like.
 
-only one, below.
+FWIW, I also saw heavy swapping with 3.2.2 with the
+CONFIG_DEBUG_OBJECTS issue reported here:
+http://lkml.org/lkml/2012/1/30/227
 
->
-> On 2/6/2012 4:40 PM, sagig@mellanox.com wrote:
->> From: Sagi Grimberg<sagig@mellanox.co.il>
->>
->> Now that anon_vma lock and i_mmap_mutex are both sleepable mutex, it is possible to schedule inside invalidation callbacks
->> (such as invalidate_page, invalidate_range_start/end and change_pte) .
->> This is essential for a scheduling HW sync in RDMA drivers which apply on demand paging methods.
->>
->> Signed-off-by: Sagi Grimberg<sagig@mellanox.co.il>
->> ---
->>    changes from V1:
->>    1. converted synchronize_rcu() to synchronize_srcu() to racing candidates (unregister, release)
->>    2. do_mmu_notifier_register: moved init_srcu_struct out of mmap_sem locking.
->>    3. do_mmu_notifier_register: fixed error path.
->>
->>    include/linux/mmu_notifier.h |    3 +++
->>    mm/mmu_notifier.c            |   38 +++++++++++++++++++++++++-------------
->>    2 files changed, 28 insertions(+), 13 deletions(-)
->>
->> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
->> index 1d1b1e1..f3d6f30 100644
->> --- a/include/linux/mmu_notifier.h
->> +++ b/include/linux/mmu_notifier.h
+But the thing is that even though SUnreclaim was
+huge there was still 1G MemFree and it swapped heavily
+on idle system when just switching between e.g. Firefox and gvim.
 
->> @@ -226,8 +233,12 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->>    out_cleanup:
->>    	if (take_mmap_sem)
->>    		up_write(&mm->mmap_sem);
->> -	/* kfree() does nothing if mmu_notifier_mm is NULL */
->> -	kfree(mmu_notifier_mm);
->> +
->> +	if (mm->mmu_notifier_mm) {
->> +		/* in the case srcu_init failed srcu_cleanup is safe */
->> +		cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
->> +		kfree(mmu_notifier_mm);
->> +	}
+Today I'm running 3.2.4 with CONFIG_DEBUG_OBJECTS disabled
+(but otherwise the same config) and it doesn't swap even
+after a fair amount of I/O:
 
-this seems incorrect. there must be:
+MemTotal:        3940088 kB
+MemFree:         1024920 kB
+Buffers:          293328 kB
+Cached:           447796 kB
+SwapCached:           24 kB
+Active:           847136 kB
+Inactive:         567200 kB
+Active(anon):     478736 kB
+Inactive(anon):   246744 kB
+Active(file):     368400 kB
+Inactive(file):   320456 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       3903484 kB
+SwapFree:        3903196 kB
+Dirty:                16 kB
+Writeback:             0 kB
+AnonPages:        673192 kB
+Mapped:            40956 kB
+Shmem:             52268 kB
+Slab:            1434188 kB
+SReclaimable:    1367388 kB
+SUnreclaim:        66800 kB
+KernelStack:        1600 kB
+PageTables:         4880 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     5873528 kB
+Committed_AS:    1744916 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:      348116 kB
+VmallocChunk:   34359362739 kB
+DirectMap4k:       12288 kB
+DirectMap2M:     4098048 kB
 
-if (mmu_notifier_mm) {
-	cleanup_srcu_struct(&mmu_notifier_mm->srcu);
-	kfree(mmu_notifier_mm);
-}
+  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
+  586182 353006  60%    1.74K  32595       18   1043040K ext3_inode_cache
+  289062 170979  59%    0.58K  10706       27    171296K dentry
+  247266 107729  43%    0.42K  13737       18    109896K buffer_head
+
+
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
