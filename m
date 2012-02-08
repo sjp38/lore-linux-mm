@@ -1,154 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 559436B13F0
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 22:41:04 -0500 (EST)
-Received: by iagz16 with SMTP id z16so294142iag.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 19:41:03 -0800 (PST)
-Date: Wed, 8 Feb 2012 04:40:59 +0100
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: [PATCH] selftests: Launch individual selftests from the main Makefile
-Message-ID: <20120208034055.GA23894@somewhere.redhat.com>
-References: <20120205081555.GA2249@darkstar.redhat.com>
- <20120206155340.b9075240.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 5D7BC6B13F0
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 23:00:37 -0500 (EST)
+Received: by ggnf1 with SMTP id f1so52370ggn.14
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 20:00:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120206155340.b9075240.akpm@linux-foundation.org>
+In-Reply-To: <CAAHN_R0+ExGcdpLM7KwC_KsPOemVOiRrmyWcowiu5_cWW3BPLQ@mail.gmail.com>
+References: <20120116163106.GC7180@jl-vm1.vm.bytemark.co.uk>
+	<1326776095-2629-1-git-send-email-siddhesh.poyarekar@gmail.com>
+	<CAAHN_R2g9zaujw30+zLf91AGDHNqE6HDc8Z4yJbrzgJcJYFkXg@mail.gmail.com>
+	<4F2B02BC.8010308@gmail.com>
+	<CAAHN_R0O7a+RX7BDfas3+vC+mnQpp0h3y4bBa1u4T-Jt=S9J_w@mail.gmail.com>
+	<CAHGf_=qA6EFue2-mNUg9udWV4xSx86XQsnyGV07hfZOUx6_egw@mail.gmail.com>
+	<CAAHN_R0+ExGcdpLM7KwC_KsPOemVOiRrmyWcowiu5_cWW3BPLQ@mail.gmail.com>
+Date: Wed, 8 Feb 2012 09:30:36 +0530
+Message-ID: <CAAHN_R0N=3J4=VqvDsGB=_2Ln9yKBjOevW2=_UAMBK1pGepqvA@mail.gmail.com>
+Subject: Re: [RESEND][PATCH] Mark thread stack correctly in proc/<pid>/maps
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com, cl@linux.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Jamie Lokier <jamie@shareable.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, Mike Frysinger <vapier@gentoo.org>
 
-On Mon, Feb 06, 2012 at 03:53:40PM -0800, Andrew Morton wrote:
-> On Sun, 5 Feb 2012 16:15:55 +0800
-> Dave Young <dyoung@redhat.com> wrote:
-> 
-> > hugepage-mmap.c, hugepage-shm.c and map_hugetlb.c in Documentation/vm are
-> > simple pass/fail tests, It's better to promote them to tools/testing/selftests
-> > 
-> > Thanks suggestion of Andrew Morton about this. They all need firstly setting up
-> > proper nr_hugepages and hugepage-mmap need to mount hugetlbfs. So I add a shell
-> > script run_test to do such work which will call the three test programs and
-> > check the return value of them.
-> > 
-> > Changes to original code including below:
-> > a. add run_test script
-> > b. return error when read_bytes mismatch with writed bytes.
-> > c. coding style fixes: do not use assignment in if condition
-> > 
-> 
-> I think Frederic is doing away with tools/testing/selftests/run_tests
-> in favour of a Makefile target?  ("make run_tests", for example).
-> 
-> Until we see such a patch we cannot finalise your patch and if I apply
-> your patch, his patch will need more work.  Not that this is rocket
-> science ;)
-> 
-> > 
-> > ...
-> >
-> > --- /dev/null
-> > +++ b/tools/testing/selftests/vm/run_test
-> 
-> (We now have a "run_tests" and a "run_test".  The difference in naming
-> is irritating)
-> 
-> Your vm/run_test file does quite a lot of work and we couldn't sensibly
-> move all its functionality into Makefile, I expect.
-> 
-> So I think it's OK to retain a script for this, but I do think that we
-> should think up a standardized way of invoking it from vm/Makefile, so
-> the top-level Makefile in tools/testing/selftests can simply do "cd
-> vm;make run_test", where the run_test target exists in all
-> subdirectories.  The vm/Makefile run_test target can then call out to
-> the script.
-> 
-> Also, please do not assume that the script has the x bit set.  The x
-> bit easily gets lost on kernel scripts (patch(1) can lose it) so it is
-> safer to invoke the script via "/bin/sh script-name" or $SHELL or
-> whatever.
-> 
-> Anyway, we should work with Frederic on sorting out some standard
-> behavior before we can finalize this work, please.
-> 
+On Sat, Feb 4, 2012 at 12:04 AM, Siddhesh Poyarekar
+<siddhesh.poyarekar@gmail.com> wrote:
+> On Fri, Feb 3, 2012 at 1:31 PM, KOSAKI Motohiro
+> <kosaki.motohiro@gmail.com> wrote:
+>> The fact is, now process stack and pthread stack clearly behave
+>> different dance. libc don't expect pthread stack grow automatically.
+>> So, your patch will break userland. Just only change display thing.
+<snip>
+> I have also dropped an email on the libc-alpha list here to solicit
+> comments from libc maintainers on this:
+>
+> http://sourceware.org/ml/libc-alpha/2012-02/msg00036.html
+>
 
-Ok. Would the following patch work?
+Kosaki-san, your suggestion of adding an extra flag seems like the
+right way to go about this based on the discussion on libc-alpha,
+specifically, your point about pthread_getattr_np() -- it may not be a
+standard, but it's a breakage anyway. However, looking at the vm_flags
+options in mm.h, it looks like the entire 32-bit space has been
+exhausted for the flag value. The vm_flags is an unsigned long, so it
+ought to take 8 bytes on a 64-bit system, but 32-bit systems will be
+left behind.
 
----
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Date: Wed, 8 Feb 2012 04:21:46 +0100
-Subject: [PATCH] selftests: Launch individual selftests from the main
- Makefile
+So there are two options for this:
 
-Drop the run_tests script and launch the selftests by calling
-"make run_tests" from the selftests top directory instead. This
-delegates to the Makefile on each selftest directory where it
-is decided how to launch the local test.
+1) make vm_flags 64-bit for all arches. This will cause ABI breakage
+on 32-bit systems, so any external drivers will have to be rebuilt
+2) Implement this patch for 64-bit only by defining the new flag only
+for 64-bit. 32-bit systems behave as is
 
-This drops the need to add each selftest directory on the
-now removed "run_tests" top script.
+Which of these would be better? I prefer the latter because it looks
+like the path of least breakage.
 
-Signed-off-by: Frederic Weisbecker <fweisbec@gmail.com>
----
- tools/testing/selftests/Makefile             |    5 +++++
- tools/testing/selftests/breakpoints/Makefile |    7 +++++--
- tools/testing/selftests/run_tests            |    8 --------
- 3 files changed, 10 insertions(+), 10 deletions(-)
- delete mode 100644 tools/testing/selftests/run_tests
-
-diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index 4ec8401..b1119f0 100644
---- a/tools/testing/selftests/Makefile
-+++ b/tools/testing/selftests/Makefile
-@@ -5,6 +5,11 @@ all:
- 		make -C $$TARGET; \
- 	done;
- 
-+run_tests:
-+	for TARGET in $(TARGETS); do \
-+		make -C $$TARGET run_tests; \
-+	done;
-+
- clean:
- 	for TARGET in $(TARGETS); do \
- 		make -C $$TARGET clean; \
-diff --git a/tools/testing/selftests/breakpoints/Makefile b/tools/testing/selftests/breakpoints/Makefile
-index f362722..9312780 100644
---- a/tools/testing/selftests/breakpoints/Makefile
-+++ b/tools/testing/selftests/breakpoints/Makefile
-@@ -11,10 +11,13 @@ endif
- 
- all:
- ifeq ($(ARCH),x86)
--	gcc breakpoint_test.c -o run_test
-+	gcc breakpoint_test.c -o breakpoint_test
- else
- 	echo "Not an x86 target, can't build breakpoints selftests"
- endif
- 
-+run_tests:
-+	./breakpoint_test
-+
- clean:
--	rm -fr run_test
-+	rm -fr breakpoint_test
-diff --git a/tools/testing/selftests/run_tests b/tools/testing/selftests/run_tests
-deleted file mode 100644
-index 320718a..0000000
---- a/tools/testing/selftests/run_tests
-+++ /dev/null
-@@ -1,8 +0,0 @@
--#!/bin/bash
--
--TARGETS=breakpoints
--
--for TARGET in $TARGETS
--do
--	$TARGET/run_test
--done
 -- 
-1.7.5.4
-
+Siddhesh Poyarekar
+http://siddhesh.in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
