@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 0B3836B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 10:26:49 -0500 (EST)
-Date: Wed, 8 Feb 2012 15:26:46 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/15] Swap-over-NBD without deadlocking V8
-Message-ID: <20120208152645.GK5938@suse.de>
-References: <1328568978-17553-1-git-send-email-mgorman@suse.de>
- <CAJd=RBAvvzK=TXwDaEjq2t+uEuP2PSi6zaUj7EW4UbL_AUsJAg@mail.gmail.com>
- <20120207132745.GH5938@suse.de>
- <CAJd=RBDYMKRVSKVp3dAhTCtu_wNDyayCObVA7q6G=fbkKpmZUw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 8CD6B6B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 10:38:07 -0500 (EST)
+Received: by ghrr18 with SMTP id r18so356321ghr.14
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 07:38:06 -0800 (PST)
+Date: Wed, 8 Feb 2012 16:38:01 +0100
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH] selftests: Launch individual selftests from the main
+ Makefile
+Message-ID: <20120208153759.GD25473@somewhere.redhat.com>
+References: <20120205081555.GA2249@darkstar.redhat.com>
+ <20120206155340.b9075240.akpm@linux-foundation.org>
+ <20120208034055.GA23894@somewhere.redhat.com>
+ <alpine.DEB.2.00.1202080843250.29839@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBDYMKRVSKVp3dAhTCtu_wNDyayCObVA7q6G=fbkKpmZUw@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1202080843250.29839@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com
 
-On Wed, Feb 08, 2012 at 08:51:11PM +0800, Hillf Danton wrote:
-> On Tue, Feb 7, 2012 at 9:27 PM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Tue, Feb 07, 2012 at 08:45:18PM +0800, Hillf Danton wrote:
-> >> If it is feasible to bypass hang by tuning min_mem_kbytes,
-> >
-> > No. Increasing or descreasing min_free_kbytes changes the timing but it
-> > will still hang.
-> >
-> >> things may
-> >> become simpler if NICs are also tagged.
-> >
-> > That would mean making changes to every driver and they do not necessarily
-> > know what higher level protocol like TCP they are transmitting. How is
-> > that simpler? What is the benefit?
-> >
-> The benefit is to avoid allocating sock buffer in softirq by recycling,
-> then the changes in VM core maybe less.
+On Wed, Feb 08, 2012 at 08:45:35AM -0600, Christoph Lameter wrote:
+> Note that slub also has an embedded selftest (see function
+> resiliency_test). That code could be separated out and put with the
+> selftests that you are creating now.
+
+That would be nice. As long as it's in userspace and it runs validation
+tests, it's pretty welcome.
+
+It's deemed to test expected behaviour with deterministic tests. stress tests
+probably don't fit well there although it should be no problem if they are short.
+
+
+> I also have a series of in kernel benchmarks for the page allocation, vm
+> statistics and slab allocators that could be useful to included somewhere.
 > 
+> All this code runs in the kernel context.
+> 
+> For the in kernel benchmarks I am creating modules that fail to load but
+> first run the tests.
 
-The VM is responsible for swapping. It's reasonable that the core
-VM has responsibility for it without trying to shove complexity into
-drivers or elsewhere unnecessarily. I see some benefit in following on
-by recycling some skbs and only allocating from softirq if no recycled
-skbs are available.  That potentially improves performance but I do not
-recycling as a replacement.
-
--- 
-Mel Gorman
-SUSE Labs
+Hmm, benchmarks tend to require some user analysis, I'm not sure if a batch of
+validation tests is the right place for them. But loading modules is probably
+not a problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
