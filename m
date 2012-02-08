@@ -1,150 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 5DC1F6B13F0
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 23:48:03 -0500 (EST)
-Subject: Re: [rfc PATCH]slub: per cpu partial statistics change
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1202070910320.29500@router.home>
-References: <1328256695.12669.24.camel@debian>
-	 <alpine.DEB.2.00.1202030920060.2420@router.home>
-	 <4F2C824E.8080501@intel.com>
-	 <alpine.DEB.2.00.1202060858510.393@router.home>
-	 <1328591165.12669.168.camel@debian>
-	 <alpine.DEB.2.00.1202070910320.29500@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 08 Feb 2012 12:44:50 +0800
-Message-ID: <1328676290.12669.431.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 4BD096B13F2
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 02:55:26 -0500 (EST)
+Received: by qcsd16 with SMTP id d16so162153qcs.14
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 23:55:25 -0800 (PST)
+MIME-Version: 1.0
+From: Greg Thelen <gthelen@google.com>
+Date: Tue, 7 Feb 2012 23:55:05 -0800
+Message-ID: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
+Subject: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, 2012-02-07 at 09:12 -0600, Christoph Lameter wrote:
-> On Tue, 7 Feb 2012, Alex,Shi wrote:
-> 
-> > Yes, I want to account the unfreeze_partialsi 1/4 ?i 1/4 ? actions in
-> > put_cpu_partiali 1/4 ?). The unfreezing accounting isn't conflict or repeat
-> > with the cpu_partial_free accounting, since they are different actions
-> > for the PCP.
-> 
-> Well what is happening here is that the whole per cpu partial list is
-> moved back to the per node partial list.
-> 
-> CPU_PARTIAL_DRAIN_TO_NODE_PARTIAL ?
-> 
-> A bit long I think. CPU_PARTIAL_DRAIN?
+On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> If moving dirty pages out of the memcg to the 20% global dirty pages
+> pool on page reclaim, the above OOM can be avoided. It does change the
+> meaning of memory.limit_in_bytes in that the memcg tasks can now
+> actually consume more pages (up to the shared global 20% dirty limit).
 
-Yes. it is more meaningful. :) 
-Patch change here. 
+This seems like an easy change, but unfortunately the global 20% pool
+has some shortcomings for my needs:
 
-----------------
->From af88a7b0134d3eea82a4cf9985026852e50f5343 Mon Sep 17 00:00:00 2001
-From: Alex Shi <alex.shi@intel.com>
-Date: Fri, 3 Feb 2012 23:34:56 +0800
-Subject: [PATCH] slub: per cpu partial statistics change
+1. the global 20% pool is not moderated.  One cgroup can dominate it
+    and deny service to other cgroups.
 
-This patch split the cpu_partial_free into 2 parts: cpu_partial_node, PCP refilling
-times from node partial; and same name cpu_partial_free, PCP refilling times in
-slab_free slow path. A new statistic 'cpu_partial_drain' is added to get PCP
-drain to node partial times. These info are useful when do PCP tunning.
+2. the global 20% pool is free, unaccounted memory.  Ideally cgroups only
+    use the amount of memory specified in their memory.limit_in_bytes.  The
+    goal is to sell portions of a system.  Global resource like the 20% are an
+    undesirable system-wide tax that's shared by jobs that may not even
+    perform buffered writes.
 
-The slabinfo.c code is unchanged, since cpu_partial_node is not on slow path.
-
-Signed-off-by: Alex Shi <alex.shi@intel.com>
----
- include/linux/slub_def.h |    6 ++++--
- mm/slub.c                |   12 +++++++++---
- 2 files changed, 13 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index a32bcfd..6388a66 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -21,7 +21,7 @@ enum stat_item {
- 	FREE_FROZEN,		/* Freeing to frozen slab */
- 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
- 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
--	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from partial list */
-+	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
- 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
- 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
- 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
-@@ -37,7 +37,9 @@ enum stat_item {
- 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
- 	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
- 	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
--	CPU_PARTIAL_FREE,	/* USed cpu partial on free */
-+	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
-+	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
-+	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
- 	NR_SLUB_STAT_ITEMS };
- 
- struct kmem_cache_cpu {
-diff --git a/mm/slub.c b/mm/slub.c
-index 4907563..4e71a0a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1560,6 +1560,7 @@ static void *get_partial_node(struct kmem_cache *s,
- 		} else {
- 			page->freelist = t;
- 			available = put_cpu_partial(s, page, 0);
-+			stat(s, CPU_PARTIAL_NODE);
- 		}
- 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
- 			break;
-@@ -1973,6 +1974,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 				local_irq_restore(flags);
- 				pobjects = 0;
- 				pages = 0;
-+				stat(s, CPU_PARTIAL_DRAIN);
- 			}
- 		}
- 
-@@ -1984,7 +1986,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		page->next = oldpage;
- 
- 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
--	stat(s, CPU_PARTIAL_FREE);
- 	return pobjects;
- }
- 
-@@ -2465,9 +2466,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 		 * If we just froze the page then put it onto the
- 		 * per cpu partial list.
- 		 */
--		if (new.frozen && !was_frozen)
-+		if (new.frozen && !was_frozen) {
- 			put_cpu_partial(s, page, 1);
--
-+			stat(s, CPU_PARTIAL_FREE);
-+		}
- 		/*
- 		 * The list lock was not taken therefore no list
- 		 * activity can be necessary.
-@@ -5059,6 +5061,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
- STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
- STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
- STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
-+STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
-+STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
- #endif
- 
- static struct attribute *slab_attrs[] = {
-@@ -5124,6 +5128,8 @@ static struct attribute *slab_attrs[] = {
- 	&cmpxchg_double_cpu_fail_attr.attr,
- 	&cpu_partial_alloc_attr.attr,
- 	&cpu_partial_free_attr.attr,
-+	&cpu_partial_node_attr.attr,
-+	&cpu_partial_drain_attr.attr,
- #endif
- #ifdef CONFIG_FAILSLAB
- 	&failslab_attr.attr,
--- 
-1.6.3.3
-
-
+3. Setting aside 20% extra memory for system wide dirty buffers is a lot of
+    memory.  This becomes a larger issue when the global dirty_ratio is
+    higher than 20%.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
