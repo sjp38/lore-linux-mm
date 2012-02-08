@@ -1,74 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id AB78F6B13FA
-	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 20:41:56 -0500 (EST)
-Received: by bkty12 with SMTP id y12so49519bkt.14
-        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 17:41:55 -0800 (PST)
-Message-ID: <4F31D2E0.5020704@openvz.org>
-Date: Wed, 08 Feb 2012 05:41:52 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id EBF4D6B13FE
+	for <linux-mm@kvack.org>; Tue,  7 Feb 2012 20:51:19 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so159618pbc.14
+        for <linux-mm@kvack.org>; Tue, 07 Feb 2012 17:51:19 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH BUGFIX] mm: fix find_get_page() for shmem exceptional
- entries
-References: <20120207103121.28345.28611.stgit@zurg> <4F31003E.2090901@openvz.org> <alpine.LSU.2.00.1202071011450.1849@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1202071011450.1849@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4F31D03B.9040707@openvz.org>
+References: <20120207074905.29797.60353.stgit@zurg> <CA+55aFy3NZ2sWX0CNVd9FnPSx0mUKSe0XzDWpDsNfU21p6ebHQ@mail.gmail.com>
+ <4F31D03B.9040707@openvz.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 7 Feb 2012 17:50:59 -0800
+Message-ID: <CA+55aFx24n-W4-wTtrfbt9PNvVd7n+SvThnO6OQ74uW4yNrGxw@mail.gmail.com>
+Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hugh Dickins wrote:
-> On Tue, 7 Feb 2012, Konstantin Khlebnikov wrote:
+On Tue, Feb 7, 2012 at 5:30 PM, Konstantin Khlebnikov
+<khlebnikov@openvz.org> wrote:
 >
->> Bug was added in commit v3.0-7291-g8079b1c (mm: clarify the radix_tree
->> exceptional cases)
->> So, v3.1 and v3.2 affected.
->>
->> Konstantin Khlebnikov wrote:
->>> It should return NULL, otherwise the caller will be very surprised.
->>>
->>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->
-> Thanks for worrying about it, but Nak to this patch.
->
-> If you have found somewhere that is surprised by an exceptional entry
-> instead of a page, then indeed we shall need to fix that: I'm not
-> aware of any.
+> If do not count comments here actually is negative line count change.
 
-Oh, this is very dangerous semantics, especially for function called "find-get-page"
-which sometimes returns not-getted not-a-page =)
+Ok, fair enough.
 
+> And if drop (almost) unused radix_tree_gang_lookup_tag_slot() and
+> radix_tree_gang_lookup_slot() total bloat-o-meter score becomes negative
+> too.
+
+Good.
+
+> There also some simple bit-hacks: find-next-bit instead of dumb loops in
+> tagged-lookup.
 >
-> There are several places that are prepared for the possibility:
-> find_lock_page() (and your patch would be breaking shmem.c's use of
-> find_lock_page()), mincore_page(), memcontrol.c's mc_handle_file_pte().
+> Here some benchmark results: there is radix-tree with 1024 slots, I fill =
+and
+> tag every <step> slot,
+> and run lookup for all slots with radix_tree_gang_lookup() and
+> radix_tree_gang_lookup_tag() in the loop.
+> old/new rows -- nsec per iteration over whole tree.
 >
-> Of the remaining calls to find_get_page(), my understanding is that
-> either they are filesystems operating upon their own pagecache, or
-> they involve using ->readpage() - that's one of the two reasons why
-> I gave shmem its own ->splice_read() and removed its ->readpage()
-> before switching over to use the exceptional entries.
+> tagged-lookup
+> step =A0 =A01 =A0 =A0 =A0 2 =A0 =A0 =A0 3 =A0 =A0 =A0 4 =A0 =A0 =A0 5 =A0=
+ =A0 =A0 6 =A0 =A0 =A0 7 =A0 =A0 =A0 8 =A0 =A0 =A0 9 =A0 =A0 =A0 10 =A0 =A0=
+ =A011 =A0 =A0 =A012 =A0 =A0 =A013 =A0 =A0 =A014 =A0 =A0 =A015 =A0 =A0 =A01=
+6
+> old =A0 =A0 7035 =A0 =A05248 =A0 =A04742 =A0 =A04308 =A0 =A04217 =A0 =A04=
+133 =A0 =A04030 =A0 =A03920 =A0 =A04038 =A0 =A03933 =A0 =A03914 =A0 =A03796=
+ =A0 =A03851 =A0 =A03755 =A0 =A03819 =A0 =A03582
+> new =A0 =A0 3578 =A0 =A02617 =A0 =A01899 =A0 =A01426 =A0 =A01220 =A0 =A01=
+058 =A0 =A0936 =A0 =A0 822 =A0 =A0 845 =A0 =A0 749 =A0 =A0 695 =A0 =A0 679 =
+=A0 =A0 648 =A0 =A0 575 =A0 =A0 591 =A0 =A0 509
 >
-> Hugh
->
->>> ---
->>>    mm/filemap.c |    1 +
->>>    1 files changed, 1 insertions(+), 0 deletions(-)
->>>
->>> diff --git a/mm/filemap.c b/mm/filemap.c
->>> index 518223b..ca98cb5 100644
->>> --- a/mm/filemap.c
->>> +++ b/mm/filemap.c
->>> @@ -693,6 +693,7 @@ repeat:
->>>    			 * here as an exceptional entry: so return it without
->>>    			 * attempting to raise page count.
->>>    			 */
->>> +			page = NULL;
->>>    			goto out;
->>>    		}
->>>    		if (!page_cache_get_speculative(page))
+> so, new tagged-lookup always faster, especially for sparse trees.
+
+Do you have any benchmarks when it's actually used by higher levels,
+though? I guess that will involve find_get_pages(), and we don't have
+all that any of them, but it would be lovely to see some real load
+(even if it is limited to one of the filesystems that uses this)
+numbers too..
+
+> New normal lookup works faster for dense trees, on sparse trees it slower=
+.
+
+I think that should be the common case, so that may be fine. Again, it
+would be nice to see numbers that are for something else than just the
+lookup - an actual use of it in some real context.
+
+Anyway, the patches themselves looked fine to me, modulo the fact that
+I wasn't all that happy with the new __find_next_bit, and I think it's
+better to not expose it in a generic header file. But I would really
+like to see more "real" numbers for the series
+
+Thanks,
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
