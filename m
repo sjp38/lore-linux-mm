@@ -1,56 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 12DAC6B002C
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 14:54:02 -0500 (EST)
-Date: Thu, 9 Feb 2012 13:53:58 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-In-Reply-To: <20120209125018.GN5938@suse.de>
-Message-ID: <alpine.DEB.2.00.1202091345540.4413@router.home>
-References: <1328568978-17553-1-git-send-email-mgorman@suse.de> <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home>
- <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home> <20120208212323.GM5938@suse.de> <alpine.DEB.2.00.1202081557540.5970@router.home> <20120209125018.GN5938@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7539C6B13F0
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 17:26:27 -0500 (EST)
+Date: Thu, 9 Feb 2012 14:26:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v9 4/8] smp: add func to IPI cpus based on parameter
+ func
+Message-Id: <20120209142625.0664e055.akpm@linux-foundation.org>
+In-Reply-To: <1328776585-22518-5-git-send-email-gilad@benyossef.com>
+References: <1328776585-22518-1-git-send-email-gilad@benyossef.com>
+	<1328776585-22518-5-git-send-email-gilad@benyossef.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Thu, 9 Feb 2012, Mel Gorman wrote:
+On Thu,  9 Feb 2012 10:36:21 +0200
+Gilad Ben-Yossef <gilad@benyossef.com> wrote:
 
-> Ok, I am working on a solution that does not affect any of the existing
-> slab structures. Between that and the fact we check if there are any
-> memalloc_socks after patch 12, the impact for normal systems is an additional
-> branch in ac_get_obj() and ac_put_obj()
+> @@ -153,6 +162,22 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
+>  			local_irq_enable();		\
+>  		}					\
+>  	} while (0)
+> +/*
+> + * Preemption is disabled here to make sure the
+> + * cond_func is called under the same condtions in UP
+> + * and SMP.
+> + */
+> +#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags) \
+> +	do {
+> +		void *__info = (info);			\
+> +		preempt_disable();			\
+> +		if ((cond_func)(0, __info)) {		\
+> +			local_irq_disable();		\
+> +			(func)(__info);			\
+> +			local_irq_enable();		\
+> +		}					\
+> +		preempt_enable();			\
+> +	} while (0)
 
-That sounds good in particular since some other things came up again,
-sigh. Have not had time to see if an alternate approach works.
+That wasn't compile-tested!
 
-> > We have been down this road too many times. Logic is added to critical
-> > paths and memory structures grow. This is not free. And for NBD swap
-> > support? Pretty exotic use case.
-> >
->
-> NFS support is the real target. NBD is the logical starting point and
-> NFS needs the same support.
+This is one of the many reasons why I convert replacement patches into
+incremental patches - so I can see what was done.
 
-But this is already a pretty strange use case on multiple levels. Swap is
-really detrimental to performance. Its a kind of emergency outlet that
-gets worse with every new step that increases the differential in
-performance between disk and memory. On top of that you want to add
-special code in various subsystems to also do that over the network.
-Sigh. I think we agreed a while back that we want to limit the amount of
-I/O triggered from reclaim paths? AFAICT many filesystems do not support
-writeout from reclaim anymore because of all the issues that arise at that
-level.
+Here's what I queued after converting this patch into a delta:
 
-We have numerous other mechanisms that can compress swap etc and provide
-ways to work around the problem without I/O which has always be
-troublesome and these fixes are likely only to work in a very limited
-way causing a lot of maintenance effort because (given the exotic
-nature) it is highly likely that there are cornercases that only will be
-triggered in rare cases.
+--- a/kernel/smp.c~smp-add-func-to-ipi-cpus-based-on-parameter-func-v9
++++ a/kernel/smp.c
+@@ -771,7 +771,9 @@ EXPORT_SYMBOL(on_each_cpu_mask);
+  * The function might sleep if the GFP flags indicates a non
+  * atomic allocation is allowed.
+  *
+- * Preemption is disabled to protect against a hotplug event.
++ * Preemption is disabled to protect against CPU going offline but not
++ * online. CPUs going online during the call will not be seen or sent
++ * an IPI.
+  *
+  * You must not call this function with disabled interrupts or
+  * from a hardware interrupt handler or from a bottom half handler.
+_
+
+And I queued a small fix to that:
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: smp-add-func-to-ipi-cpus-based-on-parameter-func-v9-fix
+
+s/CPU/CPUs, use all 80 cols in comment
+
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ kernel/smp.c |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+--- a/kernel/smp.c~smp-add-func-to-ipi-cpus-based-on-parameter-func-v9-fix
++++ a/kernel/smp.c
+@@ -771,9 +771,8 @@ EXPORT_SYMBOL(on_each_cpu_mask);
+  * The function might sleep if the GFP flags indicates a non
+  * atomic allocation is allowed.
+  *
+- * Preemption is disabled to protect against CPU going offline but not
+- * online. CPUs going online during the call will not be seen or sent
+- * an IPI.
++ * Preemption is disabled to protect against CPUs going offline but not online.
++ * CPUs going online during the call will not be seen or sent an IPI.
+  *
+  * You must not call this function with disabled interrupts or
+  * from a hardware interrupt handler or from a bottom half handler.
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
