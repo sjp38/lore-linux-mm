@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 34C646B13F2
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 13:33:06 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so1358865qcs.14
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 10:33:05 -0800 (PST)
-Date: Thu, 9 Feb 2012 19:32:59 +0100
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-Message-ID: <20120209183257.GI22552@somewhere.redhat.com>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
- <1327591185.2446.102.camel@twins>
- <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
- <20120201170443.GE6731@somewhere.redhat.com>
- <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
- <20120202162420.GE9071@somewhere.redhat.com>
- <alpine.DEB.2.00.1202021028120.6221@router.home>
- <20120209155246.GD22552@somewhere.redhat.com>
- <alpine.DEB.2.00.1202091024340.32064@router.home>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 3046F6B13F4
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 13:34:06 -0500 (EST)
+Received: from /spool/local
+	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 9 Feb 2012 13:33:59 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id E7D756E804B
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 13:29:11 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q19ISnrh399352
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 13:28:49 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q19ISlqa005905
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 13:28:49 -0500
+Message-ID: <4F341055.2020106@linux.vnet.ibm.com>
+Date: Thu, 09 Feb 2012 12:28:37 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1202091024340.32064@router.home>
+Subject: Re: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com> <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com> <20120209011326.GA2225@kroah.com> <4F33DE6F.80308@linux.vnet.ibm.com> <20120209181339.GA1360@kroah.com>
+In-Reply-To: <20120209181339.GA1360@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Thu, Feb 09, 2012 at 10:26:02AM -0600, Christoph Lameter wrote:
-> On Thu, 9 Feb 2012, Frederic Weisbecker wrote:
+On 02/09/2012 12:13 PM, Greg KH wrote:
+> On Thu, Feb 09, 2012 at 08:55:43AM -0600, Seth Jennings wrote:
+>> On 02/08/2012 07:13 PM, Greg KH wrote:
+>>> On Mon, Jan 09, 2012 at 04:51:58PM -0600, Seth Jennings wrote:
+>>>> Replaces xvmalloc with zsmalloc as the persistent memory allocator
+>>>> for zcache
+>>>>
+>>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>>>
+>>> This patch no longer applies :(
+>>
+>> Looks like my "staging: zcache: fix serialization bug in zv stats"
+>> patch didn't go in first.  There is an order dependency there.
+>> https://lkml.org/lkml/2012/1/9/403
+>>
+>> Let me know if there is still an issue after applying that patch.
 > 
-> > > The vmstat timer only makes sense when the OS is doing something on the
-> > > processor. Otherwise if no counters are incremented and the page and slab
-> > > allocator caches are empty then there is no need to run the vmstat timer.
-> >
-> > So this is a typical example of a timer we want to shutdown when the CPU is idle
-> > but we want to keep it running when we run in adaptive tickless mode (ie: shutdown
-> > the tick while the CPU is busy).
+> Hm, that one went into a different branch, that's what happened here.
 > 
-> You can also shut it down when the cpu is busy and not doing any system
-> calls. If the percpu differentials are all zero (because you just ran the
-> timer f.e.) and there are no system activities that would change the
-> counters then there is no point in running the vmstat timer.
+> Can you resend me that patch, and this one, so I can apply both to my
+> staging-next branch?
 
-Yep. I believe we can probably find that timer pattern elsewhere as well.
-A class of userspace/idle defferable timers.
+I just sent them to you offlist to avoid noise.  The are based on your
+staging-next branch.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
