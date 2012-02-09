@@ -1,151 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 26DB96B13F5
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 10:40:19 -0500 (EST)
-Date: Thu, 9 Feb 2012 15:40:14 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] compact_pgdat: workaround lockdep warning in kswapd
-Message-ID: <20120209154014.GM5796@csn.ul.ie>
-References: <alpine.LSU.2.00.1202061129040.2144@eggly.anvils>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id C5E966B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 10:52:56 -0500 (EST)
+Received: by qadz32 with SMTP id z32so4794967qad.14
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 07:52:55 -0800 (PST)
+Date: Thu, 9 Feb 2012 16:52:49 +0100
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+Message-ID: <20120209155246.GD22552@somewhere.redhat.com>
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
+ <1327591185.2446.102.camel@twins>
+ <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
+ <20120201170443.GE6731@somewhere.redhat.com>
+ <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
+ <20120202162420.GE9071@somewhere.redhat.com>
+ <alpine.DEB.2.00.1202021028120.6221@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202061129040.2144@eggly.anvils>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.00.1202021028120.6221@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Mon, Feb 06, 2012 at 11:40:08AM -0800, Hugh Dickins wrote:
-> I get this lockdep warning from swapping load on linux-next
-> (20120201 but I expect the same from more recent days):
+On Thu, Feb 02, 2012 at 10:29:57AM -0600, Christoph Lameter wrote:
+> On Thu, 2 Feb 2012, Frederic Weisbecker wrote:
 > 
-
-Only getting to this now. Yes, I'm slow.
-
-> =================================
-> [ INFO: inconsistent lock state ]
-> 3.3.0-rc2-next-20120201 #5 Not tainted
-> ---------------------------------
-> inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
-
-Ok, shoving that through my spidey decoder ring, that is saying we were
-in reclaim context (RECLAIM_FS-ON-W) and taking a mutex that at in
-the past was taken from a different reclaim context. In lockdeps mind,
-this leads to a potential deadlock where a user of pcpu_alloc needs
-kswapd or a reclaimer to make forward progress that can't because it
-depends on the same mutex.
-
-> kswapd0/28 [HC0[0]:SC0[0]:HE1:SE1] takes:
->  (pcpu_alloc_mutex){+.+.?.}, at: [<ffffffff810d6684>] pcpu_alloc+0x67/0x325
-> {RECLAIM_FS-ON-W} state was registered at:
->   [<ffffffff81099b75>] mark_held_locks+0xd7/0x103
->   [<ffffffff8109a13c>] lockdep_trace_alloc+0x85/0x9e
->   [<ffffffff810f6bdc>] __kmalloc+0x6c/0x14b
->   [<ffffffff810d57fd>] pcpu_mem_zalloc+0x59/0x62
->   [<ffffffff810d5d16>] pcpu_extend_area_map+0x26/0xb1
->   [<ffffffff810d679f>] pcpu_alloc+0x182/0x325
->   [<ffffffff810d694d>] __alloc_percpu+0xb/0xd
->   [<ffffffff8142ebfd>] snmp_mib_init+0x1e/0x2e
->   [<ffffffff8185cd8d>] ipv4_mib_init_net+0x7a/0x184
->   [<ffffffff813dc963>] ops_init.clone.0+0x6b/0x73
->   [<ffffffff813dc9cc>] register_pernet_operations+0x61/0xa0
->   [<ffffffff813dca8e>] register_pernet_subsys+0x29/0x42
->   [<ffffffff8185d044>] inet_init+0x1ad/0x252
->   [<ffffffff810002e3>] do_one_initcall+0x7a/0x12f
->   [<ffffffff81832bc5>] kernel_init+0x9d/0x11e
->   [<ffffffff814e51e4>] kernel_thread_helper+0x4/0x10
-> irq event stamp: 656613
-> hardirqs last  enabled at (656613): [<ffffffff814e0ddc>] __mutex_unlock_slowpath+0x104/0x128
-> hardirqs last disabled at (656612): [<ffffffff814e0d34>] __mutex_unlock_slowpath+0x5c/0x128
-> softirqs last  enabled at (655568): [<ffffffff8105b4a5>] __do_softirq+0x120/0x136
-> softirqs last disabled at (654757): [<ffffffff814e52dc>] call_softirq+0x1c/0x30
+> > > Some pinned timers might be able to get special treatment as well - take for
+> > > example the vmstat work being schedule every second, what should we do with
+> > > it for CPU isolation?
+> >
+> > Right, I remember I saw these vmstat timers on my way when I tried to get 0
+> > interrupts on a CPU.
+> >
+> > I think all these timers need to be carefully reviewed before doing anything.
+> > But we certainly shouldn't adopt the behaviour of migrating timers by default.
+> >
+> > Some timers really needs to stay on the expected CPU. Note that some
+> > timers may be shutdown by CPU hotplug callbacks. Those wouldn't be migrated
+> > in case of CPU offlining. We need to keep them.
+> >
+> > > It makes sense to me to have that stop scheduling itself when we have the tick
+> > > disabled for both idle and a nohz task.
 > 
-> other info that might help us debug this:
->  Possible unsafe locking scenario:
-> 
->        CPU0
->        ----
->   lock(pcpu_alloc_mutex);
->   <Interrupt>
->     lock(pcpu_alloc_mutex);
-> 
->  *** DEADLOCK ***
-> 
-> no locks held by kswapd0/28.
-> 
-> stack backtrace:
-> Pid: 28, comm: kswapd0 Not tainted 3.3.0-rc2-next-20120201 #5
-> Call Trace:
->  [<ffffffff810981f4>] print_usage_bug+0x1bf/0x1d0
->  [<ffffffff81096c3e>] ? print_irq_inversion_bug+0x1d9/0x1d9
->  [<ffffffff810982c0>] mark_lock_irq+0xbb/0x22e
->  [<ffffffff810c5399>] ? free_hot_cold_page+0x13d/0x14f
->  [<ffffffff81098684>] mark_lock+0x251/0x331
->  [<ffffffff81098893>] mark_irqflags+0x12f/0x141
->  [<ffffffff81098e32>] __lock_acquire+0x58d/0x753
->  [<ffffffff810d6684>] ? pcpu_alloc+0x67/0x325
->  [<ffffffff81099433>] lock_acquire+0x54/0x6a
->  [<ffffffff810d6684>] ? pcpu_alloc+0x67/0x325
->  [<ffffffff8107a5b8>] ? add_preempt_count+0xa9/0xae
->  [<ffffffff814e0a21>] mutex_lock_nested+0x5e/0x315
->  [<ffffffff810d6684>] ? pcpu_alloc+0x67/0x325
->  [<ffffffff81098f81>] ? __lock_acquire+0x6dc/0x753
->  [<ffffffff810c9fb0>] ? __pagevec_release+0x2c/0x2c
->  [<ffffffff810d6684>] pcpu_alloc+0x67/0x325
->  [<ffffffff810c9fb0>] ? __pagevec_release+0x2c/0x2c
->  [<ffffffff810d694d>] __alloc_percpu+0xb/0xd
->  [<ffffffff8106c35e>] schedule_on_each_cpu+0x23/0x110
->  [<ffffffff810c9fcb>] lru_add_drain_all+0x10/0x12
->  [<ffffffff810f126f>] __compact_pgdat+0x20/0x182
->  [<ffffffff810f15c2>] compact_pgdat+0x27/0x29
->  [<ffffffff810c306b>] ? zone_watermark_ok+0x1a/0x1c
->  [<ffffffff810cdf6f>] balance_pgdat+0x732/0x751
->  [<ffffffff810ce0ed>] kswapd+0x15f/0x178
->  [<ffffffff810cdf8e>] ? balance_pgdat+0x751/0x751
->  [<ffffffff8106fd11>] kthread+0x84/0x8c
->  [<ffffffff814e51e4>] kernel_thread_helper+0x4/0x10
->  [<ffffffff810787ed>] ? finish_task_switch+0x85/0xea
->  [<ffffffff814e3861>] ? retint_restore_args+0xe/0xe
->  [<ffffffff8106fc8d>] ? __init_kthread_worker+0x56/0x56
->  [<ffffffff814e51e0>] ? gs_change+0xb/0xb
-> 
-> The RECLAIM_FS notations indicate that it's doing the GFP_FS checking
-> that Nick hacked into lockdep a while back: I think we're intended to
-> read that "<Interrupt>" in the DEADLOCK scenario as "<Direct reclaim>".
-> 
+> The vmstat timer only makes sense when the OS is doing something on the
+> processor. Otherwise if no counters are incremented and the page and slab
+> allocator caches are empty then there is no need to run the vmstat timer.
 
-It's not GFP_FS it is complaining about though. It's complaining because
-that mutex is being taken from inconsistent reclaim contexts. At least,
-that is my reading of it. It's not often I read lockdep reports so I
-could be wrong.
-
-> I'm hazy, I have not reached any conclusion as to whether it's right
-> to complain or not; but I believe it's uneasy about kswapd now doing
-> the mutex_lock(&pcpu_alloc_mutex) which lru_add_drain_all() entails.
-> Nor have I reached any conclusion as to whether it's important for
-> kswapd to do that draining or not.
-> 
-
-It's not important for kswapd to do this draining. Compaction via proc
-does the draining to maximise the amount of compaction it is able to do.
-kswapd is best effort and not even doing sync compaction, let alone
-caring about draining pagevecs.
-
-> But so as not to get blocked on this, with lockdep disabled from giving
-> further reports, here's a patch which removes the lru_add_drain_all()
-> from kswapd's callpath (and calls it only once from compact_nodes(),
-> instead of once per node).
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-
-Thanks
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
--- 
-Mel Gorman
-SUSE Labs
+So this is a typical example of a timer we want to shutdown when the CPU is idle
+but we want to keep it running when we run in adaptive tickless mode (ie: shutdown
+the tick while the CPU is busy).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
