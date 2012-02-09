@@ -1,77 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 5ABA96B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 19:03:46 -0500 (EST)
-Date: Wed, 8 Feb 2012 16:03:44 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 4/8] smp: add func to IPI cpus based on parameter
- func
-Message-Id: <20120208160344.88d187e5.akpm@linux-foundation.org>
-In-Reply-To: <op.v9csppvv3l0zgt@mpn-glaptop>
-References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
-	<1328449722-15959-3-git-send-email-gilad@benyossef.com>
-	<op.v9csppvv3l0zgt@mpn-glaptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 3DE0F6B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 20:13:43 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so1313849pbc.14
+        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 17:13:42 -0800 (PST)
+Date: Wed, 8 Feb 2012 17:13:26 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
+Message-ID: <20120209011326.GA2225@kroah.com>
+References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: linux-kernel@vger.kernel.org, Gilad Ben-Yossef <gilad@benyossef.com>, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@suse.de>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Wed, 08 Feb 2012 10:30:51 +0100
-"Michal Nazarewicz" <mina86@mina86.com> wrote:
-
-> >  	} while (0)
-> > +/*
-> > + * Preemption is disabled here to make sure the
-> > + * cond_func is called under the same condtions in UP
-> > + * and SMP.
-> > + */
-> > +#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags) \
-> > +	do {						\
+On Mon, Jan 09, 2012 at 04:51:58PM -0600, Seth Jennings wrote:
+> Replaces xvmalloc with zsmalloc as the persistent memory allocator
+> for zcache
 > 
-> How about:
-> 
-> 		void *__info = (info);
-> 
-> as to avoid double execution.
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Yup.  How does this look?
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: smp-add-func-to-ipi-cpus-based-on-parameter-func-update-fix
-
-- avoid double-evaluation of `info' (per Michal)
-- parenthesise evaluation of `cond_func'
-
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/smp.h |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- a/include/linux/smp.h~smp-add-func-to-ipi-cpus-based-on-parameter-func-update-fix
-+++ a/include/linux/smp.h
-@@ -168,10 +168,11 @@ static inline int up_smp_call_function(s
-  */
- #define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags)\
- 	do {							\
-+		void *__info = (info);				\
- 		preempt_disable();				\
--		if (cond_func(0, info)) {			\
-+		if ((cond_func)(0, __info)) {			\
- 			local_irq_disable();			\
--			(func)(info);				\
-+			(func)(__info);				\
- 			local_irq_enable();			\
- 		}						\
- 		preempt_enable();				\
-_
+This patch no longer applies :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
