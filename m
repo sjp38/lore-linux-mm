@@ -1,55 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id E27816B002C
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:27:03 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 9 Feb 2012 03:27:02 -0500
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7938138C8026
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:27:01 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q198R11Q232330
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 03:27:01 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q198QwX3012732
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 03:27:01 -0500
-Date: Thu, 9 Feb 2012 13:44:51 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: Re: [PATCH v10 3.3-rc2 1/9] uprobes: Install and remove
- breakpoints.
-Message-ID: <20120209081451.GC16600@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120202141840.5967.39687.sendpatchset@srdronam.in.ibm.com>
- <20120202141851.5967.68000.sendpatchset@srdronam.in.ibm.com>
- <20120207171707.GA24443@linux.vnet.ibm.com>
- <CAK1hOcOd3hd31vZYw1yAVGK=gMV=vQotL1mRZkVgM=7M8mbMyw@mail.gmail.com>
- <4F3320E5.1050707@hitachi.com>
- <20120209063745.GB16600@linux.vnet.ibm.com>
- <20120209075357.GD18387@elte.hu>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 903946B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:36:52 -0500 (EST)
+Received: by eaag11 with SMTP id g11so550111eaa.14
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 00:36:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20120209075357.GD18387@elte.hu>
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Subject: [PATCH v9 1/8] smp: introduce a generic on_each_cpu_mask function
+Date: Thu,  9 Feb 2012 10:36:18 +0200
+Message-Id: <1328776585-22518-2-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1328776585-22518-1-git-send-email-gilad@benyossef.com>
+References: <1328776585-22518-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Denys Vlasenko <vda.linux@googlemail.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, yrl.pp-manager.tt@hitachi.com
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-* Ingo Molnar <mingo@elte.hu> [2012-02-09 08:53:57]:
+on_each_cpu_mask calls a function on processors specified by
+cpumask, which may or may not include the local processor.
 
-> 
-> * Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
-> 
-> > 	/* Clear REX.b bit (extension of MODRM.rm field):
-> > 	 * we want to encode rax/rcx, not r8/r9.
-> > 	 */
-> 
-> Small stylistic nit, just saw this chunk fly by - the proper 
-> comment style is like this one:
+You must not call this function with disabled interrupts or
+from a hardware interrupt handler or from a bottom half handler.
 
-Okay, Will correct that in the patch that I send.
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Christoph Lameter <cl@linux.com>
+Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: Russell King <linux@arm.linux.org.uk>
+CC: linux-mm@kvack.org
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Matt Mackall <mpm@selenic.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: Andi Kleen <andi@firstfloor.org>
+CC: Sasha Levin <levinsasha928@gmail.com>
+CC: Mel Gorman <mel@csn.ul.ie>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Alexander Viro <viro@zeniv.linux.org.uk>
+CC: linux-fsdevel@vger.kernel.org
+CC: Avi Kivity <avi@redhat.com>
+CC: Kosaki Motohiro <kosaki.motohiro@gmail.com>
+CC: Milton Miller <miltonm@bga.com>
+---
+ include/linux/smp.h |   22 ++++++++++++++++++++++
+ kernel/smp.c        |   29 +++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/smp.h b/include/linux/smp.h
+index 8cc38d3..d0adb78 100644
+--- a/include/linux/smp.h
++++ b/include/linux/smp.h
+@@ -102,6 +102,13 @@ static inline void call_function_init(void) { }
+ int on_each_cpu(smp_call_func_t func, void *info, int wait);
+ 
+ /*
++ * Call a function on processors specified by mask, which might include
++ * the local one.
++ */
++void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
++		void *info, bool wait);
++
++/*
+  * Mark the boot cpu "online" so that it can call console drivers in
+  * printk() and can access its per-cpu storage.
+  */
+@@ -132,6 +139,21 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
+ 		local_irq_enable();		\
+ 		0;				\
+ 	})
++/*
++ * Note we still need to test the mask even for UP
++ * because we actually can get an empty mask from
++ * code that on SMP might call us without the local
++ * CPU in the mask.
++ */
++#define on_each_cpu_mask(mask, func, info, wait) \
++	do {						\
++		if (cpumask_test_cpu(0, (mask))) {	\
++			local_irq_disable();		\
++			(func)(info);			\
++			local_irq_enable();		\
++		}					\
++	} while (0)
++
+ static inline void smp_send_reschedule(int cpu) { }
+ #define num_booting_cpus()			1
+ #define smp_prepare_boot_cpu()			do {} while (0)
+diff --git a/kernel/smp.c b/kernel/smp.c
+index db197d6..a081e6c 100644
+--- a/kernel/smp.c
++++ b/kernel/smp.c
+@@ -701,3 +701,32 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait)
+ 	return ret;
+ }
+ EXPORT_SYMBOL(on_each_cpu);
++
++/**
++ * on_each_cpu_mask(): Run a function on processors specified by
++ * cpumask, which may include the local processor.
++ * @mask: The set of cpus to run on (only runs on online subset).
++ * @func: The function to run. This must be fast and non-blocking.
++ * @info: An arbitrary pointer to pass to the function.
++ * @wait: If true, wait (atomically) until function has completed
++ *        on other CPUs.
++ *
++ * If @wait is true, then returns once @func has returned.
++ *
++ * You must not call this function with disabled interrupts or
++ * from a hardware interrupt handler or from a bottom half handler.
++ */
++void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
++			void *info, bool wait)
++{
++	int cpu = get_cpu();
++
++	smp_call_function_many(mask, func, info, wait);
++	if (cpumask_test_cpu(cpu, mask)) {
++		local_irq_disable();
++		func(info);
++		local_irq_enable();
++	}
++	put_cpu();
++}
++EXPORT_SYMBOL(on_each_cpu_mask);
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
