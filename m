@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 40AC56B002C
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 09:37:05 -0500 (EST)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id F248C6B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 09:56:15 -0500 (EST)
 Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 9 Feb 2012 07:37:03 -0700
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6E5D4C9005A
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 09:36:47 -0500 (EST)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q19EakET298062
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 09:36:46 -0500
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q19EaiQE017789
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 07:36:44 -0700
-Message-ID: <4F33D9EC.9050900@linux.vnet.ibm.com>
-Date: Thu, 09 Feb 2012 08:36:28 -0600
+	Thu, 9 Feb 2012 09:56:14 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id DCB696E8049
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 09:55:49 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q19Etn1w252118
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 09:55:49 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q19EtnT8011036
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 12:55:49 -0200
+Message-ID: <4F33DE6F.80308@linux.vnet.ibm.com>
+Date: Thu, 09 Feb 2012 08:55:43 -0600
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
@@ -38,10 +38,13 @@ On 02/08/2012 07:13 PM, Greg KH wrote:
 > 
 > This patch no longer applies :(
 
-Let me check it out, I'll get back to you shortly.
+Looks like my "staging: zcache: fix serialization bug in zv stats"
+patch didn't go in first.  There is an order dependency there.
+https://lkml.org/lkml/2012/1/9/403
 
-Thanks for merging everything else!
+Let me know if there is still an issue after applying that patch.
 
+Thanks!
 --
 Seth
 
