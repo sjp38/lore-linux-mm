@@ -1,107 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 3B45D6B002C
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:08:17 -0500 (EST)
-Received: by vbip1 with SMTP id p1so1301034vbi.14
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 00:08:16 -0800 (PST)
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 95BD06B13F0
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:09:17 -0500 (EST)
+Received: by vcbf13 with SMTP id f13so186835vcb.14
+        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 00:09:16 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120208160344.88d187e5.akpm@linux-foundation.org>
+In-Reply-To: <op.v9cstne43l0zgt@mpn-glaptop>
 References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
-	<1328449722-15959-3-git-send-email-gilad@benyossef.com>
-	<op.v9csppvv3l0zgt@mpn-glaptop>
-	<20120208160344.88d187e5.akpm@linux-foundation.org>
-Date: Thu, 9 Feb 2012 10:08:16 +0200
-Message-ID: <CAOtvUMebLNtMcrxuxRq_U5UbwNt-9mE0-0z7Zg79abRTbHE4MQ@mail.gmail.com>
-Subject: Re: [PATCH v8 4/8] smp: add func to IPI cpus based on parameter func
+	<1328449722-15959-6-git-send-email-gilad@benyossef.com>
+	<op.v9cstne43l0zgt@mpn-glaptop>
+Date: Thu, 9 Feb 2012 10:09:15 +0200
+Message-ID: <CAOtvUMdo3yx1d5Ghs=GVBHCQGA8t9Vg=PK77h4V=hrLWDPUcUQ@mail.gmail.com>
+Subject: Re: [PATCH v8 7/8] mm: only IPI CPUs to drain local pages if they exist
 From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Milton Miller <miltonm@bga.com>
 
-On Thu, Feb 9, 2012 at 2:03 AM, Andrew Morton <akpm@linux-foundation.org> w=
-rote:
-> On Wed, 08 Feb 2012 10:30:51 +0100
-> "Michal Nazarewicz" <mina86@mina86.com> wrote:
+2012/2/8 Michal Nazarewicz <mina86@mina86.com>:
+> On Sun, 05 Feb 2012 14:48:41 +0100, Gilad Ben-Yossef <gilad@benyossef.com=
 >
->> > =A0 =A0 } while (0)
->> > +/*
->> > + * Preemption is disabled here to make sure the
->> > + * cond_func is called under the same condtions in UP
->> > + * and SMP.
->> > + */
->> > +#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags) \
->> > + =A0 do { =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0\
+> wrote:
 >>
->> How about:
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *__info =3D (info);
->>
->> as to avoid double execution.
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index d2186ec..3ff5aff 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -1161,11 +1161,46 @@ void drain_local_pages(void *arg)
+...
+>> +
+>> + =A0 =A0 =A0 /* Allocate in the BSS so we wont require allocation in
+>> + =A0 =A0 =A0 =A0* direct reclaim path for CONFIG_CPUMASK_OFFSTACK=3Dy
+>> + =A0 =A0 =A0 =A0*/
 >
-> Yup. =A0How does this look?
 >
->
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: smp-add-func-to-ipi-cpus-based-on-parameter-func-update-fix
->
-> - avoid double-evaluation of `info' (per Michal)
-> - parenthesise evaluation of `cond_func'
->
-> Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-> Cc: Gilad Ben-Yossef <gilad@benyossef.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->
-> =A0include/linux/smp.h | =A0 =A05 +++--
-> =A01 file changed, 3 insertions(+), 2 deletions(-)
->
-> --- a/include/linux/smp.h~smp-add-func-to-ipi-cpus-based-on-parameter-fun=
-c-update-fix
-> +++ a/include/linux/smp.h
-> @@ -168,10 +168,11 @@ static inline int up_smp_call_function(s
-> =A0*/
-> =A0#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags)\
-> =A0 =A0 =A0 =A0do { =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0\
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *__info =3D (info); =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0\
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0preempt_disable(); =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0\
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (cond_func(0, info)) { =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((cond_func)(0, __info)) { =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 \
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0local_irq_disable(); =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0\
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (func)(info); =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (func)(__info); =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0local_irq_enable(); =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0} =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0preempt_enable(); =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> _
->
+> If you are going to send next iteration, this comment should have
+> =93/*=94 on its own line just like comment below.
 
-Right, I missed that. I hate macros.
+Right, thanks.
 
-As I was requested to correct some comments I'll send a re-spin.
-I folded your patch into the original one (and kept the Signed-off-by,
-I hope it's OK).
-
-BTW -  I used a macro since I imitated the rest of the code in smp.h
-but is there any
-reason not to use an inline macro here?
-
-Thanks!
 Gilad
 
 --=20
