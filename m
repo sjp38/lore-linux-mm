@@ -1,60 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 95BD06B13F0
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:09:17 -0500 (EST)
-Received: by vcbf13 with SMTP id f13so186835vcb.14
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 00:09:16 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <op.v9cstne43l0zgt@mpn-glaptop>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 834C66B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 03:12:49 -0500 (EST)
+Date: Thu, 9 Feb 2012 00:13:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v8 4/8] smp: add func to IPI cpus based on parameter
+ func
+Message-Id: <20120209001335.49f2360b.akpm@linux-foundation.org>
+In-Reply-To: <CAOtvUMebLNtMcrxuxRq_U5UbwNt-9mE0-0z7Zg79abRTbHE4MQ@mail.gmail.com>
 References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
-	<1328449722-15959-6-git-send-email-gilad@benyossef.com>
-	<op.v9cstne43l0zgt@mpn-glaptop>
-Date: Thu, 9 Feb 2012 10:09:15 +0200
-Message-ID: <CAOtvUMdo3yx1d5Ghs=GVBHCQGA8t9Vg=PK77h4V=hrLWDPUcUQ@mail.gmail.com>
-Subject: Re: [PATCH v8 7/8] mm: only IPI CPUs to drain local pages if they exist
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+	<1328449722-15959-3-git-send-email-gilad@benyossef.com>
+	<op.v9csppvv3l0zgt@mpn-glaptop>
+	<20120208160344.88d187e5.akpm@linux-foundation.org>
+	<CAOtvUMebLNtMcrxuxRq_U5UbwNt-9mE0-0z7Zg79abRTbHE4MQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Milton Miller <miltonm@bga.com>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-2012/2/8 Michal Nazarewicz <mina86@mina86.com>:
-> On Sun, 05 Feb 2012 14:48:41 +0100, Gilad Ben-Yossef <gilad@benyossef.com=
->
-> wrote:
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index d2186ec..3ff5aff 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1161,11 +1161,46 @@ void drain_local_pages(void *arg)
-...
->> +
->> + =A0 =A0 =A0 /* Allocate in the BSS so we wont require allocation in
->> + =A0 =A0 =A0 =A0* direct reclaim path for CONFIG_CPUMASK_OFFSTACK=3Dy
->> + =A0 =A0 =A0 =A0*/
->
->
-> If you are going to send next iteration, this comment should have
-> =93/*=94 on its own line just like comment below.
+On Thu, 9 Feb 2012 10:08:16 +0200 Gilad Ben-Yossef <gilad@benyossef.com> wrote:
 
-Right, thanks.
+> BTW -  I used a macro since I imitated the rest of the code in smp.h
+> but is there any
+> reason not to use an inline macro here?
 
-Gilad
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
-=A0-- Jean-Baptiste Queru
+If it can be implemented in C then sure, go for it - that's superior in
+numerous ways.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
