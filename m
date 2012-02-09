@@ -1,188 +1,311 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id EE3886B002C
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 07:11:48 -0500 (EST)
-Received: by wera13 with SMTP id a13so1474149wer.14
-        for <linux-mm@kvack.org>; Thu, 09 Feb 2012 04:11:47 -0800 (PST)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 1AAA76B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 07:50:24 -0500 (EST)
+Date: Thu, 9 Feb 2012 12:50:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20120209125018.GN5938@suse.de>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de>
+ <1328568978-17553-3-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1202071025050.30652@router.home>
+ <20120208144506.GI5938@suse.de>
+ <alpine.DEB.2.00.1202080907320.30248@router.home>
+ <20120208163421.GL5938@suse.de>
+ <alpine.DEB.2.00.1202081338210.32060@router.home>
+ <20120208212323.GM5938@suse.de>
+ <alpine.DEB.2.00.1202081557540.5970@router.home>
 MIME-Version: 1.0
-In-Reply-To: <20120206090841.GF5938@suse.de>
-References: <20120206090841.GF5938@suse.de>
-Date: Thu, 9 Feb 2012 20:11:47 +0800
-Message-ID: <CAJd=RBCUjp_=7rRGfHa+4M+F3s1c+zupXj7x+PGm=bstfVvxFg@mail.gmail.com>
-Subject: Re: mm: compaction: Check for overlapping nodes during isolation for migration
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1202081557540.5970@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Feb 6, 2012 at 5:08 PM, Mel Gorman <mgorman@suse.de> wrote:
-> When isolating pages for migration, migration starts at the start of a
-> zone while the free scanner starts at the end of the zone. Migration
-> avoids entering a new zone by never going beyond the free scanned.
-> Unfortunately, in very rare cases nodes can overlap. When this happens,
-> migration isolates pages without the LRU lock held, corrupting lists
-> which will trigger errors in reclaim or during page free such as in the
-> following oops
->
-> [ 8739.994311] BUG: unable to handle kernel NULL pointer dereference at 0=
-000000000000008
-> [ 8739.994331] IP: [<ffffffff810f795c>] free_pcppages_bulk+0xcc/0x450
-> [ 8739.994344] PGD 1dda554067 PUD 1e1cb58067 PMD 0
-> [ 8739.994350] Oops: 0000 [#1] SMP
-> [ 8739.994357] CPU 37
-> [ 8739.994359] Modules linked in: veth(X) <SNIPPED>
-> [ 8739.994457] Supported: Yes
-> [ 8739.994461]
-> [ 8739.994465] Pid: 17088, comm: memcg_process_s Tainted: G =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0X
-> [ 8739.994477] RIP: 0010:[<ffffffff810f795c>] =C2=A0[<ffffffff810f795c>] =
-free_pcppages_bulk+0xcc/0x450
-> [ 8739.994483] RSP: 0000:ffff881c2926f7a8 =C2=A0EFLAGS: 00010082
-> [ 8739.994488] RAX: 0000000000000010 RBX: 0000000000000000 RCX: ffff881e7=
-f4546c8
-> [ 8739.994491] RDX: ffff881e7f4546b0 RSI: 0000000000000000 RDI: 000000000=
-0000167
-> [ 8739.994498] RBP: 0000000000000000 R08: 0000000000000000 R09: 000000000=
-0000000
-> [ 8739.994502] R10: 0000000000000166 R11: ffffea0060ea0e50 R12: fffffffff=
-fffffd8
-> [ 8739.994506] R13: 0000000000000001 R14: ffff881c7ffd9e00 R15: 000000000=
-0000000
-> [ 8739.994511] FS: =C2=A000007f5072690700(0000) GS:ffff881e7f440000(0000)=
- knlGS:0000000000000000
-> [ 8739.994517] CS: =C2=A00010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 8739.994522] CR2: 0000000000000008 CR3: 0000001e1f1f9000 CR4: 000000000=
-00006e0
-> [ 8739.994525] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 000000000=
-0000000
-> [ 8739.994530] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 000000000=
-0000400
-> [ 8739.994535] Process memcg_process_s (pid: 17088, threadinfo ffff881c29=
-26e000, task ffff881c2926c0c0)
-> [ 8739.994539] Stack:
-> [ 8739.994541] =C2=A00000000000000000 ffff881e7f4546c8 0000000000000010 f=
-fff881c7ffd9e60
-> [ 8739.994557] =C2=A0ffff881e7f4546b0 0000001f814498ee 0000000000000000 0=
-000001d81245255
-> [ 8739.994565] =C2=A0ffff881e7f4546c0 ffffea005ecd2f40 ffff881e7f4546b0 0=
-020000000200010
-> [ 8739.994573] Call Trace:
-> [ 8739.994590] =C2=A0[<ffffffff810f8bfe>] free_hot_cold_page+0x17e/0x1f0
-> [ 8739.994600] =C2=A0[<ffffffff810f8ff0>] __pagevec_free+0x90/0xb0
-> [ 8739.994610] =C2=A0[<ffffffff810fc08a>] release_pages+0x22a/0x260
-> [ 8739.994617] =C2=A0[<ffffffff810fc1b3>] pagevec_lru_move_fn+0xf3/0x110
-> [ 8739.994627] =C2=A0[<ffffffff81101e76>] putback_lru_page+0x66/0xe0
-> [ 8739.994639] =C2=A0[<ffffffff8113fde6>] unmap_and_move+0x156/0x180
-> [ 8739.994647] =C2=A0[<ffffffff8113feae>] migrate_pages+0x9e/0x1b0
-> [ 8739.994656] =C2=A0[<ffffffff81136313>] compact_zone+0x1f3/0x2f0
-> [ 8739.994665] =C2=A0[<ffffffff81136672>] compact_zone_order+0xa2/0xe0
-> [ 8739.994672] =C2=A0[<ffffffff8113678f>] try_to_compact_pages+0xdf/0x110
-> [ 8739.994678] =C2=A0[<ffffffff810f7eae>] __alloc_pages_direct_compact+0x=
-ee/0x1c0
-> [ 8739.994686] =C2=A0[<ffffffff810f82f0>] __alloc_pages_slowpath+0x370/0x=
-830
-> [ 8739.994694] =C2=A0[<ffffffff810f8961>] __alloc_pages_nodemask+0x1b1/0x=
-1c0
-> [ 8739.994701] =C2=A0[<ffffffff81134d2b>] alloc_pages_vma+0x9b/0x160
-> [ 8739.994712] =C2=A0[<ffffffff811449a0>] do_huge_pmd_anonymous_page+0x16=
-0/0x270
-> [ 8739.994725] =C2=A0[<ffffffff81444ba7>] do_page_fault+0x207/0x4c0
-> [ 8739.994735] =C2=A0[<ffffffff814418e5>] page_fault+0x25/0x30
-> [ 8739.994748] =C2=A0[<0000000000400997>] 0x400996
->
-> The "X" in the taint flag means that external modules were loaded but
-> but is unrelated to the bug triggering. The real problem was because
-> the PFN layout looks like this
->
-> [ =C2=A0 =C2=A00.000000] Zone PFN ranges:
-> [ =C2=A0 =C2=A00.000000] =C2=A0 DMA =C2=A0 =C2=A0 =C2=A00x00000010 -> 0x0=
-0001000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 DMA32 =C2=A0 =C2=A00x00001000 -> 0x001000=
-00
-> [ =C2=A0 =C2=A00.000000] =C2=A0 Normal =C2=A0 0x00100000 -> 0x01e80000
-> [ =C2=A0 =C2=A00.000000] Movable zone start PFN for each node
-> [ =C2=A0 =C2=A00.000000] early_node_map[14] active PFN ranges
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x00000010 -> 0x0000009b
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x00000100 -> 0x0007a1ec
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x0007a354 -> 0x0007a379
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x0007f7ff -> 0x0007f800
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x00100000 -> 0x00680000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 1: 0x00680000 -> 0x00e80000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x00e80000 -> 0x01080000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 1: 0x01080000 -> 0x01280000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x01280000 -> 0x01480000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 1: 0x01480000 -> 0x01680000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x01680000 -> 0x01880000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 1: 0x01880000 -> 0x01a80000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 0: 0x01a80000 -> 0x01c80000
-> [ =C2=A0 =C2=A00.000000] =C2=A0 =C2=A0 1: 0x01c80000 -> 0x01e80000
->
-> The fix is straight-forward. isolate_migratepages() has to make a
-> similar check to isolate_freepage to ensure that it never isolates
-> pages from a zone it does not hold the LRU lock for.
->
-> This was discovered in a 3.0-based kernel but it affects 3.1.x, 3.2.x
-> and current mainline.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Cc: <stable@vger.kernel.org>
+On Wed, Feb 08, 2012 at 04:13:15PM -0600, Christoph Lameter wrote:
+> On Wed, 8 Feb 2012, Mel Gorman wrote:
+> 
+> > On Wed, Feb 08, 2012 at 01:49:05PM -0600, Christoph Lameter wrote:
+> > > On Wed, 8 Feb 2012, Mel Gorman wrote:
+> > >
+> > > > Ok, I looked into what is necessary to replace these with checking a page
+> > > > flag and the cost shifts quite a bit and ends up being more expensive.
+> > >
+> > > That is only true if you go the slab route.
+> >
+> > Well, yes but both slab and slub have to be supported. I see no reason
+> > why I would choose to make this a slab-only or slub-only feature. Slob is
+> > not supported because it's not expected that a platform using slob is also
+> > going to use network-based swap.
+> 
+> I think so far the patches in particular to slab.c are pretty significant
+> in impact.
+> 
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Ok, I am working on a solution that does not affect any of the existing
+slab structures. Between that and the fact we check if there are any
+memalloc_socks after patch 12, the impact for normal systems is an additional
+branch in ac_get_obj() and ac_put_obj()
 
-> ---
-> =C2=A0mm/compaction.c | =C2=A0 11 ++++++++++-
-> =C2=A01 files changed, 10 insertions(+), 1 deletions(-)
+> > > Slab suffers from not having
+> > > the page struct pointer readily available. The changes are likely already
+> > > impacting slab performance without the virt_to_page patch.
+> > >
+> >
+> > The performance impact only comes into play when swap is on a network
+> > device and pfmemalloc reserves are in use. The rest of the time the check
+> > on ac avoids all the cost and there is a micro-optimisation later to avoid
+> > calling a function (patch 12).
+> 
+> We have been down this road too many times. Logic is added to critical
+> paths and memory structures grow. This is not free. And for NBD swap
+> support? Pretty exotic use case.
+> 
+
+NFS support is the real target. NBD is the logical starting point and
+NFS needs the same support.
+
+> > Ok, are you asking that I use the page flag for slub and leave kmem_cache_cpu
+> > alone in the slub case? I can certainly check it out if that's what you
+> > are asking for.
+> 
+> No I am not asking for something. Still thinking about the best way to
+> address the issues. I think we can easily come up with a minimally
+> invasive patch for slub. Not sure about slab at this point. I think we
+> could avoid most of the new fields but this requires some tinkering. I
+> have a day @ home tomorrow which hopefully gives me a chance to
+> put some focus on this issue.
 >
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index bd6e739..6042644 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -330,8 +330,17 @@ static isolate_migrate_t isolate_migratepages(struct=
- zone *zone,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0continue;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_scanned++;
->
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Get the page and sk=
-ip if free */
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Get the page a=
-nd ensure the page is within the same zone.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* See the commen=
-t in isolate_freepages about overlapping
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* nodes. It is d=
-eliberate that the new zone lock is not taken
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* as memory comp=
-action should not move pages between nodes.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D pfn_to_pa=
-ge(low_pfn);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (page_zone(page) !=
-=3D zone)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 continue;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Skip if free */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageBuddy(page=
-))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0continue;
->
->
-> --
-> Mel Gorman
-> SUSE Labs
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
->
->
+
+I think we can avoid adding any additional fields but array_cache needs
+a new read-mostly global. Also, when network storage is in use and under
+memory pressure, it might be slower as we will have lost granularity on
+what slabs are using pfmemalloc. That is an acceptable compromise as it
+moves the cost to users of network-based swap instead of normal usage.
+ 
+> > I did come up with a way: the necessary information is in ac and slabp
+> > on slab :/ . There are not exactly many ways that the information can
+> > be recorded.
+> 
+> Wish we had something that would not involve increasing the number of
+> fields in these slab structures.
+> 
+
+This is what I currently have. It's untested but builds. It reverts the
+structures back to the way they were and uses page flags instead.
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e90a673..f96fa87 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -432,6 +432,28 @@ static inline int PageTransCompound(struct page *page)
+ }
+ #endif
+ 
++/*
++ * If network-based swap is enabled, sl*b must keep track of whether pages
++ * were allocated from pfmemalloc reserves.
++ */
++static inline int PageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	return PageActive(page);
++}
++
++static inline void SetPageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	SetPageActive(page);
++}
++
++static inline void ClearPageSlabPfmemalloc(struct page *page)
++{
++	VM_BUG_ON(!PageSlab(page));
++	ClearPageActive(page);
++}
++
+ #ifdef CONFIG_MMU
+ #define __PG_MLOCKED		(1 << PG_mlocked)
+ #else
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 1d9ae40..a32bcfd 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -46,7 +46,6 @@ struct kmem_cache_cpu {
+ 	struct page *page;	/* The slab from which we are allocating */
+ 	struct page *partial;	/* Partially allocated frozen slabs */
+ 	int node;		/* The node of the page (or -1 for debug) */
+-	bool pfmemalloc;	/* Slab page had pfmemalloc set */
+ #ifdef CONFIG_SLUB_STATS
+ 	unsigned stat[NR_SLUB_STAT_ITEMS];
+ #endif
+diff --git a/mm/slab.c b/mm/slab.c
+index 268cd96..783a92e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -155,6 +155,12 @@
+ #define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
+ #endif
+ 
++/*
++ * true if a page was allocated from pfmemalloc reserves for network-based
++ * swap
++ */
++static bool pfmemalloc_active;
++
+ /* Legal flag mask for kmem_cache_create(). */
+ #if DEBUG
+ # define CREATE_MASK	(SLAB_RED_ZONE | \
+@@ -233,7 +239,6 @@ struct slab {
+ 			unsigned int inuse;	/* num of objs active in slab */
+ 			kmem_bufctl_t free;
+ 			unsigned short nodeid;
+-			bool pfmemalloc;	/* Slab had pfmemalloc set */
+ 		};
+ 		struct slab_rcu __slab_cover_slab_rcu;
+ 	};
+@@ -255,8 +260,7 @@ struct array_cache {
+ 	unsigned int avail;
+ 	unsigned int limit;
+ 	unsigned int batchcount;
+-	bool touched;
+-	bool pfmemalloc;
++	unsigned int touched;
+ 	spinlock_t lock;
+ 	void *entry[];	/*
+ 			 * Must have this definition in here for the proper
+@@ -978,6 +982,13 @@ static struct array_cache *alloc_arraycache(int node, int entries,
+ 	return nc;
+ }
+ 
++static inline bool is_slab_pfmemalloc(struct slab *slabp)
++{
++	struct page *page = virt_to_page(slabp->s_mem);
++
++	return PageSlabPfmemalloc(page);
++}
++
+ /* Clears ac->pfmemalloc if no slabs have pfmalloc set */
+ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 						struct array_cache *ac)
+@@ -985,22 +996,22 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 	struct kmem_list3 *l3 = cachep->nodelists[numa_mem_id()];
+ 	struct slab *slabp;
+ 
+-	if (!ac->pfmemalloc)
++	if (!pfmemalloc_active)
+ 		return;
+ 
+ 	list_for_each_entry(slabp, &l3->slabs_full, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+ 	list_for_each_entry(slabp, &l3->slabs_partial, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+ 	list_for_each_entry(slabp, &l3->slabs_free, list)
+-		if (slabp->pfmemalloc)
++		if (is_slab_pfmemalloc(slabp))
+ 			return;
+ 
+-	ac->pfmemalloc = false;
++	pfmemalloc_active = false;
+ }
+ 
+ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+@@ -1036,7 +1047,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 		l3 = cachep->nodelists[numa_mem_id()];
+ 		if (!list_empty(&l3->slabs_free) && force_refill) {
+ 			struct slab *slabp = virt_to_slab(objp);
+-			slabp->pfmemalloc = false;
++			ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
+ 			clear_obj_pfmemalloc(&objp);
+ 			check_ac_pfmemalloc(cachep, ac);
+ 			return objp;
+@@ -1066,13 +1077,10 @@ static inline void *ac_get_obj(struct kmem_cache *cachep,
+ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 								void *objp)
+ {
+-	struct slab *slabp;
+-
+-	/* If there are pfmemalloc slabs, check if the object is part of one */
+-	if (unlikely(ac->pfmemalloc)) {
+-		slabp = virt_to_slab(objp);
+-
+-		if (slabp->pfmemalloc)
++	if (unlikely(pfmemalloc_active)) {
++		/* Some pfmemalloc slabs exist, check if this is one */
++		struct page *page = virt_to_page(objp);
++		if (PageSlabPfmemalloc(page))
+ 			set_obj_pfmemalloc(&objp);
+ 	}
+ 
+@@ -1906,9 +1914,13 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	else
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
+-	for (i = 0; i < nr_pages; i++)
++	for (i = 0; i < nr_pages; i++) {
+ 		__SetPageSlab(page + i);
+ 
++		if (*pfmemalloc)
++			SetPageSlabPfmemalloc(page);
++	}
++
+ 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+ 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
+ 
+@@ -2888,7 +2900,6 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
+ 	slabp->s_mem = objp + colour_off;
+ 	slabp->nodeid = nodeid;
+ 	slabp->free = 0;
+-	slabp->pfmemalloc = false;
+ 	return slabp;
+ }
+ 
+@@ -3075,11 +3086,8 @@ static int cache_grow(struct kmem_cache *cachep,
+ 		goto opps1;
+ 
+ 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+-	if (pfmemalloc) {
+-		struct array_cache *ac = cpu_cache_get(cachep);
+-		slabp->pfmemalloc = true;
+-		ac->pfmemalloc = true;
+-	}
++	if (unlikely(pfmemalloc))
++		pfmemalloc_active = pfmemalloc;
+ 
+ 	slab_map_pages(cachep, slabp, objp);
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index ea04994..f9b0f35 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2126,7 +2126,8 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+ 		stat(s, ALLOC_SLAB);
+ 		c->node = page_to_nid(page);
+ 		c->page = page;
+-		c->pfmemalloc = pfmemalloc;
++		if (pfmemalloc)
++			SetPageSlabPfmemalloc(page);
+ 		*pc = c;
+ 	} else
+ 		object = NULL;
+@@ -2136,7 +2137,7 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+ 
+ static inline bool pfmemalloc_match(struct kmem_cache_cpu *c, gfp_t gfpflags)
+ {
+-	if (unlikely(c->pfmemalloc))
++	if (unlikely(PageSlabPfmemalloc(c->page)))
+ 		return gfp_pfmemalloc_allowed(gfpflags);
+ 
+ 	return true;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
