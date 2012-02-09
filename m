@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 3046F6B13F4
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 13:34:06 -0500 (EST)
-Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 9 Feb 2012 13:33:59 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id E7D756E804B
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 13:29:11 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q19ISnrh399352
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 13:28:49 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q19ISlqa005905
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 13:28:49 -0500
-Message-ID: <4F341055.2020106@linux.vnet.ibm.com>
-Date: Thu, 09 Feb 2012 12:28:37 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 12DAC6B002C
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 14:54:02 -0500 (EST)
+Date: Thu, 9 Feb 2012 13:53:58 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+In-Reply-To: <20120209125018.GN5938@suse.de>
+Message-ID: <alpine.DEB.2.00.1202091345540.4413@router.home>
+References: <1328568978-17553-1-git-send-email-mgorman@suse.de> <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home>
+ <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home> <20120208212323.GM5938@suse.de> <alpine.DEB.2.00.1202081557540.5970@router.home> <20120209125018.GN5938@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] staging: zcache: replace xvmalloc with zsmalloc
-References: <1326149520-31720-1-git-send-email-sjenning@linux.vnet.ibm.com> <1326149520-31720-4-git-send-email-sjenning@linux.vnet.ibm.com> <20120209011326.GA2225@kroah.com> <4F33DE6F.80308@linux.vnet.ibm.com> <20120209181339.GA1360@kroah.com>
-In-Reply-To: <20120209181339.GA1360@kroah.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Brian King <brking@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 02/09/2012 12:13 PM, Greg KH wrote:
-> On Thu, Feb 09, 2012 at 08:55:43AM -0600, Seth Jennings wrote:
->> On 02/08/2012 07:13 PM, Greg KH wrote:
->>> On Mon, Jan 09, 2012 at 04:51:58PM -0600, Seth Jennings wrote:
->>>> Replaces xvmalloc with zsmalloc as the persistent memory allocator
->>>> for zcache
->>>>
->>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>>
->>> This patch no longer applies :(
->>
->> Looks like my "staging: zcache: fix serialization bug in zv stats"
->> patch didn't go in first.  There is an order dependency there.
->> https://lkml.org/lkml/2012/1/9/403
->>
->> Let me know if there is still an issue after applying that patch.
-> 
-> Hm, that one went into a different branch, that's what happened here.
-> 
-> Can you resend me that patch, and this one, so I can apply both to my
-> staging-next branch?
+On Thu, 9 Feb 2012, Mel Gorman wrote:
 
-I just sent them to you offlist to avoid noise.  The are based on your
-staging-next branch.
+> Ok, I am working on a solution that does not affect any of the existing
+> slab structures. Between that and the fact we check if there are any
+> memalloc_socks after patch 12, the impact for normal systems is an additional
+> branch in ac_get_obj() and ac_put_obj()
 
-Thanks,
-Seth
+That sounds good in particular since some other things came up again,
+sigh. Have not had time to see if an alternate approach works.
+
+> > We have been down this road too many times. Logic is added to critical
+> > paths and memory structures grow. This is not free. And for NBD swap
+> > support? Pretty exotic use case.
+> >
+>
+> NFS support is the real target. NBD is the logical starting point and
+> NFS needs the same support.
+
+But this is already a pretty strange use case on multiple levels. Swap is
+really detrimental to performance. Its a kind of emergency outlet that
+gets worse with every new step that increases the differential in
+performance between disk and memory. On top of that you want to add
+special code in various subsystems to also do that over the network.
+Sigh. I think we agreed a while back that we want to limit the amount of
+I/O triggered from reclaim paths? AFAICT many filesystems do not support
+writeout from reclaim anymore because of all the issues that arise at that
+level.
+
+We have numerous other mechanisms that can compress swap etc and provide
+ways to work around the problem without I/O which has always be
+troublesome and these fixes are likely only to work in a very limited
+way causing a lot of maintenance effort because (given the exotic
+nature) it is highly likely that there are cornercases that only will be
+triggered in rare cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
