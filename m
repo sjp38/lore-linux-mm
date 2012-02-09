@@ -1,66 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 97B8E6B13F0
-	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 20:00:46 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8E9F13EE0C2
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 10:00:44 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 723EA45DE4D
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 10:00:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46AA545DE53
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 10:00:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 356BF1DB8043
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 10:00:44 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E06A31DB803C
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 10:00:43 +0900 (JST)
-Date: Fri, 10 Feb 2012 09:59:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6] pagemap: introduce data structure for pagemap entry
-Message-Id: <20120210095919.b6236781.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120209162741.283ecb76.akpm@linux-foundation.org>
-References: <1328716302-16871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1328716302-16871-7-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<20120209162741.283ecb76.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id DFE7F6B13F0
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 20:33:28 -0500 (EST)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 9 Feb 2012 18:33:27 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id A46A81FF0049
+	for <linux-mm@kvack.org>; Thu,  9 Feb 2012 18:33:24 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1A1XO0j078630
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 18:33:24 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1A1XMA8032363
+	for <linux-mm@kvack.org>; Thu, 9 Feb 2012 18:33:24 -0700
+Date: Thu, 9 Feb 2012 15:41:45 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+Message-ID: <20120209234144.GC2458@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20120202153437.GD2518@linux.vnet.ibm.com>
+ <4F2AB66C.2030309@redhat.com>
+ <20120202170134.GM2518@linux.vnet.ibm.com>
+ <4F2AC69B.7000704@redhat.com>
+ <20120202175155.GV2518@linux.vnet.ibm.com>
+ <4F2E7311.8060808@redhat.com>
+ <20120205165927.GH2467@linux.vnet.ibm.com>
+ <20120209152155.GA22552@somewhere.redhat.com>
+ <4F33EEB3.4080807@redhat.com>
+ <20120209182216.GG22552@somewhere.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120209182216.GG22552@somewhere.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Avi Kivity <avi@redhat.com>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Thu, 9 Feb 2012 16:27:41 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed,  8 Feb 2012 10:51:42 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Currently a local variable of pagemap entry in pagemap_pte_range()
-> > is named pfn and typed with u64, but it's not correct (pfn should
-> > be unsigned long.)
-> > This patch introduces special type for pagemap entry and replace
-> > code with it.
+On Thu, Feb 09, 2012 at 07:22:19PM +0100, Frederic Weisbecker wrote:
+> On Thu, Feb 09, 2012 at 06:05:07PM +0200, Avi Kivity wrote:
+> > On 02/09/2012 05:22 PM, Frederic Weisbecker wrote:
+> > > > > 
+> > > > > Looks like there are new rcu_user_enter() and rcu_user_exit() APIs which
+> > > > > we can use.  Hopefully they subsume rcu_virt_note_context_switch() so we
+> > > > > only need one set of APIs.
+> > > > 
+> > > > Now that you mention it, that is a good goal.  However, it requires
+> > > > coordination with Frederic's code as well, so some investigation
+> > > > is required.  Bad things happen if you tell RCU you are idle when you
+> > > > really are not and vice versa!
+> > > > 
+> > > > 							Thanx, Paul
+> > > > 
+> > >
+> > > Right. Avi I need to know more about what you need. rcu_virt_note_context_switch()
+> > > notes a quiescent state while rcu_user_enter() shuts down RCU (it's in fact the same
+> > > thing than rcu_idle_enter() minus the is_idle_cpu() checks).
 > > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > 
-> > Changes since v4:
-> >   - Rename pme_t to pagemap_entry_t
+> > I don't know enough about RCU to say if it's okay or not (I typically
+> > peek at the quick quiz answers).  However, switching to guest mode is
+> > very similar to exiting to user mode: we're guaranteed not to be in an
+> > rcu critical section, and to remain so until the guest exits back to
+> > us.
 > 
-> hm.  Why this change?  I'd have thought that this should be called
-> pme_t.  And defined in or under pgtable.h, rather than being private to
-> fs/proc/task_mmu.c.
+> Awesome!
 > 
+> > What guarantees does rcu_user_enter() provide?  With luck guest
+> > entry satisifies them all.
+> 
+> So rcu_user_enter() puts the CPU into RCU idle mode, which means the CPU
+> won't need to be part of the global RCU grace period completion. This
+> prevents it to depend on the timer tick (although for now you keep it)
+> and to complete some RCU specific work during the tick.
+> 
+> Paul, do you think that would be a win?
 
-Ah, he changed the name because I complained "pme_t seems a new page table entry
-type.." 
+As long as the code doesn't enter RCU read-side critical sections in
+the time between rcu_idle_enter() and rcu_idle_exit(), this should
+work fine.
 
-Regards,
--Kame
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
