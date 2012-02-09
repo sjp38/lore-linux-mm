@@ -1,76 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 13B776B002C
-	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 18:58:01 -0500 (EST)
-Received: by ghrr18 with SMTP id r18so754153ghr.14
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2012 15:58:00 -0800 (PST)
-Date: Thu, 9 Feb 2012 00:57:55 +0100
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH] selftests: Launch individual selftests from the main
- Makefile
-Message-ID: <20120208235752.GE25473@somewhere.redhat.com>
-References: <20120205081555.GA2249@darkstar.redhat.com>
- <20120206155340.b9075240.akpm@linux-foundation.org>
- <20120208034055.GA23894@somewhere.redhat.com>
- <20120208152022.1016434f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120208152022.1016434f.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 5ABA96B002C
+	for <linux-mm@kvack.org>; Wed,  8 Feb 2012 19:03:46 -0500 (EST)
+Date: Wed, 8 Feb 2012 16:03:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v8 4/8] smp: add func to IPI cpus based on parameter
+ func
+Message-Id: <20120208160344.88d187e5.akpm@linux-foundation.org>
+In-Reply-To: <op.v9csppvv3l0zgt@mpn-glaptop>
+References: <1328448800-15794-1-git-send-email-gilad@benyossef.com>
+	<1328449722-15959-3-git-send-email-gilad@benyossef.com>
+	<op.v9csppvv3l0zgt@mpn-glaptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Young <dyoung@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, penberg@kernel.org, fengguang.wu@intel.com, cl@linux.com
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-kernel@vger.kernel.org, Gilad Ben-Yossef <gilad@benyossef.com>, Chris Metcalf <cmetcalf@tilera.com>, Christoph Lameter <cl@linux-foundation.org>, Frederic Weisbecker <fweisbec@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Avi Kivity <avi@redhat.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Wed, Feb 08, 2012 at 03:20:22PM -0800, Andrew Morton wrote:
-> On Wed, 8 Feb 2012 04:40:59 +0100
-> Frederic Weisbecker <fweisbec@gmail.com> wrote:
-> 
-> > Drop the run_tests script and launch the selftests by calling
-> > "make run_tests" from the selftests top directory instead. This
-> > delegates to the Makefile on each selftest directory where it
-> > is decided how to launch the local test.
-> > 
-> > This drops the need to add each selftest directory on the
-> > now removed "run_tests" top script.
-> 
-> Looks good.
-> 
-> I did
-> 
-> 	cd tools/testing/selftests
-> 	make run_tests
-> 
-> and it didn't work.  This?
-> 
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: selftests/Makefile: make `run_tests' depend on `all'
-> 
-> So a "make run_tests" will build the tests before trying to run them.
-> 
-> Cc: Frederic Weisbecker <fweisbec@gmail.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  tools/testing/selftests/Makefile |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff -puN tools/testing/selftests/Makefile~a tools/testing/selftests/Makefile
-> --- a/tools/testing/selftests/Makefile~a
-> +++ a/tools/testing/selftests/Makefile
-> @@ -5,7 +5,7 @@ all:
->  		make -C $$TARGET; \
->  	done;
->  
-> -run_tests:
-> +run_tests: all
->  	for TARGET in $(TARGETS); do \
->  		make -C $$TARGET run_tests; \
->  	done;
+On Wed, 08 Feb 2012 10:30:51 +0100
+"Michal Nazarewicz" <mina86@mina86.com> wrote:
 
-Yeah that's good. Thanks!
+> >  	} while (0)
+> > +/*
+> > + * Preemption is disabled here to make sure the
+> > + * cond_func is called under the same condtions in UP
+> > + * and SMP.
+> > + */
+> > +#define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags) \
+> > +	do {						\
+> 
+> How about:
+> 
+> 		void *__info = (info);
+> 
+> as to avoid double execution.
+
+Yup.  How does this look?
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: smp-add-func-to-ipi-cpus-based-on-parameter-func-update-fix
+
+- avoid double-evaluation of `info' (per Michal)
+- parenthesise evaluation of `cond_func'
+
+Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/smp.h |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+--- a/include/linux/smp.h~smp-add-func-to-ipi-cpus-based-on-parameter-func-update-fix
++++ a/include/linux/smp.h
+@@ -168,10 +168,11 @@ static inline int up_smp_call_function(s
+  */
+ #define on_each_cpu_cond(cond_func, func, info, wait, gfp_flags)\
+ 	do {							\
++		void *__info = (info);				\
+ 		preempt_disable();				\
+-		if (cond_func(0, info)) {			\
++		if ((cond_func)(0, __info)) {			\
+ 			local_irq_disable();			\
+-			(func)(info);				\
++			(func)(__info);				\
+ 			local_irq_enable();			\
+ 		}						\
+ 		preempt_enable();				\
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
