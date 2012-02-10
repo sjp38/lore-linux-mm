@@ -1,89 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id A1F246B13F2
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 15:39:04 -0500 (EST)
-Received: by vcbf13 with SMTP id f13so1837880vcb.14
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 12:39:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9083F6B13F0
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 16:01:41 -0500 (EST)
+Date: Fri, 10 Feb 2012 15:01:37 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+In-Reply-To: <20120210102605.GO5938@suse.de>
+Message-ID: <alpine.DEB.2.00.1202101443570.31424@router.home>
+References: <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home> <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home>
+ <20120208212323.GM5938@suse.de> <alpine.DEB.2.00.1202081557540.5970@router.home> <20120209125018.GN5938@suse.de> <alpine.DEB.2.00.1202091345540.4413@router.home> <20120210102605.GO5938@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <1328905759.25989.57.camel@laptop>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	<1327591185.2446.102.camel@twins>
-	<CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
-	<20120201170443.GE6731@somewhere.redhat.com>
-	<CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
-	<4F2AAEB9.9070302@tilera.com>
-	<CAOtvUMfE3xpwmRKnFPTsstr3SuUG7SnpWn5eomEQzkap4_nfrg@mail.gmail.com>
-	<1328899148.25989.38.camel@laptop>
-	<CAOtvUMfZ-sfTd-WTV=+RcerTk6ejC2mmjrMGg8KkdMR=RaV+CA@mail.gmail.com>
-	<1328905759.25989.57.camel@laptop>
-Date: Fri, 10 Feb 2012 22:39:02 +0200
-Message-ID: <CAOtvUMeaL8-9wYYrC-05P95ZcYHnV5as0bjjv9gJSHKN+EFz0w@mail.gmail.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Fri, Feb 10, 2012 at 10:29 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> w=
-rote:
-> On Fri, 2012-02-10 at 22:13 +0200, Gilad Ben-Yossef wrote:
->> My current understanding is that if I have a real time task and wish it
->> have a deterministic performance time, you should call mlockall() to loc=
-k
->> the program data and text into physical memory so that =A0a =A0less ofte=
-n taken
->> branch or access to a new data region will not result in a page fault.
->>
->> You still have to worry about TLB misses on non hardware page table
->> walk architecture, but at least everything is in the =A0page tables
->>
->> If there is a better way to do this? I'm always happy to learn new
->> ways to do things. :-)
+On Fri, 10 Feb 2012, Mel Gorman wrote:
+
+> I have an updated version of this 02/15 patch below. It passed testing
+> and is a lot less invasive than the previous release. As you suggested,
+> it uses page flags and the bulk of the complexity is only executed if
+> someone is using network-backed storage.
+
+Hmmm.. hmm... Still modifies the hotpaths of the allocators for a
+pretty exotic feature.
+
+> > On top of that you want to add
+> > special code in various subsystems to also do that over the network.
+> > Sigh. I think we agreed a while back that we want to limit the amount of
+> > I/O triggered from reclaim paths?
 >
-> A rt application usually consists of a lot of non-rt parts and a usually
-> relatively small rt part. Using mlockall() pins the entire application
-> into memory, which while on the safe side is very often entirely too
-> much.
+> Specifically we wanted to reduce or stop page reclaim calling ->writepage()
+> for file-backed pages because it generated awful IO patterns and deep
+> call stacks. We still write anonymous pages from page reclaim because we
+> do not have a dedicated thread for writing to swap. It is expected that
+> the call stack for writing to network storage would be less than a
+> filesystem.
 >
-> The alternative method is to only mlock the text and data used by the rt
-> part. You need to be aware of what text runs in your rt part anyway,
-> since you need to make sure it is in fact deterministic code.
+> > AFAICT many filesystems do not support
+> > writeout from reclaim anymore because of all the issues that arise at that
+> > level.
+> >
 >
-> One of the ways of achieving this is using a special linker section for
-> your vetted rt code and mlock()'ing only that text section.
+> NBD is a block device so filesystem restrictions like you mention do not
+> apply. In NFS, the direct_IO paths are used to write pages not
+> ->writepage so again the restriction does not apply.
+
+Block devices are a little simpler ok. But it is still not a desirable
+thing to do (just think about raid and other complex filesystems that may
+also have to do allocations).I do not think that block device writers
+code with the VM in mind. In the case of network devices as block devices
+we have a pretty serious problem since the network subsystem is certainly
+not designed to be called from VM reclaim code that may be triggered
+arbitrarily from deeply nested other code in the kernel. Implementing
+something like this invites breakage all over the place to show up.
+
+> index 8b3b8cf..6a3fa1c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -695,6 +695,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+>  	trace_mm_page_free(page, order);
+>  	kmemcheck_free_shadow(page, order);
 >
-> On thread creation, provide a custom allocated (and mlock()'ed) stack
-> etc..
+> +	page->pfmemalloc = false;
+>  	if (PageAnon(page))
+>  		page->mapping = NULL;
+>  	for (i = 0; i < (1 << order); i++)
+> @@ -1221,6 +1222,7 @@ void free_hot_cold_page(struct page *page, int cold)
 >
-> Basically, if you can't tell a-priory what code is part of your rt part,
-> you don't have an rt part ;-)
+>  	migratetype = get_pageblock_migratetype(page);
+>  	set_page_private(page, migratetype);
+> +	page->pfmemalloc = false;
+>  	local_irq_save(flags);
+>  	if (unlikely(wasMlocked))
+>  		free_page_mlock(page);
+
+page allocator hotpaths affected.
+
+> diff --git a/mm/slab.c b/mm/slab.c
+> index f0bd785..f322dc2 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -123,6 +123,8 @@
 >
+>  #include <trace/events/kmem.h>
+>
+> +#include	"internal.h"
+> +
+>  /*
+>   * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
+>   *		  0 for faster, smaller code (especially in the critical paths).
+> @@ -151,6 +153,12 @@
+>  #define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
+>  #endif
+>
+> +/*
+> + * true if a page was allocated from pfmemalloc reserves for network-based
+> + * swap
+> + */
+> +static bool pfmemalloc_active;
 
-That I can totally agree with.
+Implying an additional cacheline use in critical slab paths? Hopefully
+grouped with other variables already in cache.
 
-I guess mlockall() is still useful as a kind of hack for lazy people,
-although if you say that this kind of laziness does not really mix
-well with real
-time programming I will tend to agree... :-)
+> @@ -3243,23 +3380,35 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+>  {
+>  	void *objp;
+>  	struct array_cache *ac;
+> +	bool force_refill = false;
 
-Gilad
+... hitting the hotpath here.
+
+> @@ -3693,12 +3845,12 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+>
+>  	if (likely(ac->avail < ac->limit)) {
+>  		STATS_INC_FREEHIT(cachep);
+> -		ac->entry[ac->avail++] = objp;
+> +		ac_put_obj(cachep, ac, objp);
+>  		return;
+>  	} else {
+>  		STATS_INC_FREEMISS(cachep);
+>  		cache_flusharray(cachep, ac);
+> -		ac->entry[ac->avail++] = objp;
+> +		ac_put_obj(cachep, ac, objp);
+>  	}
+>  }
+
+and here.
 
 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 4907563..8eed0de 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+> @@ -2304,8 +2327,8 @@ redo:
+>  	barrier();
+>
+>  	object = c->freelist;
+> -	if (unlikely(!object || !node_match(c, node)))
+> -
+> +	if (unlikely(!object || !node_match(c, node) ||
+> +					!pfmemalloc_match(c, gfpflags)))
+>  		object = __slab_alloc(s, gfpflags, node, addr, c);
+>
+>  	else {
 
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
-=A0-- Jean-Baptiste Queru
+
+Modification to hotpath. That could be fixed here by forcing pfmemalloc
+(like debug allocs) to always go to the slow path and checking in there
+instead. Just keep c->freelist == NULL.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
