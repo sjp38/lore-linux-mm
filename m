@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8AEE86B13F1
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 15:29:34 -0500 (EST)
-Received: from 178-85-86-190.dynamic.upc.nl ([178.85.86.190] helo=dyad.programming.kicks-ass.net)
-	by casper.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
-	id 1Rvx64-0004uX-MM
-	for linux-mm@kvack.org; Fri, 10 Feb 2012 20:29:32 +0000
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <CAOtvUMfZ-sfTd-WTV=+RcerTk6ejC2mmjrMGg8KkdMR=RaV+CA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 31DE46B13F2
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 15:33:17 -0500 (EST)
+Received: by vcbf13 with SMTP id f13so1832992vcb.14
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 12:33:16 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1328898816.25989.33.camel@laptop>
 References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>
-	 <1327591185.2446.102.camel@twins>
-	 <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
-	 <20120201170443.GE6731@somewhere.redhat.com>
-	 <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
-	 <4F2AAEB9.9070302@tilera.com>
-	 <CAOtvUMfE3xpwmRKnFPTsstr3SuUG7SnpWn5eomEQzkap4_nfrg@mail.gmail.com>
-	 <1328899148.25989.38.camel@laptop>
-	 <CAOtvUMfZ-sfTd-WTV=+RcerTk6ejC2mmjrMGg8KkdMR=RaV+CA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 10 Feb 2012 21:29:19 +0100
-Message-ID: <1328905759.25989.57.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	<1327591185.2446.102.camel@twins>
+	<CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>
+	<20120201170443.GE6731@somewhere.redhat.com>
+	<CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
+	<4F2AAEB9.9070302@tilera.com>
+	<1328898816.25989.33.camel@laptop>
+Date: Fri, 10 Feb 2012 22:33:14 +0200
+Message-ID: <CAOtvUMcBpWRj3CmvaARH727YMKgEepS7sOaseUdTBRHq9P6oUw@mail.gmail.com>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Chris Metcalf <cmetcalf@tilera.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Fri, 2012-02-10 at 22:13 +0200, Gilad Ben-Yossef wrote:
-> My current understanding is that if I have a real time task and wish it
-> have a deterministic performance time, you should call mlockall() to lock
-> the program data and text into physical memory so that  a  less often taken
-> branch or access to a new data region will not result in a page fault.
-> 
-> You still have to worry about TLB misses on non hardware page table
-> walk architecture, but at least everything is in the  page tables
-> 
-> If there is a better way to do this? I'm always happy to learn new
-> ways to do things. :-) 
+[Sent originally to Peter only by some weird gmail quirk. Re sending to all=
+]
 
-A rt application usually consists of a lot of non-rt parts and a usually
-relatively small rt part. Using mlockall() pins the entire application
-into memory, which while on the safe side is very often entirely too
-much.
+On Fri, Feb 10, 2012 at 8:33 PM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
+ote:
+> On Thu, 2012-02-02 at 10:41 -0500, Chris Metcalf wrote:
+>> At Tilera we have been supporting a "dataplane" mode (aka Zero Overhead
+>> Linux - the marketing name). =A0This is configured on a per-cpu basis, a=
+nd in
+>> addition to setting isolcpus for those nodes, also suppresses various
+>> things that might otherwise run (soft lockup detection, vmstat work,
+>> etc.).
+>
+> See that's wrong.. it starts being wrong by depending on cpuisol and
+> goes from there.
 
-The alternative method is to only mlock the text and data used by the rt
-part. You need to be aware of what text runs in your rt part anyway,
-since you need to make sure it is in fact deterministic code.
+Actually, correct me if I'm wrong Chris, but I don't think the idea is
+to adopt Tilera dataplane mode to mainline but rather treat it as a
+reference -
 
-One of the ways of achieving this is using a special linker section for
-your vetted rt code and mlock()'ing only that text section.
+It was develop to answer a specific need, scratch a personal itch, if you
+will, and was probably never designed for mass mainline consumption and
+it shows.
 
-On thread creation, provide a custom allocated (and mlock()'ed) stack
-etc..
+At the same time its code doing something similar in spirit to what we aim =
+to
+and has real word users. We would be foolish to ignore it.
 
-Basically, if you can't tell a-priory what code is part of your rt part,
-you don't have an rt part ;-)
+So, a good reference (for the good and bad), not merge request. Right Chris=
+? :-)
+
+Gilad
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+=A0-- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
