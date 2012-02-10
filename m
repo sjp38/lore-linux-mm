@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 5C12D6B002C
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 14:40:08 -0500 (EST)
-From: Dan Smith <danms@us.ibm.com>
-Subject: [PATCH] Ensure that walk_page_range()'s start and end are page-aligned
-Date: Fri, 10 Feb 2012 11:39:56 -0800
-Message-Id: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id AF0086B002C
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 14:42:22 -0500 (EST)
+Received: by bkty12 with SMTP id y12so3584330bkt.14
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 11:42:20 -0800 (PST)
+Subject: [PATCH 0/4] shmem: radix-tree cleanups and swapoff optimizations
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Fri, 10 Feb 2012 23:42:18 +0400
+Message-ID: <20120210193249.6492.18768.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 
-The inner function walk_pte_range() increments "addr" by PAGE_SIZE after
-each pte is processed, and only exits the loop if the result is equal to
-"end". Current, if either (or both of) the starting or ending addresses
-passed to walk_page_range() are not page-aligned, then we will never
-satisfy that exit condition and begin calling the pte_entry handler with
-bad data.
+Here some shmem patches related to the radix-tree iterator patchset,
+they cleans radix-tree usage in shmem and notably optimizes swapoff operation.
+Last patch is slightly off-topic, but it shares test results with previous patch.
 
-To be sure that we will land in the right spot, this patch checks that
-both "addr" and "end" are page-aligned in walk_page_range() before starting
-the traversal.
-
-Signed-off-by: Dan Smith <danms@us.ibm.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
 ---
- mm/pagewalk.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 2f5cf10..9242bfc 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -196,6 +196,8 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 	if (addr >= end)
- 		return err;
- 
-+	VM_BUG_ON((addr & ~PAGE_MASK) || (end & ~PAGE_MASK));
-+
- 	if (!walk->mm)
- 		return -EINVAL;
- 
+Konstantin Khlebnikov (4):
+      shmem: simlify shmem_unlock_mapping
+      shmem: tag swap entries in radix tree
+      shmem: use radix-tree iterator in shmem_unuse_inode()
+      mm: use swap readahead at swapoff
+
+
+ include/linux/radix-tree.h |    1 
+ lib/radix-tree.c           |   93 --------------------------------------------
+ mm/shmem.c                 |   60 ++++++++++++++++++++--------
+ mm/swapfile.c              |    3 -
+ 4 files changed, 44 insertions(+), 113 deletions(-)
+
 -- 
-1.7.9
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
